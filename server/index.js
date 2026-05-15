@@ -4,6 +4,7 @@ const companyController = require('./controllers/companyController');
 const financialYearController = require("./controllers/financialYearController"); 
 const groupController = require('./controllers/groupController');
 const ledgerController = require('./controllers/ledgerController');
+const costCentreController = require('./controllers/costController');
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -31,5 +32,12 @@ ipcMain.handle('ledger:getById', ledgerController.getById);
 ipcMain.handle('ledger:update', ledgerController.update);
 ipcMain.handle('ledger:delete', ledgerController.delete);
 ipcMain.handle('ledger:getByGroup', ledgerController.getByGroup);
+
+ipcMain.handle('costCentre:create', costCentreController.create);
+ipcMain.handle('costCentre:getAll', costCentreController.getAll);
+ipcMain.handle('costCentre:getById', costCentreController.getById);
+ipcMain.handle('costCentre:update', costCentreController.update);
+ipcMain.handle('costCentre:delete', costCentreController.delete);
+ipcMain.handle('costCetre:getTree', costCentreController.getTree);
 
 
