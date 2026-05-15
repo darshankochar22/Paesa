@@ -1,4 +1,6 @@
 const bcrypt = require('bcrypt');
+const groupService = require('./groupService');
+const ledgerService = require('./ledgerService'); 
 
 let companies = [];
 
@@ -31,10 +33,14 @@ module.exports = {
                 password: hashedPassword,
                 access_control: null,
                 edit_log: null,
-                created_at: new Date().toISOString,
+                created_at: new Date().toISOString(),
             };
 
             companies.push(company);
+            groupService.seedDefaultGroups(company.company_id);
+            
+            const allGroups = (await groupService.getAll(company.company_id)).groups;
+            ledgerService.seedDefaultLedgers(company.company_id, allGroups); 
             return { success: true, company };
         } catch (err) {
             return { success: false, error: err.message };
