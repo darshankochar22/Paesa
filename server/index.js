@@ -13,6 +13,8 @@ const godownController = require('./controllers/godownController');
 const voucherController = require('./controllers/voucherController');
 const reportController = require('./controllers/reportController');
 const bankingController = require('./controllers/bankingController');
+const currencyController = require('./controllers/currencyController');
+
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -105,3 +107,10 @@ ipcMain.handle('banking:reconcile', bankingController.reconcile);
 ipcMain.handle('banking:unreconcile', bankingController.unreconcile);
 ipcMain.handle('banking:getStatement', bankingController.getStatement);
 ipcMain.handle('banking:getSummary', bankingController.getSummary);
+
+ipcMain.handle('currency:create', currencyController.create);
+ipcMain.handle('currency:getAll', currencyController.getAll);
+ipcMain.handle('currency:getById', currencyController.getById);
+ipcMain.handle('currency:update', currencyController.update);
+ipcMain.handle('currency:delete', currencyController.delete);
+ipcMain.handle('currency:setDefault', currencyController.setDefault);
