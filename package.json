@@ -15,11 +15,11 @@
   "type": "commonjs",
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "electron": "^42.0.1",
+    "electron": "^42.1.0",
     "wait-on": "^9.0.10"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "better-sqlite3": "^12.10.0"
+    "@libsql/client": "^0.17.3",
+    "bcryptjs": "^3.0.3"
   }
 }

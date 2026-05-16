@@ -1,6 +1,6 @@
-const db = require('./index');
+const db = require("./index");
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS godowns (
     godown_id                   INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id                  INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,

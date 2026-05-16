@@ -1,6 +1,6 @@
-const db = require('./index');
+const db = require("./index");
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS ledgers (
     ledger_id                   INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id                  INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
@@ -35,7 +35,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS ledger_bank_details (
     id                            INTEGER PRIMARY KEY AUTOINCREMENT,
     ledger_id                     INTEGER NOT NULL REFERENCES ledgers(ledger_id) ON DELETE CASCADE,
@@ -54,7 +54,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS ledger_statutory_details (
     id                          INTEGER PRIMARY KEY AUTOINCREMENT,
     ledger_id                   INTEGER NOT NULL REFERENCES ledgers(ledger_id) ON DELETE CASCADE,

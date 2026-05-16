@@ -1,6 +1,6 @@
-const db = require('./index');
+const db = require("./index");
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS companies (
     company_id                    INTEGER PRIMARY KEY AUTOINCREMENT,
     name                          TEXT NOT NULL,

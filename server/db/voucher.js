@@ -1,6 +1,6 @@
-const db = require('./index');
+const db = require("./index");
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS vouchers (
     voucher_id          INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id          INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
@@ -26,7 +26,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS voucher_entries (
     entry_id      INTEGER PRIMARY KEY AUTOINCREMENT,
     voucher_id    INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
@@ -40,7 +40,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS voucher_stock_entries (
     stock_entry_id    INTEGER PRIMARY KEY AUTOINCREMENT,
     voucher_id        INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
@@ -61,7 +61,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS voucher_batches (
     batch_id        INTEGER PRIMARY KEY AUTOINCREMENT,
     voucher_id      INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
@@ -73,7 +73,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS voucher_bill_references (
     bill_id       INTEGER PRIMARY KEY AUTOINCREMENT,
     voucher_id    INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
@@ -85,7 +85,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS voucher_bank_details (
     bank_detail_id    INTEGER PRIMARY KEY AUTOINCREMENT,
     voucher_id        INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
@@ -99,7 +99,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS voucher_cost_centres (
     cc_entry_id   INTEGER PRIMARY KEY AUTOINCREMENT,
     voucher_id    INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,

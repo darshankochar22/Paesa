@@ -1,6 +1,6 @@
-const db = require('./index');
+const db = require("./index");
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS voucher_types (
     vt_id                 INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id            INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
@@ -22,7 +22,7 @@ db.exec(`
   )
 `);
 
-db.exec(`
+db.execute(`
   CREATE TABLE IF NOT EXISTS voucher_type_configs (
     config_id                             INTEGER PRIMARY KEY AUTOINCREMENT,
     voucher_type_id                       INTEGER NOT NULL REFERENCES voucher_types(vt_id) ON DELETE CASCADE,
