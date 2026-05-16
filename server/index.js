@@ -10,6 +10,8 @@ const stockGroupController = require('./controllers/stockGroupController');
 const stockCategoryController = require('./controllers/stockCategoryController');
 const stockItemController = require('./controllers/stockItemController');
 const godownController = require('./controllers/godownController');
+const voucherController = require('./controllers/voucherController');
+const reportController = require('./controllers/reportController');
 
 
 ipcMain.handle('company:create', companyController.create);
@@ -79,3 +81,21 @@ ipcMain.handle('godown:getById', godownController.getById);
 ipcMain.handle('godown:update', godownController.update);
 ipcMain.handle('godown:delete', godownController.delete);
 ipcMain.handle('godown:getTree', godownController.getTree);
+
+ipcMain.handle('voucher:create', voucherController.create);
+ipcMain.handle('voucher:getAll', voucherController.getAll);
+ipcMain.handle('voucher:getById', voucherController.getById);
+ipcMain.handle('voucher:update', voucherController.update);
+ipcMain.handle('voucher:delete', voucherController.delete);
+ipcMain.handle('voucher:cancel', voucherController.cancel);
+ipcMain.handle('voucher:getDaybook', voucherController.getDaybook);
+ipcMain.handle('voucher:getByType', voucherController.getByType);
+ipcMain.handle('voucher:getByLedger', voucherController.getByLedger);
+
+ipcMain.handle('report:trialBalance', reportController.trialBalance);
+ipcMain.handle('report:balanceSheet', reportController.balanceSheet);
+ipcMain.handle('report:profitLoss', reportController.profitLoss);
+ipcMain.handle('report:ledgerReport', reportController.ledgerReport);
+ipcMain.handle('report:cashBook', reportController.cashBook);
+ipcMain.handle('report:bankBook', reportController.bankBook);
+ipcMain.handle('report:daybook', reportController.daybook);
