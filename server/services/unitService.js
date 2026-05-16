@@ -1,4 +1,4 @@
-let units = [];
+const db = require('../db/index');
 
 const seedDefaultUnits = (company_id) => {
   const defaults = [
@@ -11,102 +11,122 @@ const seedDefaultUnits = (company_id) => {
     { name: 'Box',       symbol: 'Box',  unit_type: 'Simple', decimal_places: 0 },
   ];
 
-  defaults.forEach((u,i) => {
-    units.push({
-        id: Date.now() + i,
-        company_id,
-        name: u.name,
-        symbol: u.symbol,
-        formal_name: u.name,
-        decimal_places: u.decimal_places,
-        unit_quantity_code: null,
-        unit_type: u.unit_type,
-        is_simple: true,
-        is_active: true,
-        is_predefined: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+  const stmt = db.prepare(`
+    INSERT INTO units (company_id, name, symbol, formal_name, decimal_places, unit_quantity_code, unit_type, is_simple, is_active, is_predefined)
+    VALUES (@company_id, @name, @symbol, @formal_name, @decimal_places, @unit_quantity_code, @unit_type, @is_simple, @is_active, @is_predefined)
+  `);
+
+  defaults.forEach(u => {
+    stmt.run({
+      company_id:         company_id,
+      name:               u.name,
+      symbol:             u.symbol,
+      formal_name:        u.name,
+      decimal_places:     u.decimal_places,
+      unit_quantity_code: null,
+      unit_type:          u.unit_type,
+      is_simple:          1,
+      is_active:          1,
+      is_predefined:      1,
     });
   });
 };
 
 module.exports = {
-    seedDefaultUnits,
+  seedDefaultUnits,
 
-    create: async (data) => {
-        try {
-            const exists = units.find(
-               u => u.company_id === data.company_id &&
-               u.symbol.toLowercase() === data.symbol.toLowerCase()
-            );
-            if(exists) return { success: false, error:' Unit already exists' };
+  create: async (data) => {
+    try {
+      const exists = db.prepare(`
+        SELECT * FROM units WHERE company_id = ? AND LOWER(symbol) = LOWER(?) AND is_active = 1
+      `).get(data.company_id, data.symbol);
+      if (exists) return { success: false, error: 'Unit already exists' };
 
-            const unit = {
-                id: Date.now(),
-                company_id: data.company_id,
-                name: data.name,
-                symbol: data.symbol,
-                formal_name: data.formal_name || data.name,
-                decimal_places: data.decimal_places || 0,
-                unit_quantity_code: data.unit_quantity_code || null,
-                unit_type: data.unit_type || 'Simple',
-                is_simple: data.unit_type === 'Simple',
-                is_active: true,
-                is_predefined: false,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            };
+      const result = db.prepare(`
+        INSERT INTO units (company_id, name, symbol, formal_name, decimal_places, unit_quantity_code, unit_type, is_simple, is_active, is_predefined)
+        VALUES (@company_id, @name, @symbol, @formal_name, @decimal_places, @unit_quantity_code, @unit_type, @is_simple, @is_active, @is_predefined)
+      `).run({
+        company_id:         data.company_id,
+        name:               data.name,
+        symbol:             data.symbol,
+        formal_name:        data.formal_name || data.name,
+        decimal_places:     data.decimal_places || 0,
+        unit_quantity_code: data.unit_quantity_code || null,
+        unit_type:          data.unit_type || 'Simple',
+        is_simple:          data.unit_type === 'Simple' ? 1 : 0,
+        is_active:          1,
+        is_predefined:      0,
+      });
 
-            units.push(unit);
-            return { success: true, unit };
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    },
+      const unit = db.prepare(`SELECT * FROM units WHERE unit_id = ?`).get(result.lastInsertRowid);
+      return { success: true, unit };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 
-    getAll: async (company_id) => {
-        try{
-            const result = units.filter(u => u.company_id === company_id && u.is_active );
-            return { success: true, units: result };
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    },
+  getAll: async (company_id) => {
+    try {
+      const units = db.prepare(`
+        SELECT * FROM units WHERE company_id = ? AND is_active = 1
+      `).all(company_id);
+      return { success: true, units };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 
+  getById: async (id) => {
+    try {
+      const unit = db.prepare(`SELECT * FROM units WHERE unit_id = ?`).get(id);
+      if (!unit) return { success: false, error: 'Unit not found' };
+      return { success: true, unit };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 
-    getById: async (id) => {
-        try{
-            const unit = units.find(u => u.id === id);
-            if(!unit) return { success: false, error: 'Unit not found' };
-            return { success: true, unit };
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    },
+  update: async (data) => {
+    try {
+      const unit = db.prepare(`SELECT * FROM units WHERE unit_id = ?`).get(data.unit_id);
+      if (!unit) return { success: false, error: 'Unit not found' };
+      if (unit.is_predefined) return { success: false, error: 'Cannot edit predefined units' };
 
-    update: async (data) => {
-        try {
-            const index = units.findIndex(u => u.id === data.id );
-            if(index === -1) return { success: false, error: 'Unit not found' };
-            if(units[index].is_predefined) return { success: true, error: 'Cannot edit predefined units' };
+      db.prepare(`
+        UPDATE units SET
+          name = @name, symbol = @symbol, formal_name = @formal_name,
+          decimal_places = @decimal_places, unit_quantity_code = @unit_quantity_code,
+          unit_type = @unit_type, is_simple = @is_simple,
+          updated_at = datetime('now')
+        WHERE unit_id = @unit_id
+      `).run({
+        unit_id:            data.unit_id,
+        name:               data.name ?? unit.name,
+        symbol:             data.symbol ?? unit.symbol,
+        formal_name:        data.formal_name ?? unit.formal_name,
+        decimal_places:     data.decimal_places ?? unit.decimal_places,
+        unit_quantity_code: data.unit_quantity_code ?? unit.unit_quantity_code,
+        unit_type:          data.unit_type ?? unit.unit_type,
+        is_simple:          data.unit_type === 'Simple' ? 1 : 0,
+      });
 
-            units[index] = {...units[index], ...data, updated_at: new Date().toISOString() };
-            return { success: true, unit: units[index] };
-        } catch (err){
-            return { success: false, error: err.message };
-        }
-    },
+      const updated = db.prepare(`SELECT * FROM units WHERE unit_id = ?`).get(data.unit_id);
+      return { success: true, unit: updated };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 
-    delete: async (id) => {
-        try{
-            const unit = units.find(u => u.id === id);
-            if(!unit) return { success: false, error: 'Unit not found' };
-            if(unit.is_predefined) return {success: false, error: 'Cannot delete predefined units' };
+  delete: async (id) => {
+    try {
+      const unit = db.prepare(`SELECT * FROM units WHERE unit_id = ?`).get(id);
+      if (!unit) return { success: false, error: 'Unit not found' };
+      if (unit.is_predefined) return { success: false, error: 'Cannot delete predefined units' };
 
-            units = units.map(u => u.id === id ? { ...u, is_active: false }: u);
-            return { success: true };
-        } catch (err){
-            return { success: false, error: err.message };
-        }
-    },
+      db.prepare(`UPDATE units SET is_active = 0 WHERE unit_id = ?`).run(id);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 };
