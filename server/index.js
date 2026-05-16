@@ -25,6 +25,10 @@ const companyCreationSuccessController = require('./controllers/companyCreationS
 const featureGroupController = require('./controllers/featureGroupController');
 const featureItemController = require('./controllers/featureItemController');
 const companyFeatureValuesController = require('./controllers/companyFeatureValuesController');
+const attendanceTypeController = require('./controllers/attendanceTypeController');
+const payHeadController = require('./controllers/payHeadController');
+const salaryStructureController = require('./controllers/salaryStructureController');
+
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -183,3 +187,23 @@ ipcMain.handle('companyFeatureValues:get', companyFeatureValuesController.get);
 ipcMain.handle('companyFeatureValues:getByGroup', companyFeatureValuesController.getByGroup);
 ipcMain.handle('companyFeatureValues:update', companyFeatureValuesController.update);
 ipcMain.handle('companyFeatureValues:updateBulk', companyFeatureValuesController.updateBulk);
+
+ipcMain.handle('attendanceType:create', attendanceTypeController.create);
+ipcMain.handle('attendanceType:getAll', attendanceTypeController.getAll);
+ipcMain.handle('attendanceType:getById', attendanceTypeController.getById);
+ipcMain.handle('attendanceType:update', attendanceTypeController.update);
+ipcMain.handle('attendanceType:delete', attendanceTypeController.delete);
+
+ipcMain.handle('payHead:create', payHeadController.create);
+ipcMain.handle('payHead:getAll', payHeadController.getAll);
+ipcMain.handle('payHead:getById', payHeadController.getById);
+ipcMain.handle('payHead:update', payHeadController.update);
+ipcMain.handle('payHead:delete', payHeadController.delete);
+
+ipcMain.handle('salaryStructure:create', salaryStructureController.create);
+ipcMain.handle('salaryStructure:getAll', salaryStructureController.getAll);
+ipcMain.handle('salaryStructure:getById', salaryStructureController.getById);
+ipcMain.handle('salaryStructure:getByEmployee', salaryStructureController.getByEmployee);
+ipcMain.handle('salaryStructure:update', salaryStructureController.update);
+ipcMain.handle('salaryStructure:delete', salaryStructureController.delete);
+ipcMain.handle('salaryStructure:createBulk', salaryStructureController.createBulk);

@@ -13,6 +13,8 @@ const payrollUnitService = require("./payrollUnitService");
 const tallyFeaturesService = require("./tallyFeaturesService");
 const companyCreationSuccessService = require("./companyCreationSuccessService");
 const companyFeatureValuesService = require("./companyFeatureValuesService");
+const attendanceTypeService = require('./attendanceTypeService');
+const payHeadService = require('./payHeadService');
 
 module.exports = {
   create: async (data) => {
@@ -79,6 +81,8 @@ module.exports = {
         company.company_id,
       );
       companyFeatureValuesService.seedCompanyFeatureValues(company.company_id);
+      attendanceTypeService.seedDefaultAttendanceTypes(company.company_id);
+      payHeadService.seedDefaultPayHeads(company.company_id);
 
       const company = db
         .execute(`SELECT * FROM companies WHERE company_id = ?`)
