@@ -1,8 +1,6 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
-require('./server/index.js');
-
 function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
@@ -17,8 +15,17 @@ function createWindow() {
     win.loadURL('http://localhost:5173');
 }
 
-app.whenReady().then(() => {
-    createWindow();
+app.whenReady().then(async () => {
+    try {
+        const { initDB } = require('./server/db/index');
+        await initDB();
+        require('./server/index.js');
+        createWindow();
+    } catch (err) {
+        console.error('DB init failed:', err);
+        app.quit();
+    }
+
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

@@ -1,72 +1,74 @@
-const db = require("./index");
+const init = async (db) => {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS ledgers (
+      ledger_id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id                  INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
+      group_id                    INTEGER REFERENCES groups(group_id),
+      name                        TEXT NOT NULL,
+      alias                       TEXT,
+      ledger_type                 TEXT DEFAULT 'General',
+      nature                      TEXT,
+      opening_balance             REAL DEFAULT 0,
+      closing_balance             REAL DEFAULT 0,
+      is_bill_wise                INTEGER DEFAULT 0,
+      maintain_inventory_values   INTEGER DEFAULT 0,
+      mailing_name                TEXT,
+      address1                    TEXT,
+      address2                    TEXT,
+      city                        TEXT,
+      state                       TEXT,
+      country                     TEXT,
+      pincode                     TEXT,
+      phone                       TEXT,
+      email                       TEXT,
+      gstin                       TEXT,
+      pan                         TEXT,
+      registration_type           TEXT DEFAULT 'Unregistered',
+      bank_name                   TEXT,
+      account_number              TEXT,
+      ifsc_code                   TEXT,
+      is_active                   INTEGER DEFAULT 1,
+      is_predefined               INTEGER DEFAULT 0,
+      created_at                  TEXT DEFAULT (datetime('now')),
+      updated_at                  TEXT DEFAULT (datetime('now'))
+    )
+  `);
 
-db.execute(`
-  CREATE TABLE IF NOT EXISTS ledgers (
-    ledger_id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_id                  INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
-    group_id                    INTEGER REFERENCES groups(group_id),
-    name                        TEXT NOT NULL,
-    alias                       TEXT,
-    ledger_type                 TEXT DEFAULT 'General',
-    nature                      TEXT,
-    opening_balance             REAL DEFAULT 0,
-    closing_balance             REAL DEFAULT 0,
-    is_bill_wise                INTEGER DEFAULT 0,
-    maintain_inventory_values   INTEGER DEFAULT 0,
-    mailing_name                TEXT,
-    address1                    TEXT,
-    address2                    TEXT,
-    city                        TEXT,
-    state                       TEXT,
-    country                     TEXT,
-    pincode                     TEXT,
-    phone                       TEXT,
-    email                       TEXT,
-    gstin                       TEXT,
-    pan                         TEXT,
-    registration_type           TEXT DEFAULT 'Unregistered',
-    bank_name                   TEXT,
-    account_number              TEXT,
-    ifsc_code                   TEXT,
-    is_active                   INTEGER DEFAULT 1,
-    is_predefined               INTEGER DEFAULT 0,
-    created_at                  TEXT DEFAULT (datetime('now')),
-    updated_at                  TEXT DEFAULT (datetime('now'))
-  )
-`);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS ledger_bank_details (
+      id                            INTEGER PRIMARY KEY AUTOINCREMENT,
+      ledger_id                     INTEGER NOT NULL REFERENCES ledgers(ledger_id) ON DELETE CASCADE,
+      account_holder_name           TEXT,
+      account_number                TEXT,
+      ifsc_code                     TEXT,
+      swift_code                    TEXT,
+      bank_name                     TEXT,
+      branch_name                   TEXT,
+      bank_configuration            TEXT,
+      cheque_book_start_no          TEXT,
+      cheque_book_end_no            TEXT,
+      enable_cheque_printing        INTEGER DEFAULT 0,
+      cheque_printing_configuration TEXT,
+      od_limit                      REAL DEFAULT 0
+    )
+  `);
 
-db.execute(`
-  CREATE TABLE IF NOT EXISTS ledger_bank_details (
-    id                            INTEGER PRIMARY KEY AUTOINCREMENT,
-    ledger_id                     INTEGER NOT NULL REFERENCES ledgers(ledger_id) ON DELETE CASCADE,
-    account_holder_name           TEXT,
-    account_number                TEXT,
-    ifsc_code                     TEXT,
-    swift_code                    TEXT,
-    bank_name                     TEXT,
-    branch_name                   TEXT,
-    bank_configuration            TEXT,
-    cheque_book_start_no          TEXT,
-    cheque_book_end_no            TEXT,
-    enable_cheque_printing        INTEGER DEFAULT 0,
-    cheque_printing_configuration TEXT,
-    od_limit                      REAL DEFAULT 0
-  )
-`);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS ledger_statutory_details (
+      id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+      ledger_id                   INTEGER NOT NULL REFERENCES ledgers(ledger_id) ON DELETE CASCADE,
+      gst_applicability           TEXT DEFAULT 'Not Applicable',
+      hsn_sac_code                TEXT,
+      hsn_sac_description         TEXT,
+      gst_rate                    REAL DEFAULT 0,
+      cgst_rate                   REAL DEFAULT 0,
+      sgst_rate                   REAL DEFAULT 0,
+      igst_rate                   REAL DEFAULT 0,
+      type_of_duty_tax            TEXT,
+      percentage_of_calculation   REAL DEFAULT 0,
+      statutory_details           TEXT
+    )
+  `);
+};
 
-db.execute(`
-  CREATE TABLE IF NOT EXISTS ledger_statutory_details (
-    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
-    ledger_id                   INTEGER NOT NULL REFERENCES ledgers(ledger_id) ON DELETE CASCADE,
-    gst_applicability           TEXT DEFAULT 'Not Applicable',
-    hsn_sac_code                TEXT,
-    hsn_sac_description         TEXT,
-    gst_rate                    REAL DEFAULT 0,
-    cgst_rate                   REAL DEFAULT 0,
-    sgst_rate                   REAL DEFAULT 0,
-    igst_rate                   REAL DEFAULT 0,
-    type_of_duty_tax            TEXT,
-    percentage_of_calculation   REAL DEFAULT 0,
-    statutory_details           TEXT
-  )
-`);
+module.exports = { init };

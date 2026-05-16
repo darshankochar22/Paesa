@@ -1,0 +1,55 @@
+const FEATURE_ITEMS = [
+  { group_key: 'accounts',  feature_key: 'maintain_accounts',                feature_name: 'Maintain Accounts',                      description: 'Enable accounting features for this company',          control_type: 'boolean', default_value_boolean: 1, display_order: 1, is_mandatory: 1 },
+  { group_key: 'accounts',  feature_key: 'enable_bill_wise_entry',           feature_name: 'Enable Bill-wise Entry',                  description: 'Track outstanding bills for debtors and creditors',    control_type: 'boolean', default_value_boolean: 0, display_order: 2, is_mandatory: 0 },
+  { group_key: 'accounts',  feature_key: 'enable_cost_centres',              feature_name: 'Enable Cost Centres',                     description: 'Allocate transactions to cost centres',                control_type: 'boolean', default_value_boolean: 0, display_order: 3, is_mandatory: 0 },
+  { group_key: 'inventory', feature_key: 'maintain_inventory',               feature_name: 'Maintain Inventory',                      description: 'Enable inventory management for this company',         control_type: 'boolean', default_value_boolean: 1, display_order: 1, is_mandatory: 0 },
+  { group_key: 'inventory', feature_key: 'integrate_accounts_with_inventory',feature_name: 'Integrate Accounts with Inventory',       description: 'Link inventory transactions with accounts',            control_type: 'boolean', default_value_boolean: 1, display_order: 2, is_mandatory: 0 },
+  { group_key: 'inventory', feature_key: 'enable_multiple_price_levels',     feature_name: 'Enable Multiple Price Levels',            description: 'Use different price levels for sales and purchase',    control_type: 'boolean', default_value_boolean: 0, display_order: 3, is_mandatory: 0 },
+  { group_key: 'inventory', feature_key: 'enable_batches',                   feature_name: 'Enable Batches',                         description: 'Track stock items by batch numbers',                   control_type: 'boolean', default_value_boolean: 0, display_order: 4, is_mandatory: 0 },
+  { group_key: 'inventory', feature_key: 'maintain_expiry_date_for_batches', feature_name: 'Maintain Expiry Date for Batches',        description: 'Track expiry dates for batches',                       control_type: 'boolean', default_value_boolean: 0, display_order: 5, is_mandatory: 0 },
+  { group_key: 'inventory', feature_key: 'use_discount_column_in_invoices',  feature_name: 'Use Discount Column in Invoices',         description: 'Show discount column in sales and purchase invoices',  control_type: 'boolean', default_value_boolean: 0, display_order: 6, is_mandatory: 0 },
+  { group_key: 'inventory', feature_key: 'use_separate_actual_billed_qty',   feature_name: 'Use Separate Actual and Billed Quantity', description: 'Track actual and billed quantities separately',         control_type: 'boolean', default_value_boolean: 0, display_order: 7, is_mandatory: 0 },
+  { group_key: 'gst',       feature_key: 'enable_gst',                       feature_name: 'Enable GST',                             description: 'Enable GST compliance for this company',               control_type: 'boolean', default_value_boolean: 0, display_order: 1, is_mandatory: 0 },
+  { group_key: 'gst',       feature_key: 'set_alter_company_gst_details',    feature_name: 'Set/Alter Company GST Details',          description: 'Configure company GST registration details',           control_type: 'boolean', default_value_boolean: 0, display_order: 2, is_mandatory: 0 },
+  { group_key: 'gst',       feature_key: 'enable_tds',                       feature_name: 'Enable TDS',                             description: 'Enable Tax Deducted at Source',                        control_type: 'boolean', default_value_boolean: 0, display_order: 3, is_mandatory: 0 },
+  { group_key: 'gst',       feature_key: 'enable_tcs',                       feature_name: 'Enable TCS',                             description: 'Enable Tax Collected at Source',                        control_type: 'boolean', default_value_boolean: 0, display_order: 4, is_mandatory: 0 },
+  { group_key: 'online',    feature_key: 'enable_browser_access_for_reports',feature_name: 'Enable Browser Access for Reports',      description: 'Access reports from browser',                          control_type: 'boolean', default_value_boolean: 0, display_order: 1, is_mandatory: 0 },
+  { group_key: 'online',    feature_key: 'enable_tally_net_services',        feature_name: 'Enable Tally Net Services',              description: 'Connect to online services',                           control_type: 'boolean', default_value_boolean: 0, display_order: 2, is_mandatory: 0 },
+  { group_key: 'online',    feature_key: 'enable_payment_request_qr',        feature_name: 'Enable Payment Request QR',              description: 'Generate QR codes for payment requests',               control_type: 'boolean', default_value_boolean: 0, display_order: 3, is_mandatory: 0 },
+  { group_key: 'online',    feature_key: 'enable_multiple_addresses',        feature_name: 'Enable Multiple Addresses',              description: 'Maintain multiple mailing addresses',                  control_type: 'boolean', default_value_boolean: 0, display_order: 4, is_mandatory: 0 },
+  { group_key: 'online',    feature_key: 'mark_modified_vouchers',           feature_name: 'Mark Modified Vouchers',                 description: 'Track and mark modified vouchers',                     control_type: 'boolean', default_value_boolean: 0, display_order: 5, is_mandatory: 0 },
+];
+
+const init = async (db) => {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS feature_items (
+      feature_item_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      feature_group_id      INTEGER NOT NULL REFERENCES feature_groups(feature_group_id) ON DELETE CASCADE,
+      feature_key           TEXT NOT NULL UNIQUE,
+      feature_name          TEXT NOT NULL,
+      description           TEXT,
+      control_type          TEXT DEFAULT 'boolean',
+      default_value_boolean INTEGER DEFAULT 0,
+      display_order         INTEGER DEFAULT 0,
+      is_mandatory          INTEGER DEFAULT 0,
+      is_active             INTEGER DEFAULT 1
+    )
+  `);
+
+  for (const item of FEATURE_ITEMS) {
+    await db.execute(`
+      INSERT OR IGNORE INTO feature_items (
+        feature_group_id, feature_key, feature_name, description,
+        control_type, default_value_boolean, display_order, is_mandatory, is_active
+      )
+      SELECT fg.feature_group_id, ?, ?, ?, ?, ?, ?, ?, 1
+      FROM feature_groups fg WHERE fg.group_key = ?
+    `, [
+      item.feature_key, item.feature_name, item.description,
+      item.control_type, item.default_value_boolean, item.display_order,
+      item.is_mandatory, item.group_key
+    ]);
+  }
+};
+
+module.exports = { init };

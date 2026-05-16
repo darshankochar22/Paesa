@@ -1,30 +1,17 @@
-let godowns = [];
+const { db } = require('../db/index');
+
+const seedDefaultGodowns = async (company_id) => {
+  await db.execute(
+    `INSERT INTO godowns (company_id, name, alias, parent_godown_id, address, city, state, pincode, is_primary, is_main_location, allow_storage_of_materials, is_active, is_predefined)
+     VALUES (?, 'Main Location', null, null, null, null, null, null, 1, 1, 1, 1, 1)`,
+    [company_id]
+  );
+};
 
 const buildTree = (all, parentId = null) => {
   return all
     .filter(g => g.parent_godown_id === parentId)
-    .map(g => ({ ...g, children: buildTree(all, g.id) }));
-};
-
-const seedDefaultGodowns = (company_id) => {
-  godowns.push({
-    id: Date.now(),
-    company_id,
-    name: 'Main Location',
-    alias: null,
-    parent_godown_id: null,
-    address: null,
-    city: null,
-    state: null,
-    pincode: null,
-    is_primary: true,
-    is_main_location: true,
-    allow_storage_of_materials: true,
-    is_active: true,
-    is_predefined: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+    .map(g => ({ ...g, children: buildTree(all, g.godown_id) }));
 };
 
 module.exports = {
@@ -32,33 +19,36 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = godowns.find(
-        g => g.company_id === data.company_id &&
-        g.name.toLowerCase() === data.name.toLowerCase()
+      const exists = await db.execute(
+        `SELECT * FROM godowns WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+        [data.company_id, data.name]
       );
-      if (exists) return { success: false, error: 'Godown already exists' };
+      if (exists.rows.length > 0) return { success: false, error: 'Godown already exists' };
 
-      const godown = {
-        id: Date.now(),
-        company_id: data.company_id,
-        name: data.name,
-        alias: data.alias || null,
-        parent_godown_id: data.parent_godown_id || null,
-        address: data.address || null,
-        city: data.city || null,
-        state: data.state || null,
-        pincode: data.pincode || null,
-        is_primary: data.parent_godown_id ? false : true,
-        is_main_location: false,
-        allow_storage_of_materials: data.allow_storage_of_materials ?? true,
-        is_active: true,
-        is_predefined: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO godowns (
+          company_id, name, alias, parent_godown_id, address, city, state, pincode,
+          is_primary, is_main_location, allow_storage_of_materials, is_active, is_predefined
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 1, 0)`,
+        [
+          data.company_id,
+          data.name,
+          data.alias || null,
+          data.parent_godown_id || null,
+          data.address || null,
+          data.city || null,
+          data.state || null,
+          data.pincode || null,
+          data.parent_godown_id ? 0 : 1,
+          data.allow_storage_of_materials ?? 1,
+        ]
+      );
 
-      godowns.push(godown);
-      return { success: true, godown };
+      const godown = await db.execute(
+        `SELECT * FROM godowns WHERE godown_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, godown: godown.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -66,8 +56,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = godowns.filter(g => g.company_id === company_id && g.is_active);
-      return { success: true, godowns: result };
+      const result = await db.execute(
+        `SELECT * FROM godowns WHERE company_id = ? AND is_active = 1`,
+        [company_id]
+      );
+      return { success: true, godowns: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -75,9 +68,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const godown = godowns.find(g => g.id === id);
-      if (!godown) return { success: false, error: 'Godown not found' };
-      return { success: true, godown };
+      const result = await db.execute(
+        `SELECT * FROM godowns WHERE godown_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Godown not found' };
+      return { success: true, godown: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -85,8 +81,11 @@ module.exports = {
 
   getTree: async (company_id) => {
     try {
-      const all = godowns.filter(g => g.company_id === company_id && g.is_active);
-      const tree = buildTree(all);
+      const result = await db.execute(
+        `SELECT * FROM godowns WHERE company_id = ? AND is_active = 1`,
+        [company_id]
+      );
+      const tree = buildTree(result.rows);
       return { success: true, tree };
     } catch (err) {
       return { success: false, error: err.message };
@@ -95,12 +94,38 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = godowns.findIndex(g => g.id === data.id);
-      if (index === -1) return { success: false, error: 'Godown not found' };
-      if (godowns[index].is_predefined) return { success: false, error: 'Cannot edit Main Location' };
+      const existing = await db.execute(
+        `SELECT * FROM godowns WHERE godown_id = ?`,
+        [data.godown_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Godown not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit Main Location' };
 
-      godowns[index] = { ...godowns[index], ...data, updated_at: new Date().toISOString() };
-      return { success: true, godown: godowns[index] };
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE godowns SET
+          name = ?, alias = ?, parent_godown_id = ?, address = ?,
+          city = ?, state = ?, pincode = ?,
+          allow_storage_of_materials = ?, updated_at = datetime('now')
+         WHERE godown_id = ?`,
+        [
+          data.name ?? current.name,
+          data.alias ?? current.alias,
+          data.parent_godown_id ?? current.parent_godown_id,
+          data.address ?? current.address,
+          data.city ?? current.city,
+          data.state ?? current.state,
+          data.pincode ?? current.pincode,
+          data.allow_storage_of_materials ?? current.allow_storage_of_materials,
+          data.godown_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM godowns WHERE godown_id = ?`,
+        [data.godown_id]
+      );
+      return { success: true, godown: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -108,14 +133,23 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const godown = godowns.find(g => g.id === id);
-      if (!godown) return { success: false, error: 'Godown not found' };
-      if (godown.is_predefined) return { success: false, error: 'Cannot delete Main Location' };
+      const existing = await db.execute(
+        `SELECT * FROM godowns WHERE godown_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Godown not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete Main Location' };
 
-      const hasChildren = godowns.some(g => g.parent_godown_id === id);
-      if (hasChildren) return { success: false, error: 'Cannot delete Godown with sub-godowns' };
+      const hasChildren = await db.execute(
+        `SELECT * FROM godowns WHERE parent_godown_id = ? AND is_active = 1`,
+        [id]
+      );
+      if (hasChildren.rows.length > 0) return { success: false, error: 'Cannot delete Godown with sub-godowns' };
 
-      godowns = godowns.map(g => g.id === id ? { ...g, is_active: false } : g);
+      await db.execute(
+        `UPDATE godowns SET is_active = 0 WHERE godown_id = ?`,
+        [id]
+      );
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

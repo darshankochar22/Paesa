@@ -1,46 +1,56 @@
-let stockItems = [];
+const { db } = require('../db/index');
 
 module.exports = {
   create: async (data) => {
     try {
-      const exists = stockItems.find(
-        i => i.company_id === data.company_id &&
-        i.name.toLowerCase() === data.name.toLowerCase()
+      const exists = await db.execute(
+        `SELECT * FROM stock_items WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+        [data.company_id, data.name]
       );
-      if (exists) return { success: false, error: 'Stock Item already exists' };
+      if (exists.rows.length > 0) return { success: false, error: 'Stock Item already exists' };
 
-      const item = {
-        id: Date.now(),
-        company_id: data.company_id,
-        name: data.name,
-        alias: data.alias || null,
-        group_id: data.group_id || null,
-        category_id: data.category_id || null,
-        unit_id: data.unit_id || null,
-        gst_applicablee: data.gst_applicablee || 'Not Applicable',
-        hsn_code: data.hsn_code || null,
-        sac_code: data.sac_code || null,
-        gst_rate: data.gst_rate || 0,
-        cgst_rate: data.cgst_rate || 0,
-        sgst_rate: data.sgst_rate || 0,
-        igst_rate: data.igst_rate || 0,
-        type_of_supply: data.type_of_supply || 'Goods',
-        rate_of_duty: data.rate_of_duty || 0,
-        statutory_details: data.statutory_details || null,
-        opening_quantity: data.opening_quantity || 0,
-        opening_rate: data.opening_rate || 0,
-        opening_value: data.opening_value || 0,
-        reorder_level: data.reorder_level || 0,
-        reorder_quantity: data.reorder_quantity || 0,
-        track_batches: data.track_batches || false,
-        track_expiry: data.track_expiry || false,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const opening_value = (data.opening_quantity || 0) * (data.opening_rate || 0);
 
-      stockItems.push(item);
-      return { success: true, item };
+      const result = await db.execute(
+        `INSERT INTO stock_items (
+          company_id, name, alias, group_id, category_id, unit_id,
+          gst_applicable, hsn_code, sac_code, gst_rate, cgst_rate, sgst_rate, igst_rate,
+          type_of_supply, rate_of_duty, statutory_details,
+          opening_quantity, opening_rate, opening_value,
+          reorder_level, reorder_quantity, track_batches, track_expiry, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        [
+          data.company_id,
+          data.name,
+          data.alias || null,
+          data.group_id || null,
+          data.category_id || null,
+          data.unit_id || null,
+          data.gst_applicable || 'Not Applicable',
+          data.hsn_code || null,
+          data.sac_code || null,
+          data.gst_rate || 0,
+          data.cgst_rate || 0,
+          data.sgst_rate || 0,
+          data.igst_rate || 0,
+          data.type_of_supply || 'Goods',
+          data.rate_of_duty || 0,
+          data.statutory_details || null,
+          data.opening_quantity || 0,
+          data.opening_rate || 0,
+          opening_value,
+          data.reorder_level || 0,
+          data.reorder_quantity || 0,
+          data.track_batches ? 1 : 0,
+          data.track_expiry ? 1 : 0,
+        ]
+      );
+
+      const item = await db.execute(
+        `SELECT * FROM stock_items WHERE item_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, item: item.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -48,8 +58,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = stockItems.filter(i => i.company_id === company_id && i.is_active);
-      return { success: true, stockItems: result };
+      const result = await db.execute(
+        `SELECT * FROM stock_items WHERE company_id = ? AND is_active = 1`,
+        [company_id]
+      );
+      return { success: true, stockItems: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -57,9 +70,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const item = stockItems.find(i => i.id === id);
-      if (!item) return { success: false, error: 'Stock Item not found' };
-      return { success: true, item };
+      const result = await db.execute(
+        `SELECT * FROM stock_items WHERE item_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Stock Item not found' };
+      return { success: true, item: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -67,10 +83,11 @@ module.exports = {
 
   getByGroup: async (company_id, group_id) => {
     try {
-      const result = stockItems.filter(
-        i => i.company_id === company_id && i.group_id === group_id && i.is_active
+      const result = await db.execute(
+        `SELECT * FROM stock_items WHERE company_id = ? AND group_id = ? AND is_active = 1`,
+        [company_id, group_id]
       );
-      return { success: true, stockItems: result };
+      return { success: true, stockItems: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -78,10 +95,11 @@ module.exports = {
 
   getByCategory: async (company_id, category_id) => {
     try {
-      const result = stockItems.filter(
-        i => i.company_id === company_id && i.category_id === category_id && i.is_active
+      const result = await db.execute(
+        `SELECT * FROM stock_items WHERE company_id = ? AND category_id = ? AND is_active = 1`,
+        [company_id, category_id]
       );
-      return { success: true, stockItems: result };
+      return { success: true, stockItems: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -89,17 +107,58 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = stockItems.findIndex(i => i.id === data.id);
-      if (index === -1) return { success: false, error: 'Stock Item not found' };
+      const existing = await db.execute(
+        `SELECT * FROM stock_items WHERE item_id = ?`,
+        [data.item_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Stock Item not found' };
 
-      if (data.opening_quantity || data.opening_rate) {
-        const qty = data.opening_quantity ?? stockItems[index].opening_quantity;
-        const rate = data.opening_rate ?? stockItems[index].opening_rate;
-        data.opening_value = qty * rate;
-      }
+      const current = existing.rows[0];
+      const qty  = data.opening_quantity ?? current.opening_quantity;
+      const rate = data.opening_rate ?? current.opening_rate;
+      const opening_value = qty * rate;
 
-      stockItems[index] = { ...stockItems[index], ...data, updated_at: new Date().toISOString() };
-      return { success: true, item: stockItems[index] };
+      await db.execute(
+        `UPDATE stock_items SET
+          name = ?, alias = ?, group_id = ?, category_id = ?, unit_id = ?,
+          gst_applicable = ?, hsn_code = ?, sac_code = ?,
+          gst_rate = ?, cgst_rate = ?, sgst_rate = ?, igst_rate = ?,
+          type_of_supply = ?, rate_of_duty = ?, statutory_details = ?,
+          opening_quantity = ?, opening_rate = ?, opening_value = ?,
+          reorder_level = ?, reorder_quantity = ?,
+          track_batches = ?, track_expiry = ?,
+          updated_at = datetime('now')
+         WHERE item_id = ?`,
+        [
+          data.name ?? current.name,
+          data.alias ?? current.alias,
+          data.group_id ?? current.group_id,
+          data.category_id ?? current.category_id,
+          data.unit_id ?? current.unit_id,
+          data.gst_applicable ?? current.gst_applicable,
+          data.hsn_code ?? current.hsn_code,
+          data.sac_code ?? current.sac_code,
+          data.gst_rate ?? current.gst_rate,
+          data.cgst_rate ?? current.cgst_rate,
+          data.sgst_rate ?? current.sgst_rate,
+          data.igst_rate ?? current.igst_rate,
+          data.type_of_supply ?? current.type_of_supply,
+          data.rate_of_duty ?? current.rate_of_duty,
+          data.statutory_details ?? current.statutory_details,
+          qty, rate, opening_value,
+          data.reorder_level ?? current.reorder_level,
+          data.reorder_quantity ?? current.reorder_quantity,
+          data.track_batches ? 1 : 0,
+          data.track_expiry ? 1 : 0,
+          data.item_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM stock_items WHERE item_id = ?`,
+        [data.item_id]
+      );
+      return { success: true, item: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -107,10 +166,16 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const item = stockItems.find(i => i.id === id);
-      if (!item) return { success: false, error: 'Stock Item not found' };
+      const existing = await db.execute(
+        `SELECT * FROM stock_items WHERE item_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Stock Item not found' };
 
-      stockItems = stockItems.map(i => i.id === id ? { ...i, is_active: false } : i);
+      await db.execute(
+        `UPDATE stock_items SET is_active = 0 WHERE item_id = ?`,
+        [id]
+      );
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

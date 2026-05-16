@@ -1,26 +1,15 @@
-let currencies = [];
+const { db } = require('../db/index');
 
-const seedDefaultCurrency = (company_id) => {
-  currencies.push({
-    id: Date.now(),
-    company_id,
-    name: 'Indian Rupee',
-    formal_name: 'Indian Rupee',
-    iso_code: 'INR',
-    symbol: '₹',
-    decimal_places: 2,
-    decimal_symbol: '.',
-    decimal_places_in_words: 'Paise',
-    suffix_symbol_to_amount: false,
-    show_amount_in_millions: false,
-    word_representing_amount_after_decimal: 'Paise',
-    add_space_between_amount_and_symbol: false,
-    is_active: true,
-    is_default: true,
-    is_predefined: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+const seedDefaultCurrency = async (company_id) => {
+  await db.execute(
+    `INSERT INTO currencies (
+      company_id, name, formal_name, iso_code, symbol, decimal_places,
+      decimal_symbol, decimal_places_in_words, suffix_symbol_to_amount,
+      show_amount_in_millions, word_representing_amount_after_decimal,
+      add_space_between_amount_and_symbol, is_active, is_default, is_predefined
+    ) VALUES (?, 'Indian Rupee', 'Indian Rupee', 'INR', '₹', 2, '.', 'Paise', 0, 0, 'Paise', 0, 1, 1, 1)`,
+    [company_id]
+  );
 };
 
 module.exports = {
@@ -28,35 +17,40 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = currencies.find(
-        c => c.company_id === data.company_id &&
-        c.iso_code.toLowerCase() === data.iso_code.toLowerCase()
+      const exists = await db.execute(
+        `SELECT * FROM currencies WHERE company_id = ? AND LOWER(iso_code) = LOWER(?) AND is_active = 1`,
+        [data.company_id, data.iso_code]
       );
-      if (exists) return { success: false, error: 'Currency already exists' };
+      if (exists.rows.length > 0) return { success: false, error: 'Currency already exists' };
 
-      const currency = {
-        id: Date.now(),
-        company_id: data.company_id,
-        name: data.name,
-        formal_name: data.formal_name || data.name,
-        iso_code: data.iso_code,
-        symbol: data.symbol,
-        decimal_places: data.decimal_places ?? 2,
-        decimal_symbol: data.decimal_symbol || '.',
-        decimal_places_in_words: data.decimal_places_in_words || null,
-        suffix_symbol_to_amount: data.suffix_symbol_to_amount || false,
-        show_amount_in_millions: data.show_amount_in_millions || false,
-        word_representing_amount_after_decimal: data.word_representing_amount_after_decimal || null,
-        add_space_between_amount_and_symbol: data.add_space_between_amount_and_symbol || false,
-        is_active: true,
-        is_default: false,
-        is_predefined: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO currencies (
+          company_id, name, formal_name, iso_code, symbol, decimal_places,
+          decimal_symbol, decimal_places_in_words, suffix_symbol_to_amount,
+          show_amount_in_millions, word_representing_amount_after_decimal,
+          add_space_between_amount_and_symbol, is_active, is_default, is_predefined
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 0)`,
+        [
+          data.company_id,
+          data.name,
+          data.formal_name || data.name,
+          data.iso_code,
+          data.symbol,
+          data.decimal_places ?? 2,
+          data.decimal_symbol || '.',
+          data.decimal_places_in_words || null,
+          data.suffix_symbol_to_amount ? 1 : 0,
+          data.show_amount_in_millions ? 1 : 0,
+          data.word_representing_amount_after_decimal || null,
+          data.add_space_between_amount_and_symbol ? 1 : 0,
+        ]
+      );
 
-      currencies.push(currency);
-      return { success: true, currency };
+      const currency = await db.execute(
+        `SELECT * FROM currencies WHERE currency_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, currency: currency.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -64,8 +58,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = currencies.filter(c => c.company_id === company_id && c.is_active);
-      return { success: true, currencies: result };
+      const result = await db.execute(
+        `SELECT * FROM currencies WHERE company_id = ? AND is_active = 1`,
+        [company_id]
+      );
+      return { success: true, currencies: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -73,9 +70,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const currency = currencies.find(c => c.id === id);
-      if (!currency) return { success: false, error: 'Currency not found' };
-      return { success: true, currency };
+      const result = await db.execute(
+        `SELECT * FROM currencies WHERE currency_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Currency not found' };
+      return { success: true, currency: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -83,17 +83,20 @@ module.exports = {
 
   setDefault: async (company_id, id) => {
     try {
-      const currency = currencies.find(c => c.id === id);
-      if (!currency) return { success: false, error: 'Currency not found' };
-
-      currencies = currencies.map(c =>
-        c.company_id === company_id ? { ...c, is_default: false } : c
+      const exists = await db.execute(
+        `SELECT * FROM currencies WHERE currency_id = ?`,
+        [id]
       );
+      if (exists.rows.length === 0) return { success: false, error: 'Currency not found' };
 
-      currencies = currencies.map(c =>
-        c.id === id ? { ...c, is_default: true } : c
+      await db.execute(
+        `UPDATE currencies SET is_default = 0 WHERE company_id = ?`,
+        [company_id]
       );
-
+      await db.execute(
+        `UPDATE currencies SET is_default = 1 WHERE currency_id = ?`,
+        [id]
+      );
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -102,12 +105,44 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = currencies.findIndex(c => c.id === data.id);
-      if (index === -1) return { success: false, error: 'Currency not found' };
-      if (currencies[index].is_predefined) return { success: false, error: 'Cannot edit base currency' };
+      const existing = await db.execute(
+        `SELECT * FROM currencies WHERE currency_id = ?`,
+        [data.currency_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Currency not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit base currency' };
 
-      currencies[index] = { ...currencies[index], ...data, updated_at: new Date().toISOString() };
-      return { success: true, currency: currencies[index] };
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE currencies SET
+          name = ?, formal_name = ?, iso_code = ?, symbol = ?,
+          decimal_places = ?, decimal_symbol = ?, decimal_places_in_words = ?,
+          suffix_symbol_to_amount = ?, show_amount_in_millions = ?,
+          word_representing_amount_after_decimal = ?,
+          add_space_between_amount_and_symbol = ?,
+          updated_at = datetime('now')
+         WHERE currency_id = ?`,
+        [
+          data.name ?? current.name,
+          data.formal_name ?? current.formal_name,
+          data.iso_code ?? current.iso_code,
+          data.symbol ?? current.symbol,
+          data.decimal_places ?? current.decimal_places,
+          data.decimal_symbol ?? current.decimal_symbol,
+          data.decimal_places_in_words ?? current.decimal_places_in_words,
+          data.suffix_symbol_to_amount ? 1 : 0,
+          data.show_amount_in_millions ? 1 : 0,
+          data.word_representing_amount_after_decimal ?? current.word_representing_amount_after_decimal,
+          data.add_space_between_amount_and_symbol ? 1 : 0,
+          data.currency_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM currencies WHERE currency_id = ?`,
+        [data.currency_id]
+      );
+      return { success: true, currency: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -115,12 +150,18 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const currency = currencies.find(c => c.id === id);
-      if (!currency) return { success: false, error: 'Currency not found' };
-      if (currency.is_default) return { success: false, error: 'Cannot delete default currency' };
-      if (currency.is_predefined) return { success: false, error: 'Cannot delete base currency' };
+      const existing = await db.execute(
+        `SELECT * FROM currencies WHERE currency_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Currency not found' };
+      if (existing.rows[0].is_default) return { success: false, error: 'Cannot delete default currency' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete base currency' };
 
-      currencies = currencies.map(c => c.id === id ? { ...c, is_active: false } : c);
+      await db.execute(
+        `UPDATE currencies SET is_active = 0 WHERE currency_id = ?`,
+        [id]
+      );
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

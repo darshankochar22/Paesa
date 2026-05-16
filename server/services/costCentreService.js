@@ -1,35 +1,37 @@
-let costCentres = [];
+const { db } = require('../db/index');
 
 const buildTree = (all, parentId = null) => {
   return all
     .filter(c => c.parent_id === parentId)
-    .map(c => ({ ...c, children: buildTree(all, c.id) }));
+    .map(c => ({ ...c, children: buildTree(all, c.cc_id) }));
 };
 
 module.exports = {
   create: async (data) => {
     try {
-      const exists = costCentres.find(
-        c => c.company_id === data.company_id &&
-        c.name.toLowerCase() === data.name.toLowerCase()
+      const exists = await db.execute(
+        `SELECT * FROM cost_centres WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+        [data.company_id, data.name]
       );
-      if (exists) return { success: false, error: 'Cost Centre already exists' };
+      if (exists.rows.length > 0) return { success: false, error: 'Cost Centre already exists' };
 
-      const costCentre = {
-        id: Date.now(),
-        company_id: data.company_id,
-        name: data.name,
-        alias: data.alias || null,
-        parent_id: data.parent_id || null,
-        category: data.parent_id ? 'Secondary' : 'Primary',
-        is_active: true,
-        is_predefined: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO cost_centres (company_id, name, alias, parent_id, category, is_active, is_predefined)
+         VALUES (?, ?, ?, ?, ?, 1, 0)`,
+        [
+          data.company_id,
+          data.name,
+          data.alias || null,
+          data.parent_id || null,
+          data.parent_id ? 'Secondary' : 'Primary',
+        ]
+      );
 
-      costCentres.push(costCentre);
-      return { success: true, costCentre };
+      const costCentre = await db.execute(
+        `SELECT * FROM cost_centres WHERE cc_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, costCentre: costCentre.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -37,8 +39,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = costCentres.filter(c => c.company_id === company_id && c.is_active);
-      return { success: true, costCentres: result };
+      const result = await db.execute(
+        `SELECT * FROM cost_centres WHERE company_id = ? AND is_active = 1`,
+        [company_id]
+      );
+      return { success: true, costCentres: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -46,9 +51,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const costCentre = costCentres.find(c => c.id === id);
-      if (!costCentre) return { success: false, error: 'Cost Centre not found' };
-      return { success: true, costCentre };
+      const result = await db.execute(
+        `SELECT * FROM cost_centres WHERE cc_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Cost Centre not found' };
+      return { success: true, costCentre: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -56,8 +64,11 @@ module.exports = {
 
   getTree: async (company_id) => {
     try {
-      const all = costCentres.filter(c => c.company_id === company_id && c.is_active);
-      const tree = buildTree(all);
+      const result = await db.execute(
+        `SELECT * FROM cost_centres WHERE company_id = ? AND is_active = 1`,
+        [company_id]
+      );
+      const tree = buildTree(result.rows);
       return { success: true, tree };
     } catch (err) {
       return { success: false, error: err.message };
@@ -66,15 +77,32 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = costCentres.findIndex(c => c.id === data.id);
-      if (index === -1) return { success: false, error: 'Cost Centre not found' };
+      const existing = await db.execute(
+        `SELECT * FROM cost_centres WHERE cc_id = ?`,
+        [data.cc_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Cost Centre not found' };
 
-      costCentres[index] = {
-        ...costCentres[index],
-        ...data,
-        updated_at: new Date().toISOString(),
-      };
-      return { success: true, costCentre: costCentres[index] };
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE cost_centres SET
+          name = ?, alias = ?, parent_id = ?, category = ?,
+          updated_at = datetime('now')
+         WHERE cc_id = ?`,
+        [
+          data.name ?? current.name,
+          data.alias ?? current.alias,
+          data.parent_id ?? current.parent_id,
+          data.parent_id ? 'Secondary' : 'Primary',
+          data.cc_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM cost_centres WHERE cc_id = ?`,
+        [data.cc_id]
+      );
+      return { success: true, costCentre: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -82,13 +110,22 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const cc = costCentres.find(c => c.id === id);
-      if (!cc) return { success: false, error: 'Cost Centre not found' };
+      const existing = await db.execute(
+        `SELECT * FROM cost_centres WHERE cc_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Cost Centre not found' };
 
-      const hasChildren = costCentres.some(c => c.parent_id === id);
-      if (hasChildren) return { success: false, error: 'Cannot delete Cost Centre with sub-centres' };
+      const hasChildren = await db.execute(
+        `SELECT * FROM cost_centres WHERE parent_id = ? AND is_active = 1`,
+        [id]
+      );
+      if (hasChildren.rows.length > 0) return { success: false, error: 'Cannot delete Cost Centre with sub-centres' };
 
-      costCentres = costCentres.map(c => c.id === id ? { ...c, is_active: false } : c);
+      await db.execute(
+        `UPDATE cost_centres SET is_active = 0 WHERE cc_id = ?`,
+        [id]
+      );
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

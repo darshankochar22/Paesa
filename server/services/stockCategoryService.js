@@ -1,27 +1,25 @@
-let stockCategories = [];
+const { db } = require('../db/index');
 
 module.exports = {
   create: async (data) => {
     try {
-      const exists = stockCategories.find(
-        c => c.company_id === data.company_id &&
-        c.name.toLowerCase() === data.name.toLowerCase()
+      const exists = await db.execute(
+        `SELECT * FROM stock_categories WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+        [data.company_id, data.name]
       );
-      if (exists) return { success: false, error: 'Stock Category already exists' };
+      if (exists.rows.length > 0) return { success: false, error: 'Stock Category already exists' };
 
-      const category = {
-        id: Date.now(),
-        company_id: data.company_id,
-        name: data.name,
-        description: data.description || null,
-        parent_category_id: data.parent_category_id || null,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO stock_categories (company_id, name, description, parent_category_id, is_active)
+         VALUES (?, ?, ?, ?, 1)`,
+        [data.company_id, data.name, data.description || null, data.parent_category_id || null]
+      );
 
-      stockCategories.push(category);
-      return { success: true, category };
+      const category = await db.execute(
+        `SELECT * FROM stock_categories WHERE sc_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, category: category.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -29,8 +27,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = stockCategories.filter(c => c.company_id === company_id && c.is_active);
-      return { success: true, stockCategories: result };
+      const result = await db.execute(
+        `SELECT * FROM stock_categories WHERE company_id = ? AND is_active = 1`,
+        [company_id]
+      );
+      return { success: true, stockCategories: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -38,9 +39,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const category = stockCategories.find(c => c.id === id);
-      if (!category) return { success: false, error: 'Stock Category not found' };
-      return { success: true, category };
+      const result = await db.execute(
+        `SELECT * FROM stock_categories WHERE sc_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Stock Category not found' };
+      return { success: true, category: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -48,11 +52,30 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = stockCategories.findIndex(c => c.id === data.id);
-      if (index === -1) return { success: false, error: 'Stock Category not found' };
+      const existing = await db.execute(
+        `SELECT * FROM stock_categories WHERE sc_id = ?`,
+        [data.sc_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Stock Category not found' };
 
-      stockCategories[index] = { ...stockCategories[index], ...data, updated_at: new Date().toISOString() };
-      return { success: true, category: stockCategories[index] };
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE stock_categories SET
+          name = ?, description = ?, parent_category_id = ?, updated_at = datetime('now')
+         WHERE sc_id = ?`,
+        [
+          data.name ?? current.name,
+          data.description ?? current.description,
+          data.parent_category_id ?? current.parent_category_id,
+          data.sc_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM stock_categories WHERE sc_id = ?`,
+        [data.sc_id]
+      );
+      return { success: true, category: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -60,13 +83,22 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const category = stockCategories.find(c => c.id === id);
-      if (!category) return { success: false, error: 'Stock Category not found' };
+      const existing = await db.execute(
+        `SELECT * FROM stock_categories WHERE sc_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Stock Category not found' };
 
-      const hasChildren = stockCategories.some(c => c.parent_category_id === id);
-      if (hasChildren) return { success: false, error: 'Cannot delete category with subcategories' };
+      const hasChildren = await db.execute(
+        `SELECT * FROM stock_categories WHERE parent_category_id = ? AND is_active = 1`,
+        [id]
+      );
+      if (hasChildren.rows.length > 0) return { success: false, error: 'Cannot delete category with subcategories' };
 
-      stockCategories = stockCategories.map(c => c.id === id ? { ...c, is_active: false } : c);
+      await db.execute(
+        `UPDATE stock_categories SET is_active = 0 WHERE sc_id = ?`,
+        [id]
+      );
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
