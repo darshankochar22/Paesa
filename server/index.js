@@ -12,7 +12,7 @@ const stockItemController = require('./controllers/stockItemController');
 const godownController = require('./controllers/godownController');
 const voucherController = require('./controllers/voucherController');
 const reportController = require('./controllers/reportController');
-
+const bankingController = require('./controllers/bankingController');
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -99,3 +99,9 @@ ipcMain.handle('report:ledgerReport', reportController.ledgerReport);
 ipcMain.handle('report:cashBook', reportController.cashBook);
 ipcMain.handle('report:bankBook', reportController.bankBook);
 ipcMain.handle('report:daybook', reportController.daybook);
+
+ipcMain.handle('banking:getUnreconciled', bankingController.getUnreconciled);
+ipcMain.handle('banking:reconcile', bankingController.reconcile);
+ipcMain.handle('banking:unreconcile', bankingController.unreconcile);
+ipcMain.handle('banking:getStatement', bankingController.getStatement);
+ipcMain.handle('banking:getSummary', bankingController.getSummary);
