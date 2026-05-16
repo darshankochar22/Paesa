@@ -6,6 +6,7 @@ const stockGroupService = require('./stockGroupService');
 const godownService = require('./godownService');
 const currencyService = require('./currencyService');
 const voucherTypeService = require('./voucherTypeService');
+const gstClassificationService = require('./gstClassificationService');
 
 let companies = [];
 
@@ -51,6 +52,7 @@ module.exports = {
             godownService.seedDefaultGodowns(company.company_id);
             currencyService.seedDefaultCurrency(company.company_id);
             voucherTypeService.seedDefaultVoucherTypes(company.company_id);
+            gstClassificationService.seedDefaultGSTClassifications(company.company_id);
             return { success: true, company };
         } catch (err) {
             return { success: false, error: err.message };

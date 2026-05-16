@@ -15,6 +15,8 @@ const reportController = require('./controllers/reportController');
 const bankingController = require('./controllers/bankingController');
 const currencyController = require('./controllers/currencyController');
 const voucherTypeController = require('./controllers/voucherTypeController');
+const gstRegistrationController = require('./controllers/gstRegistrationController');
+const gstClassificationController = require('./controllers/gstClassificationController');
 
 
 ipcMain.handle('company:create', companyController.create);
@@ -123,3 +125,15 @@ ipcMain.handle('voucherType:update', voucherTypeController.update);
 ipcMain.handle('voucherType:delete', voucherTypeController.delete);
 ipcMain.handle('voucherType:getConfig', voucherTypeController.getConfig);
 ipcMain.handle('voucherType:updateConfig', voucherTypeController.updateConfig);
+
+ipcMain.handle('gstRegistration:create', gstRegistrationController.create);
+ipcMain.handle('gstRegistration:getAll', gstRegistrationController.getAll);
+ipcMain.handle('gstRegistration:getById', gstRegistrationController.getById);
+ipcMain.handle('gstRegistration:update', gstRegistrationController.update);
+ipcMain.handle('gstRegistration:delete', gstRegistrationController.delete);
+
+ipcMain.handle('gstClassification:create', gstClassificationController.create);
+ipcMain.handle('gstClassification:getAll', gstClassificationController.getAll);
+ipcMain.handle('gstClassification:getById', gstClassificationController.getById);
+ipcMain.handle('gstClassification:update', gstClassificationController.update);
+ipcMain.handle('gstClassification:delete', gstClassificationController.delete);
