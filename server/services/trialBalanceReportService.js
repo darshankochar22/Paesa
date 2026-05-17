@@ -1,55 +1,64 @@
-let trialBalanceReports = [];
-let trialBalanceRows    = [];
+const { db } = require('../db/index');
 
 module.exports = {
   create: async (data) => {
     try {
-      const reportId = Date.now();
-      const report = {
-        id: reportId,
-        company_id: data.company_id,
-        company_name: data.company_name || null,
-        report_date: data.report_date || new Date().toISOString().split('T')[0],
-        period_start: data.period_start,
-        period_end: data.period_end,
-        show_closing_balance: data.show_closing_balance ?? true,
-        show_debit_credit: data.show_debit_credit ?? true,
-        show_groups: data.show_groups ?? true,
-        show_grand_total: data.show_grand_total ?? true,
-        detailed_mode: data.detailed_mode ?? false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO trial_balance_reports (
+          company_id, company_name, report_date, period_start, period_end,
+          show_closing_balance, show_debit_credit, show_groups, show_grand_total, detailed_mode
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          data.company_id,
+          data.company_name || null,
+          data.report_date || new Date().toISOString().split('T')[0],
+          data.period_start || null,
+          data.period_end || null,
+          data.show_closing_balance ?? 1,
+          data.show_debit_credit ?? 1,
+          data.show_groups ?? 1,
+          data.show_grand_total ?? 1,
+          data.detailed_mode ? 1 : 0,
+        ]
+      );
 
-      trialBalanceReports.push(report);
+      const report_id = Number(result.lastInsertRowid);
 
       if (data.rows && data.rows.length > 0) {
-        data.rows.forEach((row, i) => {
-          trialBalanceRows.push({
-            id: Date.now() + i + 1,
-            report_id: reportId,
-            parent_row_id: row.parent_row_id || null,
-            row_type: row.row_type || 'Ledger', 
-            particulars: row.particulars,
-            group_id: row.group_id || null,
-            ledger_id: row.ledger_id || null,
-            display_order: row.display_order || i + 1,
-            opening_debit: row.opening_debit || 0,
-            opening_credit: row.opening_credit || 0,
-            period_debit: row.period_debit || 0,
-            period_credit: row.period_credit || 0,
-            closing_debit: row.closing_debit || 0,
-            closing_credit: row.closing_credit || 0,
-            is_drillable: row.is_drillable ?? true,
-            is_grand_total: row.is_grand_total ?? false,
-            notes: row.notes || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-        });
+        for (let i = 0; i < data.rows.length; i++) {
+          const row = data.rows[i];
+          await db.execute(
+            `INSERT INTO trial_balance_rows (
+              report_id, parent_row_id, row_type, particulars, group_id, ledger_id,
+              display_order, opening_debit, opening_credit, period_debit, period_credit,
+              closing_debit, closing_credit, is_drillable, is_grand_total, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              report_id,
+              row.parent_row_id || null,
+              row.row_type || 'Ledger',
+              row.particulars,
+              row.group_id || null,
+              row.ledger_id || null,
+              row.display_order || i + 1,
+              row.opening_debit || 0,
+              row.opening_credit || 0,
+              row.period_debit || 0,
+              row.period_credit || 0,
+              row.closing_debit || 0,
+              row.closing_credit || 0,
+              row.is_drillable ?? 1,
+              row.is_grand_total ? 1 : 0,
+              row.notes || null,
+            ]
+          );
+        }
       }
 
-      return { success: true, report };
+      const report = await db.execute(
+        `SELECT * FROM trial_balance_reports WHERE report_id = ?`, [report_id]
+      );
+      return { success: true, report: report.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -57,8 +66,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const reports = trialBalanceReports.filter(r => r.company_id === company_id);
-      return { success: true, reports };
+      const result = await db.execute(
+        `SELECT * FROM trial_balance_reports WHERE company_id = ? ORDER BY created_at DESC`,
+        [company_id]
+      );
+      return { success: true, reports: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -66,14 +78,16 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const report = trialBalanceReports.find(r => r.id === id);
-      if (!report) return { success: false, error: 'Report not found' };
+      const report = await db.execute(
+        `SELECT * FROM trial_balance_reports WHERE report_id = ?`, [id]
+      );
+      if (report.rows.length === 0) return { success: false, error: 'Report not found' };
 
-      const rows = trialBalanceRows
-        .filter(r => r.report_id === id)
-        .sort((a, b) => a.display_order - b.display_order);
+      const rows = await db.execute(
+        `SELECT * FROM trial_balance_rows WHERE report_id = ? ORDER BY display_order ASC`, [id]
+      );
 
-      return { success: true, report: { ...report, rows } };
+      return { success: true, report: { ...report.rows[0], rows: rows.rows } };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -81,12 +95,12 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const report = trialBalanceReports.find(r => r.id === id);
-      if (!report) return { success: false, error: 'Report not found' };
+      const existing = await db.execute(
+        `SELECT * FROM trial_balance_reports WHERE report_id = ?`, [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Report not found' };
 
-      trialBalanceReports = trialBalanceReports.filter(r => r.id !== id);
-      trialBalanceRows    = trialBalanceRows.filter(r => r.report_id !== id);
-
+      await db.execute(`DELETE FROM trial_balance_reports WHERE report_id = ?`, [id]);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

@@ -35,6 +35,11 @@ const initDB = async () => {
   await require('./banking').init(db);
   await require('./attendanceType').init(db);
   await require('./payHead').init(db); 
+  await require('./dayBookReport').init(db);  
+  await require('./balanceSheetReport').init(db);
+  await require('./profitLossReport').init(db);
+  await require('./trialBalanceReport').init(db);
+  await require('./salaryStructure').init(db);
 };
 
 module.exports = { db, initDB };

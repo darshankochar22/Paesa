@@ -1,31 +1,28 @@
-let salaryStructures = [];
+const { db } = require('../db/index');
 
 module.exports = {
   create: async (data) => {
     try {
-      const exists = salaryStructures.find(
-        s => s.company_id === data.company_id &&
-        s.employee_id === data.employee_id &&
-        s.effective_from === data.effective_from &&
-        s.pay_head_id === data.pay_head_id
+      const exists = await db.execute(
+        `SELECT * FROM salary_structures WHERE company_id = ? AND employee_id = ? AND effective_from = ? AND pay_head_id = ? AND is_active = 1`,
+        [data.company_id, data.employee_id, data.effective_from, data.pay_head_id]
       );
-      if (exists) return { success: false, error: 'Salary structure already exists for this date' };
+      if (exists.rows.length > 0) return { success: false, error: 'Salary structure already exists for this date' };
 
-      const structure = {
-        id: Date.now(),
-        company_id: data.company_id,
-        employee_id: data.employee_id,
-        effective_from: data.effective_from,
-        pay_head_id: data.pay_head_id,
-        amount: data.amount || 0,
-        calculation_mode: data.calculation_mode || 'Flat Rate',
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO salary_structures (company_id, employee_id, effective_from, pay_head_id, amount, calculation_mode, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+        [
+          data.company_id, data.employee_id, data.effective_from,
+          data.pay_head_id, data.amount || 0, data.calculation_mode || 'Flat Rate',
+        ]
+      );
 
-      salaryStructures.push(structure);
-      return { success: true, structure };
+      const structure = await db.execute(
+        `SELECT * FROM salary_structures WHERE structure_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, structure: structure.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -34,24 +31,18 @@ module.exports = {
   createBulk: async (company_id, employee_id, effective_from, entries) => {
     try {
       const created = [];
-
-      entries.forEach((entry, i) => {
-        const structure = {
-          id: Date.now() + i,
-          company_id,
-          employee_id,
-          effective_from,
-          pay_head_id: entry.pay_head_id,
-          amount: entry.amount || 0,
-          calculation_mode: entry.calculation_mode || 'Flat Rate',
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        salaryStructures.push(structure);
-        created.push(structure);
-      });
-
+      for (const entry of entries) {
+        const result = await db.execute(
+          `INSERT INTO salary_structures (company_id, employee_id, effective_from, pay_head_id, amount, calculation_mode, is_active)
+           VALUES (?, ?, ?, ?, ?, ?, 1)`,
+          [company_id, employee_id, effective_from, entry.pay_head_id, entry.amount || 0, entry.calculation_mode || 'Flat Rate']
+        );
+        const structure = await db.execute(
+          `SELECT * FROM salary_structures WHERE structure_id = ?`,
+          [result.lastInsertRowid]
+        );
+        created.push(structure.rows[0]);
+      }
       return { success: true, structures: created };
     } catch (err) {
       return { success: false, error: err.message };
@@ -60,10 +51,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = salaryStructures.filter(
-        s => s.company_id === company_id && s.is_active
+      const result = await db.execute(
+        `SELECT * FROM salary_structures WHERE company_id = ? AND is_active = 1`,
+        [company_id]
       );
-      return { success: true, salaryStructures: result };
+      return { success: true, salaryStructures: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -71,9 +63,11 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const structure = salaryStructures.find(s => s.id === id);
-      if (!structure) return { success: false, error: 'Salary Structure not found' };
-      return { success: true, structure };
+      const result = await db.execute(
+        `SELECT * FROM salary_structures WHERE structure_id = ?`, [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Salary Structure not found' };
+      return { success: true, structure: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -81,13 +75,12 @@ module.exports = {
 
   getByEmployee: async (company_id, employee_id) => {
     try {
-      const structures = salaryStructures.filter(
-        s => s.company_id === company_id &&
-        s.employee_id === employee_id &&
-        s.is_active
+      const result = await db.execute(
+        `SELECT * FROM salary_structures WHERE company_id = ? AND employee_id = ? AND is_active = 1 ORDER BY effective_from DESC`,
+        [company_id, employee_id]
       );
 
-      const grouped = structures.reduce((acc, s) => {
+      const grouped = result.rows.reduce((acc, s) => {
         if (!acc[s.effective_from]) acc[s.effective_from] = [];
         acc[s.effective_from].push(s);
         return acc;
@@ -95,10 +88,7 @@ module.exports = {
 
       const sorted = Object.keys(grouped)
         .sort((a, b) => new Date(b) - new Date(a))
-        .map(date => ({
-          effective_from: date,
-          pay_heads: grouped[date],
-        }));
+        .map(date => ({ effective_from: date, pay_heads: grouped[date] }));
 
       return { success: true, salaryStructures: sorted };
     } catch (err) {
@@ -108,15 +98,27 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = salaryStructures.findIndex(s => s.id === data.id);
-      if (index === -1) return { success: false, error: 'Salary Structure not found' };
+      const existing = await db.execute(
+        `SELECT * FROM salary_structures WHERE structure_id = ?`, [data.structure_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Salary Structure not found' };
 
-      salaryStructures[index] = {
-        ...salaryStructures[index],
-        ...data,
-        updated_at: new Date().toISOString(),
-      };
-      return { success: true, structure: salaryStructures[index] };
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE salary_structures SET
+          amount = ?, calculation_mode = ?, updated_at = datetime('now')
+         WHERE structure_id = ?`,
+        [
+          data.amount ?? current.amount,
+          data.calculation_mode ?? current.calculation_mode,
+          data.structure_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM salary_structures WHERE structure_id = ?`, [data.structure_id]
+      );
+      return { success: true, structure: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -124,11 +126,13 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const structure = salaryStructures.find(s => s.id === id);
-      if (!structure) return { success: false, error: 'Salary Structure not found' };
+      const existing = await db.execute(
+        `SELECT * FROM salary_structures WHERE structure_id = ?`, [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Salary Structure not found' };
 
-      salaryStructures = salaryStructures.map(s =>
-        s.id === id ? { ...s, is_active: false } : s
+      await db.execute(
+        `UPDATE salary_structures SET is_active = 0 WHERE structure_id = ?`, [id]
       );
       return { success: true };
     } catch (err) {

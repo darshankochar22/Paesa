@@ -1,86 +1,104 @@
-let dayBookReports     = [];
-let dayBookEntries     = [];
-let dayBookEntryLines  = [];
+const { db } = require('../db/index');
 
 module.exports = {
   create: async (data) => {
     try {
-      const reportId = Date.now();
+      const result = await db.execute(
+        `INSERT INTO day_book_reports (
+          company_id, report_name, date_from, date_to, selected_company_id,
+          basis_of_values, change_view, exception_reports_enabled, saved_view_name,
+          filter_enabled, filter_details, show_profit, show_columnar, show_optional,
+          show_post_dated, show_stat_adjustment, show_details, show_related_reports
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          data.company_id,
+          data.report_name || 'Day Book',
+          data.date_from,
+          data.date_to,
+          data.selected_company_id || data.company_id,
+          data.basis_of_values || 'Default',
+          data.change_view || null,
+          data.exception_reports_enabled ? 1 : 0,
+          data.saved_view_name || null,
+          data.filter_enabled ? 1 : 0,
+          data.filter_details || null,
+          data.show_profit ? 1 : 0,
+          data.show_columnar ? 1 : 0,
+          data.show_optional ? 1 : 0,
+          data.show_post_dated ? 1 : 0,
+          data.show_stat_adjustment ? 1 : 0,
+          data.show_details ?? 1,
+          data.show_related_reports ? 1 : 0,
+        ]
+      );
 
-      const report = {
-        id: reportId,
-        company_id: data.company_id,
-        report_name: data.report_name || 'Day Book',
-        date_from: data.date_from,
-        date_to: data.date_to,
-        selected_company_id: data.selected_company_id || data.company_id,
-        basis_of_values: data.basis_of_values || 'Default',
-        change_view: data.change_view || null,
-        exception_reports_enabled: data.exception_reports_enabled ?? false,
-        saved_view_name: data.saved_view_name || null,
-        filter_enabled: data.filter_enabled ?? false,
-        filter_details: data.filter_details || null,
-        show_profit: data.show_profit ?? false,
-        show_columnar: data.show_columnar ?? false,
-        show_optional: data.show_optional ?? false,
-        show_post_dated: data.show_post_dated ?? false,
-        show_stat_adjustment: data.show_stat_adjustment ?? false,
-        show_details: data.show_details ?? true,
-        show_related_reports: data.show_related_reports ?? false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      dayBookReports.push(report);
+      const report_id = Number(result.lastInsertRowid);
 
       if (data.entries && data.entries.length > 0) {
-        data.entries.forEach((entry, i) => {
-          const entryId = Date.now() + i + 1;
+        for (let i = 0; i < data.entries.length; i++) {
+          const entry = data.entries[i];
 
-          dayBookEntries.push({
-            id: entryId,
-            report_id: reportId,
-            company_id: data.company_id,
-            voucher_id: entry.voucher_id || null,
-            voucher_date: entry.voucher_date,
-            particulars: entry.particulars || null,
-            voucher_type: entry.voucher_type,
-            voucher_number: entry.voucher_number,
-            debit_amount: entry.debit_amount || 0,
-            credit_amount: entry.credit_amount || 0,
-            narration: entry.narration || null,
-            party_ledger_name: entry.party_ledger_name || null,
-            show_profit: entry.show_profit ?? false,
-            is_optional: entry.is_optional ?? false,
-            is_post_dated: entry.is_post_dated ?? false,
-            is_stat_adjustment: entry.is_stat_adjustment ?? false,
-            gross_profit: entry.gross_profit || 0,
-            cost: entry.cost || 0,
-            display_order: entry.display_order || i + 1,
-            is_drillable: entry.is_drillable ?? true,
-            notes: entry.notes || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+          const entryResult = await db.execute(
+            `INSERT INTO day_book_entries (
+              report_id, company_id, voucher_id, voucher_date, particulars,
+              voucher_type, voucher_number, debit_amount, credit_amount,
+              narration, party_ledger_name, show_profit, is_optional,
+              is_post_dated, is_stat_adjustment, gross_profit, cost,
+              display_order, is_drillable, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              report_id,
+              data.company_id,
+              entry.voucher_id || null,
+              entry.voucher_date,
+              entry.particulars || null,
+              entry.voucher_type,
+              entry.voucher_number,
+              entry.debit_amount || 0,
+              entry.credit_amount || 0,
+              entry.narration || null,
+              entry.party_ledger_name || null,
+              entry.show_profit ? 1 : 0,
+              entry.is_optional ? 1 : 0,
+              entry.is_post_dated ? 1 : 0,
+              entry.is_stat_adjustment ? 1 : 0,
+              entry.gross_profit || 0,
+              entry.cost || 0,
+              entry.display_order || i + 1,
+              entry.is_drillable ?? 1,
+              entry.notes || null,
+            ]
+          );
+
+          const entry_id = Number(entryResult.lastInsertRowid);
 
           if (entry.lines && entry.lines.length > 0) {
-            entry.lines.forEach((line, j) => {
-              dayBookEntryLines.push({
-                id: Date.now() + i + j + 1000,
-                entry_id: entryId,
-                ledger_id: line.ledger_id || null,
-                particulars: line.particulars || null,
-                debit_amount: line.debit_amount || 0,
-                credit_amount: line.credit_amount || 0,
-                line_order: line.line_order || j + 1,
-                notes: line.notes || null,
-              });
-            });
+            for (let j = 0; j < entry.lines.length; j++) {
+              const line = entry.lines[j];
+              await db.execute(
+                `INSERT INTO day_book_entry_lines (
+                  entry_id, ledger_id, particulars, debit_amount, credit_amount, line_order, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  entry_id,
+                  line.ledger_id || null,
+                  line.particulars || null,
+                  line.debit_amount || 0,
+                  line.credit_amount || 0,
+                  line.line_order || j + 1,
+                  line.notes || null,
+                ]
+              );
+            }
           }
-        });
+        }
       }
 
-      return { success: true, report };
+      const report = await db.execute(
+        `SELECT * FROM day_book_reports WHERE report_id = ?`,
+        [report_id]
+      );
+      return { success: true, report: report.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -88,8 +106,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const reports = dayBookReports.filter(r => r.company_id === company_id);
-      return { success: true, reports };
+      const result = await db.execute(
+        `SELECT * FROM day_book_reports WHERE company_id = ? ORDER BY created_at DESC`,
+        [company_id]
+      );
+      return { success: true, reports: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -97,27 +118,35 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const report = dayBookReports.find(r => r.id === id);
-      if (!report) return { success: false, error: 'Report not found' };
+      const report = await db.execute(
+        `SELECT * FROM day_book_reports WHERE report_id = ?`,
+        [id]
+      );
+      if (report.rows.length === 0) return { success: false, error: 'Report not found' };
 
-      const entries = dayBookEntries
-        .filter(e => e.report_id === id)
-        .sort((a, b) => a.display_order - b.display_order)
-        .map(entry => ({
-          ...entry,
-          lines: dayBookEntryLines
-            .filter(l => l.entry_id === entry.id)
-            .sort((a, b) => a.line_order - b.line_order),
-        }));
+      const entries = await db.execute(
+        `SELECT * FROM day_book_entries WHERE report_id = ? ORDER BY display_order ASC`,
+        [id]
+      );
 
-      const totalDebit  = entries.reduce((s, e) => s + e.debit_amount, 0);
-      const totalCredit = entries.reduce((s, e) => s + e.credit_amount, 0);
+      const entriesWithLines = await Promise.all(
+        entries.rows.map(async (entry) => {
+          const lines = await db.execute(
+            `SELECT * FROM day_book_entry_lines WHERE entry_id = ? ORDER BY line_order ASC`,
+            [entry.entry_id]
+          );
+          return { ...entry, lines: lines.rows };
+        })
+      );
+
+      const totalDebit  = entriesWithLines.reduce((s, e) => s + e.debit_amount, 0);
+      const totalCredit = entriesWithLines.reduce((s, e) => s + e.credit_amount, 0);
 
       return {
         success: true,
         report: {
-          ...report,
-          entries,
+          ...report.rows[0],
+          entries: entriesWithLines,
           totalDebit,
           totalCredit,
         },
@@ -129,17 +158,13 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const report = dayBookReports.find(r => r.id === id);
-      if (!report) return { success: false, error: 'Report not found' };
+      const existing = await db.execute(
+        `SELECT * FROM day_book_reports WHERE report_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Report not found' };
 
-      const entryIds = dayBookEntries
-        .filter(e => e.report_id === id)
-        .map(e => e.id);
-
-      dayBookReports    = dayBookReports.filter(r => r.id !== id);
-      dayBookEntries    = dayBookEntries.filter(e => e.report_id !== id);
-      dayBookEntryLines = dayBookEntryLines.filter(l => !entryIds.includes(l.entry_id));
-
+      await db.execute(`DELETE FROM day_book_reports WHERE report_id = ?`, [id]);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
