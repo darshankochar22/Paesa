@@ -1,32 +1,20 @@
-let employeeGroups = [];
+const { db } = require('../db/index');
 
 const buildTree = (all, parentId = null) => {
   return all
     .filter(g => g.parent_group_id === parentId)
-    .map(g => ({ ...g, children: buildTree(all, g.id) }));
+    .map(g => ({ ...g, children: buildTree(all, g.employee_group_id) }));
 };
 
-const seedDefaultEmployeeGroups = (company_id) => {
-  const defaults = [
-    { name: 'Primary',      parent_group_id: null },
-    { name: 'Management',   parent_group_id: null },
-    { name: 'Staff',        parent_group_id: null },
-    { name: 'Workers',      parent_group_id: null },
-  ];
-
-  defaults.forEach((g, i) => {
-    employeeGroups.push({
-      id: Date.now() + i,
-      company_id,
-      name: g.name,
-      alias: null,
-      parent_group_id: g.parent_group_id,
-      is_active: true,
-      is_predefined: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-  });
+const seedDefaultEmployeeGroups = async (company_id) => {
+  const defaults = ['Primary', 'Management', 'Staff', 'Workers'];
+  for (const name of defaults) {
+    await db.execute(
+      `INSERT INTO employee_groups (company_id, name, alias, parent_group_id, is_active, is_predefined)
+       VALUES (?, ?, null, null, 1, 1)`,
+      [company_id, name]
+    );
+  }
 };
 
 module.exports = {
@@ -34,26 +22,23 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = employeeGroups.find(
-        g => g.company_id === data.company_id &&
-        g.name.toLowerCase() === data.name.toLowerCase()
+      const exists = await db.execute(
+        `SELECT * FROM employee_groups WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+        [data.company_id, data.name]
       );
-      if (exists) return { success: false, error: 'Employee Group already exists' };
+      if (exists.rows.length > 0) return { success: false, error: 'Employee Group already exists' };
 
-      const group = {
-        id: Date.now(),
-        company_id: data.company_id,
-        name: data.name,
-        alias: data.alias || null,
-        parent_group_id: data.parent_group_id || null,
-        is_active: true,
-        is_predefined: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO employee_groups (company_id, name, alias, parent_group_id, is_active, is_predefined)
+         VALUES (?, ?, ?, ?, 1, 0)`,
+        [data.company_id, data.name, data.alias || null, data.parent_group_id || null]
+      );
 
-      employeeGroups.push(group);
-      return { success: true, group };
+      const group = await db.execute(
+        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, group: group.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -61,10 +46,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = employeeGroups.filter(
-        g => g.company_id === company_id && g.is_active
+      const result = await db.execute(
+        `SELECT * FROM employee_groups WHERE company_id = ? AND is_active = 1`,
+        [company_id]
       );
-      return { success: true, employeeGroups: result };
+      return { success: true, employeeGroups: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -72,9 +58,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const group = employeeGroups.find(g => g.id === id);
-      if (!group) return { success: false, error: 'Employee Group not found' };
-      return { success: true, group };
+      const result = await db.execute(
+        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Employee Group not found' };
+      return { success: true, group: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -82,10 +71,11 @@ module.exports = {
 
   getTree: async (company_id) => {
     try {
-      const all = employeeGroups.filter(
-        g => g.company_id === company_id && g.is_active
+      const result = await db.execute(
+        `SELECT * FROM employee_groups WHERE company_id = ? AND is_active = 1`,
+        [company_id]
       );
-      const tree = buildTree(all);
+      const tree = buildTree(result.rows);
       return { success: true, tree };
     } catch (err) {
       return { success: false, error: err.message };
@@ -94,16 +84,32 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = employeeGroups.findIndex(g => g.id === data.id);
-      if (index === -1) return { success: false, error: 'Employee Group not found' };
-      if (employeeGroups[index].is_predefined) return { success: false, error: 'Cannot edit predefined employee groups' };
+      const existing = await db.execute(
+        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
+        [data.employee_group_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Employee Group not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined employee groups' };
 
-      employeeGroups[index] = {
-        ...employeeGroups[index],
-        ...data,
-        updated_at: new Date().toISOString(),
-      };
-      return { success: true, group: employeeGroups[index] };
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE employee_groups SET
+          name = ?, alias = ?, parent_group_id = ?,
+          updated_at = datetime('now')
+         WHERE employee_group_id = ?`,
+        [
+          data.name ?? current.name,
+          data.alias ?? current.alias,
+          data.parent_group_id ?? current.parent_group_id,
+          data.employee_group_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
+        [data.employee_group_id]
+      );
+      return { success: true, group: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -111,18 +117,28 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const group = employeeGroups.find(g => g.id === id);
-      if (!group) return { success: false, error: 'Employee Group not found' };
-      if (group.is_predefined) return { success: false, error: 'Cannot delete predefined employee groups' };
+      const existing = await db.execute(
+        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Employee Group not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete predefined employee groups' };
 
-      const hasChildren = employeeGroups.some(g => g.parent_group_id === id);
-      if (hasChildren) return { success: false, error: 'Cannot delete group with sub-groups' };
+      const hasChildren = await db.execute(
+        `SELECT * FROM employee_groups WHERE parent_group_id = ? AND is_active = 1`,
+        [id]
+      );
+      if (hasChildren.rows.length > 0) return { success: false, error: 'Cannot delete group with sub-groups' };
 
-      const hasEmployees = employeeGroups.some(g => g.employee_group_id === id);
-      if (hasEmployees) return { success: false, error: 'Cannot delete group with employees' };
+      const hasEmployees = await db.execute(
+        `SELECT * FROM employees WHERE employee_group_id = ? AND is_active = 1`,
+        [id]
+      );
+      if (hasEmployees.rows.length > 0) return { success: false, error: 'Cannot delete group with employees' };
 
-      employeeGroups = employeeGroups.map(g =>
-        g.id === id ? { ...g, is_active: false } : g
+      await db.execute(
+        `UPDATE employee_groups SET is_active = 0 WHERE employee_group_id = ?`,
+        [id]
       );
       return { success: true };
     } catch (err) {

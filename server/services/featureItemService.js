@@ -1,241 +1,16 @@
-const featureItems = [
-  {
-    id: 1,
-    group_id: 1,
-    feature_key: 'maintain_accounts',
-    feature_name: 'Maintain Accounts',
-    description: 'Enable accounting features for this company',
-    control_type: 'boolean',
-    default_value_boolean: true,
-    display_order: 1,
-    is_mandatory: true,
-    is_active: true,
-  },
-  {
-    id: 2,
-    group_id: 1,
-    feature_key: 'enable_bill_wise_entry',
-    feature_name: 'Enable Bill-wise Entry',
-    description: 'Track outstanding bills for debtors and creditors',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 2,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 3,
-    group_id: 1,
-    feature_key: 'enable_cost_centres',
-    feature_name: 'Enable Cost Centres',
-    description: 'Allocate transactions to cost centres',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 3,
-    is_mandatory: false,
-    is_active: true,
-  },
-
-  {
-    id: 4,
-    group_id: 2,
-    feature_key: 'maintain_inventory',
-    feature_name: 'Maintain Inventory',
-    description: 'Enable inventory management for this company',
-    control_type: 'boolean',
-    default_value_boolean: true,
-    display_order: 1,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 5,
-    group_id: 2,
-    feature_key: 'integrate_accounts_with_inventory',
-    feature_name: 'Integrate Accounts with Inventory',
-    description: 'Link inventory transactions with accounts',
-    control_type: 'boolean',
-    default_value_boolean: true,
-    display_order: 2,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 6,
-    group_id: 2,
-    feature_key: 'enable_multiple_price_levels',
-    feature_name: 'Enable Multiple Price Levels',
-    description: 'Use different price levels for sales and purchase',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 3,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 7,
-    group_id: 2,
-    feature_key: 'enable_batches',
-    feature_name: 'Enable Batches',
-    description: 'Track stock items by batch numbers',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 4,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 8,
-    group_id: 2,
-    feature_key: 'maintain_expiry_date_for_batches',
-    feature_name: 'Maintain Expiry Date for Batches',
-    description: 'Track expiry dates for batches',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 5,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 9,
-    group_id: 2,
-    feature_key: 'use_discount_column_in_invoices',
-    feature_name: 'Use Discount Column in Invoices',
-    description: 'Show discount column in sales and purchase invoices',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 6,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 10,
-    group_id: 2,
-    feature_key: 'use_separate_actual_billed_qty',
-    feature_name: 'Use Separate Actual and Billed Quantity',
-    description: 'Track actual and billed quantities separately',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 7,
-    is_mandatory: false,
-    is_active: true,
-  },
-
-  {
-    id: 11,
-    group_id: 3,
-    feature_key: 'enable_gst',
-    feature_name: 'Enable GST',
-    description: 'Enable GST compliance for this company',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 1,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 12,
-    group_id: 3,
-    feature_key: 'set_alter_company_gst_details',
-    feature_name: 'Set/Alter Company GST Details',
-    description: 'Configure company GST registration details',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 2,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 13,
-    group_id: 3,
-    feature_key: 'enable_tds',
-    feature_name: 'Enable TDS',
-    description: 'Enable Tax Deducted at Source',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 3,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 14,
-    group_id: 3,
-    feature_key: 'enable_tcs',
-    feature_name: 'Enable TCS',
-    description: 'Enable Tax Collected at Source',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 4,
-    is_mandatory: false,
-    is_active: true,
-  },
-
-  {
-    id: 15,
-    group_id: 6,
-    feature_key: 'enable_browser_access_for_reports',
-    feature_name: 'Enable Browser Access for Reports',
-    description: 'Access reports from browser',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 1,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 16,
-    group_id: 6,
-    feature_key: 'enable_tally_net_services',
-    feature_name: 'Enable Tally Net Services',
-    description: 'Connect to online services',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 2,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 17,
-    group_id: 6,
-    feature_key: 'enable_payment_request_qr',
-    feature_name: 'Enable Payment Request QR',
-    description: 'Generate QR codes for payment requests',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 3,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 18,
-    group_id: 6,
-    feature_key: 'enable_multiple_addresses',
-    feature_name: 'Enable Multiple Addresses',
-    description: 'Maintain multiple mailing addresses',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 4,
-    is_mandatory: false,
-    is_active: true,
-  },
-  {
-    id: 19,
-    group_id: 6,
-    feature_key: 'mark_modified_vouchers',
-    feature_name: 'Mark Modified Vouchers',
-    description: 'Track and mark modified vouchers',
-    control_type: 'boolean',
-    default_value_boolean: false,
-    display_order: 5,
-    is_mandatory: false,
-    is_active: true,
-  },
-];
+const { db } = require('../db/index');
 
 module.exports = {
   getAll: async () => {
     try {
-      return { success: true, featureItems };
+      const result = await db.execute(
+        `SELECT fi.*, fg.group_key, fg.group_name
+         FROM feature_items fi
+         INNER JOIN feature_groups fg ON fg.feature_group_id = fi.feature_group_id
+         WHERE fi.is_active = 1
+         ORDER BY fi.feature_group_id ASC, fi.display_order ASC`
+      );
+      return { success: true, featureItems: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -243,18 +18,24 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const item = featureItems.find(f => f.id === id);
-      if (!item) return { success: false, error: 'Feature Item not found' };
-      return { success: true, item };
+      const result = await db.execute(
+        `SELECT * FROM feature_items WHERE feature_item_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Feature Item not found' };
+      return { success: true, item: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
   },
 
-  getByGroup: async (group_id) => {
+  getByGroup: async (feature_group_id) => {
     try {
-      const items = featureItems.filter(f => f.group_id === group_id && f.is_active);
-      return { success: true, featureItems: items };
+      const result = await db.execute(
+        `SELECT * FROM feature_items WHERE feature_group_id = ? AND is_active = 1 ORDER BY display_order ASC`,
+        [feature_group_id]
+      );
+      return { success: true, featureItems: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }

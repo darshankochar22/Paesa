@@ -1,28 +1,22 @@
-let attendanceTypes = [];
+const { db } = require('../db/index');
 
-const seedDefaultAttendanceTypes = (company_id) => {
+const seedDefaultAttendanceTypes = async (company_id) => {
   const defaults = [
-    { name: 'Present',       type: 'Attendance',  unit_id: null },
-    { name: 'Absent',        type: 'Attendance',  unit_id: null },
-    { name: 'Half Day',      type: 'Attendance',  unit_id: null },
-    { name: 'Paid Leave',    type: 'Leave',       unit_id: null },
-    { name: 'Unpaid Leave',  type: 'Leave',       unit_id: null },
-    { name: 'Overtime',      type: 'Production',  unit_id: null },
+    { name: 'Present',      type: 'Attendance' },
+    { name: 'Absent',       type: 'Attendance' },
+    { name: 'Half Day',     type: 'Attendance' },
+    { name: 'Paid Leave',   type: 'Leave'      },
+    { name: 'Unpaid Leave', type: 'Leave'      },
+    { name: 'Overtime',     type: 'Production' },
   ];
 
-  defaults.forEach((a, i) => {
-    attendanceTypes.push({
-      id: Date.now() + i,
-      company_id,
-      name: a.name,
-      type: a.type,
-      unit_id: a.unit_id,
-      is_active: true,
-      is_predefined: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-  });
+  for (const a of defaults) {
+    await db.execute(
+      `INSERT INTO attendance_types (company_id, name, type, unit_id, is_active, is_predefined)
+       VALUES (?, ?, ?, null, 1, 1)`,
+      [company_id, a.name, a.type]
+    );
+  }
 };
 
 module.exports = {
@@ -30,26 +24,23 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = attendanceTypes.find(
-        a => a.company_id === data.company_id &&
-        a.name.toLowerCase() === data.name.toLowerCase()
+      const exists = await db.execute(
+        `SELECT * FROM attendance_types WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+        [data.company_id, data.name]
       );
-      if (exists) return { success: false, error: 'Attendance Type already exists' };
+      if (exists.rows.length > 0) return { success: false, error: 'Attendance Type already exists' };
 
-      const attendanceType = {
-        id: Date.now(),
-        company_id: data.company_id,
-        name: data.name,
-        type: data.type || 'Attendance', 
-        unit_id: data.unit_id || null,
-        is_active: true,
-        is_predefined: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO attendance_types (company_id, name, type, unit_id, is_active, is_predefined)
+         VALUES (?, ?, ?, ?, 1, 0)`,
+        [data.company_id, data.name, data.type || 'Attendance', data.unit_id || null]
+      );
 
-      attendanceTypes.push(attendanceType);
-      return { success: true, attendanceType };
+      const attendanceType = await db.execute(
+        `SELECT * FROM attendance_types WHERE attendance_type_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, attendanceType: attendanceType.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -57,10 +48,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = attendanceTypes.filter(
-        a => a.company_id === company_id && a.is_active
+      const result = await db.execute(
+        `SELECT * FROM attendance_types WHERE company_id = ? AND is_active = 1`,
+        [company_id]
       );
-      return { success: true, attendanceTypes: result };
+      return { success: true, attendanceTypes: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -68,9 +60,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const attendanceType = attendanceTypes.find(a => a.id === id);
-      if (!attendanceType) return { success: false, error: 'Attendance Type not found' };
-      return { success: true, attendanceType };
+      const result = await db.execute(
+        `SELECT * FROM attendance_types WHERE attendance_type_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Attendance Type not found' };
+      return { success: true, attendanceType: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -78,16 +73,31 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = attendanceTypes.findIndex(a => a.id === data.id);
-      if (index === -1) return { success: false, error: 'Attendance Type not found' };
-      if (attendanceTypes[index].is_predefined) return { success: false, error: 'Cannot edit predefined attendance types' };
+      const existing = await db.execute(
+        `SELECT * FROM attendance_types WHERE attendance_type_id = ?`,
+        [data.attendance_type_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Attendance Type not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined attendance types' };
 
-      attendanceTypes[index] = {
-        ...attendanceTypes[index],
-        ...data,
-        updated_at: new Date().toISOString(),
-      };
-      return { success: true, attendanceType: attendanceTypes[index] };
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE attendance_types SET
+          name = ?, type = ?, unit_id = ?, updated_at = datetime('now')
+         WHERE attendance_type_id = ?`,
+        [
+          data.name ?? current.name,
+          data.type ?? current.type,
+          data.unit_id ?? current.unit_id,
+          data.attendance_type_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM attendance_types WHERE attendance_type_id = ?`,
+        [data.attendance_type_id]
+      );
+      return { success: true, attendanceType: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -95,12 +105,16 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const attendanceType = attendanceTypes.find(a => a.id === id);
-      if (!attendanceType) return { success: false, error: 'Attendance Type not found' };
-      if (attendanceType.is_predefined) return { success: false, error: 'Cannot delete predefined attendance types' };
+      const existing = await db.execute(
+        `SELECT * FROM attendance_types WHERE attendance_type_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Attendance Type not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete predefined attendance types' };
 
-      attendanceTypes = attendanceTypes.map(a =>
-        a.id === id ? { ...a, is_active: false } : a
+      await db.execute(
+        `UPDATE attendance_types SET is_active = 0 WHERE attendance_type_id = ?`,
+        [id]
       );
       return { success: true };
     } catch (err) {

@@ -1,47 +1,56 @@
-let employees = [];
+const { db } = require('../db/index');
 
-const employeeCounters = {};
-
-const generateEmployeeCode = (company_id) => {
-  if (!employeeCounters[company_id]) employeeCounters[company_id] = 1;
-  else employeeCounters[company_id]++;
-  return `EMP-${String(employeeCounters[company_id]).padStart(5, '0')}`;
+const generateEmployeeCode = async (company_id) => {
+  const result = await db.execute(
+    `SELECT COUNT(*) as count FROM employees WHERE company_id = ?`,
+    [company_id]
+  );
+  const count = Number(result.rows[0].count) + 1;
+  return `EMP-${String(count).padStart(5, '0')}`;
 };
 
 module.exports = {
   create: async (data) => {
     try {
       if (data.employee_code) {
-        const exists = employees.find(
-          e => e.company_id === data.company_id &&
-          e.employee_code === data.employee_code
+        const exists = await db.execute(
+          `SELECT * FROM employees WHERE company_id = ? AND employee_code = ? AND is_active = 1`,
+          [data.company_id, data.employee_code]
         );
-        if (exists) return { success: false, error: 'Employee code already exists' };
+        if (exists.rows.length > 0) return { success: false, error: 'Employee code already exists' };
       }
 
-      const employee = {
-        id: Date.now(),
-        company_id: data.company_id,
-        employee_group_id: data.employee_group_id || null,
-        name: data.name,
-        employee_code: data.employee_code || generateEmployeeCode(data.company_id),
-        designation: data.designation || null,
-        department: data.department || null,
-        date_of_joining: data.date_of_joining || null,
-        date_of_leaving: data.date_of_leaving || null,
-        mobile: data.mobile || null,
-        email: data.email || null,
-        bank_account_number: data.bank_account_number || null,
-        ifsc_code: data.ifsc_code || null,
-        pan: data.pan || null,
-        aadhaar: data.aadhaar || null,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const employee_code = data.employee_code || await generateEmployeeCode(data.company_id);
 
-      employees.push(employee);
-      return { success: true, employee };
+      const result = await db.execute(
+        `INSERT INTO employees (
+          company_id, employee_group_id, name, employee_code,
+          designation, department, date_of_joining, date_of_leaving,
+          mobile, email, bank_account_number, ifsc_code, pan, aadhaar, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        [
+          data.company_id,
+          data.employee_group_id || null,
+          data.name,
+          employee_code,
+          data.designation || null,
+          data.department || null,
+          data.date_of_joining || null,
+          data.date_of_leaving || null,
+          data.mobile || null,
+          data.email || null,
+          data.bank_account_number || null,
+          data.ifsc_code || null,
+          data.pan || null,
+          data.aadhaar || null,
+        ]
+      );
+
+      const employee = await db.execute(
+        `SELECT * FROM employees WHERE employee_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, employee: employee.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -49,10 +58,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = employees.filter(
-        e => e.company_id === company_id && e.is_active
+      const result = await db.execute(
+        `SELECT * FROM employees WHERE company_id = ? AND is_active = 1`,
+        [company_id]
       );
-      return { success: true, employees: result };
+      return { success: true, employees: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -60,9 +70,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const employee = employees.find(e => e.id === id);
-      if (!employee) return { success: false, error: 'Employee not found' };
-      return { success: true, employee };
+      const result = await db.execute(
+        `SELECT * FROM employees WHERE employee_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Employee not found' };
+      return { success: true, employee: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -70,12 +83,11 @@ module.exports = {
 
   getByGroup: async (company_id, employee_group_id) => {
     try {
-      const result = employees.filter(
-        e => e.company_id === company_id &&
-        e.employee_group_id === employee_group_id &&
-        e.is_active
+      const result = await db.execute(
+        `SELECT * FROM employees WHERE company_id = ? AND employee_group_id = ? AND is_active = 1`,
+        [company_id, employee_group_id]
       );
-      return { success: true, employees: result };
+      return { success: true, employees: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -83,23 +95,53 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = employees.findIndex(e => e.id === data.id);
-      if (index === -1) return { success: false, error: 'Employee not found' };
+      const existing = await db.execute(
+        `SELECT * FROM employees WHERE employee_id = ?`,
+        [data.employee_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Employee not found' };
 
-      if (data.employee_code && data.employee_code !== employees[index].employee_code) {
-        const exists = employees.find(
-          e => e.company_id === employees[index].company_id &&
-          e.employee_code === data.employee_code
+      const current = existing.rows[0];
+
+      if (data.employee_code && data.employee_code !== current.employee_code) {
+        const codeExists = await db.execute(
+          `SELECT * FROM employees WHERE company_id = ? AND employee_code = ? AND is_active = 1`,
+          [current.company_id, data.employee_code]
         );
-        if (exists) return { success: false, error: 'Employee code already exists' };
+        if (codeExists.rows.length > 0) return { success: false, error: 'Employee code already exists' };
       }
 
-      employees[index] = {
-        ...employees[index],
-        ...data,
-        updated_at: new Date().toISOString(),
-      };
-      return { success: true, employee: employees[index] };
+      await db.execute(
+        `UPDATE employees SET
+          employee_group_id = ?, name = ?, employee_code = ?,
+          designation = ?, department = ?, date_of_joining = ?,
+          date_of_leaving = ?, mobile = ?, email = ?,
+          bank_account_number = ?, ifsc_code = ?, pan = ?, aadhaar = ?,
+          updated_at = datetime('now')
+         WHERE employee_id = ?`,
+        [
+          data.employee_group_id ?? current.employee_group_id,
+          data.name ?? current.name,
+          data.employee_code ?? current.employee_code,
+          data.designation ?? current.designation,
+          data.department ?? current.department,
+          data.date_of_joining ?? current.date_of_joining,
+          data.date_of_leaving ?? current.date_of_leaving,
+          data.mobile ?? current.mobile,
+          data.email ?? current.email,
+          data.bank_account_number ?? current.bank_account_number,
+          data.ifsc_code ?? current.ifsc_code,
+          data.pan ?? current.pan,
+          data.aadhaar ?? current.aadhaar,
+          data.employee_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM employees WHERE employee_id = ?`,
+        [data.employee_id]
+      );
+      return { success: true, employee: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -107,16 +149,23 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const employee = employees.find(e => e.id === id);
-      if (!employee) return { success: false, error: 'Employee not found' };
+      const existing = await db.execute(
+        `SELECT * FROM employees WHERE employee_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Employee not found' };
 
-      employees = employees.map(e =>
-        e.id === id ? {
-          ...e,
-          is_active: false,
-          date_of_leaving: e.date_of_leaving || new Date().toISOString().split('T')[0],
-          updated_at: new Date().toISOString(),
-        } : e
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE employees SET
+          is_active = 0,
+          date_of_leaving = ?,
+          updated_at = datetime('now')
+         WHERE employee_id = ?`,
+        [
+          current.date_of_leaving || new Date().toISOString().split('T')[0],
+          id,
+        ]
       );
       return { success: true };
     } catch (err) {

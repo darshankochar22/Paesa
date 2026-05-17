@@ -1,28 +1,21 @@
-let payrollUnits = [];
+const { db } = require('../db/index');
 
-const seedDefaultPayrollUnits = (company_id) => {
+const seedDefaultPayrollUnits = async (company_id) => {
   const defaults = [
-    { name: 'Days',    symbol: 'Days', unit_type: 'Simple',   decimal_places: 0 },
-    { name: 'Hours',   symbol: 'Hrs',  unit_type: 'Simple',   decimal_places: 2 },
-    { name: 'Minutes', symbol: 'Min',  unit_type: 'Simple',   decimal_places: 0 },
-    { name: 'Months',  symbol: 'Mth',  unit_type: 'Simple',   decimal_places: 0 },
-    { name: 'Pieces',  symbol: 'Pcs',  unit_type: 'Simple',   decimal_places: 0 },
+    { name: 'Days',    symbol: 'Days', unit_type: 'Simple', decimal_places: 0 },
+    { name: 'Hours',   symbol: 'Hrs',  unit_type: 'Simple', decimal_places: 2 },
+    { name: 'Minutes', symbol: 'Min',  unit_type: 'Simple', decimal_places: 0 },
+    { name: 'Months',  symbol: 'Mth',  unit_type: 'Simple', decimal_places: 0 },
+    { name: 'Pieces',  symbol: 'Pcs',  unit_type: 'Simple', decimal_places: 0 },
   ];
 
-  defaults.forEach((u, i) => {
-    payrollUnits.push({
-      id: Date.now() + i,
-      company_id,
-      name: u.name,
-      symbol: u.symbol,
-      unit_type: u.unit_type,
-      decimal_places: u.decimal_places,
-      is_active: true,
-      is_predefined: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-  });
+  for (const u of defaults) {
+    await db.execute(
+      `INSERT INTO payroll_units (company_id, name, symbol, unit_type, decimal_places, is_active, is_predefined)
+       VALUES (?, ?, ?, ?, ?, 1, 1)`,
+      [company_id, u.name, u.symbol, u.unit_type, u.decimal_places]
+    );
+  }
 };
 
 module.exports = {
@@ -30,27 +23,29 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = payrollUnits.find(
-        u => u.company_id === data.company_id &&
-        u.name.toLowerCase() === data.name.toLowerCase()
+      const exists = await db.execute(
+        `SELECT * FROM payroll_units WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+        [data.company_id, data.name]
       );
-      if (exists) return { success: false, error: 'Payroll Unit already exists' };
+      if (exists.rows.length > 0) return { success: false, error: 'Payroll Unit already exists' };
 
-      const unit = {
-        id: Date.now(),
-        company_id: data.company_id,
-        name: data.name,
-        symbol: data.symbol,
-        unit_type: data.unit_type || 'Simple',
-        decimal_places: data.decimal_places ?? 0,
-        is_active: true,
-        is_predefined: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      const result = await db.execute(
+        `INSERT INTO payroll_units (company_id, name, symbol, unit_type, decimal_places, is_active, is_predefined)
+         VALUES (?, ?, ?, ?, ?, 1, 0)`,
+        [
+          data.company_id,
+          data.name,
+          data.symbol,
+          data.unit_type || 'Simple',
+          data.decimal_places ?? 0,
+        ]
+      );
 
-      payrollUnits.push(unit);
-      return { success: true, unit };
+      const unit = await db.execute(
+        `SELECT * FROM payroll_units WHERE payroll_unit_id = ?`,
+        [result.lastInsertRowid]
+      );
+      return { success: true, unit: unit.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -58,10 +53,11 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = payrollUnits.filter(
-        u => u.company_id === company_id && u.is_active
+      const result = await db.execute(
+        `SELECT * FROM payroll_units WHERE company_id = ? AND is_active = 1`,
+        [company_id]
       );
-      return { success: true, payrollUnits: result };
+      return { success: true, payrollUnits: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -69,9 +65,12 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const unit = payrollUnits.find(u => u.id === id);
-      if (!unit) return { success: false, error: 'Payroll Unit not found' };
-      return { success: true, unit };
+      const result = await db.execute(
+        `SELECT * FROM payroll_units WHERE payroll_unit_id = ?`,
+        [id]
+      );
+      if (result.rows.length === 0) return { success: false, error: 'Payroll Unit not found' };
+      return { success: true, unit: result.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -79,16 +78,33 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const index = payrollUnits.findIndex(u => u.id === data.id);
-      if (index === -1) return { success: false, error: 'Payroll Unit not found' };
-      if (payrollUnits[index].is_predefined) return { success: false, error: 'Cannot edit predefined payroll units' };
+      const existing = await db.execute(
+        `SELECT * FROM payroll_units WHERE payroll_unit_id = ?`,
+        [data.payroll_unit_id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Payroll Unit not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined payroll units' };
 
-      payrollUnits[index] = {
-        ...payrollUnits[index],
-        ...data,
-        updated_at: new Date().toISOString(),
-      };
-      return { success: true, unit: payrollUnits[index] };
+      const current = existing.rows[0];
+      await db.execute(
+        `UPDATE payroll_units SET
+          name = ?, symbol = ?, unit_type = ?, decimal_places = ?,
+          updated_at = datetime('now')
+         WHERE payroll_unit_id = ?`,
+        [
+          data.name ?? current.name,
+          data.symbol ?? current.symbol,
+          data.unit_type ?? current.unit_type,
+          data.decimal_places ?? current.decimal_places,
+          data.payroll_unit_id,
+        ]
+      );
+
+      const updated = await db.execute(
+        `SELECT * FROM payroll_units WHERE payroll_unit_id = ?`,
+        [data.payroll_unit_id]
+      );
+      return { success: true, unit: updated.rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -96,12 +112,16 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const unit = payrollUnits.find(u => u.id === id);
-      if (!unit) return { success: false, error: 'Payroll Unit not found' };
-      if (unit.is_predefined) return { success: false, error: 'Cannot delete predefined payroll units' };
+      const existing = await db.execute(
+        `SELECT * FROM payroll_units WHERE payroll_unit_id = ?`,
+        [id]
+      );
+      if (existing.rows.length === 0) return { success: false, error: 'Payroll Unit not found' };
+      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete predefined payroll units' };
 
-      payrollUnits = payrollUnits.map(u =>
-        u.id === id ? { ...u, is_active: false } : u
+      await db.execute(
+        `UPDATE payroll_units SET is_active = 0 WHERE payroll_unit_id = ?`,
+        [id]
       );
       return { success: true };
     } catch (err) {

@@ -33,6 +33,8 @@ const initDB = async () => {
   await require('./payrollUnit').init(db);
   await require('./tallyFeatures').init(db);
   await require('./banking').init(db);
+  await require('./attendanceType').init(db);
+  await require('./payHead').init(db); 
 };
 
 module.exports = { db, initDB };

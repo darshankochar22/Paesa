@@ -1,42 +1,28 @@
-const voucherService = require('./voucherService');
-const ledgerService  = require('./ledgerService');
-
-let reconciliations = []; 
+const { db } = require('../db/index');
 
 module.exports = {
   getUnreconciled: async (company_id, fy_id, ledger_id) => {
     try {
-      const { ledger } = await ledgerService.getById(ledger_id);
-      if (!ledger) return { success: false, error: 'Ledger not found' };
-      if (ledger.ledger_type !== 'Bank') return { success: false, error: 'Not a bank ledger' };
+      const ledger = await db.execute(
+        `SELECT * FROM ledgers WHERE ledger_id = ?`,
+        [ledger_id]
+      );
+      if (ledger.rows.length === 0) return { success: false, error: 'Ledger not found' };
+      if (ledger.rows[0].ledger_type !== 'Bank') return { success: false, error: 'Not a bank ledger' };
 
-      const { vouchers } = await voucherService.getAll(company_id, fy_id);
-      const unreconciled = [];
+      const result = await db.execute(
+        `SELECT v.voucher_id, v.voucher_number, v.voucher_type, v.date, v.narration,
+                e.entry_id, e.type, e.amount
+         FROM voucher_entries e
+         INNER JOIN vouchers v ON v.voucher_id = e.voucher_id
+         LEFT JOIN reconciliations r ON r.entry_id = e.entry_id
+         WHERE v.company_id = ? AND v.fy_id = ? AND e.ledger_id = ?
+           AND v.is_cancelled = 0 AND r.reconciliation_id IS NULL
+         ORDER BY v.date ASC`,
+        [company_id, fy_id, ledger_id]
+      );
 
-      for (const v of vouchers) {
-        const full = await voucherService.getById(v.id);
-        if (!full.success) continue;
-
-        const bankEntries = full.voucher.entries.filter(e => e.ledger_id === ledger_id);
-        bankEntries.forEach(e => {
-          const isReconciled = reconciliations.some(r => r.entry_id === e.id);
-          if (!isReconciled) {
-            unreconciled.push({
-              entry_id: e.id,
-              voucher_id: v.id,
-              voucher_number: v.voucher_number,
-              voucher_type: v.voucher_type,
-              date: v.date,
-              narration: v.narration,
-              type: e.type,
-              amount: e.amount,
-            });
-          }
-        });
-      }
-
-      unreconciled.sort((a, b) => new Date(a.date) - new Date(b.date));
-      return { success: true, transactions: unreconciled };
+      return { success: true, transactions: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -44,20 +30,24 @@ module.exports = {
 
   reconcile: async (data) => {
     try {
-      const already = reconciliations.find(r => r.entry_id === data.entry_id);
-      if (already) return { success: false, error: 'Already reconciled' };
+      const already = await db.execute(
+        `SELECT * FROM reconciliations WHERE entry_id = ?`,
+        [data.entry_id]
+      );
+      if (already.rows.length > 0) return { success: false, error: 'Already reconciled' };
 
-      reconciliations.push({
-        id: Date.now(),
-        entry_id: data.entry_id,
-        voucher_id: data.voucher_id,
-        ledger_id: data.ledger_id,
-        reconciled_date: data.reconciled_date || new Date().toISOString().split('T')[0],
-        bank_date: data.bank_date || null,      
-        bank_reference: data.bank_reference || null, 
-        reconciled_at: new Date().toISOString(),
-      });
-
+      await db.execute(
+        `INSERT INTO reconciliations (entry_id, voucher_id, ledger_id, reconciled_date, bank_date, bank_reference)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          data.entry_id,
+          data.voucher_id,
+          data.ledger_id,
+          data.reconciled_date || new Date().toISOString().split('T')[0],
+          data.bank_date || null,
+          data.bank_reference || null,
+        ]
+      );
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -66,10 +56,16 @@ module.exports = {
 
   unreconcile: async (entry_id) => {
     try {
-      const exists = reconciliations.find(r => r.entry_id === entry_id);
-      if (!exists) return { success: false, error: 'Reconciliation not found' };
+      const exists = await db.execute(
+        `SELECT * FROM reconciliations WHERE entry_id = ?`,
+        [entry_id]
+      );
+      if (exists.rows.length === 0) return { success: false, error: 'Reconciliation not found' };
 
-      reconciliations = reconciliations.filter(r => r.entry_id !== entry_id);
+      await db.execute(
+        `DELETE FROM reconciliations WHERE entry_id = ?`,
+        [entry_id]
+      );
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -78,48 +74,40 @@ module.exports = {
 
   getStatement: async (company_id, fy_id, ledger_id, from_date, to_date) => {
     try {
-      const { ledger } = await ledgerService.getById(ledger_id);
-      if (!ledger) return { success: false, error: 'Ledger not found' };
+      const ledger = await db.execute(
+        `SELECT * FROM ledgers WHERE ledger_id = ?`,
+        [ledger_id]
+      );
+      if (ledger.rows.length === 0) return { success: false, error: 'Ledger not found' };
 
-      const { vouchers } = await voucherService.getAll(company_id, fy_id);
-      const rows = [];
+      let query = `
+        SELECT v.voucher_id, v.voucher_number, v.voucher_type, v.date, v.narration,
+               e.entry_id, e.type, e.amount,
+               r.reconciliation_id, r.reconciled_date, r.bank_date, r.bank_reference
+        FROM voucher_entries e
+        INNER JOIN vouchers v ON v.voucher_id = e.voucher_id
+        LEFT JOIN reconciliations r ON r.entry_id = e.entry_id
+        WHERE v.company_id = ? AND v.fy_id = ? AND e.ledger_id = ? AND v.is_cancelled = 0
+      `;
+      const params = [company_id, fy_id, ledger_id];
 
-      for (const v of vouchers) {
-        if (from_date && v.date < from_date) continue;
-        if (to_date   && v.date > to_date)   continue;
+      if (from_date) { query += ` AND v.date >= ?`; params.push(from_date); }
+      if (to_date)   { query += ` AND v.date <= ?`; params.push(to_date); }
+      query += ` ORDER BY v.date ASC`;
 
-        const full = await voucherService.getById(v.id);
-        if (!full.success) continue;
+      const result = await db.execute(query, params);
 
-        const bankEntries = full.voucher.entries.filter(e => e.ledger_id === ledger_id);
-        bankEntries.forEach(e => {
-          const rec = reconciliations.find(r => r.entry_id === e.id);
-          rows.push({
-            entry_id: e.id,
-            voucher_id: v.id,
-            voucher_number: v.voucher_number,
-            voucher_type: v.voucher_type,
-            date: v.date,
-            narration: v.narration,
-            type: e.type,
-            amount: e.amount,
-            is_reconciled: !!rec,
-            reconciled_date: rec ? rec.reconciled_date : null,
-            bank_date: rec ? rec.bank_date : null,
-            bank_reference: rec ? rec.bank_reference : null,
-          });
-        });
-      }
-
-      rows.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      let balance = ledger.opening_balance || 0;
-      const rowsWithBalance = rows.map(r => {
+      let balance = ledger.rows[0].opening_balance || 0;
+      const rows = result.rows.map(r => {
         balance += r.type === 'Dr' ? r.amount : -r.amount;
-        return { ...r, balance };
+        return {
+          ...r,
+          is_reconciled: !!r.reconciliation_id,
+          balance,
+        };
       });
 
-      return { success: true, ledger_name: ledger.name, rows: rowsWithBalance };
+      return { success: true, ledger_name: ledger.rows[0].name, rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -127,37 +115,44 @@ module.exports = {
 
   getSummary: async (company_id, fy_id, ledger_id) => {
     try {
-      const { ledger } = await ledgerService.getById(ledger_id);
-      if (!ledger) return { success: false, error: 'Ledger not found' };
+      const ledger = await db.execute(
+        `SELECT * FROM ledgers WHERE ledger_id = ?`,
+        [ledger_id]
+      );
+      if (ledger.rows.length === 0) return { success: false, error: 'Ledger not found' };
 
-      const { vouchers } = await voucherService.getAll(company_id, fy_id);
+      const entries = await db.execute(
+        `SELECT e.entry_id, e.type, e.amount, r.reconciliation_id
+         FROM voucher_entries e
+         INNER JOIN vouchers v ON v.voucher_id = e.voucher_id
+         LEFT JOIN reconciliations r ON r.entry_id = e.entry_id
+         WHERE v.company_id = ? AND v.fy_id = ? AND e.ledger_id = ? AND v.is_cancelled = 0`,
+        [company_id, fy_id, ledger_id]
+      );
 
-      let bookBalance      = ledger.opening_balance || 0;
+      let bookBalance = ledger.rows[0].opening_balance || 0;
       let reconciledAmount = 0;
       let unreconciledAmount = 0;
 
-      for (const v of vouchers) {
-        const full = await voucherService.getById(v.id);
-        if (!full.success) continue;
+      entries.rows.forEach(e => {
+        const amount = e.type === 'Dr' ? e.amount : -e.amount;
+        bookBalance += amount;
+        if (e.reconciliation_id) reconciledAmount += Math.abs(amount);
+        else unreconciledAmount += Math.abs(amount);
+      });
 
-        const bankEntries = full.voucher.entries.filter(e => e.ledger_id === ledger_id);
-        bankEntries.forEach(e => {
-          const amount = e.type === 'Dr' ? e.amount : -e.amount;
-          bookBalance += amount;
-
-          const isReconciled = reconciliations.some(r => r.entry_id === e.id);
-          if (isReconciled) reconciledAmount  += Math.abs(amount);
-          else              unreconciledAmount += Math.abs(amount);
-        });
-      }
+      const reconciledCount = await db.execute(
+        `SELECT COUNT(*) as count FROM reconciliations WHERE ledger_id = ?`,
+        [ledger_id]
+      );
 
       return {
         success: true,
-        ledger_name: ledger.name,
+        ledger_name: ledger.rows[0].name,
         book_balance: bookBalance,
         reconciled_amount: reconciledAmount,
         unreconciled_amount: unreconciledAmount,
-        total_reconciled_count: reconciliations.filter(r => r.ledger_id === ledger_id).length,
+        total_reconciled_count: Number(reconciledCount.rows[0].count),
       };
     } catch (err) {
       return { success: false, error: err.message };

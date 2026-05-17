@@ -1,20 +1,15 @@
+const { db } = require('../db/index');
 const voucherService = require('./voucherService');
-const ledgerService = require('./ledgerService');
-const groupService = require('./groupService');
 
 const getEntries = async (company_id, fy_id) => {
-  const { vouchers } = await voucherService.getAll(company_id, fy_id);
-  const entries = [];
-
-  for (const v of vouchers) {
-    const full = await voucherService.getById(v.id);
-    if (full.success) {
-      full.voucher.entries.forEach(e => {
-        entries.push({ ...e, date: v.date, voucher_type: v.voucher_type });
-      });
-    }
-  }
-  return entries;
+  const result = await db.execute(
+    `SELECT e.*, v.date, v.voucher_type, v.voucher_number
+     FROM voucher_entries e
+     INNER JOIN vouchers v ON v.voucher_id = e.voucher_id
+     WHERE v.company_id = ? AND v.fy_id = ? AND v.is_cancelled = 0`,
+    [company_id, fy_id]
+  );
+  return result.rows;
 };
 
 const calcLedgerBalance = (ledger_id, entries, opening_balance = 0) => {
@@ -31,15 +26,18 @@ module.exports = {
   trialBalance: async (company_id, fy_id) => {
     try {
       const entries = await getEntries(company_id, fy_id);
-      const { ledgers } = await ledgerService.getAll(company_id);
+      const ledgers = await db.execute(
+        `SELECT * FROM ledgers WHERE company_id = ? AND is_active = 1`,
+        [company_id]
+      );
 
-      const rows = ledgers.map(l => {
-        const balance = calcLedgerBalance(l.id, entries, l.opening_balance || 0);
+      const rows = ledgers.rows.map(l => {
+        const balance = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0);
         return {
-          ledger_id: l.id,
+          ledger_id: l.ledger_id,
           ledger_name: l.name,
           group_id: l.group_id,
-          debit: balance > 0 ? balance : 0,
+          debit:  balance > 0 ? balance : 0,
           credit: balance < 0 ? Math.abs(balance) : 0,
         };
       }).filter(r => r.debit !== 0 || r.credit !== 0);
@@ -53,26 +51,25 @@ module.exports = {
     }
   },
 
-
   balanceSheet: async (company_id, fy_id) => {
     try {
       const entries = await getEntries(company_id, fy_id);
-      const { ledgers } = await ledgerService.getAll(company_id);
-      const { groups } = await groupService.getAll(company_id);
 
-      const getLedgersByNature = (nature) => {
-        return ledgers
-          .filter(l => {
-            const group = groups.find(g => g.id === l.group_id);
-            return group && group.nature === nature;
-          })
-          .map(l => ({
-            ledger_id: l.id,
-            ledger_name: l.name,
-            balance: calcLedgerBalance(l.id, entries, l.opening_balance || 0),
-          }))
-          .filter(l => l.balance !== 0);
-      };
+      const ledgers = await db.execute(
+        `SELECT l.*, g.nature FROM ledgers l
+         INNER JOIN groups g ON g.group_id = l.group_id
+         WHERE l.company_id = ? AND l.is_active = 1`,
+        [company_id]
+      );
+
+      const getLedgersByNature = (nature) => ledgers.rows
+        .filter(l => l.nature === nature)
+        .map(l => ({
+          ledger_id: l.ledger_id,
+          ledger_name: l.name,
+          balance: calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0),
+        }))
+        .filter(l => l.balance !== 0);
 
       const assets      = getLedgersByNature('Assets');
       const liabilities = getLedgersByNature('Liabilities');
@@ -80,13 +77,7 @@ module.exports = {
       const totalAssets      = assets.reduce((s, l) => s + Math.abs(l.balance), 0);
       const totalLiabilities = liabilities.reduce((s, l) => s + Math.abs(l.balance), 0);
 
-      return {
-        success: true,
-        assets,
-        liabilities,
-        totalAssets,
-        totalLiabilities,
-      };
+      return { success: true, assets, liabilities, totalAssets, totalLiabilities };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -95,22 +86,22 @@ module.exports = {
   profitLoss: async (company_id, fy_id) => {
     try {
       const entries = await getEntries(company_id, fy_id);
-      const { ledgers } = await ledgerService.getAll(company_id);
-      const { groups } = await groupService.getAll(company_id);
 
-      const getLedgersByNature = (nature) => {
-        return ledgers
-          .filter(l => {
-            const group = groups.find(g => g.id === l.group_id);
-            return group && group.nature === nature;
-          })
-          .map(l => ({
-            ledger_id: l.id,
-            ledger_name: l.name,
-            balance: Math.abs(calcLedgerBalance(l.id, entries, l.opening_balance || 0)),
-          }))
-          .filter(l => l.balance !== 0);
-      };
+      const ledgers = await db.execute(
+        `SELECT l.*, g.nature FROM ledgers l
+         INNER JOIN groups g ON g.group_id = l.group_id
+         WHERE l.company_id = ? AND l.is_active = 1`,
+        [company_id]
+      );
+
+      const getLedgersByNature = (nature) => ledgers.rows
+        .filter(l => l.nature === nature)
+        .map(l => ({
+          ledger_id: l.ledger_id,
+          ledger_name: l.name,
+          balance: Math.abs(calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0)),
+        }))
+        .filter(l => l.balance !== 0);
 
       const income   = getLedgersByNature('Income');
       const expenses = getLedgersByNature('Expenses');
@@ -121,49 +112,55 @@ module.exports = {
 
       return {
         success: true,
-        income,
-        expenses,
-        totalIncome,
-        totalExpenses,
-        netProfit,
-        isProfit: netProfit >= 0,
+        income, expenses,
+        totalIncome, totalExpenses,
+        netProfit, isProfit: netProfit >= 0,
       };
     } catch (err) {
       return { success: false, error: err.message };
     }
   },
 
-
   ledgerReport: async (company_id, fy_id, ledger_id, from_date, to_date) => {
     try {
-      const entries = await getEntries(company_id, fy_id);
-      const { ledger } = await ledgerService.getById(ledger_id);
-      if (!ledger) return { success: false, error: 'Ledger not found' };
+      const ledger = await db.execute(
+        `SELECT * FROM ledgers WHERE ledger_id = ?`,
+        [ledger_id]
+      );
+      if (ledger.rows.length === 0) return { success: false, error: 'Ledger not found' };
 
-      let filtered = entries.filter(e => e.ledger_id === ledger_id);
-      if (from_date) filtered = filtered.filter(e => e.date >= from_date);
-      if (to_date)   filtered = filtered.filter(e => e.date <= to_date);
+      let query = `
+        SELECT e.*, v.date, v.voucher_type, v.voucher_number, v.narration as voucher_narration
+        FROM voucher_entries e
+        INNER JOIN vouchers v ON v.voucher_id = e.voucher_id
+        WHERE v.company_id = ? AND v.fy_id = ? AND e.ledger_id = ? AND v.is_cancelled = 0
+      `;
+      const params = [company_id, fy_id, ledger_id];
 
-      filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+      if (from_date) { query += ` AND v.date >= ?`; params.push(from_date); }
+      if (to_date)   { query += ` AND v.date <= ?`; params.push(to_date); }
+      query += ` ORDER BY v.date ASC`;
 
-      let runningBalance = ledger.opening_balance || 0;
-      const rows = filtered.map(e => {
+      const result = await db.execute(query, params);
+
+      let runningBalance = ledger.rows[0].opening_balance || 0;
+      const rows = result.rows.map(e => {
         runningBalance += e.type === 'Dr' ? e.amount : -e.amount;
         return {
           date: e.date,
           voucher_type: e.voucher_type,
-          ledger_id: e.ledger_id,
-          debit: e.type === 'Dr' ? e.amount : 0,
+          voucher_number: e.voucher_number,
+          debit:  e.type === 'Dr' ? e.amount : 0,
           credit: e.type === 'Cr' ? e.amount : 0,
           balance: runningBalance,
-          narration: e.narration,
+          narration: e.narration || e.voucher_narration,
         };
       });
 
       return {
         success: true,
-        ledger_name: ledger.name,
-        opening_balance: ledger.opening_balance || 0,
+        ledger_name: ledger.rows[0].name,
+        opening_balance: ledger.rows[0].opening_balance || 0,
         rows,
         closing_balance: runningBalance,
       };
@@ -174,11 +171,15 @@ module.exports = {
 
   cashBook: async (company_id, fy_id, from_date, to_date) => {
     try {
-      const { ledgers } = await ledgerService.getAll(company_id);
-      const cashLedger = ledgers.find(l => l.ledger_type === 'Cash' && l.company_id === company_id);
-      if (!cashLedger) return { success: false, error: 'Cash ledger not found' };
+      const cashLedger = await db.execute(
+        `SELECT * FROM ledgers WHERE company_id = ? AND ledger_type = 'Cash' AND is_active = 1 LIMIT 1`,
+        [company_id]
+      );
+      if (cashLedger.rows.length === 0) return { success: false, error: 'Cash ledger not found' };
 
-      return await module.exports.ledgerReport(company_id, fy_id, cashLedger.id, from_date, to_date);
+      return await module.exports.ledgerReport(
+        company_id, fy_id, cashLedger.rows[0].ledger_id, from_date, to_date
+      );
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -194,13 +195,11 @@ module.exports = {
 
   daybook: async (company_id, fy_id, from_date, to_date) => {
     try {
-      const { vouchers } = await voucherService.getDaybook(
-        company_id, fy_id, from_date, to_date
-      );
+      const { vouchers } = await voucherService.getDaybook(company_id, fy_id, from_date, to_date);
 
       const result = [];
       for (const v of vouchers) {
-        const full = await voucherService.getById(v.id);
+        const full = await voucherService.getById(v.voucher_id);
         if (full.success) result.push(full.voucher);
       }
 
