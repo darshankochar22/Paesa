@@ -44,7 +44,7 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center border-b border-blue-800 last:border-0 min-h-[32px]">
+    <div className="flex items-center border-b  last:border-0 min-h-[32px]">
       <span className="w-56 text-sm text-zinc-400 shrink-0 py-1">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
@@ -118,7 +118,7 @@ export default function AlterCompany({ company, onSuccess, onCancel }: Props) {
   return (
     <div className="flex flex-col h-full">
 
-      <div className="px-6 py-3 border-b border-blue-800 flex items-center justify-between shrink-0">
+      <div className="px-6 py-3 border-b  flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Alter Company</span>
         <span className="text-xs text-zinc-600">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
       </div>
@@ -219,17 +219,17 @@ export default function AlterCompany({ company, onSuccess, onCancel }: Props) {
         </div>
       )}
 
-      <div className="px-6 py-3 border-t border-blue-800 flex justify-end gap-3 shrink-0">
+      <div className="px-6 py-3 border-t  flex justify-end gap-3 shrink-0">
         <button
           onClick={onCancel}
-          className="text-sm px-4 py-1.5 rounded border border-blue-300 text-blue-600 hover:bg-blue-100 hover:border-blue-400 hover:text-blue-800 transition-colors"
+          className="text-sm px-4 py-1.5 rounded border border-black hover:bg-black-100 hover:border-black hover:text-white-800 transition-colors"
         >
           Cancel
         </button>
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="text-sm px-5 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
           {loading ? "Updating..." : "Accept"}
         </button>

@@ -227,7 +227,7 @@ export default function CompanyCreate({ onSuccess, onCancel }: Props) {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="text-sm px-5 py-1.5 rounded bg-black-600 text-white hover:bg-black-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
           {loading ? "Creating..." : "Accept"}
         </button>
