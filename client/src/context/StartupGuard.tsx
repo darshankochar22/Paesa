@@ -59,7 +59,7 @@ function StartupSelect() {
               <button
                 key={company.company_id || company.name}
                 onClick={() => handleSelect(company)}
-                className="w-full text-left px-5 py-4 rounded border border-zinc-700 hover:bg-zinc-800 hover:border-zinc-500 transition-colors"
+                className="w-full text-left px-5 py-4 rounded border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-colors"
               >
                 <div className="font-medium text-lg">{company.name}</div>
                 {company.mailing_name && company.mailing_name !== company.name && (

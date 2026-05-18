@@ -56,7 +56,7 @@ export default function Alter() {
                 {section.items.map((item) => (
                   <button
                     key={item}
-                    className="text-left rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    className="text-left rounded px-2 py-1 hover:bg-blue-100 dark:hover:bg-blue-800"
                   >
                     {item}
                   </button>

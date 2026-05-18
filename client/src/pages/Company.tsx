@@ -96,7 +96,7 @@ const handleCompanyClick = (company: CompanyType) => {
               className={`text-left px-3 py-2 rounded transition-colors ${
                 activeAction === item
                   ? "bg-blue-600 text-white"
-                  : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  : "hover:bg-blue-100 hover:text-blue-900"
               }`}
             >
               {item}
@@ -151,10 +151,10 @@ const handleCompanyClick = (company: CompanyType) => {
                     onClick={() => handleCompanyClick(company)}
                     className={`px-4 py-3 rounded cursor-pointer border transition-colors ${
                       activeAction === "Alter Company"
-                        ? "hover:bg-blue-600/20 hover:border-blue-600"
+                        ? "border-blue-200 hover:bg-blue-100 hover:text-blue-900 hover:border-blue-300"
                         : activeAction === "Shut Company"
-                        ? "hover:bg-red-600/20 hover:border-red-600"
-                        : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        ? "border-blue-200 hover:bg-red-100 hover:text-red-900 hover:border-red-300"
+                        : "border-blue-200 hover:bg-blue-100 hover:text-blue-900 hover:border-blue-300"
                     }`}
                   >
                     {company.name}
@@ -163,7 +163,7 @@ const handleCompanyClick = (company: CompanyType) => {
               </div>
             )}
 
-            <Link to="/" className="text-sm text-zinc-500 hover:text-zinc-300 mt-2 w-fit">
+            <Link to="/" className="text-sm text-zinc-500 hover:text-zinc-700 hover:bg-blue-100 px-2 py-1 rounded mt-2 w-fit">
               ← Back
             </Link>
           </div>

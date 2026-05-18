@@ -31,7 +31,7 @@ export default function ShutCompany({ company, onSuccess, onCancel }: Props) {
   return (
     <div className="flex flex-col h-full">
 
-      <div className="px-6 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0">
+      <div className="px-6 py-3 border-b border-blue-800 flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Shut Company</span>
         <span className="text-xs text-zinc-600">Esc to cancel</span>
       </div>
@@ -39,7 +39,7 @@ export default function ShutCompany({ company, onSuccess, onCancel }: Props) {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 gap-8">
 
         <div className="flex flex-col items-center gap-2">
-          <div className="text-2xl font-semibold text-zinc-200">{company.name}</div>
+          <div className="text-2xl font-semibold text-zinc-900">{company.name}</div>
           {company.mailing_name && company.mailing_name !== company.name && (
             <div className="text-sm text-zinc-500">{company.mailing_name}</div>
           )}
@@ -63,10 +63,10 @@ export default function ShutCompany({ company, onSuccess, onCancel }: Props) {
         </div>
       )}
 
-      <div className="px-6 py-3 border-t border-zinc-800 flex justify-end gap-3 shrink-0">
+      <div className="px-6 py-3 border-t border-blue-800 flex justify-end gap-3 shrink-0">
         <button
           onClick={onCancel}
-          className="text-sm px-4 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors"
+          className="text-sm px-4 py-1.5 rounded border border-blue-300 text-blue-600 hover:bg-blue-100 hover:border-blue-400 hover:text-blue-800 transition-colors"
         >
           Cancel
         </button>
