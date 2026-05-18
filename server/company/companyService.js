@@ -1,6 +1,5 @@
 const bcrypt = require('bcryptjs');
 const { db } = require('../db/index');
-console.log('companyService db.execute:', typeof db?.execute);
 const groupService = require('../group/groupService');
 const ledgerService = require('../ledger/ledgerService');
 const unitService = require('../unit/unitService');
@@ -53,10 +52,8 @@ module.exports = {
           hashedPassword,
         ]
       );
-      console.log('insert result:', result);
 
       const company_id = Number(result.lastInsertRowid);
-      console.log('company_id:', company_id);
 
       try { await groupService.seedDefaultGroups(company_id); console.log('groups ok'); } catch(e) { console.error('groups failed:', e.message); }
       try { const allGroups = (await groupService.getAll(company_id)).groups; await ledgerService.seedDefaultLedgers(company_id, allGroups); console.log('ledgers ok'); } catch(e) { console.error('ledgers failed:', e.message); }
