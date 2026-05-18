@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import type { CompanyType } from "../types/api";
 import CompanyCreate from "./CompanyCreate";
 import AlterCompany from "./AlterCompany";
+import ShutCompany from "./ShutCompany";
 
 type ActiveAction = "Create Company" | "Alter Company" | "Select Company" | "Shut Company" | null;
 
@@ -54,8 +55,18 @@ const handleAlterCancel = () => {
   setSelectedCompany(null);
 };
 
+const handleShutSuccess = () => {
+  fetchCompanies().then(setCompanies);
+  setActiveAction(null);
+  setSelectedCompany(null);
+};
+
+const handleShutCancel = () => {
+  setSelectedCompany(null);
+};
+
 const handleCompanyClick = (company: CompanyType) => {
-  if (activeAction === "Alter Company") {
+  if (activeAction === "Alter Company" || activeAction === "Shut Company") {
     setSelectedCompany(company);
   }
 };
@@ -96,11 +107,20 @@ const handleCompanyClick = (company: CompanyType) => {
             onSuccess={handleAlterSuccess}
             onCancel={handleAlterCancel}
           />
+        ) : activeAction === "Shut Company" && selectedCompany ? (
+          <ShutCompany
+            key={selectedCompany.company_id}
+            company={selectedCompany}
+            onSuccess={handleShutSuccess}
+            onCancel={handleShutCancel}
+          />
         ) : (
           <div className="px-6 py-6 flex flex-col gap-4 overflow-y-auto">
             <div className="text-xl font-semibold">
               {activeAction === "Alter Company"
                 ? "Select a company to alter"
+                : activeAction === "Shut Company"
+                ? "Select a company to delete"
                 : "List of Companies"}
             </div>
 
@@ -115,6 +135,8 @@ const handleCompanyClick = (company: CompanyType) => {
                     className={`px-4 py-3 rounded cursor-pointer border transition-colors ${
                       activeAction === "Alter Company"
                         ? "hover:bg-blue-600/20 hover:border-blue-600"
+                        : activeAction === "Shut Company"
+                        ? "hover:bg-red-600/20 hover:border-red-600"
                         : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     }`}
                   >
