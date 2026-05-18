@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { CompanyType } from "../types/api";
 
+const FY_YEARS = Array.from({ length: 26 }, (_, i) => 2001 + i);
+
 const STATES = [
   "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat",
   "Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh",
@@ -81,7 +83,9 @@ export default function AlterCompany({ company, onSuccess, onCancel }: Props) {
     website: company.website ?? "",
     base_currency_symbol: company.base_currency_symbol ?? "₹",
     formal_name: company.formal_name ?? "",
-    financial_year_beginning_from: company.financial_year_beginning_from ?? "",
+    financial_year_beginning_from: company.financial_year_beginning_from?.substring(0,4)
+      ? `${company.financial_year_beginning_from.substring(0,4)}-04-01`
+      : "",
     books_beginning_from: company.books_beginning_from ?? "",
     password: "",
   });
@@ -184,8 +188,14 @@ export default function AlterCompany({ company, onSuccess, onCancel }: Props) {
 
         <div>
           <div className="text-xs uppercase tracking-widest text-zinc-600 mb-2">Financial Year</div>
-          <Row label="F.Y. Beginning From" required>
-            <input className={inputCls} type="date" value={form.financial_year_beginning_from} onChange={set("financial_year_beginning_from")} />
+          <Row label="Financial Year" required>
+            <select className={selectCls} value={form.financial_year_beginning_from} onChange={set("financial_year_beginning_from")}>
+              {FY_YEARS.map((y) => (
+                <option key={y} value={`${y}-04-01`}>
+                  1 Apr {y} — 31 Mar {y + 1}
+                </option>
+              ))}
+            </select>
           </Row>
           <Row label="Books Beginning From" required>
             <input className={inputCls} type="date" value={form.books_beginning_from} onChange={set("books_beginning_from")} />

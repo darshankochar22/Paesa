@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useCompany } from "../../context/CompanyContext";
 import type { FYType } from "../../types/api";
 
+const FY_YEARS = Array.from({ length: 26 }, (_, i) => 2001 + i);
+
 export default function FinancialYears() {
   const { selectedCompany, activeFY, availableFYs, switchFY } = useCompany();
   const [showCreate, setShowCreate] = useState(false);
@@ -113,14 +115,20 @@ export default function FinancialYears() {
           <div className="px-6 py-4 border-b bg-blue-50">
             <div className="flex items-center gap-4">
               <label className="text-sm font-medium text-gray-700">
-                Start Date:
+                Financial Year:
               </label>
-              <input
-                type="date"
+              <select
                 value={newStartDate}
                 onChange={(e) => setNewStartDate(e.target.value)}
                 className="border rounded px-3 py-1.5 text-sm"
-              />
+              >
+                <option value="">— Select —</option>
+                {FY_YEARS.map((y) => (
+                  <option key={y} value={`${y}-04-01`}>
+                    1 Apr {y} — 31 Mar {y + 1}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={handleCreate}
                 disabled={loading || !newStartDate}
