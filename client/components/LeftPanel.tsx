@@ -124,6 +124,15 @@ export default function LeftPanel() {
                   </button>
                 );
               })}
+              <div className="border-t border-zinc-100 dark:border-zinc-800 px-3 py-1.5">
+                <a
+                  href="#/master/financial-years"
+                  onClick={() => setShowFYDropdown(false)}
+                  className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                >
+                  + Manage Financial Years
+                </a>
+              </div>
             </div>
           )}
         </div>

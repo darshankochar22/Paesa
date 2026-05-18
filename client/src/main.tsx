@@ -9,6 +9,7 @@ import GenericDataView from './pages/GenericDataView.tsx';
 import Company from "./pages/Company.tsx";
 import Create from "./pages/master/Create.tsx";
 import Alter from "./pages/master/Alter.tsx";
+import FinancialYears from "./pages/master/FinancialYears.tsx";
 import COA from "./pages/master/coa.tsx";
 import Vouchers from "./pages/transactions/Vouchers.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
@@ -24,6 +25,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/company" element={<Company />} />
             <Route path="/master/create" element={<Create />}/>
             <Route path="/master/alter" element={<Alter />}/>
+            <Route path="/master/financial-years" element={<FinancialYears />}/>
             <Route path="/master/coa" element={<COA />}/> 
             <Route path="/transactions/vouchers" element={<Vouchers />}/>
             <Route path="/transactions/daybook" element={<Daybook />}/>

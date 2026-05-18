@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { useCompany } from "../context/CompanyContext";
 
 export default function GenericDataView() {
   const { controller } = useParams();
+  const { selectedCompany, activeFY } = useCompany();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -11,7 +13,17 @@ export default function GenericDataView() {
       try {
         setLoading(true);
         if (controller && (window as any).api[controller]?.getAll) {
-          const res = await (window as any).api[controller].getAll();
+          const companyId = selectedCompany?.company_id;
+          const fyId = activeFY?.fy_id;
+          let res: any;
+
+          if (controller === "voucher") {
+            res = await (window as any).api[controller].getAll(companyId, fyId);
+          } else if (companyId) {
+            res = await (window as any).api[controller].getAll(companyId);
+          } else {
+            res = await (window as any).api[controller].getAll();
+          }
           setData(res || []);
         } else {
           setData([]);
@@ -23,7 +35,7 @@ export default function GenericDataView() {
       }
     }
     fetchData();
-  }, [controller]);
+  }, [controller, selectedCompany, activeFY]);
 
   return (
     <div className="flex-1 px-10 py-8">

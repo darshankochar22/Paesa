@@ -46,7 +46,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const switchFY = useCallback(async (fy: FYType) => {
     if (!selectedCompany?.company_id || !fy.fy_id) return;
     try {
-      await window.api.fy.setActive(fy.fy_id);
+      await window.api.fy.setActive(fy.fy_id, selectedCompany.company_id);
       setActiveFY(fy);
       setAvailableFYs(prev =>
         prev.map(f => ({ ...f, is_active: f.fy_id === fy.fy_id ? 1 : 0 }))
@@ -55,6 +55,16 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       console.error('switchFY error:', err);
     }
   }, [selectedCompany]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (selectedCompany?.company_id) {
+        loadFYs(selectedCompany.company_id);
+      }
+    };
+    window.addEventListener("fy-reload", handler);
+    return () => window.removeEventListener("fy-reload", handler);
+  }, [selectedCompany, loadFYs]);
 
   useEffect(() => {
     let cancelled = false;
