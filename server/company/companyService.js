@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { db } = require('../db/index');
+console.log('companyService db.execute:', typeof db?.execute);
 const groupService = require('../group/groupService');
 const ledgerService = require('../ledger/ledgerService');
 const unitService = require('../unit/unitService');
@@ -52,25 +53,26 @@ module.exports = {
           hashedPassword,
         ]
       );
+      console.log('insert result:', result);
 
       const company_id = Number(result.lastInsertRowid);
+      console.log('company_id:', company_id);
 
-      await groupService.seedDefaultGroups(company_id);
-      const allGroups = (await groupService.getAll(company_id)).groups;
-      await ledgerService.seedDefaultLedgers(company_id, allGroups);
-      await unitService.seedDefaultUnits(company_id);
-      await stockGroupService.seedDefaultStockGroups(company_id);
-      await godownService.seedDefaultGodowns(company_id);
-      await currencyService.seedDefaultCurrency(company_id);
-      await voucherTypeService.seedDefaultVoucherTypes(company_id);
-      await gstClassificationService.seedDefaultGSTClassifications(company_id);
-      await employeeGroupService.seedDefaultEmployeeGroups(company_id);
-      await payrollUnitService.seedDefaultPayrollUnits(company_id);
-      await tallyFeaturesService.seedDefaultFeatures(company_id);
-      await companyCreationSuccessService.seedCompanyCreationSuccess(company_id);
-      await companyFeatureValuesService.seedCompanyFeatureValues(company_id);
-      await attendanceTypeService.seedDefaultAttendanceTypes(company_id);
-      await payHeadService.seedDefaultPayHeads(company_id);
+      try { await groupService.seedDefaultGroups(company_id); console.log('groups ok'); } catch(e) { console.error('groups failed:', e.message); }
+      try { const allGroups = (await groupService.getAll(company_id)).groups; await ledgerService.seedDefaultLedgers(company_id, allGroups); console.log('ledgers ok'); } catch(e) { console.error('ledgers failed:', e.message); }
+      try { await unitService.seedDefaultUnits(company_id); console.log('units ok'); } catch(e) { console.error('units failed:', e.message); }
+      try { await stockGroupService.seedDefaultStockGroups(company_id); console.log('stockGroups ok'); } catch(e) { console.error('stockGroups failed:', e.message); }
+      try { await godownService.seedDefaultGodowns(company_id); console.log('godowns ok'); } catch(e) { console.error('godowns failed:', e.message); }
+      try { await currencyService.seedDefaultCurrency(company_id); console.log('currency ok'); } catch(e) { console.error('currency failed:', e.message); }
+      try { await voucherTypeService.seedDefaultVoucherTypes(company_id); console.log('voucherTypes ok'); } catch(e) { console.error('voucherTypes failed:', e.message); }
+      try { await gstClassificationService.seedDefaultGSTClassifications(company_id); console.log('gst ok'); } catch(e) { console.error('gst failed:', e.message); }
+      try { await employeeGroupService.seedDefaultEmployeeGroups(company_id); console.log('employeeGroups ok'); } catch(e) { console.error('employeeGroups failed:', e.message); }
+      try { await payrollUnitService.seedDefaultPayrollUnits(company_id); console.log('payrollUnits ok'); } catch(e) { console.error('payrollUnits failed:', e.message); }
+      try { await tallyFeaturesService.seedDefaultFeatures(company_id); console.log('tallyFeatures ok'); } catch(e) { console.error('tallyFeatures failed:', e.message); }
+      try { await companyCreationSuccessService.seedCompanyCreationSuccess(company_id); console.log('companyCreationSuccess ok'); } catch(e) { console.error('companyCreationSuccess failed:', e.message); }
+      try { await companyFeatureValuesService.seedCompanyFeatureValues(company_id); console.log('companyFeatureValues ok'); } catch(e) { console.error('companyFeatureValues failed:', e.message); }
+      try { await attendanceTypeService.seedDefaultAttendanceTypes(company_id); console.log('attendanceTypes ok'); } catch(e) { console.error('attendanceTypes failed:', e.message); }
+      try { await payHeadService.seedDefaultPayHeads(company_id); console.log('payHeads ok'); } catch(e) { console.error('payHeads failed:', e.message); }
 
       const company = await db.execute(
         `SELECT * FROM companies WHERE company_id = ?`,

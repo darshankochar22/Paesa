@@ -1,4 +1,4 @@
-const db = require("../db/index");
+const { db } = require("../db/index");
 
 const PRIMARY_GROUPS = [
   { name: "Branch/Divisions", nature: "Assets" },

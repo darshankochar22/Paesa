@@ -15,6 +15,7 @@ function createWindow() {
 
     if (isDev) {
         win.loadURL('http://localhost:5173');
+        win.webContents.openDevTools();
     } else {
         win.loadFile(path.join(app.getAppPath(), 'client', 'dist', 'index.html'));
         win.webContents.openDevTools();
@@ -23,8 +24,10 @@ function createWindow() {
 
 app.whenReady().then(async () => {
     try {
-        const { initDB } = require('./server/db/index');
+        const { initDB, db } = require('./server/db/index');
         await initDB();
+        console.log('db type:', typeof db);
+        console.log('db.execute type:', typeof db?.execute);
         require('./server/index.js');
         createWindow();
     } catch (err) {
