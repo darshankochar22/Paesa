@@ -1,5 +1,5 @@
 const { db } = require('../db/index');
-const voucherService = require('./voucherService');
+const voucherService = require('../voucher/voucherService');
 
 const getEntries = async (company_id, fy_id) => {
   const result = await db.execute(

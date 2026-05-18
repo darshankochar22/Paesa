@@ -1,7 +1,7 @@
 const { ipcMain } = require('electron');
 
 const companyController = require('./company/companyController');
-const financialYearController = require("./controllers/financialYearController"); 
+const financialYearController = require("./financialYear/financialYearController"); 
 const groupController = require('./group/groupController');
 const ledgerController = require('./ledger/ledgerController');
 const costCentreController = require('./costCentre/costCentreController');
@@ -32,7 +32,7 @@ const trialBalanceReportController = require('./trialBalanceReport/trialBalanceR
 const balanceSheetReportController = require('./balanceSheetReport/balanceSheetReportController');
 const profitLossReportController = require('./profitLossReport/profitLossReportController');
 const dayBookReportController = require('./dayBookReport/dayBookReportController');
-const masterController = require("./controllers/masterController");
+const masterController = require("./master/masterController");
 
 
 const voucherEntryActionsController = require('./voucherEntryActions/voucherEntryActionsController');

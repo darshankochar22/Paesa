@@ -1,4 +1,4 @@
-const financialYearService = require("../services/financialYearService");
+const financialYearService = require("./financialYearService");
 
 module.exports = {
     create: async (event, data) => {

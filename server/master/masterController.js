@@ -1,4 +1,4 @@
-const masterService = require('../services/masterService');
+const masterService = require('./masterService');
 
 module.exports = {
   getMenu: async (event, company_id) => {
