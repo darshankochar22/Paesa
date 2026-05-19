@@ -1,13 +1,13 @@
-name: Build Windows EXE
+name: Build All Platforms
 
 on:
   push:
     branches: [main]
 
 jobs:
+  # ── Windows ──────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -27,10 +27,74 @@ jobs:
       - name: Build Windows
         run: npx electron-builder --win --x64 --publish never
 
-      - name: Upload EXE
+      - name: Upload Windows
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: |
             dist/*.exe
             !dist/*__uninstaller.exe
+
+  # ── macOS ─────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install root deps
+        run: npm install
+
+      - name: Install client deps
+        run: cd client && npm install
+
+      - name: Build client
+        run: cd client && npm run build
+
+      - name: Build macOS
+        run: npx electron-builder --mac --publish never
+
+      - name: Upload macOS
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-build
+          path: dist/*.dmg
+
+  # ── Linux ─────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools
+
+      - name: Install root deps
+        run: npm install
+
+      - name: Install client deps
+        run: cd client && npm install
+
+      - name: Build client
+        run: cd client && npm run build
+
+      - name: Build Linux
+        run: npx electron-builder --linux --publish never
+
+      - name: Upload Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm

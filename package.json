@@ -12,29 +12,35 @@
     "dist": "npm run build:client && electron-builder"
   },
   "build": {
-    "appId": "com.startup.app",
-    "productName": "Startup",
-    "asar": false,
-    "mac": {
-      "target": "dmg"
-    },
-    "win": {
-      "target": "nsis"
-    },
-    "extraResources": [
-      {
-        "from": "server",
-        "to": "server"
-      }
-    ],
-    "files": [
-      "main.js",
-      "preload.js",
-      "server/**/*",
-      "client/dist/**/*",
-      "node_modules/**/*"
-    ]
+  "appId": "com.startup.app",
+  "productName": "Startup",
+  "asar": false,
+  "mac": {
+    "target": "dmg"
   },
+  "win": {
+    "target": "nsis",
+    "icon": "build/icon.ico"
+  },
+  "linux": {
+    "target": ["AppImage", "deb", "rpm"],
+    "icon": "build/icon.png",
+    "category": "Utility"
+  },
+  "extraResources": [
+    {
+      "from": "server",
+      "to": "server"
+    }
+  ],
+  "files": [
+    "main.js",
+    "preload.js",
+    "server/**/*",
+    "client/dist/**/*",
+    "node_modules/**/*"
+  ]
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
