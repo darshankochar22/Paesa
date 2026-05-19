@@ -21,11 +21,16 @@ jobs:
       - name: Install client deps
         run: cd client && npm install
 
+      - name: Build client
+        run: cd client && npm run build
+
       - name: Build Windows
-        run: npx electron-builder --win --x64
+        run: npx electron-builder --win --x64 --publish never
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: dist/*.exe
+          path: |
+            dist/*.exe
+            !dist/*__uninstaller.exe
