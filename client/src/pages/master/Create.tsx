@@ -25,8 +25,8 @@ export default function Create() {
 
   const getRoute = (item: string) => {
     const map: Record<string, string> = {
-      "Ledger": "/master/ledgers",
-      "Group": "/master/groups",
+      "Ledger": "/master/create/ledger",
+      "Group": "/master/create/group",
       "Unit": "/master/create/unit",
       "Stock Group": "/master/create/stock-group",
       "Stock Category": "/master/create/stock-category",

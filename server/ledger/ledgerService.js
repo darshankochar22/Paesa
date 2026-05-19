@@ -239,6 +239,63 @@ module.exports = {
         ],
       });
 
+      if (data.bank_details) {
+        await db.execute({
+          sql: `DELETE FROM ledger_bank_details WHERE ledger_id = ?`,
+          args: [data.ledger_id],
+        });
+        await db.execute({
+          sql: `INSERT INTO ledger_bank_details (
+                  ledger_id, account_holder_name, account_number, ifsc_code,
+                  swift_code, bank_name, branch_name, bank_configuration,
+                  cheque_book_start_no, cheque_book_end_no, enable_cheque_printing,
+                  cheque_printing_configuration, od_limit
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [
+            data.ledger_id,
+            data.bank_details.account_holder_name || null,
+            data.bank_details.account_number || null,
+            data.bank_details.ifsc_code || null,
+            data.bank_details.swift_code || null,
+            data.bank_details.bank_name || null,
+            data.bank_details.branch_name || null,
+            data.bank_details.bank_configuration || null,
+            data.bank_details.cheque_book_start_no || null,
+            data.bank_details.cheque_book_end_no || null,
+            data.bank_details.enable_cheque_printing ? 1 : 0,
+            data.bank_details.cheque_printing_configuration || null,
+            data.bank_details.od_limit || 0,
+          ],
+        });
+      }
+
+      if (data.statutory_details) {
+        await db.execute({
+          sql: `DELETE FROM ledger_statutory_details WHERE ledger_id = ?`,
+          args: [data.ledger_id],
+        });
+        await db.execute({
+          sql: `INSERT INTO ledger_statutory_details (
+                  ledger_id, gst_applicability, hsn_sac_code, hsn_sac_description,
+                  gst_rate, cgst_rate, sgst_rate, igst_rate,
+                  type_of_duty_tax, percentage_of_calculation, statutory_details
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [
+            data.ledger_id,
+            data.statutory_details.gst_applicability || "Not Applicable",
+            data.statutory_details.hsn_sac_code || null,
+            data.statutory_details.hsn_sac_description || null,
+            data.statutory_details.gst_rate || 0,
+            data.statutory_details.cgst_rate || 0,
+            data.statutory_details.sgst_rate || 0,
+            data.statutory_details.igst_rate || 0,
+            data.statutory_details.type_of_duty_tax || null,
+            data.statutory_details.percentage_of_calculation || 0,
+            data.statutory_details.statutory_details || null,
+          ],
+        });
+      }
+
       const updated = await db.execute({
         sql: `SELECT * FROM ledgers WHERE ledger_id = ?`,
         args: [data.ledger_id],

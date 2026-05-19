@@ -11,8 +11,13 @@ import Create from "./pages/master/Create.tsx";
 import Alter from "./pages/master/Alter.tsx";
 import FinancialYears from "./pages/master/FinancialYears.tsx";
 import COA from "./pages/master/coa.tsx";
-import Ledgers from "./pages/master/Ledgers.tsx";
-import Groups from "./pages/master/Groups.tsx";
+import LedgerCreate from "./pages/master/LedgerCreate.tsx";
+import LedgerAlter from "./pages/master/LedgerAlter.tsx";
+import LedgerCOA from "./pages/master/LedgerCOA.tsx";
+import GroupCreate from "./pages/master/GroupCreate.tsx";
+import GroupAlter from "./pages/master/GroupAlter.tsx";
+import GroupAlterEdit from "./pages/master/GroupAlterEdit.tsx";
+import GroupCOA from "./pages/master/GroupCOA.tsx";
 import Vouchers from "./pages/transactions/Vouchers.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
 import Banking from './pages/utilities/Banking';
@@ -34,8 +39,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/alter" element={<Alter />}/>
             <Route path="/master/financial-years" element={<FinancialYears />}/>
             <Route path="/master/coa" element={<COA />}/>
-            <Route path="/master/ledgers" element={<Ledgers />}/>
-            <Route path="/master/groups" element={<Groups />}/>
+
+            {/* Ledger routes */}
+            <Route path="/master/create/ledger" element={<LedgerCreate />}/>
+            <Route path="/master/alter/ledger" element={<LedgerAlter />}/>
+            <Route path="/master/coa/ledger" element={<LedgerCOA />}/>
+
+            {/* Group routes */}
+            <Route path="/master/create/group" element={<GroupCreate />}/>
+            <Route path="/master/alter/group" element={<GroupAlter />}/>
+            <Route path="/master/alter/group/:id" element={<GroupAlterEdit />}/>
+            <Route path="/master/coa/group" element={<GroupCOA />}/>
 
             {/* Inventory Create */}
             <Route path="/master/create/unit" element={<UnitCreate />}/>

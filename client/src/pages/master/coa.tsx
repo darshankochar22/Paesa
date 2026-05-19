@@ -25,8 +25,8 @@ export default function COA() {
 
   const getRoute = (item: string) => {
     const map: Record<string, string> = {
-      "Ledger": "/master/ledgers",
-      "Group": "/master/groups",
+      "Ledger": "/master/coa/ledger",
+      "Group": "/master/coa/group",
       "Currency": "/data/currency",
       "Voucher Type": "/data/voucherType",
       "Cost Centre": "/data/costCentre",

@@ -146,7 +146,7 @@ module.exports = {
           name: data.name,
           alias: data.alias || null,
           parent_group_id: data.parent_group_id || null,
-          is_primary: 0,
+          is_primary: data.is_primary ? 1 : 0,
           is_predefined: 0,
           nature: data.nature,
           affect_gross_profit: data.affect_gross_profit ? 1 : 0,
@@ -231,7 +231,8 @@ module.exports = {
         sql: `
           UPDATE groups SET
             name = :name, alias = :alias, parent_group_id = :parent_group_id,
-            nature = :nature, affect_gross_profit = :affect_gross_profit,
+            is_primary = :is_primary, nature = :nature,
+            affect_gross_profit = :affect_gross_profit,
             behaves_like_subledger = :behaves_like_subledger,
             show_net_debit_credit = :show_net_debit_credit,
             used_for_calculation = :used_for_calculation,
@@ -248,6 +249,7 @@ module.exports = {
           name: data.name ?? group.name,
           alias: data.alias ?? group.alias,
           parent_group_id: data.parent_group_id ?? group.parent_group_id,
+          is_primary: data.is_primary ? 1 : 0,
           nature: data.nature ?? group.nature,
           affect_gross_profit: data.affect_gross_profit ? 1 : 0,
           behaves_like_subledger: data.behaves_like_subledger ? 1 : 0,
