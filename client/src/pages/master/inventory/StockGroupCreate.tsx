@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../../context/CompanyContext";
+import type { StockGroupType } from "../../../types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -16,8 +17,6 @@ function Row({ label, required, children }: { label: string; required?: boolean;
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400";
 const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer";
-
-interface StockGroup { sg_id: number; name: string; }
 
 interface FormData {
   name: string;
@@ -47,7 +46,7 @@ export default function StockGroupCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const [form, setForm] = useState<FormData>(INITIAL);
-  const [stockGroups, setStockGroups] = useState<StockGroup[]>([]);
+  const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -56,7 +55,7 @@ export default function StockGroupCreate() {
     const company_id = selectedCompany?.company_id;
     if (!company_id) return;
     window.api.stockGroup.getAll(company_id).then(r => {
-      if (r.success) setStockGroups(r.stockGroups as StockGroup[]);
+      if (r.success) setStockGroups(r.stockGroups ?? []);
     });
   }, [selectedCompany]);
 
@@ -64,14 +63,31 @@ export default function StockGroupCreate() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [key]: e.target.value }));
 
-  const handleSubmit = async () => {
-    if (!form.name.trim()) { setError("Name is required."); return; }
-    if (!selectedCompany?.company_id) { setError("No company selected."); return; }
+  const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const half = val === "" ? "0" : String(parseFloat(val) / 2);
+    setForm(f => ({ ...f, gst_rate: val, cgst_rate: half, sgst_rate: half }));
+  };
+
+  const validate = (): string | null => {
+    if (!form.name.trim()) return "Name is required.";
+    if (!selectedCompany?.company_id) return "No company selected.";
+    const gst = Number(form.gst_rate);
+    const cgst = Number(form.cgst_rate);
+    const sgst = Number(form.sgst_rate);
+    if (gst < 0 || cgst < 0 || sgst < 0) return "GST rates cannot be negative.";
+    if (gst > 100 || cgst > 100 || sgst > 100) return "GST rates cannot exceed 100%.";
+    return null;
+  };
+
+  const handleSubmit = useCallback(async () => {
+    const validationError = validate();
+    if (validationError) { setError(validationError); return; }
 
     setLoading(true); setError(null);
     try {
       const result = await window.api.stockGroup.create({
-        company_id: selectedCompany.company_id,
+        company_id: selectedCompany!.company_id,
         name: form.name.trim(),
         alias: form.alias.trim() || undefined,
         parent_group_id: form.parent_group_id ? Number(form.parent_group_id) : undefined,
@@ -84,9 +100,8 @@ export default function StockGroupCreate() {
       });
 
       if (result.success) {
-        // refresh groups list
-        const updated = await window.api.stockGroup.getAll(selectedCompany.company_id);
-        if (updated.success) setStockGroups(updated.stockGroups as StockGroup[]);
+        const updated = await window.api.stockGroup.getAll(selectedCompany!.company_id!);
+        if (updated.success) setStockGroups(updated.stockGroups ?? []);
 
         setSuccess(`Stock Group "${form.name}" created.`);
         setForm(INITIAL);
@@ -99,13 +114,28 @@ export default function StockGroupCreate() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [form, selectedCompany]);
+
+  // Keyboard shortcuts: Ctrl+A to accept, Esc to cancel
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        navigate("/master/stock-group");
+      }
+      if (e.ctrlKey && e.key === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleSubmit, navigate]);
 
   return (
     <div className="flex flex-col h-full">
 
       {/* Header */}
-      <div className="px-6 py-3 border-b flex items-center justify-between shrink-0">
+      <div className="px-6 py-3 flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Create Stock Group</span>
         <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
       </div>
@@ -150,13 +180,28 @@ export default function StockGroupCreate() {
         <div>
           <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">GST Rates</div>
           <Row label="GST Rate (%)">
-            <input className={inputCls} type="number" min="0" max="100" value={form.gst_rate} onChange={set("gst_rate")} />
+            <input
+              className={inputCls}
+              type="number" min="0" max="100" step="0.01"
+              value={form.gst_rate}
+              onChange={handleGstChange}
+            />
           </Row>
           <Row label="CGST Rate (%)">
-            <input className={inputCls} type="number" min="0" max="100" value={form.cgst_rate} onChange={set("cgst_rate")} />
+            <input
+              className={inputCls}
+              type="number" min="0" max="100" step="0.01"
+              value={form.cgst_rate}
+              onChange={set("cgst_rate")}
+            />
           </Row>
           <Row label="SGST Rate (%)">
-            <input className={inputCls} type="number" min="0" max="100" value={form.sgst_rate} onChange={set("sgst_rate")} />
+            <input
+              className={inputCls}
+              type="number" min="0" max="100" step="0.01"
+              value={form.sgst_rate}
+              onChange={set("sgst_rate")}
+            />
           </Row>
         </div>
 
@@ -178,7 +223,7 @@ export default function StockGroupCreate() {
       )}
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t flex justify-end gap-3 shrink-0">
+      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
         <button
           onClick={() => navigate("/master/create")}
           className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"

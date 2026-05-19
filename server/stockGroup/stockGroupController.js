@@ -14,7 +14,7 @@ module.exports = {
     },
 
     update: async (event, id) => {
-        return await stockGroupService.update(id);
+        return await stockGroupService.update(data);
     },
 
     delete: async (event ,id) => {
