@@ -11,6 +11,8 @@ import Create from "./pages/master/Create.tsx";
 import Alter from "./pages/master/Alter.tsx";
 import FinancialYears from "./pages/master/FinancialYears.tsx";
 import COA from "./pages/master/coa.tsx";
+import Ledgers from "./pages/master/Ledgers.tsx";
+import Groups from "./pages/master/Groups.tsx";
 import Vouchers from "./pages/transactions/Vouchers.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
 import Banking from './pages/utilities/Banking';
@@ -32,6 +34,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/alter" element={<Alter />}/>
             <Route path="/master/financial-years" element={<FinancialYears />}/>
             <Route path="/master/coa" element={<COA />}/>
+            <Route path="/master/ledgers" element={<Ledgers />}/>
+            <Route path="/master/groups" element={<Groups />}/>
 
             {/* Inventory Create */}
             <Route path="/master/create/unit" element={<UnitCreate />}/>

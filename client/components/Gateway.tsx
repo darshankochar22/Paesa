@@ -5,7 +5,7 @@ export default function Gateway() {
   const sections = [
     {
       title: "Masters",
-      items: ["Create", "Alter", "Chart of Accounts", "Financial Years"],
+      items: ["Create", "Alter", "Chart of Accounts", "Financial Years", "Ledgers", "Groups"],
     },
     {
       title: "Transactions",
@@ -41,6 +41,8 @@ export default function Gateway() {
       if (item === "Alter") return "/master/alter";
       if (item == "Chart of Accounts") return "/master/coa";
       if (item == "Financial Years") return "/master/financial-years";
+      if (item == "Ledgers") return "/master/ledgers";
+      if (item == "Groups") return "/master/groups";
       if (item == "Vouchers") return "/transactions/vouchers";
       if (item == "Day Book") return "/transactions/daybook";
       if (item == "Banking") return "/utilities/banking";

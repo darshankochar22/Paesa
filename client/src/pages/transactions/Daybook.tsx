@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useCompany } from "../../context/CompanyContext";
-import type { VoucherType } from "../../types/api";
+import type { VoucherRecordType } from "../../types/api";
 
 export default function Daybook() {
   const { selectedCompany, activeFY } = useCompany();
-  const [entries, setEntries] = useState<VoucherType[]>([]);
+  const [entries, setEntries] = useState<VoucherRecordType[]>([]);
 
   useEffect(() => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) return;
