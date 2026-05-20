@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../../context/CompanyContext";
 import type { GodownType } from "../../../types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex items-center border-b last:border-0 min-h-[32px]">
+    <div className="flex items-center min-h-[32px]">
       <span className="w-56 text-sm text-zinc-400 shrink-0 py-1">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
@@ -16,28 +16,67 @@ function Row({ label, required, children }: { label: string; required?: boolean;
 }
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400";
-const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer";
+
+interface SidePanelProps {
+  title: string;
+  items: { id: string | number; label: string }[];
+  selected: string;
+  onSelect: (val: string) => void;
+  onClose: () => void;
+}
+
+function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="fixed top-0 right-0 h-full w-64 bg-white dark:bg-zinc-900 shadow-2xl z-50 flex flex-col"
+      style={{ borderLeft: "none" }}
+    >
+      <div className="bg-zinc-800 text-white text-xs font-semibold px-3 py-2 tracking-wide flex justify-between items-center shrink-0">
+        <span>{title}</span>
+        <button onClick={onClose} className="opacity-60 hover:opacity-100 text-xs">✕</button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div
+          className={`px-3 py-1.5 text-sm cursor-pointer ${selected === "" ? "bg-yellow-400 text-black font-medium" : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}
+          onClick={() => { onSelect(""); onClose(); }}
+        >
+          ◆ Primary
+        </div>
+        {items.map(item => (
+          <div
+            key={item.id}
+            className={`px-3 py-1.5 text-sm cursor-pointer ${selected === String(item.id) ? "bg-yellow-400 text-black font-medium" : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}
+            onClick={() => { onSelect(String(item.id)); onClose(); }}
+          >
+            {item.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface FormData {
-  name: string;
-  alias: string;
-  parent_godown_id: string;
+  name: string; alias: string; parent_godown_id: string;
   allow_storage_of_materials: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
+  address: string; city: string; state: string; pincode: string;
 }
 
 const INITIAL: FormData = {
-  name: "",
-  alias: "",
-  parent_godown_id: "",
+  name: "", alias: "", parent_godown_id: "",
   allow_storage_of_materials: "1",
-  address: "",
-  city: "",
-  state: "",
-  pincode: "",
+  address: "", city: "", state: "", pincode: "",
 };
 
 export default function GodownCreate() {
@@ -48,6 +87,7 @@ export default function GodownCreate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showPanel, setShowPanel] = useState(false);
 
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
@@ -71,7 +111,6 @@ export default function GodownCreate() {
   const handleSubmit = useCallback(async () => {
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
-
     setLoading(true); setError(null);
     try {
       const result = await window.api.godown.create({
@@ -85,11 +124,9 @@ export default function GodownCreate() {
         state: form.state.trim() || undefined,
         pincode: form.pincode.trim() || undefined,
       });
-
       if (result.success) {
         const updated = await window.api.godown.getAll(selectedCompany!.company_id!);
         if (updated.success) setGodowns(updated.godowns ?? []);
-
         setSuccess(`Godown "${form.name}" created.`);
         setForm(INITIAL);
         setTimeout(() => setSuccess(null), 3000);
@@ -105,109 +142,72 @@ export default function GodownCreate() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") navigate("/master/godown");
+      if (e.key === "Escape") { if (showPanel) setShowPanel(false); else navigate("/master/godown"); }
       if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate]);
+  }, [handleSubmit, navigate, showPanel]);
+
+  const selectedGodownLabel = form.parent_godown_id
+    ? godowns.find(g => String(g.godown_id) === form.parent_godown_id)?.name ?? "Primary"
+    : "Primary";
 
   return (
     <div className="flex flex-col h-full">
-
-      {/* Header */}
       <div className="px-6 py-3 flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Create Godown</span>
         <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
       </div>
 
-      {/* Form */}
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
-
-        {/* General */}
         <div>
           <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">General</div>
           <Row label="Name" required>
-            <input
-              autoFocus
-              className={inputCls}
-              value={form.name}
-              onChange={set("name")}
-              placeholder="Godown / location name"
-            />
+            <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="Godown / location name" />
           </Row>
           <Row label="Alias">
-            <input
-              className={inputCls}
-              value={form.alias}
-              onChange={set("alias")}
-              placeholder="Short name (optional)"
-            />
+            <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Short name (optional)" />
           </Row>
           <Row label="Under">
-            <select className={selectCls} value={form.parent_godown_id} onChange={set("parent_godown_id")}>
-              <option value="">Primary</option>
-              {godowns.map(g => (
-                <option key={g.godown_id} value={g.godown_id}>{g.name}</option>
-              ))}
-            </select>
+            <button
+              type="button"
+              onClick={() => setShowPanel(true)}
+              className="w-full text-left text-sm py-1 px-1 bg-transparent outline-none text-zinc-700 dark:text-zinc-300 hover:text-black dark:hover:text-white transition-colors"
+            >
+              {selectedGodownLabel}
+            </button>
           </Row>
           <Row label="Allow Storage of Materials">
-            <select className={selectCls} value={form.allow_storage_of_materials} onChange={set("allow_storage_of_materials")}>
+            <select className={inputCls + " cursor-pointer"} value={form.allow_storage_of_materials} onChange={set("allow_storage_of_materials")}>
               <option value="1">Yes</option>
               <option value="0">No</option>
             </select>
           </Row>
         </div>
 
-        {/* Address */}
         <div>
           <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Address</div>
           <Row label="Address">
-            <input
-              className={inputCls}
-              value={form.address}
-              onChange={set("address")}
-              placeholder="Street / building (optional)"
-            />
+            <input className={inputCls} value={form.address} onChange={set("address")} placeholder="Street / building (optional)" />
           </Row>
           <Row label="City">
-            <input
-              className={inputCls}
-              value={form.city}
-              onChange={set("city")}
-              placeholder="City (optional)"
-            />
+            <input className={inputCls} value={form.city} onChange={set("city")} placeholder="City (optional)" />
           </Row>
           <Row label="State">
-            <input
-              className={inputCls}
-              value={form.state}
-              onChange={set("state")}
-              placeholder="State (optional)"
-            />
+            <input className={inputCls} value={form.state} onChange={set("state")} placeholder="State (optional)" />
           </Row>
           <Row label="Pincode">
-            <input
-              className={inputCls}
-              value={form.pincode}
-              onChange={set("pincode")}
-              placeholder="6-digit pincode (optional)"
-              maxLength={6}
-            />
+            <input className={inputCls} value={form.pincode} onChange={set("pincode")} placeholder="6-digit pincode (optional)" maxLength={6} />
           </Row>
         </div>
-
       </div>
 
-      {/* Success */}
       {success && (
         <div className="px-6 py-2 border-t border-green-900 bg-green-950 text-green-400 text-sm shrink-0">
           ✓ {success}
         </div>
       )}
-
-      {/* Error */}
       {error && (
         <div className="px-6 py-2 border-t border-red-900 bg-red-950 text-red-400 text-sm flex justify-between items-center shrink-0">
           <span>⚠ {error}</span>
@@ -215,23 +215,24 @@ export default function GodownCreate() {
         </div>
       )}
 
-      {/* Footer */}
       <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
-        <button
-          onClick={() => navigate("/master/create")}
-          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-        >
+        <button onClick={() => navigate("/master/create")} className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
           Cancel
         </button>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
-        >
+        <button onClick={handleSubmit} disabled={loading} className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium">
           {loading ? "Saving..." : "Accept"}
         </button>
       </div>
 
+      {showPanel && (
+        <SidePanel
+          title="List of Godowns"
+          items={godowns.map(g => ({ id: g.godown_id, label: g.name }))}
+          selected={form.parent_godown_id}
+          onSelect={val => setForm(f => ({ ...f, parent_godown_id: val }))}
+          onClose={() => setShowPanel(false)}
+        />
+      )}
     </div>
   );
 }

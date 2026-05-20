@@ -116,16 +116,10 @@ export default function StockGroupCreate() {
     }
   }, [form, selectedCompany]);
 
-  // Keyboard shortcuts: Ctrl+A to accept, Esc to cancel
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        navigate("/master/stock-group");
-      }
-      if (e.ctrlKey && e.key === "a") {
-        e.preventDefault();
-        handleSubmit();
-      }
+      if (e.key === "Escape") navigate("/master/stock-group");
+      if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);

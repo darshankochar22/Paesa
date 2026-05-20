@@ -73,11 +73,9 @@ export default function StockItemCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // derived — never stored in state
   const openingValue = (parseFloat(form.opening_quantity) || 0) * (parseFloat(form.opening_rate) || 0);
   const gstSections  = form.gst_applicable !== "Not Applicable";
 
-  // load dropdowns
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
     if (!company_id) return;
@@ -97,7 +95,6 @@ export default function StockItemCreate() {
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm(f => ({ ...f, [key]: e.target.checked }));
 
-  // auto-split GST into CGST + SGST
   const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val  = e.target.value;
     const half = val === "" ? "0" : String(parseFloat(val) / 2);
@@ -163,7 +160,6 @@ export default function StockItemCreate() {
     }
   }, [form, selectedCompany]);
 
-  // keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape")           navigate("/master/stock-item");
