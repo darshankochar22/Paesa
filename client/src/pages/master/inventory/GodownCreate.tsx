@@ -146,7 +146,7 @@ export default function GodownCreate() {
           </Row>
           <Row label="Under">
             <select className={selectCls} value={form.parent_godown_id} onChange={set("parent_godown_id")}>
-              <option value="">— Primary —</option>
+              <option value="">Primary</option>
               {godowns.map(g => (
                 <option key={g.godown_id} value={g.godown_id}>{g.name}</option>
               ))}

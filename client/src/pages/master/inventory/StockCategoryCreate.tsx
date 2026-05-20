@@ -135,7 +135,7 @@ export default function StockCategoryCreate() {
           </Row>
           <Row label="Under">
             <select className={selectCls} value={form.parent_category_id} onChange={set("parent_category_id")}>
-              <option value="">— Primary —</option>
+              <option value="">Primary</option>
               {categories.map(c => (
                 <option key={c.sc_id} value={c.sc_id}>{c.name}</option>
               ))}

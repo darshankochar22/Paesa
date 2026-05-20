@@ -258,7 +258,7 @@ export default function GroupCreate() {
             className={`px-4 py-2 cursor-pointer text-sm border-b ${isPrimarySelected ? "bg-zinc-100 font-medium" : "hover:bg-zinc-50"}`}
             onClick={handleSelectPrimary}
           >
-            &mdash; Primary &mdash;
+            Primary
           </div>
           <div className="flex-1 overflow-y-auto">
             <GroupTree

@@ -153,7 +153,7 @@ export default function StockGroupCreate() {
           </Row>
           <Row label="Under">
             <select className={selectCls} value={form.parent_group_id} onChange={set("parent_group_id")}>
-              <option value="">— Primary —</option>
+              <option value="">Primary</option>
               {stockGroups.map(g => (
                 <option key={g.sg_id} value={g.sg_id}>{g.name}</option>
               ))}
