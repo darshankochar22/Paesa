@@ -1,0 +1,29 @@
+export interface StockItemType {
+  item_id?: number;
+  company_id?: number;
+  name: string;
+  alias?: string;
+  group_id?: number;
+  category_id?: number;
+  unit_id?: number;
+  gst_applicable?: string;
+  hsn_code?: string;
+  sac_code?: string;
+  gst_rate?: number;
+  cgst_rate?: number;
+  sgst_rate?: number;
+  igst_rate?: number;
+  type_of_supply?: string;
+  rate_of_duty?: number;
+  statutory_details?: string;
+  opening_quantity?: number;
+  opening_rate?: number;
+  opening_value?: number;
+  reorder_level?: number;
+  reorder_quantity?: number;
+  track_batches?: number;
+  track_expiry?: number;
+  is_active?: number;
+  created_at?: string;
+  updated_at?: string;
+}

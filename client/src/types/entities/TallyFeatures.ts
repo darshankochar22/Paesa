@@ -1,0 +1,25 @@
+export interface TallyFeaturesType {
+  tally_feature_id?: number;
+  company_id?: number;
+  maintain_accounts?: number;
+  enable_bill_wise_entry?: number;
+  enable_cost_centres?: number;
+  maintain_inventory?: number;
+  integrate_accounts_with_inventory?: number;
+  enable_multiple_price_levels?: number;
+  enable_batches?: number;
+  maintain_expiry_date_for_batches?: number;
+  use_discount_column_in_invoices?: number;
+  use_separate_actual_billed_qty?: number;
+  enable_gst?: number;
+  set_alter_company_gst_details?: number;
+  enable_tds?: number;
+  enable_tcs?: number;
+  enable_browser_access_for_reports?: number;
+  enable_tally_net_services?: number;
+  enable_payment_request_qr?: number;
+  enable_multiple_addresses?: number;
+  mark_modified_vouchers?: number;
+  created_at?: string;
+  updated_at?: string;
+}

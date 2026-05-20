@@ -1,0 +1,65 @@
+import type { CompanyAPI } from './Company';
+import type { FinancialYearAPI } from './FinancialYear';
+import type { GroupAPI } from './Group';
+import type { LedgerAPI } from './Ledger';
+import type { CostCentreAPI } from './CostCentre';
+import type { UnitAPI } from './Unit';
+import type { InventoryAPI } from './Inventory';
+import type { GodownAPI } from './Godown';
+import type { VoucherAPI } from './Transactions';
+import type { MasterDataAPI } from './MasterData';
+import type { PayrollAPI } from './Payroll';
+import type { FeatureManagementAPI } from './FeatureManagement';
+
+// Re-export entity types for convenience
+export type {
+  CompanyType,
+  FYType,
+  GroupType,
+  LedgerType,
+  CostCentreType,
+  UnitType,
+  StockGroupType,
+  StockGroupTreeNode,
+  StockCategoryType,
+  StockItemType,
+  GodownType,
+  CurrencyType,
+  VoucherTypeType,
+  VoucherEntryType,
+  VoucherRecordType,
+  DaybookEntryType,
+  GSTRegistrationType,
+  GSTClassificationType,
+  EmployeeGroupType,
+  EmployeeType,
+  PayrollUnitType,
+  PayHeadType,
+  SalaryStructureType,
+  AttendanceTypeType,
+  FeatureGroupType,
+  FeatureItemType,
+  TallyFeaturesType,
+} from '../entities';
+
+export type WindowAPI = 
+  & CompanyAPI
+  & FinancialYearAPI
+  & GroupAPI
+  & LedgerAPI
+  & CostCentreAPI
+  & UnitAPI
+  & InventoryAPI
+  & GodownAPI
+  & VoucherAPI
+  & MasterDataAPI
+  & PayrollAPI
+  & FeatureManagementAPI;
+
+declare global {
+  interface Window {
+    api: WindowAPI;
+  }
+}
+
+export {};
