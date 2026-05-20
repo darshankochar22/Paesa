@@ -345,14 +345,15 @@ export default function LedgerCreate() {
 
   const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:border-amber-300 focus:bg-amber-50";
   const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:border-amber-300 focus:bg-amber-50";
-  const rowCls = "flex items-center min-h-[24px]";
-  const labelCls = "w-24 text-sm shrink-0";
-  const colonCls = "text-sm mr-1";
+  const rowCls = "flex items-center min-h-[22px]";
+  const labelCls = "w-16 text-sm shrink-0";
+  const colonCls = "text-sm mr-2 shrink-0 w-3";
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white">
-      <div className="px-3 py-1 text-sm font-medium flex justify-between items-center border-b border-[#8a9bc0] select-none">
+      <div className="bg-[#b4c6e7] px-3 py-1 text-sm font-medium flex justify-between items-center border-b border-[#8a9bc0] select-none">
         <span>Ledger Creation</span>
+        <span className="text-xs">Tally Prime</span>
       </div>
 
       {error && (
@@ -368,46 +369,65 @@ export default function LedgerCreate() {
         </div>
       )}
 
-      <div className="flex-1 flex min-h-0">
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex p-2 gap-3">
-            <div className="flex-1 space-y-0.5">
-              <div className={rowCls}>
-                <label className={labelCls}>Name</label>
-                <span className={colonCls}>:</span>
-                <input autoFocus className={`${inputCls} bg-amber-50 border-amber-300`} value={form.name || ""} onChange={setField("name")} />
-              </div>
-              <div className={rowCls}>
-                <label className={labelCls}>(alias)</label>
-                <span className={colonCls}>:</span>
-                <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} />
-              </div>
-              <div className={`${rowCls} cursor-pointer hover:bg-zinc-50`} onClick={() => setShowGroupPanel(!showGroupPanel)}>
-                <label className={labelCls}>Under</label>
-                <span className={colonCls}>:</span>
-                <span className="text-sm">{selectedGroup?.name || "\u2014"}</span>
-              </div>
+      <div className="flex-1 flex min-h-0 overflow-x-auto">
+        {/* Left work area */}
+        <div className="flex-1 flex flex-col min-w-0 shrink-0">
+          {/* Top fields */}
+          <div className="p-2 space-y-0.5">
+            <div className={rowCls}>
+              <label className={labelCls}>Name</label>
+              <span className={colonCls}>:</span>
+              <input autoFocus className={`${inputCls} bg-amber-100 border-amber-300`} value={form.name || ""} onChange={setField("name")} />
             </div>
+            <div className={rowCls}>
+              <label className={labelCls}>(alias)</label>
+              <span className={colonCls}>:</span>
+              <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} />
+            </div>
+          </div>
 
-            <div className="w-44 border shrink-0">
-              <div className="text-center text-xs border-b py-0.5 bg-zinc-50">Total Opening Balance</div>
-              <div className="h-16 flex items-center justify-center text-sm font-medium tabular-nums">
-                {Number(form.opening_balance || 0).toFixed(2)}
-              </div>
+          <div className="border-t border-zinc-200 mx-2" />
+
+          <div className="p-2">
+            <div className={`${rowCls} cursor-pointer hover:bg-zinc-50`} onClick={() => setShowGroupPanel(!showGroupPanel)}>
+              <label className={labelCls}>Under</label>
+              <span className={colonCls}>:</span>
+              <span className={`text-sm px-1 py-0.5 border ${selectedGroup ? "bg-amber-100 border-amber-300" : "border-transparent"}`}>
+                {selectedGroup?.name || "\u2014"}
+              </span>
             </div>
           </div>
 
           <div className="flex-1" />
 
+          {/* Footer */}
           <div className="border-t p-2 flex items-center justify-center gap-2">
             <span className="text-sm font-medium">Opening Balance</span>
             <span className="text-sm">( on {fyLabel} ) :</span>
-            <input type="number" step="0.01" className="w-32 border border-zinc-300 text-sm text-right px-1 py-0.5" value={form.opening_balance ?? 0} onChange={setNumber("opening_balance")} />
+            <input
+              type="number"
+              step="0.01"
+              className="w-32 border border-zinc-300 text-sm text-right px-1 py-0.5"
+              value={form.opening_balance ?? 0}
+              onChange={setNumber("opening_balance")}
+            />
           </div>
         </div>
 
-        <div className="w-[420px] border-l flex flex-col overflow-y-auto shrink-0">
-          <div className="border-b p-2">
+        {/* Right detail panel */}
+        <div className="w-[480px] border-l flex flex-col overflow-y-auto shrink-0">
+          {/* Total Opening Balance box */}
+          <div className="p-2 flex justify-end">
+            <div className="w-44 border shrink-0">
+              <div className="text-center text-xs border-b py-0.5 bg-zinc-50">Total Opening Balance</div>
+              <div className="h-14 flex items-center justify-center text-sm font-medium tabular-nums">
+                {Number(form.opening_balance || 0).toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          {/* Mailing Details */}
+          <div className="border-t p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Mailing Details</div>
             <div className="space-y-0.5">
               <div className={rowCls}>
@@ -415,9 +435,9 @@ export default function LedgerCreate() {
                 <span className={colonCls}>:</span>
                 <input className={inputCls} value={form.mailing_name || ""} onChange={setField("mailing_name")} />
               </div>
-              <div className="flex items-start min-h-[24px]">
+              <div className="flex items-start min-h-[22px]">
                 <label className="w-20 text-sm shrink-0 pt-0.5">Address</label>
-                <span className="text-sm mr-1 pt-0.5">:</span>
+                <span className="text-sm mr-2 shrink-0 w-3 pt-0.5">:</span>
                 <div className="flex-1 space-y-0.5">
                   <input className={`${inputCls} w-full`} value={form.address1 || ""} onChange={setField("address1")} />
                   <input className={`${inputCls} w-full`} value={form.address2 || ""} onChange={setField("address2")} />
@@ -458,7 +478,8 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          <div className="border-b p-2">
+          {/* Banking Details */}
+          <div className="border-t p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Banking Details</div>
             <div className={rowCls}>
               <label className="w-40 text-sm shrink-0">Provide bank details</label>
@@ -470,153 +491,68 @@ export default function LedgerCreate() {
             </div>
             {provideBank === "Yes" && (
               <div className="mt-1.5 space-y-0.5 pl-2">
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">Account Holder Name</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} />
-                </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">Account Number</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} />
-                </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">IFSC Code</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} />
-                </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">SWIFT Code</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.swift_code || ""} onChange={setBankField("swift_code")} />
-                </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">Bank Name</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} />
-                </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">Branch Name</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} />
-                </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">Cheque Book Start No</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
-                </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">Cheque Book End No</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
-                </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">OD Limit</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} type="number" step="0.01" value={bankForm.od_limit ?? 0} onChange={setBankNumber("od_limit")} />
-                </div>
-                <div className="flex items-center min-h-[24px]">
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">Account Holder Name</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} /></div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">Account Number</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} /></div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">IFSC Code</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} /></div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">SWIFT Code</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.swift_code || ""} onChange={setBankField("swift_code")} /></div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">Bank Name</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} /></div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">Branch Name</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} /></div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">Cheque Book Start No</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} /></div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">Cheque Book End No</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} /></div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">OD Limit</label><span className={colonCls}>:</span><input className={inputCls} type="number" step="0.01" value={bankForm.od_limit ?? 0} onChange={setBankNumber("od_limit")} /></div>
+                <div className="flex items-center min-h-[22px]">
                   <label className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <input type="checkbox" checked={!!bankForm.enable_cheque_printing} onChange={setBankToggle("enable_cheque_printing")} className="rounded" />
                     Enable Cheque Printing
                   </label>
                 </div>
-                <div className={rowCls}>
-                  <label className="w-40 text-sm shrink-0">Cheque Print Config</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} />
-                </div>
+                <div className={rowCls}><label className="w-40 text-sm shrink-0">Cheque Print Config</label><span className={colonCls}>:</span><input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} /></div>
               </div>
             )}
           </div>
 
-          <div className="p-2">
+          {/* Tax Registration Details */}
+          <div className="border-t p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Tax Registration Details</div>
             <div className="space-y-0.5">
-              <div className={rowCls}>
-                <label className="w-40 text-sm shrink-0">PAN/IT No.</label>
-                <span className={colonCls}>:</span>
-                <input className={inputCls} value={form.pan || ""} onChange={setField("pan")} />
-              </div>
-              <div className={rowCls}>
-                <label className="w-40 text-sm shrink-0">Registration type</label>
-                <span className={colonCls}>:</span>
-                <select className={selectCls} value={form.registration_type || "Unregistered"} onChange={setField("registration_type")}>
-                  {REG_TYPES.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-              <div className={rowCls}>
-                <label className="w-40 text-sm shrink-0 pl-4">GSTIN/UIN</label>
-                <span className={colonCls}>:</span>
-                <input className={inputCls} value={form.gstin || ""} onChange={setField("gstin")} />
-              </div>
-              <div className={rowCls}>
-                <label className="w-40 text-sm shrink-0 pl-4">Set/Alter additional GST details</label>
-                <span className={colonCls}>:</span>
-                <select className={selectCls} value={provideGst} onChange={(e) => setProvideGst(e.target.value as "No" | "Yes")}>
-                  <option>No</option>
-                  <option>Yes</option>
-                </select>
-              </div>
+              <div className={rowCls}><label className="w-40 text-sm shrink-0">PAN/IT No.</label><span className={colonCls}>:</span><input className={inputCls} value={form.pan || ""} onChange={setField("pan")} /></div>
+              <div className={rowCls}><label className="w-40 text-sm shrink-0">Registration type</label><span className={colonCls}>:</span><select className={selectCls} value={form.registration_type || "Unregistered"} onChange={setField("registration_type")}>{REG_TYPES.map((r) => <option key={r} value={r}>{r}</option>)}</select></div>
+              <div className={rowCls}><label className="w-40 text-sm shrink-0 pl-4">GSTIN/UIN</label><span className={colonCls}>:</span><input className={inputCls} value={form.gstin || ""} onChange={setField("gstin")} /></div>
+              <div className={rowCls}><label className="w-40 text-sm shrink-0 pl-4">Set/Alter additional GST details</label><span className={colonCls}>:</span><select className={selectCls} value={provideGst} onChange={(e) => setProvideGst(e.target.value as "No" | "Yes")}><option>No</option><option>Yes</option></select></div>
               {provideGst === "Yes" && (
                 <div className="mt-1.5 space-y-0.5 pl-6">
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">GST Applicability</label>
-                    <span className={colonCls}>:</span>
-                    <select className={selectCls} value={statutoryForm.gst_applicability || "Not Applicable"} onChange={setStatField("gst_applicability")}>
-                      {GST_APPLICABILITIES.map((a) => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">HSN/SAC Code</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} value={statutoryForm.hsn_sac_code || ""} onChange={setStatField("hsn_sac_code")} />
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">HSN/SAC Description</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} value={statutoryForm.hsn_sac_description || ""} onChange={setStatField("hsn_sac_description")} />
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">GST Rate (%)</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} type="number" step="0.01" min="0" max="100" value={statutoryForm.gst_rate ?? 0} onChange={setStatNumber("gst_rate")} />
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">CGST Rate (%)</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} type="number" step="0.01" min="0" max="100" value={statutoryForm.cgst_rate ?? 0} onChange={setStatNumber("cgst_rate")} />
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">SGST Rate (%)</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} type="number" step="0.01" min="0" max="100" value={statutoryForm.sgst_rate ?? 0} onChange={setStatNumber("sgst_rate")} />
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">IGST Rate (%)</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} type="number" step="0.01" min="0" max="100" value={statutoryForm.igst_rate ?? 0} onChange={setStatNumber("igst_rate")} />
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">Type of Duty/Tax</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} value={statutoryForm.type_of_duty_tax || ""} onChange={setStatField("type_of_duty_tax")} />
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">% of Calculation</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} type="number" step="0.01" value={statutoryForm.percentage_of_calculation ?? 0} onChange={setStatNumber("percentage_of_calculation")} />
-                  </div>
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0">Statutory Details</label>
-                    <span className={colonCls}>:</span>
-                    <input className={inputCls} value={statutoryForm.statutory_details || ""} onChange={setStatField("statutory_details")} />
-                  </div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">GST Applicability</label><span className={colonCls}>:</span><select className={selectCls} value={statutoryForm.gst_applicability || "Not Applicable"} onChange={setStatField("gst_applicability")}>{GST_APPLICABILITIES.map((a) => <option key={a} value={a}>{a}</option>)}</select></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">HSN/SAC Code</label><span className={colonCls}>:</span><input className={inputCls} value={statutoryForm.hsn_sac_code || ""} onChange={setStatField("hsn_sac_code")} /></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">HSN/SAC Description</label><span className={colonCls}>:</span><input className={inputCls} value={statutoryForm.hsn_sac_description || ""} onChange={setStatField("hsn_sac_description")} /></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">GST Rate (%)</label><span className={colonCls}>:</span><input className={inputCls} type="number" step="0.01" min="0" max="100" value={statutoryForm.gst_rate ?? 0} onChange={setStatNumber("gst_rate")} /></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">CGST Rate (%)</label><span className={colonCls}>:</span><input className={inputCls} type="number" step="0.01" min="0" max="100" value={statutoryForm.cgst_rate ?? 0} onChange={setStatNumber("cgst_rate")} /></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">SGST Rate (%)</label><span className={colonCls}>:</span><input className={inputCls} type="number" step="0.01" min="0" max="100" value={statutoryForm.sgst_rate ?? 0} onChange={setStatNumber("sgst_rate")} /></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">IGST Rate (%)</label><span className={colonCls}>:</span><input className={inputCls} type="number" step="0.01" min="0" max="100" value={statutoryForm.igst_rate ?? 0} onChange={setStatNumber("igst_rate")} /></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">Type of Duty/Tax</label><span className={colonCls}>:</span><input className={inputCls} value={statutoryForm.type_of_duty_tax || ""} onChange={setStatField("type_of_duty_tax")} /></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">% of Calculation</label><span className={colonCls}>:</span><input className={inputCls} type="number" step="0.01" value={statutoryForm.percentage_of_calculation ?? 0} onChange={setStatNumber("percentage_of_calculation")} /></div>
+                  <div className={rowCls}><label className="w-40 text-sm shrink-0">Statutory Details</label><span className={colonCls}>:</span><input className={inputCls} value={statutoryForm.statutory_details || ""} onChange={setStatField("statutory_details")} /></div>
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        {/* Group panel */}
+        {showGroupPanel && (
+          <div className="w-72 border-l bg-[#e8f0f8] flex flex-col shrink-0">
+            <div className="bg-[#b4c6e7] px-2 py-1 text-sm font-medium flex justify-between items-center border-b border-[#8a9bc0] select-none">
+              <span>List of Groups</span>
+              <button onClick={() => setShowGroupPanel(false)} className="text-xs hover:underline">&times;</button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <GroupTree
+                tree={groupTree}
+                selectedId={form.group_id as number}
+                onSelect={handleGroupSelect}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="border-t p-2 flex justify-between items-center bg-zinc-50">
@@ -631,22 +567,6 @@ export default function LedgerCreate() {
           {loading ? "Saving..." : "Create"}
         </button>
       </div>
-
-      {showGroupPanel && (
-        <div className="w-72 border-l bg-zinc-50/50 flex flex-col">
-          <div className="px-4 py-3 border-b text-sm font-medium text-zinc-600 flex justify-between items-center">
-            <span>Under Group</span>
-            <button onClick={() => setShowGroupPanel(false)} className="text-xs text-zinc-400 hover:text-zinc-600">&times;</button>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            <GroupTree
-              tree={groupTree}
-              selectedId={form.group_id as number}
-              onSelect={handleGroupSelect}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
