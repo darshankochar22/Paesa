@@ -6,7 +6,7 @@ import type { GroupType } from "../../types/api";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
-    <div className={`flex items-start border-b last:border-0 min-h-[36px]${onClick ? " cursor-pointer hover:bg-zinc-50" : ""}`} onClick={onClick}>
+    <div className={`flex items-start last:border-0 min-h-[36px]${onClick ? " cursor-pointer hover:bg-zinc-50" : ""}`} onClick={onClick}>
       <span className="w-64 text-sm text-zinc-600 shrink-0 py-1.5">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
@@ -214,7 +214,7 @@ export default function GroupCreate() {
             </div>
           </div>
 
-          <div className="border-t" />
+          <div className="" />
 
           <div className="border rounded overflow-hidden">
             <Row label="Group behaves like a sub-ledger" onClick={toggleField("behaves_like_subledger")}>
@@ -250,12 +250,12 @@ export default function GroupCreate() {
 
       {showGroupPanel && (
         <div className="w-72 border-l bg-zinc-50/50 flex flex-col">
-          <div className="px-4 py-3 border-b text-sm font-medium text-zinc-600 flex justify-between items-center">
+          <div className="px-4 py-3 text-sm font-medium text-zinc-600 flex justify-between items-center">
             <span>Under Group</span>
             <button onClick={() => setShowGroupPanel(false)} className="text-xs text-zinc-400 hover:text-zinc-600">&times;</button>
           </div>
           <div
-            className={`px-4 py-2 cursor-pointer text-sm border-b ${isPrimarySelected ? "bg-zinc-100 font-medium" : "hover:bg-zinc-50"}`}
+            className={`px-4 py-2 cursor-pointer text-sm  ${isPrimarySelected ? "bg-zinc-100 font-medium" : "hover:bg-zinc-50"}`}
             onClick={handleSelectPrimary}
           >
             Primary
