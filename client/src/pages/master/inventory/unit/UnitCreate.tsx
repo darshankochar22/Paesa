@@ -1,38 +1,23 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import FormRow from "@/components/ui/FormRow";
 
-function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center last:border-0 min-h-[32px]">
-      <span className="w-56 text-sm text-zinc-400 shrink-0 py-1">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </span>
-      <span className="text-zinc-600 mr-2">:</span>
-      <div className="flex-1">{children}</div>
-    </div>
-  );
-}
-
-const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400";
-const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer";
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
+const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
 
 interface FormData {
-  name: string;
+  unit_type: "Simple" | "Compound";
   symbol: string;
   formal_name: string;
-  unit_type: "Simple" | "Compound";
   decimal_places: string;
-  unit_quantity_code: string;
 }
 
 const INITIAL: FormData = {
-  name: "",
+  unit_type: "Simple",
   symbol: "",
   formal_name: "",
-  unit_type: "Simple",
   decimal_places: "0",
-  unit_quantity_code: "",
 };
 
 export default function UnitCreate() {
@@ -43,29 +28,26 @@ export default function UnitCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const set = (key: keyof FormData) =>
+  const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) { setError("Name is required."); return; }
     if (!form.symbol.trim()) { setError("Symbol is required."); return; }
     if (!selectedCompany?.company_id) { setError("No company selected."); return; }
-
     setLoading(true); setError(null);
     try {
       const result = await window.api.unit.create({
         company_id: selectedCompany.company_id,
-        name: form.name.trim(),
+        // API still needs `name` — use symbol as the canonical name
+        name: form.symbol.trim(),
         symbol: form.symbol.trim(),
-        formal_name: form.formal_name.trim() || form.name.trim(),
+        formal_name: form.formal_name.trim() || form.symbol.trim(),
         unit_type: form.unit_type,
         decimal_places: Number(form.decimal_places) || 0,
-        unit_quantity_code: form.unit_quantity_code.trim() || undefined,
       });
-
       if (result.success) {
-        setSuccess(`Unit "${form.name}" created.`);
+        setSuccess(`Unit "${form.symbol}" created.`);
         setForm(INITIAL);
         setTimeout(() => setSuccess(null), 3000);
       } else {
@@ -79,77 +61,59 @@ export default function UnitCreate() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full bg-white">
 
-      <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Create Unit</span>
-        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
+      {/* Title bar */}
+      <div className="px-3 py-1 text-sm font-medium flex justify-between items-center select-none">
+        <span>Unit Creation</span>
       </div>
-
-      <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
-
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">General</div>
-          <Row label="Name" required>
-            <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="e.g. Kilograms" />
-          </Row>
-          <Row label="Symbol" required>
-            <input className={inputCls} value={form.symbol} onChange={set("symbol")} placeholder="e.g. Kg" />
-          </Row>
-          <Row label="Formal Name">
-            <input className={inputCls} value={form.formal_name} onChange={set("formal_name")} placeholder="Defaults to name" />
-          </Row>
-        </div>
-
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Configuration</div>
-          <Row label="Unit Type">
-            <select className={selectCls} value={form.unit_type} onChange={set("unit_type")}>
-              <option value="Simple">Simple</option>
-              <option value="Compound">Compound</option>
-            </select>
-          </Row>
-          <Row label="Decimal Places">
-            <select className={selectCls} value={form.decimal_places} onChange={set("decimal_places")}>
-              {[0, 1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </Row>
-          <Row label="Unit Quantity Code">
-            <input className={inputCls} value={form.unit_quantity_code} onChange={set("unit_quantity_code")} placeholder="Optional (e.g. KGS)" />
-          </Row>
-        </div>
-
-      </div>
-
-      {success && (
-        <div className="px-6 py-2 border-t border-green-900 bg-green-950 text-green-400 text-sm shrink-0">
-          ✓ {success}
-        </div>
-      )}
 
       {error && (
-        <div className="px-6 py-2 border-t border-red-900 bg-red-950 text-red-400 text-sm flex justify-between items-center shrink-0">
-          <span>⚠ {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-300 text-xs ml-4">dismiss</button>
+        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
+        </div>
+      )}
+      {success && (
+        <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
+          <span>{success}</span>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
         </div>
       )}
 
-      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
-        <button
-          onClick={() => navigate("/master/create")}
-          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 transition-colors"
-        >
-          Cancel
+      <div className="flex-1 flex flex-col min-w-0 p-2 space-y-0.5">
+        <FormRow label="Type" labelWidth="w-48" className="flex items-center min-h-[22px]">
+          <select className={selectCls} value={form.unit_type} onChange={setField("unit_type")}>
+            <option value="Simple">Simple</option>
+            <option value="Compound">Compound</option>
+          </select>
+        </FormRow>
+        <FormRow label="Symbol" labelWidth="w-48" className="flex items-center min-h-[22px]">
+          <input autoFocus className={inputCls} value={form.symbol} onChange={setField("symbol")} placeholder="e.g. Kg" />
+        </FormRow>
+        <FormRow label="Formal Name" labelWidth="w-48" className="flex items-center min-h-[22px]">
+          <input className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Kilogram (optional)" />
+        </FormRow>
+        <FormRow label="Number of Decimal Places" labelWidth="w-48" className="flex items-center min-h-[22px]">
+          <select className={selectCls} value={form.decimal_places} onChange={setField("decimal_places")}>
+            {[0, 1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </FormRow>
+      </div>
+
+      {/* Footer */}
+      <div className="border-t p-2 flex justify-between items-center bg-zinc-50">
+        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800">
+          &larr; Back to Masters
         </button>
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+          className="text-sm px-5 py-1 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
         >
-          {loading ? "Saving..." : "Accept"}
+          {loading ? "Saving..." : "Create"}
         </button>
       </div>
-
     </div>
   );
 }

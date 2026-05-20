@@ -1,47 +1,74 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import GroupTree from "@/components/GroupTree";
+import FormRow from "@/components/ui/FormRow";
+import BankDetailsPopup, { EMPTY_BANK_DETAILS } from "./components/BankDetailsPopup";
+import type { BankDetails } from "./components/BankDetailsPopup";
 import { useCompany } from "@/context/CompanyContext";
+import { INDIAN_STATES } from "@/constants/states";
 import type { GroupType, LedgerType } from "@/types/api";
 
-const INDIAN_STATES = [
-  "Not Applicable",
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-];
+// ── Style tokens — identical to LedgerCreate ──────────────────────────────
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
+const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
 
-const GST_APPLICABILITY = [
-  "Not Applicable",
-  "Goods",
-  "Services",
-  "Both",
-];
+// ── Ledger selection panel (slide-in, mirrors Group panel in LedgerCreate) ──
+function LedgerListPanel({
+  ledgers,
+  selectedId,
+  onSelect,
+  onClose,
+}: {
+  ledgers: LedgerType[];
+  selectedId: number | null;
+  onSelect: (l: LedgerType) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const filtered = ledgers.filter((l) =>
+    l.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="w-72 border-l flex flex-col shrink-0">
+      <div className="px-2 py-1 text-sm font-medium flex justify-between items-center select-none">
+        <span>List of Ledgers</span>
+        <button onClick={onClose} className="text-xs hover:underline">&times;</button>
+      </div>
+      <div className="px-2 pb-1 border-b">
+        <input
+          ref={inputRef}
+          className="w-full text-xs bg-transparent border-b border-zinc-300 outline-none py-0.5 placeholder:text-zinc-400"
+          placeholder="Search…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {filtered.length === 0 && (
+          <div className="text-xs text-zinc-400 px-3 py-2">No ledgers found</div>
+        )}
+        {filtered.map((l) => (
+          <div
+            key={l.ledger_id}
+            onClick={() => { onSelect(l); onClose(); }}
+            className={[
+              "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
+              selectedId === l.ledger_id
+                ? "bg-zinc-800 text-white"
+                : "hover:bg-zinc-50",
+            ].join(" ")}
+          >
+            {l.name}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function LedgerAlter() {
   const { selectedCompany, activeFY } = useCompany();
@@ -49,127 +76,79 @@ export default function LedgerAlter() {
   const [ledgers, setLedgers] = useState<LedgerType[]>([]);
   const [groups, setGroups] = useState<GroupType[]>([]);
   const [groupTree, setGroupTree] = useState<any[]>([]);
-
   const [selectedLedgerId, setSelectedLedgerId] = useState<number | null>(null);
-
-  const [,setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
+  const [showLedgerPanel, setShowLedgerPanel] = useState(false);
+  const [showBankPopup, setShowBankPopup] = useState(false);
+  const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
 
   const [form, setForm] = useState<any>({
-    name: "",
-    alias: "",
-    group_id: null,
-    ledger_type: "General",
-    nature: "",
-    opening_balance: 0,
-    closing_balance: 0,
-
-    mailing_name: "",
-    address1: "",
-    address2: "",
-    city: "",
-    state: "Not Applicable",
-    country: "India",
-    pincode: "",
-    phone: "",
-    email: "",
-
-    pan: "",
-    gstin: "",
-    registration_type: "Unregistered",
-
-    bank_details: null,
-
-    statutory_details: null,
+    name: "", alias: "", group_id: null, ledger_type: "General",
+    nature: "", opening_balance: 0, closing_balance: 0,
+    mailing_name: "", address1: "", address2: "", city: "",
+    state: "Select", country: "India", pincode: "", phone: "",
+    email: "", pan: "", gstin: "", registration_type: "Unregistered",
+    bank_details: null, statutory_details: null,
   });
+
+  const [bankForm, setBankForm] = useState<BankDetails>(EMPTY_BANK_DETAILS);
 
   const companyId = selectedCompany?.company_id;
 
-
+  // ── Data loading ───────────────────────────────────────────────────────────
   const loadInitial = useCallback(async () => {
-  try {
-    setLoading(true);
-
-    const [ledgerRes, groupRes, treeRes] = await Promise.all([
-      window.api.ledger.getAll(companyId!),
-      window.api.group.getAll(companyId!),
-      window.api.group.getTree(companyId!),
-    ]);
-
-    if (ledgerRes.success) {
-      setLedgers(ledgerRes.ledgers || []);
+    if (!companyId) return;
+    try {
+      setLoading(true);
+      const [ledgerRes, groupRes, treeRes] = await Promise.all([
+        window.api.ledger.getAll(companyId),
+        window.api.group.getAll(companyId),
+        window.api.group.getTree(companyId),
+      ]);
+      if (ledgerRes.success) setLedgers(ledgerRes.ledgers || []);
+      if (groupRes.success) setGroups(groupRes.groups || []);
+      if (treeRes.success) setGroupTree(treeRes.tree || []);
+    } catch {
+      setError("Failed to load data.");
+    } finally {
+      setLoading(false);
     }
+  }, [companyId]);
 
-    if (groupRes.success) {
-      setGroups(groupRes.groups || []);
-    }
-
-    if (treeRes.success) {
-      setGroupTree(treeRes.tree || []);
-    }
-  } catch (err) {
-    console.error(err);
-    setError("Failed to load data");
-  } finally {
-    setLoading(false);
-  }
-}, [companyId]);
-
-useEffect(() => {
-  if (!companyId) return;
-
-  Promise.resolve().then(loadInitial);
-}, [companyId]);
+  useEffect(() => { loadInitial(); }, [loadInitial]);
 
   const loadLedger = async (ledgerId: number) => {
     try {
       setLoading(true);
-      setError("");
-
+      setError(null);
       const res = await window.api.ledger.getById(ledgerId);
-
-      if (!res.success || !res.ledger) {
-        setError("Ledger not found.");
-        return;
-      }
-
+      if (!res.success || !res.ledger) { setError("Ledger not found."); return; }
       const l = res.ledger;
-
       setSelectedLedgerId(ledgerId);
-
+      // Restore bank state
+      const hasBankDetails = !!l.bank_details;
+      setProvideBank(hasBankDetails ? "Yes" : "No");
+      setBankForm(hasBankDetails ? { ...EMPTY_BANK_DETAILS, ...l.bank_details } : EMPTY_BANK_DETAILS);
+      setShowGroupPanel(false);
       setForm({
         ledger_id: l.ledger_id,
-
-        name: l.name || "",
-        alias: l.alias || "",
-        group_id: l.group_id || null,
-        ledger_type: l.ledger_type || "General",
+        name: l.name || "", alias: l.alias || "",
+        group_id: l.group_id || null, ledger_type: l.ledger_type || "General",
         nature: l.nature || "",
-
         opening_balance: l.opening_balance || 0,
         closing_balance: l.closing_balance || 0,
-
         mailing_name: l.mailing_name || "",
-        address1: l.address1 || "",
-        address2: l.address2 || "",
-        city: l.city || "",
-        state: l.state || "Not Applicable",
-        country: l.country || "India",
-        pincode: l.pincode || "",
-        phone: l.phone || "",
-        email: l.email || "",
-
-        pan: l.pan || "",
-        gstin: l.gstin || "",
+        address1: l.address1 || "", address2: l.address2 || "",
+        city: l.city || "", state: l.state || "Select",
+        country: l.country || "India", pincode: l.pincode || "",
+        phone: l.phone || "", email: l.email || "",
+        pan: l.pan || "", gstin: l.gstin || "",
         registration_type: l.registration_type || "Unregistered",
-
         bank_details: l.bank_details || null,
-
         statutory_details: l.statutory_details || null,
       });
     } catch {
@@ -179,87 +158,67 @@ useEffect(() => {
     }
   };
 
-  const updateField = (key: string, value: any) => {
-    setForm((prev: any) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
+  // ── Field helpers ──────────────────────────────────────────────────────────
+  const setField = (key: string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((prev: any) => ({ ...prev, [key]: e.target.value }));
 
-  const updateBankField = (key: string, value: any) => {
-    setForm((prev: any) => ({
-      ...prev,
-      bank_details: {
-        ...(prev.bank_details || {}),
-        [key]: value,
-      },
-    }));
-  };
+  const setNumber = (key: string) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((prev: any) => ({ ...prev, [key]: e.target.value === "" ? 0 : Number(e.target.value) }));
 
-  const updateStatField = (key: string, value: any) => {
-    setForm((prev: any) => ({
-      ...prev,
-      statutory_details: {
-        ...(prev.statutory_details || {}),
-        [key]: value,
-      },
-    }));
-  };
-
-  const handleSubmit = async () => {
-    if (!form.name?.trim()) {
-      setError("Ledger name required.");
-      return;
+  const handleProvideBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value as "No" | "Yes";
+    setProvideBank(val);
+    if (val === "Yes") setShowBankPopup(true);
+    if (val === "No") {
+      setBankForm(EMPTY_BANK_DETAILS);
+      setForm((prev: any) => ({ ...prev, bank_details: null }));
     }
+  };
 
+  const handleBankAccept = () => {
+    // Persist the bankForm into the main form so it's submitted
+    setForm((prev: any) => ({ ...prev, bank_details: { ...bankForm } }));
+    setShowBankPopup(false);
+  };
+
+  const handleBankClose = () => {
+    setShowBankPopup(false);
+    setProvideBank("No");
+    setBankForm(EMPTY_BANK_DETAILS);
+    setForm((prev: any) => ({ ...prev, bank_details: null }));
+  };
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!form.name?.trim()) { setError("Ledger name required."); return; }
     try {
       setSaving(true);
-      setError("");
-      setSuccess("");
-
-      const payload = {
+      setError(null);
+      setSuccess(null);
+      const res = await window.api.ledger.update({
         ledger_id: form.ledger_id,
         company_id: companyId,
-
         name: form.name,
         alias: form.alias,
-
         group_id: form.group_id,
-
         ledger_type: form.ledger_type,
         nature: form.nature,
-
         opening_balance: Number(form.opening_balance || 0),
         closing_balance: Number(form.closing_balance || 0),
-
         mailing_name: form.mailing_name,
-        address1: form.address1,
-        address2: form.address2,
-        city: form.city,
-        state: form.state,
-        country: form.country,
-        pincode: form.pincode,
-        phone: form.phone,
-        email: form.email,
-
-        pan: form.pan,
-        gstin: form.gstin,
+        address1: form.address1, address2: form.address2,
+        city: form.city, state: form.state,
+        country: form.country, pincode: form.pincode,
+        phone: form.phone, email: form.email,
+        pan: form.pan, gstin: form.gstin,
         registration_type: form.registration_type,
-
-        bank_details: form.bank_details,
-
+        bank_details: provideBank === "Yes" ? form.bank_details : null,
         statutory_details: form.statutory_details,
-      };
-
-      const res = await window.api.ledger.update(payload);
-
-      if (!res.success) {
-        setError(res.error || "Failed to update ledger.");
-        return;
-      }
-
+      });
+      if (!res.success) { setError(res.error || "Failed to update ledger."); return; }
       setSuccess("Ledger updated successfully.");
-
       await loadInitial();
     } catch {
       setError("Unexpected error.");
@@ -268,388 +227,242 @@ useEffect(() => {
     }
   };
 
-  const groupName = (id?: number) => {
-    return groups.find((g) => g.group_id === id)?.name || "—";
-  };
+  const groupName = (id?: number) => groups.find((g) => g.group_id === id)?.name || "—";
 
   const fyLabel = useMemo(() => {
-    if (!activeFY?.start_date) return "1-Apr-24";
-
-    const d = new Date(activeFY.start_date);
-
-    return d.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "2-digit",
-    });
+    if (activeFY?.start_date) {
+      const d = new Date(activeFY.start_date);
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return `${d.getDate()}-${months[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+    }
+    return "1-Apr-24";
   }, [activeFY]);
 
-  const inputCls =
-    "flex-1 border border-transparent px-1 py-0.5 text-sm bg-transparent outline-none focus:border-amber-300 focus:bg-amber-50";
-
-  const rowCls = "flex items-center min-h-[24px]";
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="bg-[#b4c6e7] border-b border-[#8a9bc0] px-3 py-1 text-sm font-medium flex justify-between">
-        <span>Alter Ledger</span>
-        <span>Tally Prime</span>
+    <div className="flex-1 flex flex-col h-full bg-white">
+
+      {showBankPopup && (
+        <BankDetailsPopup
+          ledgerName={form.name || ""}
+          bankForm={bankForm}
+          setBankForm={setBankForm}
+          onClose={handleBankClose}
+          onAccept={handleBankAccept}
+        />
+      )}
+
+      {/* Title bar — matches LedgerCreate */}
+      <div className="px-3 py-1 text-sm font-medium flex justify-between items-center select-none">
+        <span>Ledger Alteration</span>
+        {loading && <span className="text-xs text-zinc-400">Loading…</span>}
       </div>
 
+      {/* Alerts */}
       {error && (
-        <div className="bg-red-50 border-b border-red-200 text-red-700 text-xs px-3 py-1">
-          {error}
+        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
         </div>
       )}
-
       {success && (
-        <div className="bg-green-50 border-b border-green-200 text-green-700 text-xs px-3 py-1">
-          {success}
+        <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
+          <span>{success}</span>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* LEFT */}
-        <div className="w-[260px] border-r overflow-y-auto">
-          <div className="p-2 border-b bg-zinc-50 text-xs font-medium uppercase">
-            Ledgers
+      <div className="flex-1 flex min-h-0 overflow-x-auto">
+
+        {/* ── Left column: mirrors LedgerCreate exactly ─────────────────────── */}
+        <div className="flex-1 flex flex-col min-w-0 shrink-0">
+          <div className="p-2 space-y-0.5">
+
+            {/* Ledger selector row — opens the LedgerListPanel */}
+            <div
+              className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50"
+              onClick={() => { setShowLedgerPanel((v) => !v); setShowGroupPanel(false); }}
+            >
+              <span className="w-16 text-sm shrink-0">Ledger</span>
+              <span className="text-zinc-600 mr-2 shrink-0">:</span>
+              <span className="text-sm px-1 py-0.5">
+                {selectedLedgerId
+                  ? ledgers.find((l) => l.ledger_id === selectedLedgerId)?.name ?? "—"
+                  : <span className="text-zinc-400 italic">select ledger…</span>}
+              </span>
+            </div>
+
+            {selectedLedgerId && (
+              <>
+                <FormRow label="Name" labelWidth="w-16" className="flex items-center min-h-[22px]">
+                  <input
+                    autoFocus
+                    className={inputCls}
+                    value={form.name || ""}
+                    onChange={setField("name")}
+                  />
+                </FormRow>
+                <FormRow label="(alias)" labelWidth="w-16" className="flex items-center min-h-[22px]">
+                  <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} />
+                </FormRow>
+              </>
+            )}
           </div>
 
-          {ledgers.map((ledger) => (
-            <button
-              key={ledger.ledger_id}
-              onClick={() => loadLedger(ledger.ledger_id!)}
-              className={`w-full text-left px-3 py-1.5 text-sm border-b hover:bg-amber-50 ${
-                selectedLedgerId === ledger.ledger_id
-                  ? "bg-amber-100"
-                  : ""
-              }`}
-            >
-              {ledger.name}
-            </button>
-          ))}
-        </div>
+          {selectedLedgerId && (
+            <div className="p-2">
+              <div
+                className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50"
+                onClick={() => { setShowGroupPanel((v) => !v); setShowLedgerPanel(false); }}
+              >
+                <span className="w-16 text-sm shrink-0">Under</span>
+                <span className="text-zinc-600 mr-2 shrink-0">:</span>
+                <span className="text-sm px-1 py-0.5">{groupName(form.group_id)}</span>
+              </div>
+            </div>
+          )}
 
-        {/* CENTER */}
-        <div className="flex-1 overflow-y-auto">
-          {!selectedLedgerId ? (
-            <div className="h-full flex items-center justify-center text-zinc-400 text-sm">
-              Select ledger to alter
+          <div className="flex-1" />
+
+          {selectedLedgerId ? (
+            <div className="border-t p-2 flex items-center justify-center gap-2">
+              <span className="text-sm font-medium">Opening Balance</span>
+              <span className="text-sm">( on {fyLabel} ) :</span>
+              <input
+                type="number"
+                step="0.01"
+                className="w-32 border border-zinc-300 text-sm text-right px-1 py-0.5"
+                value={form.opening_balance ?? 0}
+                onChange={setNumber("opening_balance")}
+              />
             </div>
           ) : (
-            <div className="p-3 space-y-4">
-              {/* BASIC */}
-              <div className="space-y-1">
-                <div className={rowCls}>
-                  <label className="w-32 text-sm">Name</label>
-                  <span className="mr-2">:</span>
-
-                  <input
-                    className={`${inputCls} bg-amber-100 border-amber-300`}
-                    value={form.name}
-                    onChange={(e) =>
-                      updateField("name", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className={rowCls}>
-                  <label className="w-32 text-sm">Alias</label>
-                  <span className="mr-2">:</span>
-
-                  <input
-                    className={inputCls}
-                    value={form.alias}
-                    onChange={(e) =>
-                      updateField("alias", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div
-                  className={`${rowCls} cursor-pointer hover:bg-zinc-50`}
-                  onClick={() =>
-                    setShowGroupPanel(!showGroupPanel)
-                  }
-                >
-                  <label className="w-32 text-sm">Under</label>
-                  <span className="mr-2">:</span>
-
-                  <div className="text-sm">
-                    {groupName(form.group_id)}
-                  </div>
-                </div>
-              </div>
-
-              {/* MAILING */}
-              <div className="border-t pt-3">
-                <div className="text-sm font-semibold mb-2">
-                  Mailing Details
-                </div>
-
-                <div className="space-y-1">
-                  <div className={rowCls}>
-                    <label className="w-32 text-sm">
-                      Mailing Name
-                    </label>
-
-                    <span className="mr-2">:</span>
-
-                    <input
-                      className={inputCls}
-                      value={form.mailing_name}
-                      onChange={(e) =>
-                        updateField(
-                          "mailing_name",
-                          e.target.value
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div className={rowCls}>
-                    <label className="w-32 text-sm">Address 1</label>
-
-                    <span className="mr-2">:</span>
-
-                    <input
-                      className={inputCls}
-                      value={form.address1}
-                      onChange={(e) =>
-                        updateField("address1", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className={rowCls}>
-                    <label className="w-32 text-sm">Address 2</label>
-
-                    <span className="mr-2">:</span>
-
-                    <input
-                      className={inputCls}
-                      value={form.address2}
-                      onChange={(e) =>
-                        updateField("address2", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className={rowCls}>
-                    <label className="w-32 text-sm">State</label>
-
-                    <span className="mr-2">:</span>
-
-                    <select
-                      className={inputCls}
-                      value={form.state}
-                      onChange={(e) =>
-                        updateField("state", e.target.value)
-                      }
-                    >
-                      {INDIAN_STATES.map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* BANK */}
-              <div className="border-t pt-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">
-                    Banking Details
-                  </div>
-
-                  <button
-                    onClick={() =>
-                      updateField(
-                        "bank_details",
-                        form.bank_details
-                          ? null
-                          : {
-                              account_holder_name: "",
-                              account_number: "",
-                              ifsc_code: "",
-                              bank_name: "",
-                            }
-                      )
-                    }
-                    className="text-xs text-blue-600"
-                  >
-                    {form.bank_details ? "Remove" : "Add"}
-                  </button>
-                </div>
-
-                {form.bank_details && (
-                  <div className="space-y-1 mt-2">
-                    <div className={rowCls}>
-                      <label className="w-40 text-sm">
-                        Account Holder
-                      </label>
-
-                      <span className="mr-2">:</span>
-
-                      <input
-                        className={inputCls}
-                        value={
-                          form.bank_details.account_holder_name
-                        }
-                        onChange={(e) =>
-                          updateBankField(
-                            "account_holder_name",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className={rowCls}>
-                      <label className="w-40 text-sm">
-                        Account Number
-                      </label>
-
-                      <span className="mr-2">:</span>
-
-                      <input
-                        className={inputCls}
-                        value={
-                          form.bank_details.account_number
-                        }
-                        onChange={(e) =>
-                          updateBankField(
-                            "account_number",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className={rowCls}>
-                      <label className="w-40 text-sm">
-                        IFSC Code
-                      </label>
-
-                      <span className="mr-2">:</span>
-
-                      <input
-                        className={inputCls}
-                        value={form.bank_details.ifsc_code}
-                        onChange={(e) =>
-                          updateBankField(
-                            "ifsc_code",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* GST */}
-              <div className="border-t pt-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">
-                    GST Details
-                  </div>
-
-                  <button
-                    onClick={() =>
-                      updateField(
-                        "statutory_details",
-                        form.statutory_details
-                          ? null
-                          : {
-                              gst_applicability:
-                                "Not Applicable",
-                            }
-                      )
-                    }
-                    className="text-xs text-blue-600"
-                  >
-                    {form.statutory_details
-                      ? "Remove"
-                      : "Add"}
-                  </button>
-                </div>
-
-                {form.statutory_details && (
-                  <div className="space-y-1 mt-2">
-                    <div className={rowCls}>
-                      <label className="w-40 text-sm">
-                        GST Applicability
-                      </label>
-
-                      <span className="mr-2">:</span>
-
-                      <select
-                        className={inputCls}
-                        value={
-                          form.statutory_details
-                            .gst_applicability
-                        }
-                        onChange={(e) =>
-                          updateStatField(
-                            "gst_applicability",
-                            e.target.value
-                          )
-                        }
-                      >
-                        {GST_APPLICABILITY.map((g) => (
-                          <option key={g}>{g}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className={rowCls}>
-                      <label className="w-40 text-sm">
-                        GST Rate
-                      </label>
-
-                      <span className="mr-2">:</span>
-
-                      <input
-                        type="number"
-                        className={inputCls}
-                        value={
-                          form.statutory_details.gst_rate || 0
-                        }
-                        onChange={(e) =>
-                          updateStatField(
-                            "gst_rate",
-                            Number(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+            <div className="flex-1 flex items-center justify-center text-zinc-400 text-sm select-none">
+              Click &ldquo;Ledger&rdquo; above to select a ledger
             </div>
           )}
         </div>
 
-        {/* GROUP PANEL */}
-        {showGroupPanel && (
-          <div className="w-[300px] border-l bg-[#e8f0f8]">
-            <div className="bg-[#b4c6e7] border-b border-[#8a9bc0] px-2 py-1 text-sm font-medium flex justify-between">
-              <span>Groups</span>
+        {/* ── Right column: detail panels — mirrors LedgerCreate exactly ───── */}
+        <div className="w-[480px] border-l flex flex-col overflow-y-auto shrink-0">
 
-              <button
-                onClick={() => setShowGroupPanel(false)}
-              >
-                ×
-              </button>
+          {selectedLedgerId ? (
+            <>
+              {/* Opening balance summary box */}
+              <div className="p-2 flex justify-end">
+                <div className="w-44 border shrink-0">
+                  <div className="text-center text-xs border-b py-0.5 bg-zinc-50">Total Opening Balance</div>
+                  <div className="h-14 flex items-center justify-center text-sm font-medium tabular-nums">
+                    {Number(form.opening_balance || 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Mailing Details */}
+              <div className="p-2">
+                <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Mailing Details</div>
+                <div className="space-y-0.5">
+                  <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[22px]">
+                    <input className={inputCls} value={form.mailing_name || ""} onChange={setField("mailing_name")} />
+                  </FormRow>
+                  <div className="flex items-start min-h-[22px]">
+                    <span className="w-20 text-sm shrink-0 pt-0.5 text-zinc-400">Address</span>
+                    <span className="text-zinc-600 mr-2 shrink-0 pt-0.5">:</span>
+                    <div className="flex-1 space-y-0.5">
+                      <input className={`${inputCls} w-full`} value={form.address1 || ""} onChange={setField("address1")} />
+                      <input className={`${inputCls} w-full`} value={form.address2 || ""} onChange={setField("address2")} />
+                    </div>
+                  </div>
+                  <FormRow label="State" labelWidth="w-20" className="flex items-center min-h-[22px]">
+                    <select className={selectCls} value={form.state || "Select"} onChange={setField("state")}>
+                      <option value="Select">Select</option>
+                      {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </FormRow>
+                  <FormRow label="Country" labelWidth="w-20" className="flex items-center min-h-[22px]">
+                    <input className={inputCls} value={form.country || ""} onChange={setField("country")} />
+                  </FormRow>
+                  <FormRow label="Pincode" labelWidth="w-20" className="flex items-center min-h-[22px]">
+                    <input className={inputCls} value={form.pincode || ""} onChange={setField("pincode")} />
+                  </FormRow>
+                </div>
+              </div>
+
+              {/* Banking Details */}
+              <div className="p-2">
+                <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Banking Details</div>
+                <FormRow label="Provide bank details" labelWidth="w-40" className="flex items-center min-h-[22px]">
+                  <select className={selectCls} value={provideBank} onChange={handleProvideBankChange}>
+                    <option>No</option>
+                    <option>Yes</option>
+                  </select>
+                </FormRow>
+
+                {provideBank === "Yes" && !showBankPopup && (
+                  <div className="mt-1.5 pl-2 space-y-0.5">
+                    {bankForm.bank_name && (
+                      <FormRow label="Bank Name" labelWidth="w-40" className="flex items-center min-h-[22px]">
+                        <span className="text-sm">{bankForm.bank_name}</span>
+                      </FormRow>
+                    )}
+                    {bankForm.account_number && (
+                      <FormRow label="Account Number" labelWidth="w-40" className="flex items-center min-h-[22px]">
+                        <span className="text-sm">{bankForm.account_number}</span>
+                      </FormRow>
+                    )}
+                    {bankForm.transaction_type && (
+                      <FormRow label="Transaction Type" labelWidth="w-40" className="flex items-center min-h-[22px]">
+                        <span className="text-sm">{bankForm.transaction_type}</span>
+                      </FormRow>
+                    )}
+                    <button
+                      onClick={() => setShowBankPopup(true)}
+                      className="text-xs text-zinc-500 hover:text-zinc-800 underline underline-offset-1 mt-0.5"
+                    >
+                      Edit bank details
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Tax Registration Details */}
+              <div className="p-2">
+                <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Tax Registration Details</div>
+                <FormRow label="PAN/IT No." labelWidth="w-40" className="flex items-center min-h-[22px]">
+                  <input className={inputCls} value={form.pan || ""} onChange={setField("pan")} />
+                </FormRow>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-zinc-300 text-sm select-none">
+              No ledger selected
             </div>
+          )}
+        </div>
 
-            <div className="overflow-y-auto h-full">
+        {/* ── Ledger list panel ──────────────────────────────────────────────── */}
+        {showLedgerPanel && (
+          <LedgerListPanel
+            ledgers={ledgers}
+            selectedId={selectedLedgerId}
+            onSelect={(l) => loadLedger(l.ledger_id!)}
+            onClose={() => setShowLedgerPanel(false)}
+          />
+        )}
+
+        {/* ── Group panel — matches LedgerCreate ────────────────────────────── */}
+        {showGroupPanel && (
+          <div className="w-72 border-l flex flex-col shrink-0">
+            <div className="px-2 py-1 text-sm font-medium flex justify-between items-center select-none">
+              <span>List of Groups</span>
+              <button onClick={() => setShowGroupPanel(false)} className="text-xs hover:underline">&times;</button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
               <GroupTree
                 tree={groupTree}
-                selectedId={form.group_id}
+                selectedId={form.group_id as number}
                 onSelect={(group: GroupType) => {
-                  updateField("group_id", group.group_id);
+                  setForm((prev: any) => ({ ...prev, group_id: group.group_id }));
                   setShowGroupPanel(false);
                 }}
               />
@@ -658,36 +471,21 @@ useEffect(() => {
         )}
       </div>
 
-      {/* FOOTER */}
-      {selectedLedgerId && (
-        <div className="border-t bg-zinc-50 px-3 py-2 flex justify-between items-center">
-          <div className="text-sm">
-            Opening Balance (on {fyLabel}) :
-            <span className="font-medium ml-2">
-              {Number(form.opening_balance || 0).toFixed(
-                2
-              )}
-            </span>
-          </div>
-
-          <div className="flex gap-2">
-            <Link
-              to="/master/alter"
-              className="border px-4 py-1 text-sm"
-            >
-              Cancel
-            </Link>
-
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              className="bg-black text-white px-5 py-1 text-sm"
-            >
-              {saving ? "Saving..." : "Update"}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Footer — matches LedgerCreate */}
+      <div className="border-t p-2 flex justify-between items-center bg-zinc-50">
+        <Link to="/master/alter" className="text-xs text-zinc-500 hover:text-zinc-800">
+          &larr; Back to Masters
+        </Link>
+        {selectedLedgerId && (
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="text-sm px-5 py-1 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+          >
+            {saving ? "Saving..." : "Update"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

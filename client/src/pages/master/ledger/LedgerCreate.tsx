@@ -2,67 +2,11 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import GroupTree from "@/components/GroupTree";
+import FormRow from "@/components/ui/FormRow";
+import BankDetailsPopup, { EMPTY_BANK_DETAILS } from "./components/BankDetailsPopup";
+import type { BankDetails } from "./components/BankDetailsPopup";
+import { INDIAN_STATES } from "@/constants/states";
 import type { LedgerType, GroupType } from "@/types/api";
-
-const INDIAN_STATES = [
-  "Select",
-  "List Of States",
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Andaman and Nicobar Islands",
-  "Chandigarh",
-  "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi",
-  "Jammu and Kashmir",
-  "Ladakh",
-  "Lakshadweep",
-  "Puducherry",
-];
-
-const TXN_TYPES_DEFAULT = ["End of List", "Cheque", "e-Fund Transfer", "Others"];
-const TXN_TYPES_EXTRA = ["ATM-Card", "ECS", "Electronic Cheque", "Electronic DD/PO"];
-
-interface BankDetails {
-  account_holder_name?: string;
-  account_number?: string;
-  ifsc_code?: string;
-  swift_code?: string;
-  bank_name?: string;
-  branch_name?: string;
-  bank_configuration?: string;
-  cheque_book_start_no?: string;
-  cheque_book_end_no?: string;
-  enable_cheque_printing?: number;
-  cheque_printing_configuration?: string;
-  od_limit?: number;
-  transaction_type?: string;
-}
 
 interface StatutoryDetails {
   gst_applicability?: string;
@@ -77,203 +21,39 @@ interface StatutoryDetails {
   statutory_details?: string;
 }
 
+const EMPTY_STATUTORY: StatutoryDetails = {
+  gst_applicability: "Not Applicable",
+  hsn_sac_code: "",
+  hsn_sac_description: "",
+  gst_rate: 0,
+  cgst_rate: 0,
+  sgst_rate: 0,
+  igst_rate: 0,
+  type_of_duty_tax: "",
+  percentage_of_calculation: 0,
+  statutory_details: "",
+};
 
-interface BankDetailsPopupProps {
-  ledgerName: string;
-  bankForm: BankDetails;
-  setBankForm: React.Dispatch<React.SetStateAction<BankDetails>>;
-  onClose: () => void;
-  onAccept: () => void;
-}
+const INITIAL_FORM: Partial<LedgerType> = {
+  name: "",
+  alias: "",
+  opening_balance: 0,
+  mailing_name: "",
+  address1: "",
+  address2: "",
+  city: "",
+  state: "Select",
+  country: "India",
+  pincode: "",
+  phone: "",
+  email: "",
+  gstin: "",
+  pan: "",
+  registration_type: "Unregistered",
+};
 
-function BankDetailsPopup({ ledgerName, bankForm, setBankForm, onClose, onAccept }: BankDetailsPopupProps) {
-  const [showMore, setShowMore] = useState(false);
-  const [selectedTxn, setSelectedTxn] = useState<string>(bankForm.transaction_type || "");
-
-  const setBankField = (key: keyof BankDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setBankForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const setBankNumber = (key: keyof BankDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setBankForm((f) => ({ ...f, [key]: e.target.value === "" ? undefined : Number(e.target.value) }));
-
-  const setBankToggle = (key: keyof BankDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setBankForm((f) => ({ ...f, [key]: e.target.checked ? 1 : 0 }));
-
-  const handleTxnSelect = (txn: string) => {
-    if (txn === "End of List") return;
-    setSelectedTxn(txn);
-    setBankForm((f) => ({ ...f, transaction_type: txn }));
-  };
-
-  const txnList = showMore
-    ? [...TXN_TYPES_DEFAULT, ...TXN_TYPES_EXTRA]
-    : TXN_TYPES_DEFAULT;
-
-  const rowCls = "flex items-center min-h-[22px]";
-  const labelCls = "w-44 text-sm shrink-0";
-  const colonCls = "text-sm mr-2 shrink-0 w-3";
-  const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:border-zinc-300";
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white border border-zinc-300 shadow-sm w-[680px] flex flex-col" style={{ minHeight: 380 }}>
-
-        {/* Header */}
-        <div className="bg-zinc-800 text-white text-sm px-3 py-1 font-medium select-none flex justify-between items-center">
-          <span>
-            Bank Details For :{" "}
-            <span className="font-semibold">{ledgerName || "—"}</span>
-          </span>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white text-base leading-none">&times;</button>
-        </div>
-
-        {/* Body */}
-        <div className="flex flex-1 min-h-0">
-
-          <div className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-
-            <div className={rowCls}>
-              <label className={labelCls}>Account Holder Name</label>
-              <span className={colonCls}>:</span>
-              <input className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} />
-            </div>
-            <div className={rowCls}>
-              <label className={labelCls}>Account Number</label>
-              <span className={colonCls}>:</span>
-              <input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} />
-            </div>
-            <div className={rowCls}>
-              <label className={labelCls}>IFSC Code</label>
-              <span className={colonCls}>:</span>
-              <input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} />
-            </div>
-            <div className={rowCls}>
-              <label className={labelCls}>SWIFT Code</label>
-              <span className={colonCls}>:</span>
-              <input className={inputCls} value={bankForm.swift_code || ""} onChange={setBankField("swift_code")} />
-            </div>
-            <div className={rowCls}>
-              <label className={labelCls}>Bank Name</label>
-              <span className={colonCls}>:</span>
-              <input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} />
-            </div>
-            <div className={rowCls}>
-              <label className={labelCls}>Branch Name</label>
-              <span className={colonCls}>:</span>
-              <input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} />
-            </div>
-            <div className={rowCls}>
-              <label className={labelCls}>OD Limit</label>
-              <span className={colonCls}>:</span>
-              <input
-                className="w-28 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:border-zinc-300 text-right"
-                type="number"
-                step="0.01"
-                value={bankForm.od_limit ?? 0}
-                onChange={setBankNumber("od_limit")}
-              />
-            </div>
-
-            <div className="pt-1" />
-
-            <div className={rowCls}>
-              <label className={labelCls}>Transaction Type</label>
-              <span className={colonCls}>:</span>
-              <span className="text-sm px-1 py-0.5 text-zinc-700">
-                {selectedTxn || <span className="text-zinc-400 italic text-xs">select from list →</span>}
-              </span>
-            </div>
-
-            <div className="pt-1" />
-
-            <div className="flex items-center min-h-[22px]">
-              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!!bankForm.enable_cheque_printing}
-                  onChange={setBankToggle("enable_cheque_printing")}
-                  className="rounded"
-                />
-                Enable Cheque Printing
-              </label>
-            </div>
-
-            {!!bankForm.enable_cheque_printing && (
-              <>
-                <div className={rowCls}>
-                  <label className={labelCls}>Cheque Book Start No</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
-                </div>
-                <div className={rowCls}>
-                  <label className={labelCls}>Cheque Book End No</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
-                </div>
-                <div className={rowCls}>
-                  <label className={labelCls}>Cheque Print Config</label>
-                  <span className={colonCls}>:</span>
-                  <input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} />
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="w-52 border-l border-zinc-200 flex flex-col shrink-0">
-            <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-200 bg-zinc-50 select-none">
-              <span className="text-xs font-medium text-zinc-700">Transaction Type</span>
-              <button
-                onClick={() => setShowMore((v) => !v)}
-                className="text-xs text-zinc-500 hover:text-zinc-800 underline underline-offset-1"
-              >
-                {showMore ? "Show Less" : "Show More"}
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {txnList.map((txn) => (
-                <div
-                  key={txn}
-                  onClick={() => handleTxnSelect(txn)}
-                  className={[
-                    "text-sm px-2 py-0.5 border-b border-zinc-100 select-none",
-                    txn === "End of List"
-                      ? "text-zinc-400 italic cursor-default"
-                      : "cursor-pointer hover:bg-zinc-100",
-                    selectedTxn === txn
-                      ? "bg-zinc-800 text-white hover:bg-zinc-800"
-                      : "",
-                  ].join(" ")}
-                >
-                  {txn}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-zinc-200 px-3 py-1.5 flex justify-end gap-2 bg-zinc-50">
-          <button
-            onClick={onClose}
-            className="text-sm px-4 py-0.5 border border-zinc-300 hover:bg-zinc-100 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onAccept}
-            className="text-sm px-5 py-0.5 bg-black text-white hover:bg-zinc-800 transition-colors font-medium"
-          >
-            Accept
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
+const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
 
 export default function LedgerCreate() {
   const { selectedCompany, activeFY } = useCompany();
@@ -285,54 +65,10 @@ export default function LedgerCreate() {
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
   const [showBankPopup, setShowBankPopup] = useState(false);
-  const [provideGst, setProvideGst] = useState<"No" | "Yes">("No");
 
-  const [form, setForm] = useState<Partial<LedgerType>>({
-    name: "",
-    alias: "",
-    opening_balance: 0,
-    mailing_name: "",
-    address1: "",
-    address2: "",
-    city: "",
-    state: "Select",
-    country: "India",
-    pincode: "",
-    phone: "",
-    email: "",
-    gstin: "",
-    pan: "",
-    registration_type: "Unregistered",
-  });
-
-  const [bankForm, setBankForm] = useState<BankDetails>({
-    account_holder_name: "",
-    account_number: "",
-    ifsc_code: "",
-    swift_code: "",
-    bank_name: "",
-    branch_name: "",
-    bank_configuration: "",
-    cheque_book_start_no: "",
-    cheque_book_end_no: "",
-    enable_cheque_printing: 0,
-    cheque_printing_configuration: "",
-    od_limit: 0,
-    transaction_type: "",
-  });
-
-  const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>({
-    gst_applicability: "Not Applicable",
-    hsn_sac_code: "",
-    hsn_sac_description: "",
-    gst_rate: 0,
-    cgst_rate: 0,
-    sgst_rate: 0,
-    igst_rate: 0,
-    type_of_duty_tax: "",
-    percentage_of_calculation: 0,
-    statutory_details: "",
-  });
+  const [form, setForm] = useState<Partial<LedgerType>>(INITIAL_FORM);
+  const [bankForm, setBankForm] = useState<BankDetails>(EMPTY_BANK_DETAILS);
+  const [statutoryForm] = useState<StatutoryDetails>(EMPTY_STATUTORY);
 
   const companyId = selectedCompany?.company_id;
 
@@ -349,14 +85,13 @@ export default function LedgerCreate() {
         if (cancelled) return;
         if (treeRes.success && treeRes.tree) setGroupTree(treeRes.tree ?? []);
         if (allRes.success && allRes.groups) {
-          const allGroups = allRes.groups ?? [];
-          const capital = allGroups.find((g: GroupType) => g.name === "Capital Account");
+          const capital = (allRes.groups ?? []).find((g: GroupType) => g.name === "Capital Account");
           if (capital && !selectedGroup) {
             setSelectedGroup(capital);
             setForm((f) => ({ ...f, group_id: capital.group_id }));
           }
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) setError("Failed to load groups.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -364,12 +99,6 @@ export default function LedgerCreate() {
     })();
     return () => { cancelled = true; };
   }, [companyId]);
-
-  const handleGroupSelect = (group: GroupType) => {
-    setSelectedGroup(group);
-    setForm((f) => ({ ...f, group_id: group.group_id }));
-    setShowGroupPanel(false);
-  };
 
   const fyLabel = useMemo(() => {
     if (activeFY?.start_date) {
@@ -394,28 +123,10 @@ export default function LedgerCreate() {
     if (val === "Yes") setShowBankPopup(true);
   };
 
-  const handleBankAccept = () => {
-    setShowBankPopup(false);
-  };
-
   const handleBankClose = () => {
     setShowBankPopup(false);
     setProvideBank("No");
-    setBankForm({
-      account_holder_name: "",
-      account_number: "",
-      ifsc_code: "",
-      swift_code: "",
-      bank_name: "",
-      branch_name: "",
-      bank_configuration: "",
-      cheque_book_start_no: "",
-      cheque_book_end_no: "",
-      enable_cheque_printing: 0,
-      cheque_printing_configuration: "",
-      od_limit: 0,
-      transaction_type: "",
-    });
+    setBankForm(EMPTY_BANK_DETAILS);
   };
 
   const validate = (): string | null => {
@@ -471,45 +182,23 @@ export default function LedgerCreate() {
         };
       }
 
-      if (provideGst === "Yes") {
+      if (statutoryForm.gst_applicability && statutoryForm.gst_applicability !== "Not Applicable") {
         payload.statutory_details = {
-          gst_applicability: statutoryForm.gst_applicability || "Not Applicable",
+          gst_applicability: statutoryForm.gst_applicability,
           hsn_sac_code: statutoryForm.hsn_sac_code?.trim() || undefined,
-          hsn_sac_description: statutoryForm.hsn_sac_description?.trim() || undefined,
           gst_rate: Number(statutoryForm.gst_rate) || 0,
           cgst_rate: Number(statutoryForm.cgst_rate) || 0,
           sgst_rate: Number(statutoryForm.sgst_rate) || 0,
           igst_rate: Number(statutoryForm.igst_rate) || 0,
-          type_of_duty_tax: statutoryForm.type_of_duty_tax?.trim() || undefined,
-          percentage_of_calculation: Number(statutoryForm.percentage_of_calculation) || 0,
-          statutory_details: statutoryForm.statutory_details?.trim() || undefined,
         };
       }
 
       const res = await window.api.ledger.create(payload);
       if (res.success) {
         setSuccess(`Ledger "${form.name}" created.`);
-        setForm({
-          name: "", alias: "", opening_balance: 0, mailing_name: "",
-          address1: "", address2: "", city: "", state: "Select",
-          country: "India", pincode: "", phone: "", email: "",
-          gstin: "", pan: "", registration_type: "Unregistered",
-        });
+        setForm(INITIAL_FORM);
         setProvideBank("No");
-        setProvideGst("No");
-        setBankForm({
-          account_holder_name: "", account_number: "", ifsc_code: "",
-          swift_code: "", bank_name: "", branch_name: "", bank_configuration: "",
-          cheque_book_start_no: "", cheque_book_end_no: "",
-          enable_cheque_printing: 0, cheque_printing_configuration: "",
-          od_limit: 0, transaction_type: "",
-        });
-        setStatutoryForm({
-          gst_applicability: "Not Applicable", hsn_sac_code: "",
-          hsn_sac_description: "", gst_rate: 0, cgst_rate: 0,
-          sgst_rate: 0, igst_rate: 0, type_of_duty_tax: "",
-          percentage_of_calculation: 0, statutory_details: "",
-        });
+        setBankForm(EMPTY_BANK_DETAILS);
       } else {
         setError(res.error || "Failed to create ledger.");
       }
@@ -520,12 +209,6 @@ export default function LedgerCreate() {
     }
   };
 
-  const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
-  const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
-  const rowCls = "flex items-center min-h-[22px]";
-  const labelCls = "w-16 text-sm shrink-0";
-  const colonCls = "text-sm mr-2 shrink-0 w-3";
-
   return (
     <div className="flex-1 flex flex-col h-full bg-white">
 
@@ -535,7 +218,7 @@ export default function LedgerCreate() {
           bankForm={bankForm}
           setBankForm={setBankForm}
           onClose={handleBankClose}
-          onAccept={handleBankAccept}
+          onAccept={() => setShowBankPopup(false)}
         />
       )}
 
@@ -558,27 +241,25 @@ export default function LedgerCreate() {
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
 
+        {/* Left: Name / Group / Opening Balance */}
         <div className="flex-1 flex flex-col min-w-0 shrink-0">
           <div className="p-2 space-y-0.5">
-            <div className={rowCls}>
-              <label className={labelCls}>Name</label>
-              <span className={colonCls}>:</span>
-              <input autoFocus className={`${inputCls} bg-transparent`} value={form.name || ""} onChange={setField("name")} />
-            </div>
-            <div className={rowCls}>
-              <label className={labelCls}>(alias)</label>
-              <span className={colonCls}>:</span>
+            <FormRow label="Name" labelWidth="w-16" className="flex items-center min-h-[22px]">
+              <input autoFocus className={inputCls} value={form.name || ""} onChange={setField("name")} />
+            </FormRow>
+            <FormRow label="(alias)" labelWidth="w-16" className="flex items-center min-h-[22px]">
               <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} />
-            </div>
+            </FormRow>
           </div>
 
           <div className="p-2">
-            <div className={`${rowCls} cursor-pointer hover:bg-zinc-50`} onClick={() => setShowGroupPanel(!showGroupPanel)}>
-              <label className={labelCls}>Under</label>
-              <span className={colonCls}>:</span>
-              <span className="text-sm px-1 py-0.5">
-                {selectedGroup?.name || "\u2014"}
-              </span>
+            <div
+              className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50"
+              onClick={() => setShowGroupPanel(!showGroupPanel)}
+            >
+              <span className="w-16 text-sm shrink-0">Under</span>
+              <span className="text-zinc-600 mr-2 shrink-0">:</span>
+              <span className="text-sm px-1 py-0.5">{selectedGroup?.name || "—"}</span>
             </div>
           </div>
 
@@ -597,6 +278,7 @@ export default function LedgerCreate() {
           </div>
         </div>
 
+        {/* Right: Mailing, Banking, Tax */}
         <div className="w-[480px] border-l flex flex-col overflow-y-auto shrink-0">
           <div className="p-2 flex justify-end">
             <div className="w-44 border shrink-0">
@@ -607,82 +289,62 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-
+          {/* Mailing Details */}
           <div className="p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Mailing Details</div>
             <div className="space-y-0.5">
-              <div className={rowCls}>
-                <label className="w-20 text-sm shrink-0">Name</label>
-                <span className={colonCls}>:</span>
+              <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[22px]">
                 <input className={inputCls} value={form.mailing_name || ""} onChange={setField("mailing_name")} />
-              </div>
+              </FormRow>
               <div className="flex items-start min-h-[22px]">
-                <label className="w-20 text-sm shrink-0 pt-0.5">Address</label>
-                <span className="text-sm mr-2 shrink-0 w-3 pt-0.5">:</span>
+                <span className="w-20 text-sm shrink-0 pt-0.5 text-zinc-400">Address</span>
+                <span className="text-zinc-600 mr-2 shrink-0 pt-0.5">:</span>
                 <div className="flex-1 space-y-0.5">
                   <input className={`${inputCls} w-full`} value={form.address1 || ""} onChange={setField("address1")} />
                   <input className={`${inputCls} w-full`} value={form.address2 || ""} onChange={setField("address2")} />
                 </div>
               </div>
-              <div className={rowCls}>
-                <label className="w-20 text-sm shrink-0">State</label>
-                <span className={colonCls}>:</span>
+              <FormRow label="State" labelWidth="w-20" className="flex items-center min-h-[22px]">
                 <select className={selectCls} value={form.state || "Select"} onChange={setField("state")}>
+                  <option value="Select">Select</option>
                   {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
-              </div>
-              <div className={rowCls}>
-                <label className="w-20 text-sm shrink-0">Country</label>
-                <span className={colonCls}>:</span>
+              </FormRow>
+              <FormRow label="Country" labelWidth="w-20" className="flex items-center min-h-[22px]">
                 <input className={inputCls} value={form.country || ""} onChange={setField("country")} />
-              </div>
-              <div className={rowCls}>
-                <label className="w-20 text-sm shrink-0">Pincode</label>
-                <span className={colonCls}>:</span>
+              </FormRow>
+              <FormRow label="Pincode" labelWidth="w-20" className="flex items-center min-h-[22px]">
                 <input className={inputCls} value={form.pincode || ""} onChange={setField("pincode")} />
-              </div>
+              </FormRow>
             </div>
           </div>
 
-
+          {/* Banking Details */}
           <div className="p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Banking Details</div>
-            <div className={rowCls}>
-              <label className="w-40 text-sm shrink-0">Provide bank details</label>
-              <span className={colonCls}>:</span>
-              <select
-                className={selectCls}
-                value={provideBank}
-                onChange={handleProvideBankChange}
-              >
+            <FormRow label="Provide bank details" labelWidth="w-40" className="flex items-center min-h-[22px]">
+              <select className={selectCls} value={provideBank} onChange={handleProvideBankChange}>
                 <option>No</option>
                 <option>Yes</option>
               </select>
-            </div>
+            </FormRow>
 
-        
             {provideBank === "Yes" && !showBankPopup && (
               <div className="mt-1.5 pl-2 space-y-0.5">
                 {bankForm.bank_name && (
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0 text-zinc-500">Bank Name</label>
-                    <span className={colonCls}>:</span>
+                  <FormRow label="Bank Name" labelWidth="w-40" className="flex items-center min-h-[22px]">
                     <span className="text-sm">{bankForm.bank_name}</span>
-                  </div>
+                  </FormRow>
                 )}
                 {bankForm.account_number && (
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0 text-zinc-500">Account Number</label>
-                    <span className={colonCls}>:</span>
+                  <FormRow label="Account Number" labelWidth="w-40" className="flex items-center min-h-[22px]">
                     <span className="text-sm">{bankForm.account_number}</span>
-                  </div>
+                  </FormRow>
                 )}
                 {bankForm.transaction_type && (
-                  <div className={rowCls}>
-                    <label className="w-40 text-sm shrink-0 text-zinc-500">Transaction Type</label>
-                    <span className={colonCls}>:</span>
+                  <FormRow label="Transaction Type" labelWidth="w-40" className="flex items-center min-h-[22px]">
                     <span className="text-sm">{bankForm.transaction_type}</span>
-                  </div>
+                  </FormRow>
                 )}
                 <button
                   onClick={() => setShowBankPopup(true)}
@@ -694,19 +356,16 @@ export default function LedgerCreate() {
             )}
           </div>
 
-
+          {/* Tax Registration */}
           <div className="p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Tax Registration Details</div>
-            <div className="space-y-0.5">
-              <div className={rowCls}>
-                <label className="w-40 text-sm shrink-0">PAN/IT No.</label>
-                <span className={colonCls}>:</span>
-                <input className={inputCls} value={form.pan || ""} onChange={setField("pan")} />
-              </div>
-            </div>
+            <FormRow label="PAN/IT No." labelWidth="w-40" className="flex items-center min-h-[22px]">
+              <input className={inputCls} value={form.pan || ""} onChange={setField("pan")} />
+            </FormRow>
           </div>
         </div>
 
+        {/* Group Panel */}
         {showGroupPanel && (
           <div className="w-72 border-l flex flex-col shrink-0">
             <div className="px-2 py-1 text-sm font-medium flex justify-between items-center select-none">
@@ -717,7 +376,11 @@ export default function LedgerCreate() {
               <GroupTree
                 tree={groupTree}
                 selectedId={form.group_id as number}
-                onSelect={handleGroupSelect}
+                onSelect={(group: GroupType) => {
+                  setSelectedGroup(group);
+                  setForm((f) => ({ ...f, group_id: group.group_id }));
+                  setShowGroupPanel(false);
+                }}
               />
             </div>
           </div>
