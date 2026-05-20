@@ -28,4 +28,13 @@ module.exports = {
   getByLedger: async (event, { company_id, fy_id, ledger_id }) => {
     return await voucherService.getByLedger(company_id, fy_id, ledger_id);
   },
+  getNextNumber: async (event, { company_id, fy_id, voucher_type }) => {
+    return await voucherService.getNextNumber(company_id, fy_id, voucher_type);
+  },
+  getLedgerBalance: async (event, { ledger_id, company_id, fy_id }) => {
+    return await voucherService.getLedgerBalance(ledger_id, company_id, fy_id);
+  },
+  searchLedgers: async (event, { company_id, searchTerm }) => {
+    return await voucherService.searchLedgers(company_id, searchTerm);
+  },
 };

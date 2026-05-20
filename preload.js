@@ -91,6 +91,9 @@ contextBridge.exposeInMainWorld('api', {
         getDaybook: (company_id, fy_id, from_date, to_date)        => invoke('voucher:getDaybook', { company_id, fy_id, from_date, to_date }),
         getByType:  (company_id, fy_id, type)                      => invoke('voucher:getByType', { company_id, fy_id, voucher_type: type }),
         getByLedger:(company_id, fy_id, ledgerId)                  => invoke('voucher:getByLedger', { company_id, fy_id, ledger_id: ledgerId }),
+        getNextNumber: (company_id, fy_id, type)                   => invoke('voucher:getNextNumber', { company_id, fy_id, voucher_type: type }),
+        getLedgerBalance: (ledger_id, company_id, fy_id)           => invoke('voucher:getLedgerBalance', { ledger_id, company_id, fy_id }),
+        searchLedgers:   (company_id, searchTerm)                  => invoke('voucher:searchLedgers', { company_id, searchTerm }),
     },
     report: {
         trialBalance: (company_id, fy_id)                                        => invoke('report:trialBalance', { company_id, fy_id }),

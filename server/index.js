@@ -114,6 +114,9 @@ ipcMain.handle('voucher:cancel', voucherController.cancel);
 ipcMain.handle('voucher:getDaybook', voucherController.getDaybook);
 ipcMain.handle('voucher:getByType', voucherController.getByType);
 ipcMain.handle('voucher:getByLedger', voucherController.getByLedger);
+ipcMain.handle('voucher:getNextNumber', voucherController.getNextNumber);
+ipcMain.handle('voucher:getLedgerBalance', voucherController.getLedgerBalance);
+ipcMain.handle('voucher:searchLedgers', voucherController.searchLedgers);
 
 ipcMain.handle('report:trialBalance', reportController.trialBalance);
 ipcMain.handle('report:balanceSheet', reportController.balanceSheet);

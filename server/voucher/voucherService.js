@@ -15,13 +15,60 @@ const prefixMap = {
 };
 
 const generateVoucherNumber = async (company_id, fy_id, voucher_type) => {
-  const prefix = prefixMap[voucher_type] || 'VCH';
+  const prefix = (prefixMap[voucher_type] || 'VCH') + '-';
   const result = await db.execute(
-    `SELECT COUNT(*) as count FROM vouchers WHERE company_id = ? AND fy_id = ? AND voucher_type = ?`,
-    [company_id, fy_id, voucher_type]
+    `SELECT COALESCE(MAX(CAST(REPLACE(voucher_number, ?, '') AS INTEGER)), 0) + 1 as next_num
+     FROM vouchers WHERE company_id = ? AND fy_id = ? AND voucher_type = ?`,
+    [prefix, company_id, fy_id, voucher_type]
   );
-  const count = Number(result.rows[0].count) + 1;
-  return `${prefix}-${String(count).padStart(5, '0')}`;
+  const next = Number(result.rows[0].next_num);
+  return `${prefixMap[voucher_type] || 'VCH'}-${String(next).padStart(5, '0')}`;
+};
+
+const getNextVoucherNumber = async (company_id, fy_id, voucher_type) => {
+  const prefix = (prefixMap[voucher_type] || 'VCH') + '-';
+  const result = await db.execute(
+    `SELECT COALESCE(MAX(CAST(REPLACE(voucher_number, ?, '') AS INTEGER)), 0) + 1 as next_num
+     FROM vouchers WHERE company_id = ? AND fy_id = ? AND voucher_type = ?`,
+    [prefix, company_id, fy_id, voucher_type]
+  );
+  const nextNum = Number(result.rows[0].next_num);
+  const fullNumber = `${prefixMap[voucher_type] || 'VCH'}-${String(nextNum).padStart(5, '0')}`;
+  return { success: true, nextNumber: nextNum, voucher_number: fullNumber };
+};
+
+const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
+  const result = await db.execute(
+    `SELECT
+       l.opening_balance,
+       COALESCE(SUM(CASE WHEN e.type = 'Dr' THEN e.amount ELSE 0 END), 0) as total_dr,
+       COALESCE(SUM(CASE WHEN e.type = 'Cr' THEN e.amount ELSE 0 END), 0) as total_cr
+     FROM ledgers l
+     LEFT JOIN voucher_entries e ON e.ledger_id = l.ledger_id
+     LEFT JOIN vouchers v ON v.voucher_id = e.voucher_id AND v.fy_id = ? AND v.is_cancelled = 0
+     WHERE l.ledger_id = ? AND l.company_id = ?
+     GROUP BY l.ledger_id`,
+    [fy_id, ledger_id, company_id]
+  );
+  const row = result.rows[0];
+  if (!row) return { success: false, error: 'Ledger not found' };
+  const balance = (row.opening_balance || 0) + (row.total_dr || 0) - (row.total_cr || 0);
+  let label;
+  if (balance > 0.01) label = `${balance.toFixed(2)} Dr`;
+  else if (balance < -0.01) label = `${Math.abs(balance).toFixed(2)} Cr`;
+  else label = '0.00';
+  return { success: true, balance: label, rawBalance: balance };
+};
+
+const searchLedgers = async (company_id, searchTerm) => {
+  const likeTerm = `%${searchTerm || ''}%`;
+  const result = await db.execute(
+    `SELECT * FROM ledgers WHERE company_id = ? AND is_active = 1
+     AND (LOWER(name) LIKE LOWER(?) OR LOWER(COALESCE(alias, '')) LIKE LOWER(?))
+     ORDER BY name LIMIT 50`,
+    [company_id, likeTerm, likeTerm]
+  );
+  return { success: true, ledgers: result.rows };
 };
 
 const validateDoubleEntry = (entries) => {
@@ -343,5 +390,17 @@ module.exports = {
     } catch (err) {
       return { success: false, error: err.message };
     }
+  },
+
+  getNextNumber: async (company_id, fy_id, voucher_type) => {
+    return await getNextVoucherNumber(company_id, fy_id, voucher_type);
+  },
+
+  getLedgerBalance: async (ledger_id, company_id, fy_id) => {
+    return await getLedgerBalance(ledger_id, company_id, fy_id);
+  },
+
+  searchLedgers: async (company_id, searchTerm) => {
+    return await searchLedgers(company_id, searchTerm);
   },
 };
