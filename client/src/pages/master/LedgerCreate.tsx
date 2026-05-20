@@ -133,7 +133,6 @@ function BankDetailsPopup({ ledgerName, bankForm, setBankForm, onClose, onAccept
         {/* Body */}
         <div className="flex flex-1 min-h-0">
 
-          {/* Left — fields */}
           <div className="flex-1 p-3 space-y-0.5 overflow-y-auto">
 
             <div className={rowCls}>
@@ -223,7 +222,6 @@ function BankDetailsPopup({ ledgerName, bankForm, setBankForm, onClose, onAccept
             )}
           </div>
 
-          {/* Right — transaction type list */}
           <div className="w-52 border-l border-zinc-200 flex flex-col shrink-0">
             <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-200 bg-zinc-50 select-none">
               <span className="text-xs font-medium text-zinc-700">Transaction Type</span>
@@ -305,9 +303,6 @@ export default function LedgerCreate() {
     gstin: "",
     pan: "",
     registration_type: "Unregistered",
-    bank_name: "",
-    account_number: "",
-    ifsc_code: "",
   });
 
   const [bankForm, setBankForm] = useState<BankDetails>({
@@ -456,9 +451,6 @@ export default function LedgerCreate() {
         gstin: form.gstin?.trim() || undefined,
         pan: form.pan?.trim() || undefined,
         registration_type: form.registration_type || "Unregistered",
-        bank_name: form.bank_name?.trim() || undefined,
-        account_number: form.account_number?.trim() || undefined,
-        ifsc_code: form.ifsc_code?.trim() || undefined,
       };
 
       if (provideBank === "Yes") {
@@ -502,7 +494,6 @@ export default function LedgerCreate() {
           address1: "", address2: "", city: "", state: "Select",
           country: "India", pincode: "", phone: "", email: "",
           gstin: "", pan: "", registration_type: "Unregistered",
-          bank_name: "", account_number: "", ifsc_code: "",
         });
         setProvideBank("No");
         setProvideGst("No");
@@ -606,7 +597,6 @@ export default function LedgerCreate() {
           </div>
         </div>
 
-        {/* Right detail panel */}
         <div className="w-[480px] border-l flex flex-col overflow-y-auto shrink-0">
           <div className="p-2 flex justify-end">
             <div className="w-44 border shrink-0">
@@ -617,7 +607,7 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          {/* Mailing Details */}
+
           <div className="p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Mailing Details</div>
             <div className="space-y-0.5">
@@ -654,7 +644,7 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          {/* Banking Details */}
+
           <div className="p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Banking Details</div>
             <div className={rowCls}>
@@ -670,7 +660,7 @@ export default function LedgerCreate() {
               </select>
             </div>
 
-            {/* Show summary of filled bank details if accepted */}
+        
             {provideBank === "Yes" && !showBankPopup && (
               <div className="mt-1.5 pl-2 space-y-0.5">
                 {bankForm.bank_name && (
@@ -704,7 +694,7 @@ export default function LedgerCreate() {
             )}
           </div>
 
-          {/* Tax Registration */}
+
           <div className="p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Tax Registration Details</div>
             <div className="space-y-0.5">
@@ -717,7 +707,6 @@ export default function LedgerCreate() {
           </div>
         </div>
 
-        {/* Group panel */}
         {showGroupPanel && (
           <div className="w-72 border-l flex flex-col shrink-0">
             <div className="px-2 py-1 text-sm font-medium flex justify-between items-center select-none">

@@ -24,9 +24,6 @@ const init = async (db) => {
       gstin                       TEXT,
       pan                         TEXT,
       registration_type           TEXT DEFAULT 'Unregistered',
-      bank_name                   TEXT,
-      account_number              TEXT,
-      ifsc_code                   TEXT,
       is_active                   INTEGER DEFAULT 1,
       is_predefined               INTEGER DEFAULT 0,
       created_at                  TEXT DEFAULT (datetime('now')),
@@ -49,7 +46,8 @@ const init = async (db) => {
       cheque_book_end_no            TEXT,
       enable_cheque_printing        INTEGER DEFAULT 0,
       cheque_printing_configuration TEXT,
-      od_limit                      REAL DEFAULT 0
+      od_limit                      REAL DEFAULT 0,
+      transaction_type              TEXT
     )
   `);
 
@@ -69,6 +67,14 @@ const init = async (db) => {
       statutory_details           TEXT
     )
   `);
+
+
+  try {
+    await db.execute(`
+      ALTER TABLE ledger_bank_details
+      ADD COLUMN transaction_type TEXT
+    `);
+  } catch (err) {}
 };
 
 module.exports = { init };
