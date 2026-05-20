@@ -11,7 +11,6 @@ import type { MasterDataAPI } from './MasterData';
 import type { PayrollAPI } from './Payroll';
 import type { FeatureManagementAPI } from './FeatureManagement';
 
-// Re-export entity types for convenience
 export type {
   CompanyType,
   FYType,
