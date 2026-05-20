@@ -60,6 +60,7 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.3",
-    "bcryptjs": "^3.0.3"
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.2"
   }
 }
