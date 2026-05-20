@@ -52,7 +52,7 @@ export default function LedgerAlter() {
 
   const [selectedLedgerId, setSelectedLedgerId] = useState<number | null>(null);
 
-  const [loading,setLoading] = useState(false);
+  const [,setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");

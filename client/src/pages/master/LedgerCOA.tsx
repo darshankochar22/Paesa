@@ -148,18 +148,6 @@ export default function LedgerCOA() {
                             <span className="text-zinc-800">{l.registration_type || "\u2014"}</span>
                           </div>
                           <div className="flex gap-2">
-                            <span className="text-zinc-500 w-32">Bank Name</span>
-                            <span className="text-zinc-800">{l.bank_name || "\u2014"}</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <span className="text-zinc-500 w-32">Account Number</span>
-                            <span className="text-zinc-800">{l.account_number || "\u2014"}</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <span className="text-zinc-500 w-32">IFSC Code</span>
-                            <span className="text-zinc-800">{l.ifsc_code || "\u2014"}</span>
-                          </div>
-                          <div className="flex gap-2">
                             <span className="text-zinc-500 w-32">Closing Balance</span>
                             <span className="text-zinc-800 tabular-nums">{Number(l.closing_balance).toFixed(2)}</span>
                           </div>
