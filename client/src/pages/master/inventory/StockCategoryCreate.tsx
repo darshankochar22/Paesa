@@ -36,27 +36,30 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
   }, [onClose]);
 
   return (
-    <div ref={ref} className="fixed top-0 right-0 h-full w-64 bg-white shadow-2xl z-50 flex flex-col">
-      <div className="bg-zinc-800 text-white text-xs font-semibold px-3 py-2 tracking-wide flex justify-between items-center shrink-0">
-        <span>{title}</span>
-        <button onClick={onClose} className="opacity-60 hover:opacity-100 text-xs">✕</button>
+    <div ref={ref} className="absolute top-0 right-0 h-full w-64 bg-white border-l border-zinc-200 shadow-xl z-50 flex flex-col">
+      <div className="px-3 py-2 border-b border-zinc-200 flex justify-between items-center shrink-0">
+        <span className="text-xs font-semibold text-zinc-600 tracking-wide uppercase">{title}</span>
+        <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
       </div>
       <div className="flex-1 overflow-y-auto">
         <div
-          className={`px-3 py-1.5 text-sm cursor-pointer ${selected === "" ? " text-black font-medium" : "hover:bg-zinc-100 text-zinc-700"}`}
+          className={`px-3 py-2 text-sm cursor-pointer ${selected === "" ? "text-black font-semibold bg-zinc-100" : "text-zinc-700 hover:bg-zinc-50"}`}
           onClick={() => { onSelect(""); onClose(); }}
         >
-          ◆ Primary
+          Primary
         </div>
         {items.map(item => (
           <div
             key={item.id}
-            className={`px-3 py-1.5 text-sm cursor-pointer ${selected === String(item.id) ? " text-black font-medium" : "hover:bg-zinc-100  text-zinc-700"}`}
+            className={`px-3 py-2 text-sm cursor-pointer ${selected === String(item.id) ? "text-black font-semibold bg-zinc-100" : "text-zinc-700 hover:bg-zinc-50"}`}
             onClick={() => { onSelect(String(item.id)); onClose(); }}
           >
             {item.label}
           </div>
         ))}
+        {items.length === 0 && (
+          <div className="px-3 py-2 text-sm text-zinc-400">No categories found</div>
+        )}
       </div>
     </div>
   );
@@ -137,7 +140,7 @@ export default function StockCategoryCreate() {
     : "Primary";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative overflow-hidden">
       <div className="px-6 py-3 flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Create Stock Category</span>
         <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>

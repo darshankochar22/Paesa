@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../../context/CompanyContext";
 import type { StockGroupType, UnitType } from "../../../types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex items-center border-b last:border-0 min-h-[32px]">
+    <div className="flex items-center min-h-[32px]">
       <span className="w-56 text-sm text-zinc-400 shrink-0 py-1">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
@@ -17,6 +17,52 @@ function Row({ label, required, children }: { label: string; required?: boolean;
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400";
 const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer";
+
+interface SidePanelProps {
+  title: string;
+  items: { id: string | number; label: string }[];
+  selected: string;
+  onSelect: (val: string) => void;
+  onClose: () => void;
+}
+
+function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-0 right-0 h-full w-64 bg-white border-l border-zinc-200 shadow-xl z-50 flex flex-col"
+    >
+      <div className="px-3 py-2 border-b border-zinc-200 flex justify-between items-center shrink-0">
+        <span className="text-xs font-semibold text-zinc-600 tracking-wide uppercase">{title}</span>
+        <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {items.map(item => (
+          <div
+            key={item.id}
+            className={`px-3 py-2 text-sm cursor-pointer ${selected === String(item.id) ? "text-black font-semibold bg-zinc-100" : "text-zinc-700 hover:bg-zinc-50"}`}
+            onClick={() => { onSelect(String(item.id)); onClose(); }}
+          >
+            {item.label}
+          </div>
+        ))}
+        {items.length === 0 && (
+          <div className="px-3 py-2 text-sm text-zinc-400">No items found</div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface FormData {
   name: string;
@@ -62,6 +108,8 @@ const INITIAL: FormData = {
   track_expiry: false,
 };
 
+type PanelType = "group" | "unit" | null;
+
 export default function StockItemCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
@@ -72,6 +120,7 @@ export default function StockItemCreate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showPanel, setShowPanel] = useState<PanelType>(null);
 
   const openingValue = (parseFloat(form.opening_quantity) || 0) * (parseFloat(form.opening_rate) || 0);
   const gstSections  = form.gst_applicable !== "Not Applicable";
@@ -162,23 +211,31 @@ export default function StockItemCreate() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape")           navigate("/master/stock-item");
+      if (e.key === "Escape") { if (showPanel) setShowPanel(null); else navigate("/master/stock-item"); }
       if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate]);
+  }, [handleSubmit, navigate, showPanel]);
+
+  const selectedGroupLabel = form.group_id
+    ? stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "— Select Group —"
+    : "— Select Group —";
+
+  const selectedUnitLabel = form.unit_id
+    ? units.find(u => String(u.unit_id) === form.unit_id)
+        ? `${units.find(u => String(u.unit_id) === form.unit_id)!.name} (${units.find(u => String(u.unit_id) === form.unit_id)!.symbol})`
+        : "— Select Unit —"
+    : "— Select Unit —";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative overflow-hidden">
 
-      {/* Header */}
       <div className="px-6 py-3 flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Create Stock Item</span>
         <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
       </div>
 
-      {/* Form */}
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
 
         {/* General */}
@@ -191,20 +248,22 @@ export default function StockItemCreate() {
             <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Short name (optional)" />
           </Row>
           <Row label="Under" required>
-            <select className={selectCls} value={form.group_id} onChange={set("group_id")}>
-              <option value="">— Select Group —</option>
-              {stockGroups.map(g => (
-                <option key={g.sg_id} value={g.sg_id}>{g.name}</option>
-              ))}
-            </select>
+            <button
+              type="button"
+              onClick={() => setShowPanel("group")}
+              className={`w-full text-left text-sm py-1 px-1 bg-transparent outline-none transition-colors hover:text-black dark:hover:text-white ${form.group_id ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400"}`}
+            >
+              {selectedGroupLabel}
+            </button>
           </Row>
           <Row label="Unit" required>
-            <select className={selectCls} value={form.unit_id} onChange={set("unit_id")}>
-              <option value="">— Select Unit —</option>
-              {units.map(u => (
-                <option key={u.unit_id} value={u.unit_id}>{u.name} ({u.symbol})</option>
-              ))}
-            </select>
+            <button
+              type="button"
+              onClick={() => setShowPanel("unit")}
+              className={`w-full text-left text-sm py-1 px-1 bg-transparent outline-none transition-colors hover:text-black dark:hover:text-white ${form.unit_id ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400"}`}
+            >
+              {selectedUnitLabel}
+            </button>
           </Row>
           <Row label="Type of Supply">
             <select className={selectCls} value={form.type_of_supply} onChange={set("type_of_supply")}>
@@ -300,14 +359,12 @@ export default function StockItemCreate() {
 
       </div>
 
-      {/* Success */}
       {success && (
         <div className="px-6 py-2 border-t border-green-900 bg-green-950 text-green-400 text-sm shrink-0">
           ✓ {success}
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="px-6 py-2 border-t border-red-900 bg-red-950 text-red-400 text-sm flex justify-between items-center shrink-0">
           <span>⚠ {error}</span>
@@ -315,8 +372,7 @@ export default function StockItemCreate() {
         </div>
       )}
 
-      {/* Footer */}
-      <div className="px-6 py-3 border-t flex justify-end gap-3 shrink-0">
+      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
         <button
           onClick={() => navigate("/master/create")}
           className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
@@ -331,6 +387,26 @@ export default function StockItemCreate() {
           {loading ? "Saving..." : "Accept"}
         </button>
       </div>
+
+      {showPanel === "group" && (
+        <SidePanel
+          title="Stock Groups"
+          items={stockGroups.map(g => ({ id: g.sg_id, label: g.name }))}
+          selected={form.group_id}
+          onSelect={val => setForm(f => ({ ...f, group_id: val }))}
+          onClose={() => setShowPanel(null)}
+        />
+      )}
+
+      {showPanel === "unit" && (
+        <SidePanel
+          title="Units"
+          items={units.map(u => ({ id: u.unit_id, label: `${u.name} (${u.symbol})` }))}
+          selected={form.unit_id}
+          onSelect={val => setForm(f => ({ ...f, unit_id: val }))}
+          onClose={() => setShowPanel(null)}
+        />
+      )}
 
     </div>
   );

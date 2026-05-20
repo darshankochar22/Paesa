@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../../context/CompanyContext";
 import type { StockGroupType } from "../../../types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex items-center border-b last:border-0 min-h-[32px]">
+    <div className="flex items-center min-h-[32px]">
       <span className="w-56 text-sm text-zinc-400 shrink-0 py-1">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
@@ -17,6 +17,48 @@ function Row({ label, required, children }: { label: string; required?: boolean;
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400";
 const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer";
+
+interface SidePanelProps {
+  title: string;
+  items: { id: string | number; label: string }[];
+  selected: string;
+  onSelect: (val: string) => void;
+  onClose: () => void;
+}
+
+function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  return (
+    <div ref={ref} className="absolute top-0 right-0 h-full w-64 bg-white border-l border-zinc-200 shadow-xl z-50 flex flex-col">
+      <div className="px-3 py-2 border-b border-zinc-200 flex justify-between items-center shrink-0">
+        <span className="text-xs font-semibold text-zinc-600 tracking-wide uppercase">{title}</span>
+        <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {items.map(item => (
+          <div
+            key={item.id}
+            className={`px-3 py-2 text-sm cursor-pointer ${selected === String(item.id) ? "text-black font-semibold bg-zinc-100" : "text-zinc-700 hover:bg-zinc-50"}`}
+            onClick={() => { onSelect(String(item.id)); onClose(); }}
+          >
+            {item.label}
+          </div>
+        ))}
+        {items.length === 0 && (
+          <div className="px-3 py-2 text-sm text-zinc-400">No groups found</div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface FormData {
   name: string;
@@ -50,6 +92,7 @@ export default function StockGroupCreate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showPanel, setShowPanel] = useState(false);
 
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
@@ -102,7 +145,6 @@ export default function StockGroupCreate() {
       if (result.success) {
         const updated = await window.api.stockGroup.getAll(selectedCompany!.company_id!);
         if (updated.success) setStockGroups(updated.stockGroups ?? []);
-
         setSuccess(`Stock Group "${form.name}" created.`);
         setForm(INITIAL);
         setTimeout(() => setSuccess(null), 3000);
@@ -118,23 +160,25 @@ export default function StockGroupCreate() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") navigate("/master/stock-group");
+      if (e.key === "Escape") { if (showPanel) setShowPanel(false); else navigate("/master/stock-group"); }
       if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate]);
+  }, [handleSubmit, navigate, showPanel]);
+
+  const selectedGroupLabel = form.parent_group_id
+    ? stockGroups.find(g => String(g.sg_id) === form.parent_group_id)?.name ?? "Primary"
+    : "Primary";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative overflow-hidden">
 
-      {/* Header */}
       <div className="px-6 py-3 flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Create Stock Group</span>
         <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
       </div>
 
-      {/* Form */}
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
 
         <div>
@@ -146,12 +190,13 @@ export default function StockGroupCreate() {
             <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Short name (optional)" />
           </Row>
           <Row label="Under">
-            <select className={selectCls} value={form.parent_group_id} onChange={set("parent_group_id")}>
-              <option value="">Primary</option>
-              {stockGroups.map(g => (
-                <option key={g.sg_id} value={g.sg_id}>{g.name}</option>
-              ))}
-            </select>
+            <button
+              type="button"
+              onClick={() => setShowPanel(true)}
+              className="w-full text-left text-sm py-1 px-1 bg-transparent outline-none text-zinc-700 hover:text-black transition-colors"
+            >
+              {selectedGroupLabel}
+            </button>
           </Row>
           <Row label="Should Quantities be Added">
             <select className={selectCls} value={form.should_quantities_be_added} onChange={set("should_quantities_be_added")}>
@@ -174,41 +219,24 @@ export default function StockGroupCreate() {
         <div>
           <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">GST Rates</div>
           <Row label="GST Rate (%)">
-            <input
-              className={inputCls}
-              type="number" min="0" max="100" step="0.01"
-              value={form.gst_rate}
-              onChange={handleGstChange}
-            />
+            <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.gst_rate} onChange={handleGstChange} />
           </Row>
           <Row label="CGST Rate (%)">
-            <input
-              className={inputCls}
-              type="number" min="0" max="100" step="0.01"
-              value={form.cgst_rate}
-              onChange={set("cgst_rate")}
-            />
+            <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.cgst_rate} onChange={set("cgst_rate")} />
           </Row>
           <Row label="SGST Rate (%)">
-            <input
-              className={inputCls}
-              type="number" min="0" max="100" step="0.01"
-              value={form.sgst_rate}
-              onChange={set("sgst_rate")}
-            />
+            <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.sgst_rate} onChange={set("sgst_rate")} />
           </Row>
         </div>
 
       </div>
 
-      {/* Success */}
       {success && (
         <div className="px-6 py-2 border-t border-green-900 bg-green-950 text-green-400 text-sm shrink-0">
           ✓ {success}
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="px-6 py-2 border-t border-red-900 bg-red-950 text-red-400 text-sm flex justify-between items-center shrink-0">
           <span>⚠ {error}</span>
@@ -216,7 +244,6 @@ export default function StockGroupCreate() {
         </div>
       )}
 
-      {/* Footer */}
       <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
         <button
           onClick={() => navigate("/master/create")}
@@ -232,6 +259,16 @@ export default function StockGroupCreate() {
           {loading ? "Saving..." : "Accept"}
         </button>
       </div>
+
+      {showPanel && (
+        <SidePanel
+          title="Stock Groups"
+          items={stockGroups.map(g => ({ id: g.sg_id, label: g.name }))}
+          selected={form.parent_group_id}
+          onSelect={val => setForm(f => ({ ...f, parent_group_id: val }))}
+          onClose={() => setShowPanel(false)}
+        />
+      )}
 
     </div>
   );

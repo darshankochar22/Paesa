@@ -4,7 +4,7 @@ import { useCompany } from "../../../context/CompanyContext";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex items-center border-b last:border-0 min-h-[32px]">
+    <div className="flex items-center last:border-0 min-h-[32px]">
       <span className="w-56 text-sm text-zinc-400 shrink-0 py-1">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
@@ -81,7 +81,7 @@ export default function UnitCreate() {
   return (
     <div className="flex flex-col h-full">
 
-      <div className="px-6 py-3 border-b flex items-center justify-between shrink-0">
+      <div className="px-6 py-3 flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Create Unit</span>
         <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
       </div>
@@ -134,10 +134,10 @@ export default function UnitCreate() {
         </div>
       )}
 
-      <div className="px-6 py-3 border-t flex justify-end gap-3 shrink-0">
+      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
         <button
           onClick={() => navigate("/master/create")}
-          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 transition-colors"
         >
           Cancel
         </button>
