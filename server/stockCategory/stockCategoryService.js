@@ -15,6 +15,7 @@ module.exports = {
         args: [
           data.company_id,
           data.name,
+          data.alias || null, 
           data.description || null,
           data.parent_category_id || null,
         ],

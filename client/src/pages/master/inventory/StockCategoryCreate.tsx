@@ -20,12 +20,14 @@ const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-
 
 interface FormData {
   name: string;
+  alias: string,
   description: string;
   parent_category_id: string;
 }
 
 const INITIAL: FormData = {
   name: "",
+  alias: "",
   description: "",
   parent_category_id: "",
 };
@@ -66,6 +68,7 @@ export default function StockCategoryCreate() {
       const result = await window.api.stockCategory.create({
         company_id: selectedCompany!.company_id,
         name: form.name.trim(),
+        alias: form.alias.trim() || undefined,
         description: form.description.trim() || undefined,
         parent_category_id: form.parent_category_id ? Number(form.parent_category_id) : undefined,
       });
@@ -124,6 +127,14 @@ export default function StockCategoryCreate() {
               onChange={set("name")}
               placeholder="Category name"
             />
+          </Row>
+          <Row label="Alias">
+            <input 
+            autoFocus
+            className={inputCls} 
+            value={form.alias} 
+            onChange={set("alias")} 
+            placeholder="Short name (optional)" />
           </Row>
           <Row label="Description">
             <input

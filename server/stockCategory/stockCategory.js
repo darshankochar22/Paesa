@@ -4,6 +4,7 @@ const init = async (db) => {
       sc_id              INTEGER PRIMARY KEY AUTOINCREMENT,
       company_id         INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
       name               TEXT NOT NULL,
+      alias              TEXT,
       description        TEXT,
       parent_category_id INTEGER REFERENCES stock_categories(sc_id),
       is_active          INTEGER DEFAULT 1,
