@@ -22,15 +22,20 @@ import Vouchers from "./pages/transactions/Vouchers.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
 import Banking from './pages/utilities/Banking';
 import UnitCreate from "./pages/master/inventory/unit/UnitCreate.tsx";
+import UnitAlter from "./pages/master/inventory/unit/UnitAlter.tsx";
 import StockGroupCreate from "./pages/master/inventory/stock-group/StockGroupCreate.tsx";
 import StockCategoryCreate from "./pages/master/inventory/stock-category/StockCategoryCreate.tsx";
 import StockItemCreate from "./pages/master/inventory/stock-item/StockItemCreate.tsx";
 import GodownCreate from "./pages/master/inventory/godown/GodownCreate.tsx";
-import InventoryMastersList from './pages/master/inventory/View';
 import StockGroupAlter from "./pages/master/inventory/stock-group/StockGroupAlter.tsx";
 import StockCategoryAlter from "./pages/master/inventory/stock-category/StockCategoryAlter.tsx";
 import StockItemAlter from "./pages/master/inventory/stock-item/StockItemAlter.tsx";
 import GodownAlter from "./pages/master/inventory/godown/GodownAlter.tsx";
+
+import StockGroupCOA from "./pages/master/inventory/stock-group/StockGroupCOA.tsx";
+import StockCategoryCOA from "./pages/master/inventory/stock-category/StockCategoryCOA.tsx";
+import GodownCOA from "./pages/master/inventory/godown/GodownCOA.tsx";
+import UnitCOA from "./pages/master/inventory/unit/UnitCOA.tsx";
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <HashRouter>
@@ -59,7 +64,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/create/stock-category" element={<StockCategoryCreate />}/>
             <Route path="/master/create/stock-item" element={<StockItemCreate />}/>
             <Route path="/master/create/godown" element={<GodownCreate />}/>
-            <Route path="/master/alter/unit" element={<UnitCreate />}/>
+            <Route path="/master/alter/unit" element={<UnitAlter />}/>
             <Route path="/master/alter/stock-group" element={<StockGroupAlter/>}/>
             <Route path="/master/alter/stock-category" element={<StockCategoryAlter />}/>
             <Route path="/master/alter/stock-item" element={<StockItemAlter />}/>
@@ -70,7 +75,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/utilities/banking" element={<Banking/>} />
             <Route path="/data/:controller" element={<GenericDataView />} />
 
-            <Route path="/master/coa/inventory" element={<InventoryMastersList />} />
+            <Route path="/master/coa/stock-group" element={<StockGroupCOA />} />
+            <Route path="/master/coa/stock-category" element={<StockCategoryCOA />} />
+            <Route path="/master/coa/godown" element={<GodownCOA />} />
+            <Route path="/master/coa/unit" element={<UnitCOA />} />
           </Route>
         </Routes>
       </StartupGuard>
