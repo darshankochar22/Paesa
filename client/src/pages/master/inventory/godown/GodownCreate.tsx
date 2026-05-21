@@ -2,21 +2,91 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import FormRow from "@/components/ui/FormRow";
-import SideSelectionPanel from "@/components/ui/SideSelectionPanel";
 import type { GodownType } from "@/types/api";
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400";
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
+const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer";
+
+// ── Godown List Panel ────────────────────────────────────────────────────────
+function GodownListPanel({
+  godowns,
+  selected,
+  onSelect,
+  onClose,
+  onCreate,
+}: {
+  godowns: GodownType[];
+  selected: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="w-72 border-l flex flex-col shrink-0 bg-white h-full z-10">
+      <div className="px-2 py-1 text-sm font-medium flex justify-between items-center select-none border-b">
+        <span>List of Godowns</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onCreate}
+            className="text-xs text-zinc-500 hover:text-black underline underline-offset-1"
+          >
+            Create
+          </button>
+          <button onClick={onClose} className="text-xs hover:underline">&times;</button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div
+          onClick={() => { onSelect(""); onClose(); }}
+          className={[
+            "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none italic",
+            selected === "" ? "bg-zinc-800 text-white" : "hover:bg-zinc-50 text-zinc-500",
+          ].join(" ")}
+        >
+          Primary
+        </div>
+        {godowns
+          .filter((g) => g.name.toLowerCase() !== "primary")
+          .map((g) => (
+            <div
+              key={g.godown_id}
+              onClick={() => { onSelect(String(g.godown_id)); onClose(); }}
+              className={[
+                "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
+                selected === String(g.godown_id) ? "bg-zinc-800 text-white" : "hover:bg-zinc-50",
+              ].join(" ")}
+            >
+              {g.name}
+            </div>
+          ))}
+        {godowns.filter((g) => g.name.toLowerCase() !== "primary").length === 0 && (
+          <div className="text-xs text-zinc-400 px-3 py-2">No godowns yet</div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface FormData {
-  name: string; alias: string; parent_godown_id: string;
+  name: string;
+  alias: string;
+  parent_godown_id: string;
   allow_storage_of_materials: string;
-  address: string; city: string; state: string; pincode: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
 }
 
 const INITIAL: FormData = {
-  name: "", alias: "", parent_godown_id: "",
+  name: "",
+  alias: "",
+  parent_godown_id: "",
   allow_storage_of_materials: "1",
-  address: "", city: "", state: "", pincode: "",
+  address: "",
+  city: "",
+  state: "",
+  pincode: "",
 };
 
 export default function GodownCreate() {
@@ -37,20 +107,22 @@ export default function GodownCreate() {
     });
   }, [selectedCompany]);
 
-  const set = (key: keyof FormData) =>
+  const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [key]: e.target.value }));
 
   const validate = (): string | null => {
     if (!form.name.trim()) return "Name is required.";
     if (!selectedCompany?.company_id) return "No company selected.";
-    if (form.pincode && !/^\d{0,6}$/.test(form.pincode)) return "Pincode must be numeric (max 6 digits).";
+    if (form.pincode && !/^\d{0,6}$/.test(form.pincode)) {
+      return "Pincode must be numeric (max 6 digits).";
+    }
     return null;
   };
 
   const handleSubmit = useCallback(async () => {
-    const validationError = validate();
-    if (validationError) { setError(validationError); return; }
+    const err = validate();
+    if (err) { setError(err); return; }
     setLoading(true); setError(null);
     try {
       const result = await window.api.godown.create({
@@ -82,7 +154,10 @@ export default function GodownCreate() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (showPanel) setShowPanel(false); else navigate("/master/godown"); }
+      if (e.key === "Escape") {
+        if (showPanel) setShowPanel(false);
+        else navigate("/master/create");
+      }
       if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
@@ -94,86 +169,97 @@ export default function GodownCreate() {
     : "Primary";
 
   return (
-    <div className="flex flex-col h-full relative overflow-hidden">
-      <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Create Godown</span>
-        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
+    <div className="flex-1 flex flex-col h-full bg-white">
+      {/* Title bar */}
+      <div className="px-3 py-1 text-sm font-medium flex justify-between items-center select-none">
+        <span>Godown Creation</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
-        {/* General */}
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">General</div>
-          <FormRow label="Name" required>
-            <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="Godown / location name" />
+      {error && (
+        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
+        </div>
+      )}
+      {success && (
+        <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
+          <span>{success}</span>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
+        </div>
+      )}
+
+      <div className="flex-1 flex min-h-0 overflow-x-auto">
+        {/* Left Column: General Details */}
+        <div className="flex-1 flex flex-col min-w-0 shrink-0 p-2 space-y-0.5">
+          <FormRow label="Name" labelWidth="w-48" className="flex items-center min-h-[22px]">
+            <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
           </FormRow>
-          <FormRow label="Alias">
-            <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Short name (optional)" />
+          <FormRow label="(alias)" labelWidth="w-48" className="flex items-center min-h-[22px]">
+            <input className={inputCls} value={form.alias} onChange={setField("alias")} />
           </FormRow>
-          <FormRow label="Under">
-            <button
-              type="button"
-              onClick={() => setShowPanel(true)}
-              className="w-full text-left text-sm py-1 px-1 bg-transparent outline-none text-zinc-700 hover:text-black transition-colors"
-            >
-              {selectedGodownLabel}
-            </button>
-          </FormRow>
-          <FormRow label="Allow Storage of Materials">
-            <select className="w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer" value={form.allow_storage_of_materials} onChange={set("allow_storage_of_materials")}>
+
+          {/* Under */}
+          <div
+            className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 text-sm"
+            onClick={() => setShowPanel(!showPanel)}
+          >
+            <span className="w-48 text-zinc-400 shrink-0 py-1">Under</span>
+            <span className="text-zinc-600 mr-2 shrink-0">:</span>
+            <span className="flex-1 px-1 py-0.5">{selectedGodownLabel}</span>
+          </div>
+
+          <FormRow label="Allow Storage of Materials" labelWidth="w-48" className="flex items-center min-h-[22px]">
+            <select className={selectCls} value={form.allow_storage_of_materials} onChange={setField("allow_storage_of_materials")}>
               <option value="1">Yes</option>
               <option value="0">No</option>
             </select>
           </FormRow>
+          <div className="flex-1" />
         </div>
 
-        {/* Address */}
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Address</div>
-          <FormRow label="Address">
-            <input className={inputCls} value={form.address} onChange={set("address")} placeholder="Street / building (optional)" />
+        {/* Right Column: Address Details */}
+        <div className="w-80 border-l flex flex-col p-2 space-y-0.5 shrink-0 bg-zinc-50/30">
+          <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Address Details</div>
+          
+          <FormRow label="Address" labelWidth="w-20" className="flex items-center min-h-[22px]">
+            <input className={inputCls} value={form.address} onChange={setField("address")} placeholder="Street/Building" />
           </FormRow>
-          <FormRow label="City">
-            <input className={inputCls} value={form.city} onChange={set("city")} placeholder="City (optional)" />
+          <FormRow label="City" labelWidth="w-20" className="flex items-center min-h-[22px]">
+            <input className={inputCls} value={form.city} onChange={setField("city")} placeholder="City" />
           </FormRow>
-          <FormRow label="State">
-            <input className={inputCls} value={form.state} onChange={set("state")} placeholder="State (optional)" />
+          <FormRow label="State" labelWidth="w-20" className="flex items-center min-h-[22px]">
+            <input className={inputCls} value={form.state} onChange={setField("state")} placeholder="State" />
           </FormRow>
-          <FormRow label="Pincode">
-            <input className={inputCls} value={form.pincode} onChange={set("pincode")} placeholder="6-digit pincode (optional)" maxLength={6} />
+          <FormRow label="Pincode" labelWidth="w-20" className="flex items-center min-h-[22px]">
+            <input className={inputCls} value={form.pincode} onChange={setField("pincode")} placeholder="6-digit Pincode" maxLength={6} />
           </FormRow>
         </div>
+
+        {/* Under (Parent Godown) Selection Panel */}
+        {showPanel && (
+          <GodownListPanel
+            godowns={godowns}
+            selected={form.parent_godown_id}
+            onSelect={val => setForm(f => ({ ...f, parent_godown_id: val }))}
+            onClose={() => setShowPanel(false)}
+            onCreate={() => { setShowPanel(false); navigate("/master/create/godown"); }}
+          />
+        )}
       </div>
 
-      {success && (
-        <div className="px-6 py-2 border-t border-green-900 bg-green-950 text-green-400 text-sm shrink-0">✓ {success}</div>
-      )}
-      {error && (
-        <div className="px-6 py-2 border-t border-red-900 bg-red-950 text-red-400 text-sm flex justify-between items-center shrink-0">
-          <span>⚠ {error}</span>
-          <button onClick={() => setError(null)} className="text-xs ml-4 hover:opacity-70">dismiss</button>
-        </div>
-      )}
-
-      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
-        <button onClick={() => navigate("/master/create")} className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 transition-colors">
-          Cancel
+      {/* Footer */}
+      <div className="border-t p-2 flex justify-between items-center bg-zinc-50">
+        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800">
+          &larr; Back to Masters
         </button>
-        <button onClick={handleSubmit} disabled={loading} className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium">
-          {loading ? "Saving..." : "Accept"}
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="text-sm px-5 py-1 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+        >
+          {loading ? "Saving..." : "Create"}
         </button>
       </div>
-
-      {showPanel && (
-        <SideSelectionPanel
-          title="List of Godowns"
-          items={godowns.map(g => ({ id: g.godown_id, label: g.name }))}
-          selected={form.parent_godown_id}
-          onSelect={val => setForm(f => ({ ...f, parent_godown_id: val }))}
-          onClose={() => setShowPanel(false)}
-          showPrimary
-        />
-      )}
     </div>
   );
 }

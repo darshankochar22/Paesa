@@ -33,19 +33,21 @@ function CategoryListPanel({
         >
           Primary
         </div>
-        {categories.map((c) => (
-          <div
-            key={c.sc_id}
-            onClick={() => { onSelect(String(c.sc_id)); onClose(); }}
-            className={[
-              "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
-              selected === String(c.sc_id) ? "bg-zinc-800 text-white" : "hover:bg-zinc-50",
-            ].join(" ")}
-          >
-            {c.name}
-          </div>
-        ))}
-        {categories.length === 0 && (
+        {categories
+          .filter((c) => c.name.toLowerCase() !== "primary")
+          .map((c) => (
+            <div
+              key={c.sc_id}
+              onClick={() => { onSelect(String(c.sc_id)); onClose(); }}
+              className={[
+                "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
+                selected === String(c.sc_id) ? "bg-zinc-800 text-white" : "hover:bg-zinc-50",
+              ].join(" ")}
+            >
+              {c.name}
+            </div>
+          ))}
+        {categories.filter((c) => c.name.toLowerCase() !== "primary").length === 0 && (
           <div className="text-xs text-zinc-400 px-3 py-2">No categories yet</div>
         )}
       </div>

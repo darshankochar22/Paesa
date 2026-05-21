@@ -47,19 +47,21 @@ function GroupListPanel({
         >
           Primary
         </div>
-        {groups.map((g) => (
-          <div
-            key={g.sg_id}
-            onClick={() => { onSelect(String(g.sg_id)); onClose(); }}
-            className={[
-              "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
-              selected === String(g.sg_id) ? "bg-zinc-800 text-white" : "hover:bg-zinc-50",
-            ].join(" ")}
-          >
-            {g.name}
-          </div>
-        ))}
-        {groups.length === 0 && (
+        {groups
+          .filter((g) => g.name.toLowerCase() !== "primary")
+          .map((g) => (
+            <div
+              key={g.sg_id}
+              onClick={() => { onSelect(String(g.sg_id)); onClose(); }}
+              className={[
+                "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
+                selected === String(g.sg_id) ? "bg-zinc-800 text-white" : "hover:bg-zinc-50",
+              ].join(" ")}
+            >
+              {g.name}
+            </div>
+          ))}
+        {groups.filter((g) => g.name.toLowerCase() !== "primary").length === 0 && (
           <div className="text-xs text-zinc-400 px-3 py-2">No groups yet</div>
         )}
       </div>
