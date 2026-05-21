@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 export interface RightPanelAction {
   key: string;           // Keyboard shortcut label, e.g. "F4", "F5", "Esc", "Ctrl+A"
   label: string;         // Description, e.g. "Contra", "Payment", "Quit", "Accept"

@@ -105,7 +105,6 @@ export default function LedgerAlter() {
   const [groupTree, setGroupTree] = useState<any[]>([]);
   const [selectedLedgerId, setSelectedLedgerId] = useState<number | null>(null);
   const [loadedGroupId, setLoadedGroupId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

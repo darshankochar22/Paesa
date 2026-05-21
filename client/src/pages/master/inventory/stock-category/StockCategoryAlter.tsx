@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
+import { PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import type { StockCategoryType } from "@/types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
@@ -284,7 +284,7 @@ export default function StockCategoryAlter() {
   if (!selectedCategory || !form) {
     return (
       <SelectionPanel
-        categories={categories.filter(c => !c.is_predefined)}
+        categories={categories}
         onSelect={handleSelectCategory}
         onCancel={() => navigate("/master/alter")}
         onCreate={() => navigate("/master/create/stock-category")}

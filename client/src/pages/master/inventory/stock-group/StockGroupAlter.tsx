@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
+import { PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
@@ -73,8 +73,6 @@ function SelectionPanel({
   onCreate: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
