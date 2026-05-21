@@ -1,7 +1,6 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useCompany } from "@/context/CompanyContext";
-import GatewayLayout from "@/components/GatewayLayout.tsx";
 
 export default function COA() {
   const { selectedCompany } = useCompany();
@@ -49,59 +48,60 @@ export default function COA() {
   };
 
   return (
-    <GatewayLayout>
-      <div className="w-full max-w-md border border-zinc-200 rounded bg-white shadow-xs p-6 flex flex-col gap-6 select-none font-sans">
-        
-        {/* Header */}
-        <div className="text-sm font-bold uppercase tracking-wider text-zinc-900 border-b border-zinc-150 pb-2 flex justify-between items-center">
-          <span>Chart of Accounts</span>
-          <span className="text-[9px] bg-zinc-900 text-white px-1.5 py-0.5 rounded font-mono">COA Menu</span>
+    <div className="min-h-screen flex items-center justify-center px-6 py-10">
+      <div className="w-full max-w-3xl border rounded p-8">
+        <div className="flex items-start justify-between mb-12">
+          <div className="text-2xl font-semibold">Chart of Accounts</div>
+
+          <div className="flex flex-col items-end gap-3">
+            <Link to="/" className="rounded px-2 py-1 hover:bg-zinc-100 transition-colors">
+              Back
+            </Link>
+
+            <div className="flex flex-col items-end gap-2 mt-4">
+              <div className="text-lg font-semibold">Company</div>
+              <button className="rounded px-2 py-1 hover:bg-zinc-100 transition-colors">
+                {selectedCompany?.name || "Change Company"}
+              </button>
+              <button className="rounded px-2 py-1 hover:bg-zinc-100 transition-colors">Show More</button>
+            </div>
+          </div>
         </div>
 
-        {/* Menu Sections with custom scroll area */}
-        <div className="flex flex-col gap-5 max-h-[60vh] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-12">
           {masterSections.map((section) => (
-            <div key={section.title} className="flex flex-col gap-1.5">
-              
-              {/* Section Header */}
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                {section.title}
-              </div>
+            <div key={section.title} className="flex flex-col items-center gap-4">
+              <div className="text-lg font-semibold">{section.title}</div>
 
-              {/* Section Items */}
-              {section.items.length > 0 && (
-                <div className="flex flex-col pl-2 gap-1 border-l border-zinc-150 ml-1">
-                  {section.items.map((item) => {
-                    const route = getRoute(item);
-                    const isSelectable = !!route;
-
-                    const btnClass = `w-full text-left px-2.5 py-1.5 text-xs rounded transition-all select-none ${
-                      isSelectable
-                        ? "text-zinc-800 hover:bg-zinc-900 hover:text-white cursor-pointer font-medium"
-                        : "text-zinc-300 cursor-not-allowed opacity-40 font-normal"
-                    }`;
-
+              <div className="flex flex-col items-start w-full pl-8">
+                {section.items.map((item) => {
+                  const route = getRoute(item);
+                  if (route) {
                     return (
                       <button
                         key={item}
-                        onClick={() => {
-                          if (route) navigate(route);
-                        }}
-                        disabled={!isSelectable}
-                        className={btnClass}
+                        onClick={() => navigate(route)}
+                        className="text-left rounded px-2 py-1 w-full hover:bg-black hover:text-white transition-colors"
                       >
                         {item}
                       </button>
                     );
-                  })}
-                </div>
-              )}
-
+                  }
+                  return (
+                    <button
+                      key={item}
+                      disabled
+                      className="text-left rounded px-2 py-1 w-full opacity-40 cursor-not-allowed"
+                    >
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
-
       </div>
-    </GatewayLayout>
+    </div>
   );
 }

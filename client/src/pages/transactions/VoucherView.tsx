@@ -66,7 +66,7 @@ function DrCrBadge({ type }: { type: "Dr" | "Cr" }) {
   );
 }
 
-/** Thin horizontal table header row */
+
 function TableHeader({ cols }: { cols: { label: string; span: string; align?: string }[] }) {
   return (
     <div className="grid grid-cols-12 px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 text-[9px] font-bold uppercase tracking-wider text-zinc-500 select-none">
