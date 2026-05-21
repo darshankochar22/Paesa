@@ -9,13 +9,13 @@ interface Props {
 }
 
 const STYLES = {
-  error:   "border-red-200 bg-red-50 text-red-700",
-  success: "border-green-200 bg-green-50 text-green-700",
+  error:   "border-zinc-300 bg-zinc-900 text-white",
+  success: "border-zinc-200 bg-zinc-50 text-zinc-800",
 };
 
 const DISMISS_STYLES = {
-  error:   "text-red-500 hover:text-red-700",
-  success: "text-green-500 hover:text-green-700",
+  error:   "text-zinc-400 hover:text-white",
+  success: "text-zinc-400 hover:text-zinc-900",
 };
 
 export default function AlertBanner({ type, message, onDismiss, actions }: Props) {

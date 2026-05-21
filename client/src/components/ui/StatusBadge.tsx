@@ -1,22 +1,22 @@
 const VARIANT_CLASSES: Record<string, string> = {
-  success:  "bg-emerald-100 text-emerald-800",
-  danger:   "bg-rose-100 text-rose-800",
-  warning:  "bg-amber-100 text-amber-800",
-  info:     "bg-blue-100 text-blue-800",
+  success:  "bg-black text-white",
+  danger:   "bg-zinc-700 text-white",
+  warning:  "bg-zinc-200 text-zinc-900",
+  info:     "bg-zinc-900 text-white",
   neutral:  "bg-zinc-100 text-zinc-600",
-  violet:   "bg-violet-100 text-violet-800",
-  orange:   "bg-orange-100 text-orange-800",
+  violet:   "bg-zinc-200 text-zinc-900",
+  orange:   "bg-zinc-200 text-zinc-900",
 };
 
-// Map common voucher types to variant names
+// Map common voucher types and status labels to variant names
 const TYPE_VARIANT: Record<string, string> = {
-  Receipt:  "success",
-  Payment:  "danger",
-  Contra:   "violet",
-  Journal:  "warning",
-  Sales:    "info",
-  Purchase: "orange",
-  Active:   "success",
+  Receipt:   "neutral",
+  Payment:   "neutral",
+  Contra:    "neutral",
+  Journal:   "neutral",
+  Sales:     "neutral",
+  Purchase:  "neutral",
+  Active:    "success",
   Cancelled: "danger",
 };
 

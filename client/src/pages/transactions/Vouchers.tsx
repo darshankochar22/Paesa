@@ -87,7 +87,7 @@ export default function Vouchers() {
           actions={
             <button
               onClick={() => navigate("/transactions/voucher-list")}
-              className="text-[10px] text-green-800 underline hover:text-green-900 font-sans transition-colors"
+              className="text-[10px] text-zinc-600 underline hover:text-zinc-900 font-sans transition-colors"
             >
               View Voucher Register →
             </button>

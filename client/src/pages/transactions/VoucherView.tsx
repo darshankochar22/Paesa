@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { SectionCard, AlertBanner } from "../../components/ui";
-import { VoucherTypeBadge, voucherTypeSolidClass, AmountDisplay, PageFooterBar } from "./ui";
+import { VoucherTypeBadge, AmountDisplay, PageFooterBar } from "./ui";
 
 interface VoucherEntry {
   entry_id: number;
@@ -59,8 +59,8 @@ function DetailCell({ label, value }: { label: string; value: string }) {
 /** Dr / Cr badge pill for entry rows */
 function DrCrBadge({ type }: { type: "Dr" | "Cr" }) {
   const cls = type === "Dr"
-    ? "bg-blue-100 text-blue-700"
-    : "bg-rose-100 text-rose-700";
+    ? "bg-black text-white"
+    : "bg-zinc-600 text-white";
   return (
     <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${cls}`}>{type}</span>
   );
@@ -157,7 +157,7 @@ export default function VoucherView() {
   const stockTotal = voucher.stock_entries.reduce((s, e) => s + e.amount, 0);
   const balanced   = Math.abs(drTotal - crTotal) < 0.01;
 
-  const accentClass = voucherTypeSolidClass(voucher.voucher_type);
+  const accentClass = "bg-zinc-900";
 
   // Header detail cells (skip nulls)
   const headerCells: { label: string; value: string }[] = [
@@ -254,7 +254,7 @@ export default function VoucherView() {
             ))}
 
             {/* Balance indicator */}
-            <div className={`px-3 py-1.5 text-[10px] font-bold text-right ${balanced ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+            <div className={`px-3 py-1.5 text-[10px] font-bold text-right border-t border-zinc-100 ${balanced ? "bg-zinc-50 text-zinc-700" : "bg-zinc-900 text-white"}`}>
               {balanced
                 ? "✓ Balanced"
                 : `⚠ Difference: `}
