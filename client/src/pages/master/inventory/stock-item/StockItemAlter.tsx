@@ -426,7 +426,7 @@ export default function StockItemAlter() {
           <div className="space-y-1 border-t border-zinc-100 pt-4">
             <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">Statutory Details</div>
             
-            <FormRow label="GST Applicable" labelWidth="w-56" className="flex items-center min-h-[26px]">
+            <FormRow label="Rate Of Duty" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <select className={selectCls} value={form.gst_applicable} onChange={set("gst_applicable")}>
                 <option value="Not Applicable">Not Applicable</option>
                 <option value="Applicable">Applicable</option>
@@ -508,9 +508,17 @@ export default function StockItemAlter() {
       {showPanel === "unit" && (
         <SideSelectionPanel
           title="Units"
-          items={units.map(u => ({ id: u.unit_id, label: `${u.symbol} - ${u.formal_name}` }))}
+          items={[
+            { id: "create", label: "Create" }
+          ]}
           selected={form.unit_id}
-          onSelect={val => setForm(f => f ? { ...f, unit_id: val } : f)}
+          onSelect={val => {
+            if (val === "create") {
+              navigate("/master/create/unit");
+            } else {
+              setForm(f => f ? { ...f, unit_id: val } : f);
+            }
+          }}
           onClose={() => setShowPanel(null)}
           showPrimary
           primaryLabel="Not Applicable"
