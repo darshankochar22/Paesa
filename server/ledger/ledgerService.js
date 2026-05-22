@@ -31,8 +31,9 @@ const seedDefaultLedgers = async (company_id, groups) => {
               opening_balance, closing_balance, is_bill_wise, maintain_inventory_values,
               mailing_name, address1, address2, city, state, country, pincode,
               phone, email, gstin, pan, registration_type,
-              default_credit_period, check_credit_days, is_active, is_predefined
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              default_credit_period, check_credit_days,
+              allow_cost_centres, is_active, is_predefined
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         company_id,
         l.group_id,
@@ -56,6 +57,7 @@ const seedDefaultLedgers = async (company_id, groups) => {
         null,
         null,
         "Unregistered",
+        0,
         0,
         0,
         1,
@@ -92,9 +94,8 @@ module.exports = {
                 mailing_name, address1, address2, city, state, country, pincode,
                 phone, email, gstin, pan, registration_type,
                 default_credit_period, check_credit_days,
-                allow_cost_centres,
-                is_active, is_predefined
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                allow_cost_centres, is_active, is_predefined
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           data.company_id,
           data.group_id || null,
