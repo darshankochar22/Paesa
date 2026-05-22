@@ -206,6 +206,13 @@ contextBridge.exposeInMainWorld('api', {
         delete:     (id)                       => invoke('employee:delete', id),
         getByGroup: (company_id, group_id)     => invoke('employee:getByGroup', { company_id, group_id }),
     },
+    employeeCategory: {
+        create:  (data)       => invoke('employeeCategory:create', data),
+        getAll:  (company_id) => invoke('employeeCategory:getAll', company_id),
+        getById: (id)         => invoke('employeeCategory:getById', id),
+        update:  (data)       => invoke('employeeCategory:update', data),
+        delete:  (id)         => invoke('employeeCategory:delete', id),
+    },
     employeeGroup: {
         create:  (data)       => invoke('employeeGroup:create', data),
         getAll:  (company_id) => invoke('employeeGroup:getAll', company_id),

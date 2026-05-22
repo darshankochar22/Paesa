@@ -3,6 +3,7 @@ const init = async (db) => {
     CREATE TABLE IF NOT EXISTS employees (
       employee_id          INTEGER PRIMARY KEY AUTOINCREMENT,
       company_id           INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
+      employee_category_id INTEGER REFERENCES employee_categories(employee_category_id),
       employee_group_id    INTEGER REFERENCES employee_groups(employee_group_id),
       name                 TEXT NOT NULL,
       alias                TEXT,
@@ -59,6 +60,9 @@ const init = async (db) => {
       await db.execute(`ALTER TABLE employees ADD COLUMN ${col} TEXT`);
     } catch (_) {}
   }
+  try {
+    await db.execute('ALTER TABLE employees ADD COLUMN employee_category_id INTEGER REFERENCES employee_categories(employee_category_id)');
+  } catch (_) {}
 };
 
 module.exports = { init };

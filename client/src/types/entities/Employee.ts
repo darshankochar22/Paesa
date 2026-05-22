@@ -1,6 +1,20 @@
+export interface EmployeeCategoryType {
+  employee_category_id?: number;
+  company_id?: number;
+  name: string;
+  alias?: string;
+  allocate_revenue?: number;
+  allocate_non_revenue?: number;
+  is_active?: number;
+  is_predefined?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface EmployeeGroupType {
   employee_group_id?: number;
   company_id?: number;
+  employee_category_id?: number;
   name: string;
   alias?: string;
   parent_group_id?: number;
@@ -13,6 +27,7 @@ export interface EmployeeGroupType {
 export interface EmployeeType {
   employee_id?: number;
   company_id?: number;
+  employee_category_id?: number;
   employee_group_id?: number;
   name: string;
   alias?: string;

@@ -17,6 +17,7 @@ const currencyController = require('./currency/currencyController');
 const voucherTypeController = require('./voucherType/voucherTypeController');
 const gstRegistrationController = require('./gstRegistration/gstRegistrationController');
 const gstClassificationController = require('./gstClassification/gstClassificationController');
+const employeeCategoryController = require('./employeeCategory/employeeCategoryController');
 const employeeGroupController = require('./employeeGroup/employeeGroupController');
 const employeeController = require('./employee/employeeController');
 const payrollUnitController = require('./payrollUnit/payrollUnitController');
@@ -158,6 +159,12 @@ ipcMain.handle('gstClassification:getAll', gstClassificationController.getAll);
 ipcMain.handle('gstClassification:getById', gstClassificationController.getById);
 ipcMain.handle('gstClassification:update', gstClassificationController.update);
 ipcMain.handle('gstClassification:delete', gstClassificationController.delete);
+
+ipcMain.handle('employeeCategory:create', employeeCategoryController.create);
+ipcMain.handle('employeeCategory:getAll', employeeCategoryController.getAll);
+ipcMain.handle('employeeCategory:getById', employeeCategoryController.getById);
+ipcMain.handle('employeeCategory:update', employeeCategoryController.update);
+ipcMain.handle('employeeCategory:delete', employeeCategoryController.delete);
 
 ipcMain.handle('employeeGroup:create', employeeGroupController.create);
 ipcMain.handle('employeeGroup:getAll', employeeGroupController.getAll);

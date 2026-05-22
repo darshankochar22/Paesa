@@ -24,7 +24,7 @@ const getMenu = async (company_id = 1) => {
 
     menu.push({
       title: "Payroll Masters",
-      items: ["Employee Group", "Employee", "Attendance Type", "Pay Head", "Payroll Unit", "Salary Structure"]
+      items: ["Employee Category", "Employee Group", "Employee", "Attendance Type", "Pay Head", "Payroll Unit", "Salary Structure"]
     });
 
     return { success: true, menu };

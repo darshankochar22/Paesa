@@ -28,6 +28,7 @@ const initDB = async () => {
   await require('../featureItem/featureItem').init(db);
   await require('../companyFeatureValues/companyFeatureValues').init(db);
   await require('../companyCreationSuccess/companyCreationSuccess').init(db);
+  await require('../employeeCategory/employeeCategory').init(db);
   await require('../employeeGroup/employeeGroup').init(db);
   await require('../employee/employee').init(db);
   await require('../payrollUnit/payrollUnit').init(db);

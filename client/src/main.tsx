@@ -45,6 +45,7 @@ import PayrollUnitCreate from "./pages/master/payroll/payroll-unit/PayrollUnitCr
 import AttendanceTypeCreate from "./pages/master/payroll/attendance-type/AttendanceTypeCreate.tsx";
 import PayHeadCreate from "./pages/master/payroll/pay-head/PayHeadCreate.tsx";
 import SalaryStructureCreate from "./pages/master/payroll/salary-structure/SalaryStructureCreate.tsx";
+import EmployeeCategoryCreate from "./pages/master/payroll/employee-category/EmployeeCategoryCreate.tsx";
 
 import EmployeeGroupCOA from "./pages/master/payroll/employee-group/EmployeeGroupCOA.tsx";
 import EmployeeCOA from "./pages/master/payroll/employee/EmployeeCOA.tsx";
@@ -52,6 +53,7 @@ import PayrollUnitCOA from "./pages/master/payroll/payroll-unit/PayrollUnitCOA.t
 import AttendanceTypeCOA from "./pages/master/payroll/attendance-type/AttendanceTypeCOA.tsx";
 import PayHeadCOA from "./pages/master/payroll/pay-head/PayHeadCOA.tsx";
 import SalaryStructureCOA from "./pages/master/payroll/salary-structure/SalaryStructureCOA.tsx";
+import EmployeeCategoryCOA from "./pages/master/payroll/employee-category/EmployeeCategoryCOA.tsx";
 
 import EmployeeGroupAlter from "./pages/master/payroll/employee-group/EmployeeGroupAlter.tsx";
 import EmployeeAlter from "./pages/master/payroll/employee/EmployeeAlter.tsx";
@@ -59,6 +61,7 @@ import PayrollUnitAlter from "./pages/master/payroll/payroll-unit/PayrollUnitAlt
 import AttendanceTypeAlter from "./pages/master/payroll/attendance-type/AttendanceTypeAlter.tsx";
 import PayHeadAlter from "./pages/master/payroll/pay-head/PayHeadAlter.tsx";
 import SalaryStructureAlter from "./pages/master/payroll/salary-structure/SalaryStructureAlter.tsx";
+import EmployeeCategoryAlter from "./pages/master/payroll/employee-category/EmployeeCategoryAlter.tsx";
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <HashRouter>
@@ -110,6 +113,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/coa/attendance-type" element={<AttendanceTypeCOA />} />
             <Route path="/master/coa/pay-head" element={<PayHeadCOA />} />
             <Route path="/master/coa/salary-structure" element={<SalaryStructureCOA />} />
+            <Route path="/master/coa/employee-category" element={<EmployeeCategoryCOA />} />
 
             <Route path="/master/create/employee-group" element={<EmployeeGroupCreate />} />
             <Route path="/master/create/employee" element={<EmployeeCreate />} />
@@ -117,6 +121,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/create/attendance-type" element={<AttendanceTypeCreate />} />
             <Route path="/master/create/pay-head" element={<PayHeadCreate />} />
             <Route path="/master/create/salary-structure" element={<SalaryStructureCreate />} />
+            <Route path="/master/create/employee-category" element={<EmployeeCategoryCreate />} />
 
             <Route path="/master/alter/employee-group" element={<EmployeeGroupAlter />} />
             <Route path="/master/alter/employee" element={<EmployeeAlter />} />
@@ -124,6 +129,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/alter/attendance-type" element={<AttendanceTypeAlter />} />
             <Route path="/master/alter/pay-head" element={<PayHeadAlter />} />
             <Route path="/master/alter/salary-structure" element={<SalaryStructureAlter />} />
+            <Route path="/master/alter/employee-category" element={<EmployeeCategoryAlter />} />
           </Route>
         </Routes>
       </StartupGuard>

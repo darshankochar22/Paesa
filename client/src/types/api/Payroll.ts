@@ -1,4 +1,4 @@
-import type { EmployeeGroupType, EmployeeType } from '../entities/Employee';
+import type { EmployeeCategoryType, EmployeeGroupType, EmployeeType } from '../entities/Employee';
 import type { PayrollUnitType, PayHeadType, PayHeadSlabLineType, PayHeadFormulaLineType, SalaryStructureType, AttendanceTypeType } from '../entities/Payroll';
 
 export interface PayrollAPI {
@@ -31,6 +31,14 @@ export interface PayrollAPI {
     getById: (id: number) => Promise<{ success: boolean; structure: SalaryStructureType }>;
     getByEmployee: (company_id: number, employee_id: number) => Promise<{ success: boolean; salaryStructures: { effective_from: string; pay_heads: SalaryStructureType[] }[] }>;
     update: (data: Partial<SalaryStructureType>) => Promise<{ success: boolean; structure: SalaryStructureType }>;
+    delete: (id: number) => Promise<{ success: boolean; error?: string }>;
+  };
+
+  employeeCategory: {
+    create: (data: Partial<EmployeeCategoryType>) => Promise<{ success: boolean; category: EmployeeCategoryType; error?: string }>;
+    getAll: (company_id: number) => Promise<{ success: boolean; employeeCategories: EmployeeCategoryType[]; error?: string }>;
+    getById: (id: number) => Promise<{ success: boolean; category: EmployeeCategoryType; error?: string }>;
+    update: (data: Partial<EmployeeCategoryType>) => Promise<{ success: boolean; category: EmployeeCategoryType; error?: string }>;
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;
   };
 
