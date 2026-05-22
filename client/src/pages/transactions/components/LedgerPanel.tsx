@@ -18,6 +18,7 @@ interface Props {
   checkIsCashOrBank: (ledger: LedgerType | null) => boolean;
   checkLedgerGroup: (ledger: LedgerType | null, targetGroupNames: string[]) => boolean;
   voucherType: string;
+  onInlineCreate?: (type: "ledger" | "stockItem" | "godown") => void;
 }
 
 export default function LedgerPanel({
@@ -33,7 +34,8 @@ export default function LedgerPanel({
   onClose,
   checkIsCashOrBank,
   checkLedgerGroup,
-  voucherType
+  voucherType,
+  onInlineCreate
 }: Props) {
   const navigate = useNavigate();
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -151,7 +153,14 @@ export default function LedgerPanel({
       <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-zinc-100">
         <div
           className="px-3 py-2 text-xs cursor-pointer hover:bg-zinc-50 text-zinc-900 font-semibold flex items-center gap-1.5 transition-colors"
-          onClick={() => navigate(createPath)}
+          onClick={() => {
+            if (onInlineCreate) {
+              const targetType = isStockItem ? "stockItem" : isGodown ? "godown" : "ledger";
+              onInlineCreate(targetType);
+            } else {
+              navigate(createPath);
+            }
+          }}
         >
           <span className="text-zinc-400 font-normal">+</span> {createLabel}
         </div>

@@ -24,6 +24,7 @@ export interface LedgerType {
   registration_type?: string;
   default_credit_period?: number;
   check_credit_days?: number;
+  allow_cost_centres?: number;
   is_active?: number;
   is_predefined?: number;
   created_at?: string;

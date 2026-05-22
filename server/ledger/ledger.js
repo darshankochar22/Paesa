@@ -24,6 +24,7 @@ const init = async (db) => {
       gstin                       TEXT,
       pan                         TEXT,
       registration_type           TEXT DEFAULT 'Unregistered',
+      allow_cost_centres          INTEGER DEFAULT 0,
       is_active                   INTEGER DEFAULT 1,
       is_predefined               INTEGER DEFAULT 0,
       created_at                  TEXT DEFAULT (datetime('now')),
@@ -82,6 +83,10 @@ const init = async (db) => {
 
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN check_credit_days INTEGER DEFAULT 0`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN allow_cost_centres INTEGER DEFAULT 0`);
   } catch (err) {}
 };
 

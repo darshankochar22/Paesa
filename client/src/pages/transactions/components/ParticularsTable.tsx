@@ -10,6 +10,7 @@ interface Props {
   searchTerm: string;
   activeRowId: string | null;
   isJournal?: boolean;
+  onAmountConfirm?: (row: ParticularRow, index: number) => void;
 }
 
 export default function ParticularsTable({
@@ -21,7 +22,8 @@ export default function ParticularsTable({
   onSearchChange,
   searchTerm,
   activeRowId,
-  isJournal = false
+  isJournal = false,
+  onAmountConfirm
 }: Props) {
 
   const handleAmountChange = (rowId: string, value: string) => {
@@ -31,13 +33,18 @@ export default function ParticularsTable({
   const handleAmountKeyDown = (e: React.KeyboardEvent, idx: number) => {
     if (e.key === "Enter" || e.key === "Tab") {
       const row = rows[idx];
-      if (row?.ledger && Number(row.amountRaw) > 0 && idx === rows.length - 1) {
-        e.preventDefault();
-        onAddRow();
-        setTimeout(() => {
-          const nextInput = document.querySelector(`[data-particular-ledger="${rows.length + 1}"]`);
-          (nextInput as HTMLInputElement)?.focus();
-        }, 50);
+      if (row?.ledger) {
+        if (onAmountConfirm) {
+          e.preventDefault();
+          onAmountConfirm(row, idx);
+        } else if (Number(row.amountRaw) > 0 && idx === rows.length - 1) {
+          e.preventDefault();
+          onAddRow();
+          setTimeout(() => {
+            const nextInput = document.querySelector(`[data-particular-ledger="${rows.length + 1}"]`);
+            (nextInput as HTMLInputElement)?.focus();
+          }, 50);
+        }
       }
     }
   };
@@ -108,6 +115,7 @@ export default function ParticularsTable({
               {/* 3. Amount Input */}
               <div className="col-span-3 px-1">
                 <input
+                  data-particular-amount={idx + 1}
                   type="text"
                   className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900 font-bold"
                   value={row.amountRaw}

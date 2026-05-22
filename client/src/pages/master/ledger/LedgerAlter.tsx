@@ -122,6 +122,7 @@ export default function LedgerAlter() {
     state: "Select", country: "India", pincode: "", phone: "",
     email: "", pan: "", gstin: "", registration_type: "Unregistered",
     default_credit_period: 0, check_credit_days: 0,
+    allow_cost_centres: 0,
   });
 
   const [bankForm, setBankForm] = useState<BankDetails>(EMPTY_BANK_DETAILS);
@@ -284,6 +285,7 @@ export default function LedgerAlter() {
         maintain_inventory_values: l.maintain_inventory_values || 0,
         default_credit_period: l.default_credit_period || 0,
         check_credit_days: l.check_credit_days || 0,
+        allow_cost_centres: l.allow_cost_centres || 0,
       });
     } catch {
       setError("Failed to load ledger.");
@@ -373,6 +375,7 @@ export default function LedgerAlter() {
         registration_type: form.registration_type || "Unregistered",
         default_credit_period: form.default_credit_period || 0,
         check_credit_days: form.check_credit_days || 0,
+        allow_cost_centres: form.allow_cost_centres || 0,
       };
 
       const hasBankData = provideBank === "Yes" || groupLineage.isBank;
@@ -827,6 +830,21 @@ export default function LedgerAlter() {
                       </div>
                     </div>
                   )}
+
+                  {/* Cost Centre Details */}
+                  <div className="p-3 border-t border-zinc-100 bg-white">
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cost Centre Details</div>
+                    <FormRow label="Cost Centres are applicable" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                      <select
+                        className={selectCls}
+                        value={form.allow_cost_centres ? "Yes" : "No"}
+                        onChange={(e) => setForm((f: any) => ({ ...f, allow_cost_centres: e.target.value === "Yes" ? 1 : 0 }))}
+                      >
+                        <option>No</option>
+                        <option>Yes</option>
+                      </select>
+                    </FormRow>
+                  </div>
 
                   {/* Mailing Details */}
                   <div className="p-3 border-t border-zinc-100 bg-white">

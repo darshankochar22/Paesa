@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { useVoucherForm } from "./hooks/useVoucherForm";
@@ -12,10 +12,215 @@ import { INDIAN_STATES } from "../../constants/states";
 import { PageTitleBar, AlertBanner, RightActionPanel } from "../../components/ui";
 import { LedgerField } from "./ui";
 
+import InlineMasterPopup from "./components/popups/InlineMasterPopup";
+import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
+import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
+import BankAllocationPopup from "./components/popups/BankAllocationPopup";
+
 export default function Vouchers() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const form = useVoucherForm();
+
+  const [inlineCreateType, setInlineCreateType] = useState<"ledger" | "stockItem" | "godown" | null>(null);
+
+  const handleInlineCreateSuccess = async (_type: "ledger" | "stockItem" | "godown", created: any) => {
+    await form.fetchContextData();
+    form.handleLedgerPanelSelect(created);
+    setInlineCreateType(null);
+  };
+
+  const handleAcceptClick = () => {
+    // Check if we need to capture party bill-wise details first
+    if (["Sales", "Purchase"].includes(form.voucherType) && form.partyLedger?.is_bill_wise === 1 && form.partyBillReferences.length === 0) {
+      form.setActiveAllocation({
+        type: "billWiseParty",
+        ledgerId: form.partyLedger.ledger_id,
+        ledgerName: form.partyLedger.name,
+        amount: form.totalAmount,
+        initialAllocations: [],
+      });
+      return;
+    }
+
+    // Check if we need to capture bank details first
+    const isBank = form.accountLedger && form.checkIsCashOrBank(form.accountLedger) && form.accountLedger.name.toLowerCase().includes("bank");
+    if (["Payment", "Receipt"].includes(form.voucherType) && isBank && !form.bankDetails) {
+      form.setActiveAllocation({
+        type: "bankDetails",
+        ledgerId: form.accountLedger!.ledger_id,
+        ledgerName: form.accountLedger!.name,
+        amount: form.totalAmount,
+        initialDetails: null,
+      });
+      return;
+    }
+
+    // Otherwise, submit normally!
+    form.handleSubmit();
+  };
+
+  const proceedToNextRow = (idx: number) => {
+    let rowsList: any[] = [];
+    let isJournal = form.voucherType === "Journal";
+    let isInventory = ["Sales", "Purchase"].includes(form.voucherType);
+
+    if (isJournal) {
+      rowsList = form.journalRows;
+    } else if (isInventory) {
+      rowsList = form.additionalEntries;
+    } else {
+      rowsList = form.particulars;
+    }
+
+    if (idx === rowsList.length - 1) {
+      if (isJournal) {
+        form.handleAddJournalRow();
+        setTimeout(() => {
+          const nextInput = document.querySelector(`[data-particular-ledger="${form.journalRows.length + 1}"]`);
+          (nextInput as HTMLInputElement)?.focus();
+        }, 50);
+      } else if (isInventory) {
+        form.handleAddAdditionalRow();
+        setTimeout(() => {
+          const nextInput = document.querySelector(`[data-additional-ledger="${form.additionalEntries.length + 1}"]`);
+          (nextInput as HTMLInputElement)?.focus();
+        }, 50);
+      } else {
+        form.handleAddParticularRow();
+        setTimeout(() => {
+          const nextInput = document.querySelector(`[data-particular-ledger="${form.particulars.length + 1}"]`);
+          (nextInput as HTMLInputElement)?.focus();
+        }, 50);
+      }
+    } else {
+      setTimeout(() => {
+        const queryStr = isInventory ? `[data-additional-ledger="${idx + 2}"]` : `[data-particular-ledger="${idx + 2}"]`;
+        const nextInput = document.querySelector(queryStr);
+        (nextInput as HTMLInputElement)?.focus();
+      }, 50);
+    }
+  };
+
+  const handleParticularAmountConfirm = (row: any, index: number) => {
+    const ledger = row.ledger;
+    const amount = Number(row.amountRaw) || 0;
+    if (!ledger || amount <= 0) {
+      proceedToNextRow(index);
+      return;
+    }
+
+    const isBillWise = ledger.is_bill_wise === 1;
+    const isCostCentre = ledger.allow_cost_centres === 1;
+
+    if (isBillWise) {
+      form.setActiveAllocation({
+        type: "billWise",
+        rowId: row.id,
+        ledgerId: ledger.ledger_id,
+        ledgerName: ledger.name,
+        amount,
+        initialAllocations: row.billReferences || [],
+      });
+    } else if (isCostCentre) {
+      form.setActiveAllocation({
+        type: "costCentre",
+        rowId: row.id,
+        ledgerId: ledger.ledger_id,
+        ledgerName: ledger.name,
+        amount,
+        initialAllocations: row.costCentres || [],
+      });
+    } else {
+      proceedToNextRow(index);
+    }
+  };
+
+  const handleSaveBillWise = (allocations: any[]) => {
+    if (form.activeAllocation?.type === "billWiseParty") {
+      form.setPartyBillReferences(allocations);
+      form.setActiveAllocation(null);
+      setTimeout(() => {
+        handleAcceptClick();
+      }, 50);
+      return;
+    }
+
+    const activeAlloc = form.activeAllocation;
+    const rowId = activeAlloc && "rowId" in activeAlloc ? activeAlloc.rowId : undefined;
+    if (rowId) {
+      let rowsList: any[] = [];
+      let isJournal = form.voucherType === "Journal";
+      let isInventory = ["Sales", "Purchase"].includes(form.voucherType);
+
+      if (isJournal) {
+        rowsList = form.journalRows;
+      } else if (isInventory) {
+        rowsList = form.additionalEntries;
+      } else {
+        rowsList = form.particulars;
+      }
+
+      const targetRow = rowsList.find(r => r.id === rowId);
+      if (targetRow) {
+        if (isJournal) {
+          form.handleUpdateJournalRow(rowId, { billReferences: allocations });
+        } else if (isInventory) {
+          form.handleUpdateAdditionalRow(rowId, { billReferences: allocations });
+        } else {
+          form.handleUpdateParticularRow(rowId, { billReferences: allocations });
+        }
+
+        if (targetRow.ledger?.allow_cost_centres === 1) {
+          form.setActiveAllocation({
+            type: "costCentre",
+            rowId,
+            ledgerId: targetRow.ledger.ledger_id,
+            ledgerName: targetRow.ledger.name,
+            amount: Number(targetRow.amountRaw) || 0,
+            initialAllocations: targetRow.costCentres || [],
+          });
+        } else {
+          form.setActiveAllocation(null);
+          const idx = rowsList.findIndex(r => r.id === rowId);
+          proceedToNextRow(idx);
+        }
+      }
+    }
+  };
+
+  const handleSaveCostCentre = (allocations: any[]) => {
+    const activeAlloc = form.activeAllocation;
+    const rowId = activeAlloc && "rowId" in activeAlloc ? activeAlloc.rowId : undefined;
+    if (rowId) {
+      let rowsList: any[] = [];
+      let isJournal = form.voucherType === "Journal";
+      let isInventory = ["Sales", "Purchase"].includes(form.voucherType);
+
+      if (isJournal) {
+        rowsList = form.journalRows;
+        form.handleUpdateJournalRow(rowId, { costCentres: allocations });
+      } else if (isInventory) {
+        rowsList = form.additionalEntries;
+        form.handleUpdateAdditionalRow(rowId, { costCentres: allocations });
+      } else {
+        rowsList = form.particulars;
+        form.handleUpdateParticularRow(rowId, { costCentres: allocations });
+      }
+
+      form.setActiveAllocation(null);
+      const idx = rowsList.findIndex(r => r.id === rowId);
+      proceedToNextRow(idx);
+    }
+  };
+
+  const handleSaveBankDetails = (details: any) => {
+    form.setBankDetails(details);
+    form.setActiveAllocation(null);
+    setTimeout(() => {
+      form.handleSubmit();
+    }, 50);
+  };
 
   // Dynamic canAccept based on active layout context
   const canAccept = useMemo(() => {
@@ -41,7 +246,7 @@ export default function Vouchers() {
     { key: "F7", label: "Journal", onClick: () => form.setVoucherType("Journal"), active: form.voucherType === "Journal" },
     { key: "F8", label: "Sales", onClick: () => form.setVoucherType("Sales"), active: form.voucherType === "Sales" },
     { key: "F9", label: "Purchase", onClick: () => form.setVoucherType("Purchase"), active: form.voucherType === "Purchase" },
-    { key: "Ctrl+A", label: "Accept", onClick: form.handleSubmit, disabled: !canAccept },
+    { key: "Ctrl+A", label: "Accept", onClick: handleAcceptClick, disabled: !canAccept },
     { key: "Esc", label: "Quit", onClick: () => navigate("/") },
   ];
 
@@ -59,12 +264,26 @@ export default function Vouchers() {
       if ((e.altKey || e.ctrlKey || e.metaKey) && (e.key === "a" || e.key === "A")) {
         e.preventDefault();
         if (canAccept) {
-          form.handleSubmit();
+          handleAcceptClick();
+        }
+      }
+
+      // Alt+C inline creation shortcut
+      if (e.altKey && (e.key === "c" || e.key === "C")) {
+        e.preventDefault();
+        if (form.activeField) {
+          if (form.activeField.type === "stockItem") {
+            setInlineCreateType("stockItem");
+          } else if (form.activeField.type === "stockGodown") {
+            setInlineCreateType("godown");
+          } else {
+            setInlineCreateType("ledger");
+          }
         }
       }
 
       // Quit shortcut: Escape
-      if (e.key === "Escape" && !form.activeField) {
+      if (e.key === "Escape" && !form.activeField && !form.activeAllocation) {
         e.preventDefault();
         navigate("/");
       }
@@ -153,6 +372,7 @@ export default function Vouchers() {
                 onSearchChange={form.setLedgerSearchTerm}
                 searchTerm={form.ledgerSearchTerm}
                 activeRowId={form.activeField?.type === 'particular' ? form.activeField.rowId : null}
+                onAmountConfirm={handleParticularAmountConfirm}
               />
             </div>
           )}
@@ -170,6 +390,7 @@ export default function Vouchers() {
                 searchTerm={form.ledgerSearchTerm}
                 activeRowId={form.activeField?.type === 'particular' ? form.activeField.rowId : null}
                 isJournal={true}
+                onAmountConfirm={handleParticularAmountConfirm}
               />
             </div>
           )}
@@ -269,6 +490,7 @@ export default function Vouchers() {
                 onUpdateAdditionalRow={form.handleUpdateAdditionalRow}
                 onAddAdditionalRow={form.handleAddAdditionalRow}
                 onRemoveAdditionalRow={form.handleRemoveAdditionalRow}
+                onAmountConfirm={handleParticularAmountConfirm}
               />
             </div>
           )}
@@ -312,6 +534,7 @@ export default function Vouchers() {
             checkIsCashOrBank={form.checkIsCashOrBank}
             checkLedgerGroup={form.checkLedgerGroup}
             voucherType={form.voucherType}
+            onInlineCreate={setInlineCreateType}
           />
         )}
 
@@ -321,12 +544,61 @@ export default function Vouchers() {
 
       {/* Submit, cancel and quit actions footer */}
       <ActionFooter
-        onAccept={form.handleSubmit}
+        onAccept={handleAcceptClick}
         onCancelVch={form.resetForm}
         onQuit={() => navigate("/")}
         isSubmitting={form.isSubmitting}
         canAccept={canAccept}
       />
+
+      {inlineCreateType && (
+        <InlineMasterPopup
+          companyId={selectedCompany?.company_id!}
+          initialType={inlineCreateType}
+          onClose={() => setInlineCreateType(null)}
+          onSuccess={handleInlineCreateSuccess}
+        />
+      )}
+      {form.activeAllocation?.type === "billWise" && (
+        <BillWiseAllocationPopup
+          ledgerId={form.activeAllocation.ledgerId}
+          ledgerName={form.activeAllocation.ledgerName}
+          totalAmount={form.activeAllocation.amount}
+          initialAllocations={form.activeAllocation.initialAllocations || []}
+          onClose={() => form.setActiveAllocation(null)}
+          onSave={handleSaveBillWise}
+        />
+      )}
+      {form.activeAllocation?.type === "billWiseParty" && (
+        <BillWiseAllocationPopup
+          ledgerId={form.activeAllocation.ledgerId}
+          ledgerName={form.activeAllocation.ledgerName}
+          totalAmount={form.activeAllocation.amount}
+          initialAllocations={form.partyBillReferences || []}
+          onClose={() => form.setActiveAllocation(null)}
+          onSave={handleSaveBillWise}
+        />
+      )}
+      {form.activeAllocation?.type === "costCentre" && (
+        <CostCentreAllocationPopup
+          companyId={selectedCompany?.company_id!}
+          ledgerName={form.activeAllocation.ledgerName}
+          totalAmount={form.activeAllocation.amount}
+          initialAllocations={form.activeAllocation.initialAllocations || []}
+          onClose={() => form.setActiveAllocation(null)}
+          onSave={handleSaveCostCentre}
+        />
+      )}
+      {form.activeAllocation?.type === "bankDetails" && (
+        <BankAllocationPopup
+          ledgerId={form.activeAllocation.ledgerId}
+          ledgerName={form.activeAllocation.ledgerName}
+          amount={form.activeAllocation.amount}
+          initialDetails={form.bankDetails}
+          onClose={() => form.setActiveAllocation(null)}
+          onSave={handleSaveBankDetails}
+        />
+      )}
     </div>
   );
 }

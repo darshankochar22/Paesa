@@ -17,6 +17,7 @@ interface Props {
   onUpdateAdditionalRow: (id: string, updates: Partial<Omit<ParticularRow, 'id'>>) => void;
   onAddAdditionalRow: () => void;
   onRemoveAdditionalRow: (id: string) => void;
+  onAmountConfirm?: (row: ParticularRow, index: number) => void;
 }
 
 export default function InventoryParticularsTable({
@@ -34,7 +35,8 @@ export default function InventoryParticularsTable({
   onRemoveStockRow,
   onUpdateAdditionalRow,
   onAddAdditionalRow,
-  onRemoveAdditionalRow
+  onRemoveAdditionalRow,
+  onAmountConfirm
 }: Props) {
 
   // Key handlers to auto-add rows on Enter in stock grid
@@ -55,13 +57,18 @@ export default function InventoryParticularsTable({
   const handleAdditionalKeyDown = (e: React.KeyboardEvent, idx: number) => {
     if (e.key === "Enter" || e.key === "Tab") {
       const row = additionalEntries[idx];
-      if (row?.ledger && Number(row.amountRaw) > 0 && idx === additionalEntries.length - 1) {
-        e.preventDefault();
-        onAddAdditionalRow();
-        setTimeout(() => {
-          const nextInput = document.querySelector(`[data-additional-ledger="${additionalEntries.length + 1}"]`);
-          (nextInput as HTMLInputElement)?.focus();
-        }, 50);
+      if (row?.ledger) {
+        if (onAmountConfirm) {
+          e.preventDefault();
+          onAmountConfirm(row, idx);
+        } else if (Number(row.amountRaw) > 0 && idx === additionalEntries.length - 1) {
+          e.preventDefault();
+          onAddAdditionalRow();
+          setTimeout(() => {
+            const nextInput = document.querySelector(`[data-additional-ledger="${additionalEntries.length + 1}"]`);
+            (nextInput as HTMLInputElement)?.focus();
+          }, 50);
+        }
       }
     }
   };
@@ -252,6 +259,7 @@ export default function InventoryParticularsTable({
                   {/* Amount input */}
                   <div className="col-span-1 px-1">
                     <input
+                      data-additional-amount={idx + 1}
                       type="text"
                       className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900 font-bold"
                       placeholder="0.00"

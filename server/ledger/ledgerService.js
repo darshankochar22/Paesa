@@ -92,8 +92,9 @@ module.exports = {
                 mailing_name, address1, address2, city, state, country, pincode,
                 phone, email, gstin, pan, registration_type,
                 default_credit_period, check_credit_days,
+                allow_cost_centres,
                 is_active, is_predefined
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           data.company_id,
           data.group_id || null,
@@ -119,6 +120,7 @@ module.exports = {
           data.registration_type || "Unregistered",
           data.default_credit_period || 0,
           data.check_credit_days ? 1 : 0,
+          data.allow_cost_centres ? 1 : 0,
           1,
           0,
         ],
@@ -344,6 +346,7 @@ module.exports = {
                 registration_type = ?,
                 default_credit_period = ?,
                 check_credit_days = ?,
+                allow_cost_centres = ?,
                 updated_at = datetime('now')
               WHERE ledger_id = ?`,
         args: [
@@ -370,6 +373,7 @@ module.exports = {
           data.registration_type ?? ledger.registration_type,
           data.default_credit_period ?? ledger.default_credit_period ?? 0,
           data.check_credit_days ? 1 : 0,
+          data.allow_cost_centres ? 1 : 0,
           data.ledger_id,
         ],
       });

@@ -11,6 +11,8 @@ export interface ParticularRow {
   ledger: LedgerType | null;
   ledgerBalance: string;
   amountRaw: string;
+  costCentres?: { cost_centre_id: number; amount: number; }[];
+  billReferences?: { bill_name: string; bill_type: "New Ref" | "Agst Ref" | "Advance" | "On Account"; amount: number; credit_period?: string; }[];
 }
 
 export interface StockEntryRow {
@@ -31,6 +33,13 @@ export type ActiveField =
   | { type: 'additional'; rowId: string }
   | { type: 'stockItem'; rowId: string }
   | { type: 'stockGodown'; rowId: string };
+
+export type ActiveAllocation =
+  | { type: 'billWise'; rowId: string; ledgerId: number; ledgerName: string; amount: number; initialAllocations?: any[] }
+  | { type: 'billWiseParty'; ledgerId: number; ledgerName: string; amount: number; initialAllocations?: any[] }
+  | { type: 'costCentre'; rowId: string; ledgerId: number; ledgerName: string; amount: number; initialAllocations?: any[] }
+  | { type: 'bankDetails'; ledgerId: number; ledgerName: string; amount: number; initialDetails?: any }
+  | null;
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -58,6 +67,11 @@ export function useVoucherForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Advanced Allocations State
+  const [activeAllocation, setActiveAllocation] = useState<ActiveAllocation>(null);
+  const [partyBillReferences, setPartyBillReferences] = useState<any[]>([]);
+  const [bankDetails, setBankDetails] = useState<any | null>(null);
 
   // References (For F8/F9 Invoice layouts)
   const [referenceNumber, setReferenceNumber] = useState<string>("");
@@ -405,6 +419,9 @@ export function useVoucherForm() {
       { id: nextId(), stockItem: null, godown: null, unit: null, quantityRaw: "", rateRaw: "", amountRaw: "" }
     ]);
     setAdditionalEntries([]);
+    setActiveAllocation(null);
+    setPartyBillReferences([]);
+    setBankDetails(null);
     setReferenceNumber("");
     setNarration("");
     setError(null);
@@ -496,8 +513,6 @@ export function useVoucherForm() {
         // Receipt: Top Account is DEBITED, Particulars are CREDITED
         // Payment: Top Account is CREDITED, Particulars are DEBITED
         // Contra: Top Account is DEBITED (if RCT style) / CREDITED (if PMT style)
-        // Wait, standard double-entry:
-        // Contra usually Debits the receiving ledger (Top Account) and Credits the source.
         const topAccountType = voucherType === "Payment" ? 'Cr' : 'Dr';
         const rowsType = voucherType === "Payment" ? 'Dr' : 'Cr';
 
@@ -515,6 +530,7 @@ export function useVoucherForm() {
             type: rowsType,
             amount: Number(p.amountRaw),
             currency: 'INR',
+            cost_centres: p.costCentres,
           })),
         ];
       } else if (voucherType === "Journal") {
@@ -525,6 +541,7 @@ export function useVoucherForm() {
           type: r.type,
           amount: Number(r.amountRaw),
           currency: 'INR',
+          cost_centres: r.costCentres,
         }));
       } else if (["Sales", "Purchase"].includes(voucherType)) {
         const filledItems = stockEntries.filter(r => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0);
@@ -567,8 +584,29 @@ export function useVoucherForm() {
             type: p.type,
             amount: Number(p.amountRaw),
             currency: 'INR',
+            cost_centres: p.costCentres,
           }))
         ];
+      }
+
+      // Collect all bill references from all rows
+      let finalBillReferences: any[] = [];
+      if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
+        finalBillReferences = particulars
+          .filter(p => p.ledger && p.billReferences && p.billReferences.length > 0)
+          .flatMap(p => p.billReferences!.map(b => ({ ...b, ledger_id: p.ledger!.ledger_id })));
+      } else if (voucherType === "Journal") {
+        finalBillReferences = journalRows
+          .filter(r => r.ledger && r.billReferences && r.billReferences.length > 0)
+          .flatMap(r => r.billReferences!.map(b => ({ ...b, ledger_id: r.ledger!.ledger_id })));
+      } else if (["Sales", "Purchase"].includes(voucherType)) {
+        if (partyLedger && partyBillReferences.length > 0) {
+          finalBillReferences = partyBillReferences.map(b => ({ ...b, ledger_id: partyLedger.ledger_id }));
+        }
+        const additionalBillRefs = additionalEntries
+          .filter(p => p.ledger && p.billReferences && p.billReferences.length > 0)
+          .flatMap(p => p.billReferences!.map(b => ({ ...b, ledger_id: p.ledger!.ledger_id })));
+        finalBillReferences = [...finalBillReferences, ...additionalBillRefs];
       }
 
       const payload: any = {
@@ -587,6 +625,8 @@ export function useVoucherForm() {
         is_inventory_voucher: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
         entries,
         stock_entries,
+        bill_references: finalBillReferences.length > 0 ? finalBillReferences : undefined,
+        bank_details: bankDetails || undefined,
       };
 
       const res = await window.api.voucher.create(payload);
@@ -602,7 +642,29 @@ export function useVoucherForm() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [validate, companyId, fyId, voucherType, date, referenceNumber, referenceDate, placeOfSupply, narration, totalAmount, accountLedger, particulars, journalRows, partyLedger, salesPurchaseLedger, stockEntries, additionalEntries, voucherNumber, resetForm]);
+  }, [
+    validate,
+    companyId,
+    fyId,
+    voucherType,
+    date,
+    referenceNumber,
+    referenceDate,
+    placeOfSupply,
+    narration,
+    totalAmount,
+    accountLedger,
+    particulars,
+    journalRows,
+    partyLedger,
+    salesPurchaseLedger,
+    stockEntries,
+    additionalEntries,
+    partyBillReferences,
+    bankDetails,
+    voucherNumber,
+    resetForm,
+  ]);
 
   const dateDisplay = useMemo(() => formatDateDisplay(date), [date]);
 
@@ -624,6 +686,14 @@ export function useVoucherForm() {
     setSuccess,
     handleSubmit,
     resetForm,
+
+    // Advanced Allocations
+    activeAllocation,
+    setActiveAllocation,
+    partyBillReferences,
+    setPartyBillReferences,
+    bankDetails,
+    setBankDetails,
 
     // Reference Details (F8/F9)
     referenceNumber,
@@ -647,17 +717,20 @@ export function useVoucherForm() {
     handleFieldFocus,
     handleFieldBlur,
     handleLedgerPanelSelect,
+    fetchContextData,
 
     // 1. Single-Entry States (F4, F5, F6)
     accountLedger,
     accountBalance,
     particulars,
+    setParticulars,
     handleUpdateParticularRow,
     handleAddParticularRow,
     handleRemoveParticularRow,
 
     // 2. Double-Entry Journal States (F7)
     journalRows,
+    setJournalRows,
     handleUpdateJournalRow,
     handleAddJournalRow,
     handleRemoveJournalRow,
@@ -672,6 +745,7 @@ export function useVoucherForm() {
     handleAddStockRow,
     handleRemoveStockRow,
     additionalEntries,
+    setAdditionalEntries,
     handleUpdateAdditionalRow,
     handleAddAdditionalRow,
     handleRemoveAdditionalRow,
