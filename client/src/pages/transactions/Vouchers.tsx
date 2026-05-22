@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { useVoucherForm } from "./hooks/useVoucherForm";
@@ -12,7 +12,6 @@ import { INDIAN_STATES } from "../../constants/states";
 import { PageTitleBar, AlertBanner, RightActionPanel } from "../../components/ui";
 import { LedgerField } from "./ui";
 
-import InlineMasterPopup from "./components/popups/InlineMasterPopup";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
@@ -21,14 +20,6 @@ export default function Vouchers() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const form = useVoucherForm();
-
-  const [inlineCreateType, setInlineCreateType] = useState<"ledger" | "stockItem" | "godown" | null>(null);
-
-  const handleInlineCreateSuccess = async (_type: "ledger" | "stockItem" | "godown", created: any) => {
-    await form.fetchContextData();
-    form.handleLedgerPanelSelect(created);
-    setInlineCreateType(null);
-  };
 
   const handleAcceptClick = () => {
     // Check if we need to capture party bill-wise details first
@@ -246,11 +237,12 @@ export default function Vouchers() {
     { key: "F7", label: "Journal", onClick: () => form.setVoucherType("Journal"), active: form.voucherType === "Journal" },
     { key: "F8", label: "Sales", onClick: () => form.setVoucherType("Sales"), active: form.voucherType === "Sales" },
     { key: "F9", label: "Purchase", onClick: () => form.setVoucherType("Purchase"), active: form.voucherType === "Purchase" },
+    { key: "Alt+C", label: "Create Ledger", onClick: () => navigate("/master/create/ledger") },
     { key: "Ctrl+A", label: "Accept", onClick: handleAcceptClick, disabled: !canAccept },
     { key: "Esc", label: "Quit", onClick: () => navigate("/") },
   ];
 
-  // Keyboard navigation mappings (F4–F9, Ctrl+A to save, Escape to quit)
+  // Keyboard navigation mappings
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
       if (e.key === "F4") { e.preventDefault(); form.setVoucherType("Contra"); }
@@ -268,18 +260,10 @@ export default function Vouchers() {
         }
       }
 
-      // Alt+C inline creation shortcut
+      // Alt+C: navigate to ledger creation page
       if (e.altKey && (e.key === "c" || e.key === "C")) {
         e.preventDefault();
-        if (form.activeField) {
-          if (form.activeField.type === "stockItem") {
-            setInlineCreateType("stockItem");
-          } else if (form.activeField.type === "stockGodown") {
-            setInlineCreateType("godown");
-          } else {
-            setInlineCreateType("ledger");
-          }
-        }
+        navigate("/master/create/ledger");
       }
 
       // Quit shortcut: Escape
@@ -294,7 +278,7 @@ export default function Vouchers() {
 
   return (
     <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
-      
+
       {/* Title Bar */}
       <PageTitleBar
         title="Accounting Voucher Creation"
@@ -340,12 +324,12 @@ export default function Vouchers() {
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
         <div className="flex-1 flex flex-col min-w-0 bg-white">
-          
+
           {/* Layout Router */}
           {/* 1. Single-Entry Accounting Forms (F4, F5, F6) */}
           {["Receipt", "Payment", "Contra"].includes(form.voucherType) && (
             <div className="flex-1 flex flex-col min-h-0">
-              
+
               {/* Account selection row */}
               <div className="flex items-center min-h-[36px] border-b border-zinc-100 py-1.5 px-3 bg-zinc-50/20">
                 <span className="w-24 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Account</span>
@@ -398,7 +382,7 @@ export default function Vouchers() {
           {/* 3. Inventory Stock Invoice Layouts (F8 Sales, F9 Purchase) */}
           {["Sales", "Purchase"].includes(form.voucherType) && (
             <div className="flex-1 flex flex-col min-h-0">
-              
+
               {/* Party & Sales / Purchase details grid */}
               <div className="grid grid-cols-2 gap-4 p-3 border-b border-zinc-200 bg-zinc-50/20">
                 <div className="space-y-1.5">
@@ -534,7 +518,7 @@ export default function Vouchers() {
             checkIsCashOrBank={form.checkIsCashOrBank}
             checkLedgerGroup={form.checkLedgerGroup}
             voucherType={form.voucherType}
-            onInlineCreate={setInlineCreateType}
+            onInlineCreate={() => navigate("/master/create/ledger")}
           />
         )}
 
@@ -551,14 +535,6 @@ export default function Vouchers() {
         canAccept={canAccept}
       />
 
-      {inlineCreateType && (
-        <InlineMasterPopup
-          companyId={selectedCompany?.company_id!}
-          initialType={inlineCreateType}
-          onClose={() => setInlineCreateType(null)}
-          onSuccess={handleInlineCreateSuccess}
-        />
-      )}
       {form.activeAllocation?.type === "billWise" && (
         <BillWiseAllocationPopup
           ledgerId={form.activeAllocation.ledgerId}
