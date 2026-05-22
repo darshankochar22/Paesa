@@ -316,7 +316,7 @@ export default function StockGroupCOA() {
                           {item.name}
                         </span>
                         <div className="flex items-center gap-3">
-                          <span className="text-[12px] font-mono tabular-nums text-zinc-500 mr-2">
+                          <span className="text-[12px] tabular-nums text-zinc-500 mr-2">
                             {Number(item.opening_quantity) === 0 ? "—" : Number(item.opening_quantity).toFixed(2)}
                           </span>
                           <span className="text-[10px] text-zinc-400 w-16 truncate">{unitName(item.unit_id)}</span>
@@ -363,13 +363,13 @@ export default function StockGroupCOA() {
                           {item.gst_rate !== null && Number(item.gst_rate) > 0 && (
                             <div className="flex border-b border-zinc-100 pb-1 pl-4">
                               <span className="text-zinc-400 w-32 shrink-0 select-none">GST Rate</span>
-                              <span className="text-zinc-800 font-mono font-medium">{Number(item.gst_rate).toFixed(2)}%</span>
+                              <span className="text-zinc-800 font-medium">{Number(item.gst_rate).toFixed(2)}%</span>
                             </div>
                           )}
                           {(item.hsn_code || item.sac_code) && (
                             <div className="flex border-b border-zinc-100 pb-1 pl-4 col-span-2">
                               <span className="text-zinc-400 w-32 shrink-0 select-none">HSN/SAC Code</span>
-                              <span className="text-zinc-800 font-mono">{item.hsn_code || item.sac_code}</span>
+                              <span className="text-zinc-800">{item.hsn_code || item.sac_code}</span>
                             </div>
                           )}
                         </div>
@@ -430,7 +430,7 @@ export default function StockGroupCOA() {
       {error && (
         <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-mono">✕</button>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">✕</button>
         </div>
       )}
 
@@ -474,7 +474,7 @@ export default function StockGroupCOA() {
         </div>
 
         {/* Right-Hand Sidebar - Tally Signature Action Bar */}
-        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium font-mono text-zinc-700">
+        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           <button
             onClick={() => navigate("/master/coa/stock-category")}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
@@ -527,7 +527,7 @@ export default function StockGroupCOA() {
               <span>Change View</span>
               <button
                 onClick={() => setShowChangeViewModal(false)}
-                className="text-zinc-450 hover:text-black font-semibold font-mono"
+                className="text-zinc-450 hover:text-black font-semibold font-sans"
               >
                 ✕
               </button>
@@ -597,7 +597,7 @@ export default function StockGroupCOA() {
               <span>Exception Reports</span>
               <button
                 onClick={() => setShowExceptionModal(false)}
-                className="text-zinc-400 hover:text-black font-semibold font-mono"
+                className="text-zinc-400 hover:text-black font-semibold font-sans"
               >
                 ✕
               </button>
@@ -631,7 +631,7 @@ export default function StockGroupCOA() {
       )}
 
       {/* Footer */}
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 font-mono">
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
         <span>Active Tab: Stock Groups & Items</span>
         <span>Startup ERP Inventory Engine v2.0 (Keyboard Enabled)</span>
       </div>

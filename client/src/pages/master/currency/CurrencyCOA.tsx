@@ -1,16 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import type { EmployeeCategoryType, EmployeeGroupType, EmployeeType } from "@/types/entities/Employee";
+import type { CurrencyType } from "@/types/entities/Currency";
 
-export default function EmployeeCategoryCOA() {
+export default function CurrencyCOA() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const companyId = selectedCompany?.company_id;
 
-  const [categories, setCategories] = useState<EmployeeCategoryType[]>([]);
-  const [groups, setGroups] = useState<EmployeeGroupType[]>([]);
-  const [employees, setEmployees] = useState<EmployeeType[]>([]);
+  const [currencies, setCurrencies] = useState<CurrencyType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,23 +25,15 @@ export default function EmployeeCategoryCOA() {
       try {
         setLoading(true);
         setError(null);
-        const [catRes, grpRes, empRes] = await Promise.all([
-          window.api.employeeCategory.getAll(companyId),
-          window.api.employeeGroup.getAll(companyId),
-          window.api.employee.getAll(companyId),
-        ]);
+        const res = await window.api.currency.getAll(companyId);
         if (cancelled) return;
-
-        if (catRes.success) {
-          setCategories(catRes.employeeCategories ?? []);
+        if (res.success) {
+          setCurrencies(res.currencies ?? []);
         } else {
-          setError(catRes.error || "Failed to load categories.");
+          setError(res.error || "Failed to load currencies.");
         }
-
-        if (grpRes.success) setGroups(grpRes.employeeGroups ?? []);
-        if (empRes.success) setEmployees(empRes.employees ?? []);
       } catch {
-        if (!cancelled) setError("Failed to load data.");
+        if (!cancelled) setError("Failed to load currency list.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -53,15 +43,15 @@ export default function EmployeeCategoryCOA() {
     };
   }, [companyId]);
 
-  const filteredCategories = useMemo(() => {
+  const filteredCurrencies = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return categories;
-    return categories.filter(
+    if (!q) return currencies;
+    return currencies.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
-        (c.alias && c.alias.toLowerCase().includes(q))
+        (c.iso_code && c.iso_code.toLowerCase().includes(q))
     );
-  }, [categories, searchQuery]);
+  }, [currencies, searchQuery]);
 
   const toggleDetails = (id: number) => {
     setActiveDetails((prev) => (prev === id ? null : id));
@@ -79,7 +69,7 @@ export default function EmployeeCategoryCOA() {
       }
       if (e.altKey && e.key.toLowerCase() === "c") {
         e.preventDefault();
-        navigate("/master/create/employee-category");
+        navigate("/master/create/currency");
       }
     };
     window.addEventListener("keydown", handler);
@@ -89,30 +79,29 @@ export default function EmployeeCategoryCOA() {
   const changeViewItems = [
     { label: "Ledgers", path: "/master/coa/ledger" },
     { label: "Groups", path: "/master/coa/group" },
+    { label: "Currencies", path: "/master/coa/currency" },
+    { label: "Voucher Types", path: "/master/coa/voucher-type" },
+    { label: "GST Registrations", path: "/master/coa/gst-registration" },
+    { label: "GST Classifications", path: "/master/coa/gst-classification" },
     { label: "Stock Groups & Items", path: "/master/coa/stock-group" },
     { label: "Stock Categories", path: "/master/coa/stock-category" },
     { label: "Godowns", path: "/master/coa/godown" },
     { label: "Units of Measure", path: "/master/coa/unit" },
     { label: "Employees", path: "/master/coa/employee" },
-    { label: "Employee Groups", path: "/master/coa/employee-group" },
-    { label: "Attendance Types", path: "/master/coa/attendance-type" },
-    { label: "Pay Heads", path: "/master/coa/pay-head" },
-    { label: "Payroll Units", path: "/master/coa/payroll-unit" },
-    { label: "Salary Structures", path: "/master/coa/salary-structure" },
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800 animate-fade-in">
       <div className="px-4 py-2 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/master/coa" className="text-xs text-zinc-500 hover:text-zinc-800 font-medium">
             &larr; Back
           </Link>
-          <span className="text-sm font-semibold text-zinc-700">Employee Categories</span>
+          <span className="text-sm font-semibold text-zinc-700">Currencies</span>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate("/master/create/employee-category")}
+            onClick={() => navigate("/master/create/currency")}
             className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium font-sans"
           >
             + Create
@@ -130,12 +119,12 @@ export default function EmployeeCategoryCOA() {
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
           <div className="px-4 py-1.5 border-b border-zinc-100 flex items-center gap-2">
-            <span className="text-xs text-zinc-400 font-medium">Search:</span>
+            <span className="text-xs text-zinc-400 font-medium font-sans">Search:</span>
             <input
               className="flex-1 text-xs outline-none bg-transparent"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name..."
+              placeholder="Search by name or ISO..."
             />
             {searchQuery && (
               <button
@@ -148,19 +137,13 @@ export default function EmployeeCategoryCOA() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading categories...</div>
-            ) : filteredCategories.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching categories found.</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading currencies...</div>
+            ) : filteredCurrencies.length === 0 ? (
+              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching currencies found.</div>
             ) : (
-              filteredCategories.map((node) => {
-                const nodeId = node.employee_category_id!;
+              filteredCurrencies.map((node) => {
+                const nodeId = node.currency_id!;
                 const isSelected = activeDetails === nodeId;
-                const empCount = employees.filter(
-                  (e) => e.employee_category_id === nodeId
-                ).length;
-                const grpCount = groups.filter(
-                  (g) => g.employee_category_id === nodeId
-                ).length;
 
                 return (
                   <div key={nodeId}>
@@ -170,26 +153,31 @@ export default function EmployeeCategoryCOA() {
                       }`}
                       onClick={() => toggleDetails(nodeId)}
                     >
+                      <span className="w-16 text-sm font-bold text-zinc-600">
+                        {node.symbol || "—"}
+                      </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
                         {node.name}
                         {node.is_predefined === 1 && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200 font-sans">
                             PREDEFINED
+                          </span>
+                        )}
+                        {node.is_default === 1 && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-emerald-50 text-emerald-600 rounded tracking-wider border border-emerald-200 font-sans">
+                            DEFAULT BASE
                           </span>
                         )}
                       </span>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-zinc-400">
-                          {grpCount > 0 ? `${grpCount} grp` : ""}
-                        </span>
-                        <span className="text-xs text-zinc-400">
-                          {empCount > 0 ? `${empCount} emp` : ""}
+                        <span className="text-xs text-zinc-400 font-bold uppercase">
+                          {node.iso_code}
                         </span>
                         <button
                           className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium font-sans"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate("/master/alter/employee-category");
+                            navigate("/master/alter/currency");
                           }}
                         >
                           Alter
@@ -199,32 +187,28 @@ export default function EmployeeCategoryCOA() {
                     {isSelected && (
                       <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5">
                         <div>
-                          <span className="text-zinc-400">Name:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.name}</span>
+                          <span className="text-zinc-400">Formal Name:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.formal_name || "—"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Alias:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.alias || "—"}</span>
+                          <span className="text-zinc-400">Decimal Symbol:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.decimal_symbol || "."}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Allocate Revenue:</span>{" "}
-                          <span className="font-semibold text-zinc-800">
-                            {node.allocate_revenue === 1 ? "Yes" : "No"}
-                          </span>
+                          <span className="text-zinc-400">Decimal Places:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.decimal_places}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Allocate Non-Revenue:</span>{" "}
-                          <span className="font-semibold text-zinc-800">
-                            {node.allocate_non_revenue === 1 ? "Yes" : "No"}
-                          </span>
+                          <span className="text-zinc-400">Word After Decimal:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.decimal_places_in_words || "—"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Employee Groups:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{grpCount}</span>
+                          <span className="text-zinc-400">Suffix to Amount:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.suffix_symbol_to_amount === 1 ? "Yes" : "No"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Employees:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{empCount}</span>
+                          <span className="text-zinc-400">Show in Millions:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.show_amount_in_millions === 1 ? "Yes" : "No"}</span>
                         </div>
                       </div>
                     )}
@@ -243,7 +227,7 @@ export default function EmployeeCategoryCOA() {
             Ctrl+H Change View
           </button>
           <button
-            onClick={() => navigate("/master/create/employee-category")}
+            onClick={() => navigate("/master/create/currency")}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+C Create
@@ -264,7 +248,7 @@ export default function EmployeeCategoryCOA() {
           onClick={() => setShowChangeView(false)}
         >
           <div
-            className="bg-white border border-zinc-200 rounded shadow-xl w-80 max-h-96 overflow-y-auto"
+            className="bg-white border border-zinc-200 rounded shadow-xl w-80 max-h-96 overflow-y-auto animate-scale-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider font-sans">
@@ -290,8 +274,8 @@ export default function EmployeeCategoryCOA() {
       )}
 
       <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none">
-        <span>{categories.length} category(ies)</span>
-        <span>Startup ERP Payroll Engine</span>
+        <span>{currencies.length} currencies</span>
+        <span>Startup ERP</span>
       </div>
     </div>
   );

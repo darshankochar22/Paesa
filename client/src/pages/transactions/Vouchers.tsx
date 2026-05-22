@@ -74,7 +74,7 @@ export default function Vouchers() {
   }, [form, canAccept, navigate]);
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full font-mono text-xs select-none">
+    <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
       
       {/* Title Bar */}
       <PageTitleBar
@@ -221,14 +221,14 @@ export default function Vouchers() {
                     <div className="flex-1 flex gap-2">
                       <input
                         type="text"
-                        className="w-1/2 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono"
+                        className="w-1/2 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800"
                         value={form.referenceNumber}
                         onChange={(e) => form.setReferenceNumber(e.target.value)}
                         placeholder="Ref Number"
                       />
                       <input
                         type="date"
-                        className="w-1/2 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono"
+                        className="w-1/2 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800"
                         value={form.referenceDate}
                         onChange={(e) => form.setReferenceDate(e.target.value)}
                       />
@@ -239,7 +239,7 @@ export default function Vouchers() {
                     <span className="w-28 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Place of Supply</span>
                     <span className="text-zinc-400 mr-2">:</span>
                     <select
-                      className="flex-1 bg-transparent text-xs outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono cursor-pointer"
+                      className="flex-1 bg-transparent text-xs outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 cursor-pointer"
                       value={form.placeOfSupply}
                       onChange={(e) => form.setPlaceOfSupply(e.target.value)}
                     >
@@ -280,7 +280,7 @@ export default function Vouchers() {
               <span className="text-zinc-400">:</span>
               <input
                 type="text"
-                className="flex-1 bg-transparent text-xs outline-none px-2 py-1 border border-zinc-300 rounded focus:border-zinc-800 transition-all bg-white font-mono"
+                className="flex-1 bg-transparent text-xs outline-none px-2 py-1 border border-zinc-300 rounded focus:border-zinc-800 transition-all bg-white"
                 placeholder="Enter narration remarks..."
                 value={form.narration}
                 onChange={(e) => form.setNarration(e.target.value)}
@@ -289,7 +289,7 @@ export default function Vouchers() {
 
             <div className="flex items-center gap-2 shrink-0 pl-4 border-l border-zinc-200">
               <span className="text-xs font-semibold text-zinc-600 uppercase tracking-wider">Grand Total :</span>
-              <span className="text-sm font-bold text-zinc-950 font-mono px-3 py-1 bg-zinc-100 rounded border border-zinc-200 shadow-sm min-w-[120px] text-right">
+              <span className="text-sm font-bold text-zinc-950 px-3 py-1 bg-zinc-100 rounded border border-zinc-200 shadow-sm min-w-[120px] text-right">
                 {form.totalAmount.toFixed(2)}
               </span>
             </div>

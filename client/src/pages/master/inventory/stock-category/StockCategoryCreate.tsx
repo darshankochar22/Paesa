@@ -4,7 +4,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import type { StockCategoryType } from "@/types/api";
 
-const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent font-mono";
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
 
 function CategoryListPanel({
   categories,
@@ -27,7 +27,7 @@ function CategoryListPanel({
         <div
           onClick={() => { onSelect(""); onClose(); }}
           className={[
-            "text-xs font-mono px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none italic",
+            "text-xs px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none italic",
             selected === "" ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-500",
           ].join(" ")}
         >
@@ -40,7 +40,7 @@ function CategoryListPanel({
               key={c.sc_id}
               onClick={() => { onSelect(String(c.sc_id)); onClose(); }}
               className={[
-                "text-xs font-mono px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none",
+                "text-xs px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none",
                 selected === String(c.sc_id) ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-800",
               ].join(" ")}
             >
@@ -156,13 +156,13 @@ export default function StockCategoryCreate() {
       <PageTitleBar title="Stock Category Creation" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono">
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>• {error}</span>
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono">
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
           <span>• {success}</span>
           <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>
@@ -183,7 +183,7 @@ export default function StockCategoryCreate() {
             >
               <span className="w-48 text-zinc-400 shrink-0 py-1 font-sans">Under</span>
               <span className="text-zinc-600 mr-2 shrink-0">:</span>
-              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900 font-mono">{selectedLabel}</span>
+              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900">{selectedLabel}</span>
             </div>
           </div>
           <div className="flex-1" />

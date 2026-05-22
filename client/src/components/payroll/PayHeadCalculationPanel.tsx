@@ -52,7 +52,7 @@ export default function PayHeadCalculationPanel({
           <input
             type="number"
             step="0.01"
-            className={`${inputCls} text-right max-w-[120px] font-mono`}
+            className={`${inputCls} text-right max-w-[120px]`}
             value={config.percentage_or_amount}
             onChange={onConfigNumberChange("percentage_or_amount")}
           />
@@ -84,10 +84,10 @@ export default function PayHeadCalculationPanel({
             <div className="pl-3 border-l-2 border-zinc-200 space-y-1">
               <div className="grid grid-cols-2 gap-2">
                 <FormRow label="Amount Greater Than" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <input type="number" step="0.01" className={`${inputCls} text-right max-w-[100px] font-mono`} />
+                  <input type="number" step="0.01" className={`${inputCls} text-right max-w-[100px]`} />
                 </FormRow>
                 <FormRow label="Amount Up To" labelWidth="w-32" className="flex items-center min-h-[26px]">
-                  <input type="number" step="0.01" className={`${inputCls} text-right max-w-[100px] font-mono`} />
+                  <input type="number" step="0.01" className={`${inputCls} text-right max-w-[100px]`} />
                 </FormRow>
               </div>
               <ComputationSlabTable
@@ -116,7 +116,7 @@ export default function PayHeadCalculationPanel({
           <input
             type="number"
             step="0.01"
-            className={`${inputCls} text-right max-w-[100px] font-mono`}
+            className={`${inputCls} text-right max-w-[100px]`}
             value={config.rounding_limit}
             onChange={onConfigNumberChange("rounding_limit")}
           />

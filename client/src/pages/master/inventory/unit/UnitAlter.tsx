@@ -4,8 +4,8 @@ import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import type { UnitType } from "@/types/api";
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 font-mono focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
-const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer font-mono focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
+const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
+const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 
 function SelectionPanel({
   units,
@@ -37,7 +37,7 @@ function SelectionPanel({
   const columns = [
     { key: "symbol", label: "Symbol", span: "col-span-4", render: (r: UnitType) => <span className="font-bold text-zinc-950 uppercase">{r.symbol}</span> },
     { key: "formal_name", label: "Formal Name", span: "col-span-5", render: (r: UnitType) => <span className="text-zinc-600">{r.formal_name || "—"}</span> },
-    { key: "unit_type", label: "Type", span: "col-span-3", render: (r: UnitType) => <span className="text-zinc-400 uppercase text-[10px] font-mono">{r.unit_type || "Simple"}</span> },
+    { key: "unit_type", label: "Type", span: "col-span-3", render: (r: UnitType) => <span className="text-zinc-400 uppercase text-[10px]">{r.unit_type || "Simple"}</span> },
   ];
 
   const selectionActions = [
@@ -276,13 +276,13 @@ export default function UnitAlter() {
       <PageTitleBar title={`Unit Alteration: ${selectedUnit.symbol}`} subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono shrink-0">
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono shrink-0">
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
           <span>• {success}</span>
           <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>

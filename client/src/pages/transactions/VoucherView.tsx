@@ -51,7 +51,7 @@ function DetailCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="px-3 py-2.5">
       <div className="text-[9px] text-zinc-400 uppercase font-bold tracking-wider mb-0.5">{label}</div>
-      <div className="text-zinc-800 font-semibold font-mono truncate" title={value}>{value}</div>
+      <div className="text-zinc-800 font-semibold truncate" title={value}>{value}</div>
     </div>
   );
 }
@@ -134,7 +134,7 @@ export default function VoucherView() {
   // ── Loading / error states ──
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-zinc-400 text-xs">
         Loading voucher…
       </div>
     );
@@ -142,7 +142,7 @@ export default function VoucherView() {
 
   if (error && !voucher) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500 font-mono text-xs">
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
         <span className="text-red-600">{error}</span>
         <button onClick={() => navigate(-1)} className="underline hover:text-zinc-900">← Go Back</button>
       </div>
@@ -172,7 +172,7 @@ export default function VoucherView() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full font-mono text-xs select-none">
+    <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
 
       {/* Coloured Title Bar */}
       <div className={`px-4 py-2.5 text-white flex justify-between items-center shadow-sm shrink-0 ${accentClass}`}>

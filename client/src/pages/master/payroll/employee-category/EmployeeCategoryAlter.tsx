@@ -4,7 +4,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel, SearchInput, DataTable, FormRow } from "@/components/ui";
 import type { EmployeeCategoryType } from "@/types/entities/Employee";
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-mono";
+const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24";
 
 interface FormData {
@@ -67,7 +67,7 @@ function SelectionPanel({
       label: "Alias",
       span: "col-span-4",
       render: (r: EmployeeCategoryType) => (
-        <span className="text-zinc-500 font-mono">{r.alias || "—"}</span>
+        <span className="text-zinc-500">{r.alias || "—"}</span>
       ),
     },
   ];
@@ -292,13 +292,13 @@ export default function EmployeeCategoryAlter() {
       />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono shrink-0">
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono shrink-0">
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
           <span>• {success}</span>
           <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>

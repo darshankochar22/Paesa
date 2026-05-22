@@ -153,7 +153,7 @@ export default function Daybook() {
   }, [selectedVoucher]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-50 select-none font-mono text-xs relative overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-zinc-50 select-none text-xs relative overflow-hidden">
       
       {/* Title Bar */}
       <PageTitleBar title="Day Book" subtitle={selectedCompany?.name} />
@@ -171,7 +171,7 @@ export default function Daybook() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider block">Financial Period</span>
-              <span className="text-xs font-bold text-zinc-800 font-mono">
+              <span className="text-xs font-bold text-zinc-800">
                 {activeFY?.start_date ? formatDateDisplay(activeFY.start_date) : "—"} to {activeFY?.end_date ? formatDateDisplay(activeFY.end_date) : "—"}
               </span>
             </div>
@@ -204,9 +204,9 @@ export default function Daybook() {
                   onClick={() => entry.voucher_id && handleRowClick(entry.voucher_id)}
                   className="grid grid-cols-12 items-center px-4 py-2 hover:bg-zinc-900 hover:text-white cursor-pointer transition-colors min-h-[36px]"
                 >
-                  <div className="col-span-2 font-mono">{formatDateDisplay(entry.date)}</div>
+                  <div className="col-span-2">{formatDateDisplay(entry.date)}</div>
                   <div className="col-span-2 font-semibold">{entry.voucher_type}</div>
-                  <div className="col-span-2 font-mono font-bold">{entry.voucher_number}</div>
+                  <div className="col-span-2 font-bold">{entry.voucher_number}</div>
                   <div className="col-span-3 truncate font-semibold">{entry.party_name || "—"}</div>
                   <div className="col-span-3 text-right truncate opacity-75">{entry.narration || "—"}</div>
                 </div>
@@ -237,13 +237,13 @@ export default function Daybook() {
 
       {/* Premium Slide-Over Details Drawer */}
       {selectedVoucher && (
-        <div className="fixed inset-y-0 right-0 w-[550px] bg-white shadow-2xl border-l border-zinc-200 z-50 flex flex-col animate-slide-left font-mono text-xs text-zinc-800">
+        <div className="fixed inset-y-0 right-0 w-[550px] bg-white shadow-2xl border-l border-zinc-200 z-50 flex flex-col animate-slide-left text-xs text-zinc-800">
           
           {/* Drawer Header */}
           <div className="bg-zinc-900 text-white px-4 py-3 flex justify-between items-center shadow-md shrink-0 select-none">
             <div className="flex flex-col">
               <span className="uppercase tracking-wider font-bold text-xs">{selectedVoucher.voucher_type} Voucher Details</span>
-              <span className="text-[10px] font-mono text-zinc-400 mt-0.5">Voucher No. {selectedVoucher.voucher_number}</span>
+              <span className="text-[10px] text-zinc-400 mt-0.5">Voucher No. {selectedVoucher.voucher_number}</span>
             </div>
             <button
               onClick={() => setSelectedVoucher(null)}
@@ -265,7 +265,7 @@ export default function Daybook() {
                 </div>
                 <div className="flex">
                   <span className="w-20 text-zinc-400">Ref No.</span>
-                  <span className="font-mono">{selectedVoucher.reference_number || "—"}</span>
+                  <span>{selectedVoucher.reference_number || "—"}</span>
                 </div>
               </div>
               <div className="space-y-1">
@@ -306,9 +306,9 @@ export default function Daybook() {
                         <tr key={idx} className="hover:bg-zinc-50/30">
                           <td className="px-3 py-2 font-semibold text-zinc-900">{item.item_name}</td>
                           <td className="px-2 py-2 text-zinc-500">{godownName}</td>
-                          <td className="px-2 py-2 text-right font-mono">{item.quantity.toFixed(2)} {unitSymbol}</td>
-                          <td className="px-2 py-2 text-right font-mono">{(item.rate || 0).toFixed(2)}</td>
-                          <td className="px-3 py-2 text-right font-bold font-mono">{(item.amount || 0).toFixed(2)}</td>
+                          <td className="px-2 py-2 text-right">{item.quantity.toFixed(2)} {unitSymbol}</td>
+                          <td className="px-2 py-2 text-right">{(item.rate || 0).toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right font-bold">{(item.amount || 0).toFixed(2)}</td>
                         </tr>
                       );
                     })}
@@ -338,10 +338,10 @@ export default function Daybook() {
                         {entry.type}
                       </td>
                       <td className="px-3 py-2 font-semibold text-zinc-900">{entry.ledger_name}</td>
-                      <td className="px-3 py-2 text-right font-mono font-bold text-zinc-800">
+                      <td className="px-3 py-2 text-right font-bold text-zinc-800">
                         {entry.type === 'Dr' ? (entry.amount || 0).toFixed(2) : ""}
                       </td>
-                      <td className="px-3 py-2 text-right font-mono font-bold text-zinc-800">
+                      <td className="px-3 py-2 text-right font-bold text-zinc-800">
                         {entry.type === 'Cr' ? (entry.amount || 0).toFixed(2) : ""}
                       </td>
                     </tr>
@@ -354,7 +354,7 @@ export default function Daybook() {
             <div className="space-y-2 border-t border-zinc-100 pt-3">
               <div className="flex justify-between items-center p-3 border border-zinc-200 rounded bg-zinc-50">
                 <span className="font-bold text-zinc-600 uppercase tracking-wider">Grand Total (INR) :</span>
-                <span className="text-sm font-bold text-zinc-950 font-mono">
+                <span className="text-sm font-bold text-zinc-950">
                   {grandTotal.toFixed(2)}
                 </span>
               </div>

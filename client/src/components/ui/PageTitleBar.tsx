@@ -16,7 +16,7 @@ export default function PageTitleBar({ title, subtitle, actions }: Props) {
       <span className="uppercase tracking-wider">{title}</span>
       <div className="flex items-center gap-3">
         {subtitle && (
-          <span className="text-zinc-400 font-mono text-[10px]">{subtitle}</span>
+          <span className="text-zinc-400 text-[10px]">{subtitle}</span>
         )}
         {actions}
       </div>

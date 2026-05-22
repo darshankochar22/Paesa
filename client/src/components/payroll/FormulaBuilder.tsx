@@ -47,7 +47,7 @@ export default function FormulaBuilder({ formulaLines, onAdd, onDelete, companyI
             const ph = payHeads.find(p => p.pay_head_id === line.pay_head_id_ref);
             return (
               <div key={i} className="grid grid-cols-12 gap-1 px-1 py-0.5 border-b border-zinc-100 items-center text-sm">
-                <span className="col-span-3 px-1 font-mono text-zinc-600">{line.function}</span>
+                <span className="col-span-3 px-1 text-zinc-600">{line.function}</span>
                 <span className="col-span-6 px-1 text-zinc-800">{ph?.name || line.pay_head_name || `ID:${line.pay_head_id_ref}`}</span>
                 <span className="col-span-2 px-1 text-zinc-500">{line.operator}</span>
                 <button onClick={() => onDelete(i)} className="col-span-1 text-red-500 hover:text-red-700 text-xs font-bold">&times;</button>

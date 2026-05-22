@@ -160,7 +160,7 @@ export default function AttendanceTypeCOA() {
         </div>
       )}
 
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 font-mono">
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
         <span>{filtered.length} type(s)</span>
         <span>Startup ERP Payroll Engine</span>
       </div>

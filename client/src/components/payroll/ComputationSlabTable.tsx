@@ -1,6 +1,6 @@
 import type { PayHeadSlabLineType } from "@/types/entities/Payroll";
 
-const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-zinc-200 focus:border-zinc-800 transition-colors bg-white rounded font-mono";
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-zinc-200 focus:border-zinc-800 transition-colors bg-white rounded";
 
 interface Props {
   slabs: PayHeadSlabLineType[];

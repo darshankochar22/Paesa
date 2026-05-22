@@ -267,7 +267,7 @@ export default function EmployeeCOA() {
         </div>
       )}
 
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 font-mono">
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
         <span>{filteredEmployees.length} employee(s) | {viewMode === "tree" ? "Tree View" : "Flat View"}</span>
         <span>Startup ERP Payroll Engine</span>
       </div>

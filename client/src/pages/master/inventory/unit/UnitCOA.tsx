@@ -166,12 +166,10 @@ export default function UnitCOA() {
         </div>
       </div>
 
-      {error && (
         <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-mono">✕</button>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">✕</button>
         </div>
-      )}
 
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
@@ -223,8 +221,8 @@ export default function UnitCOA() {
                           </span>
                           <div className="flex-1 flex items-center justify-between pr-2">
                             <div className="flex items-center gap-3">
-                              <span className="font-bold text-zinc-900 text-[13px] font-mono">{u.symbol}</span>
-                              <span className="text-[10px] text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded font-mono font-medium">
+                              <span className="font-bold text-zinc-900 text-[13px]">{u.symbol}</span>
+                              <span className="text-[10px] text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded font-medium">
                                 {u.unit_type || "Simple"}
                               </span>
                             </div>
@@ -253,12 +251,12 @@ export default function UnitCOA() {
                               </div>
                               <div className="flex border-b border-zinc-100 pb-1">
                                 <span className="text-zinc-400 w-32 shrink-0 select-none">Decimal Places</span>
-                                <span className="text-zinc-800 font-mono font-medium">{u.decimal_places ?? 0}</span>
+                                <span className="text-zinc-800 font-medium">{u.decimal_places ?? 0}</span>
                               </div>
                               {u.unit_quantity_code && (
                                 <div className="flex border-b border-zinc-100 pb-1 col-span-2">
                                   <span className="text-zinc-400 w-32 shrink-0 select-none">UQC</span>
-                                  <span className="text-zinc-800 font-mono font-medium">{u.unit_quantity_code}</span>
+                                  <span className="text-zinc-800 font-medium">{u.unit_quantity_code}</span>
                                 </div>
                               )}
                             </div>
@@ -274,7 +272,7 @@ export default function UnitCOA() {
         </div>
 
         {/* Right-Hand Sidebar - Tally Signature Action Bar */}
-        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium font-mono text-zinc-700">
+        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           <button
             onClick={() => navigate("/master/coa/godown")}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
@@ -327,7 +325,7 @@ export default function UnitCOA() {
               <span>Change View</span>
               <button
                 onClick={() => setShowChangeViewModal(false)}
-                className="text-zinc-400 hover:text-black font-semibold font-mono"
+                className="text-zinc-400 hover:text-black font-semibold"
               >
                 ✕
               </button>
@@ -397,7 +395,7 @@ export default function UnitCOA() {
               <span>Exception Reports</span>
               <button
                 onClick={() => setShowExceptionModal(false)}
-                className="text-zinc-400 hover:text-black font-semibold font-mono"
+                className="text-zinc-400 hover:text-black font-semibold"
               >
                 ✕
               </button>
@@ -431,7 +429,7 @@ export default function UnitCOA() {
       )}
 
       {/* Footer */}
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 font-mono">
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
         <span>Active Tab: Units of Measure</span>
         <span>Startup ERP Inventory Engine v2.0 (Keyboard Enabled)</span>
       </div>

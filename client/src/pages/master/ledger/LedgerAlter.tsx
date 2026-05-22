@@ -589,7 +589,7 @@ export default function LedgerAlter() {
               <input
                 type="number"
                 step="0.01"
-                className="w-36 border border-zinc-300 rounded text-sm text-right px-2 py-1 outline-none focus:border-zinc-800 font-mono transition-all"
+                className="w-36 border border-zinc-300 rounded text-sm text-right px-2 py-1 outline-none focus:border-zinc-800 transition-all"
                 value={form.opening_balance ?? 0}
                 onChange={setNumber("opening_balance")}
               />
@@ -610,7 +610,7 @@ export default function LedgerAlter() {
               <div className="p-3 flex justify-end">
                 <div className="w-44 border border-zinc-200 rounded shrink-0 bg-white shadow-sm overflow-hidden">
                   <div className="text-center text-[10px] font-bold border-b border-zinc-100 py-1 bg-zinc-50 text-zinc-500 uppercase tracking-wider">Total Opening Balance</div>
-                  <div className="h-14 flex items-center justify-center text-sm font-semibold tabular-nums text-zinc-800 font-mono">
+                  <div className="h-14 flex items-center justify-center text-sm font-semibold tabular-nums text-zinc-800">
                     {Number(form.opening_balance || 0).toFixed(2)}
                   </div>
                 </div>
@@ -656,7 +656,7 @@ export default function LedgerAlter() {
                     <input
                       type="number"
                       step="0.01"
-                      className={`${inputCls} text-right max-w-[100px] font-mono`}
+                      className={`${inputCls} text-right max-w-[100px]`}
                       value={statutoryForm.percentage_of_calculation ?? 0}
                       onChange={setStatutoryNumber("percentage_of_calculation")}
                     />
@@ -700,7 +700,7 @@ export default function LedgerAlter() {
                             <input
                               type="number"
                               step="0.01"
-                              className={`${inputCls} text-right max-w-[100px] font-mono`}
+                              className={`${inputCls} text-right max-w-[100px]`}
                               value={statutoryForm.igst_rate ?? 0}
                               onChange={(e) => {
                                 const val = e.target.value === "" ? 0 : Number(e.target.value);
@@ -714,7 +714,7 @@ export default function LedgerAlter() {
                               }}
                             />
                           </FormRow>
-                          <div className="flex items-center text-[10px] text-zinc-500 font-mono pl-44 gap-4">
+                          <div className="flex items-center text-[10px] text-zinc-500 pl-44 gap-4">
                             <span>CGST: {(statutoryForm.cgst_rate ?? 0).toFixed(2)}%</span>
                             <span>SGST: {(statutoryForm.sgst_rate ?? 0).toFixed(2)}%</span>
                           </div>
@@ -754,7 +754,7 @@ export default function LedgerAlter() {
                       <input
                         type="number"
                         step="0.01"
-                        className={`${inputCls} text-right font-medium max-w-[120px] font-mono`}
+                        className={`${inputCls} text-right font-medium max-w-[120px]`}
                         value={bankForm.od_limit ?? 0}
                         onChange={setBankNumber("od_limit")}
                       />
@@ -881,7 +881,7 @@ export default function LedgerAlter() {
                         )}
                         {bankForm.account_number && (
                           <FormRow label="Account Number" labelWidth="w-36" className="flex items-center min-h-[22px] text-xs">
-                            <span className="text-sm font-mono text-zinc-700">{bankForm.account_number}</span>
+                            <span className="text-sm text-zinc-700">{bankForm.account_number}</span>
                           </FormRow>
                         )}
                         {bankForm.transaction_type && (

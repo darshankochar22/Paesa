@@ -69,7 +69,7 @@ export default function InventoryParticularsTable({
   const stockSubtotal = stockEntries.reduce((sum, r) => sum + (Number(r.amountRaw) || 0), 0);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-white font-mono text-xs">
+    <div className="flex-1 flex flex-col min-h-0 bg-white text-xs">
       {/* Header Grid */}
       <div className="grid grid-cols-12 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-600 font-bold uppercase tracking-wider select-none text-[10px]">
         <div className="col-span-5">Name of Item</div>
@@ -133,7 +133,7 @@ export default function InventoryParticularsTable({
               <div className="col-span-1.5 px-1">
                 <input
                   type="text"
-                  className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 font-mono text-zinc-900"
+                  className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900"
                   placeholder="0.00"
                   value={row.quantityRaw}
                   onChange={(e) => onUpdateStockRow(row.id, { quantityRaw: e.target.value })}
@@ -144,7 +144,7 @@ export default function InventoryParticularsTable({
               <div className="col-span-1.5 px-1">
                 <input
                   type="text"
-                  className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 font-mono text-zinc-900"
+                  className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900"
                   placeholder="0.00"
                   value={row.rateRaw}
                   onChange={(e) => onUpdateStockRow(row.id, { rateRaw: e.target.value })}
@@ -171,7 +171,7 @@ export default function InventoryParticularsTable({
               </div>
 
               {/* 6. Amount Display */}
-              <div className="col-span-1 text-right font-mono font-bold text-zinc-900 pr-1 select-none">
+              <div className="col-span-1 text-right font-bold text-zinc-900 pr-1 select-none">
                 {row.amountRaw ? Number(row.amountRaw).toFixed(2) : "0.00"}
               </div>
 
@@ -253,7 +253,7 @@ export default function InventoryParticularsTable({
                   <div className="col-span-1 px-1">
                     <input
                       type="text"
-                      className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 font-mono text-zinc-900 font-bold"
+                      className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900 font-bold"
                       placeholder="0.00"
                       value={row.amountRaw}
                       onChange={(e) => onUpdateAdditionalRow(row.id, { amountRaw: e.target.value })}

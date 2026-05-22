@@ -149,13 +149,13 @@ export default function PayHeadCreate() {
       <PageTitleBar title="Pay Head Creation" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono">
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>* {error}</span>
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono">
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
           <span>* {success}</span>
           <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold">&times;</button>
         </div>
@@ -248,7 +248,7 @@ export default function PayHeadCreate() {
         <div className="w-56 border-l border-zinc-200 flex flex-col shrink-0 bg-zinc-50/25 p-3">
           <div className="w-full border border-zinc-200 rounded shrink-0 bg-white shadow-sm">
             <div className="text-center text-[10px] font-bold border-b border-zinc-100 py-1 bg-zinc-50 text-zinc-500 uppercase tracking-wider">Total Opening Balance</div>
-            <div className="h-14 flex items-center justify-center text-sm font-semibold tabular-nums text-zinc-800 font-mono">0.00</div>
+            <div className="h-14 flex items-center justify-center text-sm font-semibold tabular-nums text-zinc-800">0.00</div>
           </div>
         </div>
 

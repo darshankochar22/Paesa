@@ -106,7 +106,7 @@ export default function EmployeeAlter() {
           <div className="flex-1 flex flex-col min-w-0">
             <SearchInput value="" onChange={() => {}} placeholder="Filter employees..." />
             <div className="flex-1 overflow-y-auto">
-              <DataTable columns={[{ key: "name", label: "Name", span: "col-span-3", render: (r: EmployeeType) => <span className="font-medium">{r.name}</span> }, { key: "code", label: "Code", span: "col-span-2", render: (r: EmployeeType) => <span className="text-zinc-500 font-mono">{r.employee_code || "-"}</span> }, { key: "group", label: "Group", span: "col-span-3", render: (r: EmployeeType) => <span>{nameGroup(r.employee_group_id)}</span> }, { key: "designation", label: "Designation", span: "col-span-4", render: (r: EmployeeType) => <span className="text-zinc-400">{r.designation || "-"}</span> }]} rows={employees} rowKey={(r) => String(r.employee_id)} onRowClick={selectEmployee} />
+              <DataTable columns={[{ key: "name", label: "Name", span: "col-span-3", render: (r: EmployeeType) => <span className="font-medium">{r.name}</span> }, { key: "code", label: "Code", span: "col-span-2", render: (r: EmployeeType) => <span className="text-zinc-500">{r.employee_code || "-"}</span> }, { key: "group", label: "Group", span: "col-span-3", render: (r: EmployeeType) => <span>{nameGroup(r.employee_group_id)}</span> }, { key: "designation", label: "Designation", span: "col-span-4", render: (r: EmployeeType) => <span className="text-zinc-400">{r.designation || "-"}</span> }]} rows={employees} rowKey={(r) => String(r.employee_id)} onRowClick={selectEmployee} />
             </div>
           </div>
         </div>

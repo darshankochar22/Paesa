@@ -1,16 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import type { EmployeeCategoryType, EmployeeGroupType, EmployeeType } from "@/types/entities/Employee";
+import type { GSTClassificationType } from "@/types/entities/GSTClassification";
 
-export default function EmployeeCategoryCOA() {
+export default function GSTClassificationCOA() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const companyId = selectedCompany?.company_id;
 
-  const [categories, setCategories] = useState<EmployeeCategoryType[]>([]);
-  const [groups, setGroups] = useState<EmployeeGroupType[]>([]);
-  const [employees, setEmployees] = useState<EmployeeType[]>([]);
+  const [classes, setClasses] = useState<GSTClassificationType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,23 +25,15 @@ export default function EmployeeCategoryCOA() {
       try {
         setLoading(true);
         setError(null);
-        const [catRes, grpRes, empRes] = await Promise.all([
-          window.api.employeeCategory.getAll(companyId),
-          window.api.employeeGroup.getAll(companyId),
-          window.api.employee.getAll(companyId),
-        ]);
+        const res = await window.api.gstClassification.getAll(companyId);
         if (cancelled) return;
-
-        if (catRes.success) {
-          setCategories(catRes.employeeCategories ?? []);
+        if (res.success) {
+          setClasses(res.gstClassifications ?? []);
         } else {
-          setError(catRes.error || "Failed to load categories.");
+          setError(res.error || "Failed to load GST classifications.");
         }
-
-        if (grpRes.success) setGroups(grpRes.employeeGroups ?? []);
-        if (empRes.success) setEmployees(empRes.employees ?? []);
       } catch {
-        if (!cancelled) setError("Failed to load data.");
+        if (!cancelled) setError("Failed to load GST classifications.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -53,15 +43,16 @@ export default function EmployeeCategoryCOA() {
     };
   }, [companyId]);
 
-  const filteredCategories = useMemo(() => {
+  const filteredClasses = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return categories;
-    return categories.filter(
+    if (!q) return classes;
+    return classes.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
-        (c.alias && c.alias.toLowerCase().includes(q))
+        (c.hsn_sac_code && c.hsn_sac_code.toLowerCase().includes(q)) ||
+        (c.nature_of_transaction && c.nature_of_transaction.toLowerCase().includes(q))
     );
-  }, [categories, searchQuery]);
+  }, [classes, searchQuery]);
 
   const toggleDetails = (id: number) => {
     setActiveDetails((prev) => (prev === id ? null : id));
@@ -79,7 +70,7 @@ export default function EmployeeCategoryCOA() {
       }
       if (e.altKey && e.key.toLowerCase() === "c") {
         e.preventDefault();
-        navigate("/master/create/employee-category");
+        navigate("/master/create/gst-classification");
       }
     };
     window.addEventListener("keydown", handler);
@@ -89,31 +80,30 @@ export default function EmployeeCategoryCOA() {
   const changeViewItems = [
     { label: "Ledgers", path: "/master/coa/ledger" },
     { label: "Groups", path: "/master/coa/group" },
+    { label: "Currencies", path: "/master/coa/currency" },
+    { label: "Voucher Types", path: "/master/coa/voucher-type" },
+    { label: "GST Registrations", path: "/master/coa/gst-registration" },
+    { label: "GST Classifications", path: "/master/coa/gst-classification" },
     { label: "Stock Groups & Items", path: "/master/coa/stock-group" },
     { label: "Stock Categories", path: "/master/coa/stock-category" },
     { label: "Godowns", path: "/master/coa/godown" },
     { label: "Units of Measure", path: "/master/coa/unit" },
     { label: "Employees", path: "/master/coa/employee" },
-    { label: "Employee Groups", path: "/master/coa/employee-group" },
-    { label: "Attendance Types", path: "/master/coa/attendance-type" },
-    { label: "Pay Heads", path: "/master/coa/pay-head" },
-    { label: "Payroll Units", path: "/master/coa/payroll-unit" },
-    { label: "Salary Structures", path: "/master/coa/salary-structure" },
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800 animate-fade-in font-sans">
       <div className="px-4 py-2 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/master/coa" className="text-xs text-zinc-500 hover:text-zinc-800 font-medium">
             &larr; Back
           </Link>
-          <span className="text-sm font-semibold text-zinc-700">Employee Categories</span>
+          <span className="text-sm font-semibold text-zinc-700 font-sans">GST Classifications</span>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate("/master/create/employee-category")}
-            className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium font-sans"
+            onClick={() => navigate("/master/create/gst-classification")}
+            className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium shadow-sm"
           >
             + Create
           </button>
@@ -130,12 +120,13 @@ export default function EmployeeCategoryCOA() {
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
           <div className="px-4 py-1.5 border-b border-zinc-100 flex items-center gap-2">
-            <span className="text-xs text-zinc-400 font-medium">Search:</span>
+            <span className="text-xs text-zinc-400 font-medium font-sans">Search:</span>
             <input
               className="flex-1 text-xs outline-none bg-transparent"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name..."
+              placeholder="Search by name, nature, or HSN code..."
+              autoFocus
             />
             {searchQuery && (
               <button
@@ -148,19 +139,13 @@ export default function EmployeeCategoryCOA() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading categories...</div>
-            ) : filteredCategories.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching categories found.</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading GST classifications...</div>
+            ) : filteredClasses.length === 0 ? (
+              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching classifications found.</div>
             ) : (
-              filteredCategories.map((node) => {
-                const nodeId = node.employee_category_id!;
+              filteredClasses.map((node) => {
+                const nodeId = node.gc_id!;
                 const isSelected = activeDetails === nodeId;
-                const empCount = employees.filter(
-                  (e) => e.employee_category_id === nodeId
-                ).length;
-                const grpCount = groups.filter(
-                  (g) => g.employee_category_id === nodeId
-                ).length;
 
                 return (
                   <div key={nodeId}>
@@ -170,6 +155,9 @@ export default function EmployeeCategoryCOA() {
                       }`}
                       onClick={() => toggleDetails(nodeId)}
                     >
+                      <span className="w-16 text-sm font-bold text-zinc-600">
+                        {node.hsn_sac_code || "—"}
+                      </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
                         {node.name}
                         {node.is_predefined === 1 && (
@@ -179,17 +167,14 @@ export default function EmployeeCategoryCOA() {
                         )}
                       </span>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-zinc-400">
-                          {grpCount > 0 ? `${grpCount} grp` : ""}
-                        </span>
-                        <span className="text-xs text-zinc-400">
-                          {empCount > 0 ? `${empCount} emp` : ""}
+                        <span className="text-sm text-zinc-700 font-bold">
+                          {node.gst_rate ?? 0}%
                         </span>
                         <button
-                          className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium font-sans"
+                          className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium shadow-sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate("/master/alter/employee-category");
+                            navigate("/master/alter/gst-classification");
                           }}
                         >
                           Alter
@@ -199,32 +184,39 @@ export default function EmployeeCategoryCOA() {
                     {isSelected && (
                       <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5">
                         <div>
-                          <span className="text-zinc-400">Name:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.name}</span>
+                          <span className="text-zinc-400">Nature of Transaction:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.nature_of_transaction || "Not Applicable"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Alias:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.alias || "—"}</span>
+                          <span className="text-zinc-400">Valuation Type:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.valuation_type || "Based on Value"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Allocate Revenue:</span>{" "}
-                          <span className="font-semibold text-zinc-800">
-                            {node.allocate_revenue === 1 ? "Yes" : "No"}
-                          </span>
+                          <span className="text-zinc-400">HSN/SAC Code:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.hsn_sac_code || "—"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Allocate Non-Revenue:</span>{" "}
-                          <span className="font-semibold text-zinc-800">
-                            {node.allocate_non_revenue === 1 ? "Yes" : "No"}
-                          </span>
+                          <span className="text-zinc-400">Description:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.description || "—"}</span>
+                        </div>
+                        <div className="col-span-2 border-t border-dashed border-zinc-200 my-1 pt-1 font-bold text-[10px] text-zinc-400 uppercase select-none">
+                          Tax Splits Breakdowns
                         </div>
                         <div>
-                          <span className="text-zinc-400">Employee Groups:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{grpCount}</span>
+                          <span className="text-zinc-400">Integrated Tax (IGST):</span>{" "}
+                          <span className="font-bold text-zinc-800">{node.igst_rate ?? 0}%</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Employees:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{empCount}</span>
+                          <span className="text-zinc-400">Central Tax (CGST):</span>{" "}
+                          <span className="font-bold text-zinc-800">{node.cgst_rate ?? 0}%</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-400">State/UT Tax (SGST):</span>{" "}
+                          <span className="font-bold text-zinc-800">{node.sgst_rate ?? 0}%</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-400">Cess Rate:</span>{" "}
+                          <span className="font-bold text-zinc-800">{node.cess_rate ?? 0}%</span>
                         </div>
                       </div>
                     )}
@@ -243,7 +235,7 @@ export default function EmployeeCategoryCOA() {
             Ctrl+H Change View
           </button>
           <button
-            onClick={() => navigate("/master/create/employee-category")}
+            onClick={() => navigate("/master/create/gst-classification")}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+C Create
@@ -264,24 +256,24 @@ export default function EmployeeCategoryCOA() {
           onClick={() => setShowChangeView(false)}
         >
           <div
-            className="bg-white border border-zinc-200 rounded shadow-xl w-80 max-h-96 overflow-y-auto"
+            className="bg-white border border-zinc-200 rounded shadow-xl w-80 max-h-96 overflow-y-auto animate-scale-up"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider font-sans">
+            <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider">
               Change View
             </div>
             {changeViewItems.map((item) => (
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className="block w-full text-left px-3 py-2 text-xs hover:bg-zinc-50 border-b border-zinc-50 text-zinc-700 font-sans font-medium"
+                className="block w-full text-left px-3 py-2 text-xs hover:bg-zinc-50 border-b border-zinc-50 text-zinc-700 font-medium"
               >
                 {item.label}
               </button>
             ))}
             <button
               onClick={() => setShowChangeView(false)}
-              className="block w-full text-center px-3 py-2 text-xs text-zinc-400 hover:bg-zinc-50 font-sans font-medium"
+              className="block w-full text-center px-3 py-2 text-xs text-zinc-400 hover:bg-zinc-50 font-medium"
             >
               Close
             </button>
@@ -289,9 +281,9 @@ export default function EmployeeCategoryCOA() {
         </div>
       )}
 
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none">
-        <span>{categories.length} category(ies)</span>
-        <span>Startup ERP Payroll Engine</span>
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none animate-slide-up">
+        <span>{classes.length} classifications</span>
+        <span>Startup ERP</span>
       </div>
     </div>
   );

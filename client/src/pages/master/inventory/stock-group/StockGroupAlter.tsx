@@ -11,13 +11,13 @@ function Row({ label, required, children }: { label: string; required?: boolean;
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
       <span className="text-zinc-600 mr-2 shrink-0">:</span>
-      <div className="flex-1 font-mono">{children}</div>
+      <div className="flex-1">{children}</div>
     </div>
   );
 }
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 font-mono";
-const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer font-mono";
+const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400";
+const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer";
 
 interface SidePanelProps {
   title: string;
@@ -47,7 +47,7 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
         {items.map(item => (
           <div
             key={item.id}
-            className={`px-3 py-2 text-xs font-mono cursor-pointer border-b border-zinc-100 ${selected === String(item.id) ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-50"}`}
+            className={`px-3 py-2 text-xs cursor-pointer border-b border-zinc-100 ${selected === String(item.id) ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-50"}`}
             onClick={() => { onSelect(String(item.id)); onClose(); }}
           >
             {item.label}
@@ -89,7 +89,7 @@ function SelectionPanel({
 
   const columns = [
     { key: "name", label: "Group Name", span: "col-span-8", render: (r: StockGroupType) => <span className="font-bold text-zinc-950 uppercase">{r.name}</span> },
-    { key: "alias", label: "Alias", span: "col-span-4", render: (r: StockGroupType) => <span className="text-zinc-500 font-mono">{r.alias || "—"}</span> },
+    { key: "alias", label: "Alias", span: "col-span-4", render: (r: StockGroupType) => <span className="text-zinc-500">{r.alias || "—"}</span> },
   ];
 
   const selectionActions = [
@@ -330,13 +330,13 @@ export default function StockGroupAlter() {
       <PageTitleBar title={`Stock Group Alteration: ${selectedGroup.name}`} subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono shrink-0">
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono shrink-0">
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
           <span>• {success}</span>
           <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>

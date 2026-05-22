@@ -303,12 +303,10 @@ export default function GodownCOA() {
         </div>
       </div>
 
-      {error && (
         <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-mono">✕</button>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">✕</button>
         </div>
-      )}
 
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
@@ -350,7 +348,7 @@ export default function GodownCOA() {
         </div>
 
         {/* Right-Hand Sidebar - Tally Signature Action Bar */}
-        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium font-mono text-zinc-700">
+        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           <button
             onClick={() => navigate("/master/coa/stock-group")}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
@@ -403,7 +401,7 @@ export default function GodownCOA() {
               <span>Change View</span>
               <button
                 onClick={() => setShowChangeViewModal(false)}
-                className="text-zinc-400 hover:text-black font-semibold font-mono"
+                className="text-zinc-400 hover:text-black font-semibold"
               >
                 ✕
               </button>
@@ -473,7 +471,7 @@ export default function GodownCOA() {
               <span>Exception Reports</span>
               <button
                 onClick={() => setShowExceptionModal(false)}
-                className="text-zinc-400 hover:text-black font-semibold font-mono"
+                className="text-zinc-400 hover:text-black font-semibold"
               >
                 ✕
               </button>
@@ -507,7 +505,7 @@ export default function GodownCOA() {
       )}
 
       {/* Footer */}
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 font-mono">
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
         <span>Active Tab: Godowns / Locations</span>
         <span>Startup ERP Inventory Engine v2.0 (Keyboard Enabled)</span>
       </div>

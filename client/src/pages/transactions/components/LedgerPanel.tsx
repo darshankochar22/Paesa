@@ -166,7 +166,7 @@ export default function LedgerPanel({
           return (
             <div
               key={item.ledger_id || item.item_id || item.godown_id}
-              className={`px-3 py-2 text-xs cursor-pointer flex justify-between items-center transition-colors font-mono ${
+              className={`px-3 py-2 text-xs cursor-pointer flex justify-between items-center transition-colors ${
                 isSelected ? "bg-zinc-900 text-white font-medium" : "hover:bg-zinc-50 text-zinc-800"
               }`}
               onClick={() => onSelect(item)}

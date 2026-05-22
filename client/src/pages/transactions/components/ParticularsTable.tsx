@@ -43,7 +43,7 @@ export default function ParticularsTable({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-white font-mono text-xs">
+    <div className="flex-1 flex flex-col min-h-0 bg-white text-xs">
       {/* Table Header */}
       <div className="grid grid-cols-12 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-600 font-bold uppercase tracking-wider select-none text-[10px]">
         {isJournal && <div className="col-span-1 text-center">Dr/Cr</div>}
@@ -109,7 +109,7 @@ export default function ParticularsTable({
               <div className="col-span-3 px-1">
                 <input
                   type="text"
-                  className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 font-mono text-zinc-900 font-bold"
+                  className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900 font-bold"
                   value={row.amountRaw}
                   placeholder="0.00"
                   onChange={(e) => handleAmountChange(row.id, e.target.value)}

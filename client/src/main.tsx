@@ -39,6 +39,23 @@ import StockCategoryCOA from "./pages/master/inventory/stock-category/StockCateg
 import GodownCOA from "./pages/master/inventory/godown/GodownCOA.tsx";
 import UnitCOA from "./pages/master/inventory/unit/UnitCOA.tsx";
 
+import CurrencyCreate from "./pages/master/currency/CurrencyCreate.tsx";
+import CurrencyAlter from "./pages/master/currency/CurrencyAlter.tsx";
+import CurrencyCOA from "./pages/master/currency/CurrencyCOA.tsx";
+
+import VoucherTypeCreate from "./pages/master/voucher-type/VoucherTypeCreate.tsx";
+import VoucherTypeAlter from "./pages/master/voucher-type/VoucherTypeAlter.tsx";
+import VoucherTypeCOA from "./pages/master/voucher-type/VoucherTypeCOA.tsx";
+
+import GSTRegistrationCreate from "./pages/master/statutory/gst-registration/GSTRegistrationCreate.tsx";
+import GSTRegistrationAlter from "./pages/master/statutory/gst-registration/GSTRegistrationAlter.tsx";
+import GSTRegistrationCOA from "./pages/master/statutory/gst-registration/GSTRegistrationCOA.tsx";
+
+import GSTClassificationCreate from "./pages/master/statutory/gst-classification/GSTClassificationCreate.tsx";
+import GSTClassificationAlter from "./pages/master/statutory/gst-classification/GSTClassificationAlter.tsx";
+import GSTClassificationCOA from "./pages/master/statutory/gst-classification/GSTClassificationCOA.tsx";
+
+
 import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
 import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
 import PayrollUnitCreate from "./pages/master/payroll/payroll-unit/PayrollUnitCreate.tsx";
@@ -79,6 +96,26 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/create/ledger" element={<LedgerCreate />}/>
             <Route path="/master/alter/ledger" element={<LedgerAlter />}/>
             <Route path="/master/coa/ledger" element={<LedgerCOA />}/>
+
+            {/* Currency Routes */}
+            <Route path="/master/create/currency" element={<CurrencyCreate />} />
+            <Route path="/master/alter/currency" element={<CurrencyAlter />} />
+            <Route path="/master/coa/currency" element={<CurrencyCOA />} />
+
+            {/* Voucher Type Routes */}
+            <Route path="/master/create/voucher-type" element={<VoucherTypeCreate />} />
+            <Route path="/master/alter/voucher-type" element={<VoucherTypeAlter />} />
+            <Route path="/master/coa/voucher-type" element={<VoucherTypeCOA />} />
+
+            {/* GST Registration Routes */}
+            <Route path="/master/create/gst-registration" element={<GSTRegistrationCreate />} />
+            <Route path="/master/alter/gst-registration" element={<GSTRegistrationAlter />} />
+            <Route path="/master/coa/gst-registration" element={<GSTRegistrationCOA />} />
+
+            {/* GST Classification Routes */}
+            <Route path="/master/create/gst-classification" element={<GSTClassificationCreate />} />
+            <Route path="/master/alter/gst-classification" element={<GSTClassificationAlter />} />
+            <Route path="/master/coa/gst-classification" element={<GSTClassificationCOA />} />
 
             <Route path="/master/create/group" element={<GroupCreate />}/>
             <Route path="/master/alter/group" element={<GroupAlter />}/>

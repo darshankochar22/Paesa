@@ -131,7 +131,7 @@ export default function VoucherList() {
   }));
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full font-mono text-xs select-none">
+    <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
       {/* Title Bar */}
       <PageTitleBar
         title="Voucher Register"

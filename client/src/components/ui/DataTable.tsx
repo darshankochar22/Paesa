@@ -62,7 +62,7 @@ export default function DataTable({
           {columns.map(col => (
             <div
               key={col.key}
-              className={`${col.span} ${ALIGN_CLASS[col.align ?? "left"]} font-mono`}
+              className={`${col.span} ${ALIGN_CLASS[col.align ?? "left"]}`}
             >
               {col.render ? col.render(row, idx) : (row[col.key] ?? "—")}
             </div>

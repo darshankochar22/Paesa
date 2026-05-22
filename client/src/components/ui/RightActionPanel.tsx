@@ -51,7 +51,7 @@ export default function RightActionPanel({ actions, title = "Actions", className
 
               {/* Shortcut Key Badge */}
               <span
-                className={`text-[9px] font-bold px-1.5 py-0.5 rounded font-mono border uppercase tracking-wider shrink-0 ${
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider shrink-0 ${
                   act.active
                     ? "bg-zinc-950 text-white border-zinc-950"
                     : act.disabled
@@ -67,7 +67,7 @@ export default function RightActionPanel({ actions, title = "Actions", className
       </div>
 
       {/* Footer Info */}
-      <div className="p-2 border-t border-zinc-200 bg-white text-[9px] text-zinc-400 font-bold uppercase text-center tracking-wider font-mono">
+      <div className="p-2 border-t border-zinc-200 bg-white text-[9px] text-zinc-400 font-bold uppercase text-center tracking-wider">
         &bull; TALLY BAR &bull;
       </div>
     </div>

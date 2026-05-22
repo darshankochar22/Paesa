@@ -294,7 +294,7 @@ export default function LedgerCOA() {
                         {ledger.name}
                       </span>
                       <div className="flex items-center gap-3">
-                        <span className="text-[12px] font-mono tabular-nums text-zinc-500">
+                        <span className="text-[12px] tabular-nums text-zinc-500">
                           {Number(ledger.opening_balance) === 0 ? "—" : Number(ledger.opening_balance).toFixed(2)}
                         </span>
                         <button
@@ -345,11 +345,11 @@ export default function LedgerCOA() {
                         </div>
                         <div className="flex border-b border-zinc-100 pb-1">
                           <span className="text-zinc-400 w-32 shrink-0 select-none">GSTIN</span>
-                          <span className="text-zinc-800 font-mono font-medium">{ledger.gstin || "—"}</span>
+                          <span className="text-zinc-800 font-medium">{ledger.gstin || "—"}</span>
                         </div>
                         <div className="flex border-b border-zinc-100 pb-1">
                           <span className="text-zinc-400 w-32 shrink-0 select-none">PAN / IT No.</span>
-                          <span className="text-zinc-800 font-mono">{ledger.pan || "—"}</span>
+                          <span className="text-zinc-800">{ledger.pan || "—"}</span>
                         </div>
                         <div className="flex border-b border-zinc-100 pb-1">
                           <span className="text-zinc-400 w-32 shrink-0 select-none">Registration Type</span>
@@ -365,7 +365,7 @@ export default function LedgerCOA() {
                         </div>
                         <div className="flex border-b border-zinc-100 pb-1">
                           <span className="text-zinc-400 w-32 shrink-0 select-none">Closing Balance</span>
-                          <span className="text-zinc-800 font-mono font-semibold">
+                          <span className="text-zinc-800 font-semibold">
                             {Number(ledger.closing_balance).toFixed(2)}
                           </span>
                         </div>
@@ -498,7 +498,7 @@ export default function LedgerCOA() {
                             {ledger.parentGroupName}
                           </div>
                           <div className="w-36 px-4 py-1.5 flex items-center justify-between border-l border-zinc-100/50">
-                            <span className="text-xs font-mono font-medium tabular-nums text-zinc-700 ml-auto">
+                            <span className="text-xs font-medium tabular-nums text-zinc-700 ml-auto">
                               {Number(ledger.opening_balance) === 0 ? "—" : Number(ledger.opening_balance).toFixed(2)}
                             </span>
                             <button
@@ -545,11 +545,11 @@ export default function LedgerCOA() {
                               </div>
                               <div className="flex border-b border-zinc-100 pb-1">
                                 <span className="text-zinc-400 w-32 shrink-0 select-none">GSTIN</span>
-                                <span className="text-zinc-800 font-mono font-medium">{ledger.gstin || "—"}</span>
+                                <span className="text-zinc-800 font-medium">{ledger.gstin || "—"}</span>
                               </div>
                               <div className="flex border-b border-zinc-100 pb-1">
                                 <span className="text-zinc-400 w-32 shrink-0 select-none">PAN / IT No.</span>
-                                <span className="text-zinc-800 font-mono">{ledger.pan || "—"}</span>
+                                <span className="text-zinc-800">{ledger.pan || "—"}</span>
                               </div>
                               <div className="flex border-b border-zinc-100 pb-1">
                                 <span className="text-zinc-400 w-32 shrink-0 select-none">Registration Type</span>
@@ -565,7 +565,7 @@ export default function LedgerCOA() {
                               </div>
                               <div className="flex border-b border-zinc-100 pb-1">
                                 <span className="text-zinc-400 w-32 shrink-0 select-none">Closing Balance</span>
-                                <span className="text-zinc-800 font-mono font-semibold">
+                                <span className="text-zinc-800 font-semibold">
                                   {Number(ledger.closing_balance).toFixed(2)}
                                 </span>
                               </div>
@@ -589,7 +589,7 @@ export default function LedgerCOA() {
         </div>
 
         {/* Right-Hand Sidebar - Tally Signature Action Bar */}
-        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium font-mono text-zinc-700">
+        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           <button
             onClick={() => setIsLedgerView((prev) => !prev)}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
@@ -766,7 +766,7 @@ export default function LedgerCOA() {
       )}
 
       {/* Footer Status Bar */}
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 font-mono select-none">
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none">
         <span>Total Ledgers Displayed: {isLedgerView ? flatLedgerList.length : ledgers.length}</span>
         <span>TallyPrime COA Engine v2.0 (Keyboard Enabled)</span>
       </div>

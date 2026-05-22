@@ -301,7 +301,7 @@ export default function BankDetailsPopup({
           </div>
 
           {/* Right-Hand Vertical Hotkey Action Sidebar */}
-          <div className="w-36 border-l border-zinc-200 bg-zinc-50 flex flex-col p-1.5 shrink-0 select-none text-[10px] font-medium font-mono text-zinc-500 gap-1.5 justify-start">
+          <div className="w-36 border-l border-zinc-200 bg-zinc-50 flex flex-col p-1.5 shrink-0 select-none text-[10px] font-medium text-zinc-500 gap-1.5 justify-start">
             <div className="text-center font-sans font-bold text-[9px] uppercase tracking-wider text-zinc-400 pb-1 border-b border-zinc-200/60 mb-1">Actions</div>
             
             <button
