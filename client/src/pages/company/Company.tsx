@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import type { CompanyType } from "@/types/api";
 import { useCompany } from "@/context/CompanyContext";
-import CompanyCreate from "./components/CompanyCreate";
-import AlterCompany from "./components/AlterCompany";
+import CompanyCreate from "./CompanyCreate";
+import AlterCompany from "./AlterCompany";
 import ShutCompany from "./components/ShutCompany";
 import SelectCompany from "./components/SelectCompany";
 

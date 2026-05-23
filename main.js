@@ -1,6 +1,8 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const isDev = !app.isPackaged;
+const isDev = !app.isPacakaged;
+
+ipcMain.handle("app:getDataPath", () => app.getPath("userData"));
 
 function createWindow() {
     const win = new BrowserWindow({

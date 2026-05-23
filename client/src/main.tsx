@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom/client";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, useNavigate } from "react-router-dom";
 import './index.css';
 import { CompanyProvider } from "./context/CompanyContext";
 import StartupGuard from "./context/StartupGuard";
@@ -7,6 +7,8 @@ import Layout from "./Layout.tsx";
 import App from './App.tsx';
 import GenericDataView from './pages/GenericDataView.tsx';
 import Company from "./pages/company/Company.tsx";
+import CompanyCreate from "./pages/company/CompanyCreate.tsx";
+import CompanyAlter from "./pages/company/AlterCompany.tsx";
 import Create from "./pages/menu/Create.tsx";
 import Alter from "./pages/menu/Alter.tsx";
 import FinancialYears from "./pages/master/FinancialYears.tsx";
@@ -33,29 +35,22 @@ import StockGroupAlter from "./pages/master/inventory/stock-group/StockGroupAlte
 import StockCategoryAlter from "./pages/master/inventory/stock-category/StockCategoryAlter.tsx";
 import StockItemAlter from "./pages/master/inventory/stock-item/StockItemAlter.tsx";
 import GodownAlter from "./pages/master/inventory/godown/GodownAlter.tsx";
-
 import StockGroupCOA from "./pages/master/inventory/stock-group/StockGroupCOA.tsx";
 import StockCategoryCOA from "./pages/master/inventory/stock-category/StockCategoryCOA.tsx";
 import GodownCOA from "./pages/master/inventory/godown/GodownCOA.tsx";
 import UnitCOA from "./pages/master/inventory/unit/UnitCOA.tsx";
-
 import CurrencyCreate from "./pages/master/currency/CurrencyCreate.tsx";
 import CurrencyAlter from "./pages/master/currency/CurrencyAlter.tsx";
 import CurrencyCOA from "./pages/master/currency/CurrencyCOA.tsx";
-
 import VoucherTypeCreate from "./pages/master/voucher-type/VoucherTypeCreate.tsx";
 import VoucherTypeAlter from "./pages/master/voucher-type/VoucherTypeAlter.tsx";
 import VoucherTypeCOA from "./pages/master/voucher-type/VoucherTypeCOA.tsx";
-
 import GSTRegistrationCreate from "./pages/master/statutory/gst-registration/GSTRegistrationCreate.tsx";
 import GSTRegistrationAlter from "./pages/master/statutory/gst-registration/GSTRegistrationAlter.tsx";
 import GSTRegistrationCOA from "./pages/master/statutory/gst-registration/GSTRegistrationCOA.tsx";
-
 import GSTClassificationCreate from "./pages/master/statutory/gst-classification/GSTClassificationCreate.tsx";
 import GSTClassificationAlter from "./pages/master/statutory/gst-classification/GSTClassificationAlter.tsx";
 import GSTClassificationCOA from "./pages/master/statutory/gst-classification/GSTClassificationCOA.tsx";
-
-
 import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
 import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
 import PayrollUnitCreate from "./pages/master/payroll/payroll-unit/PayrollUnitCreate.tsx";
@@ -63,7 +58,6 @@ import AttendanceTypeCreate from "./pages/master/payroll/attendance-type/Attenda
 import PayHeadCreate from "./pages/master/payroll/pay-head/PayHeadCreate.tsx";
 import SalaryStructureCreate from "./pages/master/payroll/salary-structure/SalaryStructureCreate.tsx";
 import EmployeeCategoryCreate from "./pages/master/payroll/employee-category/EmployeeCategoryCreate.tsx";
-
 import EmployeeGroupCOA from "./pages/master/payroll/employee-group/EmployeeGroupCOA.tsx";
 import EmployeeCOA from "./pages/master/payroll/employee/EmployeeCOA.tsx";
 import PayrollUnitCOA from "./pages/master/payroll/payroll-unit/PayrollUnitCOA.tsx";
@@ -71,7 +65,6 @@ import AttendanceTypeCOA from "./pages/master/payroll/attendance-type/Attendance
 import PayHeadCOA from "./pages/master/payroll/pay-head/PayHeadCOA.tsx";
 import SalaryStructureCOA from "./pages/master/payroll/salary-structure/SalaryStructureCOA.tsx";
 import EmployeeCategoryCOA from "./pages/master/payroll/employee-category/EmployeeCategoryCOA.tsx";
-
 import EmployeeGroupAlter from "./pages/master/payroll/employee-group/EmployeeGroupAlter.tsx";
 import EmployeeAlter from "./pages/master/payroll/employee/EmployeeAlter.tsx";
 import PayrollUnitAlter from "./pages/master/payroll/payroll-unit/PayrollUnitAlter.tsx";
@@ -79,6 +72,17 @@ import AttendanceTypeAlter from "./pages/master/payroll/attendance-type/Attendan
 import PayHeadAlter from "./pages/master/payroll/pay-head/PayHeadAlter.tsx";
 import SalaryStructureAlter from "./pages/master/payroll/salary-structure/SalaryStructureAlter.tsx";
 import EmployeeCategoryAlter from "./pages/master/payroll/employee-category/EmployeeCategoryAlter.tsx";
+
+function CompanyCreatePage() {
+  const navigate = useNavigate();
+  return (
+    <CompanyCreate
+      onSuccess={() => navigate("/company")}
+      onCancel={() => navigate(-1)}
+    />
+  );
+}
+
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <HashRouter>
@@ -88,6 +92,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route element={<Layout />}>
             <Route path="/" element={<App />} />
             <Route path="/company" element={<Company />} />
+            <Route path="/company/create" element={<CompanyCreatePage />} />
+            <Route path="/company/alter" element={<CompanyAlter />} />
             <Route path="/master/create" element={<Create />}/>
             <Route path="/master/alter" element={<Alter />}/>
             <Route path="/master/financial-years" element={<FinancialYears />}/>
@@ -97,22 +103,18 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/alter/ledger" element={<LedgerAlter />}/>
             <Route path="/master/coa/ledger" element={<LedgerCOA />}/>
 
-            {/* Currency Routes */}
             <Route path="/master/create/currency" element={<CurrencyCreate />} />
             <Route path="/master/alter/currency" element={<CurrencyAlter />} />
             <Route path="/master/coa/currency" element={<CurrencyCOA />} />
 
-            {/* Voucher Type Routes */}
             <Route path="/master/create/voucher-type" element={<VoucherTypeCreate />} />
             <Route path="/master/alter/voucher-type" element={<VoucherTypeAlter />} />
             <Route path="/master/coa/voucher-type" element={<VoucherTypeCOA />} />
 
-            {/* GST Registration Routes */}
             <Route path="/master/create/gst-registration" element={<GSTRegistrationCreate />} />
             <Route path="/master/alter/gst-registration" element={<GSTRegistrationAlter />} />
             <Route path="/master/coa/gst-registration" element={<GSTRegistrationCOA />} />
 
-            {/* GST Classification Routes */}
             <Route path="/master/create/gst-classification" element={<GSTClassificationCreate />} />
             <Route path="/master/alter/gst-classification" element={<GSTClassificationAlter />} />
             <Route path="/master/coa/gst-classification" element={<GSTClassificationCOA />} />

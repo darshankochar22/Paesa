@@ -53,7 +53,8 @@ export type WindowAPI =
   & VoucherAPI
   & MasterDataAPI
   & PayrollAPI
-  & FeatureManagementAPI;
+  & FeatureManagementAPI
+  & { app: { getDataPath: () => Promise<string> } };
 
 declare global {
   interface Window {

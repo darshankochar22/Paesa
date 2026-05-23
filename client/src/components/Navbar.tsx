@@ -1,16 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import MenuCard, { type OptionType } from "@/components/ui/Card";
+import { useCompany } from "@/context/CompanyContext";
 
 export default function Navbar() {
+  const { setSelectedCompany } = useCompany();
+  const [openMenu, setOpenMenu] = useState("");
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setOpenMenu("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const details = [
     {
       name: "Company",
       options: [
-        { label: "Create", path: "/master/create" },
-        { label: "Alter", path: "/master/alter" },
+        { label: "Create", path: "/company/create" },
+        { label: "Alter", path: "/company/alter" },
         { label: "Change", path: "/company" },
-        { label: "Select", path: "/company" },
+        { label: "Select", action: () => setSelectedCompany(null) },
         { label: "Shut", path: "/company" },
         { label: "Online Access" },
         { label: "Connect" },
@@ -50,7 +64,7 @@ export default function Navbar() {
         { label: "Send Payments" },
         { label: "Get Balance" },
         { label: "All Banking Options", path: "/data/banking" },
-        { label: "Configure" }
+        { label: "Configure" },
       ] as OptionType[],
     },
     {
@@ -71,7 +85,7 @@ export default function Navbar() {
         { label: "Bank Statement", path: "/data/banking" },
         { label: "GST Returns" },
         { label: "Manage" },
-        { label: "Configuration" }
+        { label: "Configuration" },
       ] as OptionType[],
     },
     {
@@ -84,7 +98,7 @@ export default function Navbar() {
         { label: "Company Data", path: "/data/company" },
         { label: "Masters", path: "/data/group" },
         { label: "Transactions", path: "/data/voucher" },
-        { label: "Configuration" }
+        { label: "Configuration" },
       ] as OptionType[],
     },
     {
@@ -107,7 +121,7 @@ export default function Navbar() {
         { label: "Reports", path: "/data/report" },
         { label: "Current", path: "/data/report" },
         { label: "Others", path: "/data/report" },
-        { label: "Configuration" }
+        { label: "Configuration" },
       ] as OptionType[],
     },
     {
@@ -132,31 +146,18 @@ export default function Navbar() {
         { label: "About" },
         { label: "Explore More Products" },
         { label: "TallyEdge" },
-        { label: "TallyPrime Cloud Acess" }
+        { label: "TallyPrime Cloud Access" },
       ] as OptionType[],
     },
   ];
 
-  const [openMenu, setOpenMenu] = useState("");
-
   return (
-    <nav className="flex items-center justify-between px-10 py-4 border-b relative">
-
+    <nav ref={navRef} className="flex items-center justify-between px-10 py-4 border-b relative">
       {details.map((section) => (
-        <div
-          key={section.name}
-          className="relative"
-        >
-
+        <div key={section.name} className="relative">
           <button
             className="px-2 py-1 hover:bg-gray-100 rounded"
-            onClick={() =>
-              setOpenMenu(
-                openMenu === section.name
-                  ? ""
-                  : section.name
-              )
-            }
+            onClick={() => setOpenMenu(openMenu === section.name ? "" : section.name)}
           >
             {section.name}
           </button>
@@ -169,7 +170,6 @@ export default function Navbar() {
           )}
         </div>
       ))}
-
     </nav>
   );
 }

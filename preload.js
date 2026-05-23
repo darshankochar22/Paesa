@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
 
 contextBridge.exposeInMainWorld('api', {
+    app: {
+    getDataPath: () => invoke('app:getDataPath'),
+    },
     company: {
         create:         (data) => invoke('company:create', data),
         getAll:         ()     => invoke('company:getAll'),
