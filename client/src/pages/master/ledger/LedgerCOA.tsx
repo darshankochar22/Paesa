@@ -93,6 +93,30 @@ function LedgerDetailsGrid({ ledger }: { ledger: LedgerType }) {
           <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Bank Details</span>
           </div>
+          {bank.account_holder_name && (
+            <div className="flex border-b border-zinc-100 pb-1">
+              <span className="text-zinc-400 w-32 shrink-0 select-none">A/c Holder's Name</span>
+              <span className="text-zinc-800">{bank.account_holder_name}</span>
+            </div>
+          )}
+          {bank.account_number && (
+            <div className="flex border-b border-zinc-100 pb-1">
+              <span className="text-zinc-400 w-32 shrink-0 select-none">A/c No.</span>
+              <span className="text-zinc-800 font-medium tracking-wider">{bank.account_number}</span>
+            </div>
+          )}
+          {bank.ifsc_code && (
+            <div className="flex border-b border-zinc-100 pb-1">
+              <span className="text-zinc-400 w-32 shrink-0 select-none">IFS Code</span>
+              <span className="text-zinc-800 font-medium">{bank.ifsc_code}</span>
+            </div>
+          )}
+          {bank.swift_code && (
+            <div className="flex border-b border-zinc-100 pb-1">
+              <span className="text-zinc-400 w-32 shrink-0 select-none">SWIFT Code</span>
+              <span className="text-zinc-800">{bank.swift_code}</span>
+            </div>
+          )}
           {bank.bank_name && (
             <div className="flex border-b border-zinc-100 pb-1">
               <span className="text-zinc-400 w-32 shrink-0 select-none">Bank Name</span>
@@ -105,30 +129,6 @@ function LedgerDetailsGrid({ ledger }: { ledger: LedgerType }) {
               <span className="text-zinc-800">{bank.branch_name}</span>
             </div>
           )}
-          {bank.account_holder_name && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">Account Holder</span>
-              <span className="text-zinc-800">{bank.account_holder_name}</span>
-            </div>
-          )}
-          {bank.account_number && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">Account Number</span>
-              <span className="text-zinc-800 font-medium tracking-wider">{bank.account_number}</span>
-            </div>
-          )}
-          {bank.ifsc_code && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">IFSC Code</span>
-              <span className="text-zinc-800 font-medium">{bank.ifsc_code}</span>
-            </div>
-          )}
-          {bank.swift_code && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">SWIFT Code</span>
-              <span className="text-zinc-800">{bank.swift_code}</span>
-            </div>
-          )}
           {bank.od_limit > 0 && (
             <div className="flex border-b border-zinc-100 pb-1">
               <span className="text-zinc-400 w-32 shrink-0 select-none">OD Limit</span>
@@ -139,6 +139,39 @@ function LedgerDetailsGrid({ ledger }: { ledger: LedgerType }) {
             <div className="flex border-b border-zinc-100 pb-1">
               <span className="text-zinc-400 w-32 shrink-0 select-none">Transaction Type</span>
               <span className="text-zinc-800">{bank.transaction_type}</span>
+            </div>
+          )}
+          <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Bank Configuration</span>
+          </div>
+          <div className="flex border-b border-zinc-100 pb-1">
+            <span className="text-zinc-400 w-32 shrink-0 select-none">Set/Alter range for Cheque Books</span>
+            <span className="text-zinc-800">{bank.bank_configuration === "Yes" ? "Yes" : "No"}</span>
+          </div>
+          {bank.bank_configuration === "Yes" && (
+            <>
+              {bank.cheque_book_start_no && (
+                <div className="flex border-b border-zinc-100 pb-1">
+                  <span className="text-zinc-400 w-32 shrink-0 select-none">Cheque Book Start No</span>
+                  <span className="text-zinc-800">{bank.cheque_book_start_no}</span>
+                </div>
+              )}
+              {bank.cheque_book_end_no && (
+                <div className="flex border-b border-zinc-100 pb-1">
+                  <span className="text-zinc-400 w-32 shrink-0 select-none">Cheque Book End No</span>
+                  <span className="text-zinc-800">{bank.cheque_book_end_no}</span>
+                </div>
+              )}
+            </>
+          )}
+          <div className="flex border-b border-zinc-100 pb-1">
+            <span className="text-zinc-400 w-32 shrink-0 select-none">Enable Cheque Printing</span>
+            <span className="text-zinc-800">{bank.enable_cheque_printing ? "Yes" : "No"}</span>
+          </div>
+          {bank.enable_cheque_printing && bank.cheque_printing_configuration && (
+            <div className="flex border-b border-zinc-100 pb-1">
+              <span className="text-zinc-400 w-32 shrink-0 select-none">Cheque Print Config</span>
+              <span className="text-zinc-800">{bank.cheque_printing_configuration}</span>
             </div>
           )}
         </>

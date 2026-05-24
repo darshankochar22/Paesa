@@ -20,6 +20,7 @@ const PRIMARY_GROUPS = [
 
 const PREDEFINED_GROUPS = [
   { name: "Bank Accounts", parent_name: "Current Assets", nature: "Assets", affect_gross_profit: 0 },
+  { name: "Bank OCC A/c", parent_name: "Current Liabilities", nature: "Liabilities", affect_gross_profit: 0 },
   { name: "Bank OD A/c", parent_name: "Loans(Liability)", nature: "Liabilities", affect_gross_profit: 0 },
   { name: "Cash-in-hand", parent_name: "Current Assets", nature: "Assets", affect_gross_profit: 0 },
   { name: "Deposits (Asset)", parent_name: "Current Assets", nature: "Assets", affect_gross_profit: 0 },
@@ -27,6 +28,7 @@ const PREDEFINED_GROUPS = [
   { name: "Loans & Advances (Asset)", parent_name: "Current Assets", nature: "Assets", affect_gross_profit: 0 },
   { name: "Provisions", parent_name: "Current Liabilities", nature: "Liabilities", affect_gross_profit: 0 },
   { name: "Reserves & Surplus", parent_name: "Capital Account", nature: "Liabilities", affect_gross_profit: 0 },
+  { name: "Retained Earnings", parent_name: "Capital Account", nature: "Liabilities", affect_gross_profit: 0 },
   { name: "Secured Loans", parent_name: "Loans(Liability)", nature: "Liabilities", affect_gross_profit: 0 },
   { name: "Sundry Creditors", parent_name: "Current Liabilities", nature: "Liabilities", affect_gross_profit: 0 },
   { name: "Sundry Debtors", parent_name: "Current Assets", nature: "Assets", affect_gross_profit: 0 },

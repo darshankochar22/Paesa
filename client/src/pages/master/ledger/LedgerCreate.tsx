@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
-import GroupTree from "@/components/GroupTree";
+import GroupFlatList from "@/components/GroupFlatList";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import BankDetailsPopup, { EMPTY_BANK_DETAILS } from "./components/BankDetailsPopup";
 import type { BankDetails } from "./components/BankDetailsPopup";
@@ -70,7 +70,6 @@ export default function LedgerCreate() {
   const persistKey = companyId ? `ledgerCreate_${companyId}` : null;
   const hasRestored = useRef(false);
 
-  const [groupTree, setGroupTree] = useState<(GroupType & { children?: GroupType[] })[]>([]);
   const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<GroupType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -108,12 +107,8 @@ export default function LedgerCreate() {
     (async () => {
       try {
         setLoading(true);
-        const [treeRes, allRes] = await Promise.all([
-          window.api.group.getTree(companyId),
-          window.api.group.getAll(companyId),
-        ]);
+        const allRes = await window.api.group.getAll(companyId);
         if (cancelled) return;
-        if (treeRes.success && treeRes.tree) setGroupTree(treeRes.tree ?? []);
         if (allRes.success && allRes.groups) {
           setFlatGroups(allRes.groups ?? []);
           const capital = (allRes.groups ?? []).find((g: GroupType) => g.name === "Capital Account");
@@ -224,10 +219,10 @@ export default function LedgerCreate() {
     } else {
       setProvideBank("Yes");
     }
-    if (!groupLineage.isIncomeExpense) {
+    if (!groupLineage.isInventory) {
       setForm((f) => ({ ...f, invoice_rounding: 0, rounding_method: "", rounding_limit: 0 }));
     }
-  }, [selectedGroup, groupLineage.isBank, groupLineage.isIncomeExpense]);
+  }, [selectedGroup, groupLineage.isBank, groupLineage.isInventory]);
 
   const fyLabel = useMemo(() => {
     if (activeFY?.start_date) {
@@ -460,17 +455,17 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          {/* Bank Configuration — shown in left column for Bank groups */}
+          {/* Bank Account Details — shown in left column for Bank groups */}
           {groupLineage.isBank && (
             <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bank Configurations</div>
-              <FormRow label="Account Holder Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bank Account Details</div>
+              <FormRow label="A/c Holder's Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} />
               </FormRow>
-              <FormRow label="Account Number" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <FormRow label="A/c No." labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} />
               </FormRow>
-              <FormRow label="IFSC Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <FormRow label="IFS Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} />
               </FormRow>
               <FormRow label="SWIFT Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
@@ -479,7 +474,7 @@ export default function LedgerCreate() {
               <FormRow label="Bank Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} />
               </FormRow>
-              <FormRow label="Branch Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <FormRow label="Branch" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} />
               </FormRow>
               {groupLineage.isOD && (
@@ -494,7 +489,27 @@ export default function LedgerCreate() {
                 </FormRow>
               )}
               <div className="pt-2 border-t border-zinc-100 my-2" />
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cheque Configuration</div>
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bank Configuration</div>
+              <FormRow label="Set/Alter range for Cheque Books" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={bankForm.bank_configuration === "Yes" ? "Yes" : "No"}
+                  onChange={(e) => setBankForm((f) => ({ ...f, bank_configuration: e.target.value === "Yes" ? "Yes" : "No" }))}
+                >
+                  <option>No</option>
+                  <option>Yes</option>
+                </select>
+              </FormRow>
+              {bankForm.bank_configuration === "Yes" && (
+                <div className="pl-3 border-l-2 border-zinc-200 space-y-1.5 py-1">
+                  <FormRow label="Cheque Book Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
+                  </FormRow>
+                  <FormRow label="Cheque Book End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
+                  </FormRow>
+                </div>
+              )}
               <FormRow label="Enable Cheque Printing" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <select
                   className={selectCls}
@@ -507,12 +522,6 @@ export default function LedgerCreate() {
               </FormRow>
               {!!bankForm.enable_cheque_printing && (
                 <div className="pl-3 border-l-2 border-zinc-200 space-y-1.5 py-1">
-                  <FormRow label="Cheque Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
-                  </FormRow>
-                  <FormRow label="Cheque End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
-                  </FormRow>
                   <FormRow label="Cheque Print Config" labelWidth="w-40" className="flex items-center min-h-[26px]">
                     <input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} />
                   </FormRow>
@@ -547,8 +556,8 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          {/* Context 1: Type of Ledger for Income/Expense groups */}
-          {groupLineage.isIncomeExpense && (
+          {/* Type of Ledger — for Sales, Purchase, and Income/Expense nature groups */}
+          {groupLineage.isInventory && (
             <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
               <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
               <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">
@@ -593,28 +602,6 @@ export default function LedgerCreate() {
                   </FormRow>
                 </>
               )}
-            </div>
-          )}
-
-          {/* Context 1b: Ledger Type for Sales/Purchase groups */}
-          {groupLineage.isInventory && !groupLineage.isIncomeExpense && (
-            <div className="p-3 border-t border-zinc-100 bg-white">
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
-              <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">
-                <select
-                  className={selectCls}
-                  value={form.ledger_type || "General"}
-                  onChange={setField("ledger_type")}
-                >
-                  <option value="General">General</option>
-                  <option value="Sales">Sales</option>
-                  <option value="Purchase">Purchase</option>
-                  <option value="Income">Income</option>
-                  <option value="Expenses">Expenses</option>
-                  <option value="Assets">Assets</option>
-                  <option value="Liabilities">Liabilities</option>
-                </select>
-              </FormRow>
             </div>
           )}
 
@@ -841,32 +828,20 @@ export default function LedgerCreate() {
           </div>
         </div>
 
-        {/* Group Panel */}
+        {/* Group Panel — Tally-style flat list */}
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
-            <div className="px-3 py-2 border-b border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider flex justify-between items-center select-none">
-              <span>List of Groups</span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => { setShowGroupPanel(false); navigate("/master/create/group"); }}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-800 font-medium transition-colors"
-                >
-                  + Create
-                </button>
-                <button onClick={() => setShowGroupPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <GroupTree
-                tree={groupTree}
-                selectedId={form.group_id as number}
-                onSelect={(group: GroupType) => {
-                  setSelectedGroup(group);
-                  setForm((f) => ({ ...f, group_id: group.group_id }));
-                  setShowGroupPanel(false);
-                }}
-              />
-            </div>
+            <GroupFlatList
+              groups={flatGroups}
+              selectedId={form.group_id as number}
+              onSelect={(group: GroupType) => {
+                setSelectedGroup(group);
+                setForm((f) => ({ ...f, group_id: group.group_id }));
+                setShowGroupPanel(false);
+              }}
+              onCreate={() => { setShowGroupPanel(false); navigate("/master/create/group"); }}
+              onClose={() => setShowGroupPanel(false)}
+            />
           </div>
         )}
 

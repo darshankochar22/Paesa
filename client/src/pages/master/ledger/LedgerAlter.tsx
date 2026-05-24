@@ -254,7 +254,7 @@ export default function LedgerAlter() {
       } else {
         setProvideBank("Yes");
       }
-      if (!groupLineage.isIncomeExpense) {
+      if (!groupLineage.isInventory) {
         setForm((prev: any) => ({ ...prev, invoice_rounding: 0, rounding_method: "", rounding_limit: 0 }));
       }
     } else {
@@ -262,7 +262,7 @@ export default function LedgerAlter() {
         setProvideBank("Yes");
       }
     }
-  }, [selectedGroup, groupLineage.isBank, groupLineage.isIncomeExpense, form.group_id, loadedGroupId]);
+  }, [selectedGroup, groupLineage.isBank, groupLineage.isInventory, form.group_id, loadedGroupId]);
 
   // ── Data loading ───────────────────────────────────────────────────────────
   const loadInitial = useCallback(async () => {
@@ -610,17 +610,17 @@ export default function LedgerAlter() {
             </div>
           )}
 
-          {/* Bank Configuration — shown in left column for Bank groups */}
+          {/* Bank Account Details — shown in left column for Bank groups */}
           {selectedLedgerId && groupLineage.isBank && (
             <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bank Configurations</div>
-              <FormRow label="Account Holder Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bank Account Details</div>
+              <FormRow label="A/c Holder's Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} />
               </FormRow>
-              <FormRow label="Account Number" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <FormRow label="A/c No." labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} />
               </FormRow>
-              <FormRow label="IFSC Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <FormRow label="IFS Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} />
               </FormRow>
               <FormRow label="SWIFT Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
@@ -629,7 +629,7 @@ export default function LedgerAlter() {
               <FormRow label="Bank Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} />
               </FormRow>
-              <FormRow label="Branch Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <FormRow label="Branch" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} />
               </FormRow>
               {groupLineage.isOD && (
@@ -644,7 +644,27 @@ export default function LedgerAlter() {
                 </FormRow>
               )}
               <div className="pt-2 border-t border-zinc-100 my-2" />
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cheque Configuration</div>
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bank Configuration</div>
+              <FormRow label="Set/Alter range for Cheque Books" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={bankForm.bank_configuration === "Yes" ? "Yes" : "No"}
+                  onChange={(e) => setBankForm((f) => ({ ...f, bank_configuration: e.target.value === "Yes" ? "Yes" : "No" }))}
+                >
+                  <option>No</option>
+                  <option>Yes</option>
+                </select>
+              </FormRow>
+              {bankForm.bank_configuration === "Yes" && (
+                <div className="pl-3 border-l-2 border-zinc-200 space-y-1.5 py-1">
+                  <FormRow label="Cheque Book Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
+                  </FormRow>
+                  <FormRow label="Cheque Book End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
+                  </FormRow>
+                </div>
+              )}
               <FormRow label="Enable Cheque Printing" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <select
                   className={selectCls}
@@ -657,12 +677,6 @@ export default function LedgerAlter() {
               </FormRow>
               {!!bankForm.enable_cheque_printing && (
                 <div className="pl-3 border-l-2 border-zinc-200 space-y-1.5 py-1">
-                  <FormRow label="Cheque Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
-                  </FormRow>
-                  <FormRow label="Cheque End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
-                  </FormRow>
                   <FormRow label="Cheque Print Config" labelWidth="w-40" className="flex items-center min-h-[26px]">
                     <input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} />
                   </FormRow>
@@ -707,8 +721,8 @@ export default function LedgerAlter() {
                 </div>
               </div>
 
-              {/* Context 1: Type of Ledger for Income/Expense groups */}
-              {groupLineage.isIncomeExpense && (
+              {/* Type of Ledger — for Sales, Purchase, and Income/Expense nature groups */}
+              {groupLineage.isInventory && (
                 <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
                   <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
                   <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">
@@ -753,28 +767,6 @@ export default function LedgerAlter() {
                       </FormRow>
                     </>
                   )}
-                </div>
-              )}
-
-              {/* Context 1b: Ledger Type for Sales/Purchase groups */}
-              {groupLineage.isInventory && !groupLineage.isIncomeExpense && (
-                <div className="p-3 border-t border-zinc-100 bg-white">
-                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
-                  <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">
-                    <select
-                      className={selectCls}
-                      value={form.ledger_type || "General"}
-                      onChange={setField("ledger_type")}
-                    >
-                      <option value="General">General</option>
-                      <option value="Sales">Sales</option>
-                      <option value="Purchase">Purchase</option>
-                      <option value="Income">Income</option>
-                      <option value="Expenses">Expenses</option>
-                      <option value="Assets">Assets</option>
-                      <option value="Liabilities">Liabilities</option>
-                    </select>
-                  </FormRow>
                 </div>
               )}
 

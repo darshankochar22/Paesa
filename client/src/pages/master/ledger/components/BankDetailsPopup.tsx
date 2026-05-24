@@ -188,13 +188,13 @@ export default function BankDetailsPopup({
           <div className="flex-1 p-4 space-y-1 overflow-y-auto bg-zinc-50/50">
             <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Account Parameters</div>
 
-            <FormRow label="Account Holder Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+            <FormRow label="A/c Holder's Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
               <input autoFocus className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} />
             </FormRow>
-            <FormRow label="Account Number" labelWidth="w-44" className="flex items-center min-h-[26px]">
+            <FormRow label="A/c No." labelWidth="w-44" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} />
             </FormRow>
-            <FormRow label="IFSC Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
+            <FormRow label="IFS Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} />
             </FormRow>
             <FormRow label="SWIFT Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
@@ -203,7 +203,7 @@ export default function BankDetailsPopup({
             <FormRow label="Bank Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} />
             </FormRow>
-            <FormRow label="Branch Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+            <FormRow label="Branch" labelWidth="w-44" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} />
             </FormRow>
 
@@ -220,7 +220,29 @@ export default function BankDetailsPopup({
             )}
 
             <div className="pt-2 border-t border-zinc-200/60 my-2" />
-            <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Cheque Configuration</div>
+            <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Bank Configuration</div>
+
+            <FormRow label="Set/Alter range for Cheque Books" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <select
+                className={inputCls}
+                value={bankForm.bank_configuration === "Yes" ? "Yes" : "No"}
+                onChange={(e) => setBankForm((f) => ({ ...f, bank_configuration: e.target.value === "Yes" ? "Yes" : "No" }))}
+              >
+                <option>No</option>
+                <option>Yes</option>
+              </select>
+            </FormRow>
+
+            {bankForm.bank_configuration === "Yes" && (
+              <div className="pl-4 border-l border-zinc-300 space-y-1 py-1 animate-in slide-in-from-top-1 duration-150">
+                <FormRow label="Cheque Book Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
+                </FormRow>
+                <FormRow label="Cheque Book End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
+                </FormRow>
+              </div>
+            )}
 
             <div className="flex items-center min-h-[26px] mb-1">
               <span className="w-44 text-sm text-zinc-500 shrink-0">Enable Cheque Printing</span>
@@ -238,12 +260,6 @@ export default function BankDetailsPopup({
 
             {!!bankForm.enable_cheque_printing && (
               <div className="pl-4 border-l border-zinc-300 space-y-1 py-1 animate-in slide-in-from-top-1 duration-150">
-                <FormRow label="Cheque Book Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                  <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
-                </FormRow>
-                <FormRow label="Cheque Book End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                  <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
-                </FormRow>
                 <FormRow label="Cheque Print Config" labelWidth="w-40" className="flex items-center min-h-[26px]">
                   <input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} />
                 </FormRow>

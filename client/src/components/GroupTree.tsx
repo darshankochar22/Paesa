@@ -14,6 +14,10 @@ interface GroupTreeProps {
   onEdit?: (group: GroupType) => void;
   onDelete?: (group: GroupType) => void;
   groupNameMap?: Record<number, string>;
+  title?: string;
+  onCreate?: () => void;
+  onClose?: () => void;
+  showHeader?: boolean;
 }
 
 function TreeNodeRow({
@@ -25,7 +29,6 @@ function TreeNodeRow({
   showActions,
   onEdit,
   onDelete,
-  groupNameMap,
 }: {
   node: TreeNode;
   depth: number;
@@ -35,11 +38,7 @@ function TreeNodeRow({
   showActions?: boolean;
   onEdit?: (group: GroupType) => void;
   onDelete?: (group: GroupType) => void;
-  groupNameMap?: Record<number, string>;
 }) {
-  const parentName = node.parent_group_id && groupNameMap
-    ? groupNameMap[node.parent_group_id as number]
-    : undefined;
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = node.group_id === selectedId;
@@ -48,44 +47,43 @@ function TreeNodeRow({
   return (
     <div className="select-none">
       <div
-        className={`flex items-center gap-1 py-0.5 cursor-pointer text-sm group ${
+        className={`flex items-center min-h-[28px] cursor-pointer text-[13px] ${
           isSelected ? "bg-zinc-100" : "hover:bg-zinc-50"
         }`}
-        style={{ paddingLeft: depth * 16 + 4 }}
+        style={{ paddingLeft: depth * 20 + 8 }}
         onClick={() => !readOnly && onSelect?.(node)}
       >
-        <span className="w-4 flex items-center justify-center text-zinc-400">
+        <span className="w-5 flex items-center justify-center text-zinc-500 shrink-0">
           {hasChildren ? (
-            <button
+            <span
               onClick={(e) => {
                 e.stopPropagation();
                 setExpanded(!expanded);
               }}
-              className="text-xs leading-none"
+              className="text-[10px] cursor-pointer"
             >
-              {expanded ? "▾" : "▸"}
-            </button>
+              {expanded ? "\u25BC" : "\u25B6"}
+            </span>
           ) : (
-            <span className="text-xs leading-none">·</span>
+            <span className="text-[10px] text-zinc-400">\u2022</span>
           )}
         </span>
-        <div className="flex-1 truncate">
-          <span className={isSelected ? "font-medium text-zinc-900" : "text-zinc-700"}>
-            {node.name}
-          </span>
-          {parentName && (
-            <span className="text-xs text-zinc-400 ml-1">({parentName})</span>
-          )}
-        </div>
+        <span
+          className={`truncate ${
+            isSelected ? "font-semibold text-black" : "text-zinc-700"
+          }`}
+        >
+          {node.name}
+        </span>
         {showActions && !isProtected && (
-          <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 pr-1">
+          <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 ml-auto pr-2">
             {onEdit && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(node);
                 }}
-                className="text-xs text-zinc-500 hover:text-zinc-800"
+                className="text-[10px] text-zinc-500 hover:text-zinc-800"
               >
                 Edit
               </button>
@@ -96,7 +94,7 @@ function TreeNodeRow({
                   e.stopPropagation();
                   onDelete(node);
                 }}
-                className="text-xs text-zinc-400 hover:text-zinc-800"
+                className="text-[10px] text-zinc-400 hover:text-zinc-800"
               >
                 Delete
               </button>
@@ -117,7 +115,6 @@ function TreeNodeRow({
               showActions={showActions}
               onEdit={onEdit}
               onDelete={onDelete}
-              groupNameMap={groupNameMap}
             />
           ))}
         </div>
@@ -134,28 +131,59 @@ export default function GroupTree({
   showActions,
   onEdit,
   onDelete,
-  groupNameMap,
+  title,
+  onCreate,
+  onClose,
+  showHeader = false,
 }: GroupTreeProps) {
   if (!tree || tree.length === 0) {
-    return <div className="text-sm text-zinc-400 p-4">No groups found</div>;
+    return (
+      <div className="text-sm text-zinc-400 p-4">No groups found</div>
+    );
   }
 
   return (
-    <div className="overflow-y-auto max-h-full">
-      {tree.map((node) => (
-        <TreeNodeRow
-          key={node.group_id}
-          node={node}
-          depth={0}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          readOnly={readOnly}
-          showActions={showActions}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          groupNameMap={groupNameMap}
-        />
-      ))}
+    <div className="flex flex-col h-full bg-white">
+      {showHeader && (
+        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
+          <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+            {title || "List of Groups"}
+          </span>
+          <div className="flex items-center gap-3">
+            {onCreate && (
+              <button
+                onClick={onCreate}
+                className="text-[11px] text-zinc-500 hover:text-zinc-800 font-medium transition-colors"
+              >
+                + Create
+              </button>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors"
+              >
+                &times;
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto">
+        {tree.map((node) => (
+          <TreeNodeRow
+            key={node.group_id}
+            node={node}
+            depth={0}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            readOnly={readOnly}
+            showActions={showActions}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
     </div>
   );
 }
