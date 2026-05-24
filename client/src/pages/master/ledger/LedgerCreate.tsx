@@ -55,6 +55,9 @@ const INITIAL_FORM: Partial<LedgerType> = {
   default_credit_period: 0,
   check_credit_days: 0,
   allow_cost_centres: 0,
+  invoice_rounding: 0,
+  rounding_method: "",
+  rounding_limit: 0,
 };
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -136,6 +139,7 @@ export default function LedgerCreate() {
       isTax: false,
       isDebtorCreditor: false,
       isInventory: false,
+      isIncomeExpense: false,
       primaryGroupName: null as string | null,
       hideMailingExtras: false,
     };
@@ -165,6 +169,16 @@ export default function LedgerCreate() {
         ].includes(name)
       ) {
         lineage.isInventory = true;
+      }
+      if (
+        [
+          "direct expenses",
+          "indirect expenses",
+          "direct incomes",
+          "indirect incomes",
+        ].includes(name)
+      ) {
+        lineage.isIncomeExpense = true;
       }
 
       if (
@@ -210,7 +224,10 @@ export default function LedgerCreate() {
     } else {
       setProvideBank("Yes");
     }
-  }, [selectedGroup, groupLineage.isBank]);
+    if (!groupLineage.isIncomeExpense) {
+      setForm((f) => ({ ...f, invoice_rounding: 0, rounding_method: "", rounding_limit: 0 }));
+    }
+  }, [selectedGroup, groupLineage.isBank, groupLineage.isIncomeExpense]);
 
   const fyLabel = useMemo(() => {
     if (activeFY?.start_date) {
@@ -293,6 +310,9 @@ export default function LedgerCreate() {
         default_credit_period: form.default_credit_period || 0,
         check_credit_days: form.check_credit_days || 0,
         allow_cost_centres: form.allow_cost_centres || 0,
+        invoice_rounding: form.invoice_rounding || 0,
+        rounding_method: form.rounding_method || undefined,
+        rounding_limit: form.rounding_limit || 0,
       };
 
       const hasBankData = provideBank === "Yes" || groupLineage.isBank;
@@ -527,8 +547,57 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          {/* Context 1: Type of Ledger (Sales/Purchase/Expenses/Incomes) */}
-          {groupLineage.isInventory && (
+          {/* Context 1: Type of Ledger for Income/Expense groups */}
+          {groupLineage.isIncomeExpense && (
+            <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
+              <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={form.invoice_rounding ? "Invoice Rounding" : "Not Applicable"}
+                  onChange={(e) => {
+                    const val = e.target.value === "Invoice Rounding" ? 1 : 0;
+                    setForm((f) => ({
+                      ...f,
+                      invoice_rounding: val,
+                      rounding_method: val ? "Normal Rounding" : "",
+                      rounding_limit: val ? 1 : 0,
+                    }));
+                  }}
+                >
+                  <option value="Not Applicable">Not Applicable</option>
+                  <option value="Invoice Rounding">Invoice Rounding</option>
+                </select>
+              </FormRow>
+              {form.invoice_rounding === 1 && (
+                <>
+                  <FormRow label="Rounding method" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                    <select
+                      className={selectCls}
+                      value={form.rounding_method || "Normal Rounding"}
+                      onChange={setField("rounding_method")}
+                    >
+                      <option value="Normal Rounding">Normal Rounding</option>
+                      <option value="Downward Rounding">Downward Rounding</option>
+                      <option value="Upward Rounding">Upward Rounding</option>
+                    </select>
+                  </FormRow>
+                  <FormRow label="Rounding limit" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                    <input
+                      type="number"
+                      step="0.01"
+                      className={`${inputCls} text-right max-w-[100px]`}
+                      value={form.rounding_limit ?? 1}
+                      onChange={setNumber("rounding_limit")}
+                    />
+                  </FormRow>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Context 1b: Ledger Type for Sales/Purchase groups */}
+          {groupLineage.isInventory && !groupLineage.isIncomeExpense && (
             <div className="p-3 border-t border-zinc-100 bg-white">
               <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
               <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">

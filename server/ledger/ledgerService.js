@@ -32,8 +32,9 @@ const seedDefaultLedgers = async (company_id, groups) => {
               mailing_name, address1, address2, city, state, country, pincode,
               phone, email, gstin, pan, registration_type,
               default_credit_period, check_credit_days,
-              allow_cost_centres, is_active, is_predefined
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              allow_cost_centres, invoice_rounding, rounding_method, rounding_limit,
+              is_active, is_predefined
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         company_id,
         l.group_id,
@@ -59,6 +60,9 @@ const seedDefaultLedgers = async (company_id, groups) => {
         "Unregistered",
         0,
         0,
+        0,
+        0,
+        null,
         0,
         1,
         1,
@@ -94,8 +98,9 @@ module.exports = {
                 mailing_name, address1, address2, city, state, country, pincode,
                 phone, email, gstin, pan, registration_type,
                 default_credit_period, check_credit_days,
-                allow_cost_centres, is_active, is_predefined
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                allow_cost_centres, invoice_rounding, rounding_method, rounding_limit,
+                is_active, is_predefined
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           data.company_id,
           data.group_id || null,
@@ -122,6 +127,9 @@ module.exports = {
           data.default_credit_period || 0,
           data.check_credit_days ? 1 : 0,
           data.allow_cost_centres ? 1 : 0,
+          data.invoice_rounding ? 1 : 0,
+          data.rounding_method || null,
+          data.rounding_limit || 0,
           1,
           0,
         ],
@@ -348,6 +356,9 @@ module.exports = {
                 default_credit_period = ?,
                 check_credit_days = ?,
                 allow_cost_centres = ?,
+                invoice_rounding = ?,
+                rounding_method = ?,
+                rounding_limit = ?,
                 updated_at = datetime('now')
               WHERE ledger_id = ?`,
         args: [
@@ -375,6 +386,9 @@ module.exports = {
           data.default_credit_period ?? ledger.default_credit_period ?? 0,
           data.check_credit_days ? 1 : 0,
           data.allow_cost_centres ? 1 : 0,
+          data.invoice_rounding ? 1 : 0,
+          data.rounding_method ?? ledger.rounding_method,
+          data.rounding_limit ?? ledger.rounding_limit ?? 0,
           data.ledger_id,
         ],
       });

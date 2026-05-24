@@ -88,6 +88,16 @@ const init = async (db) => {
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN allow_cost_centres INTEGER DEFAULT 0`);
   } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN invoice_rounding INTEGER DEFAULT 0`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN rounding_method TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN rounding_limit REAL DEFAULT 0`);
+  } catch (err) {}
 };
 
 module.exports = { init };
