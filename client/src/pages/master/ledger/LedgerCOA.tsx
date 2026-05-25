@@ -64,7 +64,6 @@ function LedgerDetailsGrid({ ledger }: { ledger: LedgerType }) {
         </span>
       </div>
 
-      {/* Invoice Rounding Details */}
       {ledger.invoice_rounding === 1 && (
         <>
           <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
@@ -87,7 +86,6 @@ function LedgerDetailsGrid({ ledger }: { ledger: LedgerType }) {
         </>
       )}
 
-      {/* Bank Details — shown only if present */}
       {bank && (
         <>
           <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
@@ -455,7 +453,6 @@ export default function LedgerCOA() {
 
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
         <div className="flex-1 flex flex-col min-w-0 bg-white h-full">
-          {/* Search Box */}
           <div className="px-4 py-1.5 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
             <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">Search:</span>
             <input
@@ -539,7 +536,6 @@ export default function LedgerCOA() {
           </div>
         </div>
 
-        {/* Right-Hand Sidebar */}
         <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           <button
             onClick={() => setIsLedgerView((prev) => !prev)}
@@ -587,7 +583,6 @@ export default function LedgerCOA() {
         </div>
       </div>
 
-      {/* Overlay: Change View Modal */}
       {showChangeViewModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center z-50">
           <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-80 overflow-hidden select-none animate-fadeIn">
@@ -608,7 +603,6 @@ export default function LedgerCOA() {
         </div>
       )}
 
-      {/* Overlay: Exception Reports Modal */}
       {showExceptionModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center z-50">
           <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-72 overflow-hidden select-none animate-fadeIn">
@@ -634,7 +628,6 @@ export default function LedgerCOA() {
         </div>
       )}
 
-      {/* Footer Status Bar */}
       <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none">
         <span>Total Ledgers Displayed: {isLedgerView ? flatLedgerList.length : ledgers.length}</span>
         <span>TallyPrime COA Engine v2.0 (Keyboard Enabled)</span>
