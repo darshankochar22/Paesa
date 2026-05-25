@@ -39,6 +39,28 @@ export interface MasterDataAPI {
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;
   };
 
+  gst: {
+    computeTax: (payload: any) => Promise<{
+      success: boolean;
+      is_inter_state: number;
+      party_gstin: string;
+      party_state: string;
+      total_cgst: number;
+      total_sgst: number;
+      total_igst: number;
+      total_cess: number;
+      stock_entries: any[];
+      entries: any[];
+      taxLinesBreakdown: any[];
+      error?: string;
+    }>;
+    generateGSTR1: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; export_id: number; payload: any; errors: any[]; error?: string }>;
+    getGSTR1: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; export_id: number; status: string; filed_date?: string; payload: any; errors: any[]; error?: string }>;
+    getHSNRates: (company_id: number) => Promise<{ success: boolean; hsnRates: any[]; error?: string }>;
+    upsertHSNRate: (data: any) => Promise<{ success: boolean; error?: string }>;
+    deleteHSNRate: (data: { rate_id: number; company_id: number }) => Promise<{ success: boolean; error?: string }>;
+  };
+
   master: {
     getMenu: (company_id?: number) => Promise<{ success: boolean; menu: { title: string; items: string[] }[] }>;
   };

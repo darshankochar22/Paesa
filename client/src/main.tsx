@@ -51,6 +51,7 @@ import GSTRegistrationCOA from "./pages/master/statutory/gst-registration/GSTReg
 import GSTClassificationCreate from "./pages/master/statutory/gst-classification/GSTClassificationCreate.tsx";
 import GSTClassificationAlter from "./pages/master/statutory/gst-classification/GSTClassificationAlter.tsx";
 import GSTClassificationCOA from "./pages/master/statutory/gst-classification/GSTClassificationCOA.tsx";
+import GSTR1View from "./pages/master/statutory/gst-return/GSTR1View.tsx";
 import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
 import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
 import PayrollUnitCreate from "./pages/master/payroll/payroll-unit/PayrollUnitCreate.tsx";
@@ -118,6 +119,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/create/gst-classification" element={<GSTClassificationCreate />} />
             <Route path="/master/alter/gst-classification" element={<GSTClassificationAlter />} />
             <Route path="/master/coa/gst-classification" element={<GSTClassificationCOA />} />
+            <Route path="/master/statutory/gstr1" element={<GSTR1View />} />
 
             <Route path="/master/create/group" element={<GroupCreate />}/>
             <Route path="/master/alter/group" element={<GroupAlter />}/>
