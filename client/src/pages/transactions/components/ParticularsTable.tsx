@@ -11,6 +11,7 @@ interface Props {
   activeRowId: string | null;
   isJournal?: boolean;
   onAmountConfirm?: (row: ParticularRow, index: number) => void;
+  voucherType?: string;
 }
 
 export default function ParticularsTable({
@@ -23,11 +24,13 @@ export default function ParticularsTable({
   searchTerm,
   activeRowId,
   isJournal = false,
-  onAmountConfirm
+  onAmountConfirm,
+  voucherType
 }: Props) {
 
-  const handleAmountChange = (rowId: string, value: string) => {
-    onUpdateRow(rowId, { amountRaw: value });
+  const handleAmountChange = (rowId: string, value: string, type: 'Dr' | 'Cr') => {
+    const newValue = value;
+    onUpdateRow(rowId, { amountRaw: newValue, type });
   };
 
   const handleAmountKeyDown = (e: React.KeyboardEvent, idx: number) => {
@@ -49,13 +52,23 @@ export default function ParticularsTable({
     }
   };
 
+  const formatAmount = (amount: string) => {
+    if (!amount) return "";
+    const num = parseFloat(amount);
+    if (isNaN(num)) return amount;
+    return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const isSingleEntry = ["Receipt", "Payment", "Contra"].includes(voucherType || "");
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white text-xs">
       {/* Table Header */}
       <div className="grid grid-cols-12 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-600 font-bold uppercase tracking-wider select-none text-[10px]">
-        {isJournal && <div className="col-span-1 text-center">Dr/Cr</div>}
-        <div className={isJournal ? "col-span-8" : "col-span-9"}>Particulars</div>
-        <div className="col-span-3 text-right">Amount</div>
+        <div className={isSingleEntry ? "col-span-1" : "col-span-1"}></div>
+        <div className={isSingleEntry ? "col-span-7" : "col-span-7"}>Particulars</div>
+        <div className="col-span-2 text-right">Debit</div>
+        <div className="col-span-2 text-right">Credit</div>
       </div>
 
       {/* Row Items */}
@@ -65,29 +78,42 @@ export default function ParticularsTable({
           return (
             <div
               key={row.id}
-              className="grid grid-cols-12 items-center px-3 py-1.5 hover:bg-zinc-50/50 group transition-colors min-h-[38px]"
+              className="grid grid-cols-12 items-center px-3 py-1.5 hover:bg-zinc-50/50 group transition-colors min-h-[42px]"
             >
-              {/* 1. Dr/Cr column if Journal */}
-              {isJournal && (
-                <div className="col-span-1 text-center font-bold">
-                  <select
-                    className="bg-transparent font-bold outline-none text-zinc-900 cursor-pointer"
-                    value={row.type}
-                    onChange={(e) => onUpdateRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })}
-                  >
-                    <option value="Dr">Dr</option>
-                    <option value="Cr">Cr</option>
-                  </select>
-                </div>
-              )}
+              {/* 1. Dr/Cr dropdown - Inline before ledger name */}
+              <div className={isSingleEntry ? "col-span-1" : "col-span-1"}>
+                {isSingleEntry ? (
+                  <div className="flex items-center gap-1">
+                    <select
+                      className="w-auto min-w-[48px] bg-zinc-100 hover:bg-zinc-200 focus:bg-white border border-zinc-300 rounded outline-none text-xs font-bold text-zinc-900 cursor-pointer py-1 px-2 transition-colors text-center"
+                      value={row.type}
+                      onChange={(e) => onUpdateRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })}
+                    >
+                      <option value="Dr">Dr</option>
+                      <option value="Cr">Cr</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="text-center font-bold">
+                    <select
+                      className="bg-transparent font-bold outline-none text-zinc-900 cursor-pointer"
+                      value={row.type}
+                      onChange={(e) => onUpdateRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })}
+                    >
+                      <option value="Dr">Dr</option>
+                      <option value="Cr">Cr</option>
+                    </select>
+                  </div>
+                )}
+              </div>
 
               {/* 2. Particular (Ledger Selection) */}
-              <div className={isJournal ? "col-span-8 relative flex items-center gap-1" : "col-span-9 relative flex items-center gap-1"}>
+              <div className={isSingleEntry ? "col-span-7 relative flex items-center gap-1" : "col-span-7 relative flex items-center gap-1"}>
                 <div className="flex-1 flex flex-col justify-center min-w-0">
                   <input
                     data-particular-ledger={idx + 1}
                     type="text"
-                    className="w-full bg-transparent border-b border-transparent outline-none focus:border-zinc-800 text-zinc-900 placeholder-zinc-400 py-0.5"
+                    className="w-full bg-transparent border-b border-transparent outline-none focus:border-zinc-800 text-zinc-900 placeholder-zinc-400 py-0.5 font-semibold"
                     value={isActive ? searchTerm : (row.ledger ? row.ledger.name : "")}
                     placeholder={idx === 0 ? "Select Particular Ledger..." : ""}
                     onFocus={() => onFieldFocus({ type: 'particular', rowId: row.id })}
@@ -102,7 +128,7 @@ export default function ParticularsTable({
                     </span>
                   )}
                 </div>
-                {rows.length > (isJournal ? 2 : 1) && (
+                {rows.length > 1 && (
                   <button
                     onClick={() => onRemoveRow(row.id)}
                     className="text-[10px] text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1 font-sans font-bold"
@@ -112,21 +138,47 @@ export default function ParticularsTable({
                 )}
               </div>
 
-              {/* 3. Amount Input */}
-              <div className="col-span-3 px-1">
+              {/* 3. Debit Amount Input */}
+              <div className="col-span-2 px-1">
                 <input
-                  data-particular-amount={idx + 1}
+                  data-particular-debit={idx + 1}
                   type="text"
                   className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900 font-bold"
-                  value={row.amountRaw}
+                  value={row.type === 'Dr' ? row.amountRaw : ''}
                   placeholder="0.00"
-                  onChange={(e) => handleAmountChange(row.id, e.target.value)}
+                  onChange={(e) => handleAmountChange(row.id, e.target.value, 'Dr')}
+                  onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                />
+              </div>
+
+              {/* 4. Credit Amount Input */}
+              <div className="col-span-2 px-1">
+                <input
+                  data-particular-credit={idx + 1}
+                  type="text"
+                  className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900 font-bold"
+                  value={row.type === 'Cr' ? row.amountRaw : ''}
+                  placeholder="0.00"
+                  onChange={(e) => handleAmountChange(row.id, e.target.value, 'Cr')}
                   onKeyDown={(e) => handleAmountKeyDown(e, idx)}
                 />
               </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Totals Row */}
+      <div className="border-t-2 border-zinc-300 bg-zinc-50 px-3 py-2">
+        <div className="grid grid-cols-12 items-center">
+          <div className={isSingleEntry ? "col-span-8" : "col-span-8"}></div>
+          <div className="col-span-2 text-right font-bold text-zinc-900">
+            {formatAmount(String(rows.filter(r => r.type === 'Dr').reduce((sum, r) => sum + (Number(r.amountRaw) || 0), 0)))}
+          </div>
+          <div className="col-span-2 text-right font-bold text-zinc-900">
+            {formatAmount(String(rows.filter(r => r.type === 'Cr').reduce((sum, r) => sum + (Number(r.amountRaw) || 0), 0)))}
+          </div>
+        </div>
       </div>
     </div>
   );

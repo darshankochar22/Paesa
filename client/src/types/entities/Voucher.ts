@@ -17,6 +17,9 @@ export interface VoucherRecordType {
   voucher_type: string;
   voucher_number?: string;
   date: string;
+  status?: string;
+  supplier_invoice_no?: string;
+  supplier_invoice_date?: string;
   reference_number?: string;
   reference_date?: string;
   narration?: string;

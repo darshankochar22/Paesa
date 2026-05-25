@@ -8,6 +8,7 @@ import ParticularsTable from "./components/ParticularsTable";
 import InventoryParticularsTable from "./components/InventoryParticularsTable";
 import LedgerPanel from "./components/LedgerPanel";
 import ActionFooter from "./components/ActionFooter";
+import StatusDropdown from "./components/StatusDropdown";
 import { INDIAN_STATES } from "../../constants/states";
 import { PageTitleBar, AlertBanner, RightActionPanel } from "../../components/ui";
 import { LedgerField } from "./ui";
@@ -30,19 +31,6 @@ export default function Vouchers() {
         ledgerName: form.partyLedger.name,
         amount: form.totalAmount,
         initialAllocations: [],
-      });
-      return;
-    }
-
-    // Check if we need to capture bank details first
-    const isBank = form.accountLedger && form.checkIsCashOrBank(form.accountLedger) && form.accountLedger.name.toLowerCase().includes("bank");
-    if (["Payment", "Receipt"].includes(form.voucherType) && isBank && !form.bankDetails) {
-      form.setActiveAllocation({
-        type: "bankDetails",
-        ledgerId: form.accountLedger!.ledger_id,
-        ledgerName: form.accountLedger!.name,
-        amount: form.totalAmount,
-        initialDetails: null,
       });
       return;
     }
@@ -217,16 +205,20 @@ export default function Vouchers() {
   const canAccept = useMemo(() => {
     if (form.isSubmitting) return false;
     if (["Receipt", "Payment", "Contra"].includes(form.voucherType)) {
-      return !!form.accountLedger && form.particulars.some(p => !!p.ledger && (Number(p.amountRaw) || 0) > 0);
+      const filledRows = form.particulars.filter(p => !!p.ledger && (Number(p.amountRaw) || 0) > 0);
+      const hasDebit = filledRows.some(p => p.type === 'Dr');
+      const hasCredit = filledRows.some(p => p.type === 'Cr');
+      return filledRows.length >= 2 && hasDebit && hasCredit;
     }
     if (form.voucherType === "Journal") {
-      return form.journalRows.filter(r => !!r.ledger && (Number(r.amountRaw) || 0) > 0).length >= 2;
+      return form.journalRows.filter(r => !!r.ledger && (Number(r.amountRaw) || 0) > 0).length >= 2 &&
+             Math.abs((form as any).debitTotal - (form as any).creditTotal) < 0.01;
     }
     if (["Sales", "Purchase"].includes(form.voucherType)) {
       return !!form.partyLedger && !!form.salesPurchaseLedger && form.stockEntries.some(s => !!s.stockItem && (Number(s.amountRaw) || 0) > 0);
     }
     return false;
-  }, [form.voucherType, form.accountLedger, form.particulars, form.journalRows, form.partyLedger, form.salesPurchaseLedger, form.stockEntries, form.isSubmitting]);
+  }, [form.voucherType, form.particulars, form.journalRows, form.partyLedger, form.salesPurchaseLedger, form.stockEntries, form.isSubmitting]);
 
   const panelOpen = !!form.activeField;
 
@@ -245,12 +237,17 @@ export default function Vouchers() {
   // Keyboard navigation mappings
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
+      if (e.key === "F2") { e.preventDefault(); /* Date picker handled by VoucherHeader */ }
       if (e.key === "F4") { e.preventDefault(); form.setVoucherType("Contra"); }
       if (e.key === "F5") { e.preventDefault(); form.setVoucherType("Payment"); }
       if (e.key === "F6") { e.preventDefault(); form.setVoucherType("Receipt"); }
       if (e.key === "F7") { e.preventDefault(); form.setVoucherType("Journal"); }
       if (e.key === "F8") { e.preventDefault(); form.setVoucherType("Sales"); }
       if (e.key === "F9") { e.preventDefault(); form.setVoucherType("Purchase"); }
+      if (e.key === "F11") {
+        e.preventDefault();
+        form.setStatus(prev => prev === "Regular" ? "Post-Dated" : "Regular");
+      }
 
       // Accept shortcut: Alt+A or Ctrl+A or Cmd+A
       if ((e.altKey || e.ctrlKey || e.metaKey) && (e.key === "a" || e.key === "A")) {
@@ -320,6 +317,12 @@ export default function Vouchers() {
         voucherType={form.voucherType}
         voucherNumber={form.voucherNumber}
         dateDisplay={form.dateDisplay}
+        date={form.date}
+        onDateChange={form.setDate}
+        supplierInvoiceNo={form.supplierInvoiceNo}
+        onSupplierInvoiceNoChange={form.setSupplierInvoiceNo}
+        supplierInvoiceDate={form.supplierInvoiceDate}
+        onSupplierInvoiceDateChange={form.setSupplierInvoiceDate}
       />
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
@@ -329,21 +332,9 @@ export default function Vouchers() {
           {/* 1. Single-Entry Accounting Forms (F4, F5, F6) */}
           {["Receipt", "Payment", "Contra"].includes(form.voucherType) && (
             <div className="flex-1 flex flex-col min-h-0">
-
-              {/* Account selection row */}
+              {/* Status row */}
               <div className="flex items-center min-h-[36px] border-b border-zinc-100 py-1.5 px-3 bg-zinc-50/20">
-                <span className="w-24 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Account</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <LedgerField
-                  value={form.activeField?.type === 'account' ? form.ledgerSearchTerm : (form.accountLedger?.name || "")}
-                  balance={form.accountBalance}
-                  placeholder="Select Cash / Bank Account..."
-                  onFocus={() => form.handleFieldFocus({ type: 'account' })}
-                  onChange={(v) => {
-                    form.setLedgerSearchTerm(v);
-                    if (!form.accountLedger) form.handleFieldFocus({ type: 'account' });
-                  }}
-                />
+                <StatusDropdown status={form.status} onChange={form.setStatus} />
               </div>
 
               {/* Particulars grid */}
@@ -357,6 +348,7 @@ export default function Vouchers() {
                 searchTerm={form.ledgerSearchTerm}
                 activeRowId={form.activeField?.type === 'particular' ? form.activeField.rowId : null}
                 onAmountConfirm={handleParticularAmountConfirm}
+                voucherType={form.voucherType}
               />
             </div>
           )}
@@ -364,6 +356,11 @@ export default function Vouchers() {
           {/* 2. Double-Entry Journal Matrix Form (F7) */}
           {form.voucherType === "Journal" && (
             <div className="flex-1 flex flex-col min-h-0">
+              {/* Status row */}
+              <div className="flex items-center min-h-[36px] border-b border-zinc-100 py-1.5 px-3 bg-zinc-50/20">
+                <StatusDropdown status={form.status} onChange={form.setStatus} />
+              </div>
+
               <ParticularsTable
                 rows={form.journalRows}
                 onUpdateRow={form.handleUpdateJournalRow}
@@ -382,6 +379,11 @@ export default function Vouchers() {
           {/* 3. Inventory Stock Invoice Layouts (F8 Sales, F9 Purchase) */}
           {["Sales", "Purchase"].includes(form.voucherType) && (
             <div className="flex-1 flex flex-col min-h-0">
+
+              {/* Status row */}
+              <div className="flex items-center min-h-[36px] border-b border-zinc-100 py-1.5 px-3 bg-zinc-50/20">
+                <StatusDropdown status={form.status} onChange={form.setStatus} />
+              </div>
 
               {/* Party & Sales / Purchase details grid */}
               <div className="grid grid-cols-2 gap-4 p-3 border-b border-zinc-200 bg-zinc-50/20">
@@ -518,7 +520,15 @@ export default function Vouchers() {
             checkIsCashOrBank={form.checkIsCashOrBank}
             checkLedgerGroup={form.checkLedgerGroup}
             voucherType={form.voucherType}
-            onInlineCreate={() => navigate("/master/create/ledger")}
+            onInlineCreate={(type) => {
+              if (type === "stockItem") {
+                navigate("/master/create/stock-item");
+              } else if (type === "godown") {
+                navigate("/master/create/godown");
+              } else {
+                navigate("/master/create/ledger");
+              }
+            }}
           />
         )}
 

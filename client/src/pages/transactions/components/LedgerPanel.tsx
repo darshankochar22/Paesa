@@ -72,12 +72,9 @@ export default function LedgerPanel({
     // Ledgers filtering logic
     let tempLedgers = ledgers;
 
-    if (activeField?.type === "account") {
-      // Top Account: Strictly Cash/Bank
-      tempLedgers = ledgers.filter(l => checkIsCashOrBank(l));
-    } else if (activeField?.type === "particular") {
+    if (activeField?.type === "particular") {
       if (voucherType === "Contra") {
-        // Contra: Strictly Cash/Bank on both sides
+        // Contra: Strictly Cash/Bank on all rows
         tempLedgers = ledgers.filter(l => checkIsCashOrBank(l));
       } else if (voucherType === "Payment" || voucherType === "Receipt") {
         // Payment/Receipt: Strictly general (non-Cash/Bank) ledgers
@@ -170,43 +167,50 @@ export default function LedgerPanel({
         {!loading && itemsList.length === 0 && (
           <div className="px-3 py-3 text-xs text-zinc-400 italic">No matching items found</div>
         )}
-        {!loading && itemsList.map((item, idx) => {
-          const isSelected = idx === highlightIndex;
-          return (
-            <div
-              key={item.ledger_id || item.item_id || item.godown_id}
-              className={`px-3 py-2 text-xs cursor-pointer flex justify-between items-center transition-colors ${
-                isSelected ? "bg-zinc-900 text-white font-medium" : "hover:bg-zinc-50 text-zinc-800"
-              }`}
-              onClick={() => onSelect(item)}
-              onMouseEnter={() => setHighlightIndex(idx)}
-            >
-              <div className="flex flex-col min-w-0">
-                <span className="truncate text-xs">{item.name}</span>
-                {item.alias && (
-                  <span className={`text-[10px] truncate ${isSelected ? "text-zinc-300" : "text-zinc-400"}`}>
-                    ({item.alias})
+          {!loading && itemsList.map((item, idx) => {
+            const isSelected = idx === highlightIndex;
+            const balance = (item as LedgerType).closing_balance || (item as LedgerType).opening_balance;
+            const balanceDisplay = balance ? (balance > 0 ? `${Math.abs(balance).toLocaleString('en-IN', { maximumFractionDigits: 2 })} Dr` : `${Math.abs(balance).toLocaleString('en-IN', { maximumFractionDigits: 2 })} Cr`) : '';
+            return (
+              <div
+                key={item.ledger_id || item.item_id || item.godown_id}
+                className={`px-3 py-2 text-xs cursor-pointer flex justify-between items-center transition-colors ${
+                  isSelected ? "bg-zinc-900 text-white font-medium" : "hover:bg-zinc-50 text-zinc-800"
+                }`}
+                onClick={() => onSelect(item)}
+                onMouseEnter={() => setHighlightIndex(idx)}
+              >
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="truncate text-xs">{item.name}</span>
+                  {item.alias && (
+                    <span className={`text-[10px] truncate ${isSelected ? "text-zinc-300" : "text-zinc-400"}`}>
+                      ({item.alias})
+                    </span>
+                  )}
+                  {!isStockItem && !isGodown && balanceDisplay && (
+                    <span className={`text-[10px] ${isSelected ? "text-zinc-300" : "text-zinc-500"} font-sans italic`}>
+                      Bal: {balanceDisplay}
+                    </span>
+                  )}
+                </div>
+                {/* Extra context metadata based on type */}
+                {!isStockItem && !isGodown && item.group_name && (
+                  <span className={`text-[10px] shrink-0 ml-2 font-sans px-1.5 py-0.5 rounded ${
+                    isSelected ? "bg-zinc-800 text-zinc-300" : "bg-zinc-100 text-zinc-600"
+                  }`}>
+                    {item.group_name}
+                  </span>
+                )}
+                {isStockItem && item.part_number && (
+                  <span className={`text-[10px] shrink-0 ml-2 font-sans px-1.5 py-0.5 rounded ${
+                    isSelected ? "bg-zinc-800 text-zinc-300" : "bg-zinc-100 text-zinc-600"
+                  }`}>
+                    {item.part_number}
                   </span>
                 )}
               </div>
-              {/* Extra context metadata based on type */}
-              {!isStockItem && !isGodown && item.group_name && (
-                <span className={`text-[10px] shrink-0 ml-2 font-sans px-1.5 py-0.5 rounded ${
-                  isSelected ? "bg-zinc-800 text-zinc-300" : "bg-zinc-100 text-zinc-600"
-                }`}>
-                  {item.group_name}
-                </span>
-              )}
-              {isStockItem && item.part_number && (
-                <span className={`text-[10px] shrink-0 ml-2 font-sans px-1.5 py-0.5 rounded ${
-                  isSelected ? "bg-zinc-800 text-zinc-300" : "bg-zinc-100 text-zinc-600"
-                }`}>
-                  {item.part_number}
-                </span>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
 
       <div className="px-3 py-1.5 text-[10px] text-zinc-400 border-t border-zinc-100 bg-zinc-50 select-none uppercase tracking-wider font-semibold">

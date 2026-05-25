@@ -7,6 +7,9 @@ const init = async (db) => {
       voucher_type            TEXT NOT NULL,
       voucher_number          TEXT,
       date                    TEXT NOT NULL,
+      status                  TEXT DEFAULT 'Regular',
+      supplier_invoice_no     TEXT,
+      supplier_invoice_date   TEXT,
       reference_number        TEXT,
       reference_date          TEXT,
       narration               TEXT,
@@ -107,6 +110,18 @@ const init = async (db) => {
       amount          REAL DEFAULT 0
     )
   `);
+
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN status TEXT DEFAULT 'Regular'`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN supplier_invoice_no TEXT`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN supplier_invoice_date TEXT`);
+  } catch (err) {}
 };
 
 module.exports = { init };

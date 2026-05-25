@@ -99,18 +99,22 @@ module.exports = {
       try {
         const result = await db.execute({
           sql: `INSERT INTO vouchers (
-                  company_id, fy_id, voucher_type, voucher_number, date,
+                  company_id, fy_id, voucher_type, voucher_number, date, status,
+                  supplier_invoice_no, supplier_invoice_date,
                   reference_number, reference_date, narration,
                   party_ledger_id, party_name, place_of_supply,
                   is_invoice, is_accounting_voucher, is_inventory_voucher,
                   is_order_voucher, is_cancelled, is_optional, is_post_dated
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
           args: [
             data.company_id,
             data.fy_id,
             data.voucher_type,
             voucher_number,
             data.date,
+            nullify(data.status) || 'Regular',
+            nullify(data.supplier_invoice_no) || null,
+            nullify(data.supplier_invoice_date) || null,
             nullify(data.reference_number) || null,
             nullify(data.reference_date) || null,
             nullify(data.narration) || null,

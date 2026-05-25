@@ -70,7 +70,10 @@ export function useVoucherForm() {
   });
   const [voucherNumber, setVoucherNumber] = useState<number>(1);
   const [voucherNumberLoading, setVoucherNumberLoading] = useState(true);
-  const [date] = useState<string>(todayStr());
+  const [date, setDate] = useState<string>(todayStr());
+  const [status, setStatus] = useState<"Regular" | "Post-Dated">("Regular");
+  const [supplierInvoiceNo, setSupplierInvoiceNo] = useState<string>("");
+  const [supplierInvoiceDate, setSupplierInvoiceDate] = useState<string>("");
   const [narration, setNarration] = useState<string>(
     () => loadFormState<any>(persistKey ?? "")?.narration ?? ""
   );
@@ -109,15 +112,13 @@ export function useVoucherForm() {
   const [activeField, setActiveField] = useState<ActiveField | null>(null);
 
   // Layout-specific States
-  // 1. Single-Entry (Receipt F6, Payment F5, Contra F4)
-  const [accountLedger, setAccountLedger] = useState<LedgerType | null>(
-    () => loadFormState<any>(persistKey ?? "")?.accountLedger ?? null
-  );
+  // 1. Single-Entry (Receipt F6, Payment F5, Contra F4) - No top-level account field
+  const [accountLedger, setAccountLedger] = useState<LedgerType | null>(null);
   const [accountBalance, setAccountBalance] = useState<string>("");
   const [particulars, setParticulars] = useState<ParticularRow[]>(() => {
     const saved = loadFormState<any>(persistKey ?? "");
     if (saved?.particulars?.length) return saved.particulars;
-    return [{ id: nextId(), type: 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }];
+    return [{ id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" }];
   });
 
   // 2. Double-Entry (Journal F7)
@@ -162,7 +163,9 @@ export function useVoucherForm() {
     placeOfSupply,
     partyBillReferences,
     bankDetails,
-  }), [voucherType, narration, accountLedger, particulars, journalRows, partyLedger, salesPurchaseLedger, stockEntries, additionalEntries, referenceNumber, placeOfSupply, partyBillReferences, bankDetails]);
+    supplierInvoiceNo,
+    supplierInvoiceDate,
+  }), [voucherType, narration, accountLedger, particulars, journalRows, partyLedger, salesPurchaseLedger, stockEntries, additionalEntries, referenceNumber, placeOfSupply, partyBillReferences, bankDetails, supplierInvoiceNo, supplierInvoiceDate]);
 
   // Context loading
   const fetchContextData = useCallback(async () => {
@@ -282,16 +285,6 @@ export function useVoucherForm() {
     return checkLedgerGroup(ledger, ["bank accounts", "bank od accounts", "bank od a/c", "bank od account", "cash-in-hand"]);
   }, [checkLedgerGroup]);
 
-  // Adjust row type default based on voucher type
-  useEffect(() => {
-    if (voucherType === "Receipt") {
-      setParticulars(prev => prev.map(p => ({ ...p, type: 'Cr' })));
-    } else if (voucherType === "Payment") {
-      setParticulars(prev => prev.map(p => ({ ...p, type: 'Dr' })));
-    } else if (voucherType === "Contra") {
-      setParticulars(prev => prev.map(p => ({ ...p, type: 'Cr' })));
-    }
-  }, [voucherType]);
 
   // Grand Total Computations
   const totalAmount = useMemo(() => {
@@ -313,10 +306,30 @@ export function useVoucherForm() {
     return particulars.reduce((sum, p) => sum + (Number(p.amountRaw) || 0), 0);
   }, [voucherType, particulars, journalRows, stockEntries, additionalEntries]);
 
+  const debitTotal = useMemo(() => {
+    if (["Receipt", "Payment", "Contra", "Journal"].includes(voucherType)) {
+      return particulars.reduce((sum, p) => sum + (p.type === 'Dr' ? (Number(p.amountRaw) || 0) : 0), 0);
+    }
+    if (voucherType === "Journal") {
+      return journalRows.reduce((sum, r) => sum + (r.type === 'Dr' ? (Number(r.amountRaw) || 0) : 0), 0);
+    }
+    return 0;
+  }, [voucherType, particulars, journalRows]);
+
+  const creditTotal = useMemo(() => {
+    if (["Receipt", "Payment", "Contra", "Journal"].includes(voucherType)) {
+      return particulars.reduce((sum, p) => sum + (p.type === 'Cr' ? (Number(p.amountRaw) || 0) : 0), 0);
+    }
+    if (voucherType === "Journal") {
+      return journalRows.reduce((sum, r) => sum + (r.type === 'Cr' ? (Number(r.amountRaw) || 0) : 0), 0);
+    }
+    return 0;
+  }, [voucherType, particulars, journalRows]);
+
   // Add / Edit handlers
   const handleAddParticularRow = useCallback(() => {
-    setParticulars(prev => [...prev, { id: nextId(), type: voucherType === "Payment" ? 'Dr' : 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }]);
-  }, [voucherType]);
+    setParticulars(prev => [...prev, { id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" }]);
+  }, []);
 
   const handleUpdateParticularRow = useCallback(async (id: string, updates: Partial<Omit<ParticularRow, 'id'>>) => {
     setParticulars(prev => prev.map(p => {
@@ -470,7 +483,7 @@ export function useVoucherForm() {
     setPartyBalance("");
     setSalesPurchaseLedger(null);
     setSalesPurchaseBalance("");
-    setParticulars([{ id: nextId(), type: voucherType === "Payment" ? 'Dr' : 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }]);
+    setParticulars([{ id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" }]);
     setJournalRows([
       { id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" },
       { id: nextId(), type: 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }
@@ -489,6 +502,10 @@ export function useVoucherForm() {
     setActiveField(null);
     setLedgerSearchTerm("");
     setStockSearchTerm("");
+    setSupplierInvoiceNo("");
+    setSupplierInvoiceDate("");
+    setStatus("Regular");
+    setDate(todayStr());
     fetchNextNumber();
   }, [voucherType, fetchNextNumber, persistKey]);
 
@@ -503,24 +520,21 @@ export function useVoucherForm() {
 
     // 1. Single-Entry Validations (Receipt, Payment, Contra)
     if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
-      if (!accountLedger) return "Account Name is required";
-      if (!checkIsCashOrBank(accountLedger)) return "Top Account must be a Cash or Bank ledger";
-
       const filledRows = particulars.filter(p => p.ledger && Number(p.amountRaw) > 0);
-      if (filledRows.length === 0) return "No particulars entered";
-
-      for (const row of filledRows) {
-        if (row.ledger?.ledger_id === accountLedger.ledger_id) {
-          return "Same ledger cannot be used in both Account and Particulars";
-        }
-        if (voucherType === "Contra" && !checkIsCashOrBank(row.ledger)) {
-          return "Contra vouchers strictly restrict both sides to Cash/Bank ledgers";
-        }
-        if (["Receipt", "Payment"].includes(voucherType) && checkIsCashOrBank(row.ledger)) {
-          return `${voucherType} vouchers restrict row Particulars to non-Cash/Bank ledgers`;
+      if (filledRows.length < 2) return "At least two ledger entries are required (one Debit and one Credit)";
+      
+      if (voucherType === "Contra") {
+        for (const row of filledRows) {
+          if (!checkIsCashOrBank(row.ledger)) {
+            return "Contra vouchers strictly restrict all ledgers to Cash/Bank accounts";
+          }
         }
       }
-      if (totalAmount <= 0) return "Total amount must be greater than 0";
+      
+      if (Math.abs(debitTotal - creditTotal) > 0.01) {
+        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) amounts must be exactly equal`;
+      }
+      if (debitTotal <= 0) return "Total amount must be greater than 0";
     }
 
     // 2. Journal Validations (F7)
@@ -528,13 +542,10 @@ export function useVoucherForm() {
       const filled = journalRows.filter(r => r.ledger && Number(r.amountRaw) > 0);
       if (filled.length < 2) return "At least two valid Journal ledger entries are required";
       
-      const drTotal = journalRows.reduce((sum, r) => sum + (r.type === 'Dr' ? (Number(r.amountRaw) || 0) : 0), 0);
-      const crTotal = journalRows.reduce((sum, r) => sum + (r.type === 'Cr' ? (Number(r.amountRaw) || 0) : 0), 0);
-      
-      if (Math.abs(drTotal - crTotal) > 0.01) {
-        return `Debit (${drTotal.toFixed(2)}) and Credit (${crTotal.toFixed(2)}) amounts must be exactly equal`;
+      if (Math.abs(debitTotal - creditTotal) > 0.01) {
+        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) amounts must be exactly equal`;
       }
-      if (drTotal <= 0) return "Journal amount must be greater than 0";
+      if (debitTotal <= 0) return "Journal amount must be greater than 0";
     }
 
     // 3. Sales & Purchase Validations (F8, F9)
@@ -552,7 +563,7 @@ export function useVoucherForm() {
     }
 
     return null;
-  }, [voucherType, accountLedger, particulars, journalRows, stockEntries, partyLedger, salesPurchaseLedger, totalAmount, companyId, fyId, checkIsCashOrBank]);
+  }, [voucherType, accountLedger, particulars, journalRows, stockEntries, partyLedger, salesPurchaseLedger, totalAmount, debitTotal, creditTotal, companyId, fyId, checkIsCashOrBank]);
 
   const handleSubmit = useCallback(async () => {
     const validationError = validate();
@@ -570,29 +581,15 @@ export function useVoucherForm() {
       if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
         const filledRows = particulars.filter(p => p.ledger && Number(p.amountRaw) > 0);
         
-        // Receipt: Top Account is DEBITED, Particulars are CREDITED
-        // Payment: Top Account is CREDITED, Particulars are DEBITED
-        // Contra: Top Account is DEBITED (if RCT style) / CREDITED (if PMT style)
-        const topAccountType = voucherType === "Payment" ? 'Cr' : 'Dr';
-        const rowsType = voucherType === "Payment" ? 'Dr' : 'Cr';
-
-        entries = [
-          {
-            ledger_id: accountLedger!.ledger_id,
-            ledger_name: accountLedger!.name,
-            type: topAccountType,
-            amount: totalAmount,
-            currency: 'INR',
-          },
-          ...filledRows.map(p => ({
-            ledger_id: p.ledger!.ledger_id,
-            ledger_name: p.ledger!.name,
-            type: rowsType,
-            amount: Number(p.amountRaw),
-            currency: 'INR',
-            cost_centres: p.costCentres,
-          })),
-        ];
+        // All entries come from particulars with their own Dr/Cr type
+        entries = filledRows.map(p => ({
+          ledger_id: p.ledger!.ledger_id,
+          ledger_name: p.ledger!.name,
+          type: p.type,
+          amount: Number(p.amountRaw),
+          currency: 'INR',
+          cost_centres: p.costCentres,
+        }));
       } else if (voucherType === "Journal") {
         const filled = journalRows.filter(r => r.ledger && Number(r.amountRaw) > 0);
         entries = filled.map(r => ({
@@ -674,6 +671,9 @@ export function useVoucherForm() {
         fy_id: fyId!,
         voucher_type: voucherType,
         date,
+        status,
+        supplier_invoice_no: supplierInvoiceNo || null,
+        supplier_invoice_date: supplierInvoiceDate || null,
         reference_number: referenceNumber || null,
         reference_date: referenceDate || null,
         place_of_supply: placeOfSupply !== "Select" ? placeOfSupply : null,
@@ -683,6 +683,7 @@ export function useVoucherForm() {
         is_accounting_voucher: 1,
         is_invoice: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
         is_inventory_voucher: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
+        is_post_dated: status === "Post-Dated" ? 1 : 0,
         entries,
         stock_entries,
         bill_references: finalBillReferences.length > 0 ? finalBillReferences : undefined,
@@ -708,6 +709,9 @@ export function useVoucherForm() {
     fyId,
     voucherType,
     date,
+    status,
+    supplierInvoiceNo,
+    supplierInvoiceDate,
     referenceNumber,
     referenceDate,
     placeOfSupply,
@@ -735,7 +739,14 @@ export function useVoucherForm() {
     voucherNumber,
     voucherNumberLoading,
     date,
+    setDate,
     dateDisplay,
+    status,
+    setStatus,
+    supplierInvoiceNo,
+    setSupplierInvoiceNo,
+    supplierInvoiceDate,
+    setSupplierInvoiceDate,
     narration,
     setNarration,
     totalAmount,
