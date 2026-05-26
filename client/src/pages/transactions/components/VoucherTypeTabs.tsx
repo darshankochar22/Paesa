@@ -1,3 +1,7 @@
+// NOTE: This component is no longer used in Vouchers.tsx — the voucher type
+// switcher is now the inline RightSidebar (F4–F9 buttons). Keep this file
+// only if other screens still import it; otherwise safe to delete.
+
 interface Props {
   activeType: string;
   onChange: (type: string) => void;

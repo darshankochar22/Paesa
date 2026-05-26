@@ -9,8 +9,6 @@ import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationP
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
 
-// ─── Right sidebar ────────────────────────────────────────────────────────────
-
 function RightSidebar({
   voucherType,
   onTypeChange,
