@@ -3,17 +3,26 @@ import { useCompany } from "../../../context/CompanyContext";
 import { loadFormState, saveFormState, clearFormState } from "../../../utils/formPersistence";
 import type { LedgerType, GroupType, StockItemType, GodownType, UnitType } from "../../../types/api";
 
+// ─── ID factory ──────────────────────────────────────────────────────────────
+
 let idCounter = 0;
 const nextId = () => `row_${++idCounter}_${Date.now()}`;
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 export interface ParticularRow {
   id: string;
-  type: 'Dr' | 'Cr';
+  type: "Dr" | "Cr";
   ledger: LedgerType | null;
   ledgerBalance: string;
   amountRaw: string;
-  costCentres?: { cost_centre_id: number; amount: number; }[];
-  billReferences?: { bill_name: string; bill_type: "New Ref" | "Agst Ref" | "Advance" | "On Account"; amount: number; credit_period?: string; }[];
+  costCentres?: { cost_centre_id: number; amount: number }[];
+  billReferences?: {
+    bill_name: string;
+    bill_type: "New Ref" | "Agst Ref" | "Advance" | "On Account";
+    amount: number;
+    credit_period?: string;
+  }[];
 }
 
 export interface StockEntryRow {
@@ -27,22 +36,53 @@ export interface StockEntryRow {
 }
 
 export type ActiveField =
-  | { type: 'account' }
-  | { type: 'party' }
-  | { type: 'salesPurchase' }
-  | { type: 'particular'; rowId: string }
-  | { type: 'additional'; rowId: string }
-  | { type: 'stockItem'; rowId: string }
-  | { type: 'stockGodown'; rowId: string };
+  | { type: "account" }
+  | { type: "party" }
+  | { type: "salesPurchase" }
+  | { type: "particular"; rowId: string }
+  | { type: "additional"; rowId: string }
+  | { type: "stockItem"; rowId: string }
+  | { type: "stockGodown"; rowId: string };
 
 export type ActiveAllocation =
-  | { type: 'billWise'; rowId: string; ledgerId: number; ledgerName: string; amount: number; initialAllocations?: any[] }
-  | { type: 'billWiseParty'; ledgerId: number; ledgerName: string; amount: number; initialAllocations?: any[] }
-  | { type: 'costCentre'; rowId: string; ledgerId: number; ledgerName: string; amount: number; initialAllocations?: any[] }
-  | { type: 'bankDetails'; ledgerId: number; ledgerName: string; amount: number; initialDetails?: any }
+  | {
+      type: "billWise";
+      rowId: string;
+      ledgerId: number;
+      ledgerName: string;
+      amount: number;
+      initialAllocations?: any[];
+    }
+  | {
+      type: "billWiseParty";
+      ledgerId: number;
+      ledgerName: string;
+      amount: number;
+      initialAllocations?: any[];
+    }
+  | {
+      type: "costCentre";
+      rowId: string;
+      ledgerId: number;
+      ledgerName: string;
+      amount: number;
+      initialAllocations?: any[];
+    }
+  | {
+      type: "bankDetails";
+      ledgerId: number;
+      ledgerName: string;
+      amount: number;
+      initialDetails?: any;
+    }
   | null;
 
-const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const monthNames = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
 const formatDateDisplay = (dateStr: string | undefined): string => {
   if (!dateStr) return "";
@@ -53,8 +93,30 @@ const formatDateDisplay = (dateStr: string | undefined): string => {
 
 const todayStr = (): string => {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+
+// ─── Default row factories ────────────────────────────────────────────────────
+
+const makeParticularRow = (type: "Dr" | "Cr" = "Dr"): ParticularRow => ({
+  id: nextId(),
+  type,
+  ledger: null,
+  ledgerBalance: "",
+  amountRaw: "",
+});
+
+const makeStockRow = (): StockEntryRow => ({
+  id: nextId(),
+  stockItem: null,
+  godown: null,
+  unit: null,
+  quantityRaw: "",
+  rateRaw: "",
+  amountRaw: "",
+});
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useVoucherForm() {
   const { selectedCompany, activeFY } = useCompany();
@@ -62,13 +124,17 @@ export function useVoucherForm() {
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
   const persistKey = companyId ? `voucherForm_${companyId}` : null;
+
+  // Track whether the very first render has passed so the auto-save effect
+  // does not immediately overwrite the just-restored state.
   const hasRestored = useRef(false);
 
-  // Basic Voucher Details
-  const [voucherType, setVoucherType] = useState<string>(() => {
-    return loadFormState<any>(persistKey ?? "")?.voucherType ?? "Receipt";
-  });
-  const [voucherNumber, setVoucherNumber] = useState<number>(1);
+  // ── Basic voucher meta ──────────────────────────────────────────────────────
+
+  const [voucherType, setVoucherType] = useState<string>(
+    () => loadFormState<any>(persistKey ?? "")?.voucherType ?? "Receipt"
+  );
+  const [voucherNumber, setVoucherNumber] = useState<string>("1");
   const [voucherNumberLoading, setVoucherNumberLoading] = useState(true);
   const [date, setDate] = useState<string>(todayStr());
   const [status, setStatus] = useState<"Regular" | "Post-Dated">("Regular");
@@ -81,7 +147,8 @@ export function useVoucherForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Advanced Allocations State
+  // ── Advanced allocation state ───────────────────────────────────────────────
+
   const [activeAllocation, setActiveAllocation] = useState<ActiveAllocation>(null);
   const [partyBillReferences, setPartyBillReferences] = useState<any[]>(
     () => loadFormState<any>(persistKey ?? "")?.partyBillReferences ?? []
@@ -90,7 +157,8 @@ export function useVoucherForm() {
     () => loadFormState<any>(persistKey ?? "")?.bankDetails ?? null
   );
 
-  // References (For F8/F9 Invoice layouts)
+  // ── Reference / invoice fields ─────────────────────────────────────────────
+
   const [referenceNumber, setReferenceNumber] = useState<string>(
     () => loadFormState<any>(persistKey ?? "")?.referenceNumber ?? ""
   );
@@ -99,75 +167,95 @@ export function useVoucherForm() {
     () => loadFormState<any>(persistKey ?? "")?.placeOfSupply ?? "Select"
   );
 
-  // Selection Data Lists
+  // ── Master data lists ───────────────────────────────────────────────────────
+
   const [allLedgers, setAllLedgers] = useState<LedgerType[]>([]);
   const [allGroups, setAllGroups] = useState<GroupType[]>([]);
   const [allStockItems, setAllStockItems] = useState<StockItemType[]>([]);
   const [allGodowns, setAllGodowns] = useState<GodownType[]>([]);
   const [allUnits, setAllUnits] = useState<UnitType[]>([]);
-
   const [ledgersLoading, setLedgersLoading] = useState(false);
+
+  // ── Search / active field ───────────────────────────────────────────────────
+
   const [ledgerSearchTerm, setLedgerSearchTerm] = useState("");
   const [stockSearchTerm, setStockSearchTerm] = useState("");
   const [activeField, setActiveField] = useState<ActiveField | null>(null);
 
-  // Layout-specific States
-  // 1. Single-Entry (Receipt F6, Payment F5, Contra F4) - No top-level account field
+  // ── Layout 1: Single-entry (Receipt F6, Payment F5, Contra F4) ─────────────
+
   const [accountLedger, setAccountLedger] = useState<LedgerType | null>(null);
   const [accountBalance, setAccountBalance] = useState<string>("");
+
   const [particulars, setParticulars] = useState<ParticularRow[]>(() => {
     const saved = loadFormState<any>(persistKey ?? "");
-    if (saved?.particulars?.length) return saved.particulars;
-    return [{ id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" }];
+    return saved?.particulars?.length ? saved.particulars : [makeParticularRow("Dr")];
   });
 
-  // 2. Double-Entry (Journal F7)
+  // ── Layout 2: Double-entry Journal (F7) ────────────────────────────────────
+
   const [journalRows, setJournalRows] = useState<ParticularRow[]>(() => {
     const saved = loadFormState<any>(persistKey ?? "");
-    if (saved?.journalRows?.length) return saved.journalRows;
-    return [
-      { id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" },
-      { id: nextId(), type: 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }
-    ];
+    return saved?.journalRows?.length
+      ? saved.journalRows
+      : [makeParticularRow("Dr"), makeParticularRow("Cr")];
   });
 
-  // 3. Inventory Mode (Sales F8, Purchase F9)
+  // ── Layout 3: Inventory invoice (Sales F8, Purchase F9) ───────────────────
+
   const [partyLedger, setPartyLedger] = useState<LedgerType | null>(
     () => loadFormState<any>(persistKey ?? "")?.partyLedger ?? null
   );
   const [partyBalance, setPartyBalance] = useState<string>("");
+
   const [salesPurchaseLedger, setSalesPurchaseLedger] = useState<LedgerType | null>(
     () => loadFormState<any>(persistKey ?? "")?.salesPurchaseLedger ?? null
   );
   const [salesPurchaseBalance, setSalesPurchaseBalance] = useState<string>("");
+
   const [stockEntries, setStockEntries] = useState<StockEntryRow[]>(() => {
     const saved = loadFormState<any>(persistKey ?? "");
-    if (saved?.stockEntries?.length) return saved.stockEntries;
-    return [{ id: nextId(), stockItem: null, godown: null, unit: null, quantityRaw: "", rateRaw: "", amountRaw: "" }];
+    return saved?.stockEntries?.length ? saved.stockEntries : [makeStockRow()];
   });
+
   const [additionalEntries, setAdditionalEntries] = useState<ParticularRow[]>(
     () => loadFormState<any>(persistKey ?? "")?.additionalEntries ?? []
   );
 
-  const getSnapshot = useCallback(() => ({
-    voucherType,
-    narration,
-    accountLedger,
-    particulars,
-    journalRows,
-    partyLedger,
-    salesPurchaseLedger,
-    stockEntries,
-    additionalEntries,
-    referenceNumber,
-    placeOfSupply,
-    partyBillReferences,
-    bankDetails,
-    supplierInvoiceNo,
-    supplierInvoiceDate,
-  }), [voucherType, narration, accountLedger, particulars, journalRows, partyLedger, salesPurchaseLedger, stockEntries, additionalEntries, referenceNumber, placeOfSupply, partyBillReferences, bankDetails, supplierInvoiceNo, supplierInvoiceDate]);
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Persistence snapshot
+  // ─────────────────────────────────────────────────────────────────────────────
 
-  // Context loading
+  const getSnapshot = useCallback(
+    () => ({
+      voucherType,
+      narration,
+      accountLedger,
+      particulars,
+      journalRows,
+      partyLedger,
+      salesPurchaseLedger,
+      stockEntries,
+      additionalEntries,
+      referenceNumber,
+      placeOfSupply,
+      partyBillReferences,
+      bankDetails,
+      supplierInvoiceNo,
+      supplierInvoiceDate,
+    }),
+    [
+      voucherType, narration, accountLedger, particulars, journalRows,
+      partyLedger, salesPurchaseLedger, stockEntries, additionalEntries,
+      referenceNumber, placeOfSupply, partyBillReferences, bankDetails,
+      supplierInvoiceNo, supplierInvoiceDate,
+    ]
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Data fetching
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const fetchContextData = useCallback(async () => {
     if (!companyId) return;
     setLedgersLoading(true);
@@ -179,13 +267,13 @@ export function useVoucherForm() {
         window.api.godown.getAll(companyId),
         window.api.unit.getAll(companyId),
       ]);
-      if (ledRes.success) setAllLedgers((ledRes as any).ledgers || []);
-      if (grpRes.success) setAllGroups((grpRes as any).groups || []);
-      if (itemRes.success) setAllStockItems((itemRes as any).stockItems || []);
-      if (godRes.success) setAllGodowns((godRes as any).godowns || []);
-      if (unitRes.success) setAllUnits((unitRes as any).units || []);
+      if (ledRes.success) setAllLedgers((ledRes as any).ledgers ?? []);
+      if (grpRes.success) setAllGroups((grpRes as any).groups ?? []);
+      if (itemRes.success) setAllStockItems((itemRes as any).stockItems ?? []);
+      if (godRes.success) setAllGodowns((godRes as any).godowns ?? []);
+      if (unitRes.success) setAllUnits((unitRes as any).units ?? []);
     } catch {
-      // ignore
+      // silently ignore — user can retry
     } finally {
       setLedgersLoading(false);
     }
@@ -193,10 +281,11 @@ export function useVoucherForm() {
 
   const fetchNextNumber = useCallback(async () => {
     if (!companyId || !fyId) return;
+    setVoucherNumberLoading(true);
     try {
       const res = await window.api.voucher.getNextNumber(companyId, fyId, voucherType);
-      if (res.success && res.nextNumber != null) {
-        setVoucherNumber(res.nextNumber);
+      if (res.success && res.voucher_number) {
+        setVoucherNumber(String(res.voucher_number));
       }
     } catch {
       // ignore
@@ -205,34 +294,51 @@ export function useVoucherForm() {
     }
   }, [companyId, fyId, voucherType]);
 
-  const fetchLedgerBalance = useCallback(async (ledgerId: number): Promise<string> => {
-    if (!companyId || !fyId) return "";
-    try {
-      const res = await window.api.voucher.getLedgerBalance(ledgerId, companyId, fyId);
-      if (res.success && res.balance != null) return res.balance;
-    } catch {
-      // ignore
-    }
-    return "";
-  }, [companyId, fyId]);
+  const fetchLedgerBalance = useCallback(
+    async (ledgerId: number): Promise<string> => {
+      if (!companyId || !fyId) return "";
+      try {
+        const res = await window.api.voucher.getLedgerBalance(ledgerId, companyId, fyId);
+        if (res.success && res.balance != null) return String(res.balance);
+      } catch {
+        // ignore
+      }
+      return "";
+    },
+    [companyId, fyId]
+  );
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Effects
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Initial load
   useEffect(() => {
     fetchContextData();
     fetchNextNumber();
   }, [fetchContextData, fetchNextNumber]);
 
-  // Auto-save form state to sessionStorage (skip first render: restoration just happened)
+  // Auto-save — skip the very first render (restoration just happened)
   useEffect(() => {
     if (!persistKey) return;
     if (!hasRestored.current) {
       hasRestored.current = true;
       return;
     }
-    const snapshot = getSnapshot();
-    saveFormState(persistKey, snapshot);
+    saveFormState(persistKey, getSnapshot());
   }, [persistKey, getSnapshot]);
 
-  // Balance Sync Hooks
+  // Reset form when voucher type changes
+  const prevVoucherType = useRef(voucherType);
+  useEffect(() => {
+    if (prevVoucherType.current !== voucherType) {
+      prevVoucherType.current = voucherType;
+      // resetForm() is defined later — we call it via ref to avoid circular deps
+      resetFormRef.current?.();
+    }
+  }, [voucherType]);
+
+  // Balance sync: account ledger
   useEffect(() => {
     if (accountLedger?.ledger_id) {
       fetchLedgerBalance(accountLedger.ledger_id).then(setAccountBalance);
@@ -241,260 +347,387 @@ export function useVoucherForm() {
     }
   }, [accountLedger, fetchLedgerBalance]);
 
+  // Balance sync: party ledger
   useEffect(() => {
     if (partyLedger?.ledger_id) {
-      fetchLedgerBalance(partyLedger.ledger_id).then(partyBal => setPartyBalance(partyBal));
+      fetchLedgerBalance(partyLedger.ledger_id).then(setPartyBalance);
     } else {
       setPartyBalance("");
     }
   }, [partyLedger, fetchLedgerBalance]);
 
+  // Balance sync: sales/purchase ledger
   useEffect(() => {
     if (salesPurchaseLedger?.ledger_id) {
-      fetchLedgerBalance(salesPurchaseLedger.ledger_id).then(spBal => setSalesPurchaseBalance(spBal));
+      fetchLedgerBalance(salesPurchaseLedger.ledger_id).then(setSalesPurchaseBalance);
     } else {
       setSalesPurchaseBalance("");
     }
   }, [salesPurchaseLedger, fetchLedgerBalance]);
 
-  // Lineage Helper: Checks recursively if a ledger's group belongs to any target groups
-  const checkLedgerGroup = useCallback((ledger: LedgerType | null, targetGroupNames: string[]): boolean => {
-    if (!ledger || allGroups.length === 0) return false;
-    
-    const findGroup = (groupId?: number): GroupType | undefined => {
-      return allGroups.find(g => g.group_id === groupId);
-    };
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Business logic helpers
+  // ─────────────────────────────────────────────────────────────────────────────
 
-    const checkGroup = (grp: GroupType): boolean => {
-      const name = grp.name.toLowerCase().trim();
-      if (targetGroupNames.map(n => n.toLowerCase().trim()).includes(name)) {
-        return true;
-      }
-      if (grp.parent_group_id) {
-        const parent = findGroup(grp.parent_group_id);
-        if (parent) return checkGroup(parent);
-      }
-      return false;
-    };
+  /** Walk the group hierarchy to see if a ledger ultimately belongs to any of the named groups. */
+  const checkLedgerGroup = useCallback(
+    (ledger: LedgerType | null, targetGroupNames: string[]): boolean => {
+      if (!ledger || allGroups.length === 0) return false;
 
-    const group = findGroup(ledger.group_id);
-    return group ? checkGroup(group) : false;
-  }, [allGroups]);
+      const findGroup = (groupId?: number): GroupType | undefined =>
+        allGroups.find((g) => g.group_id === groupId);
 
-  const checkIsCashOrBank = useCallback((ledger: LedgerType | null): boolean => {
-    return checkLedgerGroup(ledger, ["bank accounts", "bank od accounts", "bank od a/c", "bank od account", "cash-in-hand"]);
-  }, [checkLedgerGroup]);
-
-
-  // Grand Total Computations
-  const totalAmount = useMemo(() => {
-    if (voucherType === "Journal") {
-      return journalRows.reduce((sum, r) => sum + (r.type === 'Dr' ? (Number(r.amountRaw) || 0) : 0), 0);
-    }
-    if (voucherType === "Sales" || voucherType === "Purchase") {
-      const stockSum = stockEntries.reduce((sum, r) => sum + (Number(r.amountRaw) || 0), 0);
-      const adjSum = additionalEntries.reduce((sum, r) => {
-        const amt = Number(r.amountRaw) || 0;
-        if (voucherType === "Sales") {
-          return r.type === 'Cr' ? sum + amt : sum - amt;
-        } else {
-          return r.type === 'Dr' ? sum + amt : sum - amt;
+      const check = (grp: GroupType): boolean => {
+        if (targetGroupNames.map((n) => n.toLowerCase().trim()).includes(grp.name.toLowerCase().trim())) {
+          return true;
         }
-      }, 0);
-      return Math.max(0, stockSum + adjSum);
-    }
-    return particulars.reduce((sum, p) => sum + (Number(p.amountRaw) || 0), 0);
-  }, [voucherType, particulars, journalRows, stockEntries, additionalEntries]);
+        if (grp.parent_group_id) {
+          const parent = findGroup(grp.parent_group_id);
+          if (parent) return check(parent);
+        }
+        return false;
+      };
+
+      const group = findGroup(ledger.group_id);
+      return group ? check(group) : false;
+    },
+    [allGroups]
+  );
+
+  const checkIsCashOrBank = useCallback(
+    (ledger: LedgerType | null): boolean =>
+      checkLedgerGroup(ledger, [
+        "bank accounts",
+        "bank od accounts",
+        "bank od a/c",
+        "bank od account",
+        "cash-in-hand",
+      ]),
+    [checkLedgerGroup]
+  );
+
+  /**
+   * FIX #9 — auto-derive Dr/Cr for single-entry voucher types so the user
+   * never has to pick it manually (matching Tally Prime behaviour).
+   *
+   * Receipt  → cash/bank side is Dr;  all others are Cr
+   * Payment  → cash/bank side is Cr;  all others are Dr
+   * Contra   → no auto-assignment (both sides are cash/bank, user picks)
+   */
+  const autoType = useCallback(
+    (ledger: LedgerType, currentType: "Dr" | "Cr"): "Dr" | "Cr" => {
+      const isCB = checkIsCashOrBank(ledger);
+      if (voucherType === "Receipt") return isCB ? "Dr" : "Cr";
+      if (voucherType === "Payment") return isCB ? "Cr" : "Dr";
+      return currentType; // Journal / Contra / Sales / Purchase — keep as-is
+    },
+    [voucherType, checkIsCashOrBank]
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Computed totals  (FIX #1 — exported so Vouchers.tsx doesn't need `as any`)
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const debitTotal = useMemo(() => {
-    if (["Receipt", "Payment", "Contra", "Journal"].includes(voucherType)) {
-      return particulars.reduce((sum, p) => sum + (p.type === 'Dr' ? (Number(p.amountRaw) || 0) : 0), 0);
-    }
     if (voucherType === "Journal") {
-      return journalRows.reduce((sum, r) => sum + (r.type === 'Dr' ? (Number(r.amountRaw) || 0) : 0), 0);
+      return journalRows.reduce(
+        (sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0),
+        0
+      );
     }
-    return 0;
+    return particulars.reduce(
+      (sum, p) => sum + (p.type === "Dr" ? Number(p.amountRaw) || 0 : 0),
+      0
+    );
   }, [voucherType, particulars, journalRows]);
 
   const creditTotal = useMemo(() => {
-    if (["Receipt", "Payment", "Contra", "Journal"].includes(voucherType)) {
-      return particulars.reduce((sum, p) => sum + (p.type === 'Cr' ? (Number(p.amountRaw) || 0) : 0), 0);
-    }
     if (voucherType === "Journal") {
-      return journalRows.reduce((sum, r) => sum + (r.type === 'Cr' ? (Number(r.amountRaw) || 0) : 0), 0);
+      return journalRows.reduce(
+        (sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0),
+        0
+      );
     }
-    return 0;
+    return particulars.reduce(
+      (sum, p) => sum + (p.type === "Cr" ? Number(p.amountRaw) || 0 : 0),
+      0
+    );
   }, [voucherType, particulars, journalRows]);
 
-  // Add / Edit handlers
+  const totalAmount = useMemo(() => {
+    if (voucherType === "Journal") return debitTotal;
+
+    if (voucherType === "Sales" || voucherType === "Purchase") {
+      const stockSum = stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+      const adjSum = additionalEntries.reduce((s, r) => {
+        const amt = Number(r.amountRaw) || 0;
+        if (voucherType === "Sales") return r.type === "Cr" ? s + amt : s - amt;
+        return r.type === "Dr" ? s + amt : s - amt;
+      }, 0);
+      return Math.max(0, stockSum + adjSum);
+    }
+
+    // Receipt / Payment / Contra
+    return particulars.reduce((s, p) => s + (Number(p.amountRaw) || 0), 0);
+  }, [voucherType, debitTotal, particulars, stockEntries, additionalEntries]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Particular row handlers (single-entry layouts)
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const handleAddParticularRow = useCallback(() => {
-    setParticulars(prev => [...prev, { id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" }]);
+    setParticulars((prev) => [...prev, makeParticularRow("Dr")]);
   }, []);
 
-  const handleUpdateParticularRow = useCallback(async (id: string, updates: Partial<Omit<ParticularRow, 'id'>>) => {
-    setParticulars(prev => prev.map(p => {
-      if (p.id !== id) return p;
-      return { ...p, ...updates };
-    }));
-    if (updates.ledger?.ledger_id) {
-      const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
-      setParticulars(prev => prev.map(p => {
-        if (p.id !== id) return p;
-        return { ...p, ledgerBalance: bal };
-      }));
-    }
-  }, [fetchLedgerBalance]);
+  const handleUpdateParticularRow = useCallback(
+    async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
+      // FIX #9 — auto-assign Dr/Cr when a ledger is selected for Receipt/Payment
+      if (updates.ledger && ["Receipt", "Payment"].includes(voucherType)) {
+        setParticulars((prev) =>
+          prev.map((p) => {
+            if (p.id !== id) return p;
+            const derivedType = autoType(updates.ledger!, p.type);
+            return { ...p, ...updates, type: derivedType };
+          })
+        );
+      } else {
+        setParticulars((prev) =>
+          prev.map((p) => (p.id !== id ? p : { ...p, ...updates }))
+        );
+      }
+
+      // Fetch balance after ledger selection
+      if (updates.ledger?.ledger_id) {
+        const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
+        setParticulars((prev) =>
+          prev.map((p) => (p.id !== id ? p : { ...p, ledgerBalance: bal }))
+        );
+      }
+    },
+    [voucherType, autoType, fetchLedgerBalance]
+  );
 
   const handleRemoveParticularRow = useCallback((id: string) => {
-    setParticulars(prev => prev.length > 1 ? prev.filter(p => p.id !== id) : prev);
+    setParticulars((prev) => (prev.length > 1 ? prev.filter((p) => p.id !== id) : prev));
   }, []);
 
-  // Journal specific
-  const handleAddJournalRow = useCallback(() => {
-    const lastRow = journalRows[journalRows.length - 1];
-    setJournalRows(prev => [...prev, { id: nextId(), type: lastRow ? lastRow.type : 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" }]);
-  }, [journalRows]);
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Journal row handlers
+  // ─────────────────────────────────────────────────────────────────────────────
 
-  const handleUpdateJournalRow = useCallback(async (id: string, updates: Partial<Omit<ParticularRow, 'id'>>) => {
-    setJournalRows(prev => prev.map(p => {
-      if (p.id !== id) return p;
-      return { ...p, ...updates };
-    }));
-    if (updates.ledger?.ledger_id) {
-      const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
-      setJournalRows(prev => prev.map(p => {
-        if (p.id !== id) return p;
-        return { ...p, ledgerBalance: bal };
-      }));
-    }
-  }, [fetchLedgerBalance]);
+  const handleAddJournalRow = useCallback(() => {
+    setJournalRows((prev) => {
+      const lastType = prev[prev.length - 1]?.type ?? "Dr";
+      return [...prev, makeParticularRow(lastType)];
+    });
+  }, []);
+
+  const handleUpdateJournalRow = useCallback(
+    async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
+      setJournalRows((prev) =>
+        prev.map((r) => (r.id !== id ? r : { ...r, ...updates }))
+      );
+      if (updates.ledger?.ledger_id) {
+        const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
+        setJournalRows((prev) =>
+          prev.map((r) => (r.id !== id ? r : { ...r, ledgerBalance: bal }))
+        );
+      }
+    },
+    [fetchLedgerBalance]
+  );
 
   const handleRemoveJournalRow = useCallback((id: string) => {
-    setJournalRows(prev => prev.length > 2 ? prev.filter(p => p.id !== id) : prev);
+    setJournalRows((prev) => (prev.length > 2 ? prev.filter((r) => r.id !== id) : prev));
   }, []);
 
-  // Inventory Stock Entries
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Stock entry handlers
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const handleAddStockRow = useCallback(() => {
-    setStockEntries(prev => [...prev, { id: nextId(), stockItem: null, godown: null, unit: null, quantityRaw: "", rateRaw: "", amountRaw: "" }]);
+    setStockEntries((prev) => [...prev, makeStockRow()]);
   }, []);
 
-  const handleUpdateStockRow = useCallback(async (id: string, updates: Partial<Omit<StockEntryRow, 'id'>>) => {
-    setStockEntries(prev => prev.map(r => {
-      if (r.id !== id) return r;
-      const updated = { ...r, ...updates };
-      // Auto-compute amount if quantity or rate changed
-      if (updates.quantityRaw !== undefined || updates.rateRaw !== undefined) {
-        const qty = Number(updated.quantityRaw) || 0;
-        const rate = Number(updated.rateRaw) || 0;
-        updated.amountRaw = qty > 0 && rate > 0 ? (qty * rate).toFixed(2) : "";
-      }
-      return updated;
-    }));
-  }, []);
+  const handleUpdateStockRow = useCallback(
+    async (id: string, updates: Partial<Omit<StockEntryRow, "id">>) => {
+      setStockEntries((prev) =>
+        prev.map((r) => {
+          if (r.id !== id) return r;
+          const updated = { ...r, ...updates };
+          // Auto-compute amount when quantity or rate changes
+          if (updates.quantityRaw !== undefined || updates.rateRaw !== undefined) {
+            const qty = Number(updated.quantityRaw) || 0;
+            const rate = Number(updated.rateRaw) || 0;
+            updated.amountRaw = qty > 0 && rate > 0 ? (qty * rate).toFixed(2) : "";
+          }
+          return updated;
+        })
+      );
+    },
+    []
+  );
 
   const handleRemoveStockRow = useCallback((id: string) => {
-    setStockEntries(prev => prev.length > 1 ? prev.filter(r => r.id !== id) : prev);
+    setStockEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
   }, []);
 
-  // Additional adjust ledger adjustments
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Additional ledger row handlers (Sales/Purchase taxes & adjustments)
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const handleAddAdditionalRow = useCallback(() => {
-    setAdditionalEntries(prev => [...prev, { id: nextId(), type: voucherType === "Sales" ? 'Cr' : 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" }]);
+    // Default type: Sales → Cr (tax adds to revenue side), Purchase → Dr
+    setAdditionalEntries((prev) => [
+      ...prev,
+      makeParticularRow(voucherType === "Sales" ? "Cr" : "Dr"),
+    ]);
   }, [voucherType]);
 
-  const handleUpdateAdditionalRow = useCallback(async (id: string, updates: Partial<Omit<ParticularRow, 'id'>>) => {
-    setAdditionalEntries(prev => prev.map(p => {
-      if (p.id !== id) return p;
-      return { ...p, ...updates };
-    }));
-    if (updates.ledger?.ledger_id) {
-      const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
-      setAdditionalEntries(prev => prev.map(p => {
-        if (p.id !== id) return p;
-        return { ...p, ledgerBalance: bal };
-      }));
-    }
-  }, [fetchLedgerBalance]);
+  const handleUpdateAdditionalRow = useCallback(
+    async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
+      setAdditionalEntries((prev) =>
+        prev.map((p) => (p.id !== id ? p : { ...p, ...updates }))
+      );
+      if (updates.ledger?.ledger_id) {
+        const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
+        setAdditionalEntries((prev) =>
+          prev.map((p) => (p.id !== id ? p : { ...p, ledgerBalance: bal }))
+        );
+      }
+    },
+    [fetchLedgerBalance]
+  );
 
   const handleRemoveAdditionalRow = useCallback((id: string) => {
-    setAdditionalEntries(prev => prev.filter(p => p.id !== id));
+    setAdditionalEntries((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  // Selection Field focuses
-  const handleFieldFocus = useCallback((field: ActiveField) => {
-    setActiveField(field);
-    let currentName = "";
-    if (field.type === 'account') {
-      currentName = accountLedger?.name || "";
-    } else if (field.type === 'party') {
-      currentName = partyLedger?.name || "";
-    } else if (field.type === 'salesPurchase') {
-      currentName = salesPurchaseLedger?.name || "";
-    } else if (field.type === 'particular') {
-      const row = particulars.find(p => p.id === field.rowId) || journalRows.find(p => p.id === field.rowId);
-      currentName = row?.ledger?.name || "";
-    } else if (field.type === 'additional') {
-      const row = additionalEntries.find(p => p.id === field.rowId);
-      currentName = row?.ledger?.name || "";
-    } else if (field.type === 'stockItem') {
-      const row = stockEntries.find(p => p.id === field.rowId);
-      currentName = row?.stockItem?.name || "";
-    }
-    setLedgerSearchTerm(currentName);
-    setStockSearchTerm(currentName);
-  }, [accountLedger, partyLedger, salesPurchaseLedger, particulars, journalRows, additionalEntries, stockEntries]);
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Active field / search panel
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const handleFieldFocus = useCallback(
+    (field: ActiveField) => {
+      setActiveField(field);
+
+      // Populate the search box with the currently selected item's name
+      // so the user sees it highlighted and can start filtering immediately.
+      let currentName = "";
+      if (field.type === "account") {
+        currentName = accountLedger?.name ?? "";
+      } else if (field.type === "party") {
+        currentName = partyLedger?.name ?? "";
+      } else if (field.type === "salesPurchase") {
+        currentName = salesPurchaseLedger?.name ?? "";
+      } else if (field.type === "particular") {
+        const row =
+          particulars.find((p) => p.id === field.rowId) ??
+          journalRows.find((p) => p.id === field.rowId);
+        currentName = row?.ledger?.name ?? "";
+      } else if (field.type === "additional") {
+        const row = additionalEntries.find((p) => p.id === field.rowId);
+        currentName = row?.ledger?.name ?? "";
+      } else if (field.type === "stockItem") {
+        const row = stockEntries.find((p) => p.id === field.rowId);
+        currentName = row?.stockItem?.name ?? "";
+      }
+
+      setLedgerSearchTerm(currentName);
+      setStockSearchTerm(currentName);
+    },
+    [
+      accountLedger, partyLedger, salesPurchaseLedger,
+      particulars, journalRows, additionalEntries, stockEntries,
+    ]
+  );
 
   const handleFieldBlur = useCallback(() => {
     setActiveField(null);
   }, []);
 
-  // Universal Selection Selector — closes the panel after selection
-  const handleLedgerPanelSelect = useCallback((ledger: LedgerType) => {
-    if (!activeField) return;
-    if (activeField.type === 'account') {
-      setAccountLedger(ledger);
-    } else if (activeField.type === 'party') {
-      setPartyLedger(ledger);
-    } else if (activeField.type === 'salesPurchase') {
-      setSalesPurchaseLedger(ledger);
-    } else if (activeField.type === 'particular') {
-      handleUpdateParticularRow(activeField.rowId, { ledger });
-    } else if (activeField.type === 'additional') {
-      handleUpdateAdditionalRow(activeField.rowId, { ledger });
-    } else if (activeField.type === 'stockItem') {
-      const stockItem = ledger as any as import('../../../types/api').StockItemType;
-      const matchingUnit = allUnits.find(u => u.unit_id === stockItem.unit_id) || null;
-      handleUpdateStockRow(activeField.rowId, {
-        stockItem,
-        unit: matchingUnit,
-      });
-    }
-    // Close the panel immediately after selection to prevent cross-field confusion
-    setActiveField(null);
-    setLedgerSearchTerm("");
-    setStockSearchTerm("");
-  }, [activeField, handleUpdateParticularRow, handleUpdateAdditionalRow, handleUpdateStockRow, allUnits]);
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Universal selection handler (called when user clicks an item in LedgerPanel)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const handleLedgerPanelSelect = useCallback(
+    (item: any) => {
+      if (!activeField) return;
+
+      switch (activeField.type) {
+        case "account":
+          setAccountLedger(item as LedgerType);
+          break;
+
+        case "party":
+          setPartyLedger(item as LedgerType);
+          break;
+
+        case "salesPurchase":
+          setSalesPurchaseLedger(item as LedgerType);
+          break;
+
+        case "particular": {
+          const ledger = item as LedgerType;
+          if (voucherType === "Journal") {
+            handleUpdateJournalRow(activeField.rowId, { ledger });
+          } else {
+            handleUpdateParticularRow(activeField.rowId, { ledger });
+          }
+          break;
+        }
+
+        case "additional":
+          handleUpdateAdditionalRow(activeField.rowId, { ledger: item as LedgerType });
+          break;
+
+        case "stockItem": {
+          const stockItem = item as StockItemType;
+          const matchingUnit = allUnits.find((u) => u.unit_id === stockItem.unit_id) ?? null;
+          handleUpdateStockRow(activeField.rowId, { stockItem, unit: matchingUnit });
+          break;
+        }
+
+        default:
+          break;
+      }
+
+      // Close the panel immediately to prevent cross-field confusion
+      setActiveField(null);
+      setLedgerSearchTerm("");
+      setStockSearchTerm("");
+    },
+    [
+      activeField, voucherType, allUnits,
+      handleUpdateParticularRow, handleUpdateJournalRow,
+      handleUpdateAdditionalRow, handleUpdateStockRow,
+    ]
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Form reset
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const resetForm = useCallback(() => {
     if (persistKey) clearFormState(persistKey);
     hasRestored.current = false;
+
     setAccountLedger(null);
     setAccountBalance("");
     setPartyLedger(null);
     setPartyBalance("");
     setSalesPurchaseLedger(null);
     setSalesPurchaseBalance("");
-    setParticulars([{ id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" }]);
-    setJournalRows([
-      { id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" },
-      { id: nextId(), type: 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }
-    ]);
-    setStockEntries([
-      { id: nextId(), stockItem: null, godown: null, unit: null, quantityRaw: "", rateRaw: "", amountRaw: "" }
-    ]);
+
+    setParticulars([makeParticularRow("Dr")]);
+    setJournalRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
+    setStockEntries([makeStockRow()]);
     setAdditionalEntries([]);
+
     setActiveAllocation(null);
     setPartyBillReferences([]);
     setBankDetails(null);
+
     setReferenceNumber("");
     setNarration("");
     setError(null);
@@ -506,68 +739,83 @@ export function useVoucherForm() {
     setSupplierInvoiceDate("");
     setStatus("Regular");
     setDate(todayStr());
-    fetchNextNumber();
-  }, [voucherType, fetchNextNumber, persistKey]);
 
-  // Reset form data on voucher type change to prevent crosstalk
+    fetchNextNumber();
+  }, [persistKey, fetchNextNumber]);
+
+  // Keep a stable ref so the voucherType-change effect can call resetForm
+  // without it being listed as a dependency (which would cause an infinite loop).
+  const resetFormRef = useRef<() => void>(resetForm);
   useEffect(() => {
-    resetForm();
-  }, [voucherType, resetForm]);
+    resetFormRef.current = resetForm;
+  }, [resetForm]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Validation
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const validate = useCallback((): string | null => {
-    if (!companyId) return "No company selected";
-    if (!fyId) return "No active financial year";
+    if (!companyId) return "No company selected.";
+    if (!fyId) return "No active financial year.";
 
-    // 1. Single-Entry Validations (Receipt, Payment, Contra)
     if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
-      const filledRows = particulars.filter(p => p.ledger && Number(p.amountRaw) > 0);
-      if (filledRows.length < 2) return "At least two ledger entries are required (one Debit and one Credit)";
-      
+      const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+      if (filled.length < 2)
+        return "At least two ledger entries are required (one Debit and one Credit).";
+
       if (voucherType === "Contra") {
-        for (const row of filledRows) {
-          if (!checkIsCashOrBank(row.ledger)) {
-            return "Contra vouchers strictly restrict all ledgers to Cash/Bank accounts";
-          }
+        for (const row of filled) {
+          if (!checkIsCashOrBank(row.ledger))
+            return "Contra vouchers may only use Cash/Bank accounts.";
         }
       }
-      
-      if (Math.abs(debitTotal - creditTotal) > 0.01) {
-        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) amounts must be exactly equal`;
-      }
-      if (debitTotal <= 0) return "Total amount must be greater than 0";
+
+      if (Math.abs(debitTotal - creditTotal) > 0.01)
+        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) must balance.`;
+
+      if (debitTotal <= 0) return "Total amount must be greater than zero.";
     }
 
-    // 2. Journal Validations (F7)
     if (voucherType === "Journal") {
-      const filled = journalRows.filter(r => r.ledger && Number(r.amountRaw) > 0);
-      if (filled.length < 2) return "At least two valid Journal ledger entries are required";
-      
-      if (Math.abs(debitTotal - creditTotal) > 0.01) {
-        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) amounts must be exactly equal`;
-      }
-      if (debitTotal <= 0) return "Journal amount must be greater than 0";
+      const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+      if (filled.length < 2) return "At least two valid Journal entries are required.";
+      if (Math.abs(debitTotal - creditTotal) > 0.01)
+        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) must balance.`;
+      if (debitTotal <= 0) return "Journal amount must be greater than zero.";
     }
 
-    // 3. Sales & Purchase Validations (F8, F9)
     if (["Sales", "Purchase"].includes(voucherType)) {
-      if (!partyLedger) return "Party A/c Name is required";
-      if (!salesPurchaseLedger) return `${voucherType} Ledger is required`;
+      if (!partyLedger) return "Party A/c Name is required.";
+      if (!salesPurchaseLedger) return `${voucherType} Ledger is required.`;
+      if (partyLedger.ledger_id === salesPurchaseLedger.ledger_id)
+        return `Party and ${voucherType} ledger cannot be the same account.`;
 
-      const filledItems = stockEntries.filter(r => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0);
-      if (filledItems.length === 0) return "At least one valid inventory Stock Item is required";
-
-      if (partyLedger.ledger_id === salesPurchaseLedger.ledger_id) {
-        return `Same ledger cannot be used for both Party and ${voucherType} Accounts`;
-      }
-      if (totalAmount <= 0) return "Total amount must be greater than 0";
+      const filledItems = stockEntries.filter(
+        (r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0
+      );
+      if (filledItems.length === 0) return "At least one Stock Item with quantity and rate is required.";
+      if (totalAmount <= 0) return "Total amount must be greater than zero.";
     }
 
     return null;
-  }, [voucherType, accountLedger, particulars, journalRows, stockEntries, partyLedger, salesPurchaseLedger, totalAmount, debitTotal, creditTotal, companyId, fyId, checkIsCashOrBank]);
+  }, [
+    companyId, fyId, voucherType,
+    particulars, journalRows, stockEntries,
+    partyLedger, salesPurchaseLedger,
+    debitTotal, creditTotal, totalAmount,
+    checkIsCashOrBank,
+  ]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Submit
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const handleSubmit = useCallback(async () => {
     const validationError = validate();
-    if (validationError) { setError(validationError); return; }
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -577,34 +825,35 @@ export function useVoucherForm() {
       let entries: any[] = [];
       let stock_entries: any[] = [];
 
-      // Package Payloads based on Voucher Type
+      // ── Build entries per voucher type ──────────────────────────────────────
+
       if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
-        const filledRows = particulars.filter(p => p.ledger && Number(p.amountRaw) > 0);
-        
-        // All entries come from particulars with their own Dr/Cr type
-        entries = filledRows.map(p => ({
+        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+        entries = filled.map((p) => ({
           ledger_id: p.ledger!.ledger_id,
           ledger_name: p.ledger!.name,
           type: p.type,
           amount: Number(p.amountRaw),
-          currency: 'INR',
+          currency: "INR",
           cost_centres: p.costCentres,
         }));
       } else if (voucherType === "Journal") {
-        const filled = journalRows.filter(r => r.ledger && Number(r.amountRaw) > 0);
-        entries = filled.map(r => ({
+        const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+        entries = filled.map((r) => ({
           ledger_id: r.ledger!.ledger_id,
           ledger_name: r.ledger!.name,
           type: r.type,
           amount: Number(r.amountRaw),
-          currency: 'INR',
+          currency: "INR",
           cost_centres: r.costCentres,
         }));
       } else if (["Sales", "Purchase"].includes(voucherType)) {
-        const filledItems = stockEntries.filter(r => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0);
-        const stockSubtotal = filledItems.reduce((sum, r) => sum + (Number(r.amountRaw) || 0), 0);
+        const filledItems = stockEntries.filter(
+          (r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0
+        );
+        const stockSubtotal = filledItems.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
 
-        stock_entries = filledItems.map(r => ({
+        stock_entries = filledItems.map((r) => ({
           stock_item_id: r.stockItem!.item_id ?? null,
           item_name: r.stockItem!.name,
           godown_id: r.godown?.godown_id ?? null,
@@ -614,11 +863,10 @@ export function useVoucherForm() {
           amount: Number(r.amountRaw),
         }));
 
-        // Build Balancing Accounting Entries for Sales/Purchase
-        // F8 Sales: Party Dr (total), Sales Cr (subtotal), Taxes/Adj Cr or Dr
-        // F9 Purchase: Purchase Dr (subtotal), Taxes/Adj Dr, Party Cr (total)
-        const partyType = voucherType === "Sales" ? 'Dr' : 'Cr';
-        const salesPurchaseType = voucherType === "Sales" ? 'Cr' : 'Dr';
+        // Sales: Party Dr (total), Sales Cr (subtotal), taxes ±
+        // Purchase: Purchase Dr (subtotal), taxes ±, Party Cr (total)
+        const partyType = voucherType === "Sales" ? "Dr" : "Cr";
+        const spType = voucherType === "Sales" ? "Cr" : "Dr";
 
         entries = [
           {
@@ -626,45 +874,54 @@ export function useVoucherForm() {
             ledger_name: partyLedger!.name,
             type: partyType,
             amount: totalAmount,
-            currency: 'INR',
+            currency: "INR",
           },
           {
             ledger_id: salesPurchaseLedger!.ledger_id,
             ledger_name: salesPurchaseLedger!.name,
-            type: salesPurchaseType,
+            type: spType,
             amount: stockSubtotal,
-            currency: 'INR',
+            currency: "INR",
           },
-          ...additionalEntries.filter(p => p.ledger && Number(p.amountRaw) > 0).map(p => ({
-            ledger_id: p.ledger!.ledger_id,
-            ledger_name: p.ledger!.name,
-            type: p.type,
-            amount: Number(p.amountRaw),
-            currency: 'INR',
-            cost_centres: p.costCentres,
-          }))
+          ...additionalEntries
+            .filter((p) => p.ledger && Number(p.amountRaw) > 0)
+            .map((p) => ({
+              ledger_id: p.ledger!.ledger_id,
+              ledger_name: p.ledger!.name,
+              type: p.type,
+              amount: Number(p.amountRaw),
+              currency: "INR",
+              cost_centres: p.costCentres,
+            })),
         ];
       }
 
-      // Collect all bill references from all rows
+      // ── Collect bill references ─────────────────────────────────────────────
+
       let finalBillReferences: any[] = [];
+
       if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
         finalBillReferences = particulars
-          .filter(p => p.ledger && p.billReferences && p.billReferences.length > 0)
-          .flatMap(p => p.billReferences!.map(b => ({ ...b, ledger_id: p.ledger!.ledger_id })));
+          .filter((p) => p.ledger && p.billReferences?.length)
+          .flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })));
       } else if (voucherType === "Journal") {
         finalBillReferences = journalRows
-          .filter(r => r.ledger && r.billReferences && r.billReferences.length > 0)
-          .flatMap(r => r.billReferences!.map(b => ({ ...b, ledger_id: r.ledger!.ledger_id })));
+          .filter((r) => r.ledger && r.billReferences?.length)
+          .flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
       } else if (["Sales", "Purchase"].includes(voucherType)) {
         if (partyLedger && partyBillReferences.length > 0) {
-          finalBillReferences = partyBillReferences.map(b => ({ ...b, ledger_id: partyLedger.ledger_id }));
+          finalBillReferences = partyBillReferences.map((b) => ({
+            ...b,
+            ledger_id: partyLedger.ledger_id,
+          }));
         }
-        const additionalBillRefs = additionalEntries
-          .filter(p => p.ledger && p.billReferences && p.billReferences.length > 0)
-          .flatMap(p => p.billReferences!.map(b => ({ ...b, ledger_id: p.ledger!.ledger_id })));
-        finalBillReferences = [...finalBillReferences, ...additionalBillRefs];
+        const additionalRefs = additionalEntries
+          .filter((p) => p.ledger && p.billReferences?.length)
+          .flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })));
+        finalBillReferences = [...finalBillReferences, ...additionalRefs];
       }
+
+      // ── Final payload ───────────────────────────────────────────────────────
 
       const payload: any = {
         company_id: companyId!,
@@ -678,8 +935,12 @@ export function useVoucherForm() {
         reference_date: referenceDate || null,
         place_of_supply: placeOfSupply !== "Select" ? placeOfSupply : null,
         narration: narration || null,
-        party_ledger_id: ["Sales", "Purchase"].includes(voucherType) ? (partyLedger?.ledger_id || null) : null,
-        party_name: ["Sales", "Purchase"].includes(voucherType) ? (partyLedger?.name || null) : null,
+        party_ledger_id: ["Sales", "Purchase"].includes(voucherType)
+          ? partyLedger?.ledger_id ?? null
+          : null,
+        party_name: ["Sales", "Purchase"].includes(voucherType)
+          ? partyLedger?.name ?? null
+          : null,
         is_accounting_voucher: 1,
         is_invoice: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
         is_inventory_voucher: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
@@ -694,49 +955,44 @@ export function useVoucherForm() {
       if (res.success) {
         const savedNumber = voucherNumber;
         resetForm();
-        setSuccess(`Voucher No. ${savedNumber} saved successfully`);
+        setSuccess(`Voucher No. ${savedNumber} saved successfully.`);
       } else {
-        setError(res.error || "Failed to save voucher");
+        setError(res.error || "Failed to save voucher.");
       }
     } catch (e: any) {
-      setError(e.message || "Unexpected error");
+      setError(e?.message || "Unexpected error.");
     } finally {
       setIsSubmitting(false);
     }
   }, [
     validate,
-    companyId,
-    fyId,
-    voucherType,
-    date,
-    status,
-    supplierInvoiceNo,
-    supplierInvoiceDate,
-    referenceNumber,
-    referenceDate,
-    placeOfSupply,
-    narration,
-    totalAmount,
-    accountLedger,
-    particulars,
-    journalRows,
-    partyLedger,
-    salesPurchaseLedger,
-    stockEntries,
-    additionalEntries,
-    partyBillReferences,
-    bankDetails,
-    voucherNumber,
-    resetForm,
+    companyId, fyId, voucherType,
+    date, status,
+    supplierInvoiceNo, supplierInvoiceDate,
+    referenceNumber, referenceDate, placeOfSupply,
+    narration, totalAmount,
+    particulars, journalRows,
+    partyLedger, salesPurchaseLedger,
+    stockEntries, additionalEntries,
+    partyBillReferences, bankDetails,
+    voucherNumber, resetForm,
   ]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Derived display values
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const dateDisplay = useMemo(() => formatDateDisplay(date), [date]);
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Public API
+  // ─────────────────────────────────────────────────────────────────────────────
+
   return {
-    // Shared Form Attributes
+    // ── Voucher meta ──────────────────────────────────────────────────────────
     voucherType,
     setVoucherType,
-    voucherNumber,
+    voucherNumber,          // string (FIX #4 — was treated as number in VoucherHeader)
     voucherNumberLoading,
     date,
     setDate,
@@ -749,7 +1005,13 @@ export function useVoucherForm() {
     setSupplierInvoiceDate,
     narration,
     setNarration,
+
+    // ── Computed totals (FIX #1 — all three exported) ─────────────────────────
     totalAmount,
+    debitTotal,
+    creditTotal,
+
+    // ── Submission state ──────────────────────────────────────────────────────
     isSubmitting,
     error,
     setError,
@@ -758,7 +1020,7 @@ export function useVoucherForm() {
     handleSubmit,
     resetForm,
 
-    // Advanced Allocations
+    // ── Advanced allocations ──────────────────────────────────────────────────
     activeAllocation,
     setActiveAllocation,
     partyBillReferences,
@@ -766,7 +1028,7 @@ export function useVoucherForm() {
     bankDetails,
     setBankDetails,
 
-    // Reference Details (F8/F9)
+    // ── Reference / invoice ───────────────────────────────────────────────────
     referenceNumber,
     setReferenceNumber,
     referenceDate,
@@ -774,12 +1036,15 @@ export function useVoucherForm() {
     placeOfSupply,
     setPlaceOfSupply,
 
-    // Lists & Dropdown panels
+    // ── Master data lists ─────────────────────────────────────────────────────
     allLedgers,
     allStockItems,
     allGodowns,
     allUnits,
     ledgersLoading,
+    fetchContextData,
+
+    // ── Search / panel state ──────────────────────────────────────────────────
     ledgerSearchTerm,
     setLedgerSearchTerm,
     stockSearchTerm,
@@ -788,9 +1053,8 @@ export function useVoucherForm() {
     handleFieldFocus,
     handleFieldBlur,
     handleLedgerPanelSelect,
-    fetchContextData,
 
-    // 1. Single-Entry States (F4, F5, F6)
+    // ── Layout 1 — single-entry (F4 Contra, F5 Payment, F6 Receipt) ───────────
     accountLedger,
     accountBalance,
     particulars,
@@ -799,14 +1063,14 @@ export function useVoucherForm() {
     handleAddParticularRow,
     handleRemoveParticularRow,
 
-    // 2. Double-Entry Journal States (F7)
+    // ── Layout 2 — journal (F7) ───────────────────────────────────────────────
     journalRows,
     setJournalRows,
     handleUpdateJournalRow,
     handleAddJournalRow,
     handleRemoveJournalRow,
 
-    // 3. Inventory States (F8, F9)
+    // ── Layout 3 — inventory invoice (F8 Sales, F9 Purchase) ──────────────────
     partyLedger,
     partyBalance,
     salesPurchaseLedger,
@@ -821,7 +1085,7 @@ export function useVoucherForm() {
     handleAddAdditionalRow,
     handleRemoveAdditionalRow,
 
-    // Context Checkers
+    // ── Context helpers ───────────────────────────────────────────────────────
     checkIsCashOrBank,
     checkLedgerGroup,
     companyId,

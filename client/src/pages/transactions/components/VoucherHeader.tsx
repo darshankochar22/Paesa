@@ -4,7 +4,7 @@ import StatusDropdown from "./StatusDropdown";
 
 interface Props {
   voucherType: string;
-  voucherNumber: number;
+  voucherNumber: string;
   dateDisplay: string;
   date: string;
   onDateChange: (date: string) => void;

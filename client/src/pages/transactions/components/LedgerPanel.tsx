@@ -74,18 +74,12 @@ export default function LedgerPanel({
 
     if (activeField?.type === "particular") {
       if (voucherType === "Contra") {
-        // Contra: Strictly Cash/Bank on all rows
         tempLedgers = ledgers.filter(l => checkIsCashOrBank(l));
-      } else if (voucherType === "Payment" || voucherType === "Receipt") {
-        // Payment/Receipt: Strictly general (non-Cash/Bank) ledgers
-        tempLedgers = ledgers.filter(l => !checkIsCashOrBank(l));
       }
     } else if (activeField?.type === "party") {
-      // Party A/c Name: Cash, Bank, Sundry Debtors, or Sundry Creditors
       title = "List of Party Ledgers";
       tempLedgers = ledgers.filter(l => checkLedgerGroup(l, ["bank accounts", "bank od accounts", "bank od a/c", "bank od account", "cash-in-hand", "sundry debtors", "sundry creditors"]));
     } else if (activeField?.type === "salesPurchase") {
-      // Sales/Purchase: Limit to Sales Accounts or Purchase Accounts based on voucher type
       title = `List of ${voucherType} Ledgers`;
       tempLedgers = ledgers.filter(l => checkLedgerGroup(l, voucherType === "Sales" ? ["sales accounts"] : ["purchase accounts"]));
     }
