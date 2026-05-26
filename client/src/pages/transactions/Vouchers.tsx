@@ -7,9 +7,7 @@ import { AlertBanner } from "../../components/ui";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
-import InlineMasterPopup from "./components/popups/InlineMasterPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
-
 
 function RightSidebar({
   voucherType,
@@ -95,11 +93,6 @@ function RightSidebar({
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LedgerListPanel — the "List of Ledger Accounts" panel on the right
-// This appears when an account/ledger field is focused
-// ─────────────────────────────────────────────────────────────────────────────
 
 function LedgerListPanel({
   title,
@@ -207,23 +200,14 @@ function LedgerListPanel({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Vouchers component
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function Vouchers() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const form = useVoucherForm();
 
-  const [inlineCreateType, setInlineCreateType] = useState<"ledger" | "stockItem" | "godown" | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const acceptRef = useRef<() => void>(() => {});
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // canAccept
-  // ─────────────────────────────────────────────────────────────────────────
 
   const canAccept = useMemo(() => {
     if (form.isSubmitting) return false;
@@ -270,9 +254,6 @@ export default function Vouchers() {
     form.stockEntries,
   ]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // handleAccept
-  // ─────────────────────────────────────────────────────────────────────────
 
   const handleAccept = useCallback(() => {
     if (
@@ -300,10 +281,6 @@ export default function Vouchers() {
   ]);
 
   useEffect(() => { acceptRef.current = handleAccept; }, [handleAccept]);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // proceedToNextRow — move focus after Enter on amount field
-  // ─────────────────────────────────────────────────────────────────────────
 
   const proceedToNextRow = useCallback(
     (idx: number) => {
@@ -543,13 +520,12 @@ export default function Vouchers() {
       }
       if (e.altKey && (e.key === "c" || e.key === "C")) {
         e.preventDefault();
-        setInlineCreateType("ledger");
+        navigate("/master/create/ledger");
       }
       if (
         e.key === "Escape" &&
         !form.activeField &&
         !form.activeAllocation &&
-        !inlineCreateType &&
         !showDatePicker
       ) {
         e.preventDefault();
@@ -564,16 +540,10 @@ export default function Vouchers() {
     form.activeAllocation,
     canAccept,
     handleAccept,
-    inlineCreateType,
     showDatePicker,
     navigate,
   ]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Render helpers — reused across all voucher types
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // "Account : [input]" row — used for account, party, salesPurchase fields
   function FieldRow({
     label,
     fieldType,
@@ -998,7 +968,6 @@ export default function Vouchers() {
                 />
               </div>
 
-              {/* Reference + Place of supply */}
               <div className="flex items-center gap-6 border-b border-gray-300 shrink-0 px-3 py-1 bg-white">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-black shrink-0 w-28">Ref No.</span>
@@ -1175,7 +1144,6 @@ export default function Vouchers() {
                   </div>
                 )}
 
-                {/* Additional ledger rows (GST, round-off, discount etc.) */}
                 {form.additionalEntries.map((row, idx) => {
                   const isAddActive =
                     form.activeField?.type === "additional" &&
@@ -1185,7 +1153,7 @@ export default function Vouchers() {
                       key={row.id}
                       className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
                     >
-                      {/* Ledger name — indented under item column */}
+
                       <div className="col-span-5 flex items-center gap-1 pl-4">
                         <input
                           data-additional-ledger={idx + 1}
@@ -1251,7 +1219,6 @@ export default function Vouchers() {
                   );
                 })}
 
-                {/* Add additional ledger row button */}
                 <div className="px-3 py-1 border-b border-gray-100">
                   <button
                     type="button"
@@ -1263,7 +1230,6 @@ export default function Vouchers() {
                 </div>
               </div>
 
-              {/* Grand total row */}
               <div className="grid grid-cols-12 border-t border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="col-span-10 text-sm font-semibold text-black" />
                 <div className="col-span-2 text-right text-sm font-semibold text-black">
@@ -1298,7 +1264,6 @@ export default function Vouchers() {
             )}
           </div>
 
-          {/* ── Bottom action bar — Q: Quit  |  A: Accept   Cancel Vch ───────── */}
           <div className="flex items-center justify-between border-t border-black shrink-0 px-3 py-1.5 bg-white">
             <button
               onClick={() => navigate("/")}
@@ -1324,7 +1289,6 @@ export default function Vouchers() {
           </div>
         </div>
 
-        {/* ── Ledger list panel — appears when a ledger/stock field is focused ── */}
         {panelOpen && (
           <LedgerListPanel
             title={panelTitle}
@@ -1334,9 +1298,9 @@ export default function Vouchers() {
             onSelect={form.handleLedgerPanelSelect}
             onClose={form.handleFieldBlur}
             onCreateNew={() =>
-              setInlineCreateType(
-                form.activeField?.type === "stockItem" ? "stockItem" : "ledger"
-              )
+              form.activeField?.type === "stockItem"
+                ? navigate("/master/create/stock-item")
+                : navigate("/master/create/ledger")
             }
             createLabel={
               form.activeField?.type === "stockItem" ? "Create Stock Item" : "Create"
@@ -1344,7 +1308,7 @@ export default function Vouchers() {
           />
         )}
 
-        {/* ── Right sidebar — F-key list like Tally ─────────────────────────── */}
+
         <RightSidebar
           voucherType={form.voucherType}
           onTypeChange={form.setVoucherType}
@@ -1353,16 +1317,12 @@ export default function Vouchers() {
             form.setStatus((p: string) => (p === "Regular" ? "Post-Dated" : "Regular"))
           }
           onDateClick={() => setShowDatePicker(true)}
-          onCreateLedger={() => setInlineCreateType("ledger")}
+          onCreateLedger={() => navigate("/master/create/ledger")}
           onAccept={handleAccept}
           onQuit={() => navigate("/")}
           canAccept={canAccept}
         />
       </div>
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          Popups
-      ══════════════════════════════════════════════════════════════════════ */}
 
       {showDatePicker && (
         <DatePickerPopup
@@ -1414,19 +1374,6 @@ export default function Vouchers() {
           initialDetails={form.bankDetails}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBankDetails}
-        />
-      )}
-
-      {inlineCreateType && (
-        <InlineMasterPopup
-          companyId={selectedCompany!.company_id}
-          initialType={inlineCreateType}
-          onClose={() => setInlineCreateType(null)}
-          onSuccess={async (_type, created) => {
-            await form.fetchContextData();
-            setInlineCreateType(null);
-            if (created) form.handleLedgerPanelSelect(created);
-          }}
         />
       )}
     </div>
