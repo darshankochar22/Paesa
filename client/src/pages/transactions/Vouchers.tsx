@@ -11,12 +11,15 @@ import DenominationPopup from "./components/popups/DenominationPopup";
 import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
 import ReceiptDetailsPopup from "./components/popups/ReceiptDetailsPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
+import ContraDoubleEntryTable from "./components/ContraDoubleEntryTable";
 
 function RightSidebar({
   voucherType,
   onTypeChange,
   status,
   onStatusChange,
+  entryMode,
+  onEntryModeChange,
   onDateClick,
   onCreateLedger,
   onAccept,
@@ -27,6 +30,8 @@ function RightSidebar({
   onTypeChange: (t: string) => void;
   status: string;
   onStatusChange: () => void;
+  entryMode: "single" | "double";
+  onEntryModeChange: () => void;
   onDateClick: () => void;
   onCreateLedger: () => void;
   onAccept: () => void;
@@ -89,6 +94,18 @@ function RightSidebar({
           {status === "Post-Dated" ? "✓ " : ""}Post-Dated
         </button>
       </div>
+
+      {voucherType === "Contra" && (
+        <div className="border-b border-gray-200">
+          <button
+            onClick={onEntryModeChange}
+            className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
+          >
+            <span className="text-gray-500">H</span>:{" "}
+            {entryMode === "double" ? "✓ " : ""}Double Entry
+          </button>
+        </div>
+      )}
 
       <div className="flex-1" />
 
@@ -241,10 +258,26 @@ export default function Vouchers() {
   const canAccept = useMemo(() => {
     if (form.isSubmitting) return false;
 
-    if (["Receipt", "Payment", "Contra"].includes(form.voucherType)) {
+    if (["Receipt", "Payment"].includes(form.voucherType)) {
       return (
         !!form.accountLedger &&
         form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
+      );
+    }
+
+    if (form.voucherType === "Contra") {
+      if (form.contraEntryMode === "single") {
+        return (
+          !!form.accountLedger &&
+          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
+        );
+      }
+      const filled = form.contraDoubleRows.filter(
+        (r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0
+      );
+      return (
+        filled.length >= 2 &&
+        Math.abs(form.debitTotal - form.creditTotal) < 0.01
       );
     }
 
@@ -270,6 +303,8 @@ export default function Vouchers() {
   }, [
     form.isSubmitting,
     form.voucherType,
+    form.contraEntryMode,
+    form.contraDoubleRows,
     form.accountLedger,
     form.particulars,
     form.journalRows,
@@ -313,9 +348,25 @@ export default function Vouchers() {
       return;
     }
 
-    // ── Receipt / Payment / Contra: bill-wise for account ledger ────────
+    // ── Receipt / Payment / Contra (single): bill-wise for account ledger ────────
     if (
-      ["Receipt", "Payment", "Contra"].includes(form.voucherType) &&
+      ["Receipt", "Payment"].includes(form.voucherType) &&
+      form.accountLedger?.is_bill_wise === 1 &&
+      form.partyBillReferences.length === 0
+    ) {
+      form.setActiveAllocation({
+        type: "billWiseParty",
+        ledgerId: form.accountLedger.ledger_id,
+        ledgerName: form.accountLedger.name,
+        amount: form.particularsTotal,
+        initialAllocations: [],
+      });
+      return;
+    }
+
+    if (
+      form.voucherType === "Contra" &&
+      form.contraEntryMode === "single" &&
       form.accountLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {
@@ -332,6 +383,7 @@ export default function Vouchers() {
     form.handleSubmit();
   }, [
     form.voucherType,
+    form.contraEntryMode,
     form.partyLedger,
     form.accountLedger,
     form.partyBillReferences,
@@ -349,15 +401,20 @@ export default function Vouchers() {
     (idx: number) => {
       const isJ = form.voucherType === "Journal";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
+      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
       const list = isJ
         ? form.journalRows
         : isInv
         ? form.additionalEntries
+        : isContraDouble
+        ? form.contraDoubleRows
         : form.particulars;
       const addRow = isJ
         ? form.handleAddJournalRow
         : isInv
         ? form.handleAddAdditionalRow
+        : isContraDouble
+        ? form.handleAddContraDoubleRow
         : form.handleAddParticularRow;
 
       if (idx === list.length - 1) addRow();
@@ -372,12 +429,15 @@ export default function Vouchers() {
     },
     [
       form.voucherType,
+      form.contraEntryMode,
       form.journalRows,
       form.additionalEntries,
       form.particulars,
+      form.contraDoubleRows,
       form.handleAddJournalRow,
       form.handleAddAdditionalRow,
       form.handleAddParticularRow,
+      form.handleAddContraDoubleRow,
     ]
   );
 
@@ -461,12 +521,14 @@ export default function Vouchers() {
       const { rowId } = alloc;
       const isJ = form.voucherType === "Journal";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
+      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
 
       if (isJ) form.handleUpdateJournalRow(rowId, { billReferences: allocations });
       else if (isInv) form.handleUpdateAdditionalRow(rowId, { billReferences: allocations });
+      else if (isContraDouble) form.handleUpdateContraDoubleRow(rowId, { billReferences: allocations });
       else form.handleUpdateParticularRow(rowId, { billReferences: allocations });
 
-      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : form.particulars;
+      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : isContraDouble ? form.contraDoubleRows : form.particulars;
       const targetRow = list.find((r) => r.id === rowId);
 
       if (targetRow?.ledger?.allow_cost_centres === 1) {
@@ -486,13 +548,16 @@ export default function Vouchers() {
     [
       form.activeAllocation,
       form.voucherType,
+      form.contraEntryMode,
       form.journalRows,
       form.additionalEntries,
       form.particulars,
+      form.contraDoubleRows,
       form.setPartyBillReferences,
       form.setActiveAllocation,
       form.handleUpdateJournalRow,
       form.handleUpdateAdditionalRow,
+      form.handleUpdateContraDoubleRow,
       form.handleUpdateParticularRow,
       proceedToNextRow,
     ]
@@ -505,24 +570,29 @@ export default function Vouchers() {
       const { rowId } = alloc;
       const isJ = form.voucherType === "Journal";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
+      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
 
       if (isJ) form.handleUpdateJournalRow(rowId, { costCentres: allocations });
       else if (isInv) form.handleUpdateAdditionalRow(rowId, { costCentres: allocations });
+      else if (isContraDouble) form.handleUpdateContraDoubleRow(rowId, { costCentres: allocations });
       else form.handleUpdateParticularRow(rowId, { costCentres: allocations });
 
       form.setActiveAllocation(null);
-      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : form.particulars;
+      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : isContraDouble ? form.contraDoubleRows : form.particulars;
       proceedToNextRow(list.findIndex((r) => r.id === rowId));
     },
     [
       form.activeAllocation,
       form.voucherType,
+      form.contraEntryMode,
       form.journalRows,
       form.additionalEntries,
       form.particulars,
+      form.contraDoubleRows,
       form.setActiveAllocation,
       form.handleUpdateJournalRow,
       form.handleUpdateAdditionalRow,
+      form.handleUpdateContraDoubleRow,
       form.handleUpdateParticularRow,
       proceedToNextRow,
     ]
@@ -534,12 +604,15 @@ export default function Vouchers() {
       form.setBankDetails(details);
       form.setActiveAllocation(null);
       if (alloc && "rowId" in alloc) {
-        const list = form.particulars;
+        const list =
+          form.voucherType === "Contra" && form.contraEntryMode === "double"
+            ? form.contraDoubleRows
+            : form.particulars;
         const rowIdx = list.findIndex((r) => r.id === alloc.rowId);
         proceedToNextRow(rowIdx);
       }
     },
-    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, form.particulars, proceedToNextRow]
+    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, form.voucherType, form.contraEntryMode, form.contraDoubleRows, form.particulars, proceedToNextRow]
   );
 
   const handleSaveCashDenomination = useCallback(
@@ -548,12 +621,15 @@ export default function Vouchers() {
       form.setCashDenominations(details);
       form.setActiveAllocation(null);
       if (alloc && "rowId" in alloc) {
-        const list = form.particulars;
+        const list =
+          form.voucherType === "Contra" && form.contraEntryMode === "double"
+            ? form.contraDoubleRows
+            : form.particulars;
         const rowIdx = list.findIndex((r) => r.id === alloc.rowId);
         proceedToNextRow(rowIdx);
       }
     },
-    [form.activeAllocation, form.setCashDenominations, form.setActiveAllocation, form.particulars, proceedToNextRow]
+    [form.activeAllocation, form.setCashDenominations, form.setActiveAllocation, form.voucherType, form.contraEntryMode, form.contraDoubleRows, form.particulars, proceedToNextRow]
   );
 
   const handleSaveDispatchDetails = useCallback(
@@ -610,6 +686,7 @@ export default function Vouchers() {
     }
 
     // Contra Particulars: also restricted to cash/bank (destination side)
+    // In double-entry mode, all rows are restricted to cash/bank
     if (form.voucherType === "Contra" && af.type === "particular") {
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
     }
@@ -657,6 +734,12 @@ export default function Vouchers() {
       if (e.key === "F7") { e.preventDefault(); form.setVoucherType("Journal"); }
       if (e.key === "F8") { e.preventDefault(); form.setVoucherType("Sales"); }
       if (e.key === "F9") { e.preventDefault(); form.setVoucherType("Purchase"); }
+      if (e.altKey && (e.key === "h" || e.key === "H")) {
+        e.preventDefault();
+        if (form.voucherType === "Contra") {
+          form.setContraEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
+        }
+      }
       if (e.altKey && (e.key === "a" || e.key === "A")) {
         e.preventDefault();
         if (canAccept) handleAccept();
@@ -681,6 +764,8 @@ export default function Vouchers() {
     return () => window.removeEventListener("keydown", h);
   }, [
     form.setVoucherType,
+    form.setContraEntryMode,
+    form.voucherType,
     form.activeField,
     form.activeAllocation,
     canAccept,
@@ -736,10 +821,30 @@ export default function Vouchers() {
   // ─── Balanced / diff indicator ───────────────────────────────────────
 
   function BalanceIndicator() {
-    if (["Receipt", "Payment", "Contra"].includes(form.voucherType)) {
+    if (["Receipt", "Payment"].includes(form.voucherType)) {
       return form.particularsTotal > 0 ? (
         <span className="text-gray-500">✓ Balanced</span>
       ) : null;
+    }
+    if (form.voucherType === "Contra") {
+      if (form.contraEntryMode === "single") {
+        return form.particularsTotal > 0 ? (
+          <span className="text-gray-500">✓ Balanced</span>
+        ) : null;
+      }
+      if (form.debitTotal <= 0) return null;
+      if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
+        return (
+          <span className="text-red-700">
+            ⚠ Diff:{" "}
+            {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+        );
+      }
+      return <span className="text-gray-500">✓ Balanced</span>;
     }
     if (form.voucherType === "Journal") {
       if (form.debitTotal <= 0) return null;
@@ -824,10 +929,11 @@ export default function Vouchers() {
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
 
           {/* ════════════════════════════════════════════════════════════
-              Layout 1 — Receipt · Payment · Contra
+              Layout 1 — Receipt · Payment · Contra (single-entry)
               Account (cash/bank) + Particulars table
           ═════════════════════════════════════════════════════════════ */}
-          {["Receipt", "Payment", "Contra"].includes(form.voucherType) && (
+          {(["Receipt", "Payment"].includes(form.voucherType) ||
+            (form.voucherType === "Contra" && form.contraEntryMode === "single")) && (
             <>
               {/* Account field */}
               <div className="border-b border-gray-300 shrink-0 py-1">
@@ -933,6 +1039,24 @@ export default function Vouchers() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════
+              Layout 1b — Contra (double-entry)
+              No Account field; Particulars + Debit + Credit columns
+          ═════════════════════════════════════════════════════════════ */}
+          {form.voucherType === "Contra" && form.contraEntryMode === "double" && (
+            <ContraDoubleEntryTable
+              rows={form.contraDoubleRows}
+              onUpdateRow={form.handleUpdateContraDoubleRow}
+              onAddRow={form.handleAddContraDoubleRow}
+              onRemoveRow={form.handleRemoveContraDoubleRow}
+              onFieldFocus={form.handleFieldFocus}
+              onSearchChange={form.setLedgerSearchTerm}
+              searchTerm={form.ledgerSearchTerm}
+              activeRowId={form.activeField?.type === "particular" ? form.activeField.rowId : null}
+              onAmountConfirm={handleAmountConfirm}
+            />
           )}
 
           {/* ════════════════════════════════════════════════════════════
@@ -1414,7 +1538,7 @@ export default function Vouchers() {
               value={form.narration}
               onChange={(e) => form.setNarration(e.target.value)}
             />
-            {form.totalAmount > 0 && form.voucherType !== "Contra" && (
+            {form.totalAmount > 0 && (form.voucherType !== "Contra" || form.contraEntryMode === "double") && (
               <span className="text-sm font-semibold text-black ml-4 shrink-0 tabular-nums">
                 {form.totalAmount.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -1477,6 +1601,10 @@ export default function Vouchers() {
           status={form.status}
           onStatusChange={() =>
             form.setStatus((p: string) => (p === "Regular" ? "Post-Dated" : "Regular"))
+          }
+          entryMode={form.contraEntryMode}
+          onEntryModeChange={() =>
+            form.setContraEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"))
           }
           onDateClick={() => setShowDatePicker(true)}
           onCreateLedger={() => navigate("/master/create/ledger")}
