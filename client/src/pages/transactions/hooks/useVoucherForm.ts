@@ -389,13 +389,20 @@ export function useVoucherForm() {
   /** Walk the group hierarchy to check if a ledger belongs to any of the named groups. */
   const checkLedgerGroup = useCallback(
     (ledger: LedgerType | null, targetGroupNames: string[]): boolean => {
-      if (!ledger || allGroups.length === 0) return false;
+      if (!ledger) return false;
+      const ledgerGroupId = ledger.group_id;
+      if (!ledgerGroupId) return false;
+      if (allGroups.length === 0) return false;
+
       const targets = targetGroupNames.map((n) => n.toLowerCase().trim());
 
-      const findGroup = (id?: number): GroupType | undefined =>
-        allGroups.find((g) => g.group_id === id);
+      const findGroup = (id: number | null | undefined): GroupType | undefined => {
+        if (!id) return undefined;
+        return allGroups.find((g) => Number(g.group_id) === Number(id));
+      };
 
       const check = (grp: GroupType): boolean => {
+        if (!grp.name) return false;
         if (targets.includes(grp.name.toLowerCase().trim())) return true;
         if (grp.parent_group_id) {
           const parent = findGroup(grp.parent_group_id);
@@ -404,7 +411,7 @@ export function useVoucherForm() {
         return false;
       };
 
-      const group = findGroup(ledger.group_id);
+      const group = findGroup(ledgerGroupId);
       return group ? check(group) : false;
     },
     [allGroups]
@@ -680,34 +687,10 @@ export function useVoucherForm() {
   const handleFieldFocus = useCallback(
     (field: ActiveField) => {
       setActiveField(field);
-
-      let currentName = "";
-      if (field.type === "account") {
-        currentName = accountLedger?.name ?? "";
-      } else if (field.type === "party") {
-        currentName = partyLedger?.name ?? "";
-      } else if (field.type === "salesPurchase") {
-        currentName = salesPurchaseLedger?.name ?? "";
-      } else if (field.type === "particular") {
-        const row =
-          particulars.find((p) => p.id === field.rowId) ??
-          journalRows.find((p) => p.id === field.rowId);
-        currentName = row?.ledger?.name ?? "";
-      } else if (field.type === "additional") {
-        const row = additionalEntries.find((p) => p.id === field.rowId);
-        currentName = row?.ledger?.name ?? "";
-      } else if (field.type === "stockItem") {
-        const row = stockEntries.find((p) => p.id === field.rowId);
-        currentName = row?.stockItem?.name ?? "";
-      }
-
-      setLedgerSearchTerm(currentName);
-      setStockSearchTerm(currentName);
+      setLedgerSearchTerm("");
+      setStockSearchTerm("");
     },
-    [
-      accountLedger, partyLedger, salesPurchaseLedger,
-      particulars, journalRows, additionalEntries, stockEntries,
-    ]
+    []
   );
 
   const handleFieldBlur = useCallback(() => {
