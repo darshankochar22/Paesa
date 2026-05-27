@@ -6,6 +6,7 @@ interface Props {
   onUpdateRow: (id: string, updates: Partial<Omit<ParticularRow, "id">>) => void;
   onAddRow: () => void;
   onRemoveRow: (id: string) => void;
+  onAutoBalance: () => void;
   onFieldFocus: (field: ActiveField) => void;
   onSearchChange: (term: string) => void;
   searchTerm: string;
@@ -13,20 +14,17 @@ interface Props {
   onAmountConfirm?: (row: ParticularRow, index: number) => void;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const formatAmount = (n: number): string =>
   n > 0
     ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : "";
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ContraDoubleEntryTable({
   rows,
   onUpdateRow,
   onAddRow,
   onRemoveRow,
+  onAutoBalance,
   onFieldFocus,
   onSearchChange,
   searchTerm,
@@ -35,8 +33,6 @@ export default function ContraDoubleEntryTable({
 }: Props) {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
-
-  // ── Amount handlers ────────────────────────────────────────────────────────
 
   const handleAmountChange = (rowId: string, value: string) => {
     onUpdateRow(rowId, { amountRaw: value });
@@ -52,6 +48,7 @@ export default function ContraDoubleEntryTable({
     if (!row?.ledger) return;
 
     e.preventDefault();
+    onAutoBalance();
 
     if (onAmountConfirm) {
       onAmountConfirm(row, idx);
@@ -69,7 +66,9 @@ export default function ContraDoubleEntryTable({
     }
   };
 
-  // ── Totals ────────────────────────────────────────────────────────────────
+  const handleAmountBlur = () => {
+    onAutoBalance();
+  };
 
   const drTotal = rows.reduce(
     (s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0),
@@ -81,15 +80,23 @@ export default function ContraDoubleEntryTable({
   );
 
   const isBalanced = Math.abs(drTotal - crTotal) < 0.01;
+  const diff = Math.abs(drTotal - crTotal);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────────
+  const hasNegativeBalances = rows.some(
+    (r) =>
+      r.ledger &&
+      r.ledgerBalance &&
+      parseFloat(r.ledgerBalance) < 0
+  );
+
+  const amountWarningClass = (row: ParticularRow) =>
+    row.ledgerBalance && parseFloat(row.ledgerBalance) < 0 && Number(row.amountRaw) > 0
+      ? "text-red-700"
+      : "text-black";
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white text-xs">
 
-      {/* ── Table header ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
         <div className="col-span-1" />
         <div className="col-span-7 text-sm font-semibold text-black">Particulars</div>
@@ -97,7 +104,6 @@ export default function ContraDoubleEntryTable({
         <div className="col-span-2 text-right text-sm font-semibold text-black">Credit</div>
       </div>
 
-      {/* ── Rows ──────────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {rows.map((row, idx) => {
           const isActive = activeRowId === row.id;
@@ -107,7 +113,6 @@ export default function ContraDoubleEntryTable({
               key={row.id}
               className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
             >
-              {/* ── Column 1: Dr / Cr selector ─────────────────────────────── */}
               <div className="col-span-1 text-center">
                 <select
                   className="bg-transparent font-bold outline-none text-black text-xs"
@@ -121,7 +126,6 @@ export default function ContraDoubleEntryTable({
                 </select>
               </div>
 
-              {/* ── Column 2: Ledger name / search input ──────────────────── */}
               <div className="col-span-7 flex items-center gap-1">
                 <div className="flex-1 flex flex-col justify-center min-w-0">
                   <input
@@ -138,20 +142,22 @@ export default function ContraDoubleEntryTable({
                     autoComplete="off"
                   />
                   {row.ledgerBalance && (
-                    <span className="text-[10px] text-gray-500 italic select-none">
-                      Current Bal: {row.ledgerBalance}
+                    <span className={`text-[10px] italic select-none ${
+                      parseFloat(row.ledgerBalance) < 0 ? "text-red-600" : "text-gray-500"
+                    }`}>
+                      Bal: {row.ledgerBalance}
                     </span>
                   )}
                   {(row.billReferences?.length || row.costCentres?.length) ? (
                     <span className="text-[9px] text-gray-500 select-none flex gap-2">
                       {row.billReferences?.length ? (
                         <span className="text-teal-600">
-                          ✓ {row.billReferences.length} bill ref{row.billReferences.length > 1 ? "s" : ""}
+                          {row.billReferences.length} bill ref{row.billReferences.length > 1 ? "s" : ""}
                         </span>
                       ) : null}
                       {row.costCentres?.length ? (
                         <span className="text-blue-600">
-                          ✓ {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
+                          {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
                         </span>
                       ) : null}
                     </span>
@@ -170,18 +176,17 @@ export default function ContraDoubleEntryTable({
                 )}
               </div>
 
-              {/* ── Column 3: Debit amount ─────────────────────────────────── */}
               <div className="col-span-2 text-right pr-1">
                 {row.type === "Dr" ? (
                   <input
-                    data-particular-debit={idx + 1}
                     type="text"
                     inputMode="decimal"
-                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                    className={`w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black ${amountWarningClass(row)}`}
                     value={row.amountRaw}
                     placeholder=""
                     onChange={(e) => handleAmountChange(row.id, e.target.value)}
                     onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                    onBlur={handleAmountBlur}
                   />
                 ) : (
                   <span className="block text-right px-1 py-0.5 text-gray-300 select-none text-sm">
@@ -190,18 +195,17 @@ export default function ContraDoubleEntryTable({
                 )}
               </div>
 
-              {/* ── Column 4: Credit amount ────────────────────────────────── */}
               <div className="col-span-2 text-right">
                 {row.type === "Cr" ? (
                   <input
-                    data-particular-credit={idx + 1}
                     type="text"
                     inputMode="decimal"
-                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                    className={`w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black ${amountWarningClass(row)}`}
                     value={row.amountRaw}
                     placeholder=""
                     onChange={(e) => handleAmountChange(row.id, e.target.value)}
                     onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                    onBlur={handleAmountBlur}
                   />
                 ) : (
                   <span className="block text-right px-1 py-0.5 text-gray-300 select-none text-sm">
@@ -213,7 +217,6 @@ export default function ContraDoubleEntryTable({
           );
         })}
 
-        {/* Filler rows */}
         {Array.from({ length: Math.max(0, 10 - rows.length) }).map((_, i) => (
           <div
             key={`ec-${i}`}
@@ -222,17 +225,18 @@ export default function ContraDoubleEntryTable({
         ))}
       </div>
 
-      {/* ── Totals row ────────────────────────────────────────────────────────── */}
-      <div
-        className={`border-t border-black shrink-0 px-3 py-0.5 bg-white ${
-          isBalanced && drTotal > 0 ? "" : drTotal > 0 ? "" : ""
-        }`}
-      >
+      <div className="border-t border-black shrink-0 px-3 py-0.5 bg-white">
         <div className="grid grid-cols-12 items-center">
-          <div className="col-span-8 text-xs text-gray-600">
+          <div className="col-span-8 text-xs">
+            {hasNegativeBalances && (
+              <span className="text-red-600 font-medium">
+                ⚠ Negative balance detected
+              </span>
+            )}
             {drTotal > 0 && crTotal > 0 && !isBalanced && (
               <span className="text-red-700">
-                ⚠ Diff: {Math.abs(drTotal - crTotal).toLocaleString("en-IN", {
+                ⚠ Diff:{" "}
+                {diff.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}

@@ -833,6 +833,14 @@ export default function Vouchers() {
         ) : null;
       }
       if (form.debitTotal <= 0) return null;
+
+      const hasNegative = form.contraDoubleRows.some(
+        (r) =>
+          r.ledger &&
+          r.ledgerBalance &&
+          parseFloat(r.ledgerBalance) < 0
+      );
+
       if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
         return (
           <span className="text-red-700">
@@ -844,6 +852,11 @@ export default function Vouchers() {
           </span>
         );
       }
+
+      if (hasNegative) {
+        return <span className="text-red-600">⚠ Negative balance on selected ledgers</span>;
+      }
+
       return <span className="text-gray-500">✓ Balanced</span>;
     }
     if (form.voucherType === "Journal") {
@@ -1051,6 +1064,7 @@ export default function Vouchers() {
               onUpdateRow={form.handleUpdateContraDoubleRow}
               onAddRow={form.handleAddContraDoubleRow}
               onRemoveRow={form.handleRemoveContraDoubleRow}
+              onAutoBalance={form.handleAutoBalanceContraDouble}
               onFieldFocus={form.handleFieldFocus}
               onSearchChange={form.setLedgerSearchTerm}
               searchTerm={form.ledgerSearchTerm}
