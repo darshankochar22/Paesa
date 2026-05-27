@@ -117,6 +117,269 @@ export default function ActionFooter({
 
 ---
 
+## File: `transactions/components/ContraDoubleEntryTable.tsx`
+
+```
+import { useRef } from "react";
+import type { ParticularRow, ActiveField } from "../hooks/useVoucherForm";
+
+interface Props {
+  rows: ParticularRow[];
+  onUpdateRow: (id: string, updates: Partial<Omit<ParticularRow, "id">>) => void;
+  onAddRow: () => void;
+  onRemoveRow: (id: string) => void;
+  onFieldFocus: (field: ActiveField) => void;
+  onSearchChange: (term: string) => void;
+  searchTerm: string;
+  activeRowId: string | null;
+  onAmountConfirm?: (row: ParticularRow, index: number) => void;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const formatAmount = (n: number): string =>
+  n > 0
+    ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "";
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function ContraDoubleEntryTable({
+  rows,
+  onUpdateRow,
+  onAddRow,
+  onRemoveRow,
+  onFieldFocus,
+  onSearchChange,
+  searchTerm,
+  activeRowId,
+  onAmountConfirm,
+}: Props) {
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+
+  // ── Amount handlers ────────────────────────────────────────────────────────
+
+  const handleAmountChange = (rowId: string, value: string) => {
+    onUpdateRow(rowId, { amountRaw: value });
+  };
+
+  const handleAmountKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    idx: number
+  ) => {
+    if (e.key !== "Enter") return;
+
+    const row = rowsRef.current[idx];
+    if (!row?.ledger) return;
+
+    e.preventDefault();
+
+    if (onAmountConfirm) {
+      onAmountConfirm(row, idx);
+    } else if (Number(row.amountRaw) > 0) {
+      if (idx === rowsRef.current.length - 1) {
+        onAddRow();
+      }
+      setTimeout(() => {
+        const nextIdx = idx + 1;
+        const next = document.querySelector(
+          `[data-particular-ledger="${nextIdx + 1}"]`
+        ) as HTMLInputElement | null;
+        next?.focus();
+      }, 50);
+    }
+  };
+
+  // ── Totals ────────────────────────────────────────────────────────────────
+
+  const drTotal = rows.reduce(
+    (s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0),
+    0
+  );
+  const crTotal = rows.reduce(
+    (s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0),
+    0
+  );
+
+  const isBalanced = Math.abs(drTotal - crTotal) < 0.01;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0 bg-white text-xs">
+
+      {/* ── Table header ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
+        <div className="col-span-1" />
+        <div className="col-span-7 text-sm font-semibold text-black">Particulars</div>
+        <div className="col-span-2 text-right text-sm font-semibold text-black">Debit</div>
+        <div className="col-span-2 text-right text-sm font-semibold text-black">Credit</div>
+      </div>
+
+      {/* ── Rows ──────────────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {rows.map((row, idx) => {
+          const isActive = activeRowId === row.id;
+
+          return (
+            <div
+              key={row.id}
+              className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
+            >
+              {/* ── Column 1: Dr / Cr selector ─────────────────────────────── */}
+              <div className="col-span-1 text-center">
+                <select
+                  className="bg-transparent font-bold outline-none text-black text-xs"
+                  value={row.type}
+                  onChange={(e) =>
+                    onUpdateRow(row.id, { type: e.target.value as "Dr" | "Cr" })
+                  }
+                >
+                  <option value="Dr">Dr</option>
+                  <option value="Cr">Cr</option>
+                </select>
+              </div>
+
+              {/* ── Column 2: Ledger name / search input ──────────────────── */}
+              <div className="col-span-7 flex items-center gap-1">
+                <div className="flex-1 flex flex-col justify-center min-w-0">
+                  <input
+                    data-particular-ledger={idx + 1}
+                    type="text"
+                    className="w-full bg-transparent outline-none px-1 border border-transparent focus:border-black text-sm text-black"
+                    value={isActive ? searchTerm : (row.ledger?.name ?? "")}
+                    placeholder={idx === 0 ? "Select Ledger…" : ""}
+                    onFocus={() => onFieldFocus({ type: "particular", rowId: row.id })}
+                    onChange={(e) => {
+                      onSearchChange(e.target.value);
+                      if (!row.ledger) onFieldFocus({ type: "particular", rowId: row.id });
+                    }}
+                    autoComplete="off"
+                  />
+                  {row.ledgerBalance && (
+                    <span className="text-[10px] text-gray-500 italic select-none">
+                      Current Bal: {row.ledgerBalance}
+                    </span>
+                  )}
+                  {(row.billReferences?.length || row.costCentres?.length) ? (
+                    <span className="text-[9px] text-gray-500 select-none flex gap-2">
+                      {row.billReferences?.length ? (
+                        <span className="text-teal-600">
+                          ✓ {row.billReferences.length} bill ref{row.billReferences.length > 1 ? "s" : ""}
+                        </span>
+                      ) : null}
+                      {row.costCentres?.length ? (
+                        <span className="text-blue-600">
+                          ✓ {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </div>
+
+                {rows.length > 2 && (
+                  <button
+                    onClick={() => onRemoveRow(row.id)}
+                    className="text-[10px] text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1 font-bold shrink-0"
+                    tabIndex={-1}
+                    aria-label="Remove row"
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+
+              {/* ── Column 3: Debit amount ─────────────────────────────────── */}
+              <div className="col-span-2 text-right pr-1">
+                {row.type === "Dr" ? (
+                  <input
+                    data-particular-debit={idx + 1}
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                    value={row.amountRaw}
+                    placeholder=""
+                    onChange={(e) => handleAmountChange(row.id, e.target.value)}
+                    onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                  />
+                ) : (
+                  <span className="block text-right px-1 py-0.5 text-gray-300 select-none text-sm">
+                    —
+                  </span>
+                )}
+              </div>
+
+              {/* ── Column 4: Credit amount ────────────────────────────────── */}
+              <div className="col-span-2 text-right">
+                {row.type === "Cr" ? (
+                  <input
+                    data-particular-credit={idx + 1}
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                    value={row.amountRaw}
+                    placeholder=""
+                    onChange={(e) => handleAmountChange(row.id, e.target.value)}
+                    onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                  />
+                ) : (
+                  <span className="block text-right px-1 py-0.5 text-gray-300 select-none text-sm">
+                    —
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Filler rows */}
+        {Array.from({ length: Math.max(0, 10 - rows.length) }).map((_, i) => (
+          <div
+            key={`ec-${i}`}
+            className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]"
+          />
+        ))}
+      </div>
+
+      {/* ── Totals row ────────────────────────────────────────────────────────── */}
+      <div
+        className={`border-t border-black shrink-0 px-3 py-0.5 bg-white ${
+          isBalanced && drTotal > 0 ? "" : drTotal > 0 ? "" : ""
+        }`}
+      >
+        <div className="grid grid-cols-12 items-center">
+          <div className="col-span-8 text-xs text-gray-600">
+            {drTotal > 0 && crTotal > 0 && !isBalanced && (
+              <span className="text-red-700">
+                ⚠ Diff: {Math.abs(drTotal - crTotal).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            )}
+            {isBalanced && drTotal > 0 && (
+              <span className="text-gray-500">✓ Balanced</span>
+            )}
+          </div>
+          <div className="col-span-2 text-right text-sm font-semibold text-black">
+            {formatAmount(drTotal)}
+          </div>
+          <div className="col-span-2 text-right text-sm font-semibold text-black">
+            {formatAmount(crTotal)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+---
+
 ## File: `transactions/components/InventoryParticularsTable.tsx`
 
 ```
@@ -3922,7 +4185,18 @@ export function useVoucherForm() {
     return saved?.particulars?.length ? saved.particulars : [makeParticularRow("Cr")];
   });
 
-  // ── Layout 2: Double-entry Journal (F7) ────────────────────────────────────
+  const [contraEntryMode, setContraEntryMode] = useState<"single" | "double">(
+    () => loadFormState<any>(persistKey ?? "")?.contraEntryMode ?? "single"
+  );
+
+  // ── Layout 1b: Double-entry Contra (F4 double-entry mode) ────────────────
+
+  const [contraDoubleRows, setContraDoubleRows] = useState<ParticularRow[]>(() => {
+    const saved = loadFormState<any>(persistKey ?? "");
+    return saved?.contraDoubleRows?.length
+      ? saved.contraDoubleRows
+      : [makeParticularRow("Dr"), makeParticularRow("Cr")];
+  });
 
   const [journalRows, setJournalRows] = useState<ParticularRow[]>(() => {
     const saved = loadFormState<any>(persistKey ?? "");
@@ -3969,6 +4243,8 @@ export function useVoucherForm() {
       accountLedger,
       particulars,
       journalRows,
+      contraEntryMode,
+      contraDoubleRows,
       partyLedger,
       salesPurchaseLedger,
       stockEntries,
@@ -3982,6 +4258,7 @@ export function useVoucherForm() {
     }),
     [
       voucherType, narration, accountLedger, particulars, journalRows,
+      contraEntryMode, contraDoubleRows,
       partyLedger, salesPurchaseLedger, stockEntries, additionalEntries,
       referenceNumber, placeOfSupply, partyBillReferences, bankDetails,
       supplierInvoiceNo, supplierInvoiceDate,
@@ -4207,7 +4484,7 @@ export function useVoucherForm() {
     [particulars]
   );
 
-  /** Sum of all Dr amounts in journalRows. */
+  /** Sum of all Dr amounts in journalRows or contraDoubleRows. */
   const debitTotal = useMemo(() => {
     if (voucherType === "Journal") {
       return journalRows.reduce(
@@ -4215,11 +4492,17 @@ export function useVoucherForm() {
         0
       );
     }
+    if (voucherType === "Contra" && contraEntryMode === "double") {
+      return contraDoubleRows.reduce(
+        (sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0),
+        0
+      );
+    }
     // Receipt: Account is Dr; Payment/Contra: particulars are Dr
     return particularsTotal;
-  }, [voucherType, journalRows, particularsTotal]);
+  }, [voucherType, journalRows, contraDoubleRows, contraEntryMode, particularsTotal]);
 
-  /** Sum of all Cr amounts in journalRows. */
+  /** Sum of all Cr amounts in journalRows or contraDoubleRows. */
   const creditTotal = useMemo(() => {
     if (voucherType === "Journal") {
       return journalRows.reduce(
@@ -4227,9 +4510,15 @@ export function useVoucherForm() {
         0
       );
     }
+    if (voucherType === "Contra" && contraEntryMode === "double") {
+      return contraDoubleRows.reduce(
+        (sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0),
+        0
+      );
+    }
     // Mirror of debitTotal for single-entry
     return particularsTotal;
-  }, [voucherType, journalRows, particularsTotal]);
+  }, [voucherType, journalRows, contraDoubleRows, contraEntryMode, particularsTotal]);
 
   /**
    * totalAmount — the grand total shown in the voucher footer and used for
@@ -4247,7 +4536,14 @@ export function useVoucherForm() {
    *   Purchase: Dr entries (taxes/charges) add to party payable; Cr entries (discounts) reduce it
    */
   const totalAmount = useMemo(() => {
-    if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
+    if (["Receipt", "Payment"].includes(voucherType)) {
+      return particularsTotal;
+    }
+
+    if (voucherType === "Contra") {
+      if (contraEntryMode === "double") {
+        return debitTotal; // same as creditTotal when balanced
+      }
       return particularsTotal;
     }
 
@@ -4268,7 +4564,7 @@ export function useVoucherForm() {
     }
 
     return 0;
-  }, [voucherType, particularsTotal, debitTotal, stockEntries, additionalEntries]);
+  }, [voucherType, particularsTotal, debitTotal, contraEntryMode, stockEntries, additionalEntries]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Particular row handlers (single-entry layouts)
@@ -4344,6 +4640,37 @@ export function useVoucherForm() {
 
   const handleRemoveJournalRow = useCallback((id: string) => {
     setJournalRows((prev) => (prev.length > 2 ? prev.filter((r) => r.id !== id) : prev));
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Contra double-entry row handlers
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const handleAddContraDoubleRow = useCallback(() => {
+    setContraDoubleRows((prev) => {
+      const lastType = prev[prev.length - 1]?.type ?? "Dr";
+      const nextType: "Dr" | "Cr" = lastType === "Dr" ? "Cr" : "Dr";
+      return [...prev, makeParticularRow(nextType)];
+    });
+  }, []);
+
+  const handleUpdateContraDoubleRow = useCallback(
+    async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
+      setContraDoubleRows((prev) =>
+        prev.map((r) => (r.id !== id ? r : { ...r, ...updates }))
+      );
+      if (updates.ledger?.ledger_id) {
+        const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
+        setContraDoubleRows((prev) =>
+          prev.map((r) => (r.id !== id ? r : { ...r, ledgerBalance: bal }))
+        );
+      }
+    },
+    [fetchLedgerBalance]
+  );
+
+  const handleRemoveContraDoubleRow = useCallback((id: string) => {
+    setContraDoubleRows((prev) => (prev.length > 2 ? prev.filter((r) => r.id !== id) : prev));
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -4454,6 +4781,8 @@ export function useVoucherForm() {
           const ledger = item as LedgerType;
           if (voucherType === "Journal") {
             handleUpdateJournalRow(activeField.rowId, { ledger });
+          } else if (voucherType === "Contra" && contraEntryMode === "double") {
+            handleUpdateContraDoubleRow(activeField.rowId, { ledger });
           } else {
             handleUpdateParticularRow(activeField.rowId, { ledger });
           }
@@ -4480,8 +4809,9 @@ export function useVoucherForm() {
       setStockSearchTerm("");
     },
     [
-      activeField, voucherType, allUnits,
+      activeField, voucherType, contraEntryMode, allUnits,
       handleUpdateParticularRow, handleUpdateJournalRow,
+      handleUpdateContraDoubleRow,
       handleUpdateAdditionalRow, handleUpdateStockRow,
     ]
   );
@@ -4508,6 +4838,7 @@ export function useVoucherForm() {
       : "Dr"; // Contra
     setParticulars([makeParticularRow(defaultParticular)]);
     setJournalRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
+    setContraDoubleRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
     setStockEntries([makeStockRow()]);
     setAdditionalEntries([]);
 
@@ -4525,6 +4856,7 @@ export function useVoucherForm() {
     setSupplierInvoiceNo("");
     setSupplierInvoiceDate("");
     setStatus("Regular");
+    setContraEntryMode("single");
     setDate(todayStr());
 
     fetchNextNumber();
@@ -4542,30 +4874,43 @@ export function useVoucherForm() {
     if (!companyId) return "No company selected.";
     if (!fyId) return "No active financial year.";
 
-    if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
-      // Account (cash/bank) side is required
+    if (["Receipt", "Payment"].includes(voucherType)) {
       if (!accountLedger) return "Account (cash/bank ledger) is required.";
-
-      // Contra: Account must be cash or bank
-      if (voucherType === "Contra" && !checkIsCashOrBank(accountLedger)) {
-        return "Contra Account must be a Cash or Bank ledger.";
-      }
-
       const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
       if (filled.length < 1)
         return "At least one Particulars entry with an amount is required.";
+      if (particularsTotal <= 0) return "Total amount must be greater than zero.";
+    }
 
-      // Contra: all particulars must also be cash/bank
-      if (voucherType === "Contra") {
+    if (voucherType === "Contra") {
+      if (contraEntryMode === "single") {
+        if (!accountLedger) return "Account (cash/bank ledger) is required.";
+        if (!checkIsCashOrBank(accountLedger)) {
+          return "Contra Account must be a Cash or Bank ledger.";
+        }
+        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+        if (filled.length < 1)
+          return "At least one Particulars entry with an amount is required.";
         for (const row of filled) {
           if (!checkIsCashOrBank(row.ledger))
             return "Contra vouchers may only use Cash/Bank ledgers on both sides.";
         }
+        if (particularsTotal <= 0) return "Total amount must be greater than zero.";
+      } else {
+        // Double-entry Contra
+        const filled = contraDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+        if (filled.length < 2)
+          return "At least two valid entries are required.";
+        for (const row of filled) {
+          if (!checkIsCashOrBank(row.ledger))
+            return "Contra vouchers may only use Cash/Bank ledgers.";
+        }
+        if (Math.abs(debitTotal - creditTotal) > 0.01)
+          return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
+            2
+          )}) totals must balance.`;
+        if (debitTotal <= 0) return "Amount must be greater than zero.";
       }
-
-      // In single-entry mode the totals always balance by construction
-      // (Account amount = sum of Particulars), so no explicit balance check needed.
-      if (particularsTotal <= 0) return "Total amount must be greater than zero.";
     }
 
     if (voucherType === "Journal") {
@@ -4594,9 +4939,9 @@ export function useVoucherForm() {
 
     return null;
   }, [
-    companyId, fyId, voucherType,
+    companyId, fyId, voucherType, contraEntryMode,
     accountLedger, particulars, particularsTotal,
-    journalRows, debitTotal, creditTotal,
+    contraDoubleRows, journalRows, debitTotal, creditTotal,
     stockEntries, partyLedger, salesPurchaseLedger, totalAmount,
     checkIsCashOrBank,
   ]);
@@ -4622,23 +4967,10 @@ export function useVoucherForm() {
 
       // ── Build accounting entries ─────────────────────────────────────────────
 
-      if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
-        //
-        // Single-entry layout:
-        //   Receipt:  Account = Dr (cash/bank receives)
-        //             Particulars = Cr (income / party receipted from)
-        //
-        //   Payment:  Account = Cr (cash/bank pays out)
-        //             Particulars = Dr (expense / party paid to)
-        //
-        //   Contra:   Account = Cr (source cash/bank, e.g. bank being withdrawn from)
-        //             Particulars = Dr (destination cash/bank, e.g. cash-in-hand)
-        //
-
+      if (["Receipt", "Payment"].includes(voucherType)) {
         const accountType: "Dr" | "Cr" =
-          voucherType === "Receipt" ? "Dr" : "Cr"; // Payment & Contra → Cr
+          voucherType === "Receipt" ? "Dr" : "Cr";
 
-        // Account leg — amount equals the sum of all particulars
         entries.push({
           ledger_id: accountLedger!.ledger_id,
           ledger_name: accountLedger!.name,
@@ -4646,18 +4978,52 @@ export function useVoucherForm() {
           amount: particularsTotal,
         });
 
-        // Particulars legs
         const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
         entries.push(
           ...filled.map((p) => ({
             ledger_id: p.ledger!.ledger_id,
             ledger_name: p.ledger!.name,
-            type: p.type, // already set to correct side by deriveParticularType
+            type: p.type,
             amount: Number(p.amountRaw),
             currency: "INR",
             cost_centres: p.costCentres,
           }))
         );
+
+      } else if (voucherType === "Contra") {
+        if (contraEntryMode === "single") {
+          const accountType: "Dr" | "Cr" = "Cr";
+
+          entries.push({
+            ledger_id: accountLedger!.ledger_id,
+            ledger_name: accountLedger!.name,
+            type: accountType,
+            amount: particularsTotal,
+          });
+
+          const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+          entries.push(
+            ...filled.map((p) => ({
+              ledger_id: p.ledger!.ledger_id,
+              ledger_name: p.ledger!.name,
+              type: p.type,
+              amount: Number(p.amountRaw),
+              currency: "INR",
+              cost_centres: p.costCentres,
+            }))
+          );
+        } else {
+          // Double-entry Contra: entries directly from rows (like Journal)
+          const filled = contraDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+          entries = filled.map((r) => ({
+            ledger_id: r.ledger!.ledger_id,
+            ledger_name: r.ledger!.name,
+            type: r.type,
+            amount: Number(r.amountRaw),
+            currency: "INR",
+            cost_centres: r.costCentres,
+          }));
+        }
 
       } else if (voucherType === "Journal") {
         const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
@@ -4741,12 +5107,26 @@ export function useVoucherForm() {
 
       let finalBillReferences: any[] = [];
 
-      if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
+      if (["Receipt", "Payment"].includes(voucherType)) {
         finalBillReferences = particulars
           .filter((p) => p.ledger && p.billReferences?.length)
           .flatMap((p) =>
             p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id }))
           );
+      } else if (voucherType === "Contra") {
+        if (contraEntryMode === "single") {
+          finalBillReferences = particulars
+            .filter((p) => p.ledger && p.billReferences?.length)
+            .flatMap((p) =>
+              p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id }))
+            );
+        } else {
+          finalBillReferences = contraDoubleRows
+            .filter((r) => r.ledger && r.billReferences?.length)
+            .flatMap((r) =>
+              r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id }))
+            );
+        }
       } else if (voucherType === "Journal") {
         finalBillReferences = journalRows
           .filter((r) => r.ledger && r.billReferences?.length)
@@ -4816,13 +5196,13 @@ export function useVoucherForm() {
     }
   }, [
     validate,
-    companyId, fyId, voucherType,
+    companyId, fyId, voucherType, contraEntryMode,
     date, status,
     supplierInvoiceNo, supplierInvoiceDate,
     referenceNumber, referenceDate, placeOfSupply,
     narration, totalAmount, particularsTotal,
     accountLedger,
-    particulars, journalRows,
+    particulars, contraDoubleRows, journalRows,
     partyLedger, salesPurchaseLedger,
     stockEntries, additionalEntries,
     partyBillReferences, bankDetails, cashDenominations,
@@ -4916,6 +5296,15 @@ export function useVoucherForm() {
     handleUpdateParticularRow,
     handleAddParticularRow,
     handleRemoveParticularRow,
+
+    // ── Layout 1b — Contra double-entry ───────────────────────────────────────
+    contraEntryMode,
+    setContraEntryMode,
+    contraDoubleRows,
+    setContraDoubleRows,
+    handleUpdateContraDoubleRow,
+    handleAddContraDoubleRow,
+    handleRemoveContraDoubleRow,
 
     // ── Layout 2 — journal (F7) ────────────────────────────────────────────────
     journalRows,
@@ -5373,12 +5762,15 @@ import DenominationPopup from "./components/popups/DenominationPopup";
 import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
 import ReceiptDetailsPopup from "./components/popups/ReceiptDetailsPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
+import ContraDoubleEntryTable from "./components/ContraDoubleEntryTable";
 
 function RightSidebar({
   voucherType,
   onTypeChange,
   status,
   onStatusChange,
+  entryMode,
+  onEntryModeChange,
   onDateClick,
   onCreateLedger,
   onAccept,
@@ -5389,6 +5781,8 @@ function RightSidebar({
   onTypeChange: (t: string) => void;
   status: string;
   onStatusChange: () => void;
+  entryMode: "single" | "double";
+  onEntryModeChange: () => void;
   onDateClick: () => void;
   onCreateLedger: () => void;
   onAccept: () => void;
@@ -5451,6 +5845,18 @@ function RightSidebar({
           {status === "Post-Dated" ? "✓ " : ""}Post-Dated
         </button>
       </div>
+
+      {voucherType === "Contra" && (
+        <div className="border-b border-gray-200">
+          <button
+            onClick={onEntryModeChange}
+            className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
+          >
+            <span className="text-gray-500">H</span>:{" "}
+            {entryMode === "double" ? "✓ " : ""}Double Entry
+          </button>
+        </div>
+      )}
 
       <div className="flex-1" />
 
@@ -5603,10 +6009,26 @@ export default function Vouchers() {
   const canAccept = useMemo(() => {
     if (form.isSubmitting) return false;
 
-    if (["Receipt", "Payment", "Contra"].includes(form.voucherType)) {
+    if (["Receipt", "Payment"].includes(form.voucherType)) {
       return (
         !!form.accountLedger &&
         form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
+      );
+    }
+
+    if (form.voucherType === "Contra") {
+      if (form.contraEntryMode === "single") {
+        return (
+          !!form.accountLedger &&
+          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
+        );
+      }
+      const filled = form.contraDoubleRows.filter(
+        (r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0
+      );
+      return (
+        filled.length >= 2 &&
+        Math.abs(form.debitTotal - form.creditTotal) < 0.01
       );
     }
 
@@ -5632,6 +6054,8 @@ export default function Vouchers() {
   }, [
     form.isSubmitting,
     form.voucherType,
+    form.contraEntryMode,
+    form.contraDoubleRows,
     form.accountLedger,
     form.particulars,
     form.journalRows,
@@ -5675,9 +6099,25 @@ export default function Vouchers() {
       return;
     }
 
-    // ── Receipt / Payment / Contra: bill-wise for account ledger ────────
+    // ── Receipt / Payment / Contra (single): bill-wise for account ledger ────────
     if (
-      ["Receipt", "Payment", "Contra"].includes(form.voucherType) &&
+      ["Receipt", "Payment"].includes(form.voucherType) &&
+      form.accountLedger?.is_bill_wise === 1 &&
+      form.partyBillReferences.length === 0
+    ) {
+      form.setActiveAllocation({
+        type: "billWiseParty",
+        ledgerId: form.accountLedger.ledger_id,
+        ledgerName: form.accountLedger.name,
+        amount: form.particularsTotal,
+        initialAllocations: [],
+      });
+      return;
+    }
+
+    if (
+      form.voucherType === "Contra" &&
+      form.contraEntryMode === "single" &&
       form.accountLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {
@@ -5694,6 +6134,7 @@ export default function Vouchers() {
     form.handleSubmit();
   }, [
     form.voucherType,
+    form.contraEntryMode,
     form.partyLedger,
     form.accountLedger,
     form.partyBillReferences,
@@ -5711,15 +6152,20 @@ export default function Vouchers() {
     (idx: number) => {
       const isJ = form.voucherType === "Journal";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
+      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
       const list = isJ
         ? form.journalRows
         : isInv
         ? form.additionalEntries
+        : isContraDouble
+        ? form.contraDoubleRows
         : form.particulars;
       const addRow = isJ
         ? form.handleAddJournalRow
         : isInv
         ? form.handleAddAdditionalRow
+        : isContraDouble
+        ? form.handleAddContraDoubleRow
         : form.handleAddParticularRow;
 
       if (idx === list.length - 1) addRow();
@@ -5734,12 +6180,15 @@ export default function Vouchers() {
     },
     [
       form.voucherType,
+      form.contraEntryMode,
       form.journalRows,
       form.additionalEntries,
       form.particulars,
+      form.contraDoubleRows,
       form.handleAddJournalRow,
       form.handleAddAdditionalRow,
       form.handleAddParticularRow,
+      form.handleAddContraDoubleRow,
     ]
   );
 
@@ -5823,12 +6272,14 @@ export default function Vouchers() {
       const { rowId } = alloc;
       const isJ = form.voucherType === "Journal";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
+      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
 
       if (isJ) form.handleUpdateJournalRow(rowId, { billReferences: allocations });
       else if (isInv) form.handleUpdateAdditionalRow(rowId, { billReferences: allocations });
+      else if (isContraDouble) form.handleUpdateContraDoubleRow(rowId, { billReferences: allocations });
       else form.handleUpdateParticularRow(rowId, { billReferences: allocations });
 
-      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : form.particulars;
+      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : isContraDouble ? form.contraDoubleRows : form.particulars;
       const targetRow = list.find((r) => r.id === rowId);
 
       if (targetRow?.ledger?.allow_cost_centres === 1) {
@@ -5848,13 +6299,16 @@ export default function Vouchers() {
     [
       form.activeAllocation,
       form.voucherType,
+      form.contraEntryMode,
       form.journalRows,
       form.additionalEntries,
       form.particulars,
+      form.contraDoubleRows,
       form.setPartyBillReferences,
       form.setActiveAllocation,
       form.handleUpdateJournalRow,
       form.handleUpdateAdditionalRow,
+      form.handleUpdateContraDoubleRow,
       form.handleUpdateParticularRow,
       proceedToNextRow,
     ]
@@ -5867,24 +6321,29 @@ export default function Vouchers() {
       const { rowId } = alloc;
       const isJ = form.voucherType === "Journal";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
+      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
 
       if (isJ) form.handleUpdateJournalRow(rowId, { costCentres: allocations });
       else if (isInv) form.handleUpdateAdditionalRow(rowId, { costCentres: allocations });
+      else if (isContraDouble) form.handleUpdateContraDoubleRow(rowId, { costCentres: allocations });
       else form.handleUpdateParticularRow(rowId, { costCentres: allocations });
 
       form.setActiveAllocation(null);
-      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : form.particulars;
+      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : isContraDouble ? form.contraDoubleRows : form.particulars;
       proceedToNextRow(list.findIndex((r) => r.id === rowId));
     },
     [
       form.activeAllocation,
       form.voucherType,
+      form.contraEntryMode,
       form.journalRows,
       form.additionalEntries,
       form.particulars,
+      form.contraDoubleRows,
       form.setActiveAllocation,
       form.handleUpdateJournalRow,
       form.handleUpdateAdditionalRow,
+      form.handleUpdateContraDoubleRow,
       form.handleUpdateParticularRow,
       proceedToNextRow,
     ]
@@ -5896,12 +6355,15 @@ export default function Vouchers() {
       form.setBankDetails(details);
       form.setActiveAllocation(null);
       if (alloc && "rowId" in alloc) {
-        const list = form.particulars;
+        const list =
+          form.voucherType === "Contra" && form.contraEntryMode === "double"
+            ? form.contraDoubleRows
+            : form.particulars;
         const rowIdx = list.findIndex((r) => r.id === alloc.rowId);
         proceedToNextRow(rowIdx);
       }
     },
-    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, form.particulars, proceedToNextRow]
+    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, form.voucherType, form.contraEntryMode, form.contraDoubleRows, form.particulars, proceedToNextRow]
   );
 
   const handleSaveCashDenomination = useCallback(
@@ -5910,12 +6372,15 @@ export default function Vouchers() {
       form.setCashDenominations(details);
       form.setActiveAllocation(null);
       if (alloc && "rowId" in alloc) {
-        const list = form.particulars;
+        const list =
+          form.voucherType === "Contra" && form.contraEntryMode === "double"
+            ? form.contraDoubleRows
+            : form.particulars;
         const rowIdx = list.findIndex((r) => r.id === alloc.rowId);
         proceedToNextRow(rowIdx);
       }
     },
-    [form.activeAllocation, form.setCashDenominations, form.setActiveAllocation, form.particulars, proceedToNextRow]
+    [form.activeAllocation, form.setCashDenominations, form.setActiveAllocation, form.voucherType, form.contraEntryMode, form.contraDoubleRows, form.particulars, proceedToNextRow]
   );
 
   const handleSaveDispatchDetails = useCallback(
@@ -5972,6 +6437,7 @@ export default function Vouchers() {
     }
 
     // Contra Particulars: also restricted to cash/bank (destination side)
+    // In double-entry mode, all rows are restricted to cash/bank
     if (form.voucherType === "Contra" && af.type === "particular") {
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
     }
@@ -6019,6 +6485,12 @@ export default function Vouchers() {
       if (e.key === "F7") { e.preventDefault(); form.setVoucherType("Journal"); }
       if (e.key === "F8") { e.preventDefault(); form.setVoucherType("Sales"); }
       if (e.key === "F9") { e.preventDefault(); form.setVoucherType("Purchase"); }
+      if (e.altKey && (e.key === "h" || e.key === "H")) {
+        e.preventDefault();
+        if (form.voucherType === "Contra") {
+          form.setContraEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
+        }
+      }
       if (e.altKey && (e.key === "a" || e.key === "A")) {
         e.preventDefault();
         if (canAccept) handleAccept();
@@ -6043,6 +6515,8 @@ export default function Vouchers() {
     return () => window.removeEventListener("keydown", h);
   }, [
     form.setVoucherType,
+    form.setContraEntryMode,
+    form.voucherType,
     form.activeField,
     form.activeAllocation,
     canAccept,
@@ -6098,10 +6572,30 @@ export default function Vouchers() {
   // ─── Balanced / diff indicator ───────────────────────────────────────
 
   function BalanceIndicator() {
-    if (["Receipt", "Payment", "Contra"].includes(form.voucherType)) {
+    if (["Receipt", "Payment"].includes(form.voucherType)) {
       return form.particularsTotal > 0 ? (
         <span className="text-gray-500">✓ Balanced</span>
       ) : null;
+    }
+    if (form.voucherType === "Contra") {
+      if (form.contraEntryMode === "single") {
+        return form.particularsTotal > 0 ? (
+          <span className="text-gray-500">✓ Balanced</span>
+        ) : null;
+      }
+      if (form.debitTotal <= 0) return null;
+      if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
+        return (
+          <span className="text-red-700">
+            ⚠ Diff:{" "}
+            {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+        );
+      }
+      return <span className="text-gray-500">✓ Balanced</span>;
     }
     if (form.voucherType === "Journal") {
       if (form.debitTotal <= 0) return null;
@@ -6186,10 +6680,11 @@ export default function Vouchers() {
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
 
           {/* ════════════════════════════════════════════════════════════
-              Layout 1 — Receipt · Payment · Contra
+              Layout 1 — Receipt · Payment · Contra (single-entry)
               Account (cash/bank) + Particulars table
           ═════════════════════════════════════════════════════════════ */}
-          {["Receipt", "Payment", "Contra"].includes(form.voucherType) && (
+          {(["Receipt", "Payment"].includes(form.voucherType) ||
+            (form.voucherType === "Contra" && form.contraEntryMode === "single")) && (
             <>
               {/* Account field */}
               <div className="border-b border-gray-300 shrink-0 py-1">
@@ -6295,6 +6790,24 @@ export default function Vouchers() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════
+              Layout 1b — Contra (double-entry)
+              No Account field; Particulars + Debit + Credit columns
+          ═════════════════════════════════════════════════════════════ */}
+          {form.voucherType === "Contra" && form.contraEntryMode === "double" && (
+            <ContraDoubleEntryTable
+              rows={form.contraDoubleRows}
+              onUpdateRow={form.handleUpdateContraDoubleRow}
+              onAddRow={form.handleAddContraDoubleRow}
+              onRemoveRow={form.handleRemoveContraDoubleRow}
+              onFieldFocus={form.handleFieldFocus}
+              onSearchChange={form.setLedgerSearchTerm}
+              searchTerm={form.ledgerSearchTerm}
+              activeRowId={form.activeField?.type === "particular" ? form.activeField.rowId : null}
+              onAmountConfirm={handleAmountConfirm}
+            />
           )}
 
           {/* ════════════════════════════════════════════════════════════
@@ -6776,7 +7289,7 @@ export default function Vouchers() {
               value={form.narration}
               onChange={(e) => form.setNarration(e.target.value)}
             />
-            {form.totalAmount > 0 && form.voucherType !== "Contra" && (
+            {form.totalAmount > 0 && (form.voucherType !== "Contra" || form.contraEntryMode === "double") && (
               <span className="text-sm font-semibold text-black ml-4 shrink-0 tabular-nums">
                 {form.totalAmount.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -6839,6 +7352,10 @@ export default function Vouchers() {
           status={form.status}
           onStatusChange={() =>
             form.setStatus((p: string) => (p === "Regular" ? "Post-Dated" : "Regular"))
+          }
+          entryMode={form.contraEntryMode}
+          onEntryModeChange={() =>
+            form.setContraEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"))
           }
           onDateClick={() => setShowDatePicker(true)}
           onCreateLedger={() => navigate("/master/create/ledger")}
