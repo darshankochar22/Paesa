@@ -19,13 +19,25 @@ export default function DatePickerPopup({
   onConfirm,
   label = "Date",
 }: Props) {
-  const parsed = new Date(initialDate || Date.now());
-  const safeDate = isNaN(parsed.getTime()) ? new Date() : parsed;
-
-  const [viewYear, setViewYear] = useState(safeDate.getFullYear());
-  const [viewMonth, setViewMonth] = useState(safeDate.getMonth());
-  const [selectedDate, setSelectedDate] = useState(safeDate);
-  const [highlightedDay, setHighlightedDay] = useState(safeDate.getDate() - 1);
+  const [viewYear, setViewYear] = useState(() => {
+    const parsed = new Date(initialDate || Date.now());
+    const safeDate = isNaN(parsed.getTime()) ? new Date() : parsed;
+    return safeDate.getFullYear();
+  });
+  const [viewMonth, setViewMonth] = useState(() => {
+    const parsed = new Date(initialDate || Date.now());
+    const safeDate = isNaN(parsed.getTime()) ? new Date() : parsed;
+    return safeDate.getMonth();
+  });
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const parsed = new Date(initialDate || Date.now());
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  });
+  const [highlightedDay, setHighlightedDay] = useState(() => {
+    const parsed = new Date(initialDate || Date.now());
+    const safeDate = isNaN(parsed.getTime()) ? new Date() : parsed;
+    return safeDate.getDate() - 1;
+  });
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
@@ -49,7 +61,7 @@ export default function DatePickerPopup({
       return m - 1;
     });
     setHighlightedDay(0);
-  }, []);
+  }, [setViewYear]);
 
   const handleNextMonth = useCallback(() => {
     setViewMonth((m) => {
@@ -57,7 +69,7 @@ export default function DatePickerPopup({
       return m + 1;
     });
     setHighlightedDay(0);
-  }, []);
+  }, [setViewYear]);
 
   const selectDay = useCallback(
     (day: number) => {

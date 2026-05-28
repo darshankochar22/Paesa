@@ -52,7 +52,7 @@ export interface BankDetails {
     amount: number;
 }
 
-export type ActionAllocation = 
+export type ActiveAllocation = 
   | {
     type: "billwise";
     rowId: string;
@@ -99,7 +99,7 @@ export type ActionAllocation =
     additional_notes?: string;
  } 
 
- export interface ReciptDetail{
+ export interface ReceiptDetail{
     id: string;
     receipt_date: string;
     receipt_reference_number: string;
@@ -111,7 +111,11 @@ export type ActionAllocation =
     received_by?: string;
  }
 
- export type VoucherStatus = "Regular" | "Post-dated";
+export type VoucherStatus =
+  | "Open"
+  | "Closed"
+  | "Cancelled"
+  | "Post-Dated";
 
  export type VoucherType =
     | "Receipt"
