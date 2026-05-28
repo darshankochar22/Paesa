@@ -50,9 +50,6 @@ export default function ContraDoubleEntryTable({
     if (onAmountConfirm) {
       onAmountConfirm(row, idx);
     } else if (Number(row.amountRaw) > 0) {
-      if (idx === rowsRef.current.length - 1) {
-        onAddRow();
-      }
       setTimeout(() => {
         const nextIdx = idx + 1;
         const next = document.querySelector(

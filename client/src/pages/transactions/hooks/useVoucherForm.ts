@@ -358,7 +358,7 @@ export function useVoucherForm() {
       if (!companyId || !fyId) return "";
       try {
         const res = await window.api.voucher.getLedgerBalance(ledgerId, companyId, fyId);
-        if (res.success && res.balance != null) return String(res.balance);
+        if (res.success && res.rawBalance != null) return String(res.rawBalance);
       } catch {
         // ignore
       }
@@ -719,9 +719,30 @@ export function useVoucherForm() {
 
   const handleUpdateContraDoubleRow = useCallback(
     async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
-      setContraDoubleRows((prev) =>
-        prev.map((r) => (r.id !== id ? r : { ...r, ...updates }))
-      );
+      setContraDoubleRows((prev) => {
+        const nextRows = prev.map((r) => (r.id !== id ? r : {
+          ...r,
+          ...updates,
+          // Clear old balance when ledger changes
+          ...(updates.ledger !== undefined ? { ledgerBalance: "" } : {}),
+        }));
+
+        // Autofill amount when ledger is selected and no amount set yet
+        if (updates.ledger?.ledger_id) {
+          const updatedRow = nextRows.find((r) => r.id === id);
+          if (updatedRow && (!updatedRow.amountRaw || Number(updatedRow.amountRaw) === 0)) {
+            const drTotal = nextRows.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+            const crTotal = nextRows.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+            const deficit = updatedRow.type === "Dr" ? crTotal - drTotal : drTotal - crTotal;
+            if (Math.abs(deficit) > 0.01) {
+              return nextRows.map((r) =>
+                r.id === id ? { ...r, amountRaw: Math.abs(deficit).toFixed(2) } : r
+              );
+            }
+          }
+        }
+        return nextRows;
+      });
       if (updates.ledger?.ledger_id) {
         const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
         setContraDoubleRows((prev) =>
@@ -750,9 +771,30 @@ export function useVoucherForm() {
 
   const handleUpdateReceiptDoubleRow = useCallback(
     async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
-      setReceiptDoubleRows((prev) =>
-        prev.map((r) => (r.id !== id ? r : { ...r, ...updates }))
-      );
+      setReceiptDoubleRows((prev) => {
+        const nextRows = prev.map((r) => (r.id !== id ? r : {
+          ...r,
+          ...updates,
+          // Clear old balance when ledger changes
+          ...(updates.ledger !== undefined ? { ledgerBalance: "" } : {}),
+        }));
+
+        // Autofill amount when ledger is selected and no amount set yet
+        if (updates.ledger?.ledger_id) {
+          const updatedRow = nextRows.find((r) => r.id === id);
+          if (updatedRow && (!updatedRow.amountRaw || Number(updatedRow.amountRaw) === 0)) {
+            const drTotal = nextRows.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+            const crTotal = nextRows.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+            const deficit = updatedRow.type === "Dr" ? crTotal - drTotal : drTotal - crTotal;
+            if (Math.abs(deficit) > 0.01) {
+              return nextRows.map((r) =>
+                r.id === id ? { ...r, amountRaw: Math.abs(deficit).toFixed(2) } : r
+              );
+            }
+          }
+        }
+        return nextRows;
+      });
       if (updates.ledger?.ledger_id) {
         const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
         setReceiptDoubleRows((prev) =>
@@ -944,6 +986,7 @@ export function useVoucherForm() {
     setActiveAllocation(null);
     setPartyBillReferences([]);
     setBankDetails(null);
+    setCashDenominations(null);
 
     setReferenceNumber("");
     setNarration("");
