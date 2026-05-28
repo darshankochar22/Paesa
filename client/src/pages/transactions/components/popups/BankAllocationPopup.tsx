@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+
+const TRANSACTION_TYPES = ["Cheque", "e-Fund Transfer", "Card", "Cash", "Others"] as const;
 
 interface BankDetails {
   ledger_id: number;
-  transaction_type: "Cheque" | "e-Fund Transfer" | "Card" | "Others";
+  transaction_type: string;
   cheque_range?: string;
   instrument_number: string;
   instrument_date: string;
+  bank_name?: string;
   amount: number;
 }
 
@@ -32,6 +35,7 @@ export default function BankAllocationPopup({
     cheque_range: "",
     instrument_number: "",
     instrument_date: new Date().toISOString().split("T")[0],
+    bank_name: "",
     amount,
   });
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +48,17 @@ export default function BankAllocationPopup({
         cheque_range: initialDetails.cheque_range ?? "",
         instrument_number: initialDetails.instrument_number ?? "",
         instrument_date: initialDetails.instrument_date ?? new Date().toISOString().split("T")[0],
+        bank_name: initialDetails.bank_name ?? "",
         amount: initialDetails.amount ?? amount,
       });
     } else {
       setForm((prev) => ({ ...prev, ledger_id: ledgerId, amount }));
     }
   }, [ledgerId, amount, initialDetails]);
+
+  const handleSave = useCallback(() => {
+    onSave(form);
+  }, [form, onSave]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -58,22 +67,28 @@ export default function BankAllocationPopup({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
+  }, [onClose, handleSave]);
 
   const set = (field: keyof BankDetails, value: any) => {
     setError(null);
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSave = () => {
-    onSave(form);
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "transaction_type") {
+        if (value === "Cheque") {
+          next.instrument_date = new Date().toISOString().split("T")[0];
+        }
+      }
+      return next;
+    });
   };
 
   const formattedAmount = amount.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+  const isCheque = form.transaction_type === "Cheque";
+  const isCash = form.transaction_type === "Cash";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
@@ -108,13 +123,12 @@ export default function BankAllocationPopup({
             <div>
               <select
                 value={form.transaction_type}
-                onChange={(e) => set("transaction_type", e.target.value as any)}
+                onChange={(e) => set("transaction_type", e.target.value)}
                 className="bg-transparent outline-none border border-zinc-300 px-1 py-0.5 text-sm text-black w-36"
               >
-                <option value="Cheque">Cheque</option>
-                <option value="e-Fund Transfer">e-Fund Transfer</option>
-                <option value="Card">Card</option>
-                <option value="Others">Others</option>
+                {TRANSACTION_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
               </select>
             </div>
             <div className="text-right font-mono text-black">{formattedAmount}</div>
@@ -130,19 +144,37 @@ export default function BankAllocationPopup({
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm italic text-black w-28 shrink-0">Cheque range</span>
-            <span className="text-sm text-black">:</span>
-            <input
-              type="text"
-              value={form.cheque_range}
-              onChange={(e) => set("cheque_range", e.target.value)}
-              className="flex-1 text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 bg-white"
-            />
-          </div>
+          {isCheque && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm italic text-black w-28 shrink-0">Cheque range</span>
+              <span className="text-sm text-black">:</span>
+              <input
+                type="text"
+                value={form.cheque_range ?? ""}
+                onChange={(e) => set("cheque_range", e.target.value)}
+                className="flex-1 text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 bg-white"
+              />
+            </div>
+          )}
+
+          {isCash && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm italic text-black w-28 shrink-0">Bank Name</span>
+              <span className="text-sm text-black">:</span>
+              <input
+                type="text"
+                value={form.bank_name ?? ""}
+                onChange={(e) => set("bank_name", e.target.value)}
+                className="flex-1 text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 bg-white"
+                placeholder="Enter bank name"
+              />
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
-            <span className="text-sm italic text-black w-28 shrink-0">Inst No.</span>
+            <span className="text-sm italic text-black w-28 shrink-0">
+              {isCheque ? "Inst No." : isCash ? "Ref No." : "Inst No."}
+            </span>
             <span className="text-sm text-black">:</span>
             <input
               type="text"
@@ -163,7 +195,9 @@ export default function BankAllocationPopup({
 
         {/* Footer */}
         <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center select-none">
-          <span className="text-[10px] text-zinc-500">Alt+A: Accept &nbsp;·&nbsp; Esc: Close</span>
+          <span className="text-[10px] text-zinc-500">
+            Alt+A: Accept &nbsp;·&nbsp; Esc: Close{isCash ? " → Will open Denomination" : ""}
+          </span>
           <div className="flex gap-2">
             <button onClick={onClose}
               className="text-xs px-3 py-1.5 border border-zinc-300 rounded text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">

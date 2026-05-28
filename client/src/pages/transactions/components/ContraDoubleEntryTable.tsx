@@ -6,7 +6,6 @@ interface Props {
   onUpdateRow: (id: string, updates: Partial<Omit<ParticularRow, "id">>) => void;
   onAddRow: () => void;
   onRemoveRow: (id: string) => void;
-  onAutoBalance: () => void;
   onFieldFocus: (field: ActiveField) => void;
   onSearchChange: (term: string) => void;
   searchTerm: string;
@@ -24,7 +23,6 @@ export default function ContraDoubleEntryTable({
   onUpdateRow,
   onAddRow,
   onRemoveRow,
-  onAutoBalance,
   onFieldFocus,
   onSearchChange,
   searchTerm,
@@ -48,7 +46,6 @@ export default function ContraDoubleEntryTable({
     if (!row?.ledger) return;
 
     e.preventDefault();
-    onAutoBalance();
 
     if (onAmountConfirm) {
       onAmountConfirm(row, idx);
@@ -64,10 +61,6 @@ export default function ContraDoubleEntryTable({
         next?.focus();
       }, 50);
     }
-  };
-
-  const handleAmountBlur = () => {
-    onAutoBalance();
   };
 
   const drTotal = rows.reduce(
@@ -186,7 +179,6 @@ export default function ContraDoubleEntryTable({
                     placeholder=""
                     onChange={(e) => handleAmountChange(row.id, e.target.value)}
                     onKeyDown={(e) => handleAmountKeyDown(e, idx)}
-                    onBlur={handleAmountBlur}
                   />
                 ) : (
                   <span className="block text-right px-1 py-0.5 text-gray-300 select-none text-sm">
@@ -205,7 +197,6 @@ export default function ContraDoubleEntryTable({
                     placeholder=""
                     onChange={(e) => handleAmountChange(row.id, e.target.value)}
                     onKeyDown={(e) => handleAmountKeyDown(e, idx)}
-                    onBlur={handleAmountBlur}
                   />
                 ) : (
                   <span className="block text-right px-1 py-0.5 text-gray-300 select-none text-sm">
@@ -228,6 +219,22 @@ export default function ContraDoubleEntryTable({
       <div className="border-t border-black shrink-0 px-3 py-0.5 bg-white">
         <div className="grid grid-cols-12 items-center">
           <div className="col-span-8 text-xs">
+            <button
+              onClick={onAddRow}
+              className="text-black hover:bg-gray-100 px-2 py-0.5 border border-gray-300 font-medium"
+            >
+              + Add Row
+            </button>
+          </div>
+          <div className="col-span-2 text-right text-sm font-semibold text-black">
+            {formatAmount(drTotal)}
+          </div>
+          <div className="col-span-2 text-right text-sm font-semibold text-black">
+            {formatAmount(crTotal)}
+          </div>
+        </div>
+        <div className="grid grid-cols-12 items-center mt-0.5 border-t border-gray-200 pt-0.5">
+          <div className="col-span-8 text-xs">
             {hasNegativeBalances && (
               <span className="text-red-600 font-medium">
                 ⚠ Negative balance detected
@@ -246,12 +253,7 @@ export default function ContraDoubleEntryTable({
               <span className="text-gray-500">✓ Balanced</span>
             )}
           </div>
-          <div className="col-span-2 text-right text-sm font-semibold text-black">
-            {formatAmount(drTotal)}
-          </div>
-          <div className="col-span-2 text-right text-sm font-semibold text-black">
-            {formatAmount(crTotal)}
-          </div>
+          <div className="col-span-4" />
         </div>
       </div>
     </div>

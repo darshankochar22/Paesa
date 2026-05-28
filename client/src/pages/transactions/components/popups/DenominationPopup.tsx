@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const DENOMINATIONS = [500, 200, 100, 50, 20, 10, 5, 2, 1];
 
@@ -50,16 +50,6 @@ export default function DenominationPopup({
     }
   }, [initialDetails]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quantities, others]);
-
   const handleQtyChange = (denom: number, qty: string) => {
     setError(null);
     const num = Math.max(0, Math.floor(Number(qty) || 0));
@@ -73,7 +63,16 @@ export default function DenominationPopup({
 
   const difference = amount - computedTotal;
 
-  const handleSave = () => {
+  const hasAnyInput = DENOMINATIONS.some((d) => (quantities[String(d)] || 0) > 0) || others > 0;
+
+  const isValidForAccept = !hasAnyInput || Math.abs(difference) < 0.01;
+
+  const handleSave = useCallback(() => {
+    if (!isValidForAccept) {
+      setError(`Denominations do not balance. Difference: ${difference.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      return;
+    }
+
     const entries: DenominationEntry[] = DENOMINATIONS.map((d) => ({
       denomination: d,
       quantity: quantities[String(d)] || 0,
@@ -86,7 +85,16 @@ export default function DenominationPopup({
       others: others || 0,
       total: computedTotal,
     });
-  };
+  }, [isValidForAccept, difference, quantities, others, computedTotal, ledgerId, onSave]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, handleSave]);
 
   const formattedAmount = amount.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -179,9 +187,9 @@ export default function DenominationPopup({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 items-center text-sm pt-0.5">
+          <div className={`grid grid-cols-2 items-center text-sm pt-0.5 ${!isValidForAccept && hasAnyInput ? "text-red-700" : "text-black"}`}>
             <div className="text-black">Difference</div>
-            <div className="text-right font-mono text-black">
+            <div className="text-right font-mono">
               {difference.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
           </div>
@@ -189,14 +197,19 @@ export default function DenominationPopup({
 
         {/* Footer */}
         <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center select-none">
-          <span className="text-[10px] text-zinc-500">Alt+A: Accept &nbsp;·&nbsp; Esc: Close</span>
+          <span className="text-[10px] text-zinc-500">
+            {hasAnyInput && !isValidForAccept
+              ? "Balance denominations to accept"
+              : "Alt+A: Accept  ·  Esc: Close"}
+          </span>
           <div className="flex gap-2">
             <button onClick={onClose}
               className="text-xs px-3 py-1.5 border border-zinc-300 rounded text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">
               Cancel
             </button>
             <button onClick={handleSave}
-              className="text-xs px-5 py-1.5 rounded bg-zinc-950 text-white hover:bg-zinc-800 font-semibold shadow-sm active:scale-95">
+              disabled={!isValidForAccept}
+              className="text-xs px-5 py-1.5 rounded bg-zinc-950 text-white hover:bg-zinc-800 disabled:bg-zinc-300 disabled:text-zinc-500 font-semibold shadow-sm active:scale-95">
               Accept
             </button>
           </div>

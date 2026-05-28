@@ -736,41 +736,6 @@ export function useVoucherForm() {
     setContraDoubleRows((prev) => (prev.length > 2 ? prev.filter((r) => r.id !== id) : prev));
   }, []);
 
-  const handleAutoBalanceContraDouble = useCallback(() => {
-    setContraDoubleRows((prev) => {
-      let drTotal = prev.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
-      let crTotal = prev.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
-
-      const diff = drTotal - crTotal;
-      if (Math.abs(diff) < 0.01) return prev;
-
-      let nextRows = prev;
-      for (let iter = 0; iter < 10; iter++) {
-        drTotal = nextRows.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
-        crTotal = nextRows.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
-        const d = drTotal - crTotal;
-        if (Math.abs(d) < 0.01) break;
-
-        const deficitType: "Dr" | "Cr" = d < 0 ? "Dr" : "Cr";
-        const deficitAmount = Math.abs(d);
-
-        const emptyRow = nextRows.find(
-          (r) => r.type === deficitType && !r.ledger && (!r.amountRaw || Number(r.amountRaw) === 0)
-        );
-        if (emptyRow) {
-          nextRows = nextRows.map((r) =>
-            r.id === emptyRow.id ? { ...r, amountRaw: deficitAmount.toFixed(2) } : r
-          );
-        } else {
-          const newRow = makeParticularRow(deficitType);
-          newRow.amountRaw = deficitAmount.toFixed(2);
-          nextRows = [...nextRows, newRow];
-        }
-      }
-      return nextRows;
-    });
-  }, []);
-
   // ─────────────────────────────────────────────────────────────────────────────
   // Receipt double-entry row handlers
   // ─────────────────────────────────────────────────────────────────────────────
@@ -800,41 +765,6 @@ export function useVoucherForm() {
 
   const handleRemoveReceiptDoubleRow = useCallback((id: string) => {
     setReceiptDoubleRows((prev) => (prev.length > 2 ? prev.filter((r) => r.id !== id) : prev));
-  }, []);
-
-  const handleAutoBalanceReceiptDouble = useCallback(() => {
-    setReceiptDoubleRows((prev) => {
-      let drTotal = prev.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
-      let crTotal = prev.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
-
-      const diff = drTotal - crTotal;
-      if (Math.abs(diff) < 0.01) return prev;
-
-      let nextRows = prev;
-      for (let iter = 0; iter < 10; iter++) {
-        drTotal = nextRows.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
-        crTotal = nextRows.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
-        const d = drTotal - crTotal;
-        if (Math.abs(d) < 0.01) break;
-
-        const deficitType: "Dr" | "Cr" = d < 0 ? "Dr" : "Cr";
-        const deficitAmount = Math.abs(d);
-
-        const emptyRow = nextRows.find(
-          (r) => r.type === deficitType && !r.ledger && (!r.amountRaw || Number(r.amountRaw) === 0)
-        );
-        if (emptyRow) {
-          nextRows = nextRows.map((r) =>
-            r.id === emptyRow.id ? { ...r, amountRaw: deficitAmount.toFixed(2) } : r
-          );
-        } else {
-          const newRow = makeParticularRow(deficitType);
-          newRow.amountRaw = deficitAmount.toFixed(2);
-          nextRows = [...nextRows, newRow];
-        }
-      }
-      return nextRows;
-    });
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1547,7 +1477,6 @@ export function useVoucherForm() {
     handleUpdateContraDoubleRow,
     handleAddContraDoubleRow,
     handleRemoveContraDoubleRow,
-    handleAutoBalanceContraDouble,
 
     // ── Layout 1c — Receipt double-entry ──────────────────────────────────────
     receiptEntryMode,
@@ -1557,7 +1486,6 @@ export function useVoucherForm() {
     handleUpdateReceiptDoubleRow,
     handleAddReceiptDoubleRow,
     handleRemoveReceiptDoubleRow,
-    handleAutoBalanceReceiptDouble,
 
     // ── Layout 2 — journal (F7) ────────────────────────────────────────────────
     journalRows,

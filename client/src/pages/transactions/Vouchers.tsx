@@ -477,9 +477,9 @@ export default function Vouchers() {
       const amount = Number(amountRaw) || 0;
       if (!ledger || amount <= 0) { proceedToNextRow(idx); return; }
 
-      // Contra / Receipt double-entry: bank/cash allocation for bank/cash ledgers
+      // Contra / Receipt double-entry: bank/cash popups only for Debit rows
       if (form.voucherType === "Contra" || (form.voucherType === "Receipt" && form.receiptEntryMode === "double")) {
-        if (form.checkIsBank(ledger)) {
+        if (row.type === "Dr" && form.checkIsBank(ledger)) {
           form.setActiveAllocation({
             type: "bankDetails",
             rowId: id,
@@ -490,7 +490,7 @@ export default function Vouchers() {
           });
           return;
         }
-        if (form.checkIsCash(ledger)) {
+        if (row.type === "Dr" && form.checkIsCash(ledger)) {
           form.setActiveAllocation({
             type: "cashDenomination",
             rowId: id,
@@ -640,6 +640,19 @@ export default function Vouchers() {
     (details: any) => {
       const alloc = form.activeAllocation;
       form.setBankDetails(details);
+
+      if (details.transaction_type === "Cash") {
+        form.setActiveAllocation({
+          type: "cashDenomination",
+          rowId: alloc && "rowId" in alloc ? alloc.rowId : "",
+          ledgerId: details.ledger_id,
+          ledgerName: details.bank_name || form.activeAllocation?.ledgerName || "Cash",
+          amount: details.amount,
+          initialDetails: form.cashDenominations,
+        });
+        return;
+      }
+
       form.setActiveAllocation(null);
       if (alloc && "rowId" in alloc) {
         const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
@@ -653,7 +666,7 @@ export default function Vouchers() {
         proceedToNextRow(rowIdx);
       }
     },
-    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, form.voucherType, form.contraEntryMode, form.receiptEntryMode, form.contraDoubleRows, form.receiptDoubleRows, form.particulars, proceedToNextRow]
+    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, form.voucherType, form.contraEntryMode, form.receiptEntryMode, form.contraDoubleRows, form.receiptDoubleRows, form.particulars, form.cashDenominations, proceedToNextRow]
   );
 
   const handleSaveCashDenomination = useCallback(
@@ -1168,7 +1181,6 @@ export default function Vouchers() {
               onUpdateRow={form.handleUpdateReceiptDoubleRow}
               onAddRow={form.handleAddReceiptDoubleRow}
               onRemoveRow={form.handleRemoveReceiptDoubleRow}
-              onAutoBalance={form.handleAutoBalanceReceiptDouble}
               onFieldFocus={form.handleFieldFocus}
               onSearchChange={form.setLedgerSearchTerm}
               searchTerm={form.ledgerSearchTerm}
@@ -1187,7 +1199,6 @@ export default function Vouchers() {
               onUpdateRow={form.handleUpdateContraDoubleRow}
               onAddRow={form.handleAddContraDoubleRow}
               onRemoveRow={form.handleRemoveContraDoubleRow}
-              onAutoBalance={form.handleAutoBalanceContraDouble}
               onFieldFocus={form.handleFieldFocus}
               onSearchChange={form.setLedgerSearchTerm}
               searchTerm={form.ledgerSearchTerm}
