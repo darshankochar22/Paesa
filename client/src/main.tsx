@@ -21,6 +21,7 @@ import GroupAlter from "./pages/master/group/GroupAlter.tsx";
 import GroupAlterEdit from "./pages/master/group/GroupAlterEdit.tsx";
 import GroupCOA from "./pages/master/group/GroupCOA.tsx";
 import Vouchers from "./pages/transactions/Vouchers.tsx";
+import Voucher from "./pages/transaction/Vouchers.tsx";
 import VoucherList from "./pages/transactions/VoucherList.tsx";
 import VoucherView from "./pages/transactions/VoucherView.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
@@ -73,6 +74,7 @@ import AttendanceTypeAlter from "./pages/master/payroll/attendance-type/Attendan
 import PayHeadAlter from "./pages/master/payroll/pay-head/PayHeadAlter.tsx";
 import SalaryStructureAlter from "./pages/master/payroll/salary-structure/SalaryStructureAlter.tsx";
 import EmployeeCategoryAlter from "./pages/master/payroll/employee-category/EmployeeCategoryAlter.tsx";
+import VoucherTypeModal from "./pages/transaction/ui/VoucherTypeModal.tsx";
 
 function CompanyCreatePage() {
   const navigate = useNavigate();
@@ -85,6 +87,17 @@ function CompanyCreatePage() {
 }
 
 
+function VoucherTypeModalPage() {
+  const navigate = useNavigate();
+  return (
+    <VoucherTypeModal
+      currentType=""
+      onSelect={(type) => console.log("Selected:", type)}
+      onClose={() => navigate(-1)}
+    />
+  );
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <HashRouter>
     <CompanyProvider>
@@ -95,6 +108,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/company" element={<Company />} />
             <Route path="/company/create" element={<CompanyCreatePage />} />
             <Route path="/company/alter" element={<CompanyAlter />} />
+
             <Route path="/master/create" element={<Create />}/>
             <Route path="/master/alter" element={<Alter />}/>
             <Route path="/master/financial-years" element={<FinancialYears />}/>
@@ -138,9 +152,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/alter/godown" element={<GodownAlter />}/>
 
             <Route path="/transactions/vouchers" element={<Vouchers />}/>
+            <Route path="/transaction/voucher" element={<Voucher />}/>
             <Route path="/transactions/voucher-list" element={<VoucherList />}/>
             <Route path="/transactions/voucher/:id" element={<VoucherView />}/>
             <Route path="/transactions/daybook" element={<Daybook />}/>
+            <Route path="transaction/voucher-type-modal" element={<VoucherTypeModalPage />} />
             <Route path="/utilities/banking" element={<Banking/>} />
             <Route path="/data/:controller" element={<GenericDataView />} />
 

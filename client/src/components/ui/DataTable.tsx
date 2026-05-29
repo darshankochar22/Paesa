@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 export interface TableColumn {
   key: string;
   label: string;
-  /** Tailwind col-span class e.g. "col-span-3" */
   span: string;
   align?: "left" | "right" | "center";
   render?: (row: any, idx: number) => ReactNode;
@@ -16,7 +15,6 @@ interface Props {
   loading?: boolean;
   emptyMessage?: string;
   rowKey: (row: any) => string | number;
-  /** Extra className for each data row */
   rowClassName?: (row: any, idx: number) => string;
 }
 

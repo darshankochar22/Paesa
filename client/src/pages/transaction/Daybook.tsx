@@ -33,8 +33,6 @@ export default function Daybook() {
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
-
   const fetchDaybook = useCallback(async () => {
     if (!companyId || !fyId) return;
     setLoading(true);
@@ -53,7 +51,6 @@ export default function Daybook() {
     fetchDaybook();
   }, [fetchDaybook]);
 
-  // Load godowns & units for the detail drawer
   useEffect(() => {
     if (!companyId) return;
     (async () => {
@@ -70,7 +67,6 @@ export default function Daybook() {
     })();
   }, [companyId]);
 
-  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
@@ -102,7 +98,6 @@ export default function Daybook() {
     { key: "Esc",   label: "Quit",        onClick: () => navigate("/") },
   ];
 
-  // ── Row click → load voucher detail ───────────────────────────────────────
 
   const handleRowClick = async (voucherId: number) => {
     setLoadingVoucher(true);
@@ -119,8 +114,6 @@ export default function Daybook() {
       setLoadingVoucher(false);
     }
   };
-
-  // ── Cancel voucher ─────────────────────────────────────────────────────────
 
   const handleCancelVoucher = async (voucherId: number) => {
     if (
@@ -141,8 +134,6 @@ export default function Daybook() {
       console.error("Failed to cancel voucher:", err);
     }
   };
-
-  // ── Grand total for the detail drawer ─────────────────────────────────────
 
   const grandTotal = useMemo(() => {
     if (!selectedVoucher) return 0;
@@ -169,22 +160,15 @@ export default function Daybook() {
     return 0;
   }, [selectedVoucher]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50 select-none text-xs relative overflow-hidden">
 
-      {/* Title Bar */}
       <PageTitleBar title="Day Book" subtitle={selectedCompany?.name} />
-
-      {/* Main Body */}
       <div className="flex-1 flex min-h-0">
-
-        {/* Left: daybook list */}
         <div className="flex-1 flex flex-col min-w-0 p-4 overflow-y-auto">
           <div className="max-w-6xl w-full mx-auto flex flex-col h-full">
 
-            {/* Period header */}
             <div className="mb-3 flex justify-between items-center">
               <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
                 Daily Transactions List
@@ -202,7 +186,7 @@ export default function Daybook() {
 
             <div className="bg-white rounded border border-zinc-200 shadow-sm overflow-hidden flex-1 flex flex-col min-h-[400px]">
 
-              {/* Table header */}
+              
               <div className="grid grid-cols-12 border-b border-zinc-200 bg-zinc-50 px-4 py-2.5 text-zinc-500 font-bold uppercase tracking-wider text-[10px] select-none shrink-0">
                 <div className="col-span-2">Date</div>
                 <div className="col-span-2">Voucher Type</div>
@@ -211,7 +195,7 @@ export default function Daybook() {
                 <div className="col-span-3 text-right">Narration</div>
               </div>
 
-              {/* Table body */}
+           
               <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 min-h-0 bg-white">
                 {loading && (
                   <div className="p-8 text-center text-zinc-400 italic">
@@ -251,7 +235,6 @@ export default function Daybook() {
                   ))}
               </div>
 
-              {/* Footer summary */}
               <div className="px-4 py-2 border-t border-zinc-200 bg-zinc-50 text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex justify-between items-center select-none shrink-0">
                 <span>Total Transactions: {entries.length}</span>
                 <span>&bull; End of Daybook</span>
@@ -260,11 +243,10 @@ export default function Daybook() {
           </div>
         </div>
 
-        {/* Right: action panel */}
+
         <RightActionPanel actions={daybookActions} />
       </div>
 
-      {/* Detail drawer — rendered when a voucher row is selected */}
       {selectedVoucher && (
         <DaybookDetail
           voucher={selectedVoucher}

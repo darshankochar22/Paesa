@@ -1,22 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
-
-// ── Hook ──────────────────────────────────────────────────────────────────────
 import { useVoucherForm } from "./hooks/useVoucherForm";
 import { useVoucherHandlers } from "./hooks/useVoucherHandlers";
 import { useVoucherCanAccept } from "./hooks/useVoucherCanAccept";
-
-// ── Layouts ───────────────────────────────────────────────────────────────────
+import { AlertBanner } from "../../components/ui";
 import SingleEntryLayout from "./layouts/SingleEntryLayout";
 import JournalLayout from "./layouts/JournalLayout";
 import SalesPurchaseLayout from "./layouts/SalesPurchaseLayout";
-
-// ── Panels ────────────────────────────────────────────────────────────────────
 import RightSidebar from "./panels/RightSidebar";
 import LedgerListPanel from "./panels/LedgerListPanel";
-
-// ── Popups ────────────────────────────────────────────────────────────────────
 import DatePickerPopup from "./components/popups/DatePickerPopup";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
@@ -24,11 +17,6 @@ import BankAllocationPopup from "./components/popups/BankAllocationPopup";
 import DenominationPopup from "./components/popups/DenominationPopup";
 import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
 import ReceiptDetailsPopup from "./components/popups/ReceiptDetailsPopup";
-
-// ── Shared UI ─────────────────────────────────────────────────────────────────
-import { AlertBanner } from "../../components/ui";
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function Vouchers() {
   const navigate = useNavigate();
@@ -39,10 +27,6 @@ export default function Vouchers() {
   const [showDispatchDetails, setShowDispatchDetails] = useState(false);
   const [showReceiptDetails, setShowReceiptDetails] = useState(false);
 
-  // Stable ref so async allocation-save callbacks always call the latest accept
-  const acceptRef = useRef<() => void>(() => {});
-
-  // ── Derived: canAccept + panel props ────────────────────────────────────────
   const {
     canAccept,
     panelItems,
@@ -51,28 +35,50 @@ export default function Vouchers() {
     handlePanelSearchChange,
   } = useVoucherCanAccept(form);
 
-  // ── Event handlers ──────────────────────────────────────────────────────────
   const {
     handleAccept,
     handleAmountConfirm,
     handleSaveBillWise,
     handleSaveCostCentre,
     handleSaveBankDetails,
-    handleSaveCashDenomination,
     handleSaveDispatchDetails,
     handleSaveReceiptDetails,
+    setAcceptRef,
   } = useVoucherHandlers({
-    form,
-    canAccept,
-    acceptRef,
-    setShowDispatchDetails,
-    setShowReceiptDetails,
+
+    voucherType: form.voucherType,
+    accountLedger: form.accountLedger,
+    particulars: form.particulars,
+    particularsTotal: form.particularsTotal,
+    handleAddParticularRow: form.handleAddParticularRow,
+    handleUpdateParticularRow: form.handleUpdateParticularRow,
+    journalRows: form.journalRows,
+    handleAddJournalRow: form.handleAddJournalRow,
+    handleUpdateJournalRow: form.handleUpdateJournalRow,
+    partyLedger: form.partyLedger,
+    additionalEntries: form.additionalEntries,
+    handleAddAdditionalRow: form.handleAddAdditionalRow,
+    handleUpdateAdditionalRow: form.handleUpdateAdditionalRow,
+    partyBillReferences: form.partyBillReferences,
+    setPartyBillReferences: form.setPartyBillReferences,
+    bankDetails: form.bankDetails,
+    totalAmount: form.totalAmount,
+    activeAllocation: form.activeAllocation,
+    setActiveAllocation: form.setActiveAllocation,
+    setBankDetails: form.setBankDetails,
+    setDispatchDetails: (_d: any) => setShowDispatchDetails(false),
+    setReceiptDetails: (_d: any) => setShowReceiptDetails(false),
+    handleSubmit: form.handleSubmit,
   });
 
-  // Keep acceptRef current
-  useEffect(() => { acceptRef.current = handleAccept; }, [handleAccept]);
+  useEffect(() => { setAcceptRef(handleAccept); }, [handleAccept, setAcceptRef]);
 
-  // ── Open dispatch/receipt popup when party is selected ──────────────────────
+  const handleSaveCashDenomination = (details: any) => {
+    form.setCashDenominations(details);
+    form.setActiveAllocation(null);
+  };
+
+
   useEffect(() => {
     if (form.voucherType === "Sales" && form.partyLedger) setShowDispatchDetails(true);
   }, [form.partyLedger, form.voucherType]);
@@ -81,7 +87,7 @@ export default function Vouchers() {
     if (form.voucherType === "Purchase" && form.partyLedger) setShowReceiptDetails(true);
   }, [form.partyLedger, form.voucherType]);
 
-  // ── Global keyboard shortcuts ────────────────────────────────────────────────
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "F2") { e.preventDefault(); setShowDatePicker(true); }
@@ -125,9 +131,15 @@ export default function Vouchers() {
     canAccept, handleAccept, showDatePicker, showDispatchDetails, showReceiptDetails,
     navigate,
   ]);
+
   const isSingleEntry =
     ["Receipt", "Payment"].includes(form.voucherType) ||
     (form.voucherType === "Contra" && form.contraEntryMode === "single");
+
+  const balanceIndicator =
+    form.particularsTotal > 0 ? (
+      <span className="text-gray-500">✓ Balanced</span>
+    ) : null;
 
   return (
     <div className="flex flex-col h-screen bg-white text-black text-sm select-none overflow-hidden">
@@ -175,54 +187,139 @@ export default function Vouchers() {
         </button>
       </div>
 
-      {/* ── Body ── */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
 
-        {/* ── Active layout ── */}
+
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
           {isSingleEntry && (
             <SingleEntryLayout
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              handleAccept={handleAccept}
-              canAccept={canAccept}
-              onQuit={() => navigate("/")}
+
+              accountLedger={form.accountLedger}
+              accountBalance={form.accountBalance}
+              activeField={form.activeField}
+              ledgerSearchTerm={form.ledgerSearchTerm}
+              onAccountFocus={() => form.handleFieldFocus({ type: "account" })}
+              onAccountSearchChange={form.setLedgerSearchTerm}
+
+              particulars={form.particulars}
+              onUpdateParticular={form.handleUpdateParticularRow}
+              onRemoveParticular={form.handleRemoveParticularRow}
+              onParticularFocus={(rowId) =>
+                form.handleFieldFocus({ type: "particular", rowId })
+              }
+              onParticularSearchChange={form.setLedgerSearchTerm}
+              onAmountConfirm={handleAmountConfirm}
+
+              particularsTotal={form.particularsTotal}
+              balanceIndicator={balanceIndicator}
             />
           )}
 
           {form.voucherType === "Contra" && form.contraEntryMode === "double" && (
             <SingleEntryLayout
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              handleAccept={handleAccept}
-              canAccept={canAccept}
-              onQuit={() => navigate("/")}
-              doubleEntry
+              accountLedger={form.accountLedger}
+              accountBalance={form.accountBalance}
+              activeField={form.activeField}
+              ledgerSearchTerm={form.ledgerSearchTerm}
+              onAccountFocus={() => form.handleFieldFocus({ type: "account" })}
+              onAccountSearchChange={form.setLedgerSearchTerm}
+              particulars={form.contraDoubleRows}
+              onUpdateParticular={form.handleUpdateContraDoubleRow}
+              onRemoveParticular={form.handleRemoveContraDoubleRow}
+              onParticularFocus={(rowId) =>
+                form.handleFieldFocus({ type: "particular", rowId })
+              }
+              onParticularSearchChange={form.setLedgerSearchTerm}
+              onAmountConfirm={handleAmountConfirm}
+              particularsTotal={form.debitTotal}
+              balanceIndicator={balanceIndicator}
             />
           )}
 
           {form.voucherType === "Journal" && (
             <JournalLayout
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              handleAccept={handleAccept}
-              canAccept={canAccept}
-              onQuit={() => navigate("/")}
+              journalRows={form.journalRows}
+              activeField={form.activeField}
+              ledgerSearchTerm={form.ledgerSearchTerm}
+              onUpdateRow={form.handleUpdateJournalRow}
+              onRemoveRow={form.handleRemoveJournalRow}
+              onRowFocus={(rowId) =>
+                form.handleFieldFocus({ type: "particular", rowId })
+              }
+              onSearchChange={form.setLedgerSearchTerm}
+              onAmountConfirm={handleAmountConfirm}
+              debitTotal={form.debitTotal}
+              creditTotal={form.creditTotal}
+              balanceIndicator={
+                form.debitTotal <= 0 ? null :
+                Math.abs(form.debitTotal - form.creditTotal) > 0.01 ? (
+                  <span className="text-red-700">
+                    ⚠ Diff:{" "}
+                    {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
+                ) : (
+                  <span className="text-gray-500">✓ Balanced</span>
+                )
+              }
             />
           )}
 
           {["Sales", "Purchase"].includes(form.voucherType) && (
             <SalesPurchaseLayout
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              handleAccept={handleAccept}
-              canAccept={canAccept}
-              onQuit={() => navigate("/")}
+              voucherType={form.voucherType as "Sales" | "Purchase"}
+
+              supplierInvoiceNo={form.supplierInvoiceNo}
+              supplierInvoiceDate={form.supplierInvoiceDate}
+              onSupplierInvoiceNoChange={form.setSupplierInvoiceNo}
+              onSupplierInvoiceDateChange={form.setSupplierInvoiceDate}
+
+              partyLedger={form.partyLedger}
+              partyBalance={form.partyBalance}
+              activeField={form.activeField}
+              ledgerSearchTerm={form.ledgerSearchTerm}
+              onPartyFocus={() => form.handleFieldFocus({ type: "party" })}
+              onPartySearchChange={form.setLedgerSearchTerm}
+
+              salesPurchaseLedger={form.salesPurchaseLedger}
+              salesPurchaseBalance={form.salesPurchaseBalance}
+              onSalesPurchaseFocus={() => form.handleFieldFocus({ type: "salesPurchase" })}
+              onSalesPurchaseSearchChange={form.setLedgerSearchTerm}
+
+              referenceNumber={form.referenceNumber}
+              onReferenceNumberChange={form.setReferenceNumber}
+              placeOfSupply={form.placeOfSupply}
+              onPlaceOfSupplyChange={form.setPlaceOfSupply}
+ 
+              stockEntries={form.stockEntries}
+              stockSearchTerm={form.stockSearchTerm}
+              onUpdateStockRow={form.handleUpdateStockRow}
+              onRemoveStockRow={form.handleRemoveStockRow}
+              onStockItemFocus={(rowId) =>
+                form.handleFieldFocus({ type: "stockItem", rowId })
+              }
+              onStockSearchChange={form.setStockSearchTerm}
+              allGodowns={form.allGodowns}
+              allUnits={form.allUnits}
+
+              additionalEntries={form.additionalEntries}
+              onUpdateAdditionalRow={form.handleUpdateAdditionalRow}
+              onRemoveAdditionalRow={form.handleRemoveAdditionalRow}
+              onAddAdditionalRow={form.handleAddAdditionalRow}
+              onAdditionalFocus={(rowId) =>
+                form.handleFieldFocus({ type: "additional", rowId })
+              }
+              onAdditionalSearchChange={form.setLedgerSearchTerm}
+              onAmountConfirm={handleAmountConfirm}
+            
+              totalAmount={form.totalAmount}
             />
           )}
         </div>
 
-        {/* ── Ledger list panel ── */}
+     
         {!!form.activeField && (
           <LedgerListPanel
             title={panelTitle}
@@ -236,11 +333,10 @@ export default function Vouchers() {
                 ? navigate("/master/create/stock-item")
                 : navigate("/master/create/ledger")
             }
-            createLabel={form.activeField?.type === "stockItem" ? "Create Stock Item" : "Create Ledger"}
+            createLabel={form.activeField?.type === "stockItem" ? "Create" : "Create"}
           />
         )}
 
-        {/* ── Right sidebar ── */}
         <RightSidebar
           voucherType={form.voucherType}
           onTypeChange={form.setVoucherType}
@@ -259,8 +355,6 @@ export default function Vouchers() {
           canAccept={canAccept}
         />
       </div>
-
-      {/* ══════════════════ Popups ══════════════════ */}
 
       {showDatePicker && (
         <DatePickerPopup

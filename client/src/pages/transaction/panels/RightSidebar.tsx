@@ -1,3 +1,6 @@
+import React from "react";
+import { useNavigate } from "react-router-dom";
+ 
 interface Props {
   voucherType: string;
   onTypeChange: (t: string) => void;
@@ -6,6 +9,7 @@ interface Props {
   entryMode: "single" | "double";
   onEntryModeChange: () => void;
   onDateClick: () => void;
+  onCompanyClick: () => void;
   onCreateLedger: () => void;
   onAccept: () => void;
   onQuit: () => void;
@@ -19,7 +23,68 @@ const VOUCHER_TYPES = [
   { key: "F7", label: "Journal" },
   { key: "F8", label: "Sales" },
   { key: "F9", label: "Purchase" },
+  { key: "F10", label: "Other Vouchers" },
 ] as const;
+
+
+function SidebarRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ borderBottom: "1px solid #e0e0e0", backgroundColor: "#ffffff" }}>
+      {children}
+    </div>
+  );
+}
+
+interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean;
+  dimmed?: boolean;
+}
+
+function SidebarBtn({ children, active, dimmed, style, ...props }: BtnProps) {
+  return (
+    <button
+      {...props}
+      style={{
+        width: "100%",
+        textAlign: "left",
+        padding: "6px 8px",
+        border: "none",
+        cursor: dimmed ? "not-allowed" : "pointer",
+        transition: "background-color 0.2s",
+        backgroundColor: active ? "#000000" : "#ffffff",
+        color: active ? "#ffffff" : dimmed ? "#8c8c8c" : "#000000",
+        fontWeight: active ? "bold" : "normal",
+        ...style,
+      }}
+      onMouseEnter={(e) => {
+        if (!active && !dimmed) e.currentTarget.style.backgroundColor = "#f0f0f0";
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.backgroundColor = "#ffffff";
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FKey({ children, active, dimmed }: { children: React.ReactNode; active?: boolean; dimmed?: boolean }) {
+  return (
+    <span
+      style={{
+        fontWeight: "bold",
+        color: active ? "#ffffff" : dimmed ? "#8c8c8c" : "#000000",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Gap() {
+  return <div style={{ height: "12px", backgroundColor: "#f5f5f5", borderBottom: "1px solid #e0e0e0" }} />;
+}
+
 
 export default function RightSidebar({
   voucherType,
@@ -29,91 +94,85 @@ export default function RightSidebar({
   entryMode,
   onEntryModeChange,
   onDateClick,
+  onCompanyClick,
   onCreateLedger,
   onAccept,
   onQuit,
   canAccept,
 }: Props) {
+  const navigate = useNavigate();
+
   return (
-    <div className="w-36 border-l border-black flex flex-col shrink-0 bg-white">
-      {/* F2: Date */}
-      <div className="border-b border-black px-2 py-1">
-        <button
-          onClick={onDateClick}
-          className="w-full text-left text-xs text-black hover:underline"
-        >
-          <span className="text-gray-500">F2</span>: Date
-        </button>
-      </div>
+    <div
+      className="flex flex-col shrink-0"
+      style={{
+        width: 160,
+        borderLeft: "1px solid #000000",
+        backgroundColor: "#ffffff",
+        fontFamily: "'Segoe UI', Tahoma, sans-serif",
+        fontSize: 12,
+        userSelect: "none",
+        height: "100%",
+      }}
+     >
+      <SidebarRow>
+        <SidebarBtn onClick={onDateClick}>
+          <FKey>F2</FKey>: Date
+        </SidebarBtn>
+      </SidebarRow>
+
+      <SidebarRow>
+        <SidebarBtn onClick={() => navigate("/company")}>
+          <FKey>F3</FKey>: Company
+        </SidebarBtn>
+      </SidebarRow>
+
+      <Gap />
 
       {VOUCHER_TYPES.map(({ key, label }) => (
-        <div key={key} className="border-b border-gray-200">
-          <button
-            onClick={() => onTypeChange(label)}
-            className={`w-full text-left px-2 py-1 text-xs ${
-              voucherType === label
-                ? "bg-black text-white font-semibold"
-                : "text-black hover:bg-gray-100"
-            }`}
+        <SidebarRow key={key}>
+          <SidebarBtn 
+            onClick={() => {
+              if (label === "Other Vouchers") {
+                navigate("/transaction/voucher-type-modal"); 
+              } else {
+                onTypeChange(label); 
+              }
+            }} 
+            active={voucherType === label}
           >
-            <span className={voucherType === label ? "text-gray-300" : "text-gray-500"}>
-              {key}
-            </span>
-            : {label}
-          </button>
-        </div>
+            <FKey active={voucherType === label}>{key}</FKey>: {label}
+          </SidebarBtn>
+        </SidebarRow>
       ))}
 
-      <div className="border-b border-gray-200">
-        <button
-          onClick={onCreateLedger}
-          className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
-        >
-          <span className="text-gray-500">Alt+C</span>: Create Ldgr
-        </button>
-      </div>
+      <Gap />
 
-      <div className="border-b border-gray-200">
-        <button
-          onClick={onStatusChange}
-          className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
-        >
-          <span className="text-gray-500">T</span>:{" "}
-          {status === "Post-Dated" ? "✓ " : ""}Post-Dated
-        </button>
-      </div>
+      <SidebarRow>
+        <SidebarBtn>
+          <FKey>F</FKey>: Autofill
+        </SidebarBtn>
+      </SidebarRow>
 
-      {voucherType === "Contra" && (
-        <div className="border-b border-gray-200">
-          <button
-            onClick={onEntryModeChange}
-            className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
-          >
-            <span className="text-gray-500">H</span>:{" "}
-            {entryMode === "double" ? "✓ " : ""}Double Entry
-          </button>
-        </div>
-      )}
+      <SidebarRow>
+        <SidebarBtn onClick={onEntryModeChange}>
+          <FKey>H</FKey>: Change Mode
+        </SidebarBtn>
+      </SidebarRow>
 
-      <div className="flex-1" />
-      <div className="border-t border-black px-2 py-1">
-        <button
-          onClick={onAccept}
-          disabled={!canAccept}
-          className="w-full text-left text-xs text-black hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          <span className="text-gray-500">A</span>: Accept
-        </button>
-      </div>
+      <SidebarRow>
+        <SidebarBtn>
+          <FKey>I</FKey>: More Details
+        </SidebarBtn>
+      </SidebarRow>
 
-      <div className="border-t border-gray-300 px-2 py-1">
-        <button
-          onClick={onQuit}
-          className="w-full text-left text-xs text-black hover:underline"
-        >
-          <span className="text-gray-500">Q</span>: Quit
-        </button>
-      </div>
+      <SidebarRow>
+        <SidebarBtn dimmed>
+          <FKey dimmed>Q</FKey>: Related Reports
+        </SidebarBtn>
+      </SidebarRow>
+
+      <Gap />
     </div>
   );
 }

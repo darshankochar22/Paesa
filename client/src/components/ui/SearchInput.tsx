@@ -8,9 +8,6 @@ interface Props {
   className?: string;
 }
 
-/**
- * Styled search input reused in LedgerPanel, VoucherList, COA pages, etc.
- */
 export default function SearchInput({ value, onChange, placeholder = "Search…", autoFocus, className }: Props) {
   const ref = useRef<HTMLInputElement>(null);
 

@@ -35,18 +35,18 @@ export default function LedgerListPanel({
     [items, searchTerm]
   );
 
-  // Reset highlight whenever search changes
+
   useEffect(() => {
     setHi(0);
   }, [searchTerm]);
 
-  // Scroll highlighted row into view
+
   useEffect(() => {
     const el = listRef.current?.querySelector("[data-hi]") as HTMLElement | null;
     el?.scrollIntoView({ block: "nearest" });
   }, [hi]);
 
-  // Keyboard navigation
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -73,7 +73,7 @@ export default function LedgerListPanel({
 
   return (
     <div className="w-64 border-l border-black flex flex-col shrink-0 bg-white h-full">
-      {/* Header */}
+
       <div className="bg-black text-white px-2 py-1 text-xs font-semibold select-none flex justify-between items-center">
         <span>{title}</span>
         <button
@@ -84,7 +84,6 @@ export default function LedgerListPanel({
         </button>
       </div>
 
-      {/* Search input */}
       <div className="border-b border-gray-300">
         <input
           autoFocus
@@ -96,15 +95,13 @@ export default function LedgerListPanel({
         />
       </div>
 
-      {/* Create-new shortcut row */}
-      <div
-        className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none"
-        onClick={onCreateNew}
-      >
-        {createLabel}
-      </div>
-
-      {/* Items list */}
+    <div
+     className="px-2 py-1 text-xs cursor-pointer hover:bg-zinc-100 border-b border-zinc-200 text-black select-none text-right"
+     onClick={onCreateNew}
+     >
+     {createLabel}
+    </div>
+  
       <div ref={listRef} className="flex-1 overflow-y-auto min-h-0">
         {filtered.map((item, idx) => (
           <div
@@ -112,7 +109,7 @@ export default function LedgerListPanel({
             data-hi={idx === hi ? "true" : undefined}
             className={`px-2 py-0.5 text-xs cursor-pointer select-none ${
               idx === hi
-                ? "bg-[#f0c040] text-black font-semibold"
+                ? "bg-black text-white font-semibold"
                 : "text-black hover:bg-gray-50"
             }`}
             onClick={() => onSelect(item)}
@@ -126,7 +123,6 @@ export default function LedgerListPanel({
         )}
       </div>
 
-      {/* Footer hint */}
       <div className="border-t border-gray-200 px-2 py-1 text-[10px] text-gray-500 select-none bg-gray-50">
         ↑↓ Navigate &nbsp;·&nbsp; Enter Select
       </div>

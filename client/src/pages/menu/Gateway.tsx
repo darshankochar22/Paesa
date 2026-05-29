@@ -12,6 +12,10 @@ export default function Gateway() {
       items: ["Vouchers", "Voucher Register", "Day Book"],
     },
     {
+      title: "Transaction",
+      items: ["Voucher", "VoucherRegister", "DayBook"],
+    },
+    {
       title: "Utilities",
       items: ["Banking"],
     },
@@ -36,12 +40,13 @@ export default function Gateway() {
   ];
 
   const getRoute = (section: string, item: string) => {
-    if (section === "Masters" || section === "Transactions" || section === "Utilities") {
+    if (section === "Masters" || section === "Transactions" || section === "Transaction" || section === "Utilities") {
       if (item === "Create") return "/master/create";
       if (item === "Alter") return "/master/alter";
       if (item == "Chart of Accounts") return "/master/coa";
       if (item == "Financial Years") return "/master/financial-years";
       if (item == "Vouchers") return "/transactions/vouchers";
+      if (item == "Voucher") return "/transaction/voucher";
       if (item == "Voucher Register") return "/transactions/voucher-list";
       if (item == "Day Book") return "/transactions/daybook";
       if (item == "Banking") return "/utilities/banking";

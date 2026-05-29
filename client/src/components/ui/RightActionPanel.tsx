@@ -1,10 +1,10 @@
 export interface RightPanelAction {
-  key: string;           // Keyboard shortcut label, e.g. "F4", "F5", "Esc", "Ctrl+A"
-  label: string;         // Description, e.g. "Contra", "Payment", "Quit", "Accept"
-  onClick: () => void;   // Action callback
-  active?: boolean;      // Whether this is the active mode/state
-  disabled?: boolean;    // Whether this action is disabled
-  shortcutKey?: string;  // Optional actual event.key code to match, e.g. "F4", "F5"
+  key: string;           
+  label: string;         
+  onClick: () => void;   
+  active?: boolean;      
+  disabled?: boolean;   
+  shortcutKey?: string; 
 }
 
 interface Props {
@@ -13,10 +13,6 @@ interface Props {
   className?: string;
 }
 
-/**
- * Beautiful, premium Black & White Tally-style Right Action Panel.
- * Provides quick clickable action buttons with keyboard shortcut indicators.
- */
 export default function RightActionPanel({ actions, title = "Actions", className = "" }: Props) {
   return (
     <div className={`w-44 border-l border-zinc-200 flex flex-col shrink-0 bg-white select-none sticky right-0 top-0 h-full z-20 ${className}`}>
