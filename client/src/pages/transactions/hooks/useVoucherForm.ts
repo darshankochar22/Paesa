@@ -75,6 +75,7 @@ export type ActiveAllocation =
       ledgerName: string;
       amount: number;
       initialDetails?: any;
+      allowCash?: boolean;
     }
     | {
       type: "cashDenomination";
@@ -226,7 +227,7 @@ export function useVoucherForm() {
     const saved = loadFormState<any>(persistKey ?? "");
     return saved?.contraDoubleRows?.length
       ? saved.contraDoubleRows
-      : [makeParticularRow("Dr"), makeParticularRow("Cr")];
+      : [makeParticularRow("Cr"), makeParticularRow("Dr")];
   });
 
   // ── Layout 1c: Double-entry Receipt (F6 double-entry mode) ───────────────
@@ -239,7 +240,7 @@ export function useVoucherForm() {
     const saved = loadFormState<any>(persistKey ?? "");
     return saved?.receiptDoubleRows?.length
       ? saved.receiptDoubleRows
-      : [makeParticularRow("Dr"), makeParticularRow("Cr")];
+      : [makeParticularRow("Cr"), makeParticularRow("Dr")];
   });
 
   // ── Layout 1d: Double-entry Payment (F5 double-entry mode) ────────────────
@@ -1115,8 +1116,8 @@ export function useVoucherForm() {
       : "Dr"; // Contra
     setParticulars([makeParticularRow(defaultParticular)]);
     setJournalRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
-    setContraDoubleRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
-    setReceiptDoubleRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
+    setContraDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
+    setReceiptDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setPaymentDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setStockEntries([makeStockRow()]);
     setAdditionalEntries([]);
@@ -1160,23 +1161,17 @@ export function useVoucherForm() {
     if (voucherType === "Receipt") {
       if (receiptEntryMode === "single") {
         if (!accountLedger) return "Account (cash/bank ledger) is required.";
-        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) >= 0);
         if (filled.length < 1)
           return "At least one Particulars entry with an amount is required.";
-        if (particularsTotal <= 0) return "Total amount must be greater than zero.";
       } else {
-        const filled = receiptDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+        const filled = receiptDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) >= 0);
         if (filled.length < 2)
           return "At least two valid entries are required.";
-        for (const row of filled) {
-          if (row.type === "Dr" && !checkIsCashOrBank(row.ledger))
-            return "Receipt Debit entries must be Cash or Bank ledgers.";
-        }
         if (Math.abs(debitTotal - creditTotal) > 0.01)
           return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
             2
           )}) totals must balance.`;
-        if (debitTotal <= 0) return "Amount must be greater than zero.";
       }
     }
 
@@ -1209,17 +1204,15 @@ export function useVoucherForm() {
         if (!checkIsCashOrBank(accountLedger)) {
           return "Contra Account must be a Cash or Bank ledger.";
         }
-        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) >= 0);
         if (filled.length < 1)
           return "At least one Particulars entry with an amount is required.";
         for (const row of filled) {
           if (!checkIsCashOrBank(row.ledger))
             return "Contra vouchers may only use Cash/Bank ledgers on both sides.";
         }
-        if (particularsTotal <= 0) return "Total amount must be greater than zero.";
       } else {
-        // Double-entry Contra
-        const filled = contraDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+        const filled = contraDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) >= 0);
         if (filled.length < 2)
           return "At least two valid entries are required.";
         for (const row of filled) {
@@ -1230,7 +1223,6 @@ export function useVoucherForm() {
           return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
             2
           )}) totals must balance.`;
-        if (debitTotal <= 0) return "Amount must be greater than zero.";
       }
     }
 

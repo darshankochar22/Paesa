@@ -19,6 +19,7 @@ interface Props {
   initialDetails?: Partial<BankDetails> | null;
   onClose: () => void;
   onSave: (details: BankDetails) => void;
+  allowCash?: boolean;
 }
 
 export default function BankAllocationPopup({
@@ -28,6 +29,7 @@ export default function BankAllocationPopup({
   initialDetails,
   onClose,
   onSave,
+  allowCash = true,
 }: Props) {
   const [form, setForm] = useState<BankDetails>({
     ledger_id: ledgerId,
@@ -89,6 +91,7 @@ export default function BankAllocationPopup({
 
   const isCheque = form.transaction_type === "Cheque";
   const isCash = form.transaction_type === "Cash";
+  const availableTypes = allowCash ? TRANSACTION_TYPES : TRANSACTION_TYPES.filter((t) => t !== "Cash");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
@@ -126,7 +129,7 @@ export default function BankAllocationPopup({
                 onChange={(e) => set("transaction_type", e.target.value)}
                 className="bg-transparent outline-none border border-zinc-300 px-1 py-0.5 text-sm text-black w-36"
               >
-                {TRANSACTION_TYPES.map((t) => (
+                {availableTypes.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
@@ -196,7 +199,7 @@ export default function BankAllocationPopup({
         {/* Footer */}
         <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center select-none">
           <span className="text-[10px] text-zinc-500">
-            Alt+A: Accept &nbsp;·&nbsp; Esc: Close{isCash ? " → Will open Denomination" : ""}
+            Alt+A: Accept &nbsp;·&nbsp; Esc: Close{isCash && allowCash ? " → Will open Denomination" : ""}
           </span>
           <div className="flex gap-2">
             <button onClick={onClose}

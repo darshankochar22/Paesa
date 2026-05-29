@@ -262,11 +262,11 @@ export default function Vouchers() {
       if (form.receiptEntryMode === "single") {
         return (
           !!form.accountLedger &&
-          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
+          form.particulars.some((p) => !!p.ledger && p.amountRaw !== "")
         );
       }
       const filled = form.receiptDoubleRows.filter(
-        (r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0
+        (r) => !!r.ledger && r.amountRaw !== ""
       );
       return (
         filled.length >= 2 &&
@@ -294,11 +294,11 @@ export default function Vouchers() {
       if (form.contraEntryMode === "single") {
         return (
           !!form.accountLedger &&
-          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
+          form.particulars.some((p) => !!p.ledger && p.amountRaw !== "")
         );
       }
       const filled = form.contraDoubleRows.filter(
-        (r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0
+        (r) => !!r.ledger && r.amountRaw !== ""
       );
       return (
         filled.length >= 2 &&
@@ -525,7 +525,7 @@ export default function Vouchers() {
     (row: any, idx: number) => {
       const { ledger, amountRaw, id } = row;
       const amount = Number(amountRaw) || 0;
-      if (!ledger || amount <= 0) { proceedToNextRow(idx); return; }
+      if (!ledger) { proceedToNextRow(idx); return; }
 
       // Contra / Receipt / Payment double-entry: bank allocation for any bank ledger
       if (
@@ -534,6 +534,10 @@ export default function Vouchers() {
         (form.voucherType === "Payment" && form.paymentEntryMode === "double")
       ) {
         if (form.checkIsBank(ledger)) {
+          const allowCash =
+            (form.voucherType === "Receipt" || form.voucherType === "Contra")
+              ? row.type === "Dr"
+              : true;
           form.setActiveAllocation({
             type: "bankDetails",
             rowId: id,
@@ -541,6 +545,7 @@ export default function Vouchers() {
             ledgerName: ledger.name,
             amount,
             initialDetails: form.bankDetails,
+            allowCash,
           });
           return;
         }
@@ -701,6 +706,29 @@ export default function Vouchers() {
       form.setBankDetails(details);
 
       if (details.transaction_type === "Cash") {
+        const shouldSkipDenomination =
+          form.voucherType === "Receipt" ||
+          (alloc && alloc.type === "bankDetails" && alloc.allowCash === false);
+
+        if (shouldSkipDenomination) {
+          form.setActiveAllocation(null);
+          if (alloc && "rowId" in alloc) {
+            const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
+            const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
+            const isPayDouble = form.voucherType === "Payment" && form.paymentEntryMode === "double";
+            const list = isContraDouble
+              ? form.contraDoubleRows
+              : isReceiptDouble
+              ? form.receiptDoubleRows
+              : isPayDouble
+              ? form.paymentDoubleRows
+              : form.particulars;
+            const rowIdx = list.findIndex((r) => r.id === alloc.rowId);
+            proceedToNextRow(rowIdx);
+          }
+          return;
+        }
+
         form.setActiveAllocation({
           type: "cashDenomination",
           rowId: alloc && "rowId" in alloc ? alloc.rowId : "",
@@ -821,15 +849,9 @@ export default function Vouchers() {
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
     }
 
-    // Receipt double-entry: Dr rows = cash/bank only, Cr rows = all ledgers
+    // Receipt double-entry: Dr rows = all ledgers, Cr rows = all ledgers
     if (form.voucherType === "Receipt" && form.receiptEntryMode === "double" && af.type === "particular") {
-      const row = form.receiptDoubleRows.find((r) => r.id === af.rowId);
-      if (row?.type === "Dr") {
-        return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
-      }
-      if (row?.type === "Cr") {
-        return form.allLedgers;
-      }
+      return form.allLedgers;
     }
 
     // Payment double-entry: Cr rows = cash/bank only, Dr rows = all except cash/bank
@@ -871,15 +893,6 @@ export default function Vouchers() {
     if (af.type === "account") return form.voucherType === "Journal" ? "List of Ledger Accounts" : "List of Cash / Bank Accounts";
     if (af.type === "party") return "List of Party Accounts";
     if (af.type === "salesPurchase") return `List of ${form.voucherType} Ledgers`;
-    if (
-      form.voucherType === "Receipt" &&
-      form.receiptEntryMode === "double" &&
-      af.type === "particular"
-    ) {
-      const row = form.receiptDoubleRows.find((r) => r.id === af.rowId);
-      if (row?.type === "Dr") return "List of Cash / Bank Accounts";
-      if (row?.type === "Cr") return "List of Ledger Accounts";
-    }
     if (
       form.voucherType === "Payment" &&
       form.paymentEntryMode === "double" &&
@@ -1882,6 +1895,7 @@ export default function Vouchers() {
           ledgerName={form.activeAllocation.ledgerName}
           amount={form.activeAllocation.amount}
           initialDetails={form.bankDetails}
+          allowCash={form.activeAllocation.allowCash !== false}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBankDetails}
         />
