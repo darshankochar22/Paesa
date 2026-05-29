@@ -242,6 +242,20 @@ export function useVoucherForm() {
       : [makeParticularRow("Dr"), makeParticularRow("Cr")];
   });
 
+  // ── Layout 2: Journal (F7) ────────────────────────────────────────────────
+  //
+  //   Double-entry (default): Dr/Cr selector on each row, like Contra/Receipt
+  //     double-entry. Both Dr and Cr fields allow all ledgers EXCEPT
+  //     Cash-in-Hand, Bank Accounts, Bank OD / OCC.
+  //
+  //   Single-entry: Account field (one side) + Particulars table (opposite side).
+  //     Like Contra single-entry but with non-cash/bank ledgers.
+  //     Account defaults to Cr (credit side), Particulars default to Dr.
+
+  const [journalEntryMode, setJournalEntryMode] = useState<"single" | "double">(
+    () => loadFormState<any>(persistKey ?? "")?.journalEntryMode ?? "double"
+  );
+
   const [journalRows, setJournalRows] = useState<ParticularRow[]>(() => {
     const saved = loadFormState<any>(persistKey ?? "");
     return saved?.journalRows?.length
@@ -287,6 +301,7 @@ export function useVoucherForm() {
       accountLedger,
       particulars,
       journalRows,
+      journalEntryMode,
       contraEntryMode,
       contraDoubleRows,
       receiptEntryMode,
@@ -304,7 +319,7 @@ export function useVoucherForm() {
     }),
     [
       voucherType, narration, accountLedger, particulars, journalRows,
-      contraEntryMode, contraDoubleRows, receiptEntryMode, receiptDoubleRows,
+      journalEntryMode, contraEntryMode, contraDoubleRows, receiptEntryMode, receiptDoubleRows,
       partyLedger, salesPurchaseLedger, stockEntries, additionalEntries,
       referenceNumber, placeOfSupply, partyBillReferences, bankDetails,
       supplierInvoiceNo, supplierInvoiceDate,
@@ -505,9 +520,10 @@ export function useVoucherForm() {
       if (voucherType === "Receipt") return "Cr";
       if (voucherType === "Payment") return "Dr";
       if (voucherType === "Contra") return "Dr"; // destination side
-      return currentType; // Journal / Sales / Purchase — keep as-is
+      if (voucherType === "Journal" && journalEntryMode === "single") return "Dr"; // debit side
+      return currentType; // Journal double / Sales / Purchase — keep as-is
     },
-    [voucherType]
+    [voucherType, journalEntryMode]
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -534,7 +550,7 @@ export function useVoucherForm() {
 
   /** Sum of all Dr amounts in journalRows or contraDoubleRows or receiptDoubleRows. */
   const debitTotal = useMemo(() => {
-    if (voucherType === "Journal") {
+    if (voucherType === "Journal" && journalEntryMode === "double") {
       return journalRows.reduce(
         (sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0),
         0
@@ -554,11 +570,11 @@ export function useVoucherForm() {
     }
     // Receipt/Payment single-entry: Account is Dr; Contra single-entry: particulars are Dr
     return particularsTotal;
-  }, [voucherType, journalRows, contraDoubleRows, contraEntryMode, receiptDoubleRows, receiptEntryMode, particularsTotal]);
+  }, [voucherType, journalRows, journalEntryMode, contraDoubleRows, contraEntryMode, receiptDoubleRows, receiptEntryMode, particularsTotal]);
 
   /** Sum of all Cr amounts in journalRows or contraDoubleRows or receiptDoubleRows. */
   const creditTotal = useMemo(() => {
-    if (voucherType === "Journal") {
+    if (voucherType === "Journal" && journalEntryMode === "double") {
       return journalRows.reduce(
         (sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0),
         0
@@ -578,7 +594,7 @@ export function useVoucherForm() {
     }
     // Mirror of debitTotal for single-entry
     return particularsTotal;
-  }, [voucherType, journalRows, contraDoubleRows, contraEntryMode, receiptDoubleRows, receiptEntryMode, particularsTotal]);
+  }, [voucherType, journalRows, journalEntryMode, contraDoubleRows, contraEntryMode, receiptDoubleRows, receiptEntryMode, particularsTotal]);
 
   /**
    * totalAmount — the grand total shown in the voucher footer and used for
@@ -615,6 +631,9 @@ export function useVoucherForm() {
     }
 
     if (voucherType === "Journal") {
+      if (journalEntryMode === "single") {
+        return particularsTotal;
+      }
       return debitTotal;
     }
 
@@ -629,7 +648,7 @@ export function useVoucherForm() {
     }
 
     return 0;
-  }, [voucherType, particularsTotal, debitTotal, contraEntryMode, receiptEntryMode, stockEntries, additionalEntries]);
+  }, [voucherType, particularsTotal, debitTotal, contraEntryMode, receiptEntryMode, journalEntryMode, stockEntries, additionalEntries]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Particular row handlers (single-entry layouts)
@@ -681,18 +700,39 @@ export function useVoucherForm() {
 
   const handleAddJournalRow = useCallback(() => {
     setJournalRows((prev) => {
-      // Alternate Dr/Cr to help the user build a balanced entry
-      const lastType = prev[prev.length - 1]?.type ?? "Dr";
-      const nextType: "Dr" | "Cr" = lastType === "Dr" ? "Cr" : "Dr";
+      const drSum = prev.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const crSum = prev.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const diff = drSum - crSum;
+      const nextType: "Dr" | "Cr" =
+        diff < -0.01 ? "Dr" : diff > 0.01 ? "Cr" : (prev[prev.length - 1]?.type === "Dr" ? "Cr" : "Dr");
       return [...prev, makeParticularRow(nextType)];
     });
   }, []);
 
   const handleUpdateJournalRow = useCallback(
     async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
-      setJournalRows((prev) =>
-        prev.map((r) => (r.id !== id ? r : { ...r, ...updates }))
-      );
+      setJournalRows((prev) => {
+        const nextRows = prev.map((r) => (r.id !== id ? r : {
+          ...r,
+          ...updates,
+          ...(updates.ledger !== undefined ? { ledgerBalance: "" } : {}),
+        }));
+
+        if (updates.ledger?.ledger_id) {
+          const updatedRow = nextRows.find((r) => r.id === id);
+          if (updatedRow && (!updatedRow.amountRaw || Number(updatedRow.amountRaw) === 0)) {
+            const drTotal = nextRows.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+            const crTotal = nextRows.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+            const deficit = updatedRow.type === "Dr" ? crTotal - drTotal : drTotal - crTotal;
+            if (Math.abs(deficit) > 0.01) {
+              return nextRows.map((r) =>
+                r.id === id ? { ...r, amountRaw: Math.abs(deficit).toFixed(2) } : r
+              );
+            }
+          }
+        }
+        return nextRows;
+      });
       if (updates.ledger?.ledger_id) {
         const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
         setJournalRows((prev) =>
@@ -1008,6 +1048,7 @@ export function useVoucherForm() {
     setStatus("Regular");
     setContraEntryMode("double");
     setReceiptEntryMode("double");
+    setJournalEntryMode("double");
     setDate(todayStr());
 
     fetchNextNumber();
@@ -1088,13 +1129,25 @@ export function useVoucherForm() {
     }
 
     if (voucherType === "Journal") {
-      const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
-      if (filled.length < 2) return "At least two valid Journal entries are required.";
-      if (Math.abs(debitTotal - creditTotal) > 0.01)
-        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
-          2
-        )}) totals must balance.`;
-      if (debitTotal <= 0) return "Journal amount must be greater than zero.";
+      if (journalEntryMode === "single") {
+        if (!accountLedger) return "Account ledger is required.";
+        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+        if (filled.length < 1)
+          return "At least one Particulars entry with an amount is required.";
+        if (particularsTotal <= 0) return "Total amount must be greater than zero.";
+      } else {
+        const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+        if (filled.length < 2) return "At least two valid Journal entries are required.";
+        for (const row of filled) {
+          if (checkIsCashOrBank(row.ledger))
+            return "Journal vouchers cannot use Cash or Bank ledgers.";
+        }
+        if (Math.abs(debitTotal - creditTotal) > 0.01)
+          return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
+            2
+          )}) totals must balance.`;
+        if (debitTotal <= 0) return "Journal amount must be greater than zero.";
+      }
     }
 
     if (["Sales", "Purchase"].includes(voucherType)) {
@@ -1113,7 +1166,7 @@ export function useVoucherForm() {
 
     return null;
   }, [
-    companyId, fyId, voucherType, contraEntryMode, receiptEntryMode,
+    companyId, fyId, voucherType, contraEntryMode, receiptEntryMode, journalEntryMode,
     accountLedger, particulars, particularsTotal,
     contraDoubleRows, receiptDoubleRows, journalRows, debitTotal, creditTotal,
     stockEntries, partyLedger, salesPurchaseLedger, totalAmount,
@@ -1233,15 +1286,38 @@ export function useVoucherForm() {
         }
 
       } else if (voucherType === "Journal") {
-        const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
-        entries = filled.map((r) => ({
-          ledger_id: r.ledger!.ledger_id,
-          ledger_name: r.ledger!.name,
-          type: r.type,
-          amount: Number(r.amountRaw),
-          currency: "INR",
-          cost_centres: r.costCentres,
-        }));
+        if (journalEntryMode === "single") {
+          const accountType: "Dr" | "Cr" = "Cr";
+
+          entries.push({
+            ledger_id: accountLedger!.ledger_id,
+            ledger_name: accountLedger!.name,
+            type: accountType,
+            amount: particularsTotal,
+          });
+
+          const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+          entries.push(
+            ...filled.map((p) => ({
+              ledger_id: p.ledger!.ledger_id,
+              ledger_name: p.ledger!.name,
+              type: p.type,
+              amount: Number(p.amountRaw),
+              currency: "INR",
+              cost_centres: p.costCentres,
+            }))
+          );
+        } else {
+          const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+          entries = filled.map((r) => ({
+            ledger_id: r.ledger!.ledger_id,
+            ledger_name: r.ledger!.name,
+            type: r.type,
+            amount: Number(r.amountRaw),
+            currency: "INR",
+            cost_centres: r.costCentres,
+          }));
+        }
 
       } else if (["Sales", "Purchase"].includes(voucherType)) {
         //
@@ -1417,7 +1493,7 @@ export function useVoucherForm() {
     }
   }, [
     validate,
-    companyId, fyId, voucherType, contraEntryMode, receiptEntryMode,
+    companyId, fyId, voucherType, contraEntryMode, receiptEntryMode, journalEntryMode,
     date, status,
     supplierInvoiceNo, supplierInvoiceDate,
     referenceNumber, referenceDate, placeOfSupply,
@@ -1537,6 +1613,8 @@ export function useVoucherForm() {
     handleRemoveReceiptDoubleRow,
 
     // ── Layout 2 — journal (F7) ────────────────────────────────────────────────
+    journalEntryMode,
+    setJournalEntryMode,
     journalRows,
     setJournalRows,
     handleUpdateJournalRow,

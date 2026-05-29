@@ -95,7 +95,7 @@ function RightSidebar({
         </button>
       </div>
 
-      {["Contra", "Receipt"].includes(voucherType) && (
+      {["Contra", "Receipt", "Journal"].includes(voucherType) && (
         <div className="border-b border-gray-200">
           <button
             onClick={onEntryModeChange}
@@ -298,6 +298,12 @@ export default function Vouchers() {
     }
 
     if (form.voucherType === "Journal") {
+      if (form.journalEntryMode === "single") {
+        return (
+          !!form.accountLedger &&
+          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
+        );
+      }
       const filled = form.journalRows.filter(
         (r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0
       );
@@ -318,6 +324,7 @@ export default function Vouchers() {
     return false;
   }, [
     form.isSubmitting,
+    form.journalEntryMode,
     form.voucherType,
     form.contraEntryMode,
     form.receiptEntryMode,
@@ -399,9 +406,26 @@ export default function Vouchers() {
       return;
     }
 
+    if (
+      form.voucherType === "Journal" &&
+      form.journalEntryMode === "single" &&
+      form.accountLedger?.is_bill_wise === 1 &&
+      form.partyBillReferences.length === 0
+    ) {
+      form.setActiveAllocation({
+        type: "billWiseParty",
+        ledgerId: form.accountLedger.ledger_id,
+        ledgerName: form.accountLedger.name,
+        amount: form.particularsTotal,
+        initialAllocations: [],
+      });
+      return;
+    }
+
     form.handleSubmit();
   }, [
     form.voucherType,
+    form.journalEntryMode,
     form.contraEntryMode,
     form.receiptEntryMode,
     form.partyLedger,
@@ -419,12 +443,15 @@ export default function Vouchers() {
 
   const proceedToNextRow = useCallback(
     (idx: number) => {
-      const isJ = form.voucherType === "Journal";
+      const isJDouble = form.voucherType === "Journal" && form.journalEntryMode === "double";
+      const isJSingle = form.voucherType === "Journal" && form.journalEntryMode === "single";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
       const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
       const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
-      const list = isJ
+      const list = isJDouble
         ? form.journalRows
+        : isJSingle
+        ? form.particulars
         : isInv
         ? form.additionalEntries
         : isContraDouble
@@ -432,8 +459,10 @@ export default function Vouchers() {
         : isReceiptDouble
         ? form.receiptDoubleRows
         : form.particulars;
-      const addRow = isJ
+      const addRow = isJDouble
         ? form.handleAddJournalRow
+        : isJSingle
+        ? form.handleAddParticularRow
         : isInv
         ? form.handleAddAdditionalRow
         : isContraDouble
@@ -454,6 +483,7 @@ export default function Vouchers() {
     },
     [
       form.voucherType,
+      form.journalEntryMode,
       form.contraEntryMode,
       form.receiptEntryMode,
       form.journalRows,
@@ -536,18 +566,20 @@ export default function Vouchers() {
       const alloc = form.activeAllocation;
       if (!alloc || !("rowId" in alloc)) return;
       const { rowId } = alloc;
-      const isJ = form.voucherType === "Journal";
+      const isJDouble = form.voucherType === "Journal" && form.journalEntryMode === "double";
+      const isJSingle = form.voucherType === "Journal" && form.journalEntryMode === "single";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
       const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
       const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
 
-      if (isJ) form.handleUpdateJournalRow(rowId, { billReferences: allocations });
+      if (isJDouble) form.handleUpdateJournalRow(rowId, { billReferences: allocations });
+      else if (isJSingle) form.handleUpdateParticularRow(rowId, { billReferences: allocations });
       else if (isInv) form.handleUpdateAdditionalRow(rowId, { billReferences: allocations });
       else if (isContraDouble) form.handleUpdateContraDoubleRow(rowId, { billReferences: allocations });
       else if (isReceiptDouble) form.handleUpdateReceiptDoubleRow(rowId, { billReferences: allocations });
       else form.handleUpdateParticularRow(rowId, { billReferences: allocations });
 
-      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : isContraDouble ? form.contraDoubleRows : isReceiptDouble ? form.receiptDoubleRows : form.particulars;
+      const list = isJDouble ? form.journalRows : isJSingle ? form.particulars : isInv ? form.additionalEntries : isContraDouble ? form.contraDoubleRows : isReceiptDouble ? form.receiptDoubleRows : form.particulars;
       const targetRow = list.find((r) => r.id === rowId);
 
       if (targetRow?.ledger?.allow_cost_centres === 1) {
@@ -567,6 +599,7 @@ export default function Vouchers() {
     [
       form.activeAllocation,
       form.voucherType,
+      form.journalEntryMode,
       form.contraEntryMode,
       form.receiptEntryMode,
       form.journalRows,
@@ -590,24 +623,27 @@ export default function Vouchers() {
       const alloc = form.activeAllocation;
       if (!alloc || !("rowId" in alloc)) return;
       const { rowId } = alloc;
-      const isJ = form.voucherType === "Journal";
+      const isJDouble = form.voucherType === "Journal" && form.journalEntryMode === "double";
+      const isJSingle = form.voucherType === "Journal" && form.journalEntryMode === "single";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
       const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
       const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
 
-      if (isJ) form.handleUpdateJournalRow(rowId, { costCentres: allocations });
+      if (isJDouble) form.handleUpdateJournalRow(rowId, { costCentres: allocations });
+      else if (isJSingle) form.handleUpdateParticularRow(rowId, { costCentres: allocations });
       else if (isInv) form.handleUpdateAdditionalRow(rowId, { costCentres: allocations });
       else if (isContraDouble) form.handleUpdateContraDoubleRow(rowId, { costCentres: allocations });
       else if (isReceiptDouble) form.handleUpdateReceiptDoubleRow(rowId, { costCentres: allocations });
       else form.handleUpdateParticularRow(rowId, { costCentres: allocations });
 
       form.setActiveAllocation(null);
-      const list = isJ ? form.journalRows : isInv ? form.additionalEntries : isContraDouble ? form.contraDoubleRows : isReceiptDouble ? form.receiptDoubleRows : form.particulars;
+      const list = isJDouble ? form.journalRows : isJSingle ? form.particulars : isInv ? form.additionalEntries : isContraDouble ? form.contraDoubleRows : isReceiptDouble ? form.receiptDoubleRows : form.particulars;
       proceedToNextRow(list.findIndex((r) => r.id === rowId));
     },
     [
       form.activeAllocation,
       form.voucherType,
+      form.journalEntryMode,
       form.contraEntryMode,
       form.receiptEntryMode,
       form.journalRows,
@@ -705,6 +741,9 @@ export default function Vouchers() {
     if (af.type === "stockItem") return form.allStockItems;
 
     if (af.type === "account") {
+      if (form.voucherType === "Journal") {
+        return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
+      }
       // Account field is always cash/bank for all three single-entry types
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
     }
@@ -731,6 +770,11 @@ export default function Vouchers() {
       );
     }
 
+    // Journal Particulars: all ledgers except cash/bank
+    if (form.voucherType === "Journal" && af.type === "particular") {
+      return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
+    }
+
     // Contra Particulars: also restricted to cash/bank (destination side)
     // In double-entry mode, all rows are restricted to cash/bank
     if (form.voucherType === "Contra" && af.type === "particular") {
@@ -753,6 +797,7 @@ export default function Vouchers() {
   }, [
     form.activeField,
     form.voucherType,
+    form.journalEntryMode,
     form.receiptEntryMode,
     form.receiptDoubleRows,
     form.allLedgers,
@@ -765,7 +810,7 @@ export default function Vouchers() {
     const af = form.activeField;
     if (!af) return "List of Ledger Accounts";
     if (af.type === "stockItem") return "List of Stock Items";
-    if (af.type === "account") return "List of Cash / Bank Accounts";
+    if (af.type === "account") return form.voucherType === "Journal" ? "List of Ledger Accounts" : "List of Cash / Bank Accounts";
     if (af.type === "party") return "List of Party Accounts";
     if (af.type === "salesPurchase") return `List of ${form.voucherType} Ledgers`;
     if (
@@ -808,6 +853,8 @@ export default function Vouchers() {
           form.setContraEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
         } else if (form.voucherType === "Receipt") {
           form.setReceiptEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
+        } else if (form.voucherType === "Journal") {
+          form.setJournalEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
         }
       }
       if (e.altKey && (e.key === "a" || e.key === "A")) {
@@ -833,6 +880,7 @@ export default function Vouchers() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [
+    form.setJournalEntryMode,
     form.setVoucherType,
     form.setContraEntryMode,
     form.setReceiptEntryMode,
@@ -965,6 +1013,11 @@ export default function Vouchers() {
       return <span className="text-gray-500">✓ Balanced</span>;
     }
     if (form.voucherType === "Journal") {
+      if (form.journalEntryMode === "single") {
+        return form.particularsTotal > 0 ? (
+          <span className="text-gray-500">✓ Balanced</span>
+        ) : null;
+      }
       if (form.debitTotal <= 0) return null;
       if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
         return (
@@ -1052,7 +1105,8 @@ export default function Vouchers() {
           ═════════════════════════════════════════════════════════════ */}
           {((form.voucherType === "Payment") ||
             (form.voucherType === "Receipt" && form.receiptEntryMode === "single") ||
-            (form.voucherType === "Contra" && form.contraEntryMode === "single")) && (
+            (form.voucherType === "Contra" && form.contraEntryMode === "single") ||
+            (form.voucherType === "Journal" && form.journalEntryMode === "single")) && (
             <>
               {/* Account field */}
               <div className="border-b border-gray-300 shrink-0 py-1">
@@ -1197,141 +1251,21 @@ export default function Vouchers() {
           )}
 
           {/* ════════════════════════════════════════════════════════════
-              Layout 2 — Journal
-              By/To rows with separate Dr/Cr columns
+              Layout 2 — Journal (double-entry)
+              Same layout as Contra/Receipt double-entry with Dr/Cr selector
           ═════════════════════════════════════════════════════════════ */}
-          {form.voucherType === "Journal" && (
-            <>
-              <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
-                <div className="col-span-1" />
-                <div className="col-span-7 text-sm font-semibold text-black">Particulars</div>
-                <div className="col-span-2 text-right text-sm font-semibold text-black">Debit</div>
-                <div className="col-span-2 text-right text-sm font-semibold text-black">Credit</div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto min-h-0">
-                {form.journalRows.map((row, idx) => {
-                  const isActive =
-                    form.activeField?.type === "particular" &&
-                    form.activeField.rowId === row.id;
-                  return (
-                    <div
-                      key={row.id}
-                      className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
-                    >
-                      {/* By / To label */}
-                      <div className="col-span-1 text-sm font-semibold text-black select-none">
-                        {row.type === "Dr" ? "By" : "To"}
-                      </div>
-
-                      <div className="col-span-7 flex items-center gap-1">
-                        <input
-                          data-particular-ledger={idx + 1}
-                          type="text"
-                          className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                          value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
-                          onFocus={() =>
-                            form.handleFieldFocus({ type: "particular", rowId: row.id })
-                          }
-                          onChange={(e) => {
-                            form.setLedgerSearchTerm(e.target.value);
-                            if (!row.ledger)
-                              form.handleFieldFocus({ type: "particular", rowId: row.id });
-                          }}
-                          autoComplete="off"
-                        />
-                        {form.journalRows.length > 2 && (
-                          <button
-                            tabIndex={-1}
-                            onClick={() => form.handleRemoveJournalRow(row.id)}
-                            className="text-xs text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Debit column — only shown for Dr rows */}
-                      <div className="col-span-2 text-right pr-1">
-                        {row.type === "Dr" ? (
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                            value={row.amountRaw}
-                            placeholder=""
-                            onChange={(e) =>
-                              form.handleUpdateJournalRow(row.id, { amountRaw: e.target.value })
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key !== "Enter") return;
-                              e.preventDefault();
-                              handleAmountConfirm(row, idx);
-                            }}
-                          />
-                        ) : (
-                          <span className="text-gray-300 text-sm select-none">—</span>
-                        )}
-                      </div>
-
-                      {/* Credit column — only shown for Cr rows */}
-                      <div className="col-span-2 text-right">
-                        {row.type === "Cr" ? (
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                            value={row.amountRaw}
-                            placeholder=""
-                            onChange={(e) =>
-                              form.handleUpdateJournalRow(row.id, { amountRaw: e.target.value })
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key !== "Enter") return;
-                              e.preventDefault();
-                              handleAmountConfirm(row, idx);
-                            }}
-                          />
-                        ) : (
-                          <span className="text-gray-300 text-sm select-none">—</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Filler rows */}
-                {Array.from({ length: Math.max(0, 10 - form.journalRows.length) }).map((_, i) => (
-                  <div
-                    key={`ej-${i}`}
-                    className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]"
-                  />
-                ))}
-              </div>
-
-              {/* Footer — Dr / Cr totals with balance indicator */}
-              <div className="grid grid-cols-12 border-t border-black shrink-0 px-3 py-0.5 bg-white">
-                <div className="col-span-8 text-xs text-gray-600">
-                  <BalanceIndicator />
-                </div>
-                <div className="col-span-2 text-right text-sm font-semibold text-black">
-                  {form.debitTotal > 0
-                    ? form.debitTotal.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    : ""}
-                </div>
-                <div className="col-span-2 text-right text-sm font-semibold text-black">
-                  {form.creditTotal > 0
-                    ? form.creditTotal.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    : ""}
-                </div>
-              </div>
-            </>
+          {form.voucherType === "Journal" && form.journalEntryMode === "double" && (
+            <ContraDoubleEntryTable
+              rows={form.journalRows}
+              onUpdateRow={form.handleUpdateJournalRow}
+              onAddRow={form.handleAddJournalRow}
+              onRemoveRow={form.handleRemoveJournalRow}
+              onFieldFocus={form.handleFieldFocus}
+              onSearchChange={form.setLedgerSearchTerm}
+              searchTerm={form.ledgerSearchTerm}
+              activeRowId={form.activeField?.type === "particular" ? form.activeField.rowId : null}
+              onAmountConfirm={handleAmountConfirm}
+            />
           )}
 
           {/* ════════════════════════════════════════════════════════════
@@ -1740,11 +1674,15 @@ export default function Vouchers() {
             form.setStatus((p: string) => (p === "Regular" ? "Post-Dated" : "Regular"))
           }
           entryMode={
-            form.voucherType === "Receipt" ? form.receiptEntryMode : form.contraEntryMode
+            form.voucherType === "Receipt" ? form.receiptEntryMode
+            : form.voucherType === "Journal" ? form.journalEntryMode
+            : form.contraEntryMode
           }
           onEntryModeChange={() => {
             if (form.voucherType === "Receipt") {
               form.setReceiptEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
+            } else if (form.voucherType === "Journal") {
+              form.setJournalEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
             } else {
               form.setContraEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
             }
