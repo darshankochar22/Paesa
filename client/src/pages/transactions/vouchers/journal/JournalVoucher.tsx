@@ -113,18 +113,19 @@ export default function JournalVoucher({ form }: Props) {
     navigate, form.isSubmitting,
   ]);
 
+  const diff = Math.abs(form.debitTotal - form.creditTotal);
   const balanceIndicator =
     form.debitTotal <= 0 ? null :
-    Math.abs(form.debitTotal - form.creditTotal) > 0.01 ? (
-      <span className="text-rose-700 font-bold font-mono">
-        ⚠ Diff:{" "}
-        {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}
+    diff > 0.01 ? (
+      <span className="inline-flex items-center gap-1 text-rose-700 font-bold text-[11px]">
+        <span>⚠</span>
+        <span className="font-mono">Diff: {diff.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
       </span>
     ) : (
-      <span className="text-emerald-700 font-bold italic">✓ Balanced</span>
+      <span className="inline-flex items-center gap-1 text-emerald-700 font-bold text-[11px]">
+        <span>✓</span>
+        <span>Balanced</span>
+      </span>
     );
 
   return (
@@ -169,9 +170,12 @@ export default function JournalVoucher({ form }: Props) {
             onRowFocus={(rowId) => form.handleFieldFocus({ type: "particular", rowId })}
             onSearchChange={form.setLedgerSearchTerm}
             onAmountConfirm={handleAmountConfirm}
+            onAddRow={form.handleAddJournalRow}
             debitTotal={form.debitTotal}
             creditTotal={form.creditTotal}
             balanceIndicator={balanceIndicator}
+            narration={form.narration}
+            onNarrationChange={form.setNarration}
           />
         </div>
 

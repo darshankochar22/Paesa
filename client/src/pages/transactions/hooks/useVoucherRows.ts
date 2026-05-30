@@ -200,11 +200,32 @@ export function useVoucherRows({
 
   const handleAddJournalRow = useCallback(() => {
     setJournalRows((prev) => {
-      const lastType = prev[prev.length - 1]?.type ?? "Dr";
-      const nextType: "Dr" | "Cr" = lastType === "Dr" ? "Cr" : "Dr";
+      // Calculate running Dr and Cr totals from existing rows
+      let runningDr = 0;
+      let runningCr = 0;
+      for (const r of prev) {
+        const amt = Number(r.amountRaw) || 0;
+        if (r.type === "Dr") runningDr += amt;
+        else runningCr += amt;
+      }
+
+      // Suggest the side that is currently lower to nudge toward balance.
+      // If equal (or both zero), alternate from the last row's type.
+      let nextType: "Dr" | "Cr";
+      if (runningDr < runningCr) {
+        nextType = "Dr";
+      } else if (runningCr < runningDr) {
+        nextType = "Cr";
+      } else {
+        // Totals are equal — alternate from last row
+        const lastType = prev[prev.length - 1]?.type ?? "Dr";
+        nextType = lastType === "Dr" ? "Cr" : "Dr";
+      }
+
       return [...prev, makeParticularRow(nextType)];
     });
   }, []);
+
 
   const handleUpdateJournalRow = useCallback(
     async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {

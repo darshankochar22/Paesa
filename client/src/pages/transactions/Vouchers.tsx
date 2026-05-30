@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { useVoucherForm } from "./hooks/useVoucherForm";
 import { AlertBanner } from "../../components/ui";
 
-// Dedicated voucher components — one per voucher type
 import ContraVoucher from "./vouchers/contra/ContraVoucher";
 import PaymentVoucher from "./vouchers/payment/PaymentVoucher";
 import ReceiptVoucher from "./vouchers/receipt/ReceiptVoucher";
@@ -10,23 +9,10 @@ import JournalVoucher from "./vouchers/journal/JournalVoucher";
 import SalesVoucher from "./vouchers/sales/SalesVoucher";
 import PurchaseVoucher from "./vouchers/purchase/PurchaseVoucher";
 
-/**
- * Vouchers — master orchestrator.
- *
- * Loads unified form state via useVoucherForm() and delegates rendering
- * entirely to the appropriate dedicated voucher component based on the
- * currently selected voucherType. Each voucher component owns its own:
- *   - keyboard shortcut listeners
- *   - layout (SingleEntry / Journal / SalesPurchase / ContraDouble)
- *   - popup set (date, bank, denomination, dispatch/receipt, party, bill-wise, cost-centre)
- *
- * Adding or debugging a voucher type is now isolated to its own folder.
- */
 export default function Vouchers() {
   const navigate = useNavigate();
   const form = useVoucherForm();
 
-  // Inline notification banners rendered above every voucher type
   const notifications = (
     <>
       {form.error && (
@@ -54,7 +40,6 @@ export default function Vouchers() {
     </>
   );
 
-  // Render the dedicated component for the active voucher type
   switch (form.voucherType) {
     case "Contra":
       return (
@@ -105,7 +90,6 @@ export default function Vouchers() {
       );
 
     default:
-      // Fallback — should not happen; default to Payment
       return (
         <>
           {notifications}
