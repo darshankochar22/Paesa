@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { PageTitleBar, AlertBanner, SearchInput, DataTable, StatusBadge, RightActionPanel } from "../../components/ui";
 import type { TableColumn } from "../../components/ui";
-import { VoucherTypeBadge, PageFooterBar } from "./ui";
+import VoucherTypeBadge from "./ui/VoucherTypeBadge";
+import PageFooterBar from "./ui/PageFooterBar";
 
 const VOUCHER_TYPES = ["Receipt", "Payment", "Contra", "Journal", "Sales", "Purchase"];
 
@@ -104,7 +105,6 @@ export default function VoucherList() {
     );
   });
 
-  // Augment rows with rendered fields for DataTable
   const tableRows = filtered.map(v => ({
     ...v,
     voucher_number: v.voucher_number || "—",
@@ -131,8 +131,7 @@ export default function VoucherList() {
   }));
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
-      {/* Title Bar */}
+    <div className="flex-1 flex flex-col bg-white h-full text-xs select-none animate-fade-in">
       <PageTitleBar
         title="Voucher Register"
         subtitle={selectedCompany?.name}
@@ -146,11 +145,8 @@ export default function VoucherList() {
         }
       />
 
-      {/* Main Body Layout */}
       <div className="flex-1 flex min-h-0">
-        {/* Left Side: Table & Filters */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Type Filter Tabs */}
           <div className="flex border-b border-zinc-200 bg-zinc-50 overflow-x-auto shrink-0">
             {["All", ...VOUCHER_TYPES].map(type => (
               <button
@@ -167,7 +163,7 @@ export default function VoucherList() {
             ))}
           </div>
 
-          {/* Search Bar */}
+
           <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50/50">
             <SearchInput
               value={search}
@@ -177,12 +173,12 @@ export default function VoucherList() {
             />
           </div>
 
-          {/* Error Banner */}
+        
           {error && (
             <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />
           )}
 
-          {/* Table */}
+       
           <DataTable
             columns={columns}
             rows={tableRows}
@@ -198,11 +194,10 @@ export default function VoucherList() {
           />
         </div>
 
-        {/* Right Side: Action Panel */}
+
         <RightActionPanel actions={listActions} />
       </div>
 
-      {/* Footer */}
       <PageFooterBar
         countLabel={`${filtered.length} voucher${filtered.length !== 1 ? "s" : ""}`}
         onBack={() => navigate("/")}

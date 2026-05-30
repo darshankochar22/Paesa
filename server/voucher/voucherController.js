@@ -37,4 +37,7 @@ module.exports = {
   searchLedgers: async (event, { company_id, searchTerm }) => {
     return await voucherService.searchLedgers(company_id, searchTerm);
   },
+  getOutstandingBills: async (event, { ledger_id }) => {
+    return await voucherService.getOutstandingBills(ledger_id);
+  },
 };

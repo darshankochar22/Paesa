@@ -583,4 +583,23 @@ module.exports = {
   searchLedgers: async (company_id, searchTerm) => {
     return await searchLedgers(company_id, searchTerm);
   },
+
+  getOutstandingBills: async (ledger_id) => {
+    try {
+      const result = await db.execute({
+        sql: `SELECT 
+                bill_name,
+                SUM(CASE WHEN bill_type = 'New Ref' THEN amount WHEN bill_type = 'Agst Ref' THEN -amount ELSE 0 END) as outstanding_amount,
+                COALESCE(MIN(credit_period), '') as credit_period
+              FROM voucher_bill_references
+              WHERE ledger_id = ?
+              GROUP BY bill_name
+              HAVING outstanding_amount > 0.01`,
+        args: [ledger_id],
+      });
+      return { success: true, bills: result.rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 };

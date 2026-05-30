@@ -1,6 +1,16 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 
 export default function Gateway() {
+  useEffect(() => {
+    // Clear all persisted form drafts from sessionStorage when Gateway of Tally is opened
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith("formData_")) {
+        sessionStorage.removeItem(key);
+      }
+    }
+  }, []);
 
   const sections = [
     {
@@ -10,10 +20,6 @@ export default function Gateway() {
     {
       title: "Transactions",
       items: ["Vouchers", "Voucher Register", "Day Book"],
-    },
-    {
-      title: "Transaction",
-      items: ["Voucher", "VoucherRegister", "DayBook"],
     },
     {
       title: "Utilities",
@@ -40,16 +46,15 @@ export default function Gateway() {
   ];
 
   const getRoute = (section: string, item: string) => {
-    if (section === "Masters" || section === "Transactions" || section === "Transaction" || section === "Utilities") {
+    if (section === "Masters" || section === "Transactions" || section === "Utilities") {
       if (item === "Create") return "/master/create";
       if (item === "Alter") return "/master/alter";
-      if (item == "Chart of Accounts") return "/master/coa";
-      if (item == "Financial Years") return "/master/financial-years";
-      if (item == "Vouchers") return "/transactions/vouchers";
-      if (item == "Voucher") return "/transaction/voucher";
-      if (item == "Voucher Register") return "/transactions/voucher-list";
-      if (item == "Day Book") return "/transactions/daybook";
-      if (item == "Banking") return "/utilities/banking";
+      if (item === "Chart of Accounts") return "/master/coa";
+      if (item === "Financial Years") return "/master/financial-years";
+      if (item === "Vouchers") return "/transactions/vouchers";
+      if (item === "Voucher Register") return "/transactions/voucher-list";
+      if (item === "Day Book") return "/transactions/daybook";
+      if (item === "Banking") return "/utilities/banking";
     }
     return null;
   };

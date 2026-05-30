@@ -21,7 +21,6 @@ import GroupAlter from "./pages/master/group/GroupAlter.tsx";
 import GroupAlterEdit from "./pages/master/group/GroupAlterEdit.tsx";
 import GroupCOA from "./pages/master/group/GroupCOA.tsx";
 import Vouchers from "./pages/transactions/Vouchers.tsx";
-import Voucher from "./pages/transaction/Vouchers.tsx";
 import VoucherList from "./pages/transactions/VoucherList.tsx";
 import VoucherView from "./pages/transactions/VoucherView.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
@@ -74,7 +73,7 @@ import AttendanceTypeAlter from "./pages/master/payroll/attendance-type/Attendan
 import PayHeadAlter from "./pages/master/payroll/pay-head/PayHeadAlter.tsx";
 import SalaryStructureAlter from "./pages/master/payroll/salary-structure/SalaryStructureAlter.tsx";
 import EmployeeCategoryAlter from "./pages/master/payroll/employee-category/EmployeeCategoryAlter.tsx";
-import VoucherTypeModal from "./pages/transaction/ui/VoucherTypeModal.tsx";
+import VoucherTypeModal from "./pages/transactions/ui/VoucherTypeModal.tsx";
 
 function CompanyCreatePage() {
   const navigate = useNavigate();
@@ -152,11 +151,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/alter/godown" element={<GodownAlter />}/>
 
             <Route path="/transactions/vouchers" element={<Vouchers />}/>
-            <Route path="/transaction/voucher" element={<Voucher />}/>
+            <Route path="/transaction/voucher" element={<Vouchers />}/>
             <Route path="/transactions/voucher-list" element={<VoucherList />}/>
+            <Route path="/transaction/voucher-list" element={<VoucherList />}/>
             <Route path="/transactions/voucher/:id" element={<VoucherView />}/>
+            <Route path="/transaction/voucher/:id" element={<VoucherView />}/>
             <Route path="/transactions/daybook" element={<Daybook />}/>
-            <Route path="transaction/voucher-type-modal" element={<VoucherTypeModalPage />} />
+            <Route path="/transaction/daybook" element={<Daybook />}/>
+            <Route path="/transactions/voucher-type-modal" element={<VoucherTypeModalPage />} />
+            <Route path="/transaction/voucher-type-modal" element={<VoucherTypeModalPage />} />
             <Route path="/utilities/banking" element={<Banking/>} />
             <Route path="/data/:controller" element={<GenericDataView />} />
 

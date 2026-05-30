@@ -2,3 +2,4 @@ export { default as VoucherTypeBadge, voucherTypeSolidClass } from './VoucherTyp
 export { default as LedgerField } from './LedgerField';
 export { default as AmountDisplay, formatINR } from './AmountDisplay';
 export { default as PageFooterBar } from './PageFooterBar';
+export { default as VoucherTypeModal } from './VoucherTypeModal';

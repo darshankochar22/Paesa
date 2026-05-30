@@ -97,6 +97,7 @@ contextBridge.exposeInMainWorld('api', {
         getNextNumber: (company_id, fy_id, type)                   => invoke('voucher:getNextNumber', { company_id, fy_id, voucher_type: type }),
         getLedgerBalance: (ledger_id, company_id, fy_id)           => invoke('voucher:getLedgerBalance', { ledger_id, company_id, fy_id }),
         searchLedgers:   (company_id, searchTerm)                  => invoke('voucher:searchLedgers', { company_id, searchTerm }),
+        getOutstandingBills: (ledger_id)                                => invoke('voucher:getOutstandingBills', { ledger_id }),
     },
     report: {
         trialBalance: (company_id, fy_id)                                        => invoke('report:trialBalance', { company_id, fy_id }),
