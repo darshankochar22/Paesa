@@ -281,7 +281,7 @@ export function useVoucherForm() {
     const saved = loadFormState<any>(persistKey ?? "");
     return saved?.journalRows?.length
       ? saved.journalRows
-      : [makeParticularRow("Dr"), makeParticularRow("Cr")];
+      : [makeParticularRow("Cr"), makeParticularRow("Dr")];
   });
 
   // ── Layout 3: Inventory invoice (Sales F8 · Purchase F9) ──────────────────
@@ -1121,7 +1121,7 @@ export function useVoucherForm() {
       : voucherType === "Payment" ? "Dr"
       : "Dr"; // Contra
     setParticulars([makeParticularRow(defaultParticular)]);
-    setJournalRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
+    setJournalRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setContraDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setReceiptDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setPaymentDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
@@ -1194,10 +1194,6 @@ export function useVoucherForm() {
         const filled = paymentDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
         if (filled.length < 2)
           return "At least two valid entries are required.";
-        for (const row of filled) {
-          if (row.type === "Cr" && !checkIsCashOrBank(row.ledger))
-            return "Payment Credit entries must be Cash or Bank ledgers.";
-        }
         if (Math.abs(debitTotal - creditTotal) > 0.01)
           return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
             2

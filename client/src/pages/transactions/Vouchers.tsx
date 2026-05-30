@@ -767,15 +767,9 @@ export default function Vouchers() {
       return form.allLedgers;
     }
 
-    // Payment double-entry: Cr rows = cash/bank only, Dr rows = all except cash/bank
+    // Payment double-entry: all ledgers visible for both Dr and Cr
     if (form.voucherType === "Payment" && form.paymentEntryMode === "double" && af.type === "particular") {
-      const row = form.paymentDoubleRows.find((r) => r.id === af.rowId);
-      if (row?.type === "Cr") {
-        return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
-      }
-      if (row?.type === "Dr") {
-        return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
-      }
+      return form.allLedgers;
     }
 
     // Payment single-entry: Particulars are Dr — all ledgers except cash/bank
@@ -806,17 +800,8 @@ export default function Vouchers() {
     if (af.type === "account") return form.voucherType === "Journal" ? "List of Ledger Accounts" : "List of Cash / Bank Accounts";
     if (af.type === "party") return "List of Party Accounts";
     if (af.type === "salesPurchase") return `List of ${form.voucherType} Ledgers`;
-    if (
-      form.voucherType === "Payment" &&
-      form.paymentEntryMode === "double" &&
-      af.type === "particular"
-    ) {
-      const row = form.paymentDoubleRows.find((r) => r.id === af.rowId);
-      if (row?.type === "Cr") return "List of Cash / Bank Accounts";
-      if (row?.type === "Dr") return "List of Ledger Accounts";
-    }
     return "List of Ledger Accounts";
-  }, [form.activeField, form.voucherType, form.receiptEntryMode, form.receiptDoubleRows, form.paymentEntryMode, form.paymentDoubleRows]);
+  }, [form.activeField, form.voucherType, form.receiptEntryMode, form.receiptDoubleRows]);
 
   const panelSearchTerm =
     form.activeField?.type === "stockItem" ? form.stockSearchTerm : form.ledgerSearchTerm;
