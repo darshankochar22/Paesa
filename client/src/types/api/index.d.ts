@@ -10,6 +10,7 @@ import type { VoucherAPI } from './Transactions';
 import type { MasterDataAPI } from './MasterData';
 import type { PayrollAPI } from './Payroll';
 import type { FeatureManagementAPI } from './FeatureManagement';
+import type { VoucherTypeAPI } from './VoucherType';
 
 export type {
   CompanyType,
@@ -51,6 +52,7 @@ export type WindowAPI =
   & InventoryAPI
   & GodownAPI
   & VoucherAPI
+  & VoucherTypeAPI 
   & MasterDataAPI
   & PayrollAPI
   & FeatureManagementAPI

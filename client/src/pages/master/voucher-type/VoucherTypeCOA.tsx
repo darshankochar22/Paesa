@@ -10,13 +10,7 @@ interface VoucherTypeWithConfig extends VoucherTypeType {
     make_voucher_optional?: number;
     allow_narration?: number;
     allow_narration_per_ledger?: number;
-    whatsapp_after_save?: number;
     print_after_save?: number;
-    enable_default_accounting_allocation?: number;
-    track_additional_cost_for_purchase?: number;
-    default_title_to_print?: string;
-    use_for_pos_invoicing?: number;
-    declaration?: string;
   };
 }
 
@@ -33,10 +27,7 @@ export default function VoucherTypeCOA() {
   const [activeDetails, setActiveDetails] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!companyId) {
-      setLoading(false);
-      return;
-    }
+    if (!companyId) { setLoading(false); return; }
     let cancelled = false;
     (async () => {
       try {
@@ -46,24 +37,17 @@ export default function VoucherTypeCOA() {
         if (cancelled) return;
         if (res.success) {
           const list = res.voucherTypes ?? [];
-          // Load configs for each voucher type asynchronously to display full options in detail drawer
           const enriched = await Promise.all(
             list.map(async (vt) => {
               try {
                 const configRes = await window.api.voucherType.getConfig(vt.vt_id!);
-                return {
-                  ...vt,
-                  config: configRes.success ? configRes.config : undefined,
-                };
-              } catch {
-                return vt;
-              }
+                return { ...vt, config: configRes.success ? configRes.config : undefined };
+              } catch { return vt; }
             })
           );
-          if (cancelled) return;
-          setVts(enriched);
+          if (!cancelled) setVts(enriched);
         } else {
-          setError(res.error || "Failed to load voucher types.");
+          if (!cancelled) setError(res.error || "Failed to load voucher types.");
         }
       } catch {
         if (!cancelled) setError("Failed to load voucher types.");
@@ -71,9 +55,7 @@ export default function VoucherTypeCOA() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [companyId]);
 
   const filteredVTs = useMemo(() => {
@@ -87,45 +69,39 @@ export default function VoucherTypeCOA() {
     );
   }, [vts, searchQuery]);
 
-  const toggleDetails = (id: number) => {
+  const toggleDetails = (id: number) =>
     setActiveDetails((prev) => (prev === id ? null : id));
-  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        navigate("/master/coa");
-      }
-      if (e.ctrlKey && e.key === "h") {
-        e.preventDefault();
-        setShowChangeView((p) => !p);
-      }
-      if (e.altKey && e.key.toLowerCase() === "c") {
-        e.preventDefault();
-        navigate("/master/create/voucher-type");
-      }
+      if (e.key === "Escape") { e.preventDefault(); navigate("/master/coa"); }
+      if (e.ctrlKey && e.key === "h") { e.preventDefault(); setShowChangeView((p) => !p); }
+      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/create/voucher-type"); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [navigate]);
 
   const changeViewItems = [
-    { label: "Ledgers", path: "/master/coa/ledger" },
-    { label: "Groups", path: "/master/coa/group" },
-    { label: "Currencies", path: "/master/coa/currency" },
-    { label: "Voucher Types", path: "/master/coa/voucher-type" },
-    { label: "GST Registrations", path: "/master/coa/gst-registration" },
-    { label: "GST Classifications", path: "/master/coa/gst-classification" },
-    { label: "Stock Groups & Items", path: "/master/coa/stock-group" },
-    { label: "Stock Categories", path: "/master/coa/stock-category" },
-    { label: "Godowns", path: "/master/coa/godown" },
-    { label: "Units of Measure", path: "/master/coa/unit" },
-    { label: "Employees", path: "/master/coa/employee" },
+    { label: "Ledgers",               path: "/master/coa/ledger"            },
+    { label: "Groups",                path: "/master/coa/group"             },
+    { label: "Currencies",            path: "/master/coa/currency"          },
+    { label: "Voucher Types",         path: "/master/coa/voucher-type"      },
+    { label: "GST Registrations",     path: "/master/coa/gst-registration"  },
+    { label: "GST Classifications",   path: "/master/coa/gst-classification"},
+    { label: "Stock Groups & Items",  path: "/master/coa/stock-group"       },
+    { label: "Stock Categories",      path: "/master/coa/stock-category"    },
+    { label: "Godowns",               path: "/master/coa/godown"            },
+    { label: "Units of Measure",      path: "/master/coa/unit"              },
+    { label: "Employees",             path: "/master/coa/employee"          },
   ];
 
+  const yn = (v?: number) => (v === 1 ? "Yes" : "No");
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800 animate-fade-in font-sans">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800 font-sans">
+
+      {/* Header */}
       <div className="px-4 py-2 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/master/coa" className="text-xs text-zinc-500 hover:text-zinc-800 font-medium">
@@ -133,27 +109,27 @@ export default function VoucherTypeCOA() {
           </Link>
           <span className="text-sm font-semibold text-zinc-700">Voucher Types</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate("/master/create/voucher-type")}
-            className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium font-sans shadow-sm"
-          >
-            + Create
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/master/create/voucher-type")}
+          className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium shadow-sm"
+        >
+          + Create
+        </button>
       </div>
 
       {error && (
         <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 font-bold font-sans">&times;</button>
+          <button onClick={() => setError(null)} className="text-red-500 font-bold">&times;</button>
         </div>
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
+
+          {/* Search bar */}
           <div className="px-4 py-1.5 border-b border-zinc-100 flex items-center gap-2">
-            <span className="text-xs text-zinc-400 font-medium font-sans">Search:</span>
+            <span className="text-xs text-zinc-400 font-medium">Search:</span>
             <input
               className="flex-1 text-xs outline-none bg-transparent"
               value={searchQuery}
@@ -162,14 +138,13 @@ export default function VoucherTypeCOA() {
               autoFocus
             />
             {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="text-[10px] text-zinc-400 hover:text-zinc-600 font-sans"
-              >
+              <button onClick={() => setSearchQuery("")} className="text-[10px] text-zinc-400 hover:text-zinc-600">
                 Clear
               </button>
             )}
           </div>
+
+          {/* List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="p-8 text-center text-xs text-zinc-400 italic">Loading voucher types...</div>
@@ -183,9 +158,7 @@ export default function VoucherTypeCOA() {
                 return (
                   <div key={nodeId}>
                     <div
-                      className={`group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer ${
-                        isSelected ? "bg-zinc-50" : ""
-                      }`}
+                      className={`group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer ${isSelected ? "bg-zinc-50" : ""}`}
                       onClick={() => toggleDetails(nodeId)}
                     >
                       <span className="w-16 text-sm font-bold text-zinc-600">
@@ -194,99 +167,65 @@ export default function VoucherTypeCOA() {
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
                         {node.name}
                         {node.is_predefined === 1 && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
+                          <span className="text-[9px] font-bold px-1.5 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
                             PREDEFINED
                           </span>
                         )}
                       </span>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-zinc-400 font-bold uppercase">
-                          {node.category}
-                        </span>
+                        <span className="text-xs text-zinc-400 font-bold uppercase">{node.category}</span>
                         <button
                           className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium shadow-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate("/master/alter/voucher-type");
-                          }}
+                          onClick={(e) => { e.stopPropagation(); navigate("/master/alter/voucher-type"); }}
                         >
                           Alter
                         </button>
                       </div>
                     </div>
+
                     {isSelected && (
                       <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5">
+
+                        {/* Main fields */}
                         <div>
                           <span className="text-zinc-400">Numbering Method:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.numbering_method || "None"}</span>
+                          <span className="font-semibold text-zinc-800">{node.numbering_method || "Automatic"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Starts With:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.starts_with ?? 1}</span>
+                          <span className="text-zinc-400">Active:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.is_active === 1 ? "Yes" : "No"}</span>
                         </div>
-                        <div>
-                          <span className="text-zinc-400">Prefix:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.numbering_prefix || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Suffix:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.numbering_suffix || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Affects Inventory:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.affects_inventory === 1 ? "Yes" : "No"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Affects Accounting:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.affects_accounting === 1 ? "Yes" : "No"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Affects GST:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.affects_gst === 1 ? "Yes" : "No"}</span>
-                        </div>
-                        {node.default_voucher_class && (
-                          <div>
-                            <span className="text-zinc-400">Default Class:</span>{" "}
-                            <span className="font-semibold text-zinc-800">{node.default_voucher_class}</span>
-                          </div>
-                        )}
+
+                        {/* Config fields */}
                         {node.config && (
                           <>
-                            <div className="col-span-2 border-t border-dashed border-zinc-200 my-1 pt-1 font-bold text-[10px] text-zinc-400 uppercase select-none">
-                              Extended Config Settings
+                            <div className="col-span-2 border-t border-dashed border-zinc-200 my-1 pt-1 text-[10px] font-bold text-zinc-400 uppercase">
+                              Configuration
+                            </div>
+                            <div>
+                              <span className="text-zinc-400">Use Effective Dates:</span>{" "}
+                              <span className="font-semibold text-zinc-800">{yn(node.config.use_effective_dates)}</span>
                             </div>
                             <div>
                               <span className="text-zinc-400">Allow Zero Value:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.config.allow_zero_value_transactions === 1 ? "Yes" : "No"}</span>
+                              <span className="font-semibold text-zinc-800">{yn(node.config.allow_zero_value_transactions)}</span>
                             </div>
                             <div>
                               <span className="text-zinc-400">Make Optional:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.config.make_voucher_optional === 1 ? "Yes" : "No"}</span>
+                              <span className="font-semibold text-zinc-800">{yn(node.config.make_voucher_optional)}</span>
                             </div>
                             <div>
                               <span className="text-zinc-400">Allow Narration:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.config.allow_narration === 1 ? "Yes" : "No"}</span>
+                              <span className="font-semibold text-zinc-800">{yn(node.config.allow_narration)}</span>
                             </div>
                             <div>
-                              <span className="text-zinc-400">WhatsApp after Save:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.config.whatsapp_after_save === 1 ? "Yes" : "No"}</span>
+                              <span className="text-zinc-400">Narration per Ledger:</span>{" "}
+                              <span className="font-semibold text-zinc-800">{yn(node.config.allow_narration_per_ledger)}</span>
                             </div>
                             <div>
                               <span className="text-zinc-400">Print after Save:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.config.print_after_save === 1 ? "Yes" : "No"}</span>
+                              <span className="font-semibold text-zinc-800">{yn(node.config.print_after_save)}</span>
                             </div>
-                            {node.config.default_title_to_print && (
-                              <div>
-                                <span className="text-zinc-400">Default Title to Print:</span>{" "}
-                                <span className="font-semibold text-zinc-800">{node.config.default_title_to_print}</span>
-                              </div>
-                            )}
-                            {node.config.declaration && (
-                              <div className="col-span-2">
-                                <span className="text-zinc-400">Declaration:</span>{" "}
-                                <span className="text-zinc-600 block pl-4 pt-1 bg-zinc-50 border border-zinc-100 rounded whitespace-pre-wrap">{node.config.declaration}</span>
-                              </div>
-                            )}
                           </>
                         )}
                       </div>
@@ -298,7 +237,8 @@ export default function VoucherTypeCOA() {
           </div>
         </div>
 
-        <div className="w-44 border-l border-zinc-200 flex flex-col bg-zinc-50/30 text-[10px] select-none shrink-0 font-sans">
+        {/* Right action panel */}
+        <div className="w-44 border-l border-zinc-200 flex flex-col bg-zinc-50/30 text-[10px] select-none shrink-0">
           <button
             onClick={() => setShowChangeView(true)}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
@@ -321,13 +261,20 @@ export default function VoucherTypeCOA() {
         </div>
       </div>
 
+      {/* Footer */}
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
+        <span>{vts.length} voucher types</span>
+        <span>Startup ERP</span>
+      </div>
+
+      {/* Change View modal */}
       {showChangeView && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs"
           onClick={() => setShowChangeView(false)}
         >
           <div
-            className="bg-white border border-zinc-200 rounded shadow-xl w-80 max-h-96 overflow-y-auto animate-scale-up"
+            className="bg-white border border-zinc-200 rounded shadow-xl w-80 max-h-96 overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider">
@@ -351,11 +298,6 @@ export default function VoucherTypeCOA() {
           </div>
         </div>
       )}
-
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none animate-slide-up">
-        <span>{vts.length} voucher types</span>
-        <span>Startup ERP</span>
-      </div>
     </div>
   );
 }

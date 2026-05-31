@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
+import type { VoucherTypeCreatePayload } from "@/types/entities/VoucherType";
 
 const inputCls =
   "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -11,30 +12,11 @@ const selectCls =
   "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-44";
 
 const CATEGORIES = [
-  "Attendance",
-  "Contra",
-  "Credit Note",
-  "Debit Note",
-  "Delivery Note",
-  "Job Work In Order",
-  "Job Work Out Order",
-  "Journal",
-  "Material In",
-  "Material Out",
-  "Memorandum",
-  "Payment",
-  "Payroll",
-  "Physical Stock",
-  "Purchase",
-  "Purchase Order",
-  "Receipt",
-  "Receipt Note",
-  "Rejections In",
-  "Rejections Out",
-  "Reversing Journal",
-  "Sales",
-  "Sales Order",
-  "Stock Journal",
+  "Attendance", "Contra", "Credit Note", "Debit Note", "Delivery Note",
+  "Job Work In Order", "Job Work Out Order", "Journal", "Material In", "Material Out",
+  "Memorandum", "Payment", "Payroll", "Physical Stock", "Purchase", "Purchase Order",
+  "Receipt", "Receipt Note", "Rejections In", "Rejections Out", "Reversing Journal",
+  "Sales", "Sales Order", "Stock Journal",
 ];
 
 interface FormData {
@@ -43,12 +25,12 @@ interface FormData {
   category: string;
   is_active: "Yes" | "No";
   numbering_method: "Automatic" | "Manual" | "None";
-  use_effective_dates: "No" | "Yes";
-  allow_zero_value_transactions: "No" | "Yes";
-  make_voucher_optional: "No" | "Yes";
+  use_effective_dates: "Yes" | "No";
+  allow_zero_value_transactions: "Yes" | "No";
+  make_voucher_optional: "Yes" | "No";
   allow_narration: "Yes" | "No";
-  allow_narration_per_ledger: "No" | "Yes";
-  print_after_save: "No" | "Yes";
+  allow_narration_per_ledger: "Yes" | "No";
+  print_after_save: "Yes" | "No";
 }
 
 const INITIAL: FormData = {
@@ -64,6 +46,9 @@ const INITIAL: FormData = {
   allow_narration_per_ledger: "No",
   print_after_save: "No",
 };
+
+// Helper: "Yes"/"No" -> 0/1
+const toInt = (v: "Yes" | "No") => (v === "Yes" ? 1 : 0);
 
 function YesNoSelect({
   value,
@@ -84,7 +69,7 @@ function YesNoSelect({
   );
 }
 
-// Inline dropdown list — white bg panel, opens on the right side
+// Tally-style: fixed panel pinned to the right edge of the viewport
 function CategoryDropdown({
   value,
   onChange,
@@ -93,49 +78,70 @@ function CategoryDropdown({
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.stopPropagation(); setOpen(false); }
+    };
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [open]);
 
   return (
-    <div className="relative flex-1" ref={ref}>
+    <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full text-left text-sm px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 focus:outline-none rounded bg-white/50 transition-colors"
+        className="flex-1 text-left text-sm px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 focus:outline-none rounded bg-white/50 transition-colors"
       >
         {value || <span className="text-zinc-400">Select...</span>}
       </button>
 
       {open && (
-        <div className="absolute left-full top-0 ml-1 z-50 w-52 bg-white border border-zinc-200 rounded shadow-lg">
-          <div className="text-[11px] uppercase font-bold text-zinc-400 px-3 py-1.5 border-b border-zinc-100 tracking-wide">
-            List of Voucher Types
+        <>
+          <div className="fixed inset-0 z-40" aria-hidden />
+          <div
+            ref={panelRef}
+            className="fixed top-0 right-0 h-full z-50 w-52 bg-white border-l border-zinc-300 shadow-2xl flex flex-col"
+          >
+            <div className="bg-zinc-700 text-white text-xs font-bold px-3 py-2 tracking-wide uppercase">
+              List of Voucher Types
+            </div>
+            <ul className="flex-1 overflow-y-auto">
+              {CATEGORIES.map((cat) => (
+                <li
+                  key={cat}
+                  onClick={() => { onChange(cat); setOpen(false); }}
+                  className={`px-3 py-1 text-sm cursor-pointer transition-colors ${
+                    cat === value
+                      ? "bg-zinc-700 text-white"
+                      : "hover:bg-zinc-100 text-zinc-800"
+                  }`}
+                >
+                  {cat}
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="max-h-72 overflow-y-auto">
-            {CATEGORIES.map((cat) => (
-              <li
-                key={cat}
-                onClick={() => { onChange(cat); setOpen(false); }}
-                className={`px-3 py-1 text-sm cursor-pointer transition-colors ${
-                  cat === value
-                    ? "bg-zinc-800 text-white"
-                    : "hover:bg-zinc-100 text-zinc-800"
-                }`}
-              >
-                {cat}
-              </li>
-            ))}
-          </ul>
-        </div>
+        </>
       )}
-    </div>
+    </>
   );
 }
 
@@ -147,7 +153,7 @@ export default function VoucherTypeCreate() {
   const hasRestored = useRef(false);
 
   const [form, setForm] = useState<FormData>(
-    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
+    () => loadFormState<{ form: FormData }>(persistKey ?? "")?.form ?? INITIAL
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,20 +187,21 @@ export default function VoucherTypeCreate() {
     setLoading(true);
     setError(null);
     try {
-      const result = await window.api.voucherType.create({
-        company_id: companyId!,
-        name: form.name.trim(),
-        short_name: form.short_name.trim() || undefined,
-        category: form.category,
-        numbering_method: form.numbering_method,
-        is_active: form.is_active === "Yes" ? 1 : 0,
-        use_effective_dates: form.use_effective_dates === "Yes" ? 1 : 0,
-        allow_zero_value_transactions: form.allow_zero_value_transactions === "Yes" ? 1 : 0,
-        make_voucher_optional: form.make_voucher_optional === "Yes" ? 1 : 0,
-        allow_narration: form.allow_narration === "Yes" ? 1 : 0,
-        allow_narration_per_ledger: form.allow_narration_per_ledger === "Yes" ? 1 : 0,
-        print_after_save: form.print_after_save === "Yes" ? 1 : 0,
-      });
+      const payload: VoucherTypeCreatePayload = {
+        company_id:                    companyId!,
+        name:                          form.name.trim(),
+        short_name:                    form.short_name.trim() || undefined,
+        category:                      form.category,
+        numbering_method:              form.numbering_method,
+        is_active:                     toInt(form.is_active),
+        use_effective_dates:           toInt(form.use_effective_dates),
+        allow_zero_value_transactions: toInt(form.allow_zero_value_transactions),
+        make_voucher_optional:         toInt(form.make_voucher_optional),
+        allow_narration:               toInt(form.allow_narration),
+        allow_narration_per_ledger:    toInt(form.allow_narration_per_ledger),
+        print_after_save:              toInt(form.print_after_save),
+      };
+      const result = await window.api.voucherType.create(payload);
 
       if (result.success) {
         setSuccess(`Voucher Type "${form.name}" created successfully.`);
@@ -223,9 +230,9 @@ export default function VoucherTypeCreate() {
   }, [handleSubmit, navigate]);
 
   const voucherActions = [
-    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+A", label: "Accept",     onClick: handleSubmit },
     { key: "Alt+C", label: "Alter Mode", onClick: () => navigate("/master/alter/voucher-type") },
-    { key: "Esc",   label: "Quit",      onClick: () => navigate("/master/create") },
+    { key: "Esc",   label: "Quit",       onClick: () => navigate("/master/create") },
   ];
 
   return (
@@ -249,15 +256,13 @@ export default function VoucherTypeCreate() {
         <div className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto">
           <div className="p-4 space-y-3 max-w-4xl">
 
-            {/* Name + Alias */}
             <FormRow label="Name" required labelWidth="w-40" className="flex items-center min-h-[26px]">
               <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Cash Payment" />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-40" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.short_name} onChange={setField("short_name")} placeholder="" maxLength={6} />
+              <input className={inputCls} value={form.short_name} onChange={setField("short_name")} maxLength={6} />
             </FormRow>
 
-            {/* 3-column panel */}
             <div className="grid grid-cols-3 border border-zinc-200 rounded overflow-visible mt-2">
 
               {/* GENERAL */}
@@ -311,7 +316,6 @@ export default function VoucherTypeCreate() {
               {/* NAME OF CLASS */}
               <div className="p-3 space-y-1.5">
                 <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Name of Class</div>
-                {/* Empty — classes are added after voucher type is created, just like Tally */}
               </div>
 
             </div>
@@ -340,4 +344,3 @@ export default function VoucherTypeCreate() {
     </div>
   );
 }
-
