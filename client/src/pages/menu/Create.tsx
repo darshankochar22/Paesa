@@ -26,25 +26,20 @@ export default function Create() {
 
   const getRoute = (item: string) => {
     const map: Record<string, string> = {
-      // Accounting
       "Ledger": "/master/create/ledger",
       "Group": "/master/create/group",
       "Currency": "/master/create/currency",
       "Voucher Type": "/master/create/voucher-type",
       "Cost Centre": "/master/create/cost-centre",
-      // Inventory
       "Stock Group": "/master/create/stock-group",
       "Stock Category": "/master/create/stock-category",
       "Stock Items": "/master/create/stock-item",
       "Unit": "/master/create/unit",
       "Location": "/master/create/godown",
-      // Statutory Masters
       "GST Registration": "/master/create/gst-registration",
       "GST Classification": "/master/create/gst-classification",
-      // Statutory Details
       "Company GST Details": "/master/create/company-gst-details",
       "PAN / CIN Details": "/master/create/pan-cin-details",
-      // Payroll
       "Employee Category": "/master/create/employee-category",
       "Employee Group": "/master/create/employee-group",
       "Employee": "/master/create/employee",
