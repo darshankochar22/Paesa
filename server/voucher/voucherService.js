@@ -373,6 +373,148 @@ module.exports = {
 
         await db.execute({ sql: 'COMMIT', args: [] });
 
+// ── E-Invoice auto-trigger ────────────────────────────────────────────────────
+if (data.voucher_type === 'Sales' && data.is_invoice) {
+  try {
+    const eInvoiceService = require('../eInvoice/eInvoiceService');
+
+    // Credentials check
+    const credsRes = await eInvoiceService.getCredentials(data.company_id);
+    if (credsRes.success) {
+
+      // Party GSTIN check
+      const partyLedger = data.party_ledger_id
+        ? await db.execute({
+            sql: `SELECT * FROM ledgers WHERE ledger_id = ?`,
+            args: [data.party_ledger_id],
+          })
+        : null;
+
+      const partyGSTIN = partyLedger?.rows?.[0]?.gstin || null;
+
+      // Total invoice value check (> 50,000)
+      const totalValue = data.entries
+        ? data.entries
+            .filter(e => e.type === 'Cr')
+            .reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+        : 0;
+
+      if (partyGSTIN && totalValue >= 50000) {
+
+        // Build NIC payload
+        const companyRes = await db.execute({
+          sql: `SELECT * FROM companies WHERE company_id = ?`,
+          args: [data.company_id],
+        });
+        const company = companyRes.rows[0];
+
+        const invoiceDate = new Date(data.date);
+        const formattedDate = `${String(invoiceDate.getDate()).padStart(2,'0')}/${String(invoiceDate.getMonth()+1).padStart(2,'0')}/${invoiceDate.getFullYear()}`;
+
+        // Seller state code from GSTIN (first 2 digits)
+        const sellerStateCode = credsRes.credentials.gstin?.substring(0, 2) || '27';
+        const buyerStateCode  = partyGSTIN?.substring(0, 2) || '27';
+
+        // IGST if interstate, else CGST+SGST
+        const isInterstate = sellerStateCode !== buyerStateCode;
+
+        const itemList = (data.stock_entries || []).map((item, idx) => {
+          const assessable = item.quantity * item.rate;
+          const gstRate    = item.gst_rate || 0;
+          const igstAmt    = isInterstate ? (assessable * gstRate / 100) : 0;
+          const cgstAmt    = !isInterstate ? (assessable * gstRate / 2 / 100) : 0;
+          const sgstAmt    = !isInterstate ? (assessable * gstRate / 2 / 100) : 0;
+
+          return {
+            SlNo:       String(idx + 1),
+            PrdDesc:    item.item_name || 'Item',
+            IsServc:    'N',
+            HsnCd:      item.hsn_code || '',
+            Qty:        item.quantity,
+            Unit:       'NOS',
+            UnitPrice:  item.rate,
+            TotAmt:     assessable,
+            Discount:   item.discount_amount || 0,
+            AssAmt:     assessable - (item.discount_amount || 0),
+            GstRt:      gstRate,
+            IgstAmt:    igstAmt,
+            CgstAmt:    cgstAmt,
+            SgstAmt:    sgstAmt,
+            CesRt:      0,
+            CesAmt:     0,
+            TotItemVal: assessable + igstAmt + cgstAmt + sgstAmt,
+          };
+        });
+
+        const totalAssessable = itemList.reduce((s, i) => s + i.AssAmt, 0);
+        const totalIGST       = itemList.reduce((s, i) => s + i.IgstAmt, 0);
+        const totalCGST       = itemList.reduce((s, i) => s + i.CgstAmt, 0);
+        const totalSGST       = itemList.reduce((s, i) => s + i.SgstAmt, 0);
+
+        const nicPayload = {
+          Version: '1.1',
+          TranDtls: {
+            TaxSch:     'GST',
+            SupTyp:     'B2B',
+            RegRev:     'N',
+            IgstOnIntra: 'N',
+          },
+          DocDtls: {
+            Typ: 'INV',
+            No:  voucher_number,
+            Dt:  formattedDate,
+          },
+          SellerDtls: {
+            Gstin: credsRes.credentials.gstin,
+            LglNm: company?.name || '',
+            Addr1: company?.address || 'N/A',
+            Loc:   company?.city   || 'N/A',
+            Pin:   Number(company?.pincode) || 100001,
+            Stcd:  sellerStateCode,
+          },
+          BuyerDtls: {
+            Gstin: partyGSTIN,
+            LglNm: partyLedger.rows[0].name,
+            Pos:   data.place_of_supply || buyerStateCode,
+            Addr1: partyLedger.rows[0].address1 || 'N/A',
+            Loc:   partyLedger.rows[0].city    || 'N/A',
+            Pin:   Number(partyLedger.rows[0].pincode) || 100001,
+            Stcd:  buyerStateCode,
+          },
+          ItemList: itemList,
+          ValDtls: {
+            AssVal:    totalAssessable,
+            IgstVal:   totalIGST,
+            CgstVal:   totalCGST,
+            SgstVal:   totalSGST,
+            CesVal:    0,
+            TotInvVal: totalValue,
+          },
+        };
+
+        // Fire and forget — don't block voucher save
+        eInvoiceService.generateIRN(
+          data.company_id,
+          voucher_id,
+          nicPayload,
+          credsRes.credentials
+        ).then((irnRes) => {
+          if (irnRes.success) {
+            console.log(`[eInvoice] IRN generated: ${irnRes.data.Irn}`);
+          } else {
+            console.warn(`[eInvoice] IRN failed: ${irnRes.error}`);
+          }
+        }).catch((e) => {
+          console.warn('[eInvoice] IRN error:', e.message);
+        });
+      }
+    }
+  } catch (eInvErr) {
+    // Never block voucher save because of e-invoice failure
+    console.warn('[eInvoice] Auto-trigger error:', eInvErr.message);
+  }
+}
+
         // Update closing_balance for all ledgers involved in this voucher
         await recalculateLedgerBalances(voucher_id, data.company_id, data.fy_id);
 

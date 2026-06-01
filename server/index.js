@@ -35,9 +35,8 @@ const balanceSheetReportController = require('./balanceSheetReport/balanceSheetR
 const profitLossReportController = require('./profitLossReport/profitLossReportController');
 const dayBookReportController = require('./dayBookReport/dayBookReportController');
 const masterController = require("./master/masterController");
-
-
 const voucherEntryActionsController = require('./voucherEntryActions/voucherEntryActionsController');
+const eInvoiceController = require('./eInvoice/eInvoiceController');
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -264,3 +263,13 @@ ipcMain.handle('voucherEntryActions:create', voucherEntryActionsController.creat
 ipcMain.handle('voucherEntryActions:getAll', voucherEntryActionsController.getAll);
 ipcMain.handle('voucherEntryActions:getByVoucher', voucherEntryActionsController.getByVoucher);
 ipcMain.handle('voucherEntryActions:delete', voucherEntryActionsController.delete);
+
+ipcMain.handle('eInvoice:authenticate',    eInvoiceController.authenticate);
+ipcMain.handle('eInvoice:getGSTINDetails', eInvoiceController.getGSTINDetails);
+ipcMain.handle('eInvoice:generateIRN',     eInvoiceController.generateIRN);
+ipcMain.handle('eInvoice:getIRNDetails',   eInvoiceController.getIRNDetails);
+ipcMain.handle('eInvoice:cancelIRN',       eInvoiceController.cancelIRN);
+ipcMain.handle('eInvoice:saveCredentials', eInvoiceController.saveCredentials);
+ipcMain.handle('eInvoice:getCredentials',  eInvoiceController.getCredentials);
+ipcMain.handle('eInvoice:getRecords',      eInvoiceController.getRecords);
+ipcMain.handle('eInvoice:getRecordByIRN',  eInvoiceController.getRecordByIRN);
