@@ -83,9 +83,14 @@ const init = async (db) => {
       bill_name     TEXT,
       bill_type     TEXT,
       amount        REAL DEFAULT 0,
-      credit_period TEXT
+      credit_period TEXT,
+      due_date      TEXT
     )
   `);
+
+  try {
+    await db.execute(`ALTER TABLE voucher_bill_references ADD COLUMN due_date TEXT`);
+  } catch (err) {}
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_bank_details (

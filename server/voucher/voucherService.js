@@ -84,6 +84,51 @@ const searchLedgers = async (company_id, searchTerm) => {
   return { success: true, ledgers: result.rows };
 };
 
+const getPendingBills = async (ledger_id, company_id, fy_id) => {
+  try {
+    // Get all existing bill references for this ledger in this company/fy
+    // We consider bills created as 'New Ref' or 'Advance' as potential pending bills
+    const result = await db.execute({
+      sql: `
+        SELECT 
+          vbr.bill_name,
+          MAX(v.date) as bill_date,
+          MAX(vbr.due_date) as due_date,
+          MAX(vbr.credit_period) as credit_period,
+          SUM(vbr.amount) as total_amount
+        FROM voucher_bill_references vbr
+        JOIN vouchers v ON v.voucher_id = vbr.voucher_id
+        WHERE vbr.ledger_id = ? AND v.company_id = ? AND v.fy_id = ? AND v.is_cancelled = 0
+          AND vbr.bill_type IN ('New Ref', 'Advance')
+        GROUP BY vbr.bill_name
+        HAVING total_amount > 0.01
+        ORDER BY MAX(v.date) DESC
+      `,
+      args: [ledger_id, company_id, fy_id],
+    });
+
+    // Also get ledger default credit period for new bills
+    const ledgerRes = await db.execute({
+      sql: `SELECT default_credit_period FROM ledgers WHERE ledger_id = ?`,
+      args: [ledger_id],
+    });
+    const defaultCreditPeriod = ledgerRes.rows[0]?.default_credit_period || 0;
+
+    const pendingBills = result.rows.map((row) => ({
+      bill_name: row.bill_name,
+      bill_date: row.bill_date,
+      due_date: row.due_date,
+      credit_period: row.credit_period,
+      balance: Number(row.total_amount) || 0,
+      final_balance: Number(row.total_amount) || 0,
+    }));
+
+    return { success: true, pendingBills, defaultCreditPeriod };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 const recalculateLedgerBalances = async (voucher_id, company_id, fy_id) => {
   try {
     const affected = await db.execute({
@@ -260,9 +305,9 @@ module.exports = {
         if (data.bill_references && data.bill_references.length > 0) {
           for (const bill of data.bill_references) {
             await db.execute({
-              sql: `INSERT INTO voucher_bill_references (voucher_id, ledger_id, bill_name, bill_type, amount, credit_period)
-                    VALUES (?, ?, ?, ?, ?, ?)`,
-              args: [voucher_id, bill.ledger_id, bill.bill_name, bill.bill_type, bill.amount, nullify(bill.credit_period) || null],
+              sql: `INSERT INTO voucher_bill_references (voucher_id, ledger_id, bill_name, bill_type, amount, credit_period, due_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              args: [voucher_id, bill.ledger_id, bill.bill_name, bill.bill_type, bill.amount, nullify(bill.credit_period) || null, nullify(bill.due_date) || null],
             });
           }
         }
@@ -578,6 +623,22 @@ module.exports = {
         }
       }
 
+      if (data.bill_references !== undefined) {
+        await db.execute({
+          sql: `DELETE FROM voucher_bill_references WHERE voucher_id = ?`,
+          args: [data.voucher_id],
+        });
+        if (data.bill_references && data.bill_references.length > 0) {
+          for (const bill of data.bill_references) {
+            await db.execute({
+              sql: `INSERT INTO voucher_bill_references (voucher_id, ledger_id, bill_name, bill_type, amount, credit_period, due_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              args: [data.voucher_id, bill.ledger_id, bill.bill_name, bill.bill_type, bill.amount, nullify(bill.credit_period) || null, nullify(bill.due_date) || null],
+            });
+          }
+        }
+      }
+
       if (data.receipt_details !== undefined) {
         await db.execute({
           sql: `DELETE FROM voucher_receipt_details WHERE voucher_id = ?`,
@@ -724,5 +785,9 @@ module.exports = {
 
   searchLedgers: async (company_id, searchTerm) => {
     return await searchLedgers(company_id, searchTerm);
+  },
+
+  getPendingBills: async (ledger_id, company_id, fy_id) => {
+    return await getPendingBills(ledger_id, company_id, fy_id);
   },
 };

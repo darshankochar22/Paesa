@@ -51,6 +51,7 @@ export type ActiveAllocation =
       ledgerId: number;
       ledgerName: string;
       amount: number;
+      dcType?: "Dr" | "Cr";
       initialAllocations?: any[];
     }
   | {
@@ -58,6 +59,7 @@ export type ActiveAllocation =
       ledgerId: number;
       ledgerName: string;
       amount: number;
+      dcType?: "Dr" | "Cr";
       initialAllocations?: any[];
     }
   | {
@@ -76,6 +78,13 @@ export type ActiveAllocation =
       amount: number;
       initialDetails?: any;
       allowCash?: boolean;
+    }
+    | {
+      type: "partyBankDetails";
+      ledgerId: number;
+      ledgerName: string;
+      amount: number;
+      initialDetails?: any;
     }
     | {
       type: "cashDenomination";

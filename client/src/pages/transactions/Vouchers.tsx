@@ -283,7 +283,25 @@ export default function Vouchers() {
         ledgerId: form.partyLedger.ledger_id,
         ledgerName: form.partyLedger.name,
         amount: form.totalAmount,
+        dcType: form.voucherType === "Sales" ? "Dr" : "Cr",
         initialAllocations: [],
+      });
+      return;
+    }
+
+    // ── Sales / Purchase: bank allocation for party ───────────────────────────
+    if (
+      ["Sales", "Purchase"].includes(form.voucherType) &&
+      form.partyLedger &&
+      form.checkIsBank(form.partyLedger) &&
+      !form.bankDetails
+    ) {
+      form.setActiveAllocation({
+        type: "partyBankDetails",
+        ledgerId: form.partyLedger.ledger_id,
+        ledgerName: form.partyLedger.name,
+        amount: form.totalAmount,
+        initialDetails: form.bankDetails,
       });
       return;
     }
@@ -300,6 +318,7 @@ export default function Vouchers() {
         ledgerId: form.accountLedger.ledger_id,
         ledgerName: form.accountLedger.name,
         amount: form.particularsTotal,
+        dcType: form.voucherType === "Receipt" ? "Dr" : "Cr",
         initialAllocations: [],
       });
       return;
@@ -316,6 +335,7 @@ export default function Vouchers() {
         ledgerId: form.accountLedger.ledger_id,
         ledgerName: form.accountLedger.name,
         amount: form.particularsTotal,
+        dcType: "Cr",
         initialAllocations: [],
       });
       return;
@@ -332,6 +352,7 @@ export default function Vouchers() {
         ledgerId: form.accountLedger.ledger_id,
         ledgerName: form.accountLedger.name,
         amount: form.particularsTotal,
+        dcType: "Cr",
         initialAllocations: [],
       });
       return;
@@ -351,6 +372,8 @@ export default function Vouchers() {
     form.particularsTotal,
     form.handleSubmit,
     form.setActiveAllocation,
+    form.checkIsBank,
+    form.bankDetails,
   ]);
 
   useEffect(() => { acceptRef.current = handleAccept; }, [handleAccept]);
@@ -464,6 +487,7 @@ export default function Vouchers() {
           ledgerId: ledger.ledger_id,
           ledgerName: ledger.name,
           amount,
+          dcType: row.type ?? "Dr",
           initialAllocations: row.billReferences ?? [],
         });
       } else if (ledger.allow_cost_centres === 1) {
@@ -607,6 +631,14 @@ export default function Vouchers() {
   const handleSaveBankDetails = useCallback(
     (details: any) => {
       const alloc = form.activeAllocation;
+
+      if (alloc?.type === "partyBankDetails") {
+        form.setBankDetails(details);
+        form.setActiveAllocation(null);
+        setTimeout(() => acceptRef.current(), 50);
+        return;
+      }
+
       form.setBankDetails(details);
 
       if (details.transaction_type === "Cash") {
@@ -1706,6 +1738,8 @@ export default function Vouchers() {
           ledgerId={form.activeAllocation.ledgerId}
           ledgerName={form.activeAllocation.ledgerName}
           totalAmount={form.activeAllocation.amount}
+          dcType={form.activeAllocation.dcType ?? "Dr"}
+          voucherDate={form.date}
           initialAllocations={form.activeAllocation.initialAllocations ?? []}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBillWise}
@@ -1717,6 +1751,8 @@ export default function Vouchers() {
           ledgerId={form.activeAllocation.ledgerId}
           ledgerName={form.activeAllocation.ledgerName}
           totalAmount={form.activeAllocation.amount}
+          dcType={form.activeAllocation.dcType ?? "Cr"}
+          voucherDate={form.date}
           initialAllocations={form.partyBillReferences}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBillWise}
@@ -1734,13 +1770,13 @@ export default function Vouchers() {
         />
       )}
 
-      {form.activeAllocation?.type === "bankDetails" && (
+      {(form.activeAllocation?.type === "bankDetails" || form.activeAllocation?.type === "partyBankDetails") && (
         <BankAllocationPopup
           ledgerId={form.activeAllocation.ledgerId}
           ledgerName={form.activeAllocation.ledgerName}
           amount={form.activeAllocation.amount}
           initialDetails={form.bankDetails}
-          allowCash={form.activeAllocation.allowCash !== false}
+          allowCash={form.activeAllocation.type === "bankDetails" ? form.activeAllocation.allowCash !== false : true}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBankDetails}
         />

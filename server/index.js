@@ -119,6 +119,7 @@ ipcMain.handle('voucher:getByLedger', voucherController.getByLedger);
 ipcMain.handle('voucher:getNextNumber', voucherController.getNextNumber);
 ipcMain.handle('voucher:getLedgerBalance', voucherController.getLedgerBalance);
 ipcMain.handle('voucher:searchLedgers', voucherController.searchLedgers);
+ipcMain.handle('voucher:getPendingBills', voucherController.getPendingBills);
 
 ipcMain.handle('report:trialBalance', reportController.trialBalance);
 ipcMain.handle('report:balanceSheet', reportController.balanceSheet);
