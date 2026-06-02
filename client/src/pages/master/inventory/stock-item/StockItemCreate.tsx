@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type RefObject } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, SideSelectionPanel } from "@/components/ui";
@@ -11,10 +11,6 @@ const inputCls =
 const selectCls =
   "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent " +
   "cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
-const numInputCls =
-  "w-full bg-transparent text-sm outline-none px-1 py-0.5 text-right border border-transparent " +
-  "focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors tabular-nums";
-
 
 interface BomEntry {
   bomName: string;
@@ -273,7 +269,7 @@ export default function StockItemCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<"group" | "unit" | null>(null);
-  const [unitsRefreshTrigger, setUnitsRefreshTrigger] = useState(0);
+  const [unitsRefreshTrigger, ] = useState(0);
 
   
   const [showBomList, setShowBomList] = useState(false);
