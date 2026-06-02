@@ -7,8 +7,8 @@ const prefixMap = {
   Contra:          'CTR',
   Sales:           'SAL',
   Purchase:        'PUR',
-  'Debit Note':    'DBN',
-  'Credit Note':   'CRN',
+  'Debit Note':    'DBT',
+  'Credit Note':   'CDT',
   'Stock Journal': 'STJ',
   'Delivery Note': 'DLN',
   'Receipt Note':  'RCN',
@@ -411,6 +411,48 @@ module.exports = {
           });
         }
 
+        if (data.credit_note_details) {
+          const cn = data.credit_note_details;
+          await db.execute({
+            sql: `INSERT INTO voucher_credit_note_details (voucher_id, tracking_no, dispatch_doc_no, dispatched_through, destination, carrier_name, bill_of_lading_no, bill_of_lading_date, motor_vehicle_no, original_invoice_no, original_invoice_date)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              voucher_id,
+              nullify(cn.tracking_no) || null,
+              nullify(cn.dispatch_doc_no) || null,
+              nullify(cn.dispatched_through) || null,
+              nullify(cn.destination) || null,
+              nullify(cn.carrier_name) || null,
+              nullify(cn.bill_of_lading_no) || null,
+              nullify(cn.bill_of_lading_date) || null,
+              nullify(cn.motor_vehicle_no) || null,
+              nullify(cn.original_invoice_no) || null,
+              nullify(cn.original_invoice_date) || null,
+            ],
+          });
+        }
+
+        if (data.debit_note_details) {
+          const dn = data.debit_note_details;
+          await db.execute({
+            sql: `INSERT INTO voucher_debit_note_details (voucher_id, tracking_no, dispatch_doc_no, dispatched_through, destination, carrier_name, bill_of_lading_no, bill_of_lading_date, motor_vehicle_no, original_invoice_no, original_invoice_date)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              voucher_id,
+              nullify(dn.tracking_no) || null,
+              nullify(dn.dispatch_doc_no) || null,
+              nullify(dn.dispatched_through) || null,
+              nullify(dn.destination) || null,
+              nullify(dn.carrier_name) || null,
+              nullify(dn.bill_of_lading_no) || null,
+              nullify(dn.bill_of_lading_date) || null,
+              nullify(dn.motor_vehicle_no) || null,
+              nullify(dn.original_invoice_no) || null,
+              nullify(dn.original_invoice_date) || null,
+            ],
+          });
+        }
+
         if (data.computedGST) {
           const gstTaxEngine = require('../gst/gstTaxEngine');
           await gstTaxEngine.saveVoucherTaxLines(db, voucher_id, data.computedGST);
@@ -646,6 +688,14 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         sql: `SELECT * FROM voucher_dispatch_details WHERE voucher_id = ?`,
         args: [id],
       });
+      const creditNoteDetails = await db.execute({
+        sql: `SELECT * FROM voucher_credit_note_details WHERE voucher_id = ?`,
+        args: [id],
+      });
+      const debitNoteDetails = await db.execute({
+        sql: `SELECT * FROM voucher_debit_note_details WHERE voucher_id = ?`,
+        args: [id],
+      });
 
       return {
         success: true,
@@ -660,6 +710,8 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           receipt_details: receiptDetails.rows[0] || null,
           party_details: partyDetails.rows[0] || null,
           dispatch_details: dispatchDetails.rows[0] || null,
+          credit_note_details: creditNoteDetails.rows[0] || null,
+          debit_note_details: debitNoteDetails.rows[0] || null,
         },
       };
     } catch (err) {

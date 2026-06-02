@@ -170,6 +170,40 @@ const init = async (db) => {
     )
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_credit_note_details (
+      id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id              INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      tracking_no             TEXT,
+      dispatch_doc_no         TEXT,
+      dispatched_through      TEXT,
+      destination             TEXT,
+      carrier_name            TEXT,
+      bill_of_lading_no       TEXT,
+      bill_of_lading_date     TEXT,
+      motor_vehicle_no        TEXT,
+      original_invoice_no     TEXT,
+      original_invoice_date   TEXT
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_debit_note_details (
+      id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id              INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      tracking_no             TEXT,
+      dispatch_doc_no         TEXT,
+      dispatched_through      TEXT,
+      destination             TEXT,
+      carrier_name            TEXT,
+      bill_of_lading_no       TEXT,
+      bill_of_lading_date     TEXT,
+      motor_vehicle_no        TEXT,
+      original_invoice_no     TEXT,
+      original_invoice_date   TEXT
+    )
+  `);
+
   // Add new columns to existing tables (fail silently if already exist)
   try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN delivery_note_nos TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN dispatch_doc_no TEXT`); } catch (err) {}

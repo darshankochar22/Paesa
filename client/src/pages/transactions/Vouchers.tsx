@@ -11,6 +11,8 @@ import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
 import ReceiptDetailsPopup from "./components/popups/ReceiptDetailsPopup";
 import PartyDetailsPopup from "./components/popups/PartyDetailsPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
+import CreditNoteDetailsPopup from "./components/popups/CreditNoteDetailsPopup";
+import DebitNoteDetailsPopup from "./components/popups/DebitNoteDetailsPopup";
 import VoucherDoubleEntryTable from "./components/VoucherDoubleEntryTable";
 import LedgerListPanel from "./components/LedgerListPanel";
 
@@ -48,6 +50,27 @@ function RightSidebar({
     { key: "F9", label: "Purchase" },
   ];
 
+  const [otherOpen, setOtherOpen] = useState(false);
+  const otherRef = useRef<HTMLDivElement>(null);
+
+  const otherVoucherTypes = [
+    { key: "Credit Note", label: "Credit Note" },
+    { key: "Debit Note", label: "Debit Note" },
+  ];
+
+  useEffect(() => {
+    if (!otherOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (otherRef.current && !otherRef.current.contains(e.target as Node)) {
+        setOtherOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [otherOpen]);
+
+  const isOtherActive = otherVoucherTypes.some((t) => t.key === voucherType);
+
   return (
     <div className="w-36 border-l border-black flex flex-col shrink-0 bg-white">
       <div className="border-b border-black px-2 py-1">
@@ -62,7 +85,7 @@ function RightSidebar({
       {types.map(({ key, label }) => (
         <div key={key} className="border-b border-gray-200">
           <button
-            onClick={() => onTypeChange(label)}
+            onClick={() => { onTypeChange(label); setOtherOpen(false); }}
             className={`w-full text-left px-2 py-1 text-xs ${
               voucherType === label
                 ? "bg-black text-white font-semibold"
@@ -76,6 +99,40 @@ function RightSidebar({
           </button>
         </div>
       ))}
+
+      {/* F10: Other Vouchers — dropdown with Credit Note / Debit Note */}
+      <div className="border-b border-gray-200 relative" ref={otherRef}>
+        <button
+          onClick={() => setOtherOpen((p) => !p)}
+          className={`w-full text-left px-2 py-1 text-xs ${
+            isOtherActive
+              ? "bg-black text-white font-semibold"
+              : "text-black hover:bg-gray-100"
+          }`}
+        >
+          <span className={isOtherActive ? "text-gray-300" : "text-gray-500"}>F10</span>
+          : Other Vouchers
+          <span className={`float-right ${isOtherActive ? "text-gray-300" : "text-gray-500"}`}>
+            {otherOpen ? "▴" : "▾"}
+          </span>
+        </button>
+
+        {otherOpen && (
+          <div className="absolute left-0 right-0 top-full z-30 bg-white border border-black shadow-lg">
+            {otherVoucherTypes.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => { onTypeChange(t.key); setOtherOpen(false); }}
+                className={`w-full text-left px-3 py-1 text-xs hover:bg-amber-100 ${
+                  voucherType === t.key ? "bg-amber-200 font-semibold" : ""
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="border-b border-gray-200">
         <button
@@ -139,10 +196,14 @@ export default function Vouchers() {
   const [showDispatchDetails, setShowDispatchDetails] = useState(false);
   const [showReceiptDetails, setShowReceiptDetails] = useState(false);
   const [showPartyDetails, setShowPartyDetails] = useState(false);
+  const [showCreditNoteDetails, setShowCreditNoteDetails] = useState(false);
+  const [showDebitNoteDetails, setShowDebitNoteDetails] = useState(false);
 
   // Prevent auto-opening receipt/details on mount when form is restored from persistence
   const hasAutoOpenedReceipt = useRef(false);
   const hasAutoOpenedDispatch = useRef(false);
+  const hasAutoOpenedCreditNote = useRef(false);
+  const hasAutoOpenedDebitNote = useRef(false);
 
   // Stable ref so async callbacks (bill-wise save → accept) always call the
   // latest version of handleAccept without stale closure issues.
@@ -217,7 +278,7 @@ export default function Vouchers() {
       );
     }
 
-    if (["Sales", "Purchase"].includes(form.voucherType)) {
+    if (["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType)) {
       return (
         !!form.partyLedger &&
         !!form.salesPurchaseLedger &&
@@ -263,35 +324,52 @@ export default function Vouchers() {
   }, [form.partyLedger, form.voucherType]);
 
   useEffect(() => {
+    if (form.voucherType === "Credit Note" && form.partyLedger && !hasAutoOpenedCreditNote.current) {
+      hasAutoOpenedCreditNote.current = true;
+      setShowCreditNoteDetails(true);
+    }
+  }, [form.partyLedger, form.voucherType]);
+
+  useEffect(() => {
+    if (form.voucherType === "Debit Note" && form.partyLedger && !hasAutoOpenedDebitNote.current) {
+      hasAutoOpenedDebitNote.current = true;
+      setShowDebitNoteDetails(true);
+    }
+  }, [form.partyLedger, form.voucherType]);
+
+  useEffect(() => {
     if (!form.partyLedger) {
       hasAutoOpenedReceipt.current = false;
       hasAutoOpenedDispatch.current = false;
+      hasAutoOpenedCreditNote.current = false;
+      hasAutoOpenedDebitNote.current = false;
     }
   }, [form.partyLedger]);
 
   // ─── handleAccept ────────────────────────────────────────────────────
 
   const handleAccept = useCallback(() => {
-    // ── Sales / Purchase: bill-wise for party ───────────────────────────
+    // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
-      ["Sales", "Purchase"].includes(form.voucherType) &&
+      ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {
+      const dcType = (form.voucherType === "Sales" || form.voucherType === "Credit Note" || form.voucherType === "Debit Note") ? "Dr" : "Cr";
       form.setActiveAllocation({
         type: "billWiseParty",
         ledgerId: form.partyLedger.ledger_id,
         ledgerName: form.partyLedger.name,
         amount: form.totalAmount,
-        dcType: form.voucherType === "Sales" ? "Dr" : "Cr",
+        dcType,
         initialAllocations: [],
       });
       return;
     }
 
-    // ── Sales / Purchase: bank allocation for party ───────────────────────────
+    // ── Sales / Purchase / Credit Note / Debit Note: bank allocation for party ─
     if (
-      ["Sales", "Purchase"].includes(form.voucherType) &&
+      ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType) &&
       form.partyLedger &&
       form.checkIsBank(form.partyLedger) &&
       !form.bankDetails
@@ -747,6 +825,24 @@ export default function Vouchers() {
     [form.setPartyDetails, form.setPlaceOfSupply]
   );
 
+  const handleSaveCreditNoteDetails = useCallback(
+    (details: any) => {
+      form.setCreditNoteDetails(details);
+      setShowCreditNoteDetails(false);
+      setShowPartyDetails(true);
+    },
+    [form.setCreditNoteDetails]
+  );
+
+  const handleSaveDebitNoteDetails = useCallback(
+    (details: any) => {
+      form.setDebitNoteDetails(details);
+      setShowDebitNoteDetails(false);
+      setShowPartyDetails(true);
+    },
+    [form.setDebitNoteDetails]
+  );
+
   // ─── Ledger panel items ──────────────────────────────────────────────
 
   const panelOpen = !!form.activeField;
@@ -766,23 +862,26 @@ export default function Vouchers() {
     }
 
     if (af.type === "party") {
+      // Credit Note / Debit Note → Sundry Debtors (same as Sales)
+      const isPurchaseLike = form.voucherType === "Purchase";
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(l, [
           "bank accounts",
           "bank od accounts",
           "bank od a/c",
           "cash-in-hand",
-          "sundry debtors",
-          "sundry creditors",
+          isPurchaseLike ? "sundry creditors" : "sundry debtors",
         ])
       );
     }
 
     if (af.type === "salesPurchase") {
+      // Credit Note / Debit Note → Sales Accounts (same as Sales)
+      const isPurchaseLike = form.voucherType === "Purchase";
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(
           l,
-          form.voucherType === "Sales" ? ["sales accounts"] : ["purchase accounts"]
+          isPurchaseLike ? ["purchase accounts"] : ["sales accounts"]
         )
       );
     }
@@ -861,6 +960,15 @@ export default function Vouchers() {
       if (e.key === "F7") { e.preventDefault(); form.setVoucherType("Journal"); }
       if (e.key === "F8") { e.preventDefault(); form.setVoucherType("Sales"); }
       if (e.key === "F9") { e.preventDefault(); form.setVoucherType("Purchase"); }
+      if (e.key === "F10") {
+        e.preventDefault();
+        // Cycle through Other Vouchers: Credit Note → Debit Note
+        if (form.voucherType === "Credit Note") {
+          form.setVoucherType("Debit Note");
+        } else {
+          form.setVoucherType("Credit Note");
+        }
+      }
       if (e.altKey && (e.key === "h" || e.key === "H")) {
         e.preventDefault();
         if (form.voucherType === "Contra") {
@@ -887,7 +995,9 @@ export default function Vouchers() {
         !form.activeAllocation &&
         !showDatePicker &&
         !showDispatchDetails &&
-        !showReceiptDetails
+        !showReceiptDetails &&
+        !showCreditNoteDetails &&
+        !showDebitNoteDetails
       ) {
         e.preventDefault();
         navigate("/");
@@ -909,6 +1019,8 @@ export default function Vouchers() {
     showDatePicker,
     showDispatchDetails,
     showReceiptDetails,
+    showCreditNoteDetails,
+    showDebitNoteDetails,
     navigate,
   ]);
 
@@ -1332,10 +1444,10 @@ export default function Vouchers() {
           )}
 
           {/* ════════════════════════════════════════════════════════════
-              Layout 3 — Sales · Purchase
+              Layout 3 — Sales · Purchase · Credit Note · Debit Note
               Party + Sales/Purchase ledger + stock items + additional entries
           ═════════════════════════════════════════════════════════════ */}
-          {["Sales", "Purchase"].includes(form.voucherType) && (
+          {["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType) && (
             <>
               {/* Purchase: supplier invoice fields */}
               {form.voucherType === "Purchase" && (
@@ -1373,10 +1485,14 @@ export default function Vouchers() {
                 />
               </div>
 
-              {/* Sales/Purchase ledger */}
+              {/* Sales/Purchase/Credit Note/Debit Note ledger */}
               <div className="border-b border-gray-300 shrink-0 py-1">
                 <FieldRow
-                  label={`${form.voucherType} ledger`}
+                  label={
+                    form.voucherType === "Credit Note" || form.voucherType === "Debit Note"
+                      ? "Ledger account"
+                      : `${form.voucherType} ledger`
+                  }
                   fieldType="salesPurchase"
                   ledger={form.salesPurchaseLedger}
                   balance={form.salesPurchaseBalance}
@@ -1497,8 +1613,8 @@ export default function Vouchers() {
                   </div>
                 )}
 
-                {/* Additional ledger rows (taxes, freight, discounts) */}
-                {form.additionalEntries.map((row, idx) => {
+                {/* Additional ledger rows (taxes, freight, discounts) — Sales/Purchase only */}
+                {["Sales", "Purchase"].includes(form.voucherType) && form.additionalEntries.map((row, idx) => {
                   const isAddActive =
                     form.activeField?.type === "additional" &&
                     form.activeField.rowId === row.id;
@@ -1569,6 +1685,7 @@ export default function Vouchers() {
                   );
                 })}
 
+                {["Sales", "Purchase"].includes(form.voucherType) && (
                 <div className="px-3 py-1 border-b border-gray-100">
                   <button
                     type="button"
@@ -1578,6 +1695,7 @@ export default function Vouchers() {
                     + Add Tax / Ledger Row
                   </button>
                 </div>
+                )}
               </div>
 
               {/* Grand total footer */}
@@ -1730,6 +1848,22 @@ export default function Vouchers() {
           onSave={handleSavePartyDetails}
           onCreateLedger={() => navigate("/master/create/ledger")}
           buyerLabel={form.voucherType === "Sales" ? "Buyer (Bill to)" : "Supplier (Bill from)"}
+        />
+      )}
+
+      {showCreditNoteDetails && form.partyLedger && (
+        <CreditNoteDetailsPopup
+          initialDetails={form.creditNoteDetails}
+          onClose={() => setShowCreditNoteDetails(false)}
+          onSave={handleSaveCreditNoteDetails}
+        />
+      )}
+
+      {showDebitNoteDetails && form.partyLedger && (
+        <DebitNoteDetailsPopup
+          initialDetails={form.debitNoteDetails}
+          onClose={() => setShowDebitNoteDetails(false)}
+          onSave={handleSaveDebitNoteDetails}
         />
       )}
 

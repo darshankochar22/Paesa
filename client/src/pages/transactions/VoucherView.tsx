@@ -36,6 +36,11 @@ interface Voucher {
   created_at: string;
   entries: VoucherEntry[];
   stock_entries: StockEntry[];
+  receipt_details?: any;
+  party_details?: any;
+  dispatch_details?: any;
+  credit_note_details?: any;
+  debit_note_details?: any;
 }
 
 const formatDate = (d: string | null) => {
@@ -286,6 +291,48 @@ export default function VoucherView() {
             <div className="grid grid-cols-12 px-3 py-2 bg-zinc-50 border-t border-zinc-200">
               <div className="col-span-9 font-bold text-zinc-700 uppercase text-[10px] tracking-wider">Total Inventory Value</div>
               <div className="col-span-3 text-right font-bold text-zinc-900"><AmountDisplay amount={stockTotal} /></div>
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Credit Note / Debit Note Details */}
+        {(voucher.credit_note_details || voucher.debit_note_details) && (
+          <SectionCard title={voucher.voucher_type === "Credit Note" ? "Credit Note Details" : "Debit Note Details"}>
+            <div className="grid grid-cols-2 md:grid-cols-3 divide-x divide-y divide-zinc-100">
+              {[
+                ...(voucher.credit_note_details || voucher.debit_note_details).tracking_no
+                  ? [{ label: "Tracking No.", value: (voucher.credit_note_details || voucher.debit_note_details).tracking_no }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).dispatch_doc_no
+                  ? [{ label: "Dispatch Doc No.", value: (voucher.credit_note_details || voucher.debit_note_details).dispatch_doc_no }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).dispatched_through
+                  ? [{ label: "Dispatched through", value: (voucher.credit_note_details || voucher.debit_note_details).dispatched_through }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).destination
+                  ? [{ label: "Destination", value: (voucher.credit_note_details || voucher.debit_note_details).destination }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).carrier_name
+                  ? [{ label: "Carrier Name/Agent", value: (voucher.credit_note_details || voucher.debit_note_details).carrier_name }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_no
+                  ? [{ label: "Bill of Lading/LR-RR No.", value: (voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_no }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_date
+                  ? [{ label: "Bill of Lading Date", value: formatDate((voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_date) }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).motor_vehicle_no
+                  ? [{ label: "Motor Vehicle No.", value: (voucher.credit_note_details || voucher.debit_note_details).motor_vehicle_no }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).original_invoice_no
+                  ? [{ label: "Original Invoice No.", value: (voucher.credit_note_details || voucher.debit_note_details).original_invoice_no }]
+                  : [],
+                ...(voucher.credit_note_details || voucher.debit_note_details).original_invoice_date
+                  ? [{ label: "Original Invoice Date", value: formatDate((voucher.credit_note_details || voucher.debit_note_details).original_invoice_date) }]
+                  : [],
+              ].map(({ label, value }) => (
+                <DetailCell key={label} label={label} value={value} />
+              ))}
             </div>
           </SectionCard>
         )}

@@ -72,7 +72,7 @@ module.exports = {
 
       const result = await db.execute({
         sql: `INSERT INTO units (company_id, name, symbol, formal_name, decimal_places, unit_quantity_code, unit_type, is_simple, is_active, is_predefined)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           data.company_id, data.name, data.symbol,
           data.formal_name || data.name,
@@ -85,7 +85,7 @@ module.exports = {
       });
 
       const unit = await db.execute({
-        sql: `SELECT * FROM units WHERE unit_id = ?`,
+        sql: `SELECT * FROM units WHERE unit_id = ? ORDER BY name ASC`,
         args: [Number(result.lastInsertRowid)],
       });
       return { success: true, unit: unit.rows[0] };

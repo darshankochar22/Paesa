@@ -76,11 +76,12 @@ module.exports = {
 
       await db.execute({
         sql: `UPDATE stock_categories SET
-                name = ?, description = ?, parent_category_id = ?,
+                name = ?, alias = ?, description = ?, parent_category_id = ?,
                 updated_at = datetime('now')
               WHERE sc_id = ?`,
         args: [
           data.name               ?? current.name,
+          data.alias              ?? current.alias,
           data.description        ?? current.description,
           data.parent_category_id ?? current.parent_category_id,
           data.sc_id,

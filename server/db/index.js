@@ -44,6 +44,7 @@ const initDB = async () => {
   await require('../salaryStructure/salaryStructure').init(db);
   await require('../voucherEntryActions/voucherEntryActions').init(db);
   await require('../eInvoice/eInvoice').init(db);
+  await require('../whatsapp/whatsapp').init(db);
 };
 
 module.exports = { db, initDB };

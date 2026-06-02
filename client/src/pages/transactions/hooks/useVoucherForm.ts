@@ -181,6 +181,8 @@ export function useVoucherForm() {
   const [receiptDetails, setReceiptDetails] = useState<any | null>(null);
   const [partyDetails, setPartyDetails] = useState<any | null>(null);
   const [dispatchDetails, setDispatchDetails] = useState<any | null>(null);
+  const [creditNoteDetails, setCreditNoteDetails] = useState<any | null>(null);
+  const [debitNoteDetails, setDebitNoteDetails] = useState<any | null>(null);
 
   // ── Reference / invoice fields ──────────────────────────────────────────────
 
@@ -352,6 +354,8 @@ export function useVoucherForm() {
       receiptDetails,
       partyDetails,
       dispatchDetails,
+      creditNoteDetails,
+      debitNoteDetails,
     }),
     [
       voucherType, narration, accountLedger, particulars, journalRows,
@@ -360,6 +364,7 @@ export function useVoucherForm() {
       partyLedger, salesPurchaseLedger, stockEntries, additionalEntries,
       referenceNumber, placeOfSupply, partyBillReferences, bankDetails,
       supplierInvoiceNo, supplierInvoiceDate, receiptDetails, partyDetails, dispatchDetails,
+      creditNoteDetails, debitNoteDetails,
     ]
   );
 
@@ -689,7 +694,7 @@ export function useVoucherForm() {
       return debitTotal;
     }
 
-    if (voucherType === "Sales" || voucherType === "Purchase") {
+    if (voucherType === "Sales" || voucherType === "Purchase" || voucherType === "Credit Note" || voucherType === "Debit Note") {
       const stockSum = stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
       const adjSum = additionalEntries.reduce((s, r) => {
         const amt = Number(r.amountRaw) || 0;
@@ -1146,6 +1151,8 @@ export function useVoucherForm() {
     setReceiptDetails(null);
     setPartyDetails(null);
     setDispatchDetails(null);
+    setCreditNoteDetails(null);
+    setDebitNoteDetails(null);
 
     setReferenceNumber("");
     setNarration("");
@@ -1166,9 +1173,7 @@ export function useVoucherForm() {
     fetchNextNumber();
   }, [persistKey, voucherType, fetchNextNumber]);
 
-  useEffect(() => {
-    resetFormRef.current = resetForm;
-  }, [resetForm]);
+  resetFormRef.current = resetForm;
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Validation
@@ -1264,9 +1269,12 @@ export function useVoucherForm() {
       }
     }
 
-    if (["Sales", "Purchase"].includes(voucherType)) {
+    if (["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucherType)) {
       if (!partyLedger) return "Party A/c Name is required.";
-      if (!salesPurchaseLedger) return `${voucherType} Ledger is required.`;
+      if (!salesPurchaseLedger) {
+        const baseLabel = voucherType === "Credit Note" ? "Sales" : voucherType === "Debit Note" ? "Purchase" : voucherType;
+        return `${baseLabel} Ledger is required.`;
+      }
       if (partyLedger.ledger_id === salesPurchaseLedger.ledger_id)
         return `Party and ${voucherType} ledger cannot be the same account.`;
 
@@ -1445,9 +1453,9 @@ export function useVoucherForm() {
           }));
         }
 
-      } else if (["Sales", "Purchase"].includes(voucherType)) {
+      } else if (["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucherType)) {
         //
-        // Sales:
+        // Sales / Credit Note / Debit Note:
         //   Party A/c     → Dr  (total: stock + taxes − discounts)
         //   Sales ledger  → Cr  (stock subtotal only)
         //   Tax ledgers   → Cr  (each tax amount, default for additional Cr rows)
@@ -1478,11 +1486,12 @@ export function useVoucherForm() {
           amount: Number(r.amountRaw),
         }));
 
-        const partyType: "Dr" | "Cr" = voucherType === "Sales" ? "Dr" : "Cr";
-        const spType: "Dr" | "Cr" = voucherType === "Sales" ? "Cr" : "Dr";
+        const isPurchaseLike = voucherType === "Purchase";
+        const partyType: "Dr" | "Cr" = isPurchaseLike ? "Cr" : "Dr";
+        const spType: "Dr" | "Cr" = isPurchaseLike ? "Dr" : "Cr";
 
         entries = [
-          // Party: receives the grand total (Dr for Sales, Cr for Purchase)
+          // Party: receives the grand total (Dr for Sales/Credit Note/Debit Note, Cr for Purchase)
           {
             ledger_id: partyLedger!.ledger_id,
             ledger_name: partyLedger!.name,
@@ -1498,17 +1507,19 @@ export function useVoucherForm() {
             amount: stockSubtotal,
             currency: "INR",
           },
-          // Tax / adjustment ledgers (each keeps its own Dr/Cr as set by user)
-          ...additionalEntries
-            .filter((p) => p.ledger && Number(p.amountRaw) > 0)
-            .map((p) => ({
-              ledger_id: p.ledger!.ledger_id,
-              ledger_name: p.ledger!.name,
-              type: p.type,
-              amount: Number(p.amountRaw),
-              currency: "INR",
-              cost_centres: p.costCentres,
-            })),
+          // Tax / adjustment ledgers — only for Sales/Purchase
+          ...(voucherType === "Sales" || voucherType === "Purchase"
+            ? additionalEntries
+                .filter((p) => p.ledger && Number(p.amountRaw) > 0)
+                .map((p) => ({
+                  ledger_id: p.ledger!.ledger_id,
+                  ledger_name: p.ledger!.name,
+                  type: p.type,
+                  amount: Number(p.amountRaw),
+                  currency: "INR",
+                  cost_centres: p.costCentres,
+                }))
+            : []),
         ];
       }
 
@@ -1564,7 +1575,7 @@ export function useVoucherForm() {
           .flatMap((r) =>
             r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id }))
           );
-      } else if (["Sales", "Purchase"].includes(voucherType)) {
+      } else if (["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucherType)) {
         if (partyLedger && partyBillReferences.length > 0) {
           finalBillReferences = partyBillReferences.map((b) => ({
             ...b,
@@ -1593,15 +1604,15 @@ export function useVoucherForm() {
         reference_date: referenceDate || null,
         place_of_supply: placeOfSupply !== "Select" ? placeOfSupply : null,
         narration: narration || null,
-        party_ledger_id: ["Sales", "Purchase"].includes(voucherType)
+        party_ledger_id: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucherType)
           ? partyLedger?.ledger_id ?? null
           : null,
-        party_name: ["Sales", "Purchase"].includes(voucherType)
+        party_name: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucherType)
           ? partyLedger?.name ?? null
           : null,
         is_accounting_voucher: 1,
-        is_invoice: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
-        is_inventory_voucher: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
+        is_invoice: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucherType) ? 1 : 0,
+        is_inventory_voucher: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucherType) ? 1 : 0,
         is_post_dated: status === "Post-Dated" ? 1 : 0,
         entries,
         stock_entries,
@@ -1611,6 +1622,8 @@ export function useVoucherForm() {
         receipt_details: receiptDetails || undefined,
         party_details: partyDetails || undefined,
         dispatch_details: dispatchDetails || undefined,
+        credit_note_details: creditNoteDetails || undefined,
+        debit_note_details: debitNoteDetails || undefined,
       };
 
       const res = await window.api.voucher.create(payload);
@@ -1640,6 +1653,7 @@ export function useVoucherForm() {
     partyLedger, salesPurchaseLedger,
     stockEntries, additionalEntries,
     partyBillReferences, bankDetails, cashDenominations, receiptDetails, partyDetails, dispatchDetails,
+    creditNoteDetails, debitNoteDetails,
     voucherNumber, resetForm, fetchContextData,
   ]);
 
@@ -1701,6 +1715,10 @@ export function useVoucherForm() {
     setPartyDetails,
     dispatchDetails,
     setDispatchDetails,
+    creditNoteDetails,
+    setCreditNoteDetails,
+    debitNoteDetails,
+    setDebitNoteDetails,
 
     // ── Reference / invoice ────────────────────────────────────────────────────
     referenceNumber,

@@ -5,7 +5,7 @@ import { PageTitleBar, AlertBanner, SearchInput, DataTable, StatusBadge, RightAc
 import type { TableColumn } from "../../components/ui";
 import { VoucherTypeBadge, PageFooterBar } from "./ui";
 
-const VOUCHER_TYPES = ["Receipt", "Payment", "Contra", "Journal", "Sales", "Purchase"];
+const VOUCHER_TYPES = ["Receipt", "Payment", "Contra", "Journal", "Sales", "Purchase", "Credit Note", "Debit Note"];
 
 interface VoucherRow {
   voucher_id: number;

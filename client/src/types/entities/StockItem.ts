@@ -23,6 +23,8 @@ export interface StockItemType {
   reorder_quantity?: number;
   track_batches?: number;
   track_expiry?: number;
+  has_bom?: boolean | number;
+  bom_name?: string;
   is_active?: number;
   created_at?: string;
   updated_at?: string;

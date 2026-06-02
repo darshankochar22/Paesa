@@ -37,6 +37,7 @@ const dayBookReportController = require('./dayBookReport/dayBookReportController
 const masterController = require("./master/masterController");
 const voucherEntryActionsController = require('./voucherEntryActions/voucherEntryActionsController');
 const eInvoiceController = require('./eInvoice/eInvoiceController');
+const whatsappController = require('./whatsapp/whatsappController');
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -275,3 +276,12 @@ ipcMain.handle('eInvoice:saveCredentials', eInvoiceController.saveCredentials);
 ipcMain.handle('eInvoice:getCredentials',  eInvoiceController.getCredentials);
 ipcMain.handle('eInvoice:getRecords',      eInvoiceController.getRecords);
 ipcMain.handle('eInvoice:getRecordByIRN',  eInvoiceController.getRecordByIRN);
+
+ipcMain.handle('whatsapp:saveConfig',          whatsappController.saveConfig);
+ipcMain.handle('whatsapp:getConfig',           whatsappController.getConfig);
+ipcMain.handle('whatsapp:sendInvoice',         whatsappController.sendInvoice);
+ipcMain.handle('whatsapp:sendPaymentReminder', whatsappController.sendPaymentReminder);
+ipcMain.handle('whatsapp:sendStatement',       whatsappController.sendStatement);
+ipcMain.handle('whatsapp:sendText',            whatsappController.sendText);
+ipcMain.handle('whatsapp:getLogs',             whatsappController.getLogs);
+ipcMain.handle('whatsapp:verifyWebhook',       whatsappController.verifyWebhook);
