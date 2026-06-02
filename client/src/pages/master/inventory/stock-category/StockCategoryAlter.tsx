@@ -199,6 +199,7 @@ export default function StockCategoryAlter() {
       const result = await window.api.stockCategory.update({
         sc_id: selectedCategory.sc_id,
         name: form.name.trim(),
+        alias: form.alias.trim() || undefined,
         description: form.description.trim() || null,
         parent_category_id: form.parent_category_id ? Number(form.parent_category_id) : null,
       });
