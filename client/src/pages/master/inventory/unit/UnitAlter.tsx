@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
-import type { UnitType } from "@/types/api";
+import UnitDropdown from "./UnitDropdown";
+import type { UnitType } from "@/types/entities/Unit";
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
+const smallInputCls = "w-20 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors text-center";
 
 function SelectionPanel({
   units,
@@ -89,6 +91,9 @@ interface FormData {
   formal_name: string;
   decimal_places: string;
   unit_quantity_code: string;
+  first_unit_id: string;
+  second_unit_id: string;
+  conversion_factor: string;
 }
 
 export default function UnitAlter() {
@@ -97,6 +102,7 @@ export default function UnitAlter() {
   const { selectedCompany } = useCompany();
 
   const [units, setUnits] = useState<UnitType[]>([]);
+  const [simpleUnits, setSimpleUnits] = useState<UnitType[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<UnitType | null>(null);
   const [form, setForm] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -107,8 +113,24 @@ export default function UnitAlter() {
     const company_id = selectedCompany?.company_id;
     if (!company_id) return;
     try {
-      const r = await window.api.unit.getAll(company_id);
-      if (r.success) setUnits(r.units ?? []);
+      const [allR] = await Promise.all([
+        window.api.unit.getAll(company_id),
+      ]);
+      if (allR.success) {
+        const allUnits = allR.units ?? [];
+        setUnits(allUnits);
+        // Filter simple units from all units as fallback
+        setSimpleUnits(allUnits.filter(u => u.unit_type === "Simple" || u.is_simple === 1));
+      }
+      // Try dedicated endpoint if available (more efficient)
+      try {
+        if (typeof window.api.unit.getSimpleUnits === "function") {
+          const simpleR = await window.api.unit.getSimpleUnits(company_id);
+          if (simpleR.success && (simpleR.units ?? []).length > 0) {
+            setSimpleUnits(simpleR.units);
+          }
+        }
+      } catch (_) { /* ignore */ }
     } catch (err) {
       console.error(err);
     }
@@ -126,6 +148,9 @@ export default function UnitAlter() {
       formal_name: u.formal_name ?? "",
       decimal_places: String(u.decimal_places ?? 0),
       unit_quantity_code: u.unit_quantity_code ?? "",
+      first_unit_id: u.first_unit_id ? String(u.first_unit_id) : "",
+      second_unit_id: u.second_unit_id ? String(u.second_unit_id) : "",
+      conversion_factor: u.conversion_factor ? String(u.conversion_factor) : "",
     });
     setError(null);
     setSuccess(null);
@@ -146,9 +171,20 @@ export default function UnitAlter() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(f => f ? { ...f, [key]: e.target.value } : f);
 
+  const setUnitField = (key: keyof FormData) =>
+    (val: string) => setForm(f => f ? { ...f, [key]: val } : f);
+
   const validate = (): string | null => {
-    if (!form?.symbol.trim()) return "Symbol is required.";
+    if (!form) return "No form data.";
     if (!selectedCompany?.company_id) return "No company selected.";
+    if (form.unit_type === "Simple") {
+      if (!form.symbol.trim()) return "Symbol is required.";
+    } else {
+      if (!form.first_unit_id) return "First unit is required.";
+      if (!form.second_unit_id) return "Second unit is required.";
+      if (!form.conversion_factor.trim() || Number(form.conversion_factor) <= 0) return "Conversion factor must be greater than 0.";
+      if (form.first_unit_id === form.second_unit_id) return "First and second unit cannot be the same.";
+    }
     return null;
   };
 
@@ -167,15 +203,19 @@ export default function UnitAlter() {
 
     setLoading(true); setError(null);
     try {
+      const isCompound = form.unit_type === "Compound";
       const result = await window.api.unit.update({
         unit_id: selectedUnit.unit_id,
         company_id: selectedCompany!.company_id,
-        name: form.symbol.trim(), // Use symbol as name
+        name: form.symbol.trim(),
         symbol: form.symbol.trim(),
         formal_name: form.formal_name.trim() || form.symbol.trim(),
         unit_type: form.unit_type,
         decimal_places: Number(form.decimal_places) || 0,
         unit_quantity_code: form.unit_quantity_code.trim() || null,
+        first_unit_id: isCompound ? Number(form.first_unit_id) : null,
+        second_unit_id: isCompound ? Number(form.second_unit_id) : null,
+        conversion_factor: isCompound ? Number(form.conversion_factor) : null,
       });
 
       if (result.success) {
@@ -271,6 +311,8 @@ export default function UnitAlter() {
     { key: "Esc", label: "Back", onClick: handleBack },
   ];
 
+  const isCompound = form.unit_type === "Compound";
+
   return (
     <div className="flex flex-col h-full relative overflow-hidden bg-white select-none">
       <PageTitleBar title={`Unit Alteration: ${selectedUnit.symbol}`} subtitle={selectedCompany?.name} />
@@ -300,23 +342,88 @@ export default function UnitAlter() {
               </select>
             </FormRow>
 
-            <FormRow label="Symbol" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.symbol} onChange={set("symbol")} placeholder="e.g. Kg" />
-            </FormRow>
+            {!isCompound && (
+              <>
+                <FormRow label="Symbol" required labelWidth="w-56" className="flex items-center min-h-[26px]">
+                  <input autoFocus className={inputCls} value={form.symbol} onChange={set("symbol")} placeholder="e.g. Kg" />
+                </FormRow>
 
-            <FormRow label="Formal Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.formal_name} onChange={set("formal_name")} placeholder="e.g. Kilogram" />
-            </FormRow>
+                <FormRow label="Formal Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={form.formal_name} onChange={set("formal_name")} placeholder="e.g. Kilogram" />
+                </FormRow>
 
-            <FormRow label="Number of Decimal Places" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.decimal_places} onChange={set("decimal_places")}>
-                {[0, 1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </FormRow>
+                <FormRow label="Number of Decimal Places" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                  <select className={selectCls} value={form.decimal_places} onChange={set("decimal_places")}>
+                    {[0, 1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </FormRow>
 
-            <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.unit_quantity_code} onChange={set("unit_quantity_code")} placeholder="e.g. KGS-KILOGRAMS" />
-            </FormRow>
+                <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={form.unit_quantity_code} onChange={set("unit_quantity_code")} placeholder="e.g. KGS-KILOGRAMS" />
+                </FormRow>
+              </>
+            )}
+
+            {isCompound && (
+              <div className="mt-2 space-y-3">
+                <div className="text-sm font-bold text-zinc-900">Units with Multiplier Factors</div>
+
+                {simpleUnits.length === 0 ? (
+                  <div className="text-xs text-zinc-500 py-2">
+                    No simple units found.{" "}
+                    <button
+                      onClick={() => navigate("/master/create/unit")}
+                      className="underline hover:text-black font-medium"
+                    >
+                      Create a simple unit first
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-6 mt-1">
+                    {/* First unit */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-zinc-700 italic font-medium">First unit</span>
+                      <UnitDropdown
+                        value={form.first_unit_id}
+                        onChange={setUnitField("first_unit_id")}
+                        units={simpleUnits}
+                        onCreate={() => navigate("/master/create/unit")}
+                        placeholder="Select…"
+                      />
+                    </div>
+
+                    {/* Conversion */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-zinc-700 italic font-medium">Conversion</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-zinc-800">of</span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="any"
+                          className={smallInputCls}
+                          value={form.conversion_factor}
+                          onChange={set("conversion_factor")}
+                          placeholder=""
+                        />
+                      </div>
+                    </div>
+
+                    {/* Second unit */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-zinc-700 italic font-medium">Second unit</span>
+                      <UnitDropdown
+                        value={form.second_unit_id}
+                        onChange={setUnitField("second_unit_id")}
+                        units={simpleUnits}
+                        onCreate={() => navigate("/master/create/unit")}
+                        placeholder="Select…"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -340,10 +447,10 @@ export default function UnitAlter() {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || (isCompound && simpleUnits.length === 0)}
             className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
           >
-            {loading ? "Saving..." : "Accept"}
+            {loading ? "Saving…" : "Accept"}
           </button>
         </div>
       </div>

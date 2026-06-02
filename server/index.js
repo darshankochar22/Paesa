@@ -74,6 +74,7 @@ ipcMain.handle('costCetre:getTree', costCentreController.getTree);
 
 ipcMain.handle('unit:create', unitController.create);
 ipcMain.handle('unit:getAll', unitController.getAll);
+ipcMain.handle('unit:getSimpleUnits', unitController.getSimpleUnits);
 ipcMain.handle('unit:getById', unitController.getById);
 ipcMain.handle('unit:update', unitController.update);
 ipcMain.handle('unit:delete', unitController.delete);

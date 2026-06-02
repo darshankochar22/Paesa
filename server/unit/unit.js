@@ -12,10 +12,24 @@ const init = async (db) => {
       is_simple           INTEGER DEFAULT 1,
       is_active           INTEGER DEFAULT 1,
       is_predefined       INTEGER DEFAULT 0,
+      first_unit_id       INTEGER REFERENCES units(unit_id),
+      second_unit_id      INTEGER REFERENCES units(unit_id),
+      conversion_factor   REAL DEFAULT 1,
       created_at          TEXT DEFAULT (datetime('now')),
       updated_at          TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  // Add compound-unit columns if they don't exist (migration for existing DBs)
+  try {
+    await db.execute(`ALTER TABLE units ADD COLUMN first_unit_id INTEGER REFERENCES units(unit_id)`);
+  } catch (e) { /* ignore if already exists */ }
+  try {
+    await db.execute(`ALTER TABLE units ADD COLUMN second_unit_id INTEGER REFERENCES units(unit_id)`);
+  } catch (e) { /* ignore if already exists */ }
+  try {
+    await db.execute(`ALTER TABLE units ADD COLUMN conversion_factor REAL DEFAULT 1`);
+  } catch (e) { /* ignore if already exists */ }
 };
 
 module.exports = { init };

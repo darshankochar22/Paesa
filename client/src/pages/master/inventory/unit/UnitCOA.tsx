@@ -259,6 +259,24 @@ export default function UnitCOA() {
                                   <span className="text-zinc-800 font-medium">{u.unit_quantity_code}</span>
                                 </div>
                               )}
+                              {u.unit_type === "Compound" && (
+                                <>
+                                  <div className="flex border-b border-zinc-100 pb-1">
+                                    <span className="text-zinc-400 w-32 shrink-0 select-none">First Unit</span>
+                                    <span className="text-zinc-800 font-medium">{u.first_unit_symbol || "—"}</span>
+                                  </div>
+                                  <div className="flex border-b border-zinc-100 pb-1">
+                                    <span className="text-zinc-400 w-32 shrink-0 select-none">Second Unit</span>
+                                    <span className="text-zinc-800 font-medium">{u.second_unit_symbol || "—"}</span>
+                                  </div>
+                                  <div className="flex border-b border-zinc-100 pb-1 col-span-2">
+                                    <span className="text-zinc-400 w-32 shrink-0 select-none">Conversion</span>
+                                    <span className="text-zinc-800 font-medium">
+                                      {u.conversion_factor ? `${u.first_unit_symbol} of ${u.conversion_factor} ${u.second_unit_symbol}` : "—"}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
                         )}

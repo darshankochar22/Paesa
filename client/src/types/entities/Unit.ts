@@ -10,6 +10,13 @@ export interface UnitType {
   is_simple?: number;
   is_active?: number;
   is_predefined?: number;
+  first_unit_id?: number;
+  second_unit_id?: number;
+  conversion_factor?: number;
+  first_unit_symbol?: string;
+  first_unit_formal_name?: string;
+  second_unit_symbol?: string;
+  second_unit_formal_name?: string;
   created_at?: string;
   updated_at?: string;
 }

@@ -46,11 +46,12 @@ contextBridge.exposeInMainWorld('api', {
         getTree: (company_id) => invoke('costCetre:getTree', company_id),
     },
     unit: {
-        create:  (data)       => invoke('unit:create', data),
-        getAll:  (company_id) => invoke('unit:getAll', company_id),
-        getById: (id)         => invoke('unit:getById', id),
-        update:  (data)       => invoke('unit:update', data),
-        delete:  (id)         => invoke('unit:delete', id),
+        create:       (data)       => invoke('unit:create', data),
+        getAll:       (company_id) => invoke('unit:getAll', company_id),
+        getSimpleUnits: (company_id) => invoke('unit:getSimpleUnits', company_id),
+        getById:      (id)         => invoke('unit:getById', id),
+        update:       (data)       => invoke('unit:update', data),
+        delete:       (id)         => invoke('unit:delete', id),
     },
     stockGroup: {
         create:  (data)       => invoke('stockGroup:create', data),
