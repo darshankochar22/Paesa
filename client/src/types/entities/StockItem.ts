@@ -13,6 +13,7 @@ export interface StockItemType {
   cgst_rate?: number;
   sgst_rate?: number;
   igst_rate?: number;
+  taxability_type?: string;
   type_of_supply?: string;
   rate_of_duty?: number;
   statutory_details?: string;
