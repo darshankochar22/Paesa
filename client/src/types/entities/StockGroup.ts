@@ -10,7 +10,8 @@ export interface StockGroupType {
   gst_rate?: number;
   cgst_rate?: number;
   sgst_rate?: number;
-  statutory_details?: string;  
+  taxability_type?: string;
+  statutory_details?: string;
   is_primary?: number;
   is_active?: number;
   is_predefined?: number;
