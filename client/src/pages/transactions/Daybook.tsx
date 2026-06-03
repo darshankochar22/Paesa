@@ -19,11 +19,9 @@ export default function Daybook() {
   const [entries, setEntries] = useState<VoucherRecordType[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Selected Voucher details drawer
   const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
   const [, setLoadingVoucher] = useState<boolean>(false);
 
-  // Metadata for mapping IDs to names
   const [allGodowns, setAllGodowns] = useState<any[]>([]);
   const [allUnits, setAllUnits] = useState<any[]>([]);
 
@@ -79,7 +77,7 @@ export default function Daybook() {
     { key: "Esc", label: "Quit", onClick: () => navigate("/") },
   ];
 
-  // Load godowns & units metadata
+
   useEffect(() => {
     if (!companyId) return;
     async function loadMetadata() {
@@ -130,7 +128,6 @@ export default function Daybook() {
 
   const grandTotal = useMemo(() => {
     if (!selectedVoucher) return 0;
-    // For single entry or journal, total is the sum of Dr entries
     if (selectedVoucher.entries && selectedVoucher.entries.length > 0) {
       if (["Sales", "Purchase"].includes(selectedVoucher.voucher_type)) {
         const partyEntry = selectedVoucher.entries.find((e: any) =>
@@ -155,13 +152,9 @@ export default function Daybook() {
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50 select-none text-xs relative overflow-hidden">
       
-      {/* Title Bar */}
       <PageTitleBar title="Day Book" subtitle={selectedCompany?.name} />
-
-      {/* Main Body Layout */}
       <div className="flex-1 flex min-h-0">
         
-        {/* Left Side: Daybook list */}
         <div className="flex-1 flex flex-col min-w-0 p-4 overflow-y-auto">
           <div className="max-w-6xl w-full mx-auto flex flex-col h-full">
           
@@ -178,7 +171,6 @@ export default function Daybook() {
           </div>
 
           <div className="bg-white rounded border border-zinc-200 shadow-sm overflow-hidden flex-1 flex flex-col min-h-[400px]">
-            {/* Table Header */}
             <div className="grid grid-cols-12 border-b border-zinc-200 bg-zinc-50 px-4 py-2.5 text-zinc-500 font-bold uppercase tracking-wider text-[10px] select-none shrink-0">
               <div className="col-span-2">Date</div>
               <div className="col-span-2">Voucher Type</div>
@@ -187,7 +179,7 @@ export default function Daybook() {
               <div className="col-span-3 text-right">Narration</div>
             </div>
 
-            {/* Table Body */}
+
             <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 min-h-0 bg-white">
               {loading && (
                 <div className="p-8 text-center text-zinc-400 italic">Loading daybook entries...</div>
@@ -213,7 +205,6 @@ export default function Daybook() {
               ))}
             </div>
 
-            {/* Footer Summary */}
             <div className="px-4 py-2 border-t border-zinc-200 bg-zinc-50 text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex justify-between items-center select-none shrink-0">
               <span>Total Transactions: {entries.length}</span>
               <span>&bull; End of Daybook</span>
@@ -223,11 +214,9 @@ export default function Daybook() {
         </div>
       </div>
 
-      {/* Right Side: Action Panel */}
       <RightActionPanel actions={daybookActions} />
     </div>
 
-      {/* Glassmorphism Backdrop Overlay for Drawer */}
       {selectedVoucher && (
         <div
           className="fixed inset-0 bg-zinc-950/40 backdrop-blur-xs z-40 transition-opacity animate-fade-in"
@@ -235,11 +224,9 @@ export default function Daybook() {
         />
       )}
 
-      {/* Premium Slide-Over Details Drawer */}
       {selectedVoucher && (
         <div className="fixed inset-y-0 right-0 w-[550px] bg-white shadow-2xl border-l border-zinc-200 z-50 flex flex-col animate-slide-left text-xs text-zinc-800">
           
-          {/* Drawer Header */}
           <div className="bg-zinc-900 text-white px-4 py-3 flex justify-between items-center shadow-md shrink-0 select-none">
             <div className="flex flex-col">
               <span className="uppercase tracking-wider font-bold text-xs">{selectedVoucher.voucher_type} Voucher Details</span>
@@ -253,10 +240,8 @@ export default function Daybook() {
             </button>
           </div>
 
-          {/* Drawer Content */}
+
           <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 bg-white">
-            
-            {/* Meta Info Grid */}
             <div className="grid grid-cols-2 gap-3 p-3 border border-zinc-100 bg-zinc-50/50 rounded">
               <div className="space-y-1">
                 <div className="flex">
@@ -282,7 +267,6 @@ export default function Daybook() {
               </div>
             </div>
 
-            {/* Inventory Stock Entries (If applicable) */}
             {selectedVoucher.stock_entries && selectedVoucher.stock_entries.length > 0 && (
               <div className="border border-zinc-200 rounded overflow-hidden">
                 <div className="bg-zinc-50 border-b border-zinc-200 px-3 py-1.5 font-bold uppercase text-[9px] text-zinc-500 tracking-wider">
@@ -317,7 +301,7 @@ export default function Daybook() {
               </div>
             )}
 
-            {/* Accounting Ledger Entries (Double-Entry matrix) */}
+
             <div className="border border-zinc-200 rounded overflow-hidden">
               <div className="bg-zinc-50 border-b border-zinc-200 px-3 py-1.5 font-bold uppercase text-[9px] text-zinc-500 tracking-wider">
                 Accounting Double-Entry Details
@@ -350,7 +334,6 @@ export default function Daybook() {
               </table>
             </div>
 
-            {/* Grand Total & Narration block */}
             <div className="space-y-2 border-t border-zinc-100 pt-3">
               <div className="flex justify-between items-center p-3 border border-zinc-200 rounded bg-zinc-50">
                 <span className="font-bold text-zinc-600 uppercase tracking-wider">Grand Total (INR) :</span>
@@ -369,7 +352,6 @@ export default function Daybook() {
 
           </div>
 
-          {/* Drawer Footer Actions */}
           <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center gap-2 shrink-0 select-none">
             <button
               onClick={() => handleCancelVoucher(selectedVoucher.voucher_id)}
