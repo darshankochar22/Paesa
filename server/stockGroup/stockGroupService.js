@@ -2,7 +2,7 @@ const { db } = require("../db/index");
 
 const seedDefaultStockGroups = async (company_id) => {
   const defaults = [
-    { name: "Primary", is_primary: 1, parent_group_id: null },
+    { name: "Primary",   is_primary: 1, parent_group_id: null },
     { name: "All Items", is_primary: 0, parent_group_id: null },
   ];
 
@@ -11,9 +11,9 @@ const seedDefaultStockGroups = async (company_id) => {
       sql: `INSERT INTO stock_groups (
               company_id, name, alias, parent_group_id, should_quantities_be_added,
               hsn_sac_code, hsn_sac_description, gst_rate, cgst_rate, sgst_rate,
-              statutory_details, is_primary, is_active, is_predefined
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [company_id, g.name, null, g.parent_group_id, 1, null, null, 0, 0, 0, null, g.is_primary, 1, 1],
+              taxability_type, statutory_details, is_primary, is_active, is_predefined
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [company_id, g.name, null, g.parent_group_id, 0, null, null, 0, 0, 0, null, null, g.is_primary, 1, 1],
     });
   }
 };
@@ -30,7 +30,7 @@ module.exports = {
   create: async (data) => {
     try {
       const exists = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+        sql: `SELECT sg_id FROM stock_groups WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
         args: [data.company_id, data.name],
       });
       if (exists.rows.length > 0) return { success: false, error: "Stock Group already exists" };
@@ -39,17 +39,20 @@ module.exports = {
         sql: `INSERT INTO stock_groups (
                 company_id, name, alias, parent_group_id, should_quantities_be_added,
                 hsn_sac_code, hsn_sac_description, gst_rate, cgst_rate, sgst_rate,
-                statutory_details, is_primary, is_active, is_predefined
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                taxability_type, statutory_details, is_primary, is_active, is_predefined
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
-          data.company_id, data.name, data.alias || null,
+          data.company_id,
+          data.name,
+          data.alias || null,
           data.parent_group_id || null,
-          data.should_quantities_be_added ?? 1,
+          data.should_quantities_be_added ?? 0,
           data.hsn_sac_code || null,
           data.hsn_sac_description || null,
           data.gst_rate || 0,
           data.cgst_rate || 0,
           data.sgst_rate || 0,
+          data.taxability_type || null,
           data.statutory_details || null,
           0, 1, 0,
         ],
@@ -96,8 +99,7 @@ module.exports = {
         sql: `SELECT * FROM stock_groups WHERE company_id = ? AND is_active = 1`,
         args: [company_id],
       });
-      const tree = buildTree(result.rows);
-      return { success: true, tree };
+      return { success: true, tree: buildTree(result.rows) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -117,19 +119,21 @@ module.exports = {
         sql: `UPDATE stock_groups SET
                 name = ?, alias = ?, parent_group_id = ?, should_quantities_be_added = ?,
                 hsn_sac_code = ?, hsn_sac_description = ?, gst_rate = ?, cgst_rate = ?,
-                sgst_rate = ?, statutory_details = ?, updated_at = datetime('now')
+                sgst_rate = ?, taxability_type = ?, statutory_details = ?,
+                updated_at = datetime('now')
               WHERE sg_id = ?`,
         args: [
-          data.name ?? group.name,
-          data.alias ?? group.alias,
-          data.parent_group_id ?? group.parent_group_id,
+          data.name                       ?? group.name,
+          data.alias                      ?? group.alias,
+          data.parent_group_id            ?? group.parent_group_id,
           data.should_quantities_be_added ?? group.should_quantities_be_added,
-          data.hsn_sac_code ?? group.hsn_sac_code,
-          data.hsn_sac_description ?? group.hsn_sac_description,
-          data.gst_rate ?? group.gst_rate,
-          data.cgst_rate ?? group.cgst_rate,
-          data.sgst_rate ?? group.sgst_rate,
-          data.statutory_details ?? group.statutory_details,
+          data.hsn_sac_code               ?? group.hsn_sac_code,
+          data.hsn_sac_description        ?? group.hsn_sac_description,
+          data.gst_rate                   ?? group.gst_rate,
+          data.cgst_rate                  ?? group.cgst_rate,
+          data.sgst_rate                  ?? group.sgst_rate,
+          data.taxability_type            ?? group.taxability_type,
+          data.statutory_details          ?? group.statutory_details,
           data.sg_id,
         ],
       });
@@ -154,7 +158,7 @@ module.exports = {
       if (existing.rows[0].is_predefined) return { success: false, error: "Cannot delete predefined stock groups" };
 
       const hasChildren = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE parent_group_id = ? AND is_active = 1`,
+        sql: `SELECT sg_id FROM stock_groups WHERE parent_group_id = ? AND is_active = 1`,
         args: [id],
       });
       if (hasChildren.rows.length > 0) return { success: false, error: "Cannot delete Stock Group with subgroups" };
