@@ -6,8 +6,6 @@ import BankDetailsPopup from "./components/BankDetailsPopup";
 import type { GroupType } from "@/types/api";
 import { useCompany } from "@/context/CompanyContext";
 import { useLedgerForm } from "./hooks/useLedgerForm";
-
-// Modular UI Panel Components
 import LedgerMailingPanel from "./components/LedgerMailingPanel";
 import LedgerTaxPanel from "./components/LedgerTaxPanel";
 import LedgerRoundingPanel from "./components/LedgerRoundingPanel";
@@ -62,7 +60,6 @@ export default function LedgerAlter() {
     loadLedger,
   } = useLedgerForm({ mode: "alter" });
 
-  // Load from router navigation state (e.g. from COA page edit buttons)
   useEffect(() => {
     const routeLedgerId = location.state?.ledgerId;
     if (routeLedgerId && routeLedgerId !== selectedLedgerId) {
@@ -70,7 +67,6 @@ export default function LedgerAlter() {
     }
   }, [location.state?.ledgerId, selectedLedgerId]);
 
-  // Keyboard navigation & shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -140,10 +136,8 @@ export default function LedgerAlter() {
       )}
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
-        {/* Left column: Name / Group / Bank (if bank group) / Opening Balance */}
         <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
           <div className="p-3 space-y-1">
-            {/* Ledger selector row */}
             <div
               className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group mb-2 border border-zinc-200 bg-zinc-50/30"
               onClick={() => { setShowLedgerPanel((v) => !v); setShowGroupPanel(false); }}
@@ -192,7 +186,7 @@ export default function LedgerAlter() {
             </div>
           )}
 
-          {/* Bank Account Details Form (inline for bank groups) */}
+
           {selectedLedgerId && (
             <LedgerBankDetailsForm
               bankForm={bankForm}
@@ -224,11 +218,9 @@ export default function LedgerAlter() {
           )}
         </div>
 
-        {/* Right column: detail panels — always shown when selected */}
         <div className="w-[480px] border-l border-zinc-200 flex flex-col overflow-y-auto shrink-0 bg-zinc-50/25">
           {selectedLedgerId ? (
             <>
-              {/* Opening balance summary box */}
               <div className="p-3 flex justify-end">
                 <div className="w-44 border border-zinc-200 rounded shrink-0 bg-white shadow-sm overflow-hidden">
                   <div className="text-center text-[10px] font-bold border-b border-zinc-100 py-1 bg-zinc-50 text-zinc-500 uppercase tracking-wider">Total Opening Balance</div>
@@ -238,7 +230,6 @@ export default function LedgerAlter() {
                 </div>
               </div>
 
-              {/* Ledger rounding configuration panel */}
               <LedgerRoundingPanel
                 form={form}
                 setForm={setForm}
@@ -247,7 +238,7 @@ export default function LedgerAlter() {
                 groupLineage={groupLineage}
               />
 
-              {/* Tax registration and statutory GST configuration details */}
+
               <LedgerTaxPanel
                 form={form}
                 setField={setField}
@@ -258,7 +249,7 @@ export default function LedgerAlter() {
                 groupLineage={groupLineage}
               />
 
-              {/* Debtor/Creditor bill-wise details panel */}
+  
               <LedgerBillwisePanel
                 form={form}
                 setForm={setForm}
@@ -266,7 +257,6 @@ export default function LedgerAlter() {
                 groupLineage={groupLineage}
               />
 
-              {/* Cost Centre Details */}
               <div className="p-3 border-t border-zinc-100 bg-white">
                 <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cost Centre Details</div>
                 <FormRow label="Cost Centres are applicable" labelWidth="w-52" className="flex items-center min-h-[26px]">
@@ -281,14 +271,14 @@ export default function LedgerAlter() {
                 </FormRow>
               </div>
 
-              {/* Mailing details panel */}
+        
               <LedgerMailingPanel
                 form={form}
                 setField={setField}
                 groupLineage={groupLineage}
               />
 
-              {/* Banking config and preview panel */}
+
               <LedgerBankingPanel
                 provideBank={provideBank}
                 handleProvideBankChange={handleProvideBankChange}
@@ -304,8 +294,7 @@ export default function LedgerAlter() {
             </div>
           )}
         </div>
-
-        {/* Ledger list panel */}
+        
         {showLedgerPanel && (
           <LedgerListPanel
             ledgers={ledgers}
@@ -315,7 +304,6 @@ export default function LedgerAlter() {
           />
         )}
 
-        {/* Group panel */}
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
             <div className="px-3 py-2 border-b border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider flex justify-between items-center select-none">
@@ -343,11 +331,11 @@ export default function LedgerAlter() {
           </div>
         )}
 
-        {/* Actions panel */}
+
         <RightActionPanel actions={ledgerAlterActions} />
       </div>
 
-      {/* Footer */}
+
       <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
         <Link to="/master/alter" className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
           &larr; Back to Masters
