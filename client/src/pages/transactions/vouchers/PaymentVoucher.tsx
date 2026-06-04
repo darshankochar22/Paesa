@@ -1,4 +1,3 @@
-// vouchers/PaymentVoucher.tsx
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 import FieldRow from "../components/FieldRow";
 import BalanceIndicator from "../components/BalanceIndicator";
@@ -13,7 +12,6 @@ export default function PaymentVoucher({ form, handleAmountConfirm }: Props) {
   if (form.paymentEntryMode === "single") {
     return (
       <>
-        {/* Account field */}
         <div className="border-b border-gray-300 shrink-0 py-1">
           <FieldRow
             label="Account"
@@ -24,13 +22,13 @@ export default function PaymentVoucher({ form, handleAmountConfirm }: Props) {
           />
         </div>
 
-        {/* Particulars table header */}
+
         <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
           <div className="flex-1 text-sm font-semibold text-black">Particulars</div>
           <div className="w-40 text-right text-sm font-semibold text-black">Amount</div>
         </div>
 
-        {/* Particulars rows */}
+
         <div className="flex-1 overflow-y-auto min-h-0">
           {form.particulars.map((row, idx) => {
             const isActive =
@@ -122,7 +120,6 @@ export default function PaymentVoucher({ form, handleAmountConfirm }: Props) {
     );
   }
 
-  // Double entry mode
   return (
     <VoucherDoubleEntryTable
       rows={form.paymentDoubleRows}
