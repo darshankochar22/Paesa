@@ -49,5 +49,3 @@ coverage/
 *.orig
 *.rej
 *.patch
-
-AGENTS.md
