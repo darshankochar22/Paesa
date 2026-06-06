@@ -13,6 +13,7 @@ import PartyDetailsPopup from "./components/popups/PartyDetailsPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
 import CreditNoteDetailsPopup from "./components/popups/CreditNoteDetailsPopup";
 import DebitNoteDetailsPopup from "./components/popups/DebitNoteDetailsPopup";
+import OtherVouchersPopup from "./components/popups/OtherVouchersPopup";
 import LedgerListPanel from "./components/LedgerListPanel";
 import PaymentVoucher from "./vouchers/PaymentVoucher";
 import ReceiptVoucher from "./vouchers/ReceiptVoucher";
@@ -39,6 +40,7 @@ function RightSidebar({
   onAccept,
   onQuit,
   canAccept,
+  onOtherVouchersClick,
 }: {
   voucherType: string;
   onTypeChange: (t: string) => void;
@@ -51,6 +53,7 @@ function RightSidebar({
   onAccept: () => void;
   onQuit: () => void;
   canAccept: boolean;
+  onOtherVouchersClick: () => void;
 }) {
   const types = [
     { key: "F4", label: "Contra" },
@@ -61,31 +64,27 @@ function RightSidebar({
     { key: "F9", label: "Purchase" },
   ];
 
-  const [otherOpen, setOtherOpen] = useState(false);
-  const otherRef = useRef<HTMLDivElement>(null);
-
   const otherVoucherTypes = [
-    { key: "Credit Note", label: "Credit Note" },
-    { key: "Debit Note", label: "Debit Note" },
-    { key: "Physical Stock", label: "Physical Stock" },
-    { key: "Stock Journal", label: "Stock Journal" },
-    { key: "Attendance", label: "Attendance" },
-    { key: "Payroll", label: "Payroll" },
+    "Attendance",
+    "Credit Note",
+    "Debit Note",
+    "Delivery Note",
+    "Job Work In Order",
+    "Job Work Out Order",
+    "Material In",
+    "Material Out",
+    "Memorandum",
+    "Payroll",
+    "Physical Stock",
+    "Purchase Order",
+    "Receipt Note",
+    "Rejections In",
+    "Rejections Out",
+    "Reversing Journal",
+    "Sales Order",
+    "Stock Journal",
   ];
-
-  useEffect(() => {
-    if (!otherOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (otherRef.current && !otherRef.current.contains(e.target as Node)) {
-        setOtherOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [otherOpen]);
-
-  const isOtherActive = otherVoucherTypes.some((t) => t.key === voucherType);
-
+  const isOtherActive = otherVoucherTypes.includes(voucherType);
   return (
     <div className="w-36 border-l border-black flex flex-col shrink-0 bg-white">
       <div className="border-b border-black px-2 py-1">
@@ -100,7 +99,7 @@ function RightSidebar({
       {types.map(({ key, label }) => (
         <div key={key} className="border-b border-gray-200">
           <button
-            onClick={() => { onTypeChange(label); setOtherOpen(false); }}
+            onClick={() => onTypeChange(label)}
             className={`w-full text-left px-2 py-1 text-xs ${
               voucherType === label
                 ? "bg-black text-white font-semibold"
@@ -115,10 +114,9 @@ function RightSidebar({
         </div>
       ))}
 
-      {/* F10: Other Vouchers — dropdown with Credit Note / Debit Note */}
-      <div className="border-b border-gray-200 relative" ref={otherRef}>
+      <div className="border-b border-gray-200">
         <button
-          onClick={() => setOtherOpen((p) => !p)}
+          onClick={onOtherVouchersClick}
           className={`w-full text-left px-2 py-1 text-xs ${
             isOtherActive
               ? "bg-black text-white font-semibold"
@@ -127,26 +125,7 @@ function RightSidebar({
         >
           <span className={isOtherActive ? "text-gray-300" : "text-gray-500"}>F10</span>
           : Other Vouchers
-          <span className={`float-right ${isOtherActive ? "text-gray-300" : "text-gray-500"}`}>
-            {otherOpen ? "▴" : "▾"}
-          </span>
         </button>
-
-        {otherOpen && (
-          <div className="absolute left-0 right-0 top-full z-30 bg-white border border-black shadow-lg">
-            {otherVoucherTypes.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => { onTypeChange(t.key); setOtherOpen(false); }}
-                className={`w-full text-left px-3 py-1 text-xs hover:bg-amber-100 ${
-                  voucherType === t.key ? "bg-amber-200 font-semibold" : ""
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="border-b border-gray-200">
@@ -211,6 +190,7 @@ export default function Vouchers() {
   const [showPartyDetails, setShowPartyDetails] = useState(false);
   const [showCreditNoteDetails, setShowCreditNoteDetails] = useState(false);
   const [showDebitNoteDetails, setShowDebitNoteDetails] = useState(false);
+  const [showOtherVouchers, setShowOtherVouchers] = useState(false);
 
   const hasAutoOpenedReceipt = useRef(false);
   const hasAutoOpenedDispatch = useRef(false);
@@ -1033,10 +1013,7 @@ export default function Vouchers() {
       if (e.key === "F9") { e.preventDefault(); form.setVoucherType("Purchase"); }
       if (e.key === "F10") {
         e.preventDefault();
-        const cycle = ["Credit Note", "Debit Note", "Physical Stock", "Stock Journal", "Attendance", "Payroll"];
-        const currIdx = cycle.indexOf(form.voucherType);
-        const nextIdx = currIdx >= 0 ? (currIdx + 1) % cycle.length : 0;
-        form.setVoucherType(cycle[nextIdx]);
+        setShowOtherVouchers(true);
       }
       if (e.altKey && (e.key === "h" || e.key === "H")) {
         e.preventDefault();
@@ -1066,7 +1043,8 @@ export default function Vouchers() {
         !showDispatchDetails &&
         !showReceiptDetails &&
         !showCreditNoteDetails &&
-        !showDebitNoteDetails
+        !showDebitNoteDetails &&
+        !showOtherVouchers
       ) {
         e.preventDefault();
         navigate("/");
@@ -1090,6 +1068,7 @@ export default function Vouchers() {
     showReceiptDetails,
     showCreditNoteDetails,
     showDebitNoteDetails,
+    showOtherVouchers,
     navigate,
   ]);
 
@@ -1321,6 +1300,7 @@ export default function Vouchers() {
           onAccept={handleAccept}
           onQuit={() => navigate("/")}
           canAccept={canAccept}
+          onOtherVouchersClick={() => setShowOtherVouchers(true)}
         />
       </div>
 
@@ -1376,6 +1356,17 @@ export default function Vouchers() {
           initialDetails={form.debitNoteDetails}
           onClose={() => setShowDebitNoteDetails(false)}
           onSave={handleSaveDebitNoteDetails}
+        />
+      )}
+
+      {showOtherVouchers && (
+        <OtherVouchersPopup
+          voucherType={form.voucherType}
+          onClose={() => setShowOtherVouchers(false)}
+          onSelect={(type) => {
+            form.setVoucherType(type);
+            setShowOtherVouchers(false);
+          }}
         />
       )}
 
