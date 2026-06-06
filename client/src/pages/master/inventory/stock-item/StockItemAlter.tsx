@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import {
-  FormRow,
   PageTitleBar,
   RightActionPanel,
   SearchInput,
@@ -11,13 +10,13 @@ import {
 import type { StockGroupType, UnitType, StockItemType } from "@/types/api";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
+import ListSidePanel from "./components/ListSidePanel";
+import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
+import type { FormData, PanelType } from "./types";
 
 const inputCls =
   "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent " +
   "focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
-const selectCls =
-  "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent " +
-  "cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 
 // ── Selection panel ──────────────────────────────────────────────────────────
 function SelectionPanel({
@@ -99,114 +98,6 @@ function SelectionPanel({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LIST OF UNITS / GROUPS side panel
-// ─────────────────────────────────────────────────────────────────────────────
-function ListSidePanel({
-  title,
-  items,
-  selected,
-  onSelect,
-  onClose,
-  primaryLabel = "Not Applicable",
-  showCreate = false,
-  onCreateNew,
-}: {
-  title: string;
-  items: { id: string; label: string }[];
-  selected: string;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-  primaryLabel?: string;
-  showCreate?: boolean;
-  onCreateNew?: () => void;
-}) {
-  const [search, setSearch] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
-  const filtered = items.filter(i =>
-    i.label.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="w-52 border-l border-zinc-300 flex flex-col bg-white shrink-0">
-      <div className="bg-zinc-850 text-white text-xs px-3 py-1.5 font-medium">{title}</div>
-      <input
-        ref={inputRef}
-        className="px-3 py-1.5 text-xs outline-none border-b border-zinc-200 placeholder-zinc-400 font-mono bg-zinc-50"
-        placeholder="Search..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === "Escape") onClose();
-          if (e.key === "Enter" && filtered.length > 0) { onSelect(filtered[0].id); onClose(); }
-        }}
-      />
-      <div className="flex-1 overflow-y-auto">
-        <div
-          className={`flex items-center px-3 py-1 text-xs cursor-pointer border-b border-zinc-100 ${
-            !selected ? "bg-zinc-800 text-white font-medium" : "hover:bg-zinc-100"
-          }`}
-          onClick={() => { onSelect(""); onClose(); }}
-        >
-          <span className="mr-1">♦</span>
-          <span>{primaryLabel}</span>
-        </div>
-        {showCreate && (
-          <div
-            className="flex items-center px-3 py-1 text-xs cursor-pointer border-b border-zinc-100 hover:bg-zinc-100 text-zinc-950 font-bold"
-            onClick={() => { onCreateNew?.(); onClose(); }}
-          >
-            <span className="mr-1">✦</span>
-            <span>Create New</span>
-          </div>
-        )}
-        {filtered.map(item => (
-          <div
-            key={item.id}
-            className={`px-3 py-1 text-xs cursor-pointer border-b border-zinc-100 ${
-              selected === item.id ? "bg-zinc-800 text-white font-medium" : "hover:bg-zinc-100 text-zinc-800"
-            }`}
-            onClick={() => { onSelect(item.id); onClose(); }}
-          >
-            {item.label}
-          </div>
-        ))}
-      </div>
-      <div className="border-t border-zinc-200 px-3 py-1.5">
-        <button onClick={onClose} className="text-xs text-zinc-500 hover:text-zinc-800">Esc: Close</button>
-      </div>
-    </div>
-  );
-}
-
-// ── FormData ─────────────────────────────────────────────────────────────────
-interface FormData {
-  name: string;
-  alias: string;
-  group_id: string;
-  unit_id: string;
-  rate_of_duty: string;
-  has_bom: boolean;
-  bom_name: string;
-  opening_quantity: string;
-  opening_rate: string;
-  // GST statutory fields
-  gst_applicable: string;
-  hsn_sac_details: string;
-  hsn_sac: string;
-  hsn_sac_description: string;
-  hsn_classification_id: string;
-  gst_rate_details: string;
-  rate_classification_id: string;
-  taxability_type: string;
-  gst_rate: string;
-  type_of_supply: string;
-}
-
-type PanelType = "group" | "unit" | "gst_applicable" | "hsn_sac_details" | "gst_rate_details" | "rate_classification" | "taxability_type" | "type_of_supply" | null;
-
 // ── Main alter component ─────────────────────────────────────────────────────
 export default function StockItemAlter() {
   const navigate = useNavigate();
@@ -228,7 +119,7 @@ export default function StockItemAlter() {
   const [showBomComponents, setShowBomComponents] = useState(false);
   const [currentBomName,    setCurrentBomName]    = useState("");
 
-  // ── Load lists ──────────────────────────────────────────────────────────
+  // Load lists
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
     if (!company_id) return;
@@ -238,16 +129,7 @@ export default function StockItemAlter() {
     window.api.gstClassification.getAll(company_id).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
   }, [selectedCompany]);
 
-  // ── Refresh units on mount so newly-created units appear ──────────────────
-  useEffect(() => {
-    const company_id = selectedCompany?.company_id;
-    if (!company_id) return;
-    window.api.unit.getAll(company_id).then(r => {
-      if (r.success) setUnits(r.units ?? []);
-    });
-  }, []);
-
-  // ── Populate form when item is selected ─────────────────────────────────
+  // Populate form when item is selected
   const handleSelectItem = (item: any) => {
     setSelectedItem(item);
     setForm({
@@ -261,11 +143,11 @@ export default function StockItemAlter() {
       opening_quantity: String(item.opening_quantity ?? 0),
       opening_rate:     String(item.opening_rate     ?? 0),
       gst_applicable: item.gst_applicable ?? "Not Applicable",
-      hsn_sac_details: item.source_of_details === "Specified Here" ? "specify_here" : "as_per_company",
+      hsn_sac_details: item.hsn_sac_details ?? (item.source_of_details === "Specified Here" ? "specify_here" : item.source_of_details === "GST Classification" ? "use_classification" : item.source_of_details === "Specify in Voucher" ? "specify_in_voucher" : "as_per_company"),
       hsn_sac: item.hsn_sac ?? "",
       hsn_sac_description: item.hsn_sac_description ?? "",
       hsn_classification_id: item.hsn_classification_id ? String(item.hsn_classification_id) : "",
-      gst_rate_details: item.gst_rate_details ?? (item.source_of_gst_rate === "GST Classification" ? "use_classification" : item.source_of_gst_rate === "Specified Here" ? "specify_here" : "as_per_company"),
+      gst_rate_details: item.gst_rate_details ?? (item.source_of_gst_rate === "GST Classification" ? "use_classification" : item.source_of_gst_rate === "Specified Here" ? "specify_here" : item.source_of_gst_rate === "Specify in Voucher" ? "specify_in_voucher" : "as_per_company"),
       rate_classification_id: item.rate_classification_id ? String(item.rate_classification_id) : "",
       taxability_type: item.taxability_type ?? "",
       gst_rate: String(item.gst_rate ?? 0),
@@ -278,24 +160,25 @@ export default function StockItemAlter() {
     setSuccess(null);
   };
 
-  // ── Field helpers ────────────────────────────────────────────────────────
-  const setField = (key: keyof FormData) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => f ? { ...f, [key]: e.target.value } : f);
+  const setVal = useCallback((key: keyof FormData, value: any) => {
+    setForm(f => f ? ({ ...f, [key]: value }) : null);
+  }, []);
 
-  // ── BOM handlers ─────────────────────────────────────────────────────────
+  // BOM handlers
   const savePendingRef = useRef(false);
 
   const handleBomToggle = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const yes = e.target.value === "Yes";
-    setForm(f => f ? { ...f, has_bom: yes, bom_name: yes ? f.bom_name : "" } : f);
+    setForm(f => f ? { ...f, has_bom: yes, bom_name: yes ? f.bom_name : "" } : null);
     if (!yes) setBoms([]);
   };
+
   const handleBomSelect = (name: string) => {
     setCurrentBomName(name);
     setShowBomList(false);
     setShowBomComponents(true);
   };
+
   const handleBomAccept = (entry: BomEntry) => {
     setBoms(prev => {
       const updated = [...prev, entry];
@@ -305,19 +188,21 @@ export default function StockItemAlter() {
       }
       return updated;
     });
-    setForm(f => f ? { ...f, bom_name: f.bom_name || entry.bomName } : f);
+    setForm(f => f ? { ...f, bom_name: f.bom_name || entry.bomName } : null);
     setShowBomComponents(false);
   };
+
   const handleBomListClose = () => {
     setShowBomList(false);
     savePendingRef.current = false;
   };
+
   const handleBomComponentsClose = () => {
     setShowBomComponents(false);
     savePendingRef.current = false;
   };
 
-  // ── Derived labels ───────────────────────────────────────────────────────
+  // Derived labels
   const selectedGroupLabel = form?.group_id
     ? stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "Primary"
     : "Primary";
@@ -326,17 +211,17 @@ export default function StockItemAlter() {
     ? units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable"
     : "Not Applicable";
 
-  const openingValue =
-    (parseFloat(form?.opening_quantity ?? "0") || 0) *
-    (parseFloat(form?.opening_rate     ?? "0") || 0);
+  const openingQty = parseFloat(form?.opening_quantity ?? "0") || 0;
+  const openingRate = parseFloat(form?.opening_rate ?? "0") || 0;
+  const openingValue = openingQty * openingRate;
 
-  // ── Back ─────────────────────────────────────────────────────────────────
+  // Back
   const handleBack = useCallback(() => {
     setSelectedItem(null);
     setForm(null);
   }, []);
 
-  // ── Save ─────────────────────────────────────────────────────────────────
+  // Save
   const executeSave = async (bomsToSave: BomEntry[] = boms) => {
     if (!form || !selectedItem) return;
     if (!selectedCompany?.company_id) { setError("No company selected."); return; }
@@ -346,7 +231,8 @@ export default function StockItemAlter() {
     let hsn_sac: string | null = null;
     let hsn_sac_description: string | null = null;
     let source_of_details = "As per Company/Stock Group";
-    
+    let hsn_classification_id: number | null = null;
+
     let gst_rate_details = form.gst_rate_details;
     let source_of_gst_rate = "As per Company/Stock Group";
     let taxability_type: string | null = null;
@@ -362,6 +248,16 @@ export default function StockItemAlter() {
         hsn_sac = form.hsn_sac.trim() || null;
         hsn_sac_description = form.hsn_sac_description.trim() || null;
         source_of_details = "Specified Here";
+      } else if (form.hsn_sac_details === "use_classification") {
+        source_of_details = "GST Classification";
+        hsn_classification_id = Number(form.hsn_classification_id) || null;
+        const selectedCls = gstClassifications.find(c => String(c.gc_id) === form.hsn_classification_id);
+        if (selectedCls) {
+          hsn_sac = selectedCls.hsn_sac_code || null;
+          hsn_sac_description = selectedCls.description || null;
+        }
+      } else if (form.hsn_sac_details === "specify_in_voucher") {
+        source_of_details = "Specify in Voucher";
       }
 
       if (form.gst_rate_details === "use_classification") {
@@ -374,12 +270,6 @@ export default function StockItemAlter() {
           cgst_rate = selectedCls.cgst_rate ?? 0;
           sgst_rate = selectedCls.sgst_rate ?? 0;
           gst_rate = igst_rate;
-          
-          if (form.hsn_sac_details !== "specify_here") {
-            hsn_sac = selectedCls.hsn_sac_code || null;
-            hsn_sac_description = selectedCls.description || null;
-            source_of_details = "GST Classification";
-          }
         }
       } else if (form.gst_rate_details === "specify_here") {
         source_of_gst_rate = "Specified Here";
@@ -390,7 +280,12 @@ export default function StockItemAlter() {
           sgst_rate = igst_rate / 2;
           gst_rate = igst_rate;
         }
+      } else if (form.gst_rate_details === "specify_in_voucher") {
+        source_of_gst_rate = "Specify in Voucher";
       }
+    } else {
+      gst_rate_details = "as_per_company";
+      type_of_supply = "Goods";
     }
 
     try {
@@ -420,6 +315,7 @@ export default function StockItemAlter() {
         source_of_gst_rate,
         taxability_type,
         rate_classification_id,
+        hsn_classification_id,
         reorder_level: 0, reorder_quantity: 0,
         track_batches: 0, track_expiry: 0,
       });
@@ -439,7 +335,7 @@ export default function StockItemAlter() {
     }
   };
 
-  // ── Submit ───────────────────────────────────────────────────────────────
+  // Submit
   const handleSubmit = useCallback(() => {
     if (!form || !selectedItem) return;
     if (!form.name.trim()) { setError("Name is required."); return; }
@@ -454,7 +350,7 @@ export default function StockItemAlter() {
     executeSave(boms);
   }, [form, selectedItem, selectedCompany, boms, gstClassifications]);
 
-  // ── Delete ───────────────────────────────────────────────────────────────
+  // Delete
   const handleDelete = useCallback(async () => {
     if (!selectedItem) return;
     if (!window.confirm(`Delete stock item "${selectedItem.name}"? This cannot be undone.`)) return;
@@ -475,7 +371,7 @@ export default function StockItemAlter() {
     }
   }, [selectedItem, selectedCompany, handleBack]);
 
-  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -495,7 +391,7 @@ export default function StockItemAlter() {
     return () => window.removeEventListener("keydown", handler);
   }, [handleSubmit, handleDelete, handleBack, navigate, showPanel, selectedItem, showBomList, showBomComponents]);
 
-  // ── Selection screen ─────────────────────────────────────────────────────
+  // Selection screen
   if (!selectedItem || !form) {
     return (
       <SelectionPanel
@@ -515,7 +411,7 @@ export default function StockItemAlter() {
     { key: "Esc",   label: "Back",         onClick: handleBack   },
   ];
 
-  // ── Edit screen ──────────────────────────────────────────────────────────
+  // Edit screen
   return (
     <div className="flex flex-col h-full bg-white select-none overflow-hidden">
       <PageTitleBar
@@ -523,7 +419,7 @@ export default function StockItemAlter() {
         subtitle={selectedCompany?.name}
       />
 
-      {/* ── Alerts ── */}
+      {/* Alerts */}
       {error && (
         <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
@@ -537,274 +433,153 @@ export default function StockItemAlter() {
         </div>
       )}
 
-      {/* ── Body ── */}
+      {/* Body */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
 
-          {/* ── Two-column form area ── */}
+          {/* Top Section: Name and Alias */}
+          <div className="px-6 py-4 border-b border-zinc-200 flex flex-col gap-1 shrink-0">
+            {/* Name */}
+            <div className="flex items-center min-h-[26px]">
+              <span className="w-24 shrink-0 text-sm text-zinc-700 font-sans">Name</span>
+              <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+              <div className="flex-1">
+                <input autoFocus className={inputCls} value={form.name} onChange={e => setVal("name", e.target.value)} placeholder="Enter item name" />
+              </div>
+            </div>
+
+            {/* alias */}
+            <div className="flex items-center min-h-[26px]">
+              <span className="w-24 shrink-0 text-sm text-zinc-400 font-sans">(alias)</span>
+              <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+              <div className="flex-1">
+                <input className={inputCls} value={form.alias} onChange={e => setVal("alias", e.target.value)} placeholder="Optional alias" style={{ color: "#aaa" }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Two-column form area */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
 
-            {/* ══ LEFT: General ══════════════════════════════════════════════ */}
-            <div className="flex-1 min-w-0 border-r border-zinc-200 px-4 pt-4 pb-2 flex flex-col gap-0.5 overflow-y-auto">
-              <div className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold mb-1">General</div>
-
-              <FormRow label="Name" required labelWidth="w-48" className="flex items-center min-h-[26px]">
-                <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
-              </FormRow>
-
-              <FormRow label="(alias)" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={form.alias} onChange={setField("alias")} />
-              </FormRow>
-
+            {/* LEFT PANEL */}
+            <div className="flex-1 min-w-0 border-r border-zinc-200 px-6 pt-4 pb-2 flex flex-col gap-0 overflow-y-auto">
               {/* Under */}
               <div
-                className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 rounded"
+                className="flex items-center min-h-[26px] cursor-pointer group"
                 onClick={() => setShowPanel(p => p === "group" ? null : "group")}
               >
-                <span className="w-48 text-sm text-zinc-500 shrink-0">Under</span>
-                <span className="text-zinc-400 mr-2 shrink-0">:</span>
-                <span className="text-sm text-zinc-900 px-1">♦ {selectedGroupLabel}</span>
+                <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Under</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span>
+                </div>
               </div>
 
               {/* Units */}
               <div
-                className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 rounded"
+                className="flex items-center min-h-[26px] cursor-pointer group"
                 onClick={() => setShowPanel(p => p === "unit" ? null : "unit")}
               >
-                <span className="w-48 text-sm text-zinc-500 shrink-0">Units</span>
-                <span className="text-zinc-400 mr-2 shrink-0">:</span>
-                <span className="text-sm text-zinc-900 px-1">♦ {selectedUnitLabel}</span>
-              </div>
-
-              <div className="h-3" />
-
-              {/* Additional */}
-              <div className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold mb-1">Additional Details</div>
-
-              <FormRow label="Set components (BOM)" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                <div className="flex items-center gap-2">
-                  <select className={selectCls} value={form.has_bom ? "Yes" : "No"} onChange={handleBomToggle}>
-                    <option value="No">No</option>
-                    <option value="Yes">Yes</option>
-                  </select>
-                  {form.has_bom && boms.length > 0 && (
-                    <span className="text-xs text-zinc-400">({boms.length} BOM{boms.length > 1 ? "s" : ""})</span>
-                  )}
+                <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Units</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span>
                 </div>
-              </FormRow>
-            </div>
-
-            {/* ── RIGHT PANEL: Statutory Details ── */}
-            <div className="shrink-0 px-4 pt-4 pb-2 overflow-y-auto flex flex-col gap-1.5 border-l border-zinc-100 font-mono" style={{ width: 340 }}>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-semibold mb-2 font-sans border-b border-zinc-200 pb-1">Statutory Details</div>
-
-              {/* Rate of Duty */}
-              <div className="flex items-center min-h-[22px]">
-                <span className="w-44 shrink-0 text-xs text-zinc-700">Rate of Duty (eg 5)</span>
-                <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                <input
-                  className="w-16 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 text-right tabular-nums"
-                  type="number" min="0" max="100" step="0.01"
-                  value={form.rate_of_duty}
-                  onChange={setField("rate_of_duty")}
-                  placeholder="0"
-                />
               </div>
 
-              {/* GST Applicable */}
-              <div
-                className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
-                onClick={() => setShowPanel("gst_applicable")}
-              >
-                <span className="w-44 shrink-0 text-xs text-zinc-700">GST Applicable</span>
-                <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                <span className="text-xs text-zinc-950 font-bold">♦ {form.gst_applicable}</span>
-              </div>
-
-              {form.gst_applicable === "Applicable" && (
-                <>
-                  {/* HSN/SAC Details */}
-                  <div
-                    className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
-                    onClick={() => setShowPanel("hsn_sac_details")}
-                  >
-                    <span className="w-44 shrink-0 text-xs text-zinc-700">HSN/SAC Details</span>
-                    <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                    <span className="text-xs text-zinc-950 font-bold">
-                      ♦ {form.hsn_sac_details === "specify_here" ? "Specify Details Here" : "As per Company/Group"}
-                    </span>
+              {/* Set components (BOM) */}
+              {form.unit_id && (
+                <div className="flex items-center min-h-[26px] mt-1">
+                  <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
+                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                  <div className="flex-1 flex items-center gap-1.5">
+                    <select
+                      className="bg-transparent text-sm outline-none border-b border-zinc-300 focus:border-zinc-600 cursor-pointer font-mono"
+                      value={form.has_bom ? "Yes" : "No"}
+                      onChange={handleBomToggle}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                    {form.has_bom && boms.length > 0 && (
+                      <span className="text-xs text-zinc-400 font-sans">({boms.length} BOM{boms.length > 1 ? "s" : ""})</span>
+                    )}
                   </div>
-
-                  {/* Manual HSN/SAC Entry */}
-                  {form.hsn_sac_details === "specify_here" && (
-                    <div className="pl-3 border-l-2 border-zinc-300 flex flex-col gap-1.5 my-1">
-                      <div className="flex items-center min-h-[22px]">
-                        <span className="w-40 shrink-0 text-xs text-zinc-500">HSN/SAC</span>
-                        <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                        <input
-                          className="flex-1 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 font-mono"
-                          value={form.hsn_sac}
-                          onChange={e => setForm(f => f ? { ...f, hsn_sac: e.target.value } : null)}
-                          placeholder="Code"
-                        />
-                      </div>
-                      <div className="flex items-center min-h-[22px]">
-                        <span className="w-40 shrink-0 text-xs text-zinc-500">Description</span>
-                        <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                        <input
-                          className="flex-1 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 font-mono"
-                          value={form.hsn_sac_description}
-                          onChange={e => setForm(f => f ? { ...f, hsn_sac_description: e.target.value } : null)}
-                          placeholder="Description"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* GST Rate Details */}
-                  <div
-                    className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
-                    onClick={() => setShowPanel("gst_rate_details")}
-                  >
-                    <span className="w-44 shrink-0 text-xs text-zinc-700">GST Rate Details</span>
-                    <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                    <span className="text-xs text-zinc-950 font-bold">
-                      ♦ {
-                        form.gst_rate_details === "specify_here" ? "Specify Details Here" :
-                        form.gst_rate_details === "use_classification" ? "Use GST Classification" :
-                        "As per Company/Group"
-                      }
-                    </span>
-                  </div>
-
-                  {/* Use Classification */}
-                  {form.gst_rate_details === "use_classification" && (
-                    <>
-                      <div
-                        className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors pl-3 border-l-2 border-zinc-300"
-                        onClick={() => setShowPanel("rate_classification")}
-                      >
-                        <span className="w-37 shrink-0 text-xs text-zinc-500">Classification</span>
-                        <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                        <span className="text-xs text-zinc-950 font-bold truncate">
-                          ♦ {gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id)?.name || "Select..."}
-                        </span>
-                      </div>
-                      {(() => {
-                        const cls = gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id);
-                        if (!cls) return null;
-                        return (
-                          <div className="bg-zinc-50 p-2 border border-zinc-200 ml-3 rounded text-[10px] text-zinc-600 font-mono flex flex-col gap-0.5">
-                            <div>Taxability: <span className="font-bold text-zinc-950">{cls.taxability}</span></div>
-                            <div>IGST Rate: <span className="font-bold text-zinc-950">{Number(cls.igst_rate).toFixed(2)}%</span></div>
-                            <div>CGST/SGST: <span className="font-bold text-zinc-950">{Number(cls.cgst_rate).toFixed(2)}%</span> each</div>
-                            {cls.hsn_sac_code && <div>HSN/SAC: <span className="font-bold text-zinc-950">{cls.hsn_sac_code}</span></div>}
-                          </div>
-                        );
-                      })()}
-                    </>
-                  )}
-
-                  {/* Manual GST Rate Entry */}
-                  {form.gst_rate_details === "specify_here" && (
-                    <div className="pl-3 border-l-2 border-zinc-300 flex flex-col gap-1.5 my-1">
-                      <div
-                        className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
-                        onClick={() => setShowPanel("taxability_type")}
-                      >
-                        <span className="w-37 shrink-0 text-xs text-zinc-500">Taxability</span>
-                        <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                        <span className="text-xs text-zinc-950 font-bold">♦ {form.taxability_type || "Select..."}</span>
-                      </div>
-
-                      {form.taxability_type === "Taxable" && (
-                        <div className="flex items-center min-h-[22px]">
-                          <span className="w-37 shrink-0 text-xs text-zinc-500">GST Rate (%)</span>
-                          <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                          <input
-                            className="w-16 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 text-right tabular-nums"
-                            type="number" min="0" max="100" step="0.01"
-                            value={form.gst_rate}
-                            onChange={e => setForm(f => f ? { ...f, gst_rate: e.target.value } : null)}
-                            placeholder="0"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Type of Supply */}
-                  <div
-                    className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
-                    onClick={() => setShowPanel("type_of_supply")}
-                  >
-                    <span className="w-44 shrink-0 text-xs text-zinc-700">Type of Supply</span>
-                    <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
-                    <span className="text-xs text-zinc-950 font-bold">♦ {form.type_of_supply}</span>
-                  </div>
-                </>
+                </div>
               )}
             </div>
+
+            {/* RIGHT PANEL: Statutory Details */}
+            <GSTStatutoryDetails
+              form={form}
+              setVal={setVal}
+              setActivePanel={setShowPanel}
+              gstClassifications={gstClassifications}
+            />
           </div>
 
-          {/* ── Opening Balance footer ─────────────────────────────────── */}
+          {/* Opening Balance footer */}
           <div className="shrink-0 border-t border-zinc-200">
             {/* Column headers */}
-            <div className="flex items-center px-4 pt-1.5 pb-0.5 border-b border-zinc-100">
-              <span className="w-48 shrink-0" />
-              <span className="w-5 shrink-0" />
-              <span className="w-32 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Quantity</span>
-              <span className="w-28 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold ml-4">Rate</span>
-              <span className="w-16 text-center text-[10px] uppercase tracking-widest text-zinc-400 font-semibold ml-2">per</span>
-              <span className="flex-1 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Value</span>
+            <div className="flex items-center px-6 pt-1.5 pb-0.5 border-b border-zinc-100 font-sans">
+              <span className="w-32 shrink-0" />
+              <span className="w-4 shrink-0" />
+              <div className="flex-1 flex items-center justify-end">
+                <span className="w-32 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Quantity</span>
+                <span className="w-28 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold ml-4">Rate</span>
+                <span className="w-16 text-center text-[10px] uppercase tracking-widest text-zinc-400 font-semibold ml-2">per</span>
+                <span className="w-36 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Value</span>
+              </div>
             </div>
 
             {/* Opening balance row */}
-            <div className="flex items-center px-4 py-2">
-              <span className="w-48 text-sm text-zinc-700 shrink-0">Opening Balance</span>
-              <span className="w-5 text-zinc-400 shrink-0">:</span>
+            <div className="flex items-center px-6 py-2">
+              <span className="w-32 text-sm text-zinc-700 shrink-0 font-sans">Opening Balance</span>
+              <span className="w-4 text-zinc-400 shrink-0 text-center">:</span>
 
-              {/* Quantity */}
-              <div className="w-32 flex items-center gap-1 border-b border-zinc-300 focus-within:border-zinc-600">
-                <input
-                  className="w-20 bg-transparent text-sm outline-none py-0.5 text-right tabular-nums"
-                  type="number" min="0" step="0.01"
-                  value={form.opening_quantity}
-                  onChange={setField("opening_quantity")}
-                  placeholder="0"
-                />
-                <span className="text-sm text-zinc-600 shrink-0">
+              <div className="flex-1 flex items-center justify-end">
+                {/* Quantity */}
+                <div className="w-32 flex items-center gap-1 border-b border-zinc-300 focus-within:border-zinc-600">
+                  <input
+                    className="w-20 bg-transparent text-sm outline-none py-0.5 text-right tabular-nums font-mono"
+                    type="number" min="0" step="0.01"
+                    value={form.opening_quantity}
+                    onChange={e => setVal("opening_quantity", e.target.value)}
+                    placeholder="0"
+                  />
+                  <span className="text-sm text-zinc-600 shrink-0 font-sans">
+                    {form.unit_id ? selectedUnitLabel : ""}
+                  </span>
+                </div>
+
+                {/* Rate */}
+                <div className="w-28 ml-4 border-b border-zinc-300 focus-within:border-zinc-600">
+                  <input
+                    className="w-full bg-transparent text-sm outline-none py-0.5 text-right tabular-nums pr-1 font-mono"
+                    type="number" min="0" step="0.01"
+                    value={form.opening_rate}
+                    onChange={e => setVal("opening_rate", e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                {/* per */}
+                <span className="w-16 text-center text-sm text-zinc-600 ml-2 shrink-0 font-sans">
                   {form.unit_id ? selectedUnitLabel : ""}
                 </span>
+
+                {/* Value */}
+                <span className="w-36 text-right text-sm font-mono text-zinc-800 tabular-nums">
+                  {openingValue > 0
+                    ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })
+                    : ""}
+                </span>
               </div>
-
-              {/* Rate */}
-              <div className="w-28 ml-4 border-b border-zinc-300 focus-within:border-zinc-600">
-                <input
-                  className="w-full bg-transparent text-sm outline-none py-0.5 text-right tabular-nums pr-1"
-                  type="number" min="0" step="0.01"
-                  value={form.opening_rate}
-                  onChange={setField("opening_rate")}
-                  placeholder="0.00"
-                />
-              </div>
-
-              {/* per */}
-              <span className="w-16 text-center text-sm text-zinc-600 ml-2 shrink-0">
-                {form.unit_id ? selectedUnitLabel : ""}
-              </span>
-
-              {/* Value */}
-              <span className="flex-1 text-right text-sm font-mono text-zinc-800 tabular-nums">
-                {openingValue > 0
-                  ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })
-                  : ""}
-              </span>
             </div>
           </div>
         </div>
 
-        {/* ── Side selection panels ── */}
+        {/* Side selection panels */}
         {showPanel === "group" && (
           <ListSidePanel
             title="List of Groups"
@@ -812,8 +587,9 @@ export default function StockItemAlter() {
               .filter(g => g.name.toLowerCase() !== "primary")
               .map(g => ({ id: String(g.sg_id), label: g.name }))}
             selected={form.group_id}
-            onSelect={val => { setForm(f => f ? { ...f, group_id: val } : null); setShowPanel(null); }}
+            onSelect={val => { setVal("group_id", val); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
+            showPrimary
             primaryLabel="Primary"
           />
         )}
@@ -822,8 +598,9 @@ export default function StockItemAlter() {
             title="List of Units"
             items={units.map(u => ({ id: String(u.unit_id), label: `${u.symbol} (${u.name})` }))}
             selected={form.unit_id}
-            onSelect={val => { setForm(f => f ? { ...f, unit_id: val } : null); setShowPanel(null); }}
+            onSelect={val => { setVal("unit_id", val); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
+            showPrimary
             primaryLabel="Not Applicable"
             showCreate
             onCreateNew={() => navigate("/master/create/unit")}
@@ -831,42 +608,77 @@ export default function StockItemAlter() {
         )}
         {showPanel === "gst_applicable" && (
           <ListSidePanel
-            title="GST Applicable"
+            title="GST Applicability"
             items={[
               { id: "Applicable", label: "Applicable" },
               { id: "Not Applicable", label: "Not Applicable" },
             ]}
             selected={form.gst_applicable}
-            onSelect={val => { setForm(f => f ? { ...f, gst_applicable: val || "Not Applicable" } : null); setShowPanel(null); }}
+            onSelect={val => {
+              setForm(f => {
+                if (!f) return null;
+                return {
+                  ...f,
+                  gst_applicable: val || "Not Applicable",
+                  // Reset child state if not applicable
+                  ...(val !== "Applicable" ? {
+                    hsn_sac_details: "as_per_company",
+                    hsn_sac: "",
+                    hsn_sac_description: "",
+                    hsn_classification_id: "",
+                    gst_rate_details: "as_per_company",
+                    rate_classification_id: "",
+                    taxability_type: "",
+                    gst_rate: "0",
+                    type_of_supply: "Goods",
+                  } : {})
+                };
+              });
+              setShowPanel(null);
+            }}
             onClose={() => setShowPanel(null)}
-            primaryLabel="Not Applicable"
           />
         )}
         {showPanel === "hsn_sac_details" && (
           <ListSidePanel
             title="HSN/SAC Details"
             items={[
-              { id: "as_per_company", label: "As per Company/Group" },
+              { id: "as_per_company", label: "As per Company/Stock Group" },
               { id: "specify_here", label: "Specify Details Here" },
+              { id: "use_classification", label: "Use GST Classification" },
+              { id: "specify_in_voucher", label: "Specify in Voucher" },
             ]}
             selected={form.hsn_sac_details}
-            onSelect={val => { setForm(f => f ? { ...f, hsn_sac_details: val || "as_per_company" } : null); setShowPanel(null); }}
+            onSelect={val => { setVal("hsn_sac_details", val || "as_per_company"); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
-            primaryLabel="As per Company/Group"
+          />
+        )}
+        {showPanel === "hsn_classification" && (
+          <ListSidePanel
+            title="GST Classifications"
+            items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
+            selected={form.hsn_classification_id}
+            onSelect={val => {
+              setVal("hsn_classification_id", val);
+              setShowPanel(null);
+            }}
+            onClose={() => setShowPanel(null)}
+            showCreate
+            onCreateNew={() => navigate("/master/create/gst-classification")}
           />
         )}
         {showPanel === "gst_rate_details" && (
           <ListSidePanel
             title="GST Rate Details"
             items={[
-              { id: "as_per_company", label: "As per Company/Group" },
-              { id: "specify_here", label: "Specify Details Here" },
+              { id: "as_per_company", label: "As per Company/Stock Group" },
+              { id: "specify_here", label: "Specific Details Here" },
               { id: "use_classification", label: "Use GST Classification" },
+              { id: "specify_in_voucher", label: "Specify in Voucher" },
             ]}
             selected={form.gst_rate_details}
-            onSelect={val => { setForm(f => f ? { ...f, gst_rate_details: val || "as_per_company" } : null); setShowPanel(null); }}
+            onSelect={val => { setVal("gst_rate_details", val || "as_per_company"); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
-            primaryLabel="As per Company/Group"
           />
         )}
         {showPanel === "rate_classification" && (
@@ -875,17 +687,7 @@ export default function StockItemAlter() {
             items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
             selected={form.rate_classification_id}
             onSelect={val => {
-              const selectedCls = gstClassifications.find(c => String(c.gc_id) === val);
-              setForm(f => {
-                if (!f) return null;
-                return {
-                  ...f,
-                  rate_classification_id: val,
-                  taxability_type: selectedCls ? selectedCls.taxability : f.taxability_type,
-                  gst_rate: selectedCls ? String(selectedCls.igst_rate ?? 0) : f.gst_rate,
-                  hsn_sac: (selectedCls && selectedCls.hsn_sac_code) ? selectedCls.hsn_sac_code : f.hsn_sac,
-                };
-              });
+              setVal("rate_classification_id", val);
               setShowPanel(null);
             }}
             onClose={() => setShowPanel(null)}
@@ -903,9 +705,8 @@ export default function StockItemAlter() {
               { id: "Non-GST", label: "Non-GST" },
             ]}
             selected={form.taxability_type}
-            onSelect={val => { setForm(f => f ? { ...f, taxability_type: val || "Taxable" } : null); setShowPanel(null); }}
+            onSelect={val => { setVal("taxability_type", val || "Taxable"); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
-            primaryLabel="Taxable"
           />
         )}
         {showPanel === "type_of_supply" && (
@@ -917,39 +718,38 @@ export default function StockItemAlter() {
               { id: "Capital Goods", label: "Capital Goods" },
             ]}
             selected={form.type_of_supply}
-            onSelect={val => { setForm(f => f ? { ...f, type_of_supply: val || "Goods" } : null); setShowPanel(null); }}
+            onSelect={val => { setVal("type_of_supply", val || "Goods"); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
-            primaryLabel="Goods"
           />
         )}
 
         <RightActionPanel actions={alterActions} />
       </div>
 
-      {/* ── Footer bar ── */}
+      {/* Footer bar */}
       <div className="border-t border-zinc-200 px-4 py-2.5 flex justify-between items-center shrink-0">
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium"
+          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium font-sans"
         >
           Delete
         </button>
         <div className="flex gap-3">
-          <button onClick={handleBack} className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors">
+          <button onClick={handleBack} className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-sans">
             Back
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+            className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium font-sans"
           >
             {loading ? "Saving…" : "Accept"}
           </button>
         </div>
       </div>
 
-      {/* ── BOM modals ── */}
+      {/* BOM modals */}
       {showBomList && (
         <BomListModal
           stockItemName={form.name}
