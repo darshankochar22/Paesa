@@ -318,7 +318,7 @@ export default function FinancialYears() {
                           </span>
                         )}
                         {isClosed && (
-                          <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-inner uppercase tracking-wider">
+                          <span className="bg-zinc-100 text-zinc-700 border border-zinc-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-inner uppercase tracking-wider">
                             Closed
                           </span>
                         )}

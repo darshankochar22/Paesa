@@ -22,12 +22,12 @@ export default function AttendanceVoucher({ form }: Props) {
 
   return (
     <>
-      {/* Attendance Header */}
+      {/* Attendance Header - matching Tally screenshot columns */}
       <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-zinc-100 text-xs font-bold text-zinc-800">
         <div className="flex-1 min-w-[200px]">Employee Name</div>
-        <div className="w-40">Employee Code</div>
-        <div className="w-48">Attendance Type</div>
-        <div className="w-32 text-right">Value (Days / Hours)</div>
+        <div className="w-40">Employee Number</div>
+        <div className="w-48">Attendance/Production Type</div>
+        <div className="w-32 text-right">Value</div>
       </div>
 
       {/* Attendance Entries */}
@@ -45,7 +45,7 @@ export default function AttendanceVoucher({ form }: Props) {
               key={row.id}
               className="flex items-center border-b border-zinc-100 min-h-[26px] group px-3 py-1 hover:bg-zinc-50"
             >
-              {/* Employee */}
+              {/* Employee Name */}
               <div className="flex-1 min-w-[200px] flex items-center gap-1">
                 <input
                   data-employee={idx + 1}
@@ -58,6 +58,8 @@ export default function AttendanceVoucher({ form }: Props) {
                   }
                   onChange={(e) => {
                     form.setLedgerSearchTerm(e.target.value);
+                    if (!row.employee)
+                      form.handleFieldFocus({ type: "employee", rowId: row.id });
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && row.employee) {
@@ -80,24 +82,26 @@ export default function AttendanceVoucher({ form }: Props) {
                 )}
               </div>
 
-              {/* Employee Code */}
+              {/* Employee Number */}
               <div className="w-40 text-xs font-mono text-zinc-500 select-none">
                 {row.employee?.employee_code || "—"}
               </div>
 
-              {/* Attendance Type */}
+              {/* Attendance/Production Type */}
               <div className="w-48">
                 <input
                   data-att-type={idx + 1}
                   type="text"
                   className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
                   value={isAttTypeActive ? form.ledgerSearchTerm : (row.attendanceType?.name ?? "")}
-                  placeholder="Select Type…"
+                  placeholder={row.employee ? "Select Type…" : ""}
                   onFocus={() =>
                     form.handleFieldFocus({ type: "attendanceType", rowId: row.id })
                   }
                   onChange={(e) => {
                     form.setLedgerSearchTerm(e.target.value);
+                    if (!row.attendanceType)
+                      form.handleFieldFocus({ type: "attendanceType", rowId: row.id });
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && row.attendanceType) {
@@ -109,7 +113,7 @@ export default function AttendanceVoucher({ form }: Props) {
                 />
               </div>
 
-              {/* Value */}
+              {/* Value (Days / Hours) */}
               <div className="w-32 text-right">
                 <input
                   data-att-value={idx + 1}
@@ -117,7 +121,7 @@ export default function AttendanceVoucher({ form }: Props) {
                   inputMode="decimal"
                   className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
                   value={row.valueRaw}
-                  placeholder="0"
+                  placeholder={row.attendanceType ? "0" : ""}
                   onChange={(e) =>
                     form.handleUpdateAttendanceRow(row.id, { valueRaw: e.target.value })
                   }

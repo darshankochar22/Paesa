@@ -76,7 +76,7 @@ export default function LeftPanel() {
           )}
 
           {activeFY?.is_closed === 1 && (
-            <span className="text-xs text-amber-500 font-medium mt-0.5">
+            <span className="text-xs text-zinc-500 font-medium mt-0.5">
               ⚠ Closed Year — entries allowed
             </span>
           )}
@@ -111,7 +111,7 @@ export default function LeftPanel() {
                           className={`text-xs px-1.5 py-0.5 rounded ${
                             isSelected
                               ? "bg-black-500 text-black-100"
-                              : "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400"
+                              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/40 dark:text-zinc-400"
                           }`}
                         >
                           Closed

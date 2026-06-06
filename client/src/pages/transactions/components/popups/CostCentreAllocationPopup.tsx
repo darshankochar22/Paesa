@@ -135,7 +135,7 @@ export default function CostCentreAllocationPopup({
             </span>
             <span>
               Remaining:{" "}
-              <span className={`font-mono ${Math.abs(remaining) < 0.01 ? "text-zinc-500" : remaining > 0 ? "text-amber-600" : "text-rose-600"}`}>
+              <span className={`font-mono ${Math.abs(remaining) < 0.01 ? "text-zinc-500" : remaining > 0 ? "text-zinc-700" : "text-rose-600"}`}>
                 ₹{remaining.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </span>
             </span>

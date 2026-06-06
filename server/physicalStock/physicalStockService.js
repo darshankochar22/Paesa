@@ -1,7 +1,7 @@
 const { db } = require('../db/index');
 
 const generateVoucherNumber = async (company_id) => {
-  const prefix = 'PHS-';
+  const prefix = 'PST-';
   const result = await db.execute({
     sql: `SELECT COALESCE(MAX(CAST(REPLACE(voucher_no, ?, '') AS INTEGER)), 0) + 1 as next_num
           FROM physical_stock_entries WHERE company_id = ?`,
@@ -14,7 +14,7 @@ const generateVoucherNumber = async (company_id) => {
 const getNextVoucherNumber = async (company_id) => {
   try {
     const nextVal = await generateVoucherNumber(company_id);
-    return { success: true, nextNumber: nextVal };
+    return { success: true, nextNumber: nextVal, voucher_number: nextVal };
   } catch (err) {
     return { success: false, error: err.message };
   }

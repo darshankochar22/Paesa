@@ -1,5 +1,4 @@
 import type { useVoucherForm } from "../hooks/useVoucherForm";
-import FieldRow from "../components/FieldRow";
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -21,26 +20,44 @@ export default function PayrollVoucher({ form }: Props) {
     }, 50);
   };
 
+  const isAccountActive = form.activeField?.type === "account";
+
   return (
     <>
-      {/* Cash / Bank Account selection at top */}
-      <div className="border-b border-zinc-300 shrink-0 py-1">
-        <FieldRow
-          label="Account"
-          fieldType="account"
-          ledger={form.accountLedger}
-          balance={form.accountBalance}
-          form={form}
-        />
+      {/* Account field - matching Tally screenshot layout */}
+      <div className="border-b border-zinc-200 shrink-0 px-3 py-1 bg-white">
+        <div className="flex items-center min-h-[22px]">
+          <span className="text-sm text-black shrink-0 w-20">Account</span>
+          <span className="text-sm text-black mr-2 shrink-0">:</span>
+          <input
+            type="text"
+            className="flex-1 max-w-xs text-sm bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
+            value={isAccountActive ? form.ledgerSearchTerm : (form.accountLedger?.name ?? "")}
+            placeholder="Select Account…"
+            onFocus={() => form.handleFieldFocus({ type: "account" })}
+            onChange={(e) => {
+              form.setLedgerSearchTerm(e.target.value);
+              if (!form.accountLedger) form.handleFieldFocus({ type: "account" });
+            }}
+            autoComplete="off"
+          />
+        </div>
+        <div className="flex items-center min-h-[18px] ml-20">
+          <span className="text-xs text-zinc-500 italic">
+            Cur Bal: <span className="font-semibold text-zinc-700">{form.accountBalance || "0.00"}</span>
+          </span>
+        </div>
       </div>
 
-      {/* Separator line like Tally */}
-      <div className="border-b border-black shrink-0 font-semibold" />
+      {/* Particulars separator - matching Tally screenshot */}
+      <div className="border-b border-black shrink-0 px-3 py-0.5 bg-zinc-100">
+        <span className="text-xs font-bold text-zinc-800">Particulars</span>
+      </div>
 
       {/* Payroll Header */}
-      <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-zinc-100 text-xs font-bold text-zinc-800">
+      <div className="flex border-b border-zinc-200 shrink-0 px-3 py-0.5 bg-zinc-50 text-[10px] font-bold text-zinc-600">
         <div className="flex-1 min-w-[200px]">Employee Name</div>
-        <div className="w-40">Employee Code</div>
+        <div className="w-40">Employee Number</div>
         <div className="w-48">Pay Head</div>
         <div className="w-32 text-right">Amount</div>
       </div>
@@ -60,7 +77,7 @@ export default function PayrollVoucher({ form }: Props) {
               key={row.id}
               className="flex items-center border-b border-zinc-100 min-h-[26px] group px-3 py-1 hover:bg-zinc-50"
             >
-              {/* Employee */}
+              {/* Employee Name */}
               <div className="flex-1 min-w-[200px] flex items-center gap-1">
                 <input
                   data-employee={idx + 1}
@@ -73,6 +90,8 @@ export default function PayrollVoucher({ form }: Props) {
                   }
                   onChange={(e) => {
                     form.setLedgerSearchTerm(e.target.value);
+                    if (!row.employee)
+                      form.handleFieldFocus({ type: "employee", rowId: row.id });
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && row.employee) {
@@ -95,7 +114,7 @@ export default function PayrollVoucher({ form }: Props) {
                 )}
               </div>
 
-              {/* Employee Code */}
+              {/* Employee Number */}
               <div className="w-40 text-xs font-mono text-zinc-500 select-none">
                 {row.employee?.employee_code || "—"}
               </div>
@@ -107,12 +126,14 @@ export default function PayrollVoucher({ form }: Props) {
                   type="text"
                   className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
                   value={isPayHeadActive ? form.ledgerSearchTerm : (row.payHead?.name ?? "")}
-                  placeholder="Select Pay Head…"
+                  placeholder={row.employee ? "Select Pay Head…" : ""}
                   onFocus={() =>
                     form.handleFieldFocus({ type: "payHead", rowId: row.id })
                   }
                   onChange={(e) => {
                     form.setLedgerSearchTerm(e.target.value);
+                    if (!row.payHead)
+                      form.handleFieldFocus({ type: "payHead", rowId: row.id });
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && row.payHead) {
@@ -132,7 +153,7 @@ export default function PayrollVoucher({ form }: Props) {
                   inputMode="decimal"
                   className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
                   value={row.amountRaw}
-                  placeholder="0.00"
+                  placeholder={row.payHead ? "0.00" : ""}
                   onChange={(e) =>
                     form.handleUpdatePayrollRow(row.id, { amountRaw: e.target.value })
                   }
@@ -159,7 +180,7 @@ export default function PayrollVoucher({ form }: Props) {
 
       {/* Grand total footer */}
       <div className="flex border-t border-zinc-300 shrink-0 px-3 py-1 bg-zinc-50 border-b border-zinc-200">
-        <div className="flex-1 text-xs font-bold text-zinc-700">Total Net Amount</div>
+        <div className="flex-1 text-xs font-bold text-zinc-700">Total</div>
         <div className="w-32 text-right text-xs font-bold font-mono text-zinc-900 pr-0">
           {form.totalAmount > 0
             ? form.totalAmount.toLocaleString("en-IN", {

@@ -167,7 +167,7 @@ export default function EmployeeCOA() {
         <div className="flex items-center gap-3">
           <Link to="/master/coa" className="text-xs text-zinc-500 hover:text-zinc-800 font-medium">&larr; Back</Link>
           <span className="text-sm font-semibold text-zinc-700">Employees</span>
-          {showUnusedOnly && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Unused Only</span>}
+          {showUnusedOnly && <span className="text-[10px] bg-zinc-100 text-zinc-700 px-1.5 py-0.5 rounded font-medium">Unused Only</span>}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => { const ids: Record<string, boolean> = {}; groups.forEach(g => { ids[`g-${g.employee_group_id}`] = true; }); setExpandedNodes(ids); }} className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white">Expand All</button>

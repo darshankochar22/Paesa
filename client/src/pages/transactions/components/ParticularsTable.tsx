@@ -255,15 +255,13 @@ export default function ParticularsTable({
         className={`border-t-2 px-3 py-2 ${
           isBalanced && drTotal > 0
             ? "border-zinc-300 bg-zinc-50"
-            : drTotal > 0
-            ? "border-amber-300 bg-amber-50/40"
             : "border-zinc-300 bg-zinc-50"
         }`}
       >
         <div className="grid grid-cols-12 items-center">
           <div className="col-span-8 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider select-none">
             {drTotal > 0 && crTotal > 0 && !isBalanced && (
-              <span className="text-amber-600">
+              <span className="text-zinc-600">
                 ⚠ Difference: {Math.abs(drTotal - crTotal).toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
