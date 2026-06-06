@@ -135,7 +135,7 @@ export function useVoucherRows({
     if (voucherType === "Payment") return acct.paymentEntryMode === "double" ? debitTotal : particularsTotal;
     if (voucherType === "Contra") return acct.contraEntryMode === "double" ? debitTotal : particularsTotal;
     if (voucherType === "Journal") return acct.journalEntryMode === "single" ? particularsTotal : debitTotal;
-    if (["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucherType)) {
+    if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(voucherType)) {
       const stockSum = inv.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
       const adjSum = inv.additionalEntries.reduce((s, r) => {
         const amt = Number(r.amountRaw) || 0;
@@ -147,7 +147,7 @@ export function useVoucherRows({
     if (voucherType === "Physical Stock") {
       return inv.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
     }
-    if (voucherType === "Stock Journal") {
+    if (voucherType === "Stock Journal" || voucherType === "Manufacturing Journal") {
       return inv.destinationStockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
     }
     if (voucherType === "Payroll") {

@@ -311,7 +311,7 @@ export default function BillWiseAllocationPopup({
             </span>
             <span>
               Remaining:{" "}
-              <span className={`font-mono ${Math.abs(remaining) < 0.01 ? "text-zinc-500" : remaining > 0 ? "text-amber-600" : "text-rose-600"}`}>
+              <span className={`font-mono ${Math.abs(remaining) < 0.01 ? "text-zinc-500" : remaining > 0 ? "text-zinc-700" : "text-rose-600"}`}>
                 {formatCurrency(remaining)}
               </span>
             </span>
@@ -406,7 +406,7 @@ export default function BillWiseAllocationPopup({
                                 <button
                                   key={bill.bill_name}
                                   onClick={() => handleSelectPendingBill(i, bill)}
-                                  className="grid grid-cols-5 w-full text-left text-[10px] px-2 py-1 hover:bg-amber-100 border-b border-zinc-50 last:border-0"
+                                  className="grid grid-cols-5 w-full text-left text-[10px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 last:border-0"
                                 >
                                   <div className="col-span-1 font-semibold">{bill.bill_name}</div>
                                   <div className="col-span-1 text-center">{formatDateDisplay(bill.bill_date)}</div>

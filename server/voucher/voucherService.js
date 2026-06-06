@@ -1,17 +1,24 @@
 const { db } = require('../db/index');
 
 const prefixMap = {
-  Payment:         'PMT',
-  Receipt:         'RCT',
-  Journal:         'JNL',
-  Contra:          'CTR',
-  Sales:           'SAL',
-  Purchase:        'PUR',
-  'Debit Note':    'DBT',
-  'Credit Note':   'CDT',
-  'Stock Journal': 'STJ',
-  'Delivery Note': 'DLN',
-  'Receipt Note':  'RCN',
+  Payment:              'PMT',
+  Receipt:              'RCT',
+  Journal:              'JNL',
+  Contra:               'CTR',
+  Sales:                'SAL',
+  Purchase:             'PUR',
+  'Debit Note':         'DBT',
+  'Credit Note':        'CDT',
+  'Stock Journal':      'STJ',
+  'Delivery Note':      'DLN',
+  'Receipt Note':       'RCN',
+  'Rejection In':       'RIN',
+  'Rejection Out':      'ROU',
+  'Material In':        'MIN',
+  'Material Out':       'MOUT',
+  'Manufacturing Journal': 'MJN',
+  'Physical Stock':     'PST',
+  Payroll:              'PRL',
 };
 
 
@@ -293,7 +300,7 @@ module.exports = {
         }
       }
 
-      if (data.is_accounting_voucher && data.entries) {
+      if (data.is_accounting_voucher && data.entries && data.entries.length > 0) {
         if (!validateDoubleEntry(data.entries)) {
           return { success: false, error: 'Debit and Credit amounts must be equal' };
         }
@@ -994,7 +1001,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         data.entries = entries;
       }
 
-      if (data.entries && !validateDoubleEntry(data.entries)) {
+      if (data.entries && data.entries.length > 0 && !validateDoubleEntry(data.entries)) {
         return { success: false, error: 'Debit and Credit amounts must be equal' };
       }
 

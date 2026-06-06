@@ -178,10 +178,10 @@ export default function BankDetailsPopup({
     "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-zinc-200 rounded focus:border-zinc-800 transition-colors bg-white/50";
 
   const txnInputCls =
-    "bg-amber-50 border border-blue-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500 transition-colors";
+    "bg-zinc-50 border border-zinc-300 px-3 py-1.5 text-sm outline-none focus:border-zinc-500 transition-colors";
 
   const eftInputCls =
-    "bg-amber-50 border border-blue-300 px-2 py-1 text-sm outline-none focus:border-blue-500 transition-colors";
+    "bg-zinc-50 border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-zinc-500 transition-colors";
 
   const plainInputCls =
     "bg-white border border-zinc-200 px-2 py-1 text-sm outline-none focus:border-zinc-400 transition-colors";
@@ -377,7 +377,7 @@ export default function BankDetailsPopup({
             <div className="flex justify-end border-b border-zinc-200">
               <button
                 onClick={() => setShowMore((v) => !v)}
-                className="bg-amber-400 text-xs px-3 py-1 font-medium hover:bg-amber-500 transition-colors text-zinc-900"
+                className="bg-zinc-200 text-xs px-3 py-1 font-medium hover:bg-zinc-300 transition-colors text-zinc-900"
               >
                 {showMore ? "Show Less" : "Show More"}
               </button>
@@ -388,7 +388,7 @@ export default function BankDetailsPopup({
               <div className="border-b border-zinc-200 p-1">
                 <input
                   id="txn-search-input"
-                  className="w-full text-xs bg-amber-50 border border-blue-300 rounded px-2 py-0.5 outline-none focus:border-blue-500 transition-colors"
+                  className="w-full text-xs bg-zinc-50 border border-zinc-300 rounded px-2 py-0.5 outline-none focus:border-zinc-500 transition-colors"
                   placeholder="Search types..."
                   value={txnSearch}
                   onChange={(e) => setTxnSearch(e.target.value)}
@@ -412,7 +412,7 @@ export default function BankDetailsPopup({
                       onClick={() => handleTxnSelect(txn)}
                       className={[
                         "txn-item text-xs px-3 py-1 select-none cursor-pointer transition-colors",
-                        isSelected ? "bg-amber-200 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-100",
+                        isSelected ? "bg-zinc-200 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-100",
                         isActive && !isSelected ? "bg-zinc-100" : "",
                       ].join(" ")}
                     >

@@ -24,6 +24,13 @@ import CreditNoteVoucher from "./vouchers/CreditNoteVoucher";
 import DebitNoteVoucher from "./vouchers/DebitNoteVoucher";
 import PhysicalStockVoucher from "./vouchers/PhysicalStockVoucher";
 import StockJournalVoucher from "./vouchers/StockJournalVoucher";
+import DeliveryNoteVoucher from "./vouchers/DeliveryNoteVoucher";
+import ReceiptNoteVoucher from "./vouchers/ReceiptNoteVoucher";
+import RejectionInVoucher from "./vouchers/RejectionInVoucher";
+import RejectionOutVoucher from "./vouchers/RejectionOutVoucher";
+import MaterialInVoucher from "./vouchers/MaterialInVoucher";
+import MaterialOutVoucher from "./vouchers/MaterialOutVoucher";
+import ManufacturingJournalVoucher from "./vouchers/ManufacturingJournalVoucher";
 import AttendanceVoucher from "./vouchers/AttendanceVoucher";
 import PayrollVoucher from "./vouchers/PayrollVoucher";
 
@@ -67,8 +74,15 @@ function RightSidebar({
   const otherVoucherTypes = [
     { key: "Credit Note", label: "Credit Note" },
     { key: "Debit Note", label: "Debit Note" },
+    { key: "Delivery Note", label: "Delivery Note" },
+    { key: "Receipt Note", label: "Receipt Note" },
+    { key: "Rejection In", label: "Rejection In" },
+    { key: "Rejection Out", label: "Rejection Out" },
+    { key: "Material In", label: "Material In" },
+    { key: "Material Out", label: "Material Out" },
     { key: "Physical Stock", label: "Physical Stock" },
     { key: "Stock Journal", label: "Stock Journal" },
+    { key: "Manufacturing Journal", label: "Manufacturing Journal" },
     { key: "Attendance", label: "Attendance" },
     { key: "Payroll", label: "Payroll" },
   ];
@@ -138,8 +152,8 @@ function RightSidebar({
               <button
                 key={t.key}
                 onClick={() => { onTypeChange(t.key); setOtherOpen(false); }}
-                className={`w-full text-left px-3 py-1 text-xs hover:bg-amber-100 ${
-                  voucherType === t.key ? "bg-amber-200 font-semibold" : ""
+                className={`w-full text-left px-3 py-1 text-xs hover:bg-zinc-100 ${
+                  voucherType === t.key ? "bg-zinc-200 font-semibold" : ""
                 }`}
               >
                 {t.label}
@@ -211,11 +225,15 @@ export default function Vouchers() {
   const [showPartyDetails, setShowPartyDetails] = useState(false);
   const [showCreditNoteDetails, setShowCreditNoteDetails] = useState(false);
   const [showDebitNoteDetails, setShowDebitNoteDetails] = useState(false);
+  const [showDeliveryDispatchDetails, setShowDeliveryDispatchDetails] = useState(false);
+  const [showReceiptNoteDetails, setShowReceiptNoteDetails] = useState(false);
 
   const hasAutoOpenedReceipt = useRef(false);
   const hasAutoOpenedDispatch = useRef(false);
   const hasAutoOpenedCreditNote = useRef(false);
   const hasAutoOpenedDebitNote = useRef(false);
+  const hasAutoOpenedDeliveryDispatch = useRef(false);
+  const hasAutoOpenedReceiptNote = useRef(false);
 
   const acceptRef = useRef<() => void>(() => {});
 
@@ -286,16 +304,38 @@ export default function Vouchers() {
       );
     }
 
-    if (["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType)) {
+    if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(form.voucherType)) {
       const hasValidEntries = form.stockEntries.some((s) => !!s.stockItem && (Number(s.amountRaw) || 0) > 0);
-      const allFilled = (form.voucherType === "Credit Note" || form.voucherType === "Debit Note")
+      const allFilled = (form.voucherType === "Credit Note" || form.voucherType === "Debit Note" || form.voucherType === "Rejection In" || form.voucherType === "Rejection Out" || form.voucherType === "Material In" || form.voucherType === "Material Out")
         ? form.stockEntries.every((s) => !s.stockItem || (s.quantityRaw !== "" && s.rateRaw !== ""))
         : true;
+      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out"].includes(form.voucherType);
       return (
         !!form.partyLedger &&
-        !!form.salesPurchaseLedger &&
+        (!needsLedger || !!form.salesPurchaseLedger) &&
         hasValidEntries &&
         allFilled
+      );
+    }
+
+    if (form.voucherType === "Manufacturing Journal") {
+      const filledSource = form.sourceStockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
+      const filledDest = form.destinationStockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
+      return filledSource || filledDest;
+    }
+
+    if (form.voucherType === "Attendance") {
+      return form.attendanceEntries.some(
+        (r) => !!r.employee && !!r.attendanceType && Number(r.valueRaw) > 0
+      );
+    }
+
+    if (form.voucherType === "Payroll") {
+      return (
+        !!form.accountLedger &&
+        form.payrollEntries.some(
+          (r) => !!r.employee && !!r.payHead && Number(r.amountRaw) > 0
+        )
       );
     }
 
@@ -318,6 +358,8 @@ export default function Vouchers() {
     form.partyLedger,
     form.salesPurchaseLedger,
     form.stockEntries,
+    form.attendanceEntries,
+    form.payrollEntries,
   ]);
 
   useEffect(() => {
@@ -349,11 +391,27 @@ export default function Vouchers() {
   }, [form.partyLedger, form.voucherType]);
 
   useEffect(() => {
+    if (form.voucherType === "Delivery Note" && form.partyLedger && !hasAutoOpenedDeliveryDispatch.current) {
+      hasAutoOpenedDeliveryDispatch.current = true;
+      setShowDeliveryDispatchDetails(true);
+    }
+  }, [form.partyLedger, form.voucherType]);
+
+  useEffect(() => {
+    if (form.voucherType === "Receipt Note" && form.partyLedger && !hasAutoOpenedReceiptNote.current) {
+      hasAutoOpenedReceiptNote.current = true;
+      setShowReceiptNoteDetails(true);
+    }
+  }, [form.partyLedger, form.voucherType]);
+
+  useEffect(() => {
     if (!form.partyLedger) {
       hasAutoOpenedReceipt.current = false;
       hasAutoOpenedDispatch.current = false;
       hasAutoOpenedCreditNote.current = false;
       hasAutoOpenedDebitNote.current = false;
+      hasAutoOpenedDeliveryDispatch.current = false;
+      hasAutoOpenedReceiptNote.current = false;
     }
   }, [form.partyLedger]);
 
@@ -362,11 +420,11 @@ export default function Vouchers() {
   const handleAccept = useCallback(() => {
     // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
-      ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType) &&
+      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(form.voucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {
-      const dcType = (form.voucherType === "Sales" || form.voucherType === "Credit Note" || form.voucherType === "Debit Note") ? "Dr" : "Cr";
+      const dcType = (form.voucherType === "Sales" || form.voucherType === "Credit Note" || form.voucherType === "Debit Note" || form.voucherType === "Delivery Note" || form.voucherType === "Rejection In" || form.voucherType === "Material Out") ? "Dr" : "Cr";
       form.setActiveAllocation({
         type: "billWiseParty",
         ledgerId: form.partyLedger.ledger_id,
@@ -380,7 +438,7 @@ export default function Vouchers() {
 
     // ── Sales / Purchase / Credit Note / Debit Note: bank allocation for party ─
     if (
-      ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType) &&
+      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(form.voucherType) &&
       form.partyLedger &&
       form.checkIsBank(form.partyLedger) &&
       !form.bankDetails
@@ -918,15 +976,18 @@ export default function Vouchers() {
       if (form.voucherType === "Journal") {
         return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
       }
+      if (form.voucherType === "Payroll") {
+        return form.allLedgers;
+      }
       // Account field is always cash/bank for all three single-entry types
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
     }
 
     if (af.type === "party") {
-      if (form.voucherType === "Credit Note" || form.voucherType === "Debit Note") {
+      if (form.voucherType === "Credit Note" || form.voucherType === "Debit Note" || form.voucherType === "Rejection In" || form.voucherType === "Rejection Out" || form.voucherType === "Material In" || form.voucherType === "Material Out") {
         return form.allLedgers;
       }
-      const isPurchaseLike = form.voucherType === "Purchase";
+      const isPurchaseLike = form.voucherType === "Purchase" || form.voucherType === "Receipt Note" || form.voucherType === "Rejection Out" || form.voucherType === "Material In";
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(l, [
           "bank accounts",
@@ -939,10 +1000,10 @@ export default function Vouchers() {
     }
 
     if (af.type === "salesPurchase") {
-      if (form.voucherType === "Credit Note" || form.voucherType === "Debit Note") {
+      if (form.voucherType === "Credit Note" || form.voucherType === "Debit Note" || form.voucherType === "Rejection In" || form.voucherType === "Rejection Out") {
         return form.allLedgers;
       }
-      const isPurchaseLike = form.voucherType === "Purchase";
+      const isPurchaseLike = form.voucherType === "Purchase" || form.voucherType === "Receipt Note" || form.voucherType === "Rejection Out";
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(
           l,
@@ -1004,7 +1065,11 @@ export default function Vouchers() {
     if (af.type === "employee") return "List of Employees";
     if (af.type === "attendanceType") return "List of Attendance / Production Types";
     if (af.type === "payHead") return "List of Pay Heads";
-    if (af.type === "account") return form.voucherType === "Journal" ? "List of Ledger Accounts" : "List of Cash / Bank Accounts";
+    if (af.type === "account") {
+      if (form.voucherType === "Journal") return "List of Ledger Accounts";
+      if (form.voucherType === "Payroll") return "List of Ledger Accounts";
+      return "List of Cash / Bank Accounts";
+    }
     if (af.type === "party") return "List of Party Accounts";
     if (af.type === "salesPurchase") return `List of ${form.voucherType} Ledgers`;
     return "List of Ledger Accounts";
@@ -1033,7 +1098,7 @@ export default function Vouchers() {
       if (e.key === "F9") { e.preventDefault(); form.setVoucherType("Purchase"); }
       if (e.key === "F10") {
         e.preventDefault();
-        const cycle = ["Credit Note", "Debit Note", "Physical Stock", "Stock Journal", "Attendance", "Payroll"];
+        const cycle = ["Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal", "Attendance", "Payroll"];
         const currIdx = cycle.indexOf(form.voucherType);
         const nextIdx = currIdx >= 0 ? (currIdx + 1) % cycle.length : 0;
         form.setVoucherType(cycle[nextIdx]);
@@ -1066,7 +1131,9 @@ export default function Vouchers() {
         !showDispatchDetails &&
         !showReceiptDetails &&
         !showCreditNoteDetails &&
-        !showDebitNoteDetails
+        !showDebitNoteDetails &&
+        !showDeliveryDispatchDetails &&
+        !showReceiptNoteDetails
       ) {
         e.preventDefault();
         navigate("/");
@@ -1090,6 +1157,8 @@ export default function Vouchers() {
     showReceiptDetails,
     showCreditNoteDetails,
     showDebitNoteDetails,
+    showDeliveryDispatchDetails,
+    showReceiptNoteDetails,
     navigate,
   ]);
 
@@ -1124,7 +1193,7 @@ export default function Vouchers() {
 
       {/* ── Title bar ── */}
       <div className="flex items-center justify-between px-3 py-1 border-b border-black bg-white shrink-0">
-        <span className="text-sm font-semibold text-black">Accounting Voucher Creation</span>
+        <span className="text-sm font-semibold text-black">{form.voucherType === "Attendance" ? "Attendance Voucher Creation" : form.voucherType === "Payroll" ? "Payroll Voucher Creation" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(form.voucherType) ? "Inventory Voucher Creation" : "Accounting Voucher Creation"}</span>
         <span className="text-sm text-black">{selectedCompany?.name ?? ""}</span>
         <button
           onClick={() => navigate("/")}
@@ -1217,6 +1286,61 @@ export default function Vouchers() {
           )}
           {form.voucherType === "Stock Journal" && (
             <StockJournalVoucher form={form} />
+          )}
+          {form.voucherType === "Delivery Note" && (
+            <DeliveryNoteVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {form.voucherType === "Receipt Note" && (
+            <ReceiptNoteVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {form.voucherType === "Rejection In" && (
+            <RejectionInVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {form.voucherType === "Rejection Out" && (
+            <RejectionOutVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {form.voucherType === "Material In" && (
+            <MaterialInVoucher
+              form={form}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {form.voucherType === "Material Out" && (
+            <MaterialOutVoucher
+              form={form}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {form.voucherType === "Manufacturing Journal" && (
+            <ManufacturingJournalVoucher form={form} />
           )}
           {form.voucherType === "Attendance" && (
             <AttendanceVoucher form={form} />
@@ -1376,6 +1500,22 @@ export default function Vouchers() {
           initialDetails={form.debitNoteDetails}
           onClose={() => setShowDebitNoteDetails(false)}
           onSave={handleSaveDebitNoteDetails}
+        />
+      )}
+
+      {showDeliveryDispatchDetails && form.partyLedger && (
+        <DispatchDetailsPopup
+          initialDetails={form.dispatchDetails}
+          onClose={() => setShowDeliveryDispatchDetails(false)}
+          onSave={handleSaveDispatchDetails}
+        />
+      )}
+
+      {showReceiptNoteDetails && form.partyLedger && (
+        <ReceiptDetailsPopup
+          initialDetails={form.receiptDetails}
+          onClose={() => setShowReceiptNoteDetails(false)}
+          onSave={handleSaveReceiptDetails}
         />
       )}
 
