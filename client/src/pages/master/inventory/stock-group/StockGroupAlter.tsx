@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
+import { calculateStockGroupGstDetails } from "./utils";
 
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-300";
@@ -264,8 +265,7 @@ export default function StockGroupAlter() {
 
     setLoading(true); setError(null);
     try {
-      const totalGst = parseFloat(form.gst_rate) || 0;
-      const halfGst  = parseFloat((totalGst / 2).toFixed(2));
+      const gst = calculateStockGroupGstDetails(form);
 
       const result = await window.api.stockGroup.update({
         sg_id:                      selectedGroup.sg_id,
@@ -274,15 +274,12 @@ export default function StockGroupAlter() {
         alias:                      form.alias.trim() || null,
         parent_group_id:            form.parent_group_id ? Number(form.parent_group_id) : null,
         should_quantities_be_added: Number(form.should_quantities_be_added),
-        // HSN/SAC — clear when toggled back to "as per company"
-        hsn_sac_code:               form.hsn_sac_details === "specify" ? form.hsn_sac_code.trim() || null : null,
-        hsn_sac_description:        form.hsn_sac_details === "specify" ? form.hsn_sac_description.trim() || null : null,
-        // GST — clear when toggled back to "as per company"
-        gst_rate:                   form.gst_rate_details === "specify" ? totalGst : 0,
-        cgst_rate:                  form.gst_rate_details === "specify" ? halfGst  : 0,
-        sgst_rate:                  form.gst_rate_details === "specify" ? halfGst  : 0,
-        // taxability_type stored in its own column
-        taxability_type:            form.taxability_type !== "as_per_company" ? form.taxability_type : null,
+        hsn_sac_code:               gst.hsn_sac_code,
+        hsn_sac_description:        gst.hsn_sac_description,
+        gst_rate:                   gst.gst_rate,
+        cgst_rate:                  gst.cgst_rate,
+        sgst_rate:                  gst.sgst_rate,
+        taxability_type:            gst.taxability_type,
         statutory_details:          null,
       });
 

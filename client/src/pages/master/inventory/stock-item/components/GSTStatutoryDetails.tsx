@@ -1,4 +1,5 @@
 import type { FormData, PanelType } from "../types";
+import { HSN_SAC_DETAILS_LABELS, GST_RATE_DETAILS_LABELS } from "../consts";
 
 interface GSTStatutoryDetailsProps {
   form: FormData;
@@ -34,7 +35,7 @@ export default function GSTStatutoryDetails({
         <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-0">GST applicability</span>
         <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
         <div className="flex-1">
-          <span className="text-xs text-zinc-950 font-bold">{form.gst_applicable}</span>
+          <span className="text-xs text-zinc-955 font-bold">{form.gst_applicable}</span>
         </div>
       </div>
 
@@ -52,10 +53,7 @@ export default function GSTStatutoryDetails({
             <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
             <div className="flex-1">
               <span className="text-xs text-zinc-955 font-bold">
-                {form.hsn_sac_details === "as_per_company" && "As per Company/Stock Group"}
-                {form.hsn_sac_details === "specify_here" && "Specify Details Here"}
-                {form.hsn_sac_details === "use_classification" && "Use GST Classification"}
-                {form.hsn_sac_details === "specify_in_voucher" && "Specify in Voucher"}
+                {HSN_SAC_DETAILS_LABELS[form.hsn_sac_details] || form.hsn_sac_details}
               </span>
             </div>
           </div>
@@ -100,7 +98,7 @@ export default function GSTStatutoryDetails({
                 <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-8">Classification</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
                 <div className="flex-1">
-                  <span className="text-xs text-zinc-950 font-bold truncate">
+                  <span className="text-xs text-zinc-955 font-bold truncate">
                     {selectedHsnClsName}
                   </span>
                 </div>
@@ -137,10 +135,7 @@ export default function GSTStatutoryDetails({
             <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
             <div className="flex-1">
               <span className="text-xs text-zinc-955 font-bold">
-                {form.gst_rate_details === "as_per_company" && "As per Company/Stock Group"}
-                {form.gst_rate_details === "specify_here" && "Specific Details Here"}
-                {form.gst_rate_details === "use_classification" && "Use GST Classification"}
-                {form.gst_rate_details === "specify_in_voucher" && "Specify in Voucher"}
+                {GST_RATE_DETAILS_LABELS[form.gst_rate_details] || form.gst_rate_details}
               </span>
             </div>
           </div>

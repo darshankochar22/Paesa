@@ -4,6 +4,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
+import { calculateStockGroupGstDetails } from "./utils";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
 const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer";
@@ -156,8 +157,7 @@ export default function StockGroupCreate() {
     if (err) { setError(err); return; }
     setLoading(true); setError(null);
     try {
-      const totalGst = parseFloat(form.gst_rate) || 0;
-      const halfGst  = parseFloat((totalGst / 2).toFixed(2));
+      const gst = calculateStockGroupGstDetails(form);
 
       const result = await window.api.stockGroup.create({
         company_id:                 selectedCompany!.company_id,
@@ -165,15 +165,12 @@ export default function StockGroupCreate() {
         alias:                      form.alias.trim() || null,
         parent_group_id:            form.parent_group_id ? Number(form.parent_group_id) : null,
         should_quantities_be_added: Number(form.should_quantities_be_added),
-        // HSN/SAC — null when "as per company"
-        hsn_sac_code:               form.hsn_sac_details === "specify" ? form.hsn_sac_code.trim() || null : null,
-        hsn_sac_description:        form.hsn_sac_details === "specify" ? form.hsn_sac_description.trim() || null : null,
-        // GST — null/0 when "as per company"
-        gst_rate:                   form.gst_rate_details === "specify" ? totalGst : 0,
-        cgst_rate:                  form.gst_rate_details === "specify" ? halfGst  : 0,
-        sgst_rate:                  form.gst_rate_details === "specify" ? halfGst  : 0,
-        // taxability_type stored in statutory_details column
-        statutory_details:          form.taxability_type !== "as_per_company" ? form.taxability_type : null,
+        hsn_sac_code:               gst.hsn_sac_code,
+        hsn_sac_description:        gst.hsn_sac_description,
+        gst_rate:                   gst.gst_rate,
+        cgst_rate:                  gst.cgst_rate,
+        sgst_rate:                  gst.sgst_rate,
+        statutory_details:          gst.taxability_type,
       });
 
       if (result.success) {

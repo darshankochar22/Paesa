@@ -8,28 +8,16 @@ import BomComponentsModal, { type BomEntry } from "./components/BomComponentsMod
 import ListSidePanel from "./components/ListSidePanel";
 import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
 import type { FormData, PanelType } from "./types";
-
-const INITIAL: FormData = {
-  name: "",
-  alias: "",
-  group_id: "",
-  unit_id: "",
-  rate_of_duty: "0",
-  has_bom: false,
-  bom_name: "",
-  opening_quantity: "",
-  opening_rate: "",
-  gst_applicable: "Not Applicable",
-  hsn_sac_details: "as_per_company",
-  hsn_sac: "",
-  hsn_sac_description: "",
-  hsn_classification_id: "",
-  gst_rate_details: "as_per_company",
-  rate_classification_id: "",
-  taxability_type: "",
-  gst_rate: "0",
-  type_of_supply: "Goods",
-};
+import {
+  INITIAL_FORM_STATE,
+  GST_APPLICABILITY_OPTIONS,
+  HSN_SAC_DETAILS_OPTIONS,
+  GST_RATE_DETAILS_OPTIONS,
+  TAXABILITY_TYPE_OPTIONS,
+  TYPE_OF_SUPPLY_OPTIONS
+} from "./consts";
+import { calculateGstDetails } from "./utils";
+import { useStockItemBom } from "./hooks/useStockItemBom";
 
 export default function StockItemCreate() {
   const navigate = useNavigate();
@@ -39,7 +27,7 @@ export default function StockItemCreate() {
   const hasRestored = useRef(false);
 
   const [form, setForm] = useState<FormData>(
-    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM_STATE
   );
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [units, setUnits] = useState<UnitType[]>([]);
@@ -49,11 +37,25 @@ export default function StockItemCreate() {
   const [success, setSuccess] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<PanelType>(null);
 
-  const [showBomList, setShowBomList] = useState(false);
-  const [showBomComponents, setShowBomComponents] = useState(false);
-  const [currentBomName, setCurrentBomName] = useState("");
-  const [boms, setBoms] = useState<BomEntry[]>([]);
-  const savePendingRef = useRef(false);
+  const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
+    setForm(f => ({ ...f, ...updater(f) }));
+  }, []);
+
+  const {
+    boms,
+    setBoms,
+    showBomList,
+    setShowBomList,
+    showBomComponents,
+    setShowBomComponents,
+    currentBomName,
+    savePendingRef,
+    handleBomToggle,
+    handleBomSelect,
+    handleBomAccept,
+    handleBomListClose,
+    handleBomComponentsClose,
+  } = useStockItemBom(updateFormFields);
 
   // Fetch lists on company change
   useEffect(() => {
@@ -81,41 +83,6 @@ export default function StockItemCreate() {
     setForm(f => ({ ...f, [key]: value }));
   }, []);
 
-  const handleBomToggle = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const yes = e.target.value === "Yes";
-    setForm(f => ({ ...f, has_bom: yes, bom_name: yes ? f.bom_name : "" }));
-    if (!yes) setBoms([]);
-  };
-
-  const handleBomSelect = (name: string) => {
-    setCurrentBomName(name);
-    setShowBomList(false);
-    setShowBomComponents(true);
-  };
-
-  const handleBomAccept = (entry: BomEntry) => {
-    setBoms(prev => {
-      const updated = [...prev, entry];
-      if (savePendingRef.current) {
-        executeSave(updated);
-        savePendingRef.current = false;
-      }
-      return updated;
-    });
-    setForm(f => ({ ...f, bom_name: f.bom_name || entry.bomName }));
-    setShowBomComponents(false);
-  };
-
-  const handleBomListClose = () => {
-    setShowBomList(false);
-    savePendingRef.current = false;
-  };
-
-  const handleBomComponentsClose = () => {
-    setShowBomComponents(false);
-    savePendingRef.current = false;
-  };
-
   const selectedGroupLabel = form.group_id
     ? (stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "Primary")
     : "Primary";
@@ -133,66 +100,7 @@ export default function StockItemCreate() {
     setLoading(true);
     setError(null);
 
-    let gst_applicable = form.gst_applicable;
-    let hsn_sac: string | null = null;
-    let hsn_sac_description: string | null = null;
-    let source_of_details = "As per Company/Stock Group";
-    let hsn_classification_id: number | null = null;
-
-    let gst_rate_details = form.gst_rate_details;
-    let source_of_gst_rate = "As per Company/Stock Group";
-    let taxability_type: string | null = null;
-    let gst_rate = 0;
-    let cgst_rate = 0;
-    let sgst_rate = 0;
-    let igst_rate = 0;
-    let rate_classification_id: number | null = null;
-    let type_of_supply = form.type_of_supply;
-
-    if (gst_applicable === "Applicable") {
-      if (form.hsn_sac_details === "specify_here") {
-        hsn_sac = form.hsn_sac.trim() || null;
-        hsn_sac_description = form.hsn_sac_description.trim() || null;
-        source_of_details = "Specified Here";
-      } else if (form.hsn_sac_details === "use_classification") {
-        source_of_details = "GST Classification";
-        hsn_classification_id = Number(form.hsn_classification_id) || null;
-        const selectedCls = gstClassifications.find(c => String(c.gc_id) === form.hsn_classification_id);
-        if (selectedCls) {
-          hsn_sac = selectedCls.hsn_sac_code || null;
-          hsn_sac_description = selectedCls.description || null;
-        }
-      } else if (form.hsn_sac_details === "specify_in_voucher") {
-        source_of_details = "Specify in Voucher";
-      }
-
-      if (form.gst_rate_details === "use_classification") {
-        source_of_gst_rate = "GST Classification";
-        const selectedCls = gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id);
-        if (selectedCls) {
-          rate_classification_id = Number(form.rate_classification_id) || null;
-          taxability_type = selectedCls.taxability || null;
-          igst_rate = selectedCls.igst_rate ?? 0;
-          cgst_rate = selectedCls.cgst_rate ?? 0;
-          sgst_rate = selectedCls.sgst_rate ?? 0;
-          gst_rate = igst_rate;
-        }
-      } else if (form.gst_rate_details === "specify_here") {
-        source_of_gst_rate = "Specified Here";
-        taxability_type = form.taxability_type || null;
-        if (form.taxability_type === "Taxable") {
-          igst_rate = Number(form.gst_rate) || 0;
-          cgst_rate = igst_rate / 2;
-          sgst_rate = igst_rate / 2;
-          gst_rate = igst_rate;
-        }
-      } else if (form.gst_rate_details === "specify_in_voucher") {
-        source_of_gst_rate = "Specify in Voucher";
-      }
-    } else {
-      gst_rate_details = "as_per_company";
-      type_of_supply = "Goods";
-    }
+    const gst = calculateGstDetails(form, gstClassifications);
 
     try {
       const result = await window.api.stockItem.create({
@@ -206,21 +114,21 @@ export default function StockItemCreate() {
         bom_name: form.has_bom ? (bomsToSave[0]?.bomName || form.bom_name).trim() || undefined : undefined,
         opening_quantity: Number(form.opening_quantity) || 0,
         opening_rate: Number(form.opening_rate) || 0,
-        gst_applicable,
-        gst_rate,
-        cgst_rate,
-        sgst_rate,
-        igst_rate,
-        type_of_supply,
-        hsn_sac,
-        source_of_details,
-        hsn_sac_description,
-        hsn_code: hsn_sac,
-        gst_rate_details,
-        source_of_gst_rate,
-        taxability_type,
-        rate_classification_id,
-        hsn_classification_id,
+        gst_applicable: gst.gst_applicable,
+        gst_rate: gst.gst_rate,
+        cgst_rate: gst.cgst_rate,
+        sgst_rate: gst.sgst_rate,
+        igst_rate: gst.igst_rate,
+        type_of_supply: gst.type_of_supply,
+        hsn_sac: gst.hsn_sac,
+        source_of_details: gst.source_of_details,
+        hsn_sac_description: gst.hsn_sac_description,
+        hsn_code: gst.hsn_sac,
+        gst_rate_details: gst.gst_rate_details,
+        source_of_gst_rate: gst.source_of_gst_rate,
+        taxability_type: gst.taxability_type,
+        rate_classification_id: gst.rate_classification_id,
+        hsn_classification_id: gst.hsn_classification_id,
         reorder_level: 0,
         reorder_quantity: 0,
         track_batches: 0,
@@ -228,7 +136,7 @@ export default function StockItemCreate() {
       });
       if (result.success) {
         setSuccess(`"${form.name}" created.`);
-        setForm(INITIAL);
+        setForm(INITIAL_FORM_STATE);
         setBoms([]);
         if (persistKey) clearFormState(persistKey);
         hasRestored.current = false;
@@ -467,10 +375,7 @@ export default function StockItemCreate() {
         {activePanel === "gst_applicable" && (
           <ListSidePanel
             title="GST Applicability"
-            items={[
-              { id: "Applicable", label: "Applicable" },
-              { id: "Not Applicable", label: "Not Applicable" },
-            ]}
+            items={GST_APPLICABILITY_OPTIONS}
             selected={form.gst_applicable}
             onSelect={val => {
               setForm(f => ({
@@ -497,12 +402,7 @@ export default function StockItemCreate() {
         {activePanel === "hsn_sac_details" && (
           <ListSidePanel
             title="HSN/SAC Details"
-            items={[
-              { id: "as_per_company", label: "As per Company/Stock Group" },
-              { id: "specify_here", label: "Specify Details Here" },
-              { id: "use_classification", label: "Use GST Classification" },
-              { id: "specify_in_voucher", label: "Specify in Voucher" },
-            ]}
+            items={HSN_SAC_DETAILS_OPTIONS}
             selected={form.hsn_sac_details}
             onSelect={val => { setVal("hsn_sac_details", val || "as_per_company"); setActivePanel(null); }}
             onClose={() => setActivePanel(null)}
@@ -525,12 +425,7 @@ export default function StockItemCreate() {
         {activePanel === "gst_rate_details" && (
           <ListSidePanel
             title="GST Rate Details"
-            items={[
-              { id: "as_per_company", label: "As per Company/Stock Group" },
-              { id: "specify_here", label: "Specific Details Here" },
-              { id: "use_classification", label: "Use GST Classification" },
-              { id: "specify_in_voucher", label: "Specify in Voucher" },
-            ]}
+            items={GST_RATE_DETAILS_OPTIONS}
             selected={form.gst_rate_details}
             onSelect={val => { setVal("gst_rate_details", val || "as_per_company"); setActivePanel(null); }}
             onClose={() => setActivePanel(null)}
@@ -553,12 +448,7 @@ export default function StockItemCreate() {
         {activePanel === "taxability_type" && (
           <ListSidePanel
             title="Taxability Type"
-            items={[
-              { id: "Taxable", label: "Taxable" },
-              { id: "Exempt", label: "Exempt" },
-              { id: "Nil Rated", label: "Nil Rated" },
-              { id: "Non-GST", label: "Non-GST" },
-            ]}
+            items={TAXABILITY_TYPE_OPTIONS}
             selected={form.taxability_type}
             onSelect={val => { setVal("taxability_type", val || "Taxable"); setActivePanel(null); }}
             onClose={() => setActivePanel(null)}
@@ -567,11 +457,7 @@ export default function StockItemCreate() {
         {activePanel === "type_of_supply" && (
           <ListSidePanel
             title="Type of Supply"
-            items={[
-              { id: "Goods", label: "Goods" },
-              { id: "Services", label: "Services" },
-              { id: "Capital Goods", label: "Capital Goods" },
-            ]}
+            items={TYPE_OF_SUPPLY_OPTIONS}
             selected={form.type_of_supply}
             onSelect={val => { setVal("type_of_supply", val || "Goods"); setActivePanel(null); }}
             onClose={() => setActivePanel(null)}
@@ -609,7 +495,7 @@ export default function StockItemCreate() {
           bomName={currentBomName}
           stockItemName={form.name}
           onClose={handleBomComponentsClose}
-          onAccept={handleBomAccept}
+          onAccept={(entry) => handleBomAccept(entry, executeSave)}
         />
       )}
     </div>

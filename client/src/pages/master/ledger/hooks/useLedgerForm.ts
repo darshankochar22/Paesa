@@ -207,7 +207,6 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     return lineage;
   }, [selectedGroup, flatGroups]);
 
-  // Context-aware state cleanups when selected group changes
   useEffect(() => {
     if (!selectedGroup) return;
     if (mode === "create" || form.group_id !== loadedGroupId) {
