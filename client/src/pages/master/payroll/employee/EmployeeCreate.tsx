@@ -249,14 +249,12 @@ export default function EmployeeCreate() {
           <div className="flex-1" />
         </div>
 
-        {/* Right: Sections */}
         <div className="w-[520px] border-l border-zinc-200 flex flex-col overflow-y-auto shrink-0 bg-zinc-50/25">
           <GeneralInfoSection data={general} onChange={setGeneralField} />
           <BankDetailsSection data={bank} provideBank={provideBank} onProvideChange={(e) => setProvideBank(e.target.value as "No" | "Yes")} onChange={setBankField} />
           <StatutoryDetailsSection data={statutory} onChange={setStatutoryField} />
         </div>
 
-        {/* Group Panel */}
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
             <div className="px-3 py-2 border-b border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider flex justify-between items-center">

@@ -1,13 +1,66 @@
-import { FormRow } from "@/components/ui";
-import { INDIAN_STATES } from "@/constants/states";
 import type { FormData } from "../hooks/useGSTRegistrationForm";
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded ";
-const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-44 ";
+const TALLY_INDIAN_STATES = [
+  "Andaman & Nicobar Islands",
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chandigarh",
+  "Chhattisgarh",
+  "Dadra & Nagar Haveli and Daman & Diu",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jammu & Kashmir",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Ladakh",
+  "Lakshadweep",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Puducherry",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttarakhand",
+  "Uttar Pradesh",
+  "West Bengal"
+];
 
 interface GSTRegistrationFormFieldsProps {
   form: FormData;
   setField: (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+}
+
+interface FieldRowProps {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}
+
+function FieldRow({ label, required, children }: FieldRowProps) {
+  return (
+    <div className="flex items-center min-h-[26px]">
+      <span className="w-56 text-zinc-600 font-medium">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </span>
+      <span className="text-zinc-400 mr-3 font-medium">:</span>
+      <div className="flex-1 flex items-center">{children}</div>
+    </div>
+  );
 }
 
 export default function GSTRegistrationFormFields({
@@ -15,133 +68,319 @@ export default function GSTRegistrationFormFields({
   setField,
 }: GSTRegistrationFormFieldsProps) {
   return (
-    <div className="flex-1 overflow-y-auto p-3 space-y-4 max-w-2xl bg-white border-r border-zinc-100 font-sans">
-      <div className="space-y-1.5">
-        <div className="text-[10px] uppercase font-bold text-zinc-400 select-none">Registration Details</div>
-        
-        <FormRow label="GSTIN / UIN" required labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <input
-            autoFocus
-            className={inputCls}
-            placeholder="e.g. 27AAAAA1111A1Z1"
-            value={form.gstin}
-            onChange={setField("gstin")}
-            maxLength={15}
-          />
-        </FormRow>
+    <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 font-mono text-zinc-800 text-[11px] select-none">
+      <div className="max-w-6xl mx-auto bg-white border border-zinc-200 rounded shadow-sm p-6">
+        {/* Screen Header */}
+        <div className="text-center font-bold text-xs border-b border-zinc-200 pb-3 mb-6 tracking-wide text-zinc-900 uppercase">
+          GST Details
+        </div>
 
-        <FormRow label="State Name" required labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.state_id} onChange={setField("state_id")}>
-            {INDIAN_STATES.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
-        </FormRow>
-
-        <FormRow label="Registration Type" required labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.registration_type} onChange={setField("registration_type")}>
-            <option>Regular</option>
-            <option>Composition</option>
-          </select>
-        </FormRow>
-
-        <FormRow label="Assessee of Other Territory" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.assessee_of_other_territory} onChange={setField("assessee_of_other_territory")}>
-            <option>No</option>
-            <option>Yes</option>
-          </select>
-        </FormRow>
-
-        <FormRow label="Periodicity of GSTR1" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.periodicity_of_gstr1} onChange={setField("periodicity_of_gstr1")}>
-            <option>Monthly</option>
-            <option>Quarterly</option>
-          </select>
-        </FormRow>
-
-        <FormRow label="GST Registration Status" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.registration_status} onChange={setField("registration_status")}>
+        {/* Top Section: Registration Status */}
+        <div className="flex items-center mb-6 max-w-sm">
+          <span className="w-56 font-bold text-zinc-700">Registration status</span>
+          <span className="text-zinc-400 mr-3 font-bold">:</span>
+          <select
+            className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none font-bold text-zinc-950 bg-white"
+            value={form.registration_status}
+            onChange={setField("registration_status")}
+          >
             <option>Active</option>
             <option>Suspended</option>
             <option>Inactive</option>
           </select>
-        </FormRow>
-      </div>
+        </div>
 
-      <div className="space-y-1.5 border-t border-zinc-100 pt-3">
-        <div className="text-[10px] uppercase font-bold text-zinc-400 select-none">Legal & Filing Identifiers</div>
-        
-        <FormRow label="Legal Name of Business" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <input className={inputCls} placeholder="As per PAN card" value={form.legal_name} onChange={setField("legal_name")} />
-        </FormRow>
+        {/* Main Columns Container */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start border-t border-zinc-100 pt-6">
+          
+          {/* LEFT COLUMN */}
+          <div className="space-y-6">
+            
+            {/* Section: GST Registration Details */}
+            <div className="space-y-2.5">
+              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
+                GST Registration Details
+              </div>
 
-        <FormRow label="Trade Name of Business" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <input className={inputCls} placeholder="Brand or DBA name" value={form.trade_name} onChange={setField("trade_name")} />
-        </FormRow>
+              <FieldRow label="State" required>
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.state_id}
+                  onChange={setField("state_id")}
+                >
+                  <option value="Not Applicable">Not Applicable</option>
+                  {TALLY_INDIAN_STATES.map((state) => (
+                    <option key={state} value={state}>
+                      {state}
+                    </option>
+                  ))}
+                </select>
+              </FieldRow>
 
-        <FormRow label="GST Portal Username" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <input className={inputCls} placeholder="Optional portal user ID" value={form.gst_username} onChange={setField("gst_username")} />
-        </FormRow>
+              <FieldRow label="Address type">
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.address_type}
+                  onChange={setField("address_type")}
+                >
+                  <option>Primary</option>
+                </select>
+              </FieldRow>
 
-        <FormRow label="Filing Mode" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.mode_of_filing} onChange={setField("mode_of_filing")}>
-            <option>Online</option>
-            <option>Offline</option>
-          </select>
-        </FormRow>
-      </div>
+              <FieldRow label="Registration type" required>
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.registration_type}
+                  onChange={setField("registration_type")}
+                >
+                  <option>Regular</option>
+                  <option>Composition</option>
+                  <option>Regular - SEZ</option>
+                </select>
+              </FieldRow>
 
-      <div className="space-y-1.5 border-t border-zinc-100 pt-3">
-        <div className="text-[10px] uppercase font-bold text-zinc-400 select-none">Dates & E-Billing Details</div>
+              <FieldRow label="Assessee of Other Territory">
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.assessee_of_other_territory}
+                  onChange={setField("assessee_of_other_territory")}
+                >
+                  <option>No</option>
+                  <option>Yes</option>
+                </select>
+              </FieldRow>
 
-        <FormRow label="Registration Date" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <input type="date" className={inputCls} value={form.registration_date} onChange={setField("registration_date")} />
-        </FormRow>
+              <FieldRow label="GSTIN/UIN" required>
+                <input
+                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 uppercase text-[11px] font-bold text-zinc-950 tracking-wider"
+                  placeholder="e.g. 27AAAAA1111A1Z1"
+                  value={form.gstin}
+                  onChange={setField("gstin")}
+                  maxLength={15}
+                />
+              </FieldRow>
 
-        <FormRow label="Effective From" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <input type="date" className={inputCls} value={form.effective_from} onChange={setField("effective_from")} />
-        </FormRow>
+              <FieldRow label="Periodicity of GSTR-1">
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.periodicity_of_gstr1}
+                  onChange={setField("periodicity_of_gstr1")}
+                >
+                  <option>Monthly</option>
+                  <option>Quarterly</option>
+                </select>
+              </FieldRow>
+            </div>
 
-        <FormRow label="E-Way Bill Applicable" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.e_way_bill_applicable} onChange={setField("e_way_bill_applicable")}>
-            <option>No</option>
-            <option>Yes</option>
-          </select>
-        </FormRow>
+            {/* Section: Connected GST Details */}
+            <div className="space-y-2.5">
+              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
+                Connected GST Details
+              </div>
 
-        {form.e_way_bill_applicable === "Yes" && (
-          <FormRow label="E-Way Bill Applicable From" labelWidth="w-64" className="flex items-center min-h-[26px]">
-            <input type="date" className={inputCls} value={form.e_way_bill_applicable_from} onChange={setField("e_way_bill_applicable_from")} />
-          </FormRow>
-        )}
+              <FieldRow label="GST Username">
+                <input
+                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  placeholder="Optional portal user ID"
+                  value={form.gst_username}
+                  onChange={setField("gst_username")}
+                />
+              </FieldRow>
 
-        <FormRow label="E-Invoice Applicable" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.e_invoice_application} onChange={setField("e_invoice_application")}>
-            <option>No</option>
-            <option>Yes</option>
-          </select>
-        </FormRow>
+              <FieldRow label="Mode of Filing">
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.mode_of_filing}
+                  onChange={setField("mode_of_filing")}
+                >
+                  <option>Not Applicable</option>
+                  <option>DSC</option>
+                  <option>EVC</option>
+                </select>
+              </FieldRow>
+            </div>
 
-        {form.e_invoice_application === "Yes" && (
-          <FormRow label="E-Invoice Billing Details" labelWidth="w-64" className="flex items-start">
-            <textarea
-              rows={2}
-              className="flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-zinc-200 focus:border-zinc-800 transition-colors bg-white rounded w-full text-xs"
-              placeholder="Billing threshold, office address details..."
-              value={form.e_invoice_details}
-              onChange={setField("e_invoice_details")}
-            />
-          </FormRow>
-        )}
+            {/* Section: e-Invoice Details */}
+            <div className="space-y-2.5">
+              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
+                e-Invoice Details
+              </div>
 
-        <FormRow label="Applicable for Intrastat" labelWidth="w-64" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={form.applicable_for_intrastat} onChange={setField("applicable_for_intrastat")}>
-            <option>No</option>
-            <option>Yes</option>
-          </select>
-        </FormRow>
+              <FieldRow label="e-Invoicing applicable">
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.e_invoice_application}
+                  onChange={setField("e_invoice_application")}
+                >
+                  <option>No</option>
+                  <option>Yes</option>
+                </select>
+              </FieldRow>
+
+              {form.e_invoice_application === "Yes" && (
+                <>
+                  <FieldRow label="Applicable from">
+                    <input
+                      type="date"
+                      className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                      value={form.e_invoice_applicable_from}
+                      onChange={setField("e_invoice_applicable_from")}
+                    />
+                  </FieldRow>
+
+                  <FieldRow label="Invoice bill from place">
+                    <input
+                      className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                      placeholder="e.g. Panaji"
+                      value={form.e_invoice_bill_from_place}
+                      onChange={setField("e_invoice_bill_from_place")}
+                    />
+                  </FieldRow>
+                </>
+              )}
+            </div>
+
+            {/* Section: Tax Rate Details for Turnover (Dynamic for Composition) */}
+            {form.registration_type === "Composition" && (
+              <div className="space-y-2.5">
+                <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
+                  Tax Rate Details for Turnover
+                </div>
+
+                <FieldRow label="Tax Rate for taxable turnover">
+                  <div className="flex items-center gap-1">
+                    <input
+                      className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-20 text-[11px] font-bold text-zinc-950 text-right"
+                      placeholder="1"
+                      value={form.composition_tax_rate}
+                      onChange={setField("composition_tax_rate")}
+                    />
+                    <span className="font-bold text-zinc-500">%</span>
+                  </div>
+                </FieldRow>
+
+                <FieldRow label="Calculate tax based on">
+                  <select
+                    className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-64 text-[11px] font-bold text-zinc-950"
+                    value={form.composition_tax_calc_basis}
+                    onChange={setField("composition_tax_calc_basis")}
+                  >
+                    <option>Taxable Value</option>
+                    <option>Taxable, Exempt, & Nil Rated Values</option>
+                  </select>
+                </FieldRow>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div className="space-y-6">
+            
+            {/* Section: e-Way Bill Details */}
+            <div className="space-y-2.5">
+              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
+                e-Way Bill Details
+              </div>
+
+              <FieldRow label="e-Way Bill applicable">
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.e_way_bill_applicable}
+                  onChange={setField("e_way_bill_applicable")}
+                >
+                  <option>No</option>
+                  <option>Yes</option>
+                </select>
+              </FieldRow>
+
+              {form.e_way_bill_applicable === "Yes" && (
+                <>
+                  <FieldRow label="Applicable from">
+                    <input
+                      type="date"
+                      className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                      value={form.e_way_bill_applicable_from}
+                      onChange={setField("e_way_bill_applicable_from")}
+                    />
+                  </FieldRow>
+
+                  <FieldRow label="Applicable for intrastate">
+                    <select
+                      className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                      value={form.applicable_for_intrastat}
+                      onChange={setField("applicable_for_intrastat")}
+                    >
+                      <option>No</option>
+                      <option>Yes</option>
+                    </select>
+                  </FieldRow>
+                </>
+              )}
+
+              <FieldRow label="Goods dispatched from">
+                <select
+                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.goods_dispatched_from}
+                  onChange={setField("goods_dispatched_from")}
+                >
+                  <option>Primary</option>
+                </select>
+              </FieldRow>
+            </div>
+
+            {/* Section: Legal & Business Identifiers */}
+            <div className="space-y-2.5">
+              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
+                Business Details
+              </div>
+
+              <FieldRow label="Legal Name of Business">
+                <input
+                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-64 text-[11px] font-bold text-zinc-950"
+                  placeholder="As per PAN card"
+                  value={form.legal_name}
+                  onChange={setField("legal_name")}
+                />
+              </FieldRow>
+
+              <FieldRow label="Trade Name of Business">
+                <input
+                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-64 text-[11px] font-bold text-zinc-950"
+                  placeholder="Brand or DBA name"
+                  value={form.trade_name}
+                  onChange={setField("trade_name")}
+                />
+              </FieldRow>
+            </div>
+
+            {/* Section: Statutory Registration Dates */}
+            <div className="space-y-2.5">
+              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
+                Filing Dates
+              </div>
+
+              <FieldRow label="Registration Date">
+                <input
+                  type="date"
+                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.registration_date}
+                  onChange={setField("registration_date")}
+                />
+              </FieldRow>
+
+              <FieldRow label="Effective From">
+                <input
+                  type="date"
+                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  value={form.effective_from}
+                  onChange={setField("effective_from")}
+                />
+              </FieldRow>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
   );

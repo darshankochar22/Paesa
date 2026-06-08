@@ -1,0 +1,78 @@
+{
+  "url": "https://api.github.com/repos/darshankochar22/MVP/issues/32",
+  "repository_url": "https://api.github.com/repos/darshankochar22/MVP",
+  "labels_url": "https://api.github.com/repos/darshankochar22/MVP/issues/32/labels{/name}",
+  "comments_url": "https://api.github.com/repos/darshankochar22/MVP/issues/32/comments",
+  "events_url": "https://api.github.com/repos/darshankochar22/MVP/issues/32/events",
+  "html_url": "https://github.com/darshankochar22/MVP/issues/32",
+  "id": 4615277940,
+  "node_id": "I_kwDOSdUXFc8AAAABExeNdA",
+  "number": 32,
+  "title": "GST Registration",
+  "user": {
+    "login": "moulijain16",
+    "id": 195788425,
+    "node_id": "U_kgDOC6t-iQ",
+    "avatar_url": "https://avatars.githubusercontent.com/u/195788425?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/moulijain16",
+    "html_url": "https://github.com/moulijain16",
+    "followers_url": "https://api.github.com/users/moulijain16/followers",
+    "following_url": "https://api.github.com/users/moulijain16/following{/other_user}",
+    "gists_url": "https://api.github.com/users/moulijain16/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/moulijain16/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/moulijain16/subscriptions",
+    "organizations_url": "https://api.github.com/users/moulijain16/orgs",
+    "repos_url": "https://api.github.com/users/moulijain16/repos",
+    "events_url": "https://api.github.com/users/moulijain16/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/moulijain16/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "labels": [
+
+  ],
+  "state": "open",
+  "locked": false,
+  "assignees": [
+
+  ],
+  "milestone": null,
+  "comments": 1,
+  "created_at": "2026-06-08T17:50:34Z",
+  "updated_at": "2026-06-08T17:51:46Z",
+  "closed_at": null,
+  "assignee": null,
+  "author_association": "COLLABORATOR",
+  "active_lock_reason": null,
+  "sub_issues_summary": {
+    "total": 0,
+    "completed": 0,
+    "percent_completed": 0
+  },
+  "issue_dependencies_summary": {
+    "blocked_by": 0,
+    "total_blocked_by": 0,
+    "blocking": 0,
+    "total_blocking": 0
+  },
+  "body": "<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/9eac7553-e0e3-4369-8fb0-c33430f71051\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/f354d847-4963-476c-88d1-6cca0160dbb8\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/1cd34c06-1be7-4c44-a259-f1e3faeabe38\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/aced55bb-1905-4fa1-8614-5469a482e192\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/ca48d16e-1b34-41ba-80d5-f32a8f8a81a5\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/4a66fb7d-ca97-474d-8a47-d51d03ca9120\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/c39d8e46-1ac7-4295-9179-0858381963da\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/1b1ddcb8-8482-47c2-8de0-8430eeca4aa2\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/8ba21864-98ef-4abe-8570-5d5aedc2b13e\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/42433608-4975-4e83-b5af-f3749c2ebbe7\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/f4c344d7-2151-4b49-b660-514bdf6a629a\" />\n<img width=\"2560\" height=\"1600\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/bbe23c30-3c73-49c8-b298-cdeec5312edd\" />",
+  "closed_by": null,
+  "reactions": {
+    "url": "https://api.github.com/repos/darshankochar22/MVP/issues/32/reactions",
+    "total_count": 0,
+    "+1": 0,
+    "-1": 0,
+    "laugh": 0,
+    "hooray": 0,
+    "confused": 0,
+    "heart": 0,
+    "rocket": 0,
+    "eyes": 0
+  },
+  "timeline_url": "https://api.github.com/repos/darshankochar22/MVP/issues/32/timeline",
+  "performed_via_github_app": null,
+  "state_reason": null,
+  "pinned_comment": null
+}

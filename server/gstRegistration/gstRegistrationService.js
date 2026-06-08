@@ -25,8 +25,10 @@ module.exports = {
           gstin, gst_username, mode_of_filing, e_invoice_details,
           e_invoice_application, e_way_bill_applicable, e_way_bill_applicable_from,
           applicable_for_intrastat, legal_name, trade_name, state_id,
-          registration_date, effective_from, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+          registration_date, effective_from, address_type, goods_dispatched_from,
+          e_invoice_applicable_from, e_invoice_bill_from_place, composition_tax_rate,
+          composition_tax_calc_basis, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
           data.company_id,
           data.registration_type || 'Regular',
@@ -46,6 +48,12 @@ module.exports = {
           data.state_id || null,
           data.registration_date || null,
           data.effective_from || null,
+          data.address_type || 'Primary',
+          data.goods_dispatched_from || 'Primary',
+          data.e_invoice_applicable_from || null,
+          data.e_invoice_bill_from_place || null,
+          data.composition_tax_rate || null,
+          data.composition_tax_calc_basis || null,
         ]
       );
 
@@ -106,6 +114,8 @@ module.exports = {
           e_way_bill_applicable = ?, e_way_bill_applicable_from = ?,
           applicable_for_intrastat = ?, legal_name = ?, trade_name = ?,
           state_id = ?, registration_date = ?, effective_from = ?,
+          address_type = ?, goods_dispatched_from = ?, e_invoice_applicable_from = ?,
+          e_invoice_bill_from_place = ?, composition_tax_rate = ?, composition_tax_calc_basis = ?,
           updated_at = datetime('now')
          WHERE gst_id = ?`,
         [
@@ -126,6 +136,12 @@ module.exports = {
           data.state_id ?? current.state_id,
           data.registration_date ?? current.registration_date,
           data.effective_from ?? current.effective_from,
+          data.address_type ?? current.address_type,
+          data.goods_dispatched_from ?? current.goods_dispatched_from,
+          data.e_invoice_applicable_from ?? current.e_invoice_applicable_from,
+          data.e_invoice_bill_from_place ?? current.e_invoice_bill_from_place,
+          data.composition_tax_rate ?? current.composition_tax_rate,
+          data.composition_tax_calc_basis ?? current.composition_tax_calc_basis,
           data.gst_id,
         ]
       );

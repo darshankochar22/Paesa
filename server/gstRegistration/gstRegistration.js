@@ -20,11 +20,34 @@ const init = async (db) => {
       state_id                      TEXT,
       registration_date             TEXT,
       effective_from                TEXT,
+      address_type                  TEXT DEFAULT 'Primary',
+      goods_dispatched_from         TEXT DEFAULT 'Primary',
+      e_invoice_applicable_from     TEXT,
+      e_invoice_bill_from_place     TEXT,
+      composition_tax_rate          REAL,
+      composition_tax_calc_basis    TEXT,
       is_active                     INTEGER DEFAULT 1,
       created_at                    TEXT DEFAULT (datetime('now')),
       updated_at                    TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  const migrations = [
+    { col: 'address_type', sql: "ALTER TABLE gst_registrations ADD COLUMN address_type TEXT DEFAULT 'Primary'" },
+    { col: 'goods_dispatched_from', sql: "ALTER TABLE gst_registrations ADD COLUMN goods_dispatched_from TEXT DEFAULT 'Primary'" },
+    { col: 'e_invoice_applicable_from', sql: "ALTER TABLE gst_registrations ADD COLUMN e_invoice_applicable_from TEXT" },
+    { col: 'e_invoice_bill_from_place', sql: "ALTER TABLE gst_registrations ADD COLUMN e_invoice_bill_from_place TEXT" },
+    { col: 'composition_tax_rate', sql: "ALTER TABLE gst_registrations ADD COLUMN composition_tax_rate REAL" },
+    { col: 'composition_tax_calc_basis', sql: "ALTER TABLE gst_registrations ADD COLUMN composition_tax_calc_basis TEXT" }
+  ];
+
+  for (const m of migrations) {
+    try {
+      await db.execute(m.sql);
+    } catch (err) {
+      // Ignored if column already exists
+    }
+  }
 };
 
 module.exports = { init };

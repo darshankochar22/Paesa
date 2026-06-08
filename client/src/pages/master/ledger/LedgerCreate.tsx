@@ -6,8 +6,6 @@ import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import BankDetailsPopup from "./components/BankDetailsPopup";
 import type { GroupType } from "@/types/api";
 import { useLedgerForm } from "./hooks/useLedgerForm";
-
-// Modular UI Panel Components
 import LedgerMailingPanel from "./components/LedgerMailingPanel";
 import LedgerTaxPanel from "./components/LedgerTaxPanel";
 import LedgerRoundingPanel from "./components/LedgerRoundingPanel";
@@ -54,7 +52,6 @@ export default function LedgerCreate() {
     handleSubmit,
   } = useLedgerForm({ mode: "create" });
 
-  // Keyboard navigation & shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !showBankPopup && !showGroupPanel) {
@@ -114,7 +111,6 @@ export default function LedgerCreate() {
       )}
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
-        {/* Left: Name / Group / Bank (if bank group) / Opening Balance */}
         <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
           <div className="p-3 space-y-1">
             <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
@@ -141,7 +137,6 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          {/* Bank Account Details Form (inline for bank groups) */}
           <LedgerBankDetailsForm
             bankForm={bankForm}
             setBankForm={setBankForm}
@@ -165,7 +160,6 @@ export default function LedgerCreate() {
           </div>
         </div>
 
-        {/* Right: Mailing, Banking, Tax — always shown regardless of group */}
         <div className="w-[480px] border-l border-zinc-200 flex flex-col overflow-y-auto shrink-0 bg-zinc-50/25">
           <div className="p-3 flex justify-end">
             <div className="w-44 border border-zinc-200 rounded shrink-0 bg-white shadow-sm overflow-hidden">
@@ -176,7 +170,6 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          {/* Ledger rounding configuration panel */}
           <LedgerRoundingPanel
             form={form}
             setForm={setForm}
@@ -185,7 +178,6 @@ export default function LedgerCreate() {
             groupLineage={groupLineage}
           />
 
-          {/* Tax registration and statutory GST configuration details */}
           <LedgerTaxPanel
             form={form}
             setField={setField}
@@ -196,7 +188,6 @@ export default function LedgerCreate() {
             groupLineage={groupLineage}
           />
 
-          {/* Debtor/Creditor bill-wise details panel */}
           <LedgerBillwisePanel
             form={form}
             setForm={setForm}
@@ -204,7 +195,6 @@ export default function LedgerCreate() {
             groupLineage={groupLineage}
           />
 
-          {/* Cost Centre Details */}
           <div className="p-3 border-t border-zinc-100 bg-white">
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cost Centre Details</div>
             <FormRow label="Cost Centres are applicable" labelWidth="w-52" className="flex items-center min-h-[26px]">
@@ -219,14 +209,12 @@ export default function LedgerCreate() {
             </FormRow>
           </div>
 
-          {/* Mailing details panel */}
           <LedgerMailingPanel
             form={form}
             setField={setField}
             groupLineage={groupLineage}
           />
 
-          {/* Banking config and preview panel */}
           <LedgerBankingPanel
             provideBank={provideBank}
             handleProvideBankChange={handleProvideBankChange}
@@ -237,7 +225,6 @@ export default function LedgerCreate() {
           />
         </div>
 
-        {/* Group Panel — Tally-style flat list */}
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
             <GroupFlatList
@@ -253,7 +240,6 @@ export default function LedgerCreate() {
           </div>
         )}
 
-        {/* Right Side Action Panel */}
         <RightActionPanel actions={ledgerActions} />
       </div>
 

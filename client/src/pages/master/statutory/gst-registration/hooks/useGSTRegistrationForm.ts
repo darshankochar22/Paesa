@@ -5,13 +5,13 @@ import { INDIAN_STATES } from "@/constants/states";
 import type { GSTRegistrationType } from "@/types/entities/GSTRegistration";
 
 export interface FormData {
-  registration_type: "Regular" | "Composition";
+  registration_type: "Regular" | "Composition" | "Regular - SEZ";
   registration_status: "Active" | "Suspended" | "Inactive";
   assessee_of_other_territory: "No" | "Yes";
   periodicity_of_gstr1: "Monthly" | "Quarterly";
   gstin: string;
   gst_username: string;
-  mode_of_filing: "Online" | "Offline";
+  mode_of_filing: "Not Applicable" | "DSC" | "EVC";
   e_invoice_details: string;
   e_invoice_application: "No" | "Yes";
   e_way_bill_applicable: "No" | "Yes";
@@ -22,6 +22,12 @@ export interface FormData {
   state_id: string;
   registration_date: string;
   effective_from: string;
+  address_type: string;
+  goods_dispatched_from: string;
+  e_invoice_applicable_from: string;
+  e_invoice_bill_from_place: string;
+  composition_tax_rate: string;
+  composition_tax_calc_basis: "Taxable, Exempt, & Nil Rated Values" | "Taxable Value";
 }
 
 export const INITIAL_FORM: FormData = {
@@ -31,7 +37,7 @@ export const INITIAL_FORM: FormData = {
   periodicity_of_gstr1: "Monthly",
   gstin: "",
   gst_username: "",
-  mode_of_filing: "Online",
+  mode_of_filing: "Not Applicable",
   e_invoice_details: "",
   e_invoice_application: "No",
   e_way_bill_applicable: "No",
@@ -42,6 +48,12 @@ export const INITIAL_FORM: FormData = {
   state_id: INDIAN_STATES[0] || "",
   registration_date: new Date().toISOString().split("T")[0],
   effective_from: new Date().toISOString().split("T")[0],
+  address_type: "Primary",
+  goods_dispatched_from: "Primary",
+  e_invoice_applicable_from: "",
+  e_invoice_bill_from_place: "",
+  composition_tax_rate: "",
+  composition_tax_calc_basis: "Taxable Value",
 };
 
 interface UseGSTRegistrationFormOptions {
@@ -97,10 +109,8 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
   }, [companyId]);
 
   useEffect(() => {
-    if (mode === "alter") {
-      loadRegistrations();
-    }
-  }, [loadRegistrations, mode]);
+    loadRegistrations();
+  }, [loadRegistrations]);
 
   const handleSelectReg = (r: GSTRegistrationType) => {
     setSelectedReg(r);
@@ -111,7 +121,7 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
       periodicity_of_gstr1: (r.periodicity_of_gstr1 as any) ?? "Monthly",
       gstin: r.gstin ?? "",
       gst_username: r.gst_username ?? "",
-      mode_of_filing: (r.mode_of_filing as any) ?? "Online",
+      mode_of_filing: (r.mode_of_filing as any) ?? "Not Applicable",
       e_invoice_details: r.e_invoice_details ?? "",
       e_invoice_application: r.e_invoice_application === 1 ? "Yes" : "No",
       e_way_bill_applicable: r.e_way_bill_applicable === 1 ? "Yes" : "No",
@@ -122,6 +132,12 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
       state_id: r.state_id || INDIAN_STATES[0] || "",
       registration_date: r.registration_date ?? "",
       effective_from: r.effective_from ?? "",
+      address_type: r.address_type ?? "Primary",
+      goods_dispatched_from: r.goods_dispatched_from ?? "Primary",
+      e_invoice_applicable_from: r.e_invoice_applicable_from ?? "",
+      e_invoice_bill_from_place: r.e_invoice_bill_from_place ?? "",
+      composition_tax_rate: r.composition_tax_rate !== null && r.composition_tax_rate !== undefined ? String(r.composition_tax_rate) : "",
+      composition_tax_calc_basis: (r.composition_tax_calc_basis as any) ?? "Taxable Value",
     });
     setError(null);
     setSuccess(null);
@@ -143,6 +159,14 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
       return "Invalid GSTIN format. Expected e.g. 27AAAAA1111A1Z1";
     }
     if (!form.state_id) return "State is required.";
+    if (form.registration_type === "Composition") {
+      if (!form.composition_tax_rate.trim()) {
+        return "Tax rate for taxable turnover is required under Composition scheme.";
+      }
+      if (isNaN(parseFloat(form.composition_tax_rate))) {
+        return "Invalid composition tax rate. Must be a number.";
+      }
+    }
     return null;
   };
 
@@ -175,6 +199,12 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
         state_id: form.state_id,
         registration_date: form.registration_date || undefined,
         effective_from: form.effective_from || undefined,
+        address_type: form.address_type,
+        goods_dispatched_from: form.goods_dispatched_from,
+        e_invoice_applicable_from: form.e_invoice_application === "Yes" ? (form.e_invoice_applicable_from || undefined) : undefined,
+        e_invoice_bill_from_place: form.e_invoice_application === "Yes" ? (form.e_invoice_bill_from_place.trim() || undefined) : undefined,
+        composition_tax_rate: form.registration_type === "Composition" ? parseFloat(form.composition_tax_rate) : null,
+        composition_tax_calc_basis: form.registration_type === "Composition" ? form.composition_tax_calc_basis : null,
         is_active: mode === "create" ? 1 : selectedReg?.is_active ?? 1,
       };
 

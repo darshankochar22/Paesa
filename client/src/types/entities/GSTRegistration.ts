@@ -18,6 +18,12 @@ export interface GSTRegistrationType {
   state_id?: string;
   registration_date?: string;
   effective_from?: string;
+  address_type?: string;
+  goods_dispatched_from?: string;
+  e_invoice_applicable_from?: string;
+  e_invoice_bill_from_place?: string;
+  composition_tax_rate?: number;
+  composition_tax_calc_basis?: string;
   is_active?: number;
   created_at?: string;
   updated_at?: string;
