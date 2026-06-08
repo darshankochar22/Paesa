@@ -249,7 +249,17 @@ function RightSidebar({
 export default function Vouchers() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const form = useVoucherForm();
+
+  const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
+  const [voucherTypeParentMap, setVoucherTypeParentMap] = useState<Record<string, string>>({});
+
+  const resolveEffectiveVoucherType = useCallback(
+    (type: string) => voucherTypeParentMap[type] || type,
+    [voucherTypeParentMap]
+  );
+  const form = useVoucherForm(resolveEffectiveVoucherType);
+
+  const effectiveVoucherType = resolveEffectiveVoucherType(form.voucherType);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showDispatchDetails, setShowDispatchDetails] = useState(false);
@@ -259,7 +269,6 @@ export default function Vouchers() {
   const [showDebitNoteDetails, setShowDebitNoteDetails] = useState(false);
   const [showOtherVouchers, setShowOtherVouchers] = useState(false);
   const [subDropdownType, setSubDropdownType] = useState<string | null>(null);
-  const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
 
   const hasAutoOpenedReceipt = useRef(false);
   const hasAutoOpenedDispatch = useRef(false);
@@ -273,7 +282,7 @@ export default function Vouchers() {
   const canAccept = useMemo(() => {
     if (form.isSubmitting) return false;
 
-    if (form.voucherType === "Receipt") {
+    if (effectiveVoucherType === "Receipt") {
       if (form.receiptEntryMode === "single") {
         return (
           !!form.accountLedger &&
@@ -289,7 +298,7 @@ export default function Vouchers() {
       );
     }
 
-    if (form.voucherType === "Payment") {
+    if (effectiveVoucherType === "Payment") {
       if (form.paymentEntryMode === "single") {
         return (
           !!form.accountLedger &&
@@ -305,7 +314,7 @@ export default function Vouchers() {
       );
     }
 
-    if (form.voucherType === "Contra") {
+    if (effectiveVoucherType === "Contra") {
       if (form.contraEntryMode === "single") {
         return (
           !!form.accountLedger &&
@@ -321,7 +330,7 @@ export default function Vouchers() {
       );
     }
 
-    if (form.voucherType === "Journal") {
+    if (effectiveVoucherType === "Journal") {
       if (form.journalEntryMode === "single") {
         return (
           !!form.accountLedger &&
@@ -337,12 +346,12 @@ export default function Vouchers() {
       );
     }
 
-    if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(form.voucherType)) {
+    if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
       const hasValidEntries = form.stockEntries.some((s) => !!s.stockItem && (Number(s.amountRaw) || 0) > 0);
-      const allFilled = (form.voucherType === "Credit Note" || form.voucherType === "Debit Note" || form.voucherType === "Rejection In" || form.voucherType === "Rejection Out" || form.voucherType === "Material In" || form.voucherType === "Material Out")
+      const allFilled = (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out")
         ? form.stockEntries.every((s) => !s.stockItem || (s.quantityRaw !== "" && s.rateRaw !== ""))
         : true;
-      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out"].includes(form.voucherType);
+      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out"].includes(effectiveVoucherType);
       return (
         !!form.partyLedger &&
         (!needsLedger || !!form.salesPurchaseLedger) &&
@@ -351,19 +360,19 @@ export default function Vouchers() {
       );
     }
 
-    if (form.voucherType === "Manufacturing Journal") {
+    if (effectiveVoucherType === "Manufacturing Journal") {
       const filledSource = form.sourceStockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
       const filledDest = form.destinationStockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
       return filledSource || filledDest;
     }
 
-    if (form.voucherType === "Attendance") {
+    if (effectiveVoucherType === "Attendance") {
       return form.attendanceEntries.some(
         (r) => !!r.employee && !!r.attendanceType && Number(r.valueRaw) > 0
       );
     }
 
-    if (form.voucherType === "Payroll") {
+    if (effectiveVoucherType === "Payroll") {
       return (
         !!form.accountLedger &&
         form.payrollEntries.some(
@@ -377,7 +386,7 @@ export default function Vouchers() {
     form.isSubmitting,
     form.paymentEntryMode,
     form.journalEntryMode,
-    form.voucherType,
+    effectiveVoucherType,
     form.contraEntryMode,
     form.receiptEntryMode,
     form.contraDoubleRows,
@@ -396,46 +405,46 @@ export default function Vouchers() {
   ]);
 
   useEffect(() => {
-    if (form.voucherType === "Sales" && form.partyLedger && !hasAutoOpenedDispatch.current) {
+    if (effectiveVoucherType === "Sales" && form.partyLedger && !hasAutoOpenedDispatch.current) {
       hasAutoOpenedDispatch.current = true;
       setShowDispatchDetails(true);
     }
-  }, [form.partyLedger, form.voucherType]);
+  }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
-    if (form.voucherType === "Purchase" && form.partyLedger && !hasAutoOpenedReceipt.current) {
+    if (effectiveVoucherType === "Purchase" && form.partyLedger && !hasAutoOpenedReceipt.current) {
       hasAutoOpenedReceipt.current = true;
       setShowReceiptDetails(true);
     }
-  }, [form.partyLedger, form.voucherType]);
+  }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
-    if (form.voucherType === "Credit Note" && form.partyLedger && !hasAutoOpenedCreditNote.current) {
+    if (effectiveVoucherType === "Credit Note" && form.partyLedger && !hasAutoOpenedCreditNote.current) {
       hasAutoOpenedCreditNote.current = true;
       setShowCreditNoteDetails(true);
     }
-  }, [form.partyLedger, form.voucherType]);
+  }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
-    if (form.voucherType === "Debit Note" && form.partyLedger && !hasAutoOpenedDebitNote.current) {
+    if (effectiveVoucherType === "Debit Note" && form.partyLedger && !hasAutoOpenedDebitNote.current) {
       hasAutoOpenedDebitNote.current = true;
       setShowDebitNoteDetails(true);
     }
-  }, [form.partyLedger, form.voucherType]);
+  }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
-    if (form.voucherType === "Delivery Note" && form.partyLedger && !hasAutoOpenedDeliveryDispatch.current) {
+    if (effectiveVoucherType === "Delivery Note" && form.partyLedger && !hasAutoOpenedDeliveryDispatch.current) {
       hasAutoOpenedDeliveryDispatch.current = true;
       setShowDispatchDetails(true);
     }
-  }, [form.partyLedger, form.voucherType]);
+  }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
-    if (form.voucherType === "Receipt Note" && form.partyLedger && !hasAutoOpenedReceiptNote.current) {
+    if (effectiveVoucherType === "Receipt Note" && form.partyLedger && !hasAutoOpenedReceiptNote.current) {
       hasAutoOpenedReceiptNote.current = true;
       setShowReceiptDetails(true);
     }
-  }, [form.partyLedger, form.voucherType]);
+  }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
     if (!form.partyLedger) {
@@ -453,11 +462,11 @@ export default function Vouchers() {
   const handleAccept = useCallback(() => {
     // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
-      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(form.voucherType) &&
+      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {
-      const dcType = (form.voucherType === "Sales" || form.voucherType === "Credit Note" || form.voucherType === "Debit Note" || form.voucherType === "Delivery Note" || form.voucherType === "Rejection In" || form.voucherType === "Material Out") ? "Dr" : "Cr";
+      const dcType = (effectiveVoucherType === "Sales" || effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Material Out") ? "Dr" : "Cr";
       form.setActiveAllocation({
         type: "billWiseParty",
         ledgerId: form.partyLedger.ledger_id,
@@ -471,7 +480,7 @@ export default function Vouchers() {
 
     // ── Sales / Purchase / Credit Note / Debit Note: bank allocation for party ─
     if (
-      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(form.voucherType) &&
+      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType) &&
       form.partyLedger &&
       form.checkIsBank(form.partyLedger) &&
       !form.bankDetails
@@ -488,8 +497,8 @@ export default function Vouchers() {
 
     // ── Receipt (single-entry) / Payment (single-entry): bill-wise for account ledger ────────
     if (
-      ((form.voucherType === "Payment" && form.paymentEntryMode === "single") ||
-       (form.voucherType === "Receipt" && form.receiptEntryMode === "single")) &&
+      ((effectiveVoucherType === "Payment" && form.paymentEntryMode === "single") ||
+       (effectiveVoucherType === "Receipt" && form.receiptEntryMode === "single")) &&
       form.accountLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {
@@ -498,14 +507,14 @@ export default function Vouchers() {
         ledgerId: form.accountLedger.ledger_id,
         ledgerName: form.accountLedger.name,
         amount: form.particularsTotal,
-        dcType: form.voucherType === "Receipt" ? "Dr" : "Cr",
+        dcType: effectiveVoucherType === "Receipt" ? "Dr" : "Cr",
         initialAllocations: [],
       });
       return;
     }
 
     if (
-      form.voucherType === "Contra" &&
+      effectiveVoucherType === "Contra" &&
       form.contraEntryMode === "single" &&
       form.accountLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
@@ -522,7 +531,7 @@ export default function Vouchers() {
     }
 
     if (
-      form.voucherType === "Journal" &&
+      effectiveVoucherType === "Journal" &&
       form.journalEntryMode === "single" &&
       form.accountLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
@@ -540,7 +549,7 @@ export default function Vouchers() {
 
     form.handleSubmit();
   }, [
-    form.voucherType,
+    effectiveVoucherType,
     form.paymentEntryMode,
     form.journalEntryMode,
     form.contraEntryMode,
@@ -562,12 +571,12 @@ export default function Vouchers() {
 
   const proceedToNextRow = useCallback(
     (idx: number) => {
-      const isJDouble = form.voucherType === "Journal" && form.journalEntryMode === "double";
-      const isJSingle = form.voucherType === "Journal" && form.journalEntryMode === "single";
-      const isPayDouble = form.voucherType === "Payment" && form.paymentEntryMode === "double";
-      const isInv = ["Sales", "Purchase"].includes(form.voucherType);
-      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
-      const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
+      const isJDouble = effectiveVoucherType === "Journal" && form.journalEntryMode === "double";
+      const isJSingle = effectiveVoucherType === "Journal" && form.journalEntryMode === "single";
+      const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
+      const isInv = ["Sales", "Purchase"].includes(effectiveVoucherType);
+      const isContraDouble = effectiveVoucherType === "Contra" && form.contraEntryMode === "double";
+      const isReceiptDouble = effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double";
       const list = isJDouble
         ? form.journalRows
         : isJSingle
@@ -606,7 +615,7 @@ export default function Vouchers() {
       );
     },
     [
-      form.voucherType,
+      effectiveVoucherType,
       form.paymentEntryMode,
       form.journalEntryMode,
       form.contraEntryMode,
@@ -682,13 +691,13 @@ export default function Vouchers() {
 
       // Contra / Receipt / Payment double-entry: bank allocation for any bank ledger
       if (
-        form.voucherType === "Contra" ||
-        (form.voucherType === "Receipt" && form.receiptEntryMode === "double") ||
-        (form.voucherType === "Payment" && form.paymentEntryMode === "double")
+        effectiveVoucherType === "Contra" ||
+        (effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double") ||
+        (effectiveVoucherType === "Payment" && form.paymentEntryMode === "double")
       ) {
         if (form.checkIsBank(ledger)) {
           const allowCash =
-            (form.voucherType === "Receipt" || form.voucherType === "Contra")
+            (effectiveVoucherType === "Receipt" || effectiveVoucherType === "Contra")
               ? row.type === "Dr"
               : true;
           form.setActiveAllocation({
@@ -729,7 +738,7 @@ export default function Vouchers() {
         proceedToNextRow(idx);
       }
     },
-    [form.voucherType, form.paymentEntryMode, form.receiptEntryMode, form.checkIsBank, form.checkIsCash, form.bankDetails, form.cashDenominations, form.setActiveAllocation, proceedToNextRow]
+    [effectiveVoucherType, form.paymentEntryMode, form.receiptEntryMode, form.checkIsBank, form.checkIsCash, form.bankDetails, form.cashDenominations, form.setActiveAllocation, proceedToNextRow]
   );
 
   // ─── Allocation save handlers ────────────────────────────────────────
@@ -749,12 +758,12 @@ export default function Vouchers() {
       const alloc = form.activeAllocation;
       if (!alloc || !("rowId" in alloc)) return;
       const { rowId } = alloc;
-      const isJDouble = form.voucherType === "Journal" && form.journalEntryMode === "double";
-      const isJSingle = form.voucherType === "Journal" && form.journalEntryMode === "single";
-      const isPayDouble = form.voucherType === "Payment" && form.paymentEntryMode === "double";
-      const isInv = ["Sales", "Purchase"].includes(form.voucherType);
-      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
-      const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
+      const isJDouble = effectiveVoucherType === "Journal" && form.journalEntryMode === "double";
+      const isJSingle = effectiveVoucherType === "Journal" && form.journalEntryMode === "single";
+      const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
+      const isInv = ["Sales", "Purchase"].includes(effectiveVoucherType);
+      const isContraDouble = effectiveVoucherType === "Contra" && form.contraEntryMode === "double";
+      const isReceiptDouble = effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double";
 
       if (isJDouble) form.handleUpdateJournalRow(rowId, { billReferences: allocations });
       else if (isJSingle) form.handleUpdateParticularRow(rowId, { billReferences: allocations });
@@ -783,7 +792,7 @@ export default function Vouchers() {
     },
     [
       form.activeAllocation,
-      form.voucherType,
+      effectiveVoucherType,
       form.paymentEntryMode,
       form.journalEntryMode,
       form.contraEntryMode,
@@ -811,12 +820,12 @@ export default function Vouchers() {
       const alloc = form.activeAllocation;
       if (!alloc || !("rowId" in alloc)) return;
       const { rowId } = alloc;
-      const isJDouble = form.voucherType === "Journal" && form.journalEntryMode === "double";
-      const isJSingle = form.voucherType === "Journal" && form.journalEntryMode === "single";
-      const isPayDouble = form.voucherType === "Payment" && form.paymentEntryMode === "double";
-      const isInv = ["Sales", "Purchase"].includes(form.voucherType);
-      const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
-      const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
+      const isJDouble = effectiveVoucherType === "Journal" && form.journalEntryMode === "double";
+      const isJSingle = effectiveVoucherType === "Journal" && form.journalEntryMode === "single";
+      const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
+      const isInv = ["Sales", "Purchase"].includes(effectiveVoucherType);
+      const isContraDouble = effectiveVoucherType === "Contra" && form.contraEntryMode === "double";
+      const isReceiptDouble = effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double";
 
       if (isJDouble) form.handleUpdateJournalRow(rowId, { costCentres: allocations });
       else if (isJSingle) form.handleUpdateParticularRow(rowId, { costCentres: allocations });
@@ -832,7 +841,7 @@ export default function Vouchers() {
     },
     [
       form.activeAllocation,
-      form.voucherType,
+      effectiveVoucherType,
       form.paymentEntryMode,
       form.journalEntryMode,
       form.contraEntryMode,
@@ -869,15 +878,15 @@ export default function Vouchers() {
 
       if (details.transaction_type === "Cash") {
         const shouldSkipDenomination =
-          form.voucherType === "Receipt" ||
+          effectiveVoucherType === "Receipt" ||
           (alloc && alloc.type === "bankDetails" && alloc.allowCash === false);
 
         if (shouldSkipDenomination) {
           form.setActiveAllocation(null);
           if (alloc && "rowId" in alloc) {
-            const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
-            const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
-            const isPayDouble = form.voucherType === "Payment" && form.paymentEntryMode === "double";
+            const isContraDouble = effectiveVoucherType === "Contra" && form.contraEntryMode === "double";
+            const isReceiptDouble = effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double";
+            const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
             const list = isContraDouble
               ? form.contraDoubleRows
               : isReceiptDouble
@@ -904,9 +913,9 @@ export default function Vouchers() {
 
       form.setActiveAllocation(null);
       if (alloc && "rowId" in alloc) {
-        const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
-        const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
-        const isPayDouble = form.voucherType === "Payment" && form.paymentEntryMode === "double";
+        const isContraDouble = effectiveVoucherType === "Contra" && form.contraEntryMode === "double";
+        const isReceiptDouble = effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double";
+        const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
         const list = isContraDouble
           ? form.contraDoubleRows
           : isReceiptDouble
@@ -918,7 +927,7 @@ export default function Vouchers() {
         proceedToNextRow(rowIdx);
       }
     },
-    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, form.voucherType, form.paymentEntryMode, form.contraEntryMode, form.receiptEntryMode, form.contraDoubleRows, form.receiptDoubleRows, form.paymentDoubleRows, form.particulars, form.cashDenominations, proceedToNextRow]
+    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, effectiveVoucherType, form.paymentEntryMode, form.contraEntryMode, form.receiptEntryMode, form.contraDoubleRows, form.receiptDoubleRows, form.paymentDoubleRows, form.particulars, form.cashDenominations, proceedToNextRow]
   );
 
   const handleSaveCashDenomination = useCallback(
@@ -927,9 +936,9 @@ export default function Vouchers() {
       form.setCashDenominations(details);
       form.setActiveAllocation(null);
       if (alloc && "rowId" in alloc) {
-        const isContraDouble = form.voucherType === "Contra" && form.contraEntryMode === "double";
-        const isReceiptDouble = form.voucherType === "Receipt" && form.receiptEntryMode === "double";
-        const isPayDouble = form.voucherType === "Payment" && form.paymentEntryMode === "double";
+        const isContraDouble = effectiveVoucherType === "Contra" && form.contraEntryMode === "double";
+        const isReceiptDouble = effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double";
+        const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
         const list = isContraDouble
           ? form.contraDoubleRows
           : isReceiptDouble
@@ -941,7 +950,7 @@ export default function Vouchers() {
         proceedToNextRow(rowIdx);
       }
     },
-    [form.activeAllocation, form.setCashDenominations, form.setActiveAllocation, form.voucherType, form.paymentEntryMode, form.contraEntryMode, form.receiptEntryMode, form.contraDoubleRows, form.receiptDoubleRows, form.paymentDoubleRows, form.particulars, proceedToNextRow]
+    [form.activeAllocation, form.setCashDenominations, form.setActiveAllocation, effectiveVoucherType, form.paymentEntryMode, form.contraEntryMode, form.receiptEntryMode, form.contraDoubleRows, form.receiptDoubleRows, form.paymentDoubleRows, form.particulars, proceedToNextRow]
   );
 
   const handleSaveDispatchDetails = useCallback(
@@ -1006,10 +1015,10 @@ export default function Vouchers() {
     if (af.type === "payHead") return form.allPayHeads;
 
     if (af.type === "account") {
-      if (form.voucherType === "Journal") {
+      if (effectiveVoucherType === "Journal") {
         return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
       }
-      if (form.voucherType === "Payroll") {
+      if (effectiveVoucherType === "Payroll") {
         return form.allLedgers;
       }
       // Account field is always cash/bank for all three single-entry types
@@ -1017,10 +1026,10 @@ export default function Vouchers() {
     }
 
     if (af.type === "party") {
-      if (form.voucherType === "Credit Note" || form.voucherType === "Debit Note" || form.voucherType === "Rejection In" || form.voucherType === "Rejection Out" || form.voucherType === "Material In" || form.voucherType === "Material Out") {
+      if (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out") {
         return form.allLedgers;
       }
-      const isPurchaseLike = form.voucherType === "Purchase" || form.voucherType === "Receipt Note" || form.voucherType === "Rejection Out" || form.voucherType === "Material In";
+      const isPurchaseLike = effectiveVoucherType === "Purchase" || effectiveVoucherType === "Receipt Note" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In";
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(l, [
           "bank accounts",
@@ -1033,10 +1042,10 @@ export default function Vouchers() {
     }
 
     if (af.type === "salesPurchase") {
-      if (form.voucherType === "Credit Note" || form.voucherType === "Debit Note" || form.voucherType === "Rejection In" || form.voucherType === "Rejection Out") {
+      if (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out") {
         return form.allLedgers;
       }
-      const isPurchaseLike = form.voucherType === "Purchase" || form.voucherType === "Receipt Note" || form.voucherType === "Rejection Out";
+      const isPurchaseLike = effectiveVoucherType === "Purchase" || effectiveVoucherType === "Receipt Note" || effectiveVoucherType === "Rejection Out";
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(
           l,
@@ -1046,35 +1055,35 @@ export default function Vouchers() {
     }
 
     // Journal Particulars: all ledgers except cash/bank
-    if (form.voucherType === "Journal" && af.type === "particular") {
+    if (effectiveVoucherType === "Journal" && af.type === "particular") {
       return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
     }
 
     // Contra Particulars: also restricted to cash/bank (destination side)
     // In double-entry mode, all rows are restricted to cash/bank
-    if (form.voucherType === "Contra" && af.type === "particular") {
+    if (effectiveVoucherType === "Contra" && af.type === "particular") {
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
     }
 
     // Receipt double-entry: Dr rows = all ledgers, Cr rows = all ledgers
-    if (form.voucherType === "Receipt" && form.receiptEntryMode === "double" && af.type === "particular") {
+    if (effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double" && af.type === "particular") {
       return form.allLedgers;
     }
 
     // Payment double-entry: all ledgers visible for both Dr and Cr
-    if (form.voucherType === "Payment" && form.paymentEntryMode === "double" && af.type === "particular") {
+    if (effectiveVoucherType === "Payment" && form.paymentEntryMode === "double" && af.type === "particular") {
       return form.allLedgers;
     }
 
     // Payment single-entry: Particulars are Dr — all ledgers except cash/bank
-    if (form.voucherType === "Payment" && form.paymentEntryMode === "single" && af.type === "particular") {
+    if (effectiveVoucherType === "Payment" && form.paymentEntryMode === "single" && af.type === "particular") {
       return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
     }
 
     return form.allLedgers;
   }, [
     form.activeField,
-    form.voucherType,
+    effectiveVoucherType,
     form.paymentEntryMode,
     form.journalEntryMode,
     form.receiptEntryMode,
@@ -1099,14 +1108,14 @@ export default function Vouchers() {
     if (af.type === "attendanceType") return "List of Attendance / Production Types";
     if (af.type === "payHead") return "List of Pay Heads";
     if (af.type === "account") {
-      if (form.voucherType === "Journal") return "List of Ledger Accounts";
-      if (form.voucherType === "Payroll") return "List of Ledger Accounts";
+      if (effectiveVoucherType === "Journal") return "List of Ledger Accounts";
+      if (effectiveVoucherType === "Payroll") return "List of Ledger Accounts";
       return "List of Cash / Bank Accounts";
     }
     if (af.type === "party") return "List of Party Accounts";
     if (af.type === "salesPurchase") return `List of ${form.voucherType} Ledgers`;
     return "List of Ledger Accounts";
-  }, [form.activeField, form.voucherType, form.receiptEntryMode, form.receiptDoubleRows]);
+  }, [form.activeField, effectiveVoucherType, form.receiptEntryMode, form.receiptDoubleRows]);
 
   const panelSearchTerm =
     form.activeField?.type === "stockItem" ? form.stockSearchTerm : form.ledgerSearchTerm;
@@ -1124,21 +1133,20 @@ export default function Vouchers() {
     if (!selectedCompany) return;
     window.api.voucherType.getAll(selectedCompany.company_id).then((res) => {
       if (res.success && res.voucherTypes) {
-        const nameToId: Record<string, number> = {};
-        for (const vt of res.voucherTypes) {
-          if (vt.vt_id) nameToId[vt.name] = vt.vt_id;
-        }
-        const map: Record<string, string[]> = {};
+        const childrenMap: Record<string, string[]> = {};
+        const parentMap: Record<string, string> = {};
         for (const vt of res.voucherTypes) {
           if (vt.parent_vt_id && vt.vt_id) {
             const parent = res.voucherTypes.find((p) => p.vt_id === vt.parent_vt_id);
             if (parent) {
-              if (!map[parent.name]) map[parent.name] = [];
-              if (!map[parent.name].includes(vt.name)) map[parent.name].push(vt.name);
+              if (!childrenMap[parent.name]) childrenMap[parent.name] = [];
+              if (!childrenMap[parent.name].includes(vt.name)) childrenMap[parent.name].push(vt.name);
+              parentMap[vt.name] = parent.name;
             }
           }
         }
-        setVoucherTypeChildren(map);
+        setVoucherTypeChildren(childrenMap);
+        setVoucherTypeParentMap(parentMap);
       }
     }).catch(() => {});
   }, [selectedCompany]);
@@ -1171,13 +1179,13 @@ export default function Vouchers() {
       }
       if (e.altKey && (e.key === "h" || e.key === "H")) {
         e.preventDefault();
-        if (form.voucherType === "Contra") {
+        if (effectiveVoucherType === "Contra") {
           form.setContraEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
-        } else if (form.voucherType === "Receipt") {
+        } else if (effectiveVoucherType === "Receipt") {
           form.setReceiptEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
-        } else if (form.voucherType === "Payment") {
+        } else if (effectiveVoucherType === "Payment") {
           form.setPaymentEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
-        } else if (form.voucherType === "Journal") {
+        } else if (effectiveVoucherType === "Journal") {
           form.setJournalEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
         }
       }
@@ -1216,7 +1224,7 @@ export default function Vouchers() {
     form.setJournalEntryMode,
     form.setContraEntryMode,
     form.setReceiptEntryMode,
-    form.voucherType,
+    effectiveVoucherType,
     form.activeField,
     form.activeAllocation,
     canAccept,
@@ -1262,7 +1270,7 @@ export default function Vouchers() {
 
       {/* ── Title bar ── */}
       <div className="flex items-center justify-between px-3 py-1 border-b border-black bg-white shrink-0">
-        <span className="text-sm font-semibold text-black">{form.voucherType === "Attendance" ? "Attendance Voucher Creation" : form.voucherType === "Payroll" ? "Payroll Voucher Creation" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(form.voucherType) ? "Inventory Voucher Creation" : "Accounting Voucher Creation"}</span>
+        <span className="text-sm font-semibold text-black">{effectiveVoucherType === "Attendance" ? "Attendance Voucher Creation" : effectiveVoucherType === "Payroll" ? "Payroll Voucher Creation" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) ? "Inventory Voucher Creation" : "Accounting Voucher Creation"}</span>
         <span className="text-sm text-black">{selectedCompany?.name ?? ""}</span>
         <button
           onClick={() => navigate("/")}
@@ -1297,19 +1305,19 @@ export default function Vouchers() {
       <div className="flex-1 flex min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
 
-          {form.voucherType === "Payment" && (
+          {effectiveVoucherType === "Payment" && (
             <PaymentVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
           )}
-          {form.voucherType === "Receipt" && (
+          {effectiveVoucherType === "Receipt" && (
             <ReceiptVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
           )}
-          {form.voucherType === "Contra" && (
+          {effectiveVoucherType === "Contra" && (
             <ContraVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
           )}
-          {form.voucherType === "Journal" && (
+          {effectiveVoucherType === "Journal" && (
             <JournalVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
           )}
-          {form.voucherType === "Sales" && (
+          {effectiveVoucherType === "Sales" && (
             <SalesVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
@@ -1318,7 +1326,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Purchase" && (
+          {effectiveVoucherType === "Purchase" && (
             <PurchaseVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
@@ -1327,7 +1335,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Credit Note" && (
+          {effectiveVoucherType === "Credit Note" && (
             <CreditNoteVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
@@ -1336,7 +1344,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Debit Note" && (
+          {effectiveVoucherType === "Debit Note" && (
             <DebitNoteVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
@@ -1345,7 +1353,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Physical Stock" && (
+          {effectiveVoucherType === "Physical Stock" && (
             <PhysicalStockVoucher
               form={form}
               focusStockQty={focusStockQty}
@@ -1353,10 +1361,10 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Stock Journal" && (
+          {effectiveVoucherType === "Stock Journal" && (
             <StockJournalVoucher form={form} />
           )}
-          {form.voucherType === "Delivery Note" && (
+          {effectiveVoucherType === "Delivery Note" && (
             <DeliveryNoteVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
@@ -1365,7 +1373,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Receipt Note" && (
+          {effectiveVoucherType === "Receipt Note" && (
             <ReceiptNoteVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
@@ -1374,7 +1382,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Rejection In" && (
+          {effectiveVoucherType === "Rejection In" && (
             <RejectionInVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
@@ -1383,7 +1391,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Rejection Out" && (
+          {effectiveVoucherType === "Rejection Out" && (
             <RejectionOutVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
@@ -1392,7 +1400,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Material In" && (
+          {effectiveVoucherType === "Material In" && (
             <MaterialInVoucher
               form={form}
               focusStockQty={focusStockQty}
@@ -1400,7 +1408,7 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Material Out" && (
+          {effectiveVoucherType === "Material Out" && (
             <MaterialOutVoucher
               form={form}
               focusStockQty={focusStockQty}
@@ -1408,13 +1416,13 @@ export default function Vouchers() {
               proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-          {form.voucherType === "Manufacturing Journal" && (
+          {effectiveVoucherType === "Manufacturing Journal" && (
             <ManufacturingJournalVoucher form={form} />
           )}
-          {form.voucherType === "Attendance" && (
+          {effectiveVoucherType === "Attendance" && (
             <AttendanceVoucher form={form} />
           )}
-          {form.voucherType === "Payroll" && (
+          {effectiveVoucherType === "Payroll" && (
             <PayrollVoucher form={form} />
           )}
 
@@ -1428,7 +1436,7 @@ export default function Vouchers() {
               value={form.narration}
               onChange={(e) => form.setNarration(e.target.value)}
             />
-            {form.totalAmount > 0 && (form.voucherType !== "Contra" || form.contraEntryMode === "double") && (
+            {form.totalAmount > 0 && (effectiveVoucherType !== "Contra" || form.contraEntryMode === "double") && (
               <span className="text-sm font-semibold text-black ml-4 shrink-0 tabular-nums">
                 {form.totalAmount.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -1486,7 +1494,7 @@ export default function Vouchers() {
 
         {/* ── Right sidebar ── */}
         <RightSidebar
-          voucherType={form.voucherType}
+          voucherType={effectiveVoucherType}
           onTypeChange={form.setVoucherType}
           voucherTypeChildren={voucherTypeChildren}
           subDropdownType={subDropdownType}
@@ -1496,17 +1504,17 @@ export default function Vouchers() {
             form.setStatus((p: string) => (p === "Regular" ? "Post-Dated" : "Regular"))
           }
           entryMode={
-            form.voucherType === "Receipt" ? form.receiptEntryMode
-            : form.voucherType === "Payment" ? form.paymentEntryMode
-            : form.voucherType === "Journal" ? form.journalEntryMode
+            effectiveVoucherType === "Receipt" ? form.receiptEntryMode
+            : effectiveVoucherType === "Payment" ? form.paymentEntryMode
+            : effectiveVoucherType === "Journal" ? form.journalEntryMode
             : form.contraEntryMode
           }
           onEntryModeChange={() => {
-            if (form.voucherType === "Receipt") {
+            if (effectiveVoucherType === "Receipt") {
               form.setReceiptEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
-            } else if (form.voucherType === "Payment") {
+            } else if (effectiveVoucherType === "Payment") {
               form.setPaymentEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
-            } else if (form.voucherType === "Journal") {
+            } else if (effectiveVoucherType === "Journal") {
               form.setJournalEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
             } else {
               form.setContraEntryMode((p: "single" | "double") => (p === "single" ? "double" : "single"));
@@ -1556,7 +1564,7 @@ export default function Vouchers() {
           onClose={() => setShowPartyDetails(false)}
           onSave={handleSavePartyDetails}
           onCreateLedger={() => navigate("/master/create/ledger")}
-          buyerLabel={form.voucherType === "Sales" ? "Buyer (Bill to)" : "Supplier (Bill from)"}
+          buyerLabel={effectiveVoucherType === "Sales" ? "Buyer (Bill to)" : "Supplier (Bill from)"}
         />
       )}
 
@@ -1578,7 +1586,7 @@ export default function Vouchers() {
 
       {showOtherVouchers && (
         <OtherVouchersPopup
-          voucherType={form.voucherType}
+          voucherType={effectiveVoucherType}
           onClose={() => setShowOtherVouchers(false)}
           onSelect={(type) => {
             form.setVoucherType(type);

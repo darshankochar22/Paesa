@@ -17,7 +17,9 @@ export type { ParticularRow, StockEntryRow, ActiveField, ActiveAllocation } from
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useVoucherForm() {
+export function useVoucherForm(
+  resolveEffectiveType?: (type: string) => string
+) {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -39,6 +41,10 @@ export function useVoucherForm() {
 
   const ledgers = useVoucherLedgers({ companyId, fyId });
 
+  const effectiveVoucherType = resolveEffectiveType
+    ? (resolveEffectiveType(meta.voucherType) ?? meta.voucherType)
+    : meta.voucherType;
+
   const rows = useVoucherRowsInternal({
     initialParticulars: saved.particulars?.length ? saved.particulars : undefined,
     initialJournalRows: saved.journalRows?.length ? saved.journalRows : undefined,
@@ -52,7 +58,7 @@ export function useVoucherForm() {
     initialJournalEntryMode: saved.journalEntryMode ?? "double",
     initialPaymentEntryMode: saved.paymentEntryMode ?? "double",
     fetchLedgerBalance: ledgers.fetchLedgerBalance,
-    voucherType: meta.voucherType,
+    voucherType: effectiveVoucherType,
     allUnits: ledgers.allUnits,
   });
 
@@ -159,7 +165,7 @@ export function useVoucherForm() {
     if (!companyId) return "No company selected.";
     if (!fyId) return "No active financial year.";
 
-    if (meta.voucherType === "Receipt") {
+    if (effectiveVoucherType === "Receipt") {
       if (rows.receiptEntryMode === "single") {
         if (!rows.accountLedger) return "Account (cash/bank ledger) is required.";
         const filled = rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) >= 0);
@@ -172,7 +178,7 @@ export function useVoucherForm() {
       }
     }
 
-    if (meta.voucherType === "Payment") {
+    if (effectiveVoucherType === "Payment") {
       if (rows.paymentEntryMode === "single") {
         if (!rows.accountLedger) return "Account (cash/bank ledger) is required.";
         const filled = rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
@@ -187,7 +193,7 @@ export function useVoucherForm() {
       }
     }
 
-    if (meta.voucherType === "Contra") {
+    if (effectiveVoucherType === "Contra") {
       if (rows.contraEntryMode === "single") {
         if (!rows.accountLedger) return "Account (cash/bank ledger) is required.";
         if (!ledgers.checkIsCashOrBank(rows.accountLedger)) return "Contra Account must be a Cash or Bank ledger.";
@@ -207,7 +213,7 @@ export function useVoucherForm() {
       }
     }
 
-    if (meta.voucherType === "Journal") {
+    if (effectiveVoucherType === "Journal") {
       if (rows.journalEntryMode === "single") {
         if (!rows.accountLedger) return "Account ledger is required.";
         const filled = rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
@@ -225,15 +231,15 @@ export function useVoucherForm() {
       }
     }
 
-    if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(meta.voucherType)) {
+    if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
       if (!rows.partyLedger) return "Party A/c Name is required.";
-      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out"].includes(meta.voucherType);
+      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out"].includes(effectiveVoucherType);
       if (needsLedger && !rows.salesPurchaseLedger) {
-        const baseLabel = meta.voucherType === "Credit Note" || meta.voucherType === "Rejection In" || meta.voucherType === "Delivery Note" ? "Sales" : meta.voucherType === "Debit Note" || meta.voucherType === "Rejection Out" || meta.voucherType === "Receipt Note" ? "Purchase" : meta.voucherType;
+        const baseLabel = effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Delivery Note" ? "Sales" : effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Receipt Note" ? "Purchase" : effectiveVoucherType;
         return `${baseLabel} Ledger is required.`;
       }
       if (needsLedger && rows.partyLedger.ledger_id === rows.salesPurchaseLedger.ledger_id)
-        return `Party and ${meta.voucherType} ledger cannot be the same account.`;
+        return `Party and ${effectiveVoucherType} ledger cannot be the same account.`;
       const filledItems = rows.stockEntries.filter(
         (r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0
       );
@@ -241,7 +247,7 @@ export function useVoucherForm() {
       if (rows.totalAmount <= 0) return "Total amount must be greater than zero.";
     }
 
-    if (meta.voucherType === "Manufacturing Journal") {
+    if (effectiveVoucherType === "Manufacturing Journal") {
       const filledSource = rows.sourceStockEntries.filter(
         (r) => r.stockItem && Number(r.quantityRaw) > 0
       );
@@ -253,14 +259,14 @@ export function useVoucherForm() {
       }
     }
 
-    if (meta.voucherType === "Physical Stock") {
+    if (effectiveVoucherType === "Physical Stock") {
       const filled = rows.stockEntries.filter(
         (r) => r.stockItem && Number(r.quantityRaw) > 0
       );
       if (filled.length === 0) return "At least one Stock Item with quantity is required.";
     }
 
-    if (meta.voucherType === "Stock Journal") {
+    if (effectiveVoucherType === "Stock Journal") {
       const filledSource = rows.sourceStockEntries.filter(
         (r) => r.stockItem && Number(r.quantityRaw) > 0
       );
@@ -272,14 +278,14 @@ export function useVoucherForm() {
       }
     }
 
-    if (meta.voucherType === "Attendance") {
+    if (effectiveVoucherType === "Attendance") {
       const filled = rows.attendanceEntries.filter(
         (r) => r.employee && r.attendanceType && Number(r.valueRaw) > 0
       );
       if (filled.length === 0) return "At least one Attendance entry with a positive value is required.";
     }
 
-    if (meta.voucherType === "Payroll") {
+    if (effectiveVoucherType === "Payroll") {
       if (!rows.accountLedger) return "Account (cash/bank ledger) is required.";
       const filled = rows.payrollEntries.filter(
         (r) => r.employee && r.payHead && Number(r.amountRaw) > 0
@@ -288,7 +294,7 @@ export function useVoucherForm() {
     }
 
     return null;
-  }, [companyId, fyId, meta, rows, ledgers.checkIsCashOrBank]);
+  }, [companyId, fyId, effectiveVoucherType, rows, ledgers.checkIsCashOrBank]);
 
   // ── handleSubmit ───────────────────────────────────────────────────────────
 
@@ -306,52 +312,52 @@ export function useVoucherForm() {
 
       // ── Build accounting entries ─────────────────────────────────────────
 
-      if (meta.voucherType === "Receipt") {
+      if (effectiveVoucherType === "Receipt") {
         if (rows.receiptEntryMode === "single") {
           entries.push({ ledger_id: rows.accountLedger!.ledger_id, ledger_name: rows.accountLedger!.name, type: "Dr", amount: rows.particularsTotal });
           entries.push(...rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0).map((p) => ({ ledger_id: p.ledger!.ledger_id, ledger_name: p.ledger!.name, type: p.type, amount: Number(p.amountRaw), currency: "INR", cost_centres: p.costCentres })));
         } else {
           entries = rows.receiptDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0).map((r) => ({ ledger_id: r.ledger!.ledger_id, ledger_name: r.ledger!.name, type: r.type, amount: Number(r.amountRaw), currency: "INR", cost_centres: r.costCentres }));
         }
-      } else if (meta.voucherType === "Payment") {
+      } else if (effectiveVoucherType === "Payment") {
         if (rows.paymentEntryMode === "single") {
           entries.push({ ledger_id: rows.accountLedger!.ledger_id, ledger_name: rows.accountLedger!.name, type: "Cr", amount: rows.particularsTotal });
           entries.push(...rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0).map((p) => ({ ledger_id: p.ledger!.ledger_id, ledger_name: p.ledger!.name, type: p.type, amount: Number(p.amountRaw), currency: "INR", cost_centres: p.costCentres })));
         } else {
           entries = rows.paymentDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0).map((r) => ({ ledger_id: r.ledger!.ledger_id, ledger_name: r.ledger!.name, type: r.type, amount: Number(r.amountRaw), currency: "INR", cost_centres: r.costCentres }));
         }
-      } else if (meta.voucherType === "Contra") {
+      } else if (effectiveVoucherType === "Contra") {
         if (rows.contraEntryMode === "single") {
           entries.push({ ledger_id: rows.accountLedger!.ledger_id, ledger_name: rows.accountLedger!.name, type: "Cr", amount: rows.particularsTotal });
           entries.push(...rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0).map((p) => ({ ledger_id: p.ledger!.ledger_id, ledger_name: p.ledger!.name, type: p.type, amount: Number(p.amountRaw), currency: "INR", cost_centres: p.costCentres })));
         } else {
           entries = rows.contraDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0).map((r) => ({ ledger_id: r.ledger!.ledger_id, ledger_name: r.ledger!.name, type: r.type, amount: Number(r.amountRaw), currency: "INR", cost_centres: r.costCentres }));
         }
-      } else if (meta.voucherType === "Journal") {
+      } else if (effectiveVoucherType === "Journal") {
         if (rows.journalEntryMode === "single") {
           entries.push({ ledger_id: rows.accountLedger!.ledger_id, ledger_name: rows.accountLedger!.name, type: "Cr", amount: rows.particularsTotal });
           entries.push(...rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0).map((p) => ({ ledger_id: p.ledger!.ledger_id, ledger_name: p.ledger!.name, type: p.type, amount: Number(p.amountRaw), currency: "INR", cost_centres: p.costCentres })));
         } else {
           entries = rows.journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0).map((r) => ({ ledger_id: r.ledger!.ledger_id, ledger_name: r.ledger!.name, type: r.type, amount: Number(r.amountRaw), currency: "INR", cost_centres: r.costCentres }));
         }
-      } else if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(meta.voucherType)) {
+      } else if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
         const filledItems = rows.stockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0);
         const stockSubtotal = filledItems.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
         stock_entries = filledItems.map((r) => ({ stock_item_id: r.stockItem!.item_id ?? null, item_name: r.stockItem!.name, godown_id: r.godown?.godown_id ?? null, unit_id: r.unit?.unit_id ?? null, quantity: Number(r.quantityRaw), rate: Number(r.rateRaw), amount: Number(r.amountRaw) }));
-        const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(meta.voucherType);
+        const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType);
         if (!isInventoryOnly) {
-          const isPurchaseLike = meta.voucherType === "Purchase";
+          const isPurchaseLike = effectiveVoucherType === "Purchase";
           const partyType: "Dr" | "Cr" = isPurchaseLike ? "Cr" : "Dr";
           const spType: "Dr" | "Cr" = isPurchaseLike ? "Dr" : "Cr";
           entries = [
             { ledger_id: rows.partyLedger!.ledger_id, ledger_name: rows.partyLedger!.name, type: partyType, amount: rows.totalAmount, currency: "INR" },
             { ledger_id: rows.salesPurchaseLedger!.ledger_id, ledger_name: rows.salesPurchaseLedger!.name, type: spType, amount: stockSubtotal, currency: "INR" },
-            ...(meta.voucherType === "Sales" || meta.voucherType === "Purchase"
+            ...(effectiveVoucherType === "Sales" || effectiveVoucherType === "Purchase"
               ? rows.additionalEntries.filter((p) => p.ledger && Number(p.amountRaw) > 0).map((p) => ({ ledger_id: p.ledger!.ledger_id, ledger_name: p.ledger!.name, type: p.type, amount: Number(p.amountRaw), currency: "INR", cost_centres: p.costCentres }))
               : []),
           ];
         }
-      } else if (meta.voucherType === "Stock Journal") {
+      } else if (effectiveVoucherType === "Stock Journal") {
         const filledSource = rows.sourceStockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0);
         const filledDest = rows.destinationStockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0);
         stock_entries = [
@@ -376,7 +382,7 @@ export function useVoucherForm() {
             is_source: 0,
           })),
         ];
-      } else if (meta.voucherType === "Manufacturing Journal") {
+      } else if (effectiveVoucherType === "Manufacturing Journal") {
         const filledSource = rows.sourceStockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0);
         const filledDest = rows.destinationStockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0);
         stock_entries = [
@@ -405,21 +411,21 @@ export function useVoucherForm() {
 
       // ── Collect bill references ──────────────────────────────────────────
       let finalBillReferences: any[] = [];
-      if (meta.voucherType === "Receipt") {
+      if (effectiveVoucherType === "Receipt") {
         finalBillReferences = rows.receiptEntryMode === "single"
           ? rows.particulars.filter((p) => p.ledger && p.billReferences?.length).flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })))
           : rows.receiptDoubleRows.filter((r) => r.ledger && r.billReferences?.length).flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
-      } else if (meta.voucherType === "Payment") {
+      } else if (effectiveVoucherType === "Payment") {
         finalBillReferences = rows.paymentEntryMode === "single"
           ? rows.particulars.filter((p) => p.ledger && p.billReferences?.length).flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })))
           : rows.paymentDoubleRows.filter((r) => r.ledger && r.billReferences?.length).flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
-      } else if (meta.voucherType === "Contra") {
+      } else if (effectiveVoucherType === "Contra") {
         finalBillReferences = rows.contraEntryMode === "single"
           ? rows.particulars.filter((p) => p.ledger && p.billReferences?.length).flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })))
           : rows.contraDoubleRows.filter((r) => r.ledger && r.billReferences?.length).flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
-      } else if (meta.voucherType === "Journal") {
+      } else if (effectiveVoucherType === "Journal") {
         finalBillReferences = rows.journalRows.filter((r) => r.ledger && r.billReferences?.length).flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
-      } else if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(meta.voucherType)) {
+      } else if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
         if (rows.partyLedger && meta.partyBillReferences.length > 0) {
           finalBillReferences = meta.partyBillReferences.map((b) => ({ ...b, ledger_id: rows.partyLedger!.ledger_id }));
         }
@@ -428,7 +434,7 @@ export function useVoucherForm() {
 
       // ── Final payload / API submission ──────────────────────────────────
       let res: any;
-      if (meta.voucherType === "Physical Stock") {
+      if (effectiveVoucherType === "Physical Stock") {
         const physicalLines = rows.stockEntries
           .filter((r) => r.stockItem && Number(r.quantityRaw) > 0)
           .map((r, lineIdx) => ({
@@ -453,7 +459,7 @@ export function useVoucherForm() {
           is_post_dated: meta.status === "Post-Dated" ? 1 : 0,
           lines: physicalLines,
         });
-      } else if (meta.voucherType === "Attendance") {
+      } else if (effectiveVoucherType === "Attendance") {
         const attEntries = rows.attendanceEntries
           .filter((r) => r.employee && r.attendanceType)
           .map((r) => ({
@@ -469,8 +475,9 @@ export function useVoucherForm() {
           entries: attEntries,
         });
       } else {
-        const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Stock Journal", "Manufacturing Journal"].includes(meta.voucherType);
-        const hasAccountingEntries = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(meta.voucherType);
+        const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType);
+        const hasAccountingEntries = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType);
+        const partyLedgerTypes = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"];
         const payload: any = {
           company_id: companyId!,
           fy_id: fyId!,
@@ -483,24 +490,24 @@ export function useVoucherForm() {
           reference_date: meta.referenceDate || null,
           place_of_supply: meta.placeOfSupply !== "Select" ? meta.placeOfSupply : null,
           narration: meta.narration || null,
-          party_ledger_id: meta.voucherType === "Payroll" || ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(meta.voucherType) ? rows.partyLedger?.ledger_id ?? null : null,
-          party_name: meta.voucherType === "Payroll" || ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(meta.voucherType) ? rows.partyLedger?.name ?? null : null,
+          party_ledger_id: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.ledger_id ?? null : null,
+          party_name: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.name ?? null : null,
           is_accounting_voucher: isInventoryOnly ? 0 : 1,
           is_invoice: hasAccountingEntries ? 1 : 0,
           is_inventory_voucher: isInventoryOnly || hasAccountingEntries ? 1 : 0,
-          is_order_voucher: ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(meta.voucherType) ? 1 : 0,
+          is_order_voucher: ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType) ? 1 : 0,
           is_post_dated: meta.status === "Post-Dated" ? 1 : 0,
           entries: isInventoryOnly ? [] : entries,
           stock_entries,
           bill_references: finalBillReferences.length > 0 ? finalBillReferences : undefined,
           bank_details: meta.bankDetails || undefined,
           cash_denominations: meta.cashDenominations || undefined,
-          receipt_details: meta.voucherType === "Receipt Note" ? meta.receiptDetails || undefined : undefined,
+          receipt_details: effectiveVoucherType === "Receipt Note" ? meta.receiptDetails || undefined : undefined,
           party_details: meta.partyDetails || undefined,
-          dispatch_details: meta.voucherType === "Delivery Note" ? meta.dispatchDetails || undefined : undefined,
+          dispatch_details: effectiveVoucherType === "Delivery Note" ? meta.dispatchDetails || undefined : undefined,
           credit_note_details: meta.creditNoteDetails || undefined,
           debit_note_details: meta.debitNoteDetails || undefined,
-          payroll_entries: meta.voucherType === "Payroll"
+          payroll_entries: effectiveVoucherType === "Payroll"
             ? rows.payrollEntries
                 .filter((r) => r.employee && r.payHead && Number(r.amountRaw) > 0)
                 .map((r) => ({
@@ -526,7 +533,7 @@ export function useVoucherForm() {
     } finally {
       meta.setIsSubmitting(false);
     }
-  }, [validate, companyId, fyId, meta, rows, ledgers.fetchContextData]);
+  }, [validate, companyId, fyId, effectiveVoucherType, meta, rows, ledgers.fetchContextData]);
 
   // ── resetForm ──────────────────────────────────────────────────────────────
 
@@ -534,9 +541,9 @@ export function useVoucherForm() {
     if (persistKey) clearFormState(persistKey);
     hasRestored.current = false;
     meta.resetMeta();
-    rows.resetRows(meta.voucherType);
+    rows.resetRows(effectiveVoucherType);
     fetchNextNumber();
-  }, [persistKey, meta.resetMeta, rows.resetRows, meta.voucherType, fetchNextNumber]);
+  }, [persistKey, meta.resetMeta, rows.resetRows, effectiveVoucherType, fetchNextNumber]);
 
   resetFormRef.current = resetForm;
 

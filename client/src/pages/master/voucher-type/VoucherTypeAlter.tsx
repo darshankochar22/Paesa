@@ -27,6 +27,7 @@ interface FormData {
   category: string;
   is_active: "Yes" | "No";
   numbering_method: "Automatic" | "Manual" | "None";
+  parent_vt_id: string;
 }
 
 interface ConfigData {
@@ -267,11 +268,15 @@ export default function VoucherTypeAlter() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [parentVoucherTypes, setParentVoucherTypes] = useState<{ vt_id: number; name: string }[]>([]);
 
   const loadVoucherTypes = useCallback(async () => {
     if (!companyId) return;
     const result = await window.api.voucherType.getAll(companyId);
-    if (result.success) setVoucherTypes(result.voucherTypes ?? []);
+    if (result.success) {
+      setVoucherTypes(result.voucherTypes ?? []);
+      setParentVoucherTypes((result.voucherTypes ?? []).map(vt => ({ vt_id: vt.vt_id!, name: vt.name })));
+    }
   }, [companyId]);
 
   useEffect(() => { loadVoucherTypes(); }, [loadVoucherTypes]);
@@ -284,6 +289,7 @@ export default function VoucherTypeAlter() {
       category:         vt.category ?? "Receipt",
       is_active:        vt.is_active === 1 ? "Yes" : "No",
       numbering_method: (vt.numbering_method as FormData["numbering_method"]) ?? "Automatic",
+      parent_vt_id:     vt.parent_vt_id ? String(vt.parent_vt_id) : "",
     });
 
     try {
@@ -314,6 +320,42 @@ export default function VoucherTypeAlter() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => (f ? { ...f, [key]: e.target.value } : f));
 
+  const handleParentChange = useCallback(
+    async (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const val = e.target.value;
+      setForm((f) => (f ? { ...f, parent_vt_id: val } : f));
+      const numVal = val ? Number(val) : null;
+      if (!numVal) return;
+      const [parentRes, configRes] = await Promise.all([
+        window.api.voucherType.getById(numVal),
+        window.api.voucherType.getConfig(numVal),
+      ]);
+      setForm((f) => {
+        if (!f) return f;
+        const updates: Partial<FormData> = { parent_vt_id: val };
+        if (parentRes.success && parentRes.voucherType) {
+          updates.category = parentRes.voucherType.category || f.category;
+          updates.numbering_method = (parentRes.voucherType.numbering_method as FormData["numbering_method"]) || f.numbering_method;
+        }
+        return { ...f, ...updates };
+      });
+      if (configRes.success && configRes.config) {
+        const c = configRes.config;
+        setConfigForm((cf) =>
+          cf ? {
+            use_effective_dates: c.use_effective_dates === 1 ? "Yes" : "No",
+            allow_zero_value_transactions: c.allow_zero_value_transactions === 1 ? "Yes" : "No",
+            make_voucher_optional: c.make_voucher_optional === 1 ? "Yes" : "No",
+            allow_narration: c.allow_narration === 1 ? "Yes" : "No",
+            allow_narration_per_ledger: c.allow_narration_per_ledger === 1 ? "Yes" : "No",
+            print_after_save: c.print_after_save === 1 ? "Yes" : "No",
+          } : cf
+        );
+      }
+    },
+    []
+  );
+
   const setToggle =
     (key: keyof FormData | keyof ConfigData, target: "form" | "config") =>
     (v: "Yes" | "No") => {
@@ -343,6 +385,7 @@ export default function VoucherTypeAlter() {
           category:         form.category,
           numbering_method: form.numbering_method,
           is_active:        toInt(form.is_active),
+          parent_vt_id:     form.parent_vt_id ? Number(form.parent_vt_id) : null,
         };
         const result = await window.api.voucherType.update(payload);
         if (!result.success) {
@@ -513,6 +556,21 @@ export default function VoucherTypeAlter() {
                     onChange={setField("short_name")}
                     maxLength={6}
                   />
+                </FormRow>
+                <FormRow label="Parent Voucher Type" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <select
+                    disabled={isPredefined}
+                    className={`${selectCls} ${isPredefined ? "text-zinc-400 cursor-not-allowed bg-zinc-50" : ""}`}
+                    value={form.parent_vt_id}
+                    onChange={handleParentChange}
+                  >
+                    <option value="">-- None --</option>
+                    {parentVoucherTypes
+                      .filter((p) => String(p.vt_id) !== String(selectedVT.vt_id))
+                      .map((p) => (
+                        <option key={p.vt_id} value={String(p.vt_id)}>{p.name}</option>
+                      ))}
+                  </select>
                 </FormRow>
                 <FormRow label="Activate this Voucher Type" labelWidth="w-48" className="flex items-center min-h-[26px]">
                   <YesNoSelect

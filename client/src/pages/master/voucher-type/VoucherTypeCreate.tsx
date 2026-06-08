@@ -174,6 +174,41 @@ export default function VoucherTypeCreate() {
     saveFormState(persistKey, { form });
   }, [persistKey, form]);
 
+  const inheritFromParent = useCallback(async (parentId: number) => {
+    const [parentRes, configRes] = await Promise.all([
+      window.api.voucherType.getById(parentId),
+      window.api.voucherType.getConfig(parentId),
+    ]);
+    setForm((f) => {
+      const updates: Partial<FormData> = {};
+      if (parentRes.success && parentRes.voucherType) {
+        const p = parentRes.voucherType;
+        updates.category = p.category || f.category;
+        updates.numbering_method = (p.numbering_method as FormData["numbering_method"]) || f.numbering_method;
+      }
+      if (configRes.success && configRes.config) {
+        const c = configRes.config;
+        updates.use_effective_dates = c.use_effective_dates === 1 ? "Yes" : "No";
+        updates.allow_zero_value_transactions = c.allow_zero_value_transactions === 1 ? "Yes" : "No";
+        updates.make_voucher_optional = c.make_voucher_optional === 1 ? "Yes" : "No";
+        updates.allow_narration = c.allow_narration === 1 ? "Yes" : "No";
+        updates.allow_narration_per_ledger = c.allow_narration_per_ledger === 1 ? "Yes" : "No";
+        updates.print_after_save = c.print_after_save === 1 ? "Yes" : "No";
+      }
+      return { ...f, ...updates };
+    });
+  }, []);
+
+  const handleParentChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const val = e.target.value;
+      setForm((f) => ({ ...f, parent_vt_id: val }));
+      const numVal = val ? Number(val) : null;
+      if (numVal) inheritFromParent(numVal);
+    },
+    [inheritFromParent]
+  );
+
   const setField =
     (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -285,7 +320,7 @@ export default function VoucherTypeCreate() {
                   <input className={inputCls} value={form.short_name} onChange={setField("short_name")} maxLength={6} />
                 </FormRow>
                 <FormRow label="Parent Voucher Type" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                  <select className={selectCls} value={form.parent_vt_id} onChange={setField("parent_vt_id")}>
+                  <select className={selectCls} value={form.parent_vt_id} onChange={handleParentChange}>
                     <option value="">-- None --</option>
                     {parentVoucherTypes.map((p) => (
                       <option key={p.vt_id} value={String(p.vt_id)}>{p.name}</option>

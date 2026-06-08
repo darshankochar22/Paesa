@@ -42,6 +42,7 @@ export type VoucherTypeUpdatePayload = {
   category?: string;
   numbering_method?: string;
   is_active?: number;
+  parent_vt_id?: number | null;
 };
 
 export type VoucherTypeConfigUpdatePayload = {

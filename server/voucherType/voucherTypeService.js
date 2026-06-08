@@ -245,7 +245,7 @@ module.exports = {
           name = ?, short_name = ?, category = ?, default_voucher_class = ?,
           affects_inventory = ?, affects_accounting = ?, affects_gst = ?,
           numbering_method = ?, numbering_prefix = ?, numbering_suffix = ?,
-          starts_with = ?, updated_at = datetime('now')
+          starts_with = ?, parent_vt_id = ?, updated_at = datetime('now')
         WHERE vt_id = ?`,
         [
           data.name ?? c.name,
@@ -259,6 +259,7 @@ module.exports = {
           data.numbering_prefix ?? c.numbering_prefix,
           data.numbering_suffix ?? c.numbering_suffix,
           data.starts_with ?? c.starts_with,
+          data.parent_vt_id !== undefined ? data.parent_vt_id : c.parent_vt_id,
           data.vt_id,
         ]
       );
