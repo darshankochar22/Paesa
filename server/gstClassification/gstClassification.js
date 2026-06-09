@@ -33,9 +33,22 @@ const init = async (db) => {
   const columns = Array.isArray(pragmaResult.rows)
     ? pragmaResult.rows.map((row) => row.name)
     : [];
+  const requiredColumns = {
+    is_non_gst_goods: "INTEGER DEFAULT 0",
+    rate_type: "TEXT DEFAULT 'Fixed Rate'",
+    nature_of_transaction: "TEXT DEFAULT 'Not Applicable'",
+    taxability: "TEXT DEFAULT 'Unknown'",
+    igst_valuation_type: "TEXT DEFAULT 'Based on Value'",
+    cgst_valuation_type: "TEXT DEFAULT 'Based on Value'",
+    sgst_valuation_type: "TEXT DEFAULT 'Based on Value'",
+    cess_valuation_type: "TEXT DEFAULT 'Based on Value'",
+    valuation_type: "TEXT DEFAULT 'Based on Value'",
+  };
 
-  if (!columns.includes('rate_type')) {
-    await db.execute(`ALTER TABLE gst_classifications ADD COLUMN rate_type TEXT DEFAULT 'Fixed Rate'`);
+  for (const [col, def] of Object.entries(requiredColumns)) {
+    if (!columns.includes(col)) {
+      await db.execute(`ALTER TABLE gst_classifications ADD COLUMN ${col} ${def}`);
+    }
   }
 };
 module.exports = { init };
