@@ -314,68 +314,18 @@ export default function GSTRegistrationFormFields({
                       <option>Yes</option>
                     </select>
                   </FieldRow>
+
+                  <FieldRow label="Goods dispatched from">
+                    <select
+                      className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                      value={form.goods_dispatched_from}
+                      onChange={setField("goods_dispatched_from")}
+                    >
+                      <option>Primary</option>
+                    </select>
+                  </FieldRow>
                 </>
               )}
-
-              <FieldRow label="Goods dispatched from">
-                <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                  value={form.goods_dispatched_from}
-                  onChange={setField("goods_dispatched_from")}
-                >
-                  <option>Primary</option>
-                </select>
-              </FieldRow>
-            </div>
-
-            {/* Section: Legal & Business Identifiers */}
-            <div className="space-y-2.5">
-              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
-                Business Details
-              </div>
-
-              <FieldRow label="Legal Name of Business">
-                <input
-                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-64 text-[11px] font-bold text-zinc-950"
-                  placeholder="As per PAN card"
-                  value={form.legal_name}
-                  onChange={setField("legal_name")}
-                />
-              </FieldRow>
-
-              <FieldRow label="Trade Name of Business">
-                <input
-                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-64 text-[11px] font-bold text-zinc-950"
-                  placeholder="Brand or DBA name"
-                  value={form.trade_name}
-                  onChange={setField("trade_name")}
-                />
-              </FieldRow>
-            </div>
-
-            {/* Section: Statutory Registration Dates */}
-            <div className="space-y-2.5">
-              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
-                Filing Dates
-              </div>
-
-              <FieldRow label="Registration Date">
-                <input
-                  type="date"
-                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                  value={form.registration_date}
-                  onChange={setField("registration_date")}
-                />
-              </FieldRow>
-
-              <FieldRow label="Effective From">
-                <input
-                  type="date"
-                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                  value={form.effective_from}
-                  onChange={setField("effective_from")}
-                />
-              </FieldRow>
             </div>
 
           </div>

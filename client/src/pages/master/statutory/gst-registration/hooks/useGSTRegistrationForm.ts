@@ -147,7 +147,7 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const validate = (): string | null => {
+  const validate = (bypassGstinCheck: boolean = false): string | null => {
     if (!companyId) return "No company selected.";
     if (!form.gstin.trim()) return "GSTIN is required.";
     const gstinPattern = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
@@ -156,7 +156,9 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
       return "GSTIN must be exactly 15 characters long.";
     }
     if (!gstinPattern.test(upperGSTIN)) {
-      return "Invalid GSTIN format. Expected e.g. 27AAAAA1111A1Z1";
+      if (!bypassGstinCheck) {
+        return "WARNING_INVALID_GSTIN";
+      }
     }
     if (!form.state_id) return "State is required.";
     if (form.registration_type === "Composition") {
@@ -170,11 +172,14 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
     return null;
   };
 
-  const handleSubmit = useCallback(async () => {
-    const validationError = validate();
+  const handleSubmit = useCallback(async (bypassGstinCheck: boolean = false): Promise<string | null> => {
+    const validationError = validate(bypassGstinCheck);
     if (validationError) {
+      if (validationError === "WARNING_INVALID_GSTIN") {
+        return "WARNING_INVALID_GSTIN";
+      }
       setError(validationError);
-      return;
+      return null;
     }
 
     setLoading(true);
@@ -234,8 +239,10 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
       } else {
         setError(result.error || `Failed to ${mode} GST registration.`);
       }
+      return null;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unexpected error.");
+      return null;
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel } from "@/components/ui";
@@ -26,7 +26,32 @@ export default function GSTRegistrationAlter() {
     handleBack,
   } = useGSTRegistrationForm({ mode: "alter" });
 
+  const [showGstinWarning, setShowGstinWarning] = useState(false);
+
+  const handleSave = async (bypassGstinCheck: boolean = false) => {
+    setShowGstinWarning(false);
+    const result = await handleSubmit(bypassGstinCheck);
+    if (result === "WARNING_INVALID_GSTIN") {
+      setShowGstinWarning(true);
+    }
+  };
+
   useEffect(() => {
+    if (showGstinWarning) {
+      const handler = (e: KeyboardEvent) => {
+        const key = e.key.toLowerCase();
+        if (key === "y" || key === "enter") {
+          e.preventDefault();
+          handleSave(true);
+        } else if (key === "n" || key === "escape") {
+          e.preventDefault();
+          setShowGstinWarning(false);
+        }
+      };
+      window.addEventListener("keydown", handler);
+      return () => window.removeEventListener("keydown", handler);
+    }
+
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -38,11 +63,11 @@ export default function GSTRegistrationAlter() {
       }
       if (e.altKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        handleSubmit();
+        handleSave(false);
       }
       if (e.ctrlKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        handleSubmit();
+        handleSave(false);
       }
       if (e.altKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
@@ -51,7 +76,7 @@ export default function GSTRegistrationAlter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, handleDelete, navigate, selectedReg, handleBack]);
+  }, [handleSave, handleDelete, navigate, selectedReg, handleBack, showGstinWarning]);
 
   if (!selectedReg) {
     return (
@@ -65,7 +90,7 @@ export default function GSTRegistrationAlter() {
   }
 
   const alterActions = [
-    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+A", label: "Accept", onClick: () => handleSave(false) },
     { key: "Alt+D", label: "Delete", onClick: handleDelete },
     { key: "Esc", label: "Back", onClick: handleBack },
   ];
@@ -111,7 +136,7 @@ export default function GSTRegistrationAlter() {
             Back
           </button>
           <button
-            onClick={handleSubmit}
+            onClick={() => handleSave(false)}
             disabled={loading}
             className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium font-sans"
           >
@@ -119,6 +144,33 @@ export default function GSTRegistrationAlter() {
           </button>
         </div>
       </div>
+
+      {/* Tally-style Invalid GSTIN Soft Warning Modal */}
+      {showGstinWarning && (
+        <div className="absolute inset-0 bg-zinc-900/40 z-50 flex items-center justify-center backdrop-blur-[1px] font-mono">
+          <div className="bg-white border border-zinc-300 w-[420px] rounded shadow-2xl p-6 flex flex-col items-center text-center animate-fade-in select-none">
+            <h3 className="font-bold text-zinc-900 text-xs mb-6 leading-relaxed">
+              Verify the GSTIN/UIN.
+              <br />
+              Do you want to accept anyway?
+            </h3>
+            <div className="flex items-center gap-6 w-full justify-center">
+              <button
+                onClick={() => handleSave(true)}
+                className="text-xs px-6 py-1 border border-zinc-300 hover:bg-zinc-50 text-zinc-800 font-bold focus:outline-none min-w-[80px]"
+              >
+                <span className="text-zinc-500 font-extrabold mr-1">Y:</span>Yes
+              </button>
+              <button
+                onClick={() => setShowGstinWarning(false)}
+                className="text-xs px-6 py-1 border border-zinc-300 hover:bg-zinc-50 text-zinc-800 font-bold focus:outline-none min-w-[80px]"
+              >
+                <span className="text-zinc-500 font-extrabold mr-1">N:</span>No
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
