@@ -20,6 +20,9 @@ export default function GSTClassificationAlter() {
     classifications,
     selectedClass,
     setField,
+    addSlabRow,
+    updateSlabRow,
+    removeSlabRow,
     handleSubmit,
     handleDelete,
     handleSelectClass,
@@ -94,7 +97,14 @@ export default function GSTClassificationAlter() {
       )}
 
       <div className="flex-1 flex min-h-0">
-        <GSTClassificationFormFields form={form} setField={setField} isPredefined={isPredefined} />
+        <GSTClassificationFormFields
+          form={form}
+          setField={setField}
+          addSlabRow={addSlabRow}
+          updateSlabRow={updateSlabRow}
+          removeSlabRow={removeSlabRow}
+          isPredefined={isPredefined}
+        />
         <RightActionPanel actions={alterActions} />
       </div>
 

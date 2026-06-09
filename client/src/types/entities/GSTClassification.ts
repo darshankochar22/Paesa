@@ -9,6 +9,7 @@ export interface GSTClassificationType {
   taxability?: string;             
   is_reverse_charge?: number;         
   is_ineligible_for_itc?: number;       
+  rate_type?: string;
   igst_rate?: number;
   igst_valuation_type?: string;         
   cgst_rate?: number;

@@ -17,6 +17,9 @@ export default function GSTClassificationCreate() {
     success,
     setSuccess,
     setField,
+    addSlabRow,
+    updateSlabRow,
+    removeSlabRow,
     handleSubmit,
   } = useGSTClassificationForm({ mode: "create" });
 
@@ -63,7 +66,13 @@ export default function GSTClassificationCreate() {
       )}
 
       <div className="flex-1 flex min-h-0">
-        <GSTClassificationFormFields form={form} setField={setField} />
+        <GSTClassificationFormFields
+          form={form}
+          setField={setField}
+          addSlabRow={addSlabRow}
+          updateSlabRow={updateSlabRow}
+          removeSlabRow={removeSlabRow}
+        />
         <RightActionPanel actions={actions} className="h-full" />
       </div>
 
