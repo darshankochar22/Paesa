@@ -17,7 +17,6 @@ const prefixMap = {
   'Material In':        'MIN',
   'Material Out':       'MOUT',
   'Manufacturing Journal': 'MJN',
-  'Physical Stock':     'PST',
   Payroll:              'PRL',
 };
 

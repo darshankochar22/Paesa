@@ -347,6 +347,61 @@ module.exports = {
         balances[row.item_id] = opening + movement;
       }
 
+      // ── Apply Physical Stock adjustments ──────────────────────────────────
+      // Latest physical stock entry overrides the computed balance for that item.
+      // Voucher movements after the physical stock date are added on top.
+      try {
+        const physResult = await db.execute({
+          sql: `
+            SELECT psel.stock_item_id, psel.quantity, pse.voucher_date
+            FROM physical_stock_entry_lines psel
+            JOIN physical_stock_entries pse ON pse.physical_stock_entry_id = psel.physical_stock_entry_id
+            WHERE pse.company_id = ? AND psel.stock_item_id IS NOT NULL
+            ORDER BY pse.voucher_date DESC
+          `,
+          args: [company_id],
+        });
+
+        const seenItems = new Set();
+        for (const ph of physResult.rows) {
+          const itemId = ph.stock_item_id;
+          if (seenItems.has(itemId)) continue;
+          seenItems.add(itemId);
+
+          const physicalQty = Number(ph.quantity) || 0;
+          const physDate = ph.voucher_date;
+
+          // Compute voucher movement after physical stock date for this item
+          if (physDate) {
+            const postPhysResult = await db.execute({
+              sql: `
+                SELECT COALESCE(SUM(
+                  CASE
+                    WHEN v.voucher_type IN (${stockInTypes.map(() => '?').join(',')})
+                      THEN vse.quantity
+                    WHEN v.voucher_type IN (${stockOutTypes.map(() => '?').join(',')})
+                      THEN -vse.quantity
+                    WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 0
+                      THEN vse.quantity
+                    WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 1
+                      THEN -vse.quantity
+                    ELSE 0
+                  END
+                ), 0) AS post_qty
+                FROM voucher_stock_entries vse
+                JOIN vouchers v ON v.voucher_id = vse.voucher_id AND v.is_cancelled = 0
+                WHERE vse.stock_item_id = ? AND v.date > ?
+              `,
+              args: [...stockInTypes, ...stockOutTypes, itemId, physDate],
+            });
+            const postMovement = Number(postPhysResult.rows[0]?.post_qty) || 0;
+            balances[itemId] = physicalQty + postMovement;
+          } else {
+            balances[itemId] = physicalQty;
+          }
+        }
+      } catch (_physErr) { /* keep voucher-only balances */ }
+
       return { success: true, balances };
     } catch (err) {
       return { success: false, error: err.message };
