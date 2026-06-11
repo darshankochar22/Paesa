@@ -20,6 +20,21 @@ export const INITIAL_FORM_STATE: FormData = {
   taxability_type: "",
   gst_rate: "0",
   type_of_supply: "Goods",
+  maintain_in_batches: "No",
+  track_date_of_manufacturing: "No",
+  use_expiry_dates: "No",
+  enable_cost_tracking: "No",
+  set_alter_statutory: "No",
+  excise_applicable: "Not Applicable",
+  set_alter_excise_details: "No",
+  excise_tariff_name: "",
+  excise_tariff_hsn_code: "",
+  excise_tariff_uom: "Undefined",
+  excise_tariff_valuation_type: "Undefined",
+  excise_tariff_rate: "0",
+  excise_tariff_rate_per_unit: "0",
+  vat_applicable: "Applicable",
+  set_alter_vat_details: "No",
 };
 
 export const GST_APPLICABILITY_OPTIONS = [
@@ -36,7 +51,7 @@ export const HSN_SAC_DETAILS_OPTIONS = [
 
 export const GST_RATE_DETAILS_OPTIONS = [
   { id: "as_per_company", label: "As per Company/Stock Group" },
-  { id: "specify_here", label: "Specific Details Here" },
+  { id: "specify_here", label: "Specify Details Here" },
   { id: "use_classification", label: "Use GST Classification" },
   { id: "specify_in_voucher", label: "Specify in Voucher" },
 ];
@@ -63,7 +78,37 @@ export const HSN_SAC_DETAILS_LABELS: Record<string, string> = {
 
 export const GST_RATE_DETAILS_LABELS: Record<string, string> = {
   as_per_company: "As per Company/Stock Group",
-  specify_here: "Specific Details Here",
+  specify_here: "Specify Details Here",
   use_classification: "Use GST Classification",
   specify_in_voucher: "Specify in Voucher",
 };
+
+export const YES_NO_OPTIONS = [
+  { id: "Yes", label: "Yes" },
+  { id: "No", label: "No" },
+];
+
+export const EXCISE_REPORTING_UOM_OPTIONS = [
+  { id: "Undefined", label: "Undefined" },
+  { id: "10GMS", label: "10GMS - 10 Grams" },
+  { id: "1KKWH", label: "1KKWH - 1000 Kilowatt Hours" },
+  { id: "CK",     label: "C/K - Carats" },
+  { id: "CM",     label: "CM - Centimetre" },
+  { id: "CM3",    label: "CM3 - Cubic Centimetre" },
+  { id: "G",      label: "G - Grams" },
+  { id: "Gl_FIS", label: "Gl F/S - Gram of Fissile Isotopes" },
+  { id: "KG",     label: "KG - Kilograms" },
+  { id: "KL",     label: "KL - Kilolitre" },
+  { id: "L",      label: "L - Litre" },
+  { id: "M",      label: "M - Metre" },
+  { id: "M2",     label: "M2 - Square Metre" },
+  { id: "M3",     label: "M3 - Cubic Metre" },
+  { id: "MM",     label: "MM - Millimetre" },
+];
+
+export const EXCISE_VALUATION_TYPE_OPTIONS = [
+  { id: "Undefined", label: "Undefined" },
+  { id: "Ad Quantum", label: "Ad Quantum" },
+  { id: "Ad Valorem", label: "Ad Valorem" },
+  { id: "Valorem + Quantum", label: "Valorem + Quantum" },
+];

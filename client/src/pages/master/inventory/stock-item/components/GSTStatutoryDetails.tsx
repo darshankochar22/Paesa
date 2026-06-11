@@ -58,6 +58,17 @@ export default function GSTStatutoryDetails({
             </div>
           </div>
 
+          {/* HSN: As per Company/Stock Group - Source of details */}
+          {form.hsn_sac_details === "as_per_company" && (
+            <>
+              <div className="flex items-center min-h-[22px]">
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Source of details</span>
+                <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
+                <div className="flex-1 text-xs text-zinc-400">Not Available</div>
+              </div>
+            </>
+          )}
+
           {/* HSN: Specify Details Here */}
           {form.hsn_sac_details === "specify_here" && (
             <>
@@ -140,6 +151,27 @@ export default function GSTStatutoryDetails({
             </div>
           </div>
 
+          {/* Rate: As per Company/Stock Group - Source of details + read-only fields */}
+          {form.gst_rate_details === "as_per_company" && (
+            <>
+              <div className="flex items-center min-h-[22px]">
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Source of details</span>
+                <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
+                <div className="flex-1 text-xs text-zinc-400">Not Available</div>
+              </div>
+              <div className="flex items-center min-h-[22px]">
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Taxability Type</span>
+                <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
+                <div className="flex-1 text-xs text-zinc-400">&nbsp;</div>
+              </div>
+              <div className="flex items-center min-h-[22px]">
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">GST Rate</span>
+                <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
+                <div className="flex-1 text-xs text-zinc-400">0 %</div>
+              </div>
+            </>
+          )}
+
           {/* Rate: Specify Details Here */}
           {form.gst_rate_details === "specify_here" && (
             <>
@@ -221,6 +253,18 @@ export default function GSTStatutoryDetails({
           </div>
         </>
       ) : null}
+
+      {/* Set/Alter other Statutory details */}
+      <div
+        className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
+        onClick={() => setActivePanel("set_alter_statutory")}
+      >
+        <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-0">Set/Alter other Statutory details</span>
+        <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
+        <div className="flex-1">
+          <span className="text-xs text-zinc-955 font-bold">{form.set_alter_statutory}</span>
+        </div>
+      </div>
 
       {/* Rate of Duty */}
       <div className="flex items-center min-h-[22px]">
