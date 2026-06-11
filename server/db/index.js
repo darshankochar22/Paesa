@@ -26,6 +26,8 @@ const initDB = async () => {
   await require('../costCentre/costCentre').init(db);
   await require('../gstRegistration/gstRegistration').init(db);
   await require('../gstClassification/gstClassification').init(db);
+  await require('../tcsNatureOfGoods/tcsNatureOfGoods').init(db);
+  await require('../tdsNatureOfPayment/tdsNatureOfPayment').init(db);
   await require('../gst/gst').init(db);
   await require('../featureGroup/featureGroup').init(db);
   await require('../featureItem/featureItem').init(db);

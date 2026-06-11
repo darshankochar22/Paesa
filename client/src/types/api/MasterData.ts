@@ -2,6 +2,7 @@ import type { CurrencyType } from '../entities/Currency';
 import type { VoucherTypeType } from '../entities/VoucherType';
 import type { GSTRegistrationType } from '../entities/GSTRegistration';
 import type { GSTClassificationType } from '../entities/GSTClassification';
+import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
 
 export interface MasterDataAPI {
   currency: {
@@ -36,6 +37,14 @@ export interface MasterDataAPI {
     getAll: (company_id: number) => Promise<{ success: boolean; gstClassifications: GSTClassificationType[]; error?: string }>;
     getById: (id: number) => Promise<{ success: boolean; classification: GSTClassificationType; error?: string }>;
     update: (data: Partial<GSTClassificationType>) => Promise<{ success: boolean; classification: GSTClassificationType; error?: string }>;
+    delete: (id: number) => Promise<{ success: boolean; error?: string }>;
+  };
+
+  tcsNatureOfGoods: {
+    create: (data: Partial<TCSNatureOfGoodsType>) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
+    getAll: (company_id: number) => Promise<{ success: boolean; tcsNatureOfGoodsList: TCSNatureOfGoodsType[]; error?: string }>;
+    getById: (id: number) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
+    update: (data: Partial<TCSNatureOfGoodsType>) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;
   };
 
