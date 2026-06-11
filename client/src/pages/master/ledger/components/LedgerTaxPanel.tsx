@@ -1,6 +1,7 @@
 import { FormRow } from "@/components/ui";
 import type { LedgerType } from "@/types/api";
 import type { StatutoryDetails } from "../hooks/useLedgerForm";
+import type { LedgerConfigOptions } from "../config/LedgerConfig";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -15,6 +16,7 @@ interface LedgerTaxPanelProps {
   groupLineage: {
     isTax: boolean;
   };
+  config: LedgerConfigOptions;
 }
 
 export default function LedgerTaxPanel({
@@ -25,10 +27,24 @@ export default function LedgerTaxPanel({
   setStatutoryNumber,
   setStatutoryForm,
   groupLineage,
+  config,
 }: LedgerTaxPanelProps) {
+
+  const showDutyTaxSection = config.dutyTaxDetails || groupLineage.isTax;
+  
+  const showTaxRegistration = config.taxRegistration !== "none";
+  const showFullTaxDetails = config.taxRegistration === "full";
+  const showPanOnly = config.taxRegistration === "panOnly" || showFullTaxDetails;
+  const showBankTaxDetails = config.taxRegistration === "gstinServiceTaxOnly";
+  const showGSTINField =
+    showFullTaxDetails &&
+    form.registration_type &&
+    form.registration_type !== "Unknown" &&
+    form.registration_type !== "Unregistered/Consumer";
+
   return (
     <>
-      {groupLineage.isTax && (
+      {showDutyTaxSection && (
         <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Statutory / Duty Details</div>
           <FormRow label="Type of Duty/Tax" labelWidth="w-44" className="flex items-center min-h-[26px]">
@@ -114,14 +130,92 @@ export default function LedgerTaxPanel({
         </div>
       )}
 
-      <div className="p-3 border-t border-zinc-100 bg-white">
-        <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Tax Registration Details</div>
-        <div className="space-y-1">
-          <FormRow label="PAN/IT No." labelWidth="w-40" className="flex items-center min-h-[26px]">
-            <input className={inputCls} value={form.pan || ""} onChange={setField("pan")} />
-          </FormRow>
+      {showTaxRegistration && (
+        <div className="p-3 border-t border-zinc-100 bg-white space-y-1">
+          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
+            Tax Registration Details
+          </div>
+
+          {showPanOnly && (
+            <FormRow label="PAN/IT No." labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <input
+                className={inputCls}
+                value={form.pan || ""}
+                onChange={setField("pan")}
+                maxLength={10}
+              />
+            </FormRow>
+          )}
+
+          {showFullTaxDetails && (
+            <>
+              <FormRow label="Registration Type" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={form.registration_type || "Unknown"}
+                  onChange={setField("registration_type")}
+                >
+                  <option value="Unknown">Unknown</option>
+                  <option value="Composition">Composition</option>
+                  <option value="Regular">Regular</option>
+                  <option value="Unregistered/Consumer">Unregistered/Consumer</option>
+                  <option value="Government entity / TDS">Government entity / TDS</option>
+                  <option value="Regular - SEZ">Regular - SEZ</option>
+                  <option value="Regular-Deemed Exporter">Regular-Deemed Exporter</option>
+                  <option value="Regular-Exports (EOU)">Regular-Exports (EOU)</option>
+                  <option value="e-Commerce Operator">e-Commerce Operator</option>
+                  <option value="Input Service Distributor">Input Service Distributor</option>
+                  <option value="Embassy/UN Body">Embassy/UN Body</option>
+                  <option value="Non-Resident Taxpayer">Non-Resident Taxpayer</option>
+                </select>
+              </FormRow>
+
+              <FormRow label="Set/Alter additional GST details" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={form.additional_gst_details ? "Yes" : "No"}
+                  onChange={(e) =>
+                    setField("additional_gst_details")({
+                      target: { value: e.target.value === "Yes" ? 1 : 0 },
+                    } as any)
+                  }
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </FormRow>
+            </>
+          )}
+
+          {(showGSTINField || showBankTaxDetails) && (
+            <FormRow label="GSTIN/UIN" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <input
+                className={inputCls}
+                value={form.gstin || ""}
+                onChange={setField("gstin")}
+                maxLength={15}
+              />
+            </FormRow>
+          )}
+
+          {(showFullTaxDetails || showBankTaxDetails) && (
+            <FormRow label="Set/Alter service tax details" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={form.service_tax_details ? "Yes" : "No"}
+                onChange={(e) =>
+                  setField("service_tax_details")({
+                    target: { value: e.target.value === "Yes" ? 1 : 0 },
+                  } as any)
+                }
+              >
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </FormRow>
+          )}
         </div>
-      </div>
+      )}
     </>
   );
 }
