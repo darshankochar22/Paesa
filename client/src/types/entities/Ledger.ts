@@ -34,7 +34,9 @@ export interface LedgerType {
   is_predefined?: number;
   created_at?: string;
   updated_at?: string;
-
+  include_assessable_value?: string;
+  method_of_calculation?: string;
+  other_statutory_details?: number;
   bank_details?: {
   account_holder_name?: string;
   account_number?: string;
