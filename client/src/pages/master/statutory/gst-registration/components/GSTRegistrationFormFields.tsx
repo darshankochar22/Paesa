@@ -36,24 +36,31 @@ const TALLY_INDIAN_STATES = [
   "Tripura",
   "Uttarakhand",
   "Uttar Pradesh",
-  "West Bengal"
+  "West Bengal",
 ];
 
 interface GSTRegistrationFormFieldsProps {
   form: FormData;
-  setField: (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  setField: (
+    key: keyof FormData
+  ) => (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => void;
 }
 
 interface FieldRowProps {
   label: string;
   required?: boolean;
+  indent?: boolean;
   children: React.ReactNode;
 }
 
-function FieldRow({ label, required, children }: FieldRowProps) {
+function FieldRow({ label, required, indent, children }: FieldRowProps) {
   return (
     <div className="flex items-center min-h-[26px]">
-      <span className="w-56 text-zinc-600 font-medium">
+      <span className={`w-56 text-zinc-600 font-medium ${indent ? "pl-4" : ""}`}>
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
@@ -63,10 +70,18 @@ function FieldRow({ label, required, children }: FieldRowProps) {
   );
 }
 
+const selectCls =
+  "bg-white border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none w-48 text-[11px] font-bold text-zinc-950";
+const inputCls =
+  "bg-white border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none w-48 text-[11px] font-bold text-zinc-950";
+
 export default function GSTRegistrationFormFields({
   form,
   setField,
 }: GSTRegistrationFormFieldsProps) {
+  const isComposition = form.registration_type === "Composition";
+  const showEInvoice = form.registration_type === "Regular";
+
   return (
     <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 font-mono text-zinc-800 text-[11px] select-none">
       <div className="max-w-6xl mx-auto bg-white border border-zinc-200 rounded shadow-sm p-6">
@@ -75,12 +90,12 @@ export default function GSTRegistrationFormFields({
           GST Details
         </div>
 
-        {/* Top Section: Registration Status */}
+        {/* Registration Status */}
         <div className="flex items-center mb-6 max-w-sm">
           <span className="w-56 font-bold text-zinc-700">Registration status</span>
           <span className="text-zinc-400 mr-3 font-bold">:</span>
           <select
-            className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none font-bold text-zinc-950 bg-white"
+            className={selectCls}
             value={form.registration_status}
             onChange={setField("registration_status")}
           >
@@ -90,13 +105,13 @@ export default function GSTRegistrationFormFields({
           </select>
         </div>
 
-        {/* Main Columns Container */}
+        {/* Two-column layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start border-t border-zinc-100 pt-6">
-          
+
           {/* LEFT COLUMN */}
           <div className="space-y-6">
-            
-            {/* Section: GST Registration Details */}
+
+            {/* GST Registration Details */}
             <div className="space-y-2.5">
               <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
                 GST Registration Details
@@ -104,22 +119,20 @@ export default function GSTRegistrationFormFields({
 
               <FieldRow label="State" required>
                 <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  className={selectCls}
                   value={form.state_id}
                   onChange={setField("state_id")}
                 >
                   <option value="Not Applicable">Not Applicable</option>
-                  {TALLY_INDIAN_STATES.map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
+                  {TALLY_INDIAN_STATES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </FieldRow>
 
               <FieldRow label="Address type">
                 <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  className={selectCls}
                   value={form.address_type}
                   onChange={setField("address_type")}
                 >
@@ -129,7 +142,7 @@ export default function GSTRegistrationFormFields({
 
               <FieldRow label="Registration type" required>
                 <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  className={selectCls}
                   value={form.registration_type}
                   onChange={setField("registration_type")}
                 >
@@ -141,7 +154,7 @@ export default function GSTRegistrationFormFields({
 
               <FieldRow label="Assessee of Other Territory">
                 <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  className={selectCls}
                   value={form.assessee_of_other_territory}
                   onChange={setField("assessee_of_other_territory")}
                 >
@@ -152,7 +165,7 @@ export default function GSTRegistrationFormFields({
 
               <FieldRow label="GSTIN/UIN" required>
                 <input
-                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 uppercase text-[11px] font-bold text-zinc-950 tracking-wider"
+                  className={`${inputCls} uppercase tracking-wider`}
                   placeholder="e.g. 27AAAAA1111A1Z1"
                   value={form.gstin}
                   onChange={setField("gstin")}
@@ -160,19 +173,22 @@ export default function GSTRegistrationFormFields({
                 />
               </FieldRow>
 
-              <FieldRow label="Periodicity of GSTR-1">
-                <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                  value={form.periodicity_of_gstr1}
-                  onChange={setField("periodicity_of_gstr1")}
-                >
-                  <option>Monthly</option>
-                  <option>Quarterly</option>
-                </select>
-              </FieldRow>
+              {/* Periodicity only for Regular / Regular-SEZ */}
+              {!isComposition && (
+                <FieldRow label="Periodicity of GSTR-1">
+                  <select
+                    className={selectCls}
+                    value={form.periodicity_of_gstr1}
+                    onChange={setField("periodicity_of_gstr1")}
+                  >
+                    <option>Monthly</option>
+                    <option>Quarterly</option>
+                  </select>
+                </FieldRow>
+              )}
             </div>
 
-            {/* Section: Connected GST Details */}
+            {/* Connected GST Details */}
             <div className="space-y-2.5">
               <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
                 Connected GST Details
@@ -180,7 +196,7 @@ export default function GSTRegistrationFormFields({
 
               <FieldRow label="GST Username">
                 <input
-                  className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  className={inputCls}
                   placeholder="Optional portal user ID"
                   value={form.gst_username}
                   onChange={setField("gst_username")}
@@ -189,7 +205,7 @@ export default function GSTRegistrationFormFields({
 
               <FieldRow label="Mode of Filing">
                 <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  className={selectCls}
                   value={form.mode_of_filing}
                   onChange={setField("mode_of_filing")}
                 >
@@ -200,48 +216,50 @@ export default function GSTRegistrationFormFields({
               </FieldRow>
             </div>
 
-            {/* Section: e-Invoice Details */}
-            <div className="space-y-2.5">
-              <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
-                e-Invoice Details
+            {/* e-Invoice Details — Regular only */}
+            {showEInvoice && (
+              <div className="space-y-2.5">
+                <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
+                  e-Invoice Details
+                </div>
+
+                <FieldRow label="e-Invoicing applicable">
+                  <select
+                    className={selectCls}
+                    value={form.e_invoice_application}
+                    onChange={setField("e_invoice_application")}
+                  >
+                    <option>No</option>
+                    <option>Yes</option>
+                  </select>
+                </FieldRow>
+
+                {form.e_invoice_application === "Yes" && (
+                  <>
+                    <FieldRow label="Applicable from" indent>
+                      <input
+                        type="date"
+                        className={inputCls}
+                        value={form.e_invoice_applicable_from}
+                        onChange={setField("e_invoice_applicable_from")}
+                      />
+                    </FieldRow>
+
+                    <FieldRow label="Invoice bill from place" indent>
+                      <input
+                        className={inputCls}
+                        placeholder="e.g. Panaji"
+                        value={form.e_invoice_bill_from_place}
+                        onChange={setField("e_invoice_bill_from_place")}
+                      />
+                    </FieldRow>
+                  </>
+                )}
               </div>
+            )}
 
-              <FieldRow label="e-Invoicing applicable">
-                <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                  value={form.e_invoice_application}
-                  onChange={setField("e_invoice_application")}
-                >
-                  <option>No</option>
-                  <option>Yes</option>
-                </select>
-              </FieldRow>
-
-              {form.e_invoice_application === "Yes" && (
-                <>
-                  <FieldRow label="Applicable from">
-                    <input
-                      type="date"
-                      className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                      value={form.e_invoice_applicable_from}
-                      onChange={setField("e_invoice_applicable_from")}
-                    />
-                  </FieldRow>
-
-                  <FieldRow label="Invoice bill from place">
-                    <input
-                      className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                      placeholder="e.g. Panaji"
-                      value={form.e_invoice_bill_from_place}
-                      onChange={setField("e_invoice_bill_from_place")}
-                    />
-                  </FieldRow>
-                </>
-              )}
-            </div>
-
-            {/* Section: Tax Rate Details for Turnover (Dynamic for Composition) */}
-            {form.registration_type === "Composition" && (
+            {/* Tax Rate Details — Composition only */}
+            {isComposition && (
               <div className="space-y-2.5">
                 <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
                   Tax Rate Details for Turnover
@@ -250,7 +268,7 @@ export default function GSTRegistrationFormFields({
                 <FieldRow label="Tax Rate for taxable turnover">
                   <div className="flex items-center gap-1">
                     <input
-                      className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-20 text-[11px] font-bold text-zinc-950 text-right"
+                      className={`${inputCls} w-20 text-right`}
                       placeholder="1"
                       value={form.composition_tax_rate}
                       onChange={setField("composition_tax_rate")}
@@ -261,12 +279,12 @@ export default function GSTRegistrationFormFields({
 
                 <FieldRow label="Calculate tax based on">
                   <select
-                    className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-64 text-[11px] font-bold text-zinc-950"
+                    className={`${selectCls} w-64`}
                     value={form.composition_tax_calc_basis}
                     onChange={setField("composition_tax_calc_basis")}
                   >
                     <option>Taxable Value</option>
-                    <option>Taxable, Exempt, & Nil Rated Values</option>
+                    <option>Taxable, Exempt, &amp; Nil Rated Values</option>
                   </select>
                 </FieldRow>
               </div>
@@ -275,8 +293,8 @@ export default function GSTRegistrationFormFields({
 
           {/* RIGHT COLUMN */}
           <div className="space-y-6">
-            
-            {/* Section: e-Way Bill Details */}
+
+            {/* e-Way Bill Details — always visible */}
             <div className="space-y-2.5">
               <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
                 e-Way Bill Details
@@ -284,7 +302,7 @@ export default function GSTRegistrationFormFields({
 
               <FieldRow label="e-Way Bill applicable">
                 <select
-                  className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
+                  className={selectCls}
                   value={form.e_way_bill_applicable}
                   onChange={setField("e_way_bill_applicable")}
                 >
@@ -293,44 +311,43 @@ export default function GSTRegistrationFormFields({
                 </select>
               </FieldRow>
 
-              {form.e_way_bill_applicable === "Yes" && (
-                <>
-                  <FieldRow label="Applicable from">
-                    <input
-                      type="date"
-                      className="bg-transparent border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                      value={form.e_way_bill_applicable_from}
-                      onChange={setField("e_way_bill_applicable_from")}
-                    />
-                  </FieldRow>
+              {/* Always rendered — disabled when "No", matching Tally behaviour */}
+              <FieldRow label="Applicable from" indent>
+                <input
+                  type="date"
+                  className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                  value={form.e_way_bill_applicable_from}
+                  onChange={setField("e_way_bill_applicable_from")}
+                  disabled={form.e_way_bill_applicable === "No"}
+                />
+              </FieldRow>
 
-                  <FieldRow label="Applicable for intrastate">
-                    <select
-                      className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                      value={form.applicable_for_intrastat}
-                      onChange={setField("applicable_for_intrastat")}
-                    >
-                      <option>No</option>
-                      <option>Yes</option>
-                    </select>
-                  </FieldRow>
+              <FieldRow label="Applicable for intrastate" indent>
+                <select
+                  className={`${selectCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                  value={form.applicable_for_intrastat}
+                  onChange={setField("applicable_for_intrastat")}
+                  disabled={form.e_way_bill_applicable === "No"}
+                >
+                  <option>No</option>
+                  <option>Yes</option>
+                </select>
+              </FieldRow>
 
-                  <FieldRow label="Goods dispatched from">
-                    <select
-                      className="bg-transparent border border-zinc-200 focus:border-zinc-800 rounded px-2 py-0.5 outline-none bg-white w-48 text-[11px] font-bold text-zinc-950"
-                      value={form.goods_dispatched_from}
-                      onChange={setField("goods_dispatched_from")}
-                    >
-                      <option>Primary</option>
-                    </select>
-                  </FieldRow>
-                </>
-              )}
+              <FieldRow label="Goods dispatched from" indent>
+                <select
+                  className={`${selectCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                  value={form.goods_dispatched_from}
+                  onChange={setField("goods_dispatched_from")}
+                  disabled={form.e_way_bill_applicable === "No"}
+                >
+                  <option>Primary</option>
+                </select>
+              </FieldRow>
             </div>
 
           </div>
         </div>
-
       </div>
     </div>
   );
