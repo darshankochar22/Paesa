@@ -148,6 +148,13 @@ contextBridge.exposeInMainWorld('api', {
         update:  (data)       => invoke('gstClassification:update', data),
         delete:  (id)         => invoke('gstClassification:delete', id),
     },
+    tcsNatureOfGoods: {
+        create:  (data)       => invoke('tcsNatureOfGoods:create', data),
+        getAll:  (company_id) => invoke('tcsNatureOfGoods:getAll', company_id),
+        getById: (id)         => invoke('tcsNatureOfGoods:getById', id),
+        update:  (data)       => invoke('tcsNatureOfGoods:update', data),
+        delete:  (id)         => invoke('tcsNatureOfGoods:delete', id),
+    },
     gst: {
         computeTax:    (payload) => invoke('gst:computeTax', payload),
         generateGSTR1: (data)    => invoke('gst:generateGSTR1', data),

@@ -1,5 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import App from './App.tsx';
+import CostCentreCreate from "./pages/master/cost-centre/cost-centreCreate.tsx";
+import CostCentreAlter from "./pages/master/cost-centre/cost-centreAlter.tsx";
+import CostCentreCOA from "./pages/master/cost-centre/cost-centreCOA.tsx";
 import GenericDataView from './pages/GenericDataView.tsx';
 import Company from "./pages/company/Company.tsx";
 import CompanyCreate from "./pages/company/CompanyCreate.tsx";
@@ -46,6 +49,9 @@ import GSTRegistrationCOA from "./pages/master/statutory/gst-registration/GSTReg
 import GSTClassificationCreate from "./pages/master/statutory/gst-classification/GSTClassificationCreate.tsx";
 import GSTClassificationAlter from "./pages/master/statutory/gst-classification/GSTClassificationAlter.tsx";
 import GSTClassificationCOA from "./pages/master/statutory/gst-classification/GSTClassificationCOA.tsx";
+import TCSNatureOfGoodsCreate from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsCreate.tsx";
+import TCSNatureOfGoodsAlter from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsAlter.tsx";
+import TCSNatureOfGoodsCOA from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsCOA.tsx";
 import GSTR1View from "./pages/master/statutory/gst-return/GSTR1View.tsx";
 import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
 import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
@@ -83,6 +89,10 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/financial-years", element: <FinancialYears />},
   { path: "/master/coa", element: <COA />},
 
+  { path: "/master/create/cost-centre", element: <CostCentreCreate/>},
+  { path: "/master/alter/cost-centre", element: <CostCentreAlter/>},
+  { path: "/master/coa/cost-centre", element: <CostCentreCOA/>},
+
   { path: "/master/create/ledger", element: <LedgerCreate />},
   { path: "/master/alter/ledger", element: <LedgerAlter />},
   { path: "/master/coa/ledger", element: <LedgerCOA />},
@@ -102,6 +112,10 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/create/gst-classification", element: <GSTClassificationCreate /> },
   { path: "/master/alter/gst-classification", element: <GSTClassificationAlter /> },
   { path: "/master/coa/gst-classification", element: <GSTClassificationCOA /> },
+
+  { path: "/master/create/tcs-nature-of-goods", element: <TCSNatureOfGoodsCreate /> },
+  { path: "/master/alter/tcs-nature-of-goods", element: <TCSNatureOfGoodsAlter /> },
+  { path: "/master/coa/tcs-nature-of-goods", element: <TCSNatureOfGoodsCOA /> },
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
 
   { path: "/master/create/group", element: <GroupCreate />},

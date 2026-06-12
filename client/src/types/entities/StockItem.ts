@@ -33,6 +33,18 @@ export interface StockItemType {
   track_expiry?: number;
   has_bom?: boolean | number;
   bom_name?: string;
+  track_date_of_manufacturing?: number;
+  enable_cost_tracking?: number;
+  excise_applicable?: string;
+  excise_details?: string;
+  excise_tariff_name?: string;
+  excise_tariff_hsn_code?: string;
+  excise_tariff_uom?: string;
+  excise_tariff_valuation_type?: string;
+  excise_tariff_rate?: number;
+  excise_tariff_rate_per_unit?: number;
+  vat_applicable?: string;
+  vat_details?: string;
   is_active?: number;
   created_at?: string;
   updated_at?: string;

@@ -36,6 +36,7 @@ export default function Alter() {
       "Location": "/master/alter/godown",
       "GST Registration": "/master/alter/gst-registration",
       "GST Classification": "/master/alter/gst-classification",
+      "TCS Nature of Goods": "/master/alter/tcs-nature-of-goods",
       "Employee Category": "/master/alter/employee-category",
       "Employee Group": "/master/alter/employee-group",
       "Employee": "/master/alter/employee",

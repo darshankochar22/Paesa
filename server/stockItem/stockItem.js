@@ -80,6 +80,18 @@ const init = async (db) => {
     { col: 'gst_rate_details',     sql: `ALTER TABLE stock_items ADD COLUMN gst_rate_details TEXT` },
     { col: 'source_of_gst_rate',   sql: `ALTER TABLE stock_items ADD COLUMN source_of_gst_rate TEXT DEFAULT 'As per Company/Stock Group'` },
     { col: 'taxability_type',      sql: `ALTER TABLE stock_items ADD COLUMN taxability_type TEXT` },
+    { col: 'track_date_of_manufacturing', sql: `ALTER TABLE stock_items ADD COLUMN track_date_of_manufacturing INTEGER DEFAULT 0` },
+    { col: 'enable_cost_tracking',        sql: `ALTER TABLE stock_items ADD COLUMN enable_cost_tracking INTEGER DEFAULT 0` },
+    { col: 'excise_applicable',          sql: `ALTER TABLE stock_items ADD COLUMN excise_applicable TEXT DEFAULT 'Not Applicable'` },
+    { col: 'excise_details',             sql: `ALTER TABLE stock_items ADD COLUMN excise_details TEXT` },
+    { col: 'excise_tariff_name',         sql: `ALTER TABLE stock_items ADD COLUMN excise_tariff_name TEXT` },
+    { col: 'excise_tariff_hsn_code',     sql: `ALTER TABLE stock_items ADD COLUMN excise_tariff_hsn_code TEXT` },
+    { col: 'excise_tariff_uom',          sql: `ALTER TABLE stock_items ADD COLUMN excise_tariff_uom TEXT DEFAULT 'Undefined'` },
+    { col: 'excise_tariff_valuation_type', sql: `ALTER TABLE stock_items ADD COLUMN excise_tariff_valuation_type TEXT DEFAULT 'Undefined'` },
+    { col: 'excise_tariff_rate',         sql: `ALTER TABLE stock_items ADD COLUMN excise_tariff_rate REAL DEFAULT 0` },
+    { col: 'excise_tariff_rate_per_unit', sql: `ALTER TABLE stock_items ADD COLUMN excise_tariff_rate_per_unit REAL DEFAULT 0` },
+    { col: 'vat_applicable',             sql: `ALTER TABLE stock_items ADD COLUMN vat_applicable TEXT DEFAULT 'Applicable'` },
+    { col: 'vat_details',                sql: `ALTER TABLE stock_items ADD COLUMN vat_details TEXT` },
   ];
 
   for (const m of migrations) {

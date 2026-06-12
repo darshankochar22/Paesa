@@ -14,6 +14,8 @@ export type { VoucherEntryType, VoucherRecordType } from './Voucher';
 export type { DaybookEntryType } from './Daybook';
 export type { GSTRegistrationType } from './GSTRegistration';
 export type { GSTClassificationType } from './GSTClassification';
+export type { TCSNatureOfGoodsType } from './TCSNatureOfGoods';
+export type { TDSNatureOfPaymentType } from './TDSNatureOfPayment';
 export type { EmployeeCategoryType, EmployeeGroupType, EmployeeType } from './Employee';
 export type { PayrollUnitType, PayHeadType, SalaryStructureType, AttendanceTypeType } from './Payroll';
 export type { FeatureGroupType, FeatureItemType } from './Feature';

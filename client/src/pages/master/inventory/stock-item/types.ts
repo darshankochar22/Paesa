@@ -34,6 +34,22 @@ export interface FormData {
   track_batches: boolean;
   track_expiry: boolean;
   allocations: AllocationEntry[];
+
+  maintain_in_batches: string;
+  track_date_of_manufacturing: string;
+  use_expiry_dates: string;
+  enable_cost_tracking: string;
+  set_alter_statutory: string;
+  excise_applicable: string;
+  set_alter_excise_details: string;
+  excise_tariff_name: string;
+  excise_tariff_hsn_code: string;
+  excise_tariff_uom: string;
+  excise_tariff_valuation_type: string;
+  excise_tariff_rate: string;
+  excise_tariff_rate_per_unit: string;
+  vat_applicable: string;
+  set_alter_vat_details: string;
 }
 
 export type PanelType =
@@ -46,4 +62,9 @@ export type PanelType =
   | "rate_classification"
   | "taxability_type"
   | "type_of_supply"
+  | "maintain_in_batches"
+  | "track_date_of_manufacturing"
+  | "use_expiry_dates"
+  | "enable_cost_tracking"
+  | "set_alter_statutory"
   | null;
