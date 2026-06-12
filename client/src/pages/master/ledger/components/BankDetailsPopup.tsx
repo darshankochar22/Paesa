@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import FormRow from "@/components/ui/FormRow";
 
 const TXN_TYPES_DEFAULT = ["End of List", "Cheque", "e-Fund Transfer", "Others"];
-const TXN_TYPES_EXTRA = ["ATM", "Card", "Cheque", "ECS", "e-Fund Transfer", "Electronic Cheque", "Electronic DD/PO", "Others"];
+const TXN_TYPES_EXTRA = ["End of List", "ATM", "Card", "Cheque", "ECS", "e-Fund Transfer", "Electronic Cheque", "Electronic DD/PO", "Others"];
 
 export interface BankDetails {
   account_holder_name?: string;
@@ -76,9 +76,17 @@ export default function BankDetailsPopup({
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setBankForm((f) => ({ ...f, [key]: e.target.checked ? 1 : 0 }));
 
+  const SIMPLE_TXN_TYPES = ["ATM", "Card", "ECS", "Electronic Cheque", "Electronic DD/PO", "Others", "End of List"];
+
   const handleTxnSelect = (txn: string) => {
     if (txn === "End of List") {
       setBankForm((f) => ({ ...f, transaction_type: "" }));
+      onAccept();
+      return;
+    }
+    if (SIMPLE_TXN_TYPES.includes(txn)) {
+      setBankForm((f) => ({ ...f, transaction_type: txn }));
+      onAccept();
       return;
     }
     setBankForm((f) => ({ ...f, transaction_type: txn }));
