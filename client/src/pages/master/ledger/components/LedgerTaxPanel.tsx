@@ -31,7 +31,8 @@ export default function LedgerTaxPanel({
 }: LedgerTaxPanelProps) {
 
   const showAssessableValueSection = config.assessableValueDetails;
-  const showDutyTaxSection = (config.dutyTaxDetails || groupLineage.isTax) && !showAssessableValueSection;
+  const showOtherStatutoryOnly = config.otherStatutoryOnly;
+  const showDutyTaxSection = (config.dutyTaxDetails || groupLineage.isTax) && !showAssessableValueSection && !showOtherStatutoryOnly;
   
   const showTaxRegistration = config.taxRegistration !== "none";
   const showFullTaxDetails = config.taxRegistration === "full";
@@ -45,6 +46,9 @@ export default function LedgerTaxPanel({
 
   return (
     <>
+      {/* ==============================================
+          1. DUTIES & TAXES SECTION
+      ============================================== */}
       {showDutyTaxSection && (
         <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Statutory / Duty Details</div>
@@ -131,52 +135,59 @@ export default function LedgerTaxPanel({
         </div>
       )}
 
-      {showAssessableValueSection && (
+      {/* ==============================================
+          2. ASSESSABLE VALUE / OTHER STATUTORY DETAILS
+      ============================================== */}
+      {(showAssessableValueSection || showOtherStatutoryOnly) && (
         <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
             Statutory Details
           </div>
 
-          <FormRow label="Include in Assessable Value calculation for" labelWidth="w-[280px]" className="flex items-center min-h-[26px]">
-            <select
-              className={selectCls}
-              value={form.include_assessable_value || "Not Applicable"}
-              onChange={setField("include_assessable_value")}
-            >
-              <option value="Not Applicable">Not Applicable</option>
-              <option value="GST">GST</option>
-              <option value="Excise">Excise</option>
-              <option value="VAT">VAT</option>
-            </select>
-          </FormRow>
-
-          {form.include_assessable_value && form.include_assessable_value !== "Not Applicable" && (
-            <div className="pl-4">
-              <FormRow label="Method of calculation" labelWidth="w-[264px]" className="flex items-center min-h-[26px]">
+          {showAssessableValueSection && (
+            <>
+              <FormRow label="Include in Assessable Value calculation for" labelWidth="w-[280px]" className="flex items-center min-h-[26px]">
                 <select
                   className={selectCls}
-                  value={form.method_of_calculation || "Based on Value"}
-                  onChange={setField("method_of_calculation")}
+                  value={form.include_assessable_value || "Not Applicable"}
+                  onChange={setField("include_assessable_value")}
                 >
-                  <option value="Based on Value">Based on Value</option>
-                  <option value="Based on Quantity">Based on Quantity</option>
+                  <option value="Not Applicable">Not Applicable</option>
+                  <option value="GST">GST</option>
+                  <option value="Excise">Excise</option>
+                  <option value="VAT">VAT</option>
                 </select>
               </FormRow>
-            </div>
-          )}
 
-          {config.showGstApplicability && (
-            <FormRow label="GST applicability" labelWidth="w-[280px]" className="flex items-center min-h-[26px]">
-              <select
-                className={selectCls}
-                value={statutoryForm.gst_applicability || "Not Applicable"}
-                onChange={setStatutoryField("gst_applicability")}
-              >
-                <option value="Applicable">Applicable</option>
-                <option value="Not Applicable">Not Applicable</option>
-                <option value="Undefined">Undefined</option>
-              </select>
-            </FormRow>
+              {form.include_assessable_value && form.include_assessable_value !== "Not Applicable" && (
+                <div className="pl-4">
+                  <FormRow label="Method of calculation" labelWidth="w-[264px]" className="flex items-center min-h-[26px]">
+                    <select
+                      className={selectCls}
+                      value={form.method_of_calculation || "Based on Value"}
+                      onChange={setField("method_of_calculation")}
+                    >
+                      <option value="Based on Value">Based on Value</option>
+                      <option value="Based on Quantity">Based on Quantity</option>
+                    </select>
+                  </FormRow>
+                </div>
+              )}
+
+              {config.showGstApplicability && (
+                <FormRow label="GST applicability" labelWidth="w-[280px]" className="flex items-center min-h-[26px]">
+                  <select
+                    className={selectCls}
+                    value={statutoryForm.gst_applicability || "Not Applicable"}
+                    onChange={setStatutoryField("gst_applicability")}
+                  >
+                    <option value="Applicable">Applicable</option>
+                    <option value="Not Applicable">Not Applicable</option>
+                    <option value="Undefined">Undefined</option>
+                  </select>
+                </FormRow>
+              )}
+            </>
           )}
 
           <FormRow label="Set/Alter other Statutory details" labelWidth="w-[280px]" className="flex items-center min-h-[26px]">
@@ -196,6 +207,9 @@ export default function LedgerTaxPanel({
         </div>
       )}
 
+      {/* ==============================================
+          3. TAX REGISTRATION DETAILS
+      ============================================== */}
       {showTaxRegistration && (
         <div className="p-3 border-t border-zinc-100 bg-white space-y-1">
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
