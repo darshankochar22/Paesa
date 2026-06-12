@@ -48,4 +48,6 @@ export interface StockItemType {
   is_active?: number;
   created_at?: string;
   updated_at?: string;
+  hsn_sac_details?: string;
+  allocations?: any[];
 }

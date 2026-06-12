@@ -7,11 +7,12 @@ import {
   SearchInput,
   DataTable,
 } from "@/components/ui";
-import type { StockGroupType, UnitType, StockItemType } from "@/types/api";
+import type { StockGroupType, UnitType, StockItemType, GodownType } from "@/types/api";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
 import ListSidePanel from "./components/ListSidePanel";
 import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
+import OpeningBalanceAllocationModal from "./components/OpeningBalanceAllocationModal";
 import OtherStatutoryDetails from "./components/OtherStatutoryDetails";
 import type { FormData, PanelType } from "./types";
 import {
@@ -117,6 +118,7 @@ export default function StockItemAlter() {
   const [stockItems,  setStockItems]  = useState<StockItemType[]>([]);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [units,       setUnits]       = useState<UnitType[]>([]);
+  const [godowns,     setGodowns]     = useState<GodownType[]>([]);
   const [gstClassifications, setGstClassifications] = useState<any[]>([]);
   const [selectedItem,setSelectedItem]= useState<StockItemType | null>(null);
   const [form,        setForm]        = useState<FormData | null>(null);
@@ -124,6 +126,7 @@ export default function StockItemAlter() {
   const [error,       setError]       = useState<string | null>(null);
   const [success,     setSuccess]     = useState<string | null>(null);
   const [showPanel,   setShowPanel]   = useState<PanelType>(null);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [showOtherStatutory, setShowOtherStatutory] = useState(false);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
@@ -153,53 +156,77 @@ export default function StockItemAlter() {
     window.api.stockItem .getAll(company_id).then(r => { if (r.success) setStockItems(r.stockItems ?? []); });
     window.api.stockGroup.getAll(company_id).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
     window.api.unit      .getAll(company_id).then(r => { if (r.success) setUnits(r.units ?? []); });
+    window.api.godown    .getAll(company_id).then(r => { if (r.success) setGodowns(r.godowns ?? []); });
     window.api.gstClassification.getAll(company_id).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
   }, [selectedCompany]);
 
   // Populate form when item is selected
-  const handleSelectItem = (item: any) => {
-    setSelectedItem(item);
-    setForm({
-      name:  item.name  ?? "",
-      alias: item.alias ?? "",
-      group_id: item.group_id ? String(item.group_id) : "",
-      unit_id:  item.unit_id  ? String(item.unit_id)  : "",
-      rate_of_duty:   String(item.rate_of_duty ?? 0),
-      has_bom:  Boolean(item.has_bom),
-      bom_name: item.bom_name ?? "",
-      opening_quantity: String(item.opening_quantity ?? 0),
-      opening_rate:     String(item.opening_rate     ?? 0),
-      gst_applicable: item.gst_applicable ?? "Not Applicable",
-      hsn_sac_details: item.hsn_sac_details ?? (item.source_of_details === "Specified Here" ? "specify_here" : item.source_of_details === "GST Classification" ? "use_classification" : item.source_of_details === "Specify in Voucher" ? "specify_in_voucher" : "as_per_company"),
-      hsn_sac: item.hsn_sac ?? "",
-      hsn_sac_description: item.hsn_sac_description ?? "",
-      hsn_classification_id: item.hsn_classification_id ? String(item.hsn_classification_id) : "",
-      gst_rate_details: item.gst_rate_details ?? (item.source_of_gst_rate === "GST Classification" ? "use_classification" : item.source_of_gst_rate === "Specified Here" ? "specify_here" : item.source_of_gst_rate === "Specify in Voucher" ? "specify_in_voucher" : "as_per_company"),
-      rate_classification_id: item.rate_classification_id ? String(item.rate_classification_id) : "",
-      taxability_type: item.taxability_type ?? "",
-      gst_rate: String(item.gst_rate ?? 0),
-      type_of_supply: item.type_of_supply ?? "Goods",
-      maintain_in_batches: item.track_batches ? "Yes" : "No",
-      track_date_of_manufacturing: item.track_date_of_manufacturing ? "Yes" : "No",
-      use_expiry_dates: item.track_expiry ? "Yes" : "No",
-      enable_cost_tracking: item.enable_cost_tracking ? "Yes" : "No",
-      set_alter_statutory: item.excise_applicable || item.vat_applicable ? "Yes" : "No",
-      excise_applicable: item.excise_applicable ?? "Not Applicable",
-      set_alter_excise_details: item.excise_details === "Yes" ? "Yes" : "No",
-      excise_tariff_name: item.excise_tariff_name ?? "",
-      excise_tariff_hsn_code: item.excise_tariff_hsn_code ?? "",
-      excise_tariff_uom: item.excise_tariff_uom ?? "Undefined",
-      excise_tariff_valuation_type: item.excise_tariff_valuation_type ?? "Undefined",
-      excise_tariff_rate: String(item.excise_tariff_rate ?? 0),
-      excise_tariff_rate_per_unit: String(item.excise_tariff_rate_per_unit ?? 0),
-      vat_applicable: item.vat_applicable ?? "Applicable",
-      set_alter_vat_details: item.vat_details === "Yes" ? "Yes" : "No",
-    });
-    setBoms([]);
-    setShowBomList(false);
-    setShowBomComponents(false);
+  const handleSelectItem = async (item: any) => {
+    setLoading(true);
     setError(null);
-    setSuccess(null);
+    try {
+      const res = await window.api.stockItem.getById(item.item_id);
+      if (res.success && res.item) {
+        const fullItem = res.item;
+        setSelectedItem(fullItem);
+        setForm({
+          name:  fullItem.name  ?? "",
+          alias: fullItem.alias ?? "",
+          group_id: fullItem.group_id ? String(fullItem.group_id) : "",
+          unit_id:  fullItem.unit_id  ? String(fullItem.unit_id)  : "",
+          rate_of_duty:   String(fullItem.rate_of_duty ?? 0),
+          has_bom:  Boolean(fullItem.has_bom),
+          bom_name: fullItem.bom_name ?? "",
+          opening_quantity: String(fullItem.opening_quantity ?? 0),
+          opening_rate:     String(fullItem.opening_rate     ?? 0),
+          gst_applicable: fullItem.gst_applicable ?? "Not Applicable",
+          hsn_sac_details: fullItem.hsn_sac_details ?? (fullItem.source_of_details === "Specified Here" ? "specify_here" : fullItem.source_of_details === "GST Classification" ? "use_classification" : fullItem.source_of_details === "Specify in Voucher" ? "specify_in_voucher" : "as_per_company"),
+          hsn_sac: fullItem.hsn_sac ?? "",
+          hsn_sac_description: fullItem.hsn_sac_description ?? "",
+          hsn_classification_id: fullItem.hsn_classification_id ? String(fullItem.hsn_classification_id) : "",
+          gst_rate_details: fullItem.gst_rate_details ?? (fullItem.source_of_gst_rate === "GST Classification" ? "use_classification" : fullItem.source_of_gst_rate === "Specified Here" ? "specify_here" : fullItem.source_of_gst_rate === "Specify in Voucher" ? "specify_in_voucher" : "as_per_company"),
+          rate_classification_id: fullItem.rate_classification_id ? String(fullItem.rate_classification_id) : "",
+          taxability_type: fullItem.taxability_type ?? "",
+          gst_rate: String(fullItem.gst_rate ?? 0),
+          type_of_supply: fullItem.type_of_supply ?? "Goods",
+          track_batches: Boolean(fullItem.track_batches),
+          track_expiry: Boolean(fullItem.track_expiry),
+          allocations: (fullItem.allocations ?? []).map((a: any) => ({
+            allocation_id: a.allocation_id,
+            godown_id: String(a.godown_id ?? ""),
+            batch_number: a.batch_number ?? "",
+            mfg_date: a.mfg_date ?? "",
+            expiry_date: a.expiry_date ?? "",
+            quantity: String(a.quantity ?? 0),
+            rate: String(a.rate ?? 0),
+          })),
+          maintain_in_batches: fullItem.track_batches ? "Yes" : "No",
+          track_date_of_manufacturing: fullItem.track_date_of_manufacturing ? "Yes" : "No",
+          use_expiry_dates: fullItem.track_expiry ? "Yes" : "No",
+          enable_cost_tracking: fullItem.enable_cost_tracking ? "Yes" : "No",
+          set_alter_statutory: fullItem.excise_applicable || fullItem.vat_applicable ? "Yes" : "No",
+          excise_applicable: fullItem.excise_applicable ?? "Not Applicable",
+          set_alter_excise_details: fullItem.excise_details === "Yes" ? "Yes" : "No",
+          excise_tariff_name: fullItem.excise_tariff_name ?? "",
+          excise_tariff_hsn_code: fullItem.excise_tariff_hsn_code ?? "",
+          excise_tariff_uom: fullItem.excise_tariff_uom ?? "Undefined",
+          excise_tariff_valuation_type: fullItem.excise_tariff_valuation_type ?? "Undefined",
+          excise_tariff_rate: String(fullItem.excise_tariff_rate ?? 0),
+          excise_tariff_rate_per_unit: String(fullItem.excise_tariff_rate_per_unit ?? 0),
+          vat_applicable: fullItem.vat_applicable ?? "Applicable",
+          set_alter_vat_details: fullItem.vat_details === "Yes" ? "Yes" : "No",
+        });
+        setBoms([]);
+        setShowBomList(false);
+        setShowBomComponents(false);
+      } else {
+        setError(res.error || "Failed to load stock item details.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unexpected error.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const setVal = useCallback((key: keyof FormData, value: any) => {
@@ -264,8 +291,9 @@ export default function StockItemAlter() {
         rate_classification_id: gst.rate_classification_id,
         hsn_classification_id: gst.hsn_classification_id,
         reorder_level: 0, reorder_quantity: 0,
-        track_batches: form.maintain_in_batches === "Yes" ? 1 : 0,
-        track_expiry: form.use_expiry_dates === "Yes" ? 1 : 0,
+        track_batches: form.track_batches ? 1 : 0,
+        track_expiry: form.track_expiry ? 1 : 0,
+        allocations: form.allocations,
         track_date_of_manufacturing: form.track_date_of_manufacturing === "Yes" ? 1 : 0,
         enable_cost_tracking: form.enable_cost_tracking === "Yes" ? 1 : 0,
         excise_applicable: form.excise_applicable,
@@ -307,8 +335,14 @@ export default function StockItemAlter() {
       return;
     }
 
+    if (openingQty > 0 && form.allocations.length === 0 && (form.track_batches || godowns.length > 0)) {
+      setError("Please allocate the opening balance quantity to godowns/batches.");
+      setShowAllocationModal(true);
+      return;
+    }
+
     executeSave(boms);
-  }, [form, selectedItem, selectedCompany, boms, gstClassifications]);
+  }, [form, selectedItem, selectedCompany, boms, gstClassifications, openingQty, godowns]);
 
   // Delete
   const handleDelete = useCallback(async () => {
@@ -566,6 +600,16 @@ export default function StockItemAlter() {
                     {form.unit_id ? selectedUnitLabel : ""}
                   </span>
                 </div>
+                {/* Allocation button */}
+                {openingQty > 0 && (form.track_batches || godowns.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllocationModal(true)}
+                    className="ml-2 text-xs px-2 py-0.5 rounded border border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-sans font-medium shrink-0 transition-colors"
+                  >
+                    {form.allocations.length > 0 ? `Allocated (${form.allocations.length})` : "Allocate"}
+                  </button>
+                )}
 
                 {/* Rate */}
                 <div className="w-28 ml-4 border-b border-zinc-300 focus-within:border-zinc-600">
@@ -726,6 +770,9 @@ export default function StockItemAlter() {
                 maintain_in_batches: val || "No",
                 track_date_of_manufacturing: val !== "Yes" ? "No" : f.track_date_of_manufacturing,
                 use_expiry_dates: val !== "Yes" ? "No" : f.use_expiry_dates,
+                track_batches: val === "Yes",
+                track_expiry: val === "Yes" && f.use_expiry_dates === "Yes",
+                allocations: val !== "Yes" ? [] : f.allocations,
               } : null);
               setShowPanel(null);
             }}
@@ -746,7 +793,14 @@ export default function StockItemAlter() {
             title="Use expiry dates"
             items={YES_NO_OPTIONS}
             selected={form.use_expiry_dates}
-            onSelect={val => { setVal("use_expiry_dates", val || "No"); setShowPanel(null); }}
+            onSelect={val => {
+              setForm(f => f ? {
+                ...f,
+                use_expiry_dates: val || "No",
+                track_expiry: val === "Yes"
+              } : null);
+              setShowPanel(null);
+            }}
             onClose={() => setShowPanel(null)}
           />
         )}
@@ -818,6 +872,22 @@ export default function StockItemAlter() {
           stockItemName={form.name}
           onClose={handleBomComponentsClose}
           onAccept={(entry) => handleBomAccept(entry, executeSave)}
+        />
+      )}
+      {showAllocationModal && (
+        <OpeningBalanceAllocationModal
+          itemName={form.name}
+          totalQuantity={openingQty}
+          defaultRate={openingRate}
+          trackBatches={form.track_batches}
+          trackExpiry={form.track_expiry}
+          godowns={godowns}
+          initialAllocations={form.allocations}
+          onAccept={(allocs) => {
+            setForm(f => f ? ({ ...f, allocations: allocs }) : null);
+            setShowAllocationModal(false);
+          }}
+          onClose={() => setShowAllocationModal(false)}
         />
       )}
       {showOtherStatutory && (
