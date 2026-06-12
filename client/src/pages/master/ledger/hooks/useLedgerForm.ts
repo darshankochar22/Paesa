@@ -18,6 +18,9 @@ export interface StatutoryDetails {
   statutory_details?: string;
   additional_gst_details: number;
   service_tax_details: number;
+  include_in_assessable_value_calculation?: string;
+  appropriate_to?: string;
+  method_of_calculation?: string;
 }
 
 export const EMPTY_STATUTORY: StatutoryDetails = {
@@ -33,6 +36,9 @@ export const EMPTY_STATUTORY: StatutoryDetails = {
   statutory_details: "",
   additional_gst_details: 0,
   service_tax_details: 0,
+  include_in_assessable_value_calculation: "Not Applicable",
+  appropriate_to: "Goods",
+  method_of_calculation: "Based on Quantity",
 };
 
 export const INITIAL_FORM: Partial<LedgerType> = {
@@ -451,7 +457,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
 
       if (
         groupLineage.isTax ||
-        (statutoryForm.gst_applicability && statutoryForm.gst_applicability !== "Not Applicable")
+        (statutoryForm.gst_applicability && statutoryForm.gst_applicability !== "Not Applicable") ||
+        (statutoryForm.include_in_assessable_value_calculation && statutoryForm.include_in_assessable_value_calculation !== "Not Applicable")
       ) {
         payload.statutory_details = {
           gst_applicability: statutoryForm.gst_applicability || "Not Applicable",
@@ -464,6 +471,9 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           type_of_duty_tax: statutoryForm.type_of_duty_tax || undefined,
           percentage_of_calculation: Number(statutoryForm.percentage_of_calculation) || 0,
           statutory_details: statutoryForm.statutory_details || undefined,
+          include_in_assessable_value_calculation: statutoryForm.include_in_assessable_value_calculation || "Not Applicable",
+          appropriate_to: statutoryForm.appropriate_to || "Goods",
+          method_of_calculation: statutoryForm.method_of_calculation || "Based on Quantity",
         };
       } else if (mode === "alter") {
         payload.statutory_details = null;

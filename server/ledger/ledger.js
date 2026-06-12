@@ -112,6 +112,18 @@ const init = async (db) => {
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN rounding_limit REAL DEFAULT 0`);
   } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN include_in_assessable_value_calculation TEXT DEFAULT 'Not Applicable'`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN appropriate_to TEXT DEFAULT 'Goods'`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN method_of_calculation TEXT DEFAULT 'Based on Quantity'`);
+  } catch (err) {}
 };
 
 module.exports = { init };

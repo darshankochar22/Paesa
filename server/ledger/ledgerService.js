@@ -191,8 +191,11 @@ module.exports = {
                   igst_rate,
                   type_of_duty_tax,
                   percentage_of_calculation,
-                  statutory_details
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  statutory_details,
+                  include_in_assessable_value_calculation,
+                  appropriate_to,
+                  method_of_calculation
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             ledger_id,
             data.statutory_details.gst_applicability || "Not Applicable",
@@ -205,6 +208,9 @@ module.exports = {
             data.statutory_details.type_of_duty_tax || null,
             data.statutory_details.percentage_of_calculation || 0,
             data.statutory_details.statutory_details || null,
+            data.statutory_details.include_in_assessable_value_calculation || "Not Applicable",
+            data.statutory_details.appropriate_to || "Goods",
+            data.statutory_details.method_of_calculation || "Based on Quantity",
           ],
         });
       }
@@ -461,8 +467,11 @@ module.exports = {
                   igst_rate,
                   type_of_duty_tax,
                   percentage_of_calculation,
-                  statutory_details
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  statutory_details,
+                  include_in_assessable_value_calculation,
+                  appropriate_to,
+                  method_of_calculation
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             data.ledger_id,
             data.statutory_details.gst_applicability || "Not Applicable",
@@ -475,6 +484,9 @@ module.exports = {
             data.statutory_details.type_of_duty_tax || null,
             data.statutory_details.percentage_of_calculation || 0,
             data.statutory_details.statutory_details || null,
+            data.statutory_details.include_in_assessable_value_calculation || "Not Applicable",
+            data.statutory_details.appropriate_to || "Goods",
+            data.statutory_details.method_of_calculation || "Based on Quantity",
           ],
         });
       }

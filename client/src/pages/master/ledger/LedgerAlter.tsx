@@ -13,6 +13,7 @@ import LedgerBillwisePanel from "./components/LedgerBillwisePanel";
 import LedgerBankingPanel from "./components/LedgerBankingPanel";
 import LedgerBankDetailsForm from "./components/LedgerBankDetailsForm";
 import LedgerListPanel from "./components/LedgerListPanel";
+import { getLedgerConfig } from "./config/LedgerConfig";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
@@ -59,6 +60,9 @@ export default function LedgerAlter() {
     handleSubmit,
     loadLedger,
   } = useLedgerForm({ mode: "alter" });
+
+  const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
+  const currentConfig = getLedgerConfig(groupName);
 
   useEffect(() => {
     const routeLedgerId = location.state?.ledgerId;
@@ -247,6 +251,7 @@ export default function LedgerAlter() {
                 setStatutoryNumber={setStatutoryNumber}
                 setStatutoryForm={setStatutoryForm}
                 groupLineage={groupLineage}
+                config={currentConfig}
               />
 
   

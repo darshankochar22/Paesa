@@ -31,16 +31,21 @@ export default function LedgerTaxPanel({
 }: LedgerTaxPanelProps) {
 
   const showDutyTaxSection = config.dutyTaxDetails || groupLineage.isTax;
+  const showAssessableValueCalc = config.assessableValueCalc;
+  const assessableGstSelected = showAssessableValueCalc && statutoryForm.include_in_assessable_value_calculation === "GST";
   
   const showTaxRegistration = config.taxRegistration !== "none";
   const showFullTaxDetails = config.taxRegistration === "full";
   const showPanOnly = config.taxRegistration === "panOnly" || showFullTaxDetails;
   const showBankTaxDetails = config.taxRegistration === "gstinServiceTaxOnly";
+
   const showGSTINField =
     showFullTaxDetails &&
     form.registration_type &&
     form.registration_type !== "Unknown" &&
     form.registration_type !== "Unregistered/Consumer";
+
+  const showFullTaxRegistrationFields = showFullTaxDetails && !assessableGstSelected;
 
   return (
     <>
@@ -130,6 +135,47 @@ export default function LedgerTaxPanel({
         </div>
       )}
 
+      {showAssessableValueCalc && (
+        <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
+          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Statutory Details</div>
+          <FormRow label="Include in Assessable Value calculation" labelWidth="w-56" className="flex items-center min-h-[26px]">
+            <select
+              className={selectCls}
+              value={statutoryForm.include_in_assessable_value_calculation || "Not Applicable"}
+              onChange={setStatutoryField("include_in_assessable_value_calculation")}
+            >
+              <option value="Not Applicable">Not Applicable</option>
+              <option value="GST">GST</option>
+            </select>
+          </FormRow>
+          {assessableGstSelected && (
+            <>
+              <FormRow label="Appropriate to" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={statutoryForm.appropriate_to || "Goods"}
+                  onChange={setStatutoryField("appropriate_to")}
+                >
+                  <option value="Goods">Goods</option>
+                  <option value="Goods and Services">Goods and Services</option>
+                  <option value="Services">Services</option>
+                </select>
+              </FormRow>
+              <FormRow label="Method of calculation" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={statutoryForm.method_of_calculation || "Based on Quantity"}
+                  onChange={setStatutoryField("method_of_calculation")}
+                >
+                  <option value="Based on Quantity">Based on Quantity</option>
+                  <option value="Based on Value">Based on Value</option>
+                </select>
+              </FormRow>
+            </>
+          )}
+        </div>
+      )}
+
       {showTaxRegistration && (
         <div className="p-3 border-t border-zinc-100 bg-white space-y-1">
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
@@ -147,7 +193,7 @@ export default function LedgerTaxPanel({
             </FormRow>
           )}
 
-          {showFullTaxDetails && (
+          {showFullTaxRegistrationFields && (
             <>
               <FormRow label="Registration Type" labelWidth="w-44" className="flex items-center min-h-[26px]">
                 <select
@@ -187,7 +233,7 @@ export default function LedgerTaxPanel({
             </>
           )}
 
-          {(showGSTINField || showBankTaxDetails) && (
+          {((showFullTaxDetails && !assessableGstSelected && showGSTINField) || showBankTaxDetails) && (
             <FormRow label="GSTIN/UIN" labelWidth="w-44" className="flex items-center min-h-[26px]">
               <input
                 className={inputCls}
