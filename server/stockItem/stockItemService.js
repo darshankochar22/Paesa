@@ -32,7 +32,13 @@ module.exports = {
                 opening_quantity, opening_rate, opening_value,
                 reorder_level, reorder_quantity,
                 track_batches, track_expiry,
+                track_date_of_manufacturing, enable_cost_tracking,
                 has_bom, bom_name,
+                excise_applicable, excise_details,
+                excise_tariff_name, excise_tariff_hsn_code,
+                excise_tariff_uom, excise_tariff_valuation_type,
+                excise_tariff_rate, excise_tariff_rate_per_unit,
+                vat_applicable, vat_details,
                 is_active
               )
               VALUES (
@@ -46,6 +52,15 @@ module.exports = {
                 ?,
                 ?, ?,
                 ?, ?, ?,
+                ?, ?,
+                ?, ?,
+                ?, ?,
+                ?, ?,
+                ?, ?,
+                ?, ?,
+                ?, ?, ?, ?,
+                ?, ?,
+                ?, ?,
                 ?, ?,
                 ?, ?,
                 ?, ?,
@@ -92,8 +107,22 @@ module.exports = {
           data.track_batches ? 1 : 0,
           data.track_expiry  ? 1 : 0,
 
+          data.track_date_of_manufacturing ? 1 : 0,
+          data.enable_cost_tracking ? 1 : 0,
+
           data.has_bom ? 1 : 0,
           data.bom_name || null,
+
+          data.excise_applicable || 'Not Applicable',
+          data.excise_details || null,
+          data.excise_tariff_name || null,
+          data.excise_tariff_hsn_code || null,
+          data.excise_tariff_uom || 'Undefined',
+          data.excise_tariff_valuation_type || 'Undefined',
+          data.excise_tariff_rate || 0,
+          data.excise_tariff_rate_per_unit || 0,
+          data.vat_applicable || 'Applicable',
+          data.vat_details || null,
         ],
       });
 
@@ -215,7 +244,13 @@ module.exports = {
                 opening_quantity = ?, opening_rate = ?, opening_value = ?,
                 reorder_level = ?, reorder_quantity = ?,
                 track_batches = ?, track_expiry = ?,
+                track_date_of_manufacturing = ?, enable_cost_tracking = ?,
                 has_bom = ?, bom_name = ?,
+                excise_applicable = ?, excise_details = ?,
+                excise_tariff_name = ?, excise_tariff_hsn_code = ?,
+                excise_tariff_uom = ?, excise_tariff_valuation_type = ?,
+                excise_tariff_rate = ?, excise_tariff_rate_per_unit = ?,
+                vat_applicable = ?, vat_details = ?,
 
                 updated_at = datetime('now')
               WHERE item_id = ?`,
@@ -260,10 +295,28 @@ module.exports = {
             ? (data.track_expiry ? 1 : 0)
             : cur.track_expiry,
 
+          data.track_date_of_manufacturing !== undefined
+            ? (data.track_date_of_manufacturing ? 1 : 0)
+            : cur.track_date_of_manufacturing,
+          data.enable_cost_tracking !== undefined
+            ? (data.enable_cost_tracking ? 1 : 0)
+            : cur.enable_cost_tracking,
+
           data.has_bom !== undefined
             ? (data.has_bom ? 1 : 0)
             : cur.has_bom,
           data.bom_name ?? cur.bom_name,
+
+          data.excise_applicable ?? cur.excise_applicable,
+          data.excise_details ?? cur.excise_details,
+          data.excise_tariff_name ?? cur.excise_tariff_name,
+          data.excise_tariff_hsn_code ?? cur.excise_tariff_hsn_code,
+          data.excise_tariff_uom ?? cur.excise_tariff_uom,
+          data.excise_tariff_valuation_type ?? cur.excise_tariff_valuation_type,
+          data.excise_tariff_rate ?? cur.excise_tariff_rate,
+          data.excise_tariff_rate_per_unit ?? cur.excise_tariff_rate_per_unit,
+          data.vat_applicable ?? cur.vat_applicable,
+          data.vat_details ?? cur.vat_details,
 
           data.item_id,
         ],
@@ -346,6 +399,61 @@ module.exports = {
         const movement = Number(row.movement_qty) || 0;
         balances[row.item_id] = opening + movement;
       }
+
+      // ── Apply Physical Stock adjustments ──────────────────────────────────
+      // Latest physical stock entry overrides the computed balance for that item.
+      // Voucher movements after the physical stock date are added on top.
+      try {
+        const physResult = await db.execute({
+          sql: `
+            SELECT psel.stock_item_id, psel.quantity, pse.voucher_date
+            FROM physical_stock_entry_lines psel
+            JOIN physical_stock_entries pse ON pse.physical_stock_entry_id = psel.physical_stock_entry_id
+            WHERE pse.company_id = ? AND psel.stock_item_id IS NOT NULL
+            ORDER BY pse.voucher_date DESC
+          `,
+          args: [company_id],
+        });
+
+        const seenItems = new Set();
+        for (const ph of physResult.rows) {
+          const itemId = ph.stock_item_id;
+          if (seenItems.has(itemId)) continue;
+          seenItems.add(itemId);
+
+          const physicalQty = Number(ph.quantity) || 0;
+          const physDate = ph.voucher_date;
+
+          // Compute voucher movement after physical stock date for this item
+          if (physDate) {
+            const postPhysResult = await db.execute({
+              sql: `
+                SELECT COALESCE(SUM(
+                  CASE
+                    WHEN v.voucher_type IN (${stockInTypes.map(() => '?').join(',')})
+                      THEN vse.quantity
+                    WHEN v.voucher_type IN (${stockOutTypes.map(() => '?').join(',')})
+                      THEN -vse.quantity
+                    WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 0
+                      THEN vse.quantity
+                    WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 1
+                      THEN -vse.quantity
+                    ELSE 0
+                  END
+                ), 0) AS post_qty
+                FROM voucher_stock_entries vse
+                JOIN vouchers v ON v.voucher_id = vse.voucher_id AND v.is_cancelled = 0
+                WHERE vse.stock_item_id = ? AND v.date > ?
+              `,
+              args: [...stockInTypes, ...stockOutTypes, itemId, physDate],
+            });
+            const postMovement = Number(postPhysResult.rows[0]?.post_qty) || 0;
+            balances[itemId] = physicalQty + postMovement;
+          } else {
+            balances[itemId] = physicalQty;
+          }
+        }
+      } catch (_physErr) { /* keep voucher-only balances */ }
 
       return { success: true, balances };
     } catch (err) {

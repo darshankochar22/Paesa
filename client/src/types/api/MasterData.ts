@@ -2,8 +2,16 @@ import type { CurrencyType } from '../entities/Currency';
 import type { VoucherTypeType } from '../entities/VoucherType';
 import type { GSTRegistrationType } from '../entities/GSTRegistration';
 import type { GSTClassificationType } from '../entities/GSTClassification';
+import type { CompanyGSTDetails } from '../entities/CompanyGSTDetails';
+import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
+import type { TDSNatureOfPaymentType } from '../entities/TDSNatureOfPayment';
 
 export interface MasterDataAPI {
+  companyGstDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CompanyGSTDetails | null; error?: string }>;
+    save: (data: CompanyGSTDetails & { company_id: number }) => Promise<{ success: boolean; record?: any; error?: string }>;
+  };
+
   currency: {
     create: (data: Partial<CurrencyType>) => Promise<{ success: boolean; currency: CurrencyType; error?: string }>;
     getAll: (company_id: number) => Promise<{ success: boolean; currencies: CurrencyType[]; error?: string }>;
@@ -36,6 +44,22 @@ export interface MasterDataAPI {
     getAll: (company_id: number) => Promise<{ success: boolean; gstClassifications: GSTClassificationType[]; error?: string }>;
     getById: (id: number) => Promise<{ success: boolean; classification: GSTClassificationType; error?: string }>;
     update: (data: Partial<GSTClassificationType>) => Promise<{ success: boolean; classification: GSTClassificationType; error?: string }>;
+    delete: (id: number) => Promise<{ success: boolean; error?: string }>;
+  };
+
+  tcsNatureOfGoods: {
+    create: (data: Partial<TCSNatureOfGoodsType>) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
+    getAll: (company_id: number) => Promise<{ success: boolean; tcsNatureOfGoodsList: TCSNatureOfGoodsType[]; error?: string }>;
+    getById: (id: number) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
+    update: (data: Partial<TCSNatureOfGoodsType>) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
+    delete: (id: number) => Promise<{ success: boolean; error?: string }>;
+  };
+
+  tdsNatureOfPayment: {
+    create: (data: Partial<TDSNatureOfPaymentType>) => Promise<{ success: boolean; tdsNatureOfPayment: TDSNatureOfPaymentType; error?: string }>;
+    getAll: (company_id: number) => Promise<{ success: boolean; tdsNatureOfPaymentList: TDSNatureOfPaymentType[]; error?: string }>;
+    getById: (id: number) => Promise<{ success: boolean; tdsNatureOfPayment: TDSNatureOfPaymentType; error?: string }>;
+    update: (data: Partial<TDSNatureOfPaymentType>) => Promise<{ success: boolean; tdsNatureOfPayment: TDSNatureOfPaymentType; error?: string }>;
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;
   };
 

@@ -148,6 +148,20 @@ contextBridge.exposeInMainWorld('api', {
         update:  (data)       => invoke('gstClassification:update', data),
         delete:  (id)         => invoke('gstClassification:delete', id),
     },
+    tcsNatureOfGoods: {
+        create:  (data)       => invoke('tcsNatureOfGoods:create', data),
+        getAll:  (company_id) => invoke('tcsNatureOfGoods:getAll', company_id),
+        getById: (id)         => invoke('tcsNatureOfGoods:getById', id),
+        update:  (data)       => invoke('tcsNatureOfGoods:update', data),
+        delete:  (id)         => invoke('tcsNatureOfGoods:delete', id),
+    },
+    tdsNatureOfPayment: {
+        create:  (data)       => invoke('tdsNatureOfPayment:create', data),
+        getAll:  (company_id) => invoke('tdsNatureOfPayment:getAll', company_id),
+        getById: (id)         => invoke('tdsNatureOfPayment:getById', id),
+        update:  (data)       => invoke('tdsNatureOfPayment:update', data),
+        delete:  (id)         => invoke('tdsNatureOfPayment:delete', id),
+    },
     gst: {
         computeTax:    (payload) => invoke('gst:computeTax', payload),
         generateGSTR1: (data)    => invoke('gst:generateGSTR1', data),
@@ -255,5 +269,9 @@ contextBridge.exposeInMainWorld('api', {
         getById:       (id)              => invoke('attendance:getById', id),
         delete:        (id)              => invoke('attendance:delete', id),
         getNextNumber: (company_id)      => invoke('attendance:getNextNumber', { company_id }),
+    },
+    companyGstDetails: {
+        get:  (company_id) => invoke('companyGstDetails:get', company_id),
+        save: (data)       => invoke('companyGstDetails:save', data),
     },
 });

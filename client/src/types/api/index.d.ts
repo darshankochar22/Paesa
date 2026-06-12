@@ -33,6 +33,8 @@ export type {
   DaybookEntryType,
   GSTRegistrationType,
   GSTClassificationType,
+  TCSNatureOfGoodsType,
+  TDSNatureOfPaymentType,
   EmployeeGroupType,
   EmployeeType,
   PayrollUnitType,

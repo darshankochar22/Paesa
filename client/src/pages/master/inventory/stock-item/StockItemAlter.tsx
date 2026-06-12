@@ -12,13 +12,15 @@ import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
 import ListSidePanel from "./components/ListSidePanel";
 import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
+import OtherStatutoryDetails from "./components/OtherStatutoryDetails";
 import type { FormData, PanelType } from "./types";
 import {
   GST_APPLICABILITY_OPTIONS,
   HSN_SAC_DETAILS_OPTIONS,
   GST_RATE_DETAILS_OPTIONS,
   TAXABILITY_TYPE_OPTIONS,
-  TYPE_OF_SUPPLY_OPTIONS
+  TYPE_OF_SUPPLY_OPTIONS,
+  YES_NO_OPTIONS
 } from "./consts";
 import { calculateGstDetails } from "./utils";
 import { useStockItemBom } from "./hooks/useStockItemBom";
@@ -122,6 +124,7 @@ export default function StockItemAlter() {
   const [error,       setError]       = useState<string | null>(null);
   const [success,     setSuccess]     = useState<string | null>(null);
   const [showPanel,   setShowPanel]   = useState<PanelType>(null);
+  const [showOtherStatutory, setShowOtherStatutory] = useState(false);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
     setForm(f => f ? ({ ...f, ...updater(f) }) : null);
@@ -176,6 +179,21 @@ export default function StockItemAlter() {
       taxability_type: item.taxability_type ?? "",
       gst_rate: String(item.gst_rate ?? 0),
       type_of_supply: item.type_of_supply ?? "Goods",
+      maintain_in_batches: item.track_batches ? "Yes" : "No",
+      track_date_of_manufacturing: item.track_date_of_manufacturing ? "Yes" : "No",
+      use_expiry_dates: item.track_expiry ? "Yes" : "No",
+      enable_cost_tracking: item.enable_cost_tracking ? "Yes" : "No",
+      set_alter_statutory: item.excise_applicable || item.vat_applicable ? "Yes" : "No",
+      excise_applicable: item.excise_applicable ?? "Not Applicable",
+      set_alter_excise_details: item.excise_details === "Yes" ? "Yes" : "No",
+      excise_tariff_name: item.excise_tariff_name ?? "",
+      excise_tariff_hsn_code: item.excise_tariff_hsn_code ?? "",
+      excise_tariff_uom: item.excise_tariff_uom ?? "Undefined",
+      excise_tariff_valuation_type: item.excise_tariff_valuation_type ?? "Undefined",
+      excise_tariff_rate: String(item.excise_tariff_rate ?? 0),
+      excise_tariff_rate_per_unit: String(item.excise_tariff_rate_per_unit ?? 0),
+      vat_applicable: item.vat_applicable ?? "Applicable",
+      set_alter_vat_details: item.vat_details === "Yes" ? "Yes" : "No",
     });
     setBoms([]);
     setShowBomList(false);
@@ -246,7 +264,20 @@ export default function StockItemAlter() {
         rate_classification_id: gst.rate_classification_id,
         hsn_classification_id: gst.hsn_classification_id,
         reorder_level: 0, reorder_quantity: 0,
-        track_batches: 0, track_expiry: 0,
+        track_batches: form.maintain_in_batches === "Yes" ? 1 : 0,
+        track_expiry: form.use_expiry_dates === "Yes" ? 1 : 0,
+        track_date_of_manufacturing: form.track_date_of_manufacturing === "Yes" ? 1 : 0,
+        enable_cost_tracking: form.enable_cost_tracking === "Yes" ? 1 : 0,
+        excise_applicable: form.excise_applicable,
+        excise_details: form.set_alter_excise_details,
+        excise_tariff_name: form.excise_tariff_name,
+        excise_tariff_hsn_code: form.excise_tariff_hsn_code,
+        excise_tariff_uom: form.excise_tariff_uom,
+        excise_tariff_valuation_type: form.excise_tariff_valuation_type,
+        excise_tariff_rate: Number(form.excise_tariff_rate) || 0,
+        excise_tariff_rate_per_unit: Number(form.excise_tariff_rate_per_unit) || 0,
+        vat_applicable: form.vat_applicable,
+        vat_details: form.set_alter_vat_details,
       });
 
       if (result.success) {
@@ -416,10 +447,53 @@ export default function StockItemAlter() {
                 </div>
               </div>
 
+              {/* ── Additional Details ── */}
+              <div className="text-sm font-bold text-zinc-900 mt-4 mb-1 font-sans">Additional Details</div>
+
+              {/* Maintain in batches */}
+              <div
+                className="flex items-center min-h-[26px] cursor-pointer group"
+                onClick={() => setShowPanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}
+              >
+                <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Maintain in batches</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span>
+                </div>
+              </div>
+
+              {/* Track date of manufacturing */}
+              {form.maintain_in_batches === "Yes" && (
+                <div
+                  className="flex items-center min-h-[26px] cursor-pointer group"
+                  onClick={() => setShowPanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}
+                >
+                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Track date of manufacturing</span>
+                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                  <div className="flex-1">
+                    <span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Use expiry dates */}
+              {form.maintain_in_batches === "Yes" && (
+                <div
+                  className="flex items-center min-h-[26px] cursor-pointer group"
+                  onClick={() => setShowPanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}
+                >
+                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Use expiry dates</span>
+                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                  <div className="flex-1">
+                    <span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Set components (BOM) */}
               {form.unit_id && (
-                <div className="flex items-center min-h-[26px] mt-1">
-                  <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
+                <div className="flex items-center min-h-[26px] mt-0">
+                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
                   <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
                   <div className="flex-1 flex items-center gap-1.5">
                     <select
@@ -436,6 +510,18 @@ export default function StockItemAlter() {
                   </div>
                 </div>
               )}
+
+              {/* Enable cost tracking */}
+              <div
+                className="flex items-center min-h-[26px] cursor-pointer group"
+                onClick={() => setShowPanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}
+              >
+                <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Enable cost tracking</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span>
+                </div>
+              </div>
             </div>
 
             {/* RIGHT PANEL: Statutory Details */}
@@ -629,6 +715,67 @@ export default function StockItemAlter() {
             onClose={() => setShowPanel(null)}
           />
         )}
+        {showPanel === "maintain_in_batches" && (
+          <ListSidePanel
+            title="Maintain in batches"
+            items={YES_NO_OPTIONS}
+            selected={form.maintain_in_batches}
+            onSelect={val => {
+              setForm(f => f ? {
+                ...f,
+                maintain_in_batches: val || "No",
+                track_date_of_manufacturing: val !== "Yes" ? "No" : f.track_date_of_manufacturing,
+                use_expiry_dates: val !== "Yes" ? "No" : f.use_expiry_dates,
+              } : null);
+              setShowPanel(null);
+            }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
+        {showPanel === "track_date_of_manufacturing" && (
+          <ListSidePanel
+            title="Track date of manufacturing"
+            items={YES_NO_OPTIONS}
+            selected={form.track_date_of_manufacturing}
+            onSelect={val => { setVal("track_date_of_manufacturing", val || "No"); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
+        {showPanel === "use_expiry_dates" && (
+          <ListSidePanel
+            title="Use expiry dates"
+            items={YES_NO_OPTIONS}
+            selected={form.use_expiry_dates}
+            onSelect={val => { setVal("use_expiry_dates", val || "No"); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
+        {showPanel === "enable_cost_tracking" && (
+          <ListSidePanel
+            title="Enable cost tracking"
+            items={YES_NO_OPTIONS}
+            selected={form.enable_cost_tracking}
+            onSelect={val => { setVal("enable_cost_tracking", val || "No"); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
+        {showPanel === "set_alter_statutory" && (
+          <ListSidePanel
+            title="Set/Alter other Statutory details"
+            items={YES_NO_OPTIONS}
+            selected={form.set_alter_statutory}
+            onSelect={val => {
+              setVal("set_alter_statutory", val || "No");
+              if (val === "Yes") {
+                setShowPanel(null);
+                setShowOtherStatutory(true);
+              } else {
+                setShowPanel(null);
+              }
+            }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
 
         <RightActionPanel actions={alterActions} />
       </div>
@@ -671,6 +818,41 @@ export default function StockItemAlter() {
           stockItemName={form.name}
           onClose={handleBomComponentsClose}
           onAccept={(entry) => handleBomAccept(entry, executeSave)}
+        />
+      )}
+      {showOtherStatutory && (
+        <OtherStatutoryDetails
+          stockItemName={form.name}
+          unitLabel={selectedUnitLabel}
+          initialData={{
+            excise_applicable: form.excise_applicable,
+            set_alter_excise_details: form.set_alter_excise_details,
+            excise_tariff_name: form.excise_tariff_name,
+            excise_tariff_hsn_code: form.excise_tariff_hsn_code,
+            excise_tariff_uom: form.excise_tariff_uom,
+            excise_tariff_valuation_type: form.excise_tariff_valuation_type,
+            excise_tariff_rate: form.excise_tariff_rate,
+            excise_tariff_rate_per_unit: form.excise_tariff_rate_per_unit,
+            vat_applicable: form.vat_applicable,
+            set_alter_vat_details: form.set_alter_vat_details,
+          }}
+          onAccept={(data) => {
+            setForm(f => f ? {
+              ...f,
+              excise_applicable: data.excise_applicable,
+              set_alter_excise_details: data.set_alter_excise_details,
+              excise_tariff_name: data.excise_tariff_name,
+              excise_tariff_hsn_code: data.excise_tariff_hsn_code,
+              excise_tariff_uom: data.excise_tariff_uom,
+              excise_tariff_valuation_type: data.excise_tariff_valuation_type,
+              excise_tariff_rate: data.excise_tariff_rate,
+              excise_tariff_rate_per_unit: data.excise_tariff_rate_per_unit,
+              vat_applicable: data.vat_applicable,
+              set_alter_vat_details: data.set_alter_vat_details,
+            } : null);
+            setShowOtherStatutory(false);
+          }}
+          onClose={() => setShowOtherStatutory(false)}
         />
       )}
     </div>

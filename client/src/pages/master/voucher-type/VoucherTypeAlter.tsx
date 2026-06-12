@@ -15,9 +15,10 @@ const selectCls =
 
 const CATEGORIES = [
   "Attendance", "Contra", "Credit Note", "Debit Note", "Delivery Note",
-  "Job Work In Order", "Job Work Out Order", "Journal", "Material In", "Material Out",
+  "Job Work In Order", "Job Work Out Order", "Journal", "Manufacturing Journal",
+  "Material In", "Material Out",
   "Memorandum", "Payment", "Payroll", "Physical Stock", "Purchase", "Purchase Order",
-  "Receipt", "Receipt Note", "Rejections In", "Rejections Out", "Reversing Journal",
+  "Receipt", "Receipt Note", "Rejection In", "Rejection Out", "Reversing Journal",
   "Sales", "Sales Order", "Stock Journal",
 ];
 

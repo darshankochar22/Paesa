@@ -154,6 +154,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         lineage.isBank = true;
         lineage.isOD = true;
       }
+
       if (name === "duties & taxes" || name === "current assets") lineage.isTax = true;
       if (name === "sundry debtors" || name === "sundry creditors") lineage.isDebtorCreditor = true;
       if (

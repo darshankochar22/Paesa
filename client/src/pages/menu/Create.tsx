@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useCompany } from "@/context/CompanyContext";
+import CompanyGSTDetailsModal from "@/pages/master/statutory/company-gst-details/CompanyGSTDetailsModal";
 
 export default function Create() {
   const { selectedCompany } = useCompany();
   const [masterSections, setMasterSections] = useState<{title: string, items: string[]}[]>([]);
+  const [isGSTModalOpen, setIsGSTModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,7 +40,10 @@ export default function Create() {
       "Location": "/master/create/godown",
       "GST Registration": "/master/create/gst-registration",
       "GST Classification": "/master/create/gst-classification",
-      "Company GST Details": "/master/create/company-gst-details",
+      "Company GST Details": "modal",
+      "TCS Nature of Goods": "/master/create/tcs-nature-of-goods",
+      "TDS Nature of Payment": "/master/create/tds-nature-of-payment",
+      "Tax Units": "/master/create/tax-units",
       "PAN / CIN Details": "/master/create/pan-cin-details",
       "Employee Category": "/master/create/employee-category",
       "Employee Group": "/master/create/employee-group",
@@ -77,13 +82,20 @@ export default function Create() {
               <div className="flex flex-col items-start w-full pl-8">
                 {section.items.map((item) => {
                   const route = getRoute(item);
+                  const isAvailable = route !== null;
                   return (
                     <button
                       key={item}
-                      onClick={() => route && navigate(route)}
+                      onClick={() => {
+                        if (route === "modal" && item === "Company GST Details") {
+                          setIsGSTModalOpen(true);
+                        } else if (route) {
+                          navigate(route);
+                        }
+                      }}
                       className={`text-left rounded px-2 py-1 w-full transition-colors ${
-                        route
-                          ? "hover:bg-black hover:text-white"
+                        isAvailable
+                          ? "hover:bg-black hover:text-white cursor-pointer"
                           : "opacity-40 cursor-not-allowed"
                       }`}
                     >
@@ -97,6 +109,11 @@ export default function Create() {
         </div>
 
       </div>
+
+      <CompanyGSTDetailsModal
+        isOpen={isGSTModalOpen}
+        onClose={() => setIsGSTModalOpen(false)}
+      />
     </div>
   );
 }

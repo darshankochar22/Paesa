@@ -7,6 +7,7 @@ import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
 import ListSidePanel from "./components/ListSidePanel";
 import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
+import OtherStatutoryDetails from "./components/OtherStatutoryDetails";
 import type { FormData, PanelType } from "./types";
 import {
   INITIAL_FORM_STATE,
@@ -14,7 +15,8 @@ import {
   HSN_SAC_DETAILS_OPTIONS,
   GST_RATE_DETAILS_OPTIONS,
   TAXABILITY_TYPE_OPTIONS,
-  TYPE_OF_SUPPLY_OPTIONS
+  TYPE_OF_SUPPLY_OPTIONS,
+  YES_NO_OPTIONS
 } from "./consts";
 import { calculateGstDetails } from "./utils";
 import { useStockItemBom } from "./hooks/useStockItemBom";
@@ -36,6 +38,7 @@ export default function StockItemCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<PanelType>(null);
+  const [showOtherStatutory, setShowOtherStatutory] = useState(false);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
     setForm(f => ({ ...f, ...updater(f) }));
@@ -129,10 +132,20 @@ export default function StockItemCreate() {
         taxability_type: gst.taxability_type,
         rate_classification_id: gst.rate_classification_id,
         hsn_classification_id: gst.hsn_classification_id,
-        reorder_level: 0,
-        reorder_quantity: 0,
-        track_batches: 0,
-        track_expiry: 0,
+        track_batches: form.maintain_in_batches === "Yes" ? 1 : 0,
+        track_expiry: form.use_expiry_dates === "Yes" ? 1 : 0,
+        track_date_of_manufacturing: form.track_date_of_manufacturing === "Yes" ? 1 : 0,
+        enable_cost_tracking: form.enable_cost_tracking === "Yes" ? 1 : 0,
+        excise_applicable: form.excise_applicable,
+        excise_details: form.set_alter_excise_details,
+        excise_tariff_name: form.excise_tariff_name,
+        excise_tariff_hsn_code: form.excise_tariff_hsn_code,
+        excise_tariff_uom: form.excise_tariff_uom,
+        excise_tariff_valuation_type: form.excise_tariff_valuation_type,
+        excise_tariff_rate: Number(form.excise_tariff_rate) || 0,
+        excise_tariff_rate_per_unit: Number(form.excise_tariff_rate_per_unit) || 0,
+        vat_applicable: form.vat_applicable,
+        vat_details: form.set_alter_vat_details,
       });
       if (result.success) {
         setSuccess(`"${form.name}" created.`);
@@ -260,10 +273,53 @@ export default function StockItemCreate() {
                 </div>
               </div>
 
+              {/* ── Additional Details ── */}
+              <div className="text-sm font-bold text-zinc-900 mt-4 mb-1 font-sans">Additional Details</div>
+
+              {/* Maintain in batches */}
+              <div
+                className="flex items-center min-h-[26px] cursor-pointer group"
+                onClick={() => setActivePanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}
+              >
+                <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Maintain in batches</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span>
+                </div>
+              </div>
+
+              {/* Track date of manufacturing */}
+              {form.maintain_in_batches === "Yes" && (
+                <div
+                  className="flex items-center min-h-[26px] cursor-pointer group"
+                  onClick={() => setActivePanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}
+                >
+                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Track date of manufacturing</span>
+                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                  <div className="flex-1">
+                    <span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Use expiry dates */}
+              {form.maintain_in_batches === "Yes" && (
+                <div
+                  className="flex items-center min-h-[26px] cursor-pointer group"
+                  onClick={() => setActivePanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}
+                >
+                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Use expiry dates</span>
+                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                  <div className="flex-1">
+                    <span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Set components (BOM) */}
               {form.unit_id && (
-                <div className="flex items-center min-h-[26px] mt-1">
-                  <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
+                <div className="flex items-center min-h-[26px] mt-0">
+                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
                   <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
                   <div className="flex-1 flex items-center gap-1.5">
                     <select
@@ -280,6 +336,18 @@ export default function StockItemCreate() {
                   </div>
                 </div>
               )}
+
+              {/* Enable cost tracking */}
+              <div
+                className="flex items-center min-h-[26px] cursor-pointer group"
+                onClick={() => setActivePanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}
+              >
+                <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Enable cost tracking</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span>
+                </div>
+              </div>
             </div>
 
             {/* RIGHT PANEL: Statutory Details */}
@@ -463,7 +531,93 @@ export default function StockItemCreate() {
             onClose={() => setActivePanel(null)}
           />
         )}
+        {activePanel === "maintain_in_batches" && (
+          <ListSidePanel
+            title="Maintain in batches"
+            items={YES_NO_OPTIONS}
+            selected={form.maintain_in_batches}
+            onSelect={val => {
+              setForm(f => ({
+                ...f,
+                maintain_in_batches: val || "No",
+                track_date_of_manufacturing: val !== "Yes" ? "No" : f.track_date_of_manufacturing,
+                use_expiry_dates: val !== "Yes" ? "No" : f.use_expiry_dates,
+              }));
+              setActivePanel(null);
+            }}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
+        {activePanel === "track_date_of_manufacturing" && (
+          <ListSidePanel
+            title="Track date of manufacturing"
+            items={YES_NO_OPTIONS}
+            selected={form.track_date_of_manufacturing}
+            onSelect={val => { setVal("track_date_of_manufacturing", val || "No"); setActivePanel(null); }}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
+        {activePanel === "use_expiry_dates" && (
+          <ListSidePanel
+            title="Use expiry dates"
+            items={YES_NO_OPTIONS}
+            selected={form.use_expiry_dates}
+            onSelect={val => { setVal("use_expiry_dates", val || "No"); setActivePanel(null); }}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
+        {activePanel === "enable_cost_tracking" && (
+          <ListSidePanel
+            title="Enable cost tracking"
+            items={YES_NO_OPTIONS}
+            selected={form.enable_cost_tracking}
+            onSelect={val => { setVal("enable_cost_tracking", val || "No"); setActivePanel(null); }}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
+        {activePanel === "set_alter_statutory" && (
+          <ListSidePanel
+            title="Set/Alter other Statutory details"
+            items={YES_NO_OPTIONS}
+            selected={form.set_alter_statutory}
+            onSelect={val => {
+              setVal("set_alter_statutory", val || "No");
+              if (val === "Yes") {
+                setActivePanel(null);
+                setShowOtherStatutory(true);
+              } else {
+                setActivePanel(null);
+              }
+            }}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
       </div>
+
+      {/* Other Statutory Details modal */}
+      {showOtherStatutory && (
+        <OtherStatutoryDetails
+          stockItemName={form.name}
+          unitLabel={selectedUnitLabel}
+          onAccept={(data) => {
+            setForm(f => ({
+              ...f,
+              excise_applicable: data.excise_applicable,
+              set_alter_excise_details: data.set_alter_excise_details,
+              excise_tariff_name: data.excise_tariff_name,
+              excise_tariff_hsn_code: data.excise_tariff_hsn_code,
+              excise_tariff_uom: data.excise_tariff_uom,
+              excise_tariff_valuation_type: data.excise_tariff_valuation_type,
+              excise_tariff_rate: data.excise_tariff_rate,
+              excise_tariff_rate_per_unit: data.excise_tariff_rate_per_unit,
+              vat_applicable: data.vat_applicable,
+              set_alter_vat_details: data.set_alter_vat_details,
+            }));
+            setShowOtherStatutory(false);
+          }}
+          onClose={() => setShowOtherStatutory(false)}
+        />
+      )}
 
       {/* Footer bar */}
       <div className="border-t border-zinc-200 px-4 py-2.5 flex justify-between items-center shrink-0 bg-zinc-50">

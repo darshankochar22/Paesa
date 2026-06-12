@@ -17,6 +17,8 @@ const currencyController = require('./currency/currencyController');
 const voucherTypeController = require('./voucherType/voucherTypeController');
 const gstRegistrationController = require('./gstRegistration/gstRegistrationController');
 const gstClassificationController = require('./gstClassification/gstClassificationController');
+const tcsNatureOfGoodsController = require('./tcsNatureOfGoods/tcsNatureOfGoodsController');
+const tdsNatureOfPaymentController = require('./tdsNatureOfPayment/tdsNatureOfPaymentController');
 const gstController = require('./gst/gstController');
 const employeeCategoryController = require('./employeeCategory/employeeCategoryController');
 const employeeGroupController = require('./employeeGroup/employeeGroupController');
@@ -40,6 +42,7 @@ const eInvoiceController = require('./eInvoice/eInvoiceController');
 const whatsappController = require('./whatsapp/whatsappController');
 const physicalStockController = require('./physicalStock/physicalStockController');
 const attendanceController = require('./attendance/attendanceController');
+const companyGstDetailsController = require('./companyGstDetails/companyGstDetailsController');
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -165,6 +168,18 @@ ipcMain.handle('gstClassification:getAll', gstClassificationController.getAll);
 ipcMain.handle('gstClassification:getById', gstClassificationController.getById);
 ipcMain.handle('gstClassification:update', gstClassificationController.update);
 ipcMain.handle('gstClassification:delete', gstClassificationController.delete);
+
+ipcMain.handle('tcsNatureOfGoods:create', tcsNatureOfGoodsController.create);
+ipcMain.handle('tcsNatureOfGoods:getAll', tcsNatureOfGoodsController.getAll);
+ipcMain.handle('tcsNatureOfGoods:getById', tcsNatureOfGoodsController.getById);
+ipcMain.handle('tcsNatureOfGoods:update', tcsNatureOfGoodsController.update);
+ipcMain.handle('tcsNatureOfGoods:delete', tcsNatureOfGoodsController.delete);
+
+ipcMain.handle('tdsNatureOfPayment:create', tdsNatureOfPaymentController.create);
+ipcMain.handle('tdsNatureOfPayment:getAll', tdsNatureOfPaymentController.getAll);
+ipcMain.handle('tdsNatureOfPayment:getById', tdsNatureOfPaymentController.getById);
+ipcMain.handle('tdsNatureOfPayment:update', tdsNatureOfPaymentController.update);
+ipcMain.handle('tdsNatureOfPayment:delete', tdsNatureOfPaymentController.delete);
 
 ipcMain.handle('gst:computeTax', gstController.computeTax);
 ipcMain.handle('gst:generateGSTR1', gstController.generateGSTR1);
@@ -300,3 +315,6 @@ ipcMain.handle('whatsapp:sendStatement',       whatsappController.sendStatement)
 ipcMain.handle('whatsapp:sendText',            whatsappController.sendText);
 ipcMain.handle('whatsapp:getLogs',             whatsappController.getLogs);
 ipcMain.handle('whatsapp:verifyWebhook',       whatsappController.verifyWebhook);
+
+ipcMain.handle('companyGstDetails:get', companyGstDetailsController.get);
+ipcMain.handle('companyGstDetails:save', companyGstDetailsController.save);

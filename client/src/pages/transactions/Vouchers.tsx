@@ -86,13 +86,14 @@ function RightSidebar({
     "Job Work Out Order",
     "Material In",
     "Material Out",
+    "Manufacturing Journal",
     "Memorandum",
     "Payroll",
     "Physical Stock",
     "Purchase Order",
     "Receipt Note",
-    "Rejections In",
-    "Rejections Out",
+    "Rejection In",
+    "Rejection Out",
     "Reversing Journal",
     "Sales Order",
     "Stock Journal",
@@ -364,6 +365,34 @@ export default function Vouchers() {
       const filledSource = form.sourceStockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
       const filledDest = form.destinationStockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
       return filledSource || filledDest;
+    }
+
+    // Order vouchers: party + at least one stock item with quantity
+    if (["Purchase Order", "Sales Order", "Job Work In Order", "Job Work Out Order"].includes(effectiveVoucherType)) {
+      return (
+        !!form.partyLedger &&
+        form.stockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0)
+      );
+    }
+
+    if (effectiveVoucherType === "Memorandum") {
+      return true;
+    }
+
+    if (effectiveVoucherType === "Reversing Journal") {
+      if (form.journalEntryMode === "single") {
+        return (
+          !!form.accountLedger &&
+          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
+        );
+      }
+      const filled = form.journalRows.filter(
+        (r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0
+      );
+      return (
+        filled.length >= 2 &&
+        Math.abs(form.debitTotal - form.creditTotal) < 0.01
+      );
     }
 
     if (effectiveVoucherType === "Attendance") {
@@ -1431,6 +1460,48 @@ export default function Vouchers() {
           )}
           {effectiveVoucherType === "Payroll" && (
             <PayrollVoucher form={form} />
+          )}
+          {effectiveVoucherType === "Purchase Order" && (
+            <DeliveryNoteVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {effectiveVoucherType === "Sales Order" && (
+            <DeliveryNoteVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {effectiveVoucherType === "Job Work In Order" && (
+            <DeliveryNoteVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {effectiveVoucherType === "Job Work Out Order" && (
+            <DeliveryNoteVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {effectiveVoucherType === "Memorandum" && (
+            <JournalVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
+          )}
+          {effectiveVoucherType === "Reversing Journal" && (
+            <JournalVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
           )}
 
           {/* ── Narration + grand total ── */}

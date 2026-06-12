@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useCompany } from "@/context/CompanyContext";
+import CompanyGSTDetailsModal from "@/pages/master/statutory/company-gst-details/CompanyGSTDetailsModal";
 
 export default function Alter() {
   const { selectedCompany } = useCompany();
   const [masterSections, setMasterSections] = useState<{title: string, items: string[]}[]>([]);
+  const [isGSTModalOpen, setIsGSTModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,6 +38,10 @@ export default function Alter() {
       "Location": "/master/alter/godown",
       "GST Registration": "/master/alter/gst-registration",
       "GST Classification": "/master/alter/gst-classification",
+      "Company GST Details": "modal",
+      "TCS Nature of Goods": "/master/alter/tcs-nature-of-goods",
+      "TDS Nature of Payment": "/master/alter/tds-nature-of-payment",
+      "Tax Units": "/master/alter/tax-units",
       "Employee Category": "/master/alter/employee-category",
       "Employee Group": "/master/alter/employee-group",
       "Employee": "/master/alter/employee",
@@ -80,21 +86,22 @@ export default function Alter() {
               <div className="flex flex-col items-start w-full pl-8">
                 {section.items.map((item) => {
                   const route = getRoute(item);
-                  if (route) {
-                    return (
-                      <button
-                        key={item}
-                        onClick={() => navigate(route)}
-                        className="text-left rounded px-2 py-1 w-full hover:bg-black hover:text-white transition-colors"
-                      >
-                        {item}
-                      </button>
-                    );
-                  }
+                  const isAvailable = route !== null;
                   return (
                     <button
                       key={item}
-                      className="text-left rounded px-2 py-1 w-full hover:bg-black hover:text-white transition-colors"
+                      onClick={() => {
+                        if (route === "modal" && item === "Company GST Details") {
+                          setIsGSTModalOpen(true);
+                        } else if (route) {
+                          navigate(route);
+                        }
+                      }}
+                      className={`text-left rounded px-2 py-1 w-full transition-colors ${
+                        isAvailable
+                          ? "hover:bg-black hover:text-white cursor-pointer"
+                          : "opacity-40 cursor-not-allowed"
+                      }`}
                     >
                       {item}
                     </button>
@@ -105,6 +112,11 @@ export default function Alter() {
           ))}
         </div>
       </div>
+
+      <CompanyGSTDetailsModal
+        isOpen={isGSTModalOpen}
+        onClose={() => setIsGSTModalOpen(false)}
+      />
     </div>
   );
 }
