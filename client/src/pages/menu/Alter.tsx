@@ -40,6 +40,7 @@ export default function Alter() {
       "GST Classification": "/master/alter/gst-classification",
       "Company GST Details": "modal",
       "TCS Nature of Goods": "/master/alter/tcs-nature-of-goods",
+      "TDS Nature of Payment": "/master/alter/tds-nature-of-payment",
       "Tax Units": "/master/alter/tax-units",
       "Employee Category": "/master/alter/employee-category",
       "Employee Group": "/master/alter/employee-group",

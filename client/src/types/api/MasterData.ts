@@ -4,6 +4,7 @@ import type { GSTRegistrationType } from '../entities/GSTRegistration';
 import type { GSTClassificationType } from '../entities/GSTClassification';
 import type { CompanyGSTDetails } from '../entities/CompanyGSTDetails';
 import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
+import type { TDSNatureOfPaymentType } from '../entities/TDSNatureOfPayment';
 
 export interface MasterDataAPI {
   companyGstDetails: {
@@ -51,6 +52,14 @@ export interface MasterDataAPI {
     getAll: (company_id: number) => Promise<{ success: boolean; tcsNatureOfGoodsList: TCSNatureOfGoodsType[]; error?: string }>;
     getById: (id: number) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
     update: (data: Partial<TCSNatureOfGoodsType>) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
+    delete: (id: number) => Promise<{ success: boolean; error?: string }>;
+  };
+
+  tdsNatureOfPayment: {
+    create: (data: Partial<TDSNatureOfPaymentType>) => Promise<{ success: boolean; tdsNatureOfPayment: TDSNatureOfPaymentType; error?: string }>;
+    getAll: (company_id: number) => Promise<{ success: boolean; tdsNatureOfPaymentList: TDSNatureOfPaymentType[]; error?: string }>;
+    getById: (id: number) => Promise<{ success: boolean; tdsNatureOfPayment: TDSNatureOfPaymentType; error?: string }>;
+    update: (data: Partial<TDSNatureOfPaymentType>) => Promise<{ success: boolean; tdsNatureOfPayment: TDSNatureOfPaymentType; error?: string }>;
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;
   };
 

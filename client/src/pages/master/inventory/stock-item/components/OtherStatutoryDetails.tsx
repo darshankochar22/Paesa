@@ -28,11 +28,6 @@ const EXCISE_APPLICABLE_OPTIONS = [
   { id: "Undefined", label: "Undefined" },
 ];
 
-const VAT_APPLICABLE_OPTIONS = [
-  { id: "Applicable", label: "Applicable" },
-  { id: "Not Applicable", label: "Not Applicable" },
-];
-
 const YES_NO_OPTIONS = [
   { id: "Yes", label: "Yes" },
   { id: "No", label: "No" },

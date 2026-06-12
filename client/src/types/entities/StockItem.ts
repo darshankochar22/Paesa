@@ -35,8 +35,6 @@ export interface StockItemType {
   bom_name?: string;
   track_date_of_manufacturing?: number;
   enable_cost_tracking?: number;
-  track_date_of_manufacturing?: number;
-  enable_cost_tracking?: number;
   excise_applicable?: string;
   excise_details?: string;
   excise_tariff_name?: string;

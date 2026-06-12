@@ -1,13 +1,9 @@
-import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
-import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { FormRow, PageTitleBar } from "@/components/ui";
 import { useCompany } from "@/context/CompanyContext";
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
 export default function TaxCreate() {
-
   const { selectedCompany } = useCompany();
-  const navigate = useNavigate();
 return(
    <div>
   <PageTitleBar title="Tax Units" subtitle={selectedCompany?.name} />

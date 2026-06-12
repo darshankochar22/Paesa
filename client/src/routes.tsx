@@ -52,6 +52,9 @@ import GSTClassificationCOA from "./pages/master/statutory/gst-classification/GS
 import TCSNatureOfGoodsCreate from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsCreate.tsx";
 import TCSNatureOfGoodsAlter from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsAlter.tsx";
 import TCSNatureOfGoodsCOA from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsCOA.tsx";
+import TDSNatureOfPaymentCreate from "./pages/master/statutory/tds-nature-of-payment/TDSNatureOfPaymentCreate.tsx";
+import TDSNatureOfPaymentAlter from "./pages/master/statutory/tds-nature-of-payment/TDSNatureOfPaymentAlter.tsx";
+import TDSNatureOfPaymentCOA from "./pages/master/statutory/tds-nature-of-payment/TDSNatureOfPaymentCOA.tsx";
 import GSTR1View from "./pages/master/statutory/gst-return/GSTR1View.tsx";
 import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
 import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
@@ -119,6 +122,10 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/create/tcs-nature-of-goods", element: <TCSNatureOfGoodsCreate /> },
   { path: "/master/alter/tcs-nature-of-goods", element: <TCSNatureOfGoodsAlter /> },
   { path: "/master/coa/tcs-nature-of-goods", element: <TCSNatureOfGoodsCOA /> },
+
+  { path: "/master/create/tds-nature-of-payment", element: <TDSNatureOfPaymentCreate /> },
+  { path: "/master/alter/tds-nature-of-payment", element: <TDSNatureOfPaymentAlter /> },
+  { path: "/master/coa/tds-nature-of-payment", element: <TDSNatureOfPaymentCOA /> },
 
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
   
