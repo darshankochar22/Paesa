@@ -58,9 +58,6 @@ module.exports = {
                 ?, ?,
                 ?, ?,
                 ?, ?,
-                ?, ?, ?, ?,
-                ?, ?,
-                ?, ?,
                 ?, ?,
                 ?, ?,
                 ?, ?,
@@ -126,11 +123,43 @@ module.exports = {
         ],
       });
 
+      const itemId = Number(result.lastInsertRowid);
+
+      if (Array.isArray(data.allocations) && data.allocations.length > 0) {
+        for (const alloc of data.allocations) {
+          const qty = Number(alloc.quantity) || 0;
+          const rate = Number(alloc.rate) || 0;
+          const amt = qty * rate;
+          await db.execute({
+            sql: `INSERT INTO stock_item_opening_allocations (
+                    item_id, godown_id, batch_number, mfg_date, expiry_date, quantity, rate, amount
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              itemId,
+              alloc.godown_id ? Number(alloc.godown_id) : null,
+              alloc.batch_number || null,
+              alloc.mfg_date || null,
+              alloc.expiry_date || null,
+              qty,
+              rate,
+              amt
+            ]
+          });
+        }
+      }
+
       const item = await db.execute({
         sql: `SELECT * FROM stock_items WHERE item_id = ?`,
-        args: [Number(result.lastInsertRowid)],
+        args: [itemId],
       });
-      return { success: true, item: item.rows[0] };
+      const allocs = await db.execute({
+        sql: `SELECT * FROM stock_item_opening_allocations WHERE item_id = ?`,
+        args: [itemId],
+      });
+      const itemData = item.rows[0];
+      itemData.allocations = allocs.rows;
+
+      return { success: true, item: itemData };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -160,7 +189,15 @@ module.exports = {
       });
       if (result.rows.length === 0)
         return { success: false, error: 'Stock Item not found' };
-      return { success: true, item: result.rows[0] };
+      
+      const item = result.rows[0];
+      const allocs = await db.execute({
+        sql: `SELECT * FROM stock_item_opening_allocations WHERE item_id = ?`,
+        args: [id],
+      });
+      item.allocations = allocs.rows;
+
+      return { success: true, item };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -322,11 +359,48 @@ module.exports = {
         ],
       });
 
+      if (data.allocations !== undefined) {
+        await db.execute({
+          sql: `DELETE FROM stock_item_opening_allocations WHERE item_id = ?`,
+          args: [data.item_id],
+        });
+
+        if (Array.isArray(data.allocations) && data.allocations.length > 0) {
+          for (const alloc of data.allocations) {
+            const qtyAlloc = Number(alloc.quantity) || 0;
+            const rateAlloc = Number(alloc.rate) || 0;
+            const amtAlloc = qtyAlloc * rateAlloc;
+            await db.execute({
+              sql: `INSERT INTO stock_item_opening_allocations (
+                      item_id, godown_id, batch_number, mfg_date, expiry_date, quantity, rate, amount
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              args: [
+                data.item_id,
+                alloc.godown_id ? Number(alloc.godown_id) : null,
+                alloc.batch_number || null,
+                alloc.mfg_date || null,
+                alloc.expiry_date || null,
+                qtyAlloc,
+                rateAlloc,
+                amtAlloc
+              ]
+            });
+          }
+        }
+      }
+
       const updated = await db.execute({
         sql: `SELECT * FROM stock_items WHERE item_id = ?`,
         args: [data.item_id],
       });
-      return { success: true, item: updated.rows[0] };
+      const item = updated.rows[0];
+      const allocs = await db.execute({
+        sql: `SELECT * FROM stock_item_opening_allocations WHERE item_id = ?`,
+        args: [data.item_id],
+      });
+      item.allocations = allocs.rows;
+
+      return { success: true, item };
     } catch (err) {
       return { success: false, error: err.message };
     }

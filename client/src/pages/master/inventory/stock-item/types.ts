@@ -1,3 +1,14 @@
+export interface AllocationEntry {
+  allocation_id?: number;
+  godown_id: string;
+  batch_number: string;
+  mfg_date: string;
+  expiry_date: string;
+  quantity: string;
+  rate: string;
+  amount?: number;
+}
+
 export interface FormData {
   name: string;
   alias: string;
@@ -19,6 +30,10 @@ export interface FormData {
   taxability_type: string;
   gst_rate: string;
   type_of_supply: string;
+
+  track_batches: boolean;
+  track_expiry: boolean;
+  allocations: AllocationEntry[];
 
   maintain_in_batches: string;
   track_date_of_manufacturing: string;

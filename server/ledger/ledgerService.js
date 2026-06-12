@@ -33,8 +33,10 @@ const seedDefaultLedgers = async (company_id, groups) => {
               phone, email, gstin, pan, registration_type,
               default_credit_period, check_credit_days,
               allow_cost_centres, invoice_rounding, rounding_method, rounding_limit,
-              is_active, is_predefined
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              is_active, is_predefined,
+              additional_gst_details, service_tax_details, include_assessable_value, 
+              method_of_calculation, other_statutory_details
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         company_id,
         l.group_id,
@@ -66,6 +68,12 @@ const seedDefaultLedgers = async (company_id, groups) => {
         0,
         1,
         1,
+        // 👇 Naye fields ke default values
+        0, 
+        0, 
+        "Not Applicable", 
+        "Based on Value", 
+        0
       ],
     });
   }
@@ -99,8 +107,10 @@ module.exports = {
                 phone, email, gstin, pan, registration_type,
                 default_credit_period, check_credit_days,
                 allow_cost_centres, invoice_rounding, rounding_method, rounding_limit,
-                is_active, is_predefined
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                is_active, is_predefined,
+                additional_gst_details, service_tax_details, include_assessable_value,
+                method_of_calculation, other_statutory_details
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           data.company_id,
           data.group_id || null,
@@ -132,6 +142,12 @@ module.exports = {
           data.rounding_limit || 0,
           1,
           0,
+          // 👇 Naye fields handle kiye gaye hain
+          data.additional_gst_details ? 1 : 0,
+          data.service_tax_details ? 1 : 0,
+          data.include_assessable_value || "Not Applicable",
+          data.method_of_calculation || "Based on Value",
+          data.other_statutory_details ? 1 : 0
         ],
       });
 
@@ -369,6 +385,11 @@ module.exports = {
                 invoice_rounding = ?,
                 rounding_method = ?,
                 rounding_limit = ?,
+                additional_gst_details = ?,
+                service_tax_details = ?,
+                include_assessable_value = ?,
+                method_of_calculation = ?,
+                other_statutory_details = ?,
                 updated_at = datetime('now')
               WHERE ledger_id = ?`,
         args: [
@@ -399,6 +420,13 @@ module.exports = {
           data.invoice_rounding ? 1 : 0,
           data.rounding_method ?? ledger.rounding_method,
           data.rounding_limit ?? ledger.rounding_limit ?? 0,
+          // 👇 Naye fields update ho rahe hain
+          data.additional_gst_details ?? ledger.additional_gst_details ?? 0,
+          data.service_tax_details ?? ledger.service_tax_details ?? 0,
+          data.include_assessable_value ?? ledger.include_assessable_value ?? "Not Applicable",
+          data.method_of_calculation ?? ledger.method_of_calculation ?? "Based on Value",
+          data.other_statutory_details ?? ledger.other_statutory_details ?? 0,
+          // Ledger ID last me
           data.ledger_id,
         ],
       });

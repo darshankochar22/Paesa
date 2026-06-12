@@ -66,6 +66,9 @@ export const INITIAL_FORM: Partial<LedgerType> = {
   invoice_rounding: 0,
   rounding_method: "",
   rounding_limit: 0,
+  include_assessable_value: "Not Applicable",
+  method_of_calculation: "Based on Value",
+  other_statutory_details: 0,
   
 };
 

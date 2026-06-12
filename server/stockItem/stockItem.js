@@ -99,6 +99,20 @@ const init = async (db) => {
       await db.execute(m.sql);
     }
   }
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS stock_item_opening_allocations (
+      allocation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL REFERENCES stock_items(item_id) ON DELETE CASCADE,
+      godown_id INTEGER REFERENCES godowns(godown_id) ON DELETE SET NULL,
+      batch_number TEXT,
+      mfg_date TEXT,
+      expiry_date TEXT,
+      quantity REAL DEFAULT 0,
+      rate REAL DEFAULT 0,
+      amount REAL DEFAULT 0
+    )
+  `);
 };
 
 module.exports = { init };

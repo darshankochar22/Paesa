@@ -49,6 +49,9 @@ export default function LedgerTaxPanel({
 
   return (
     <>
+      {/* ==============================================
+          1. DUTIES & TAXES SECTION
+      ============================================== */}
       {showDutyTaxSection && (
         <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Statutory / Duty Details</div>
