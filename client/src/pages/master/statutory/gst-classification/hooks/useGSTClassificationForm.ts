@@ -194,14 +194,39 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
   };
 
   const addSlabRow = useCallback(() => {
-    setForm((f) => ({ ...f, slabRows: [...f.slabRows, DEFAULT_GST_SLAB] }));
+    setForm((f) => {
+      const lastRow = f.slabRows[f.slabRows.length - 1];
+      const nextGreaterThan = lastRow ? (lastRow.up_to || "0") : "0";
+      const newRow: GSTSlabLine = {
+        greater_than: nextGreaterThan,
+        up_to: "",
+        taxability: "Taxable",
+        gst_rate: "0",
+      };
+      return { ...f, slabRows: [...f.slabRows, newRow] };
+    });
   }, []);
 
   const updateSlabRow = useCallback((index: number, field: keyof GSTSlabLine, value: string) => {
-    setForm((f) => ({
-      ...f,
-      slabRows: f.slabRows.map((row, idx) => idx === index ? { ...row, [field]: value } : row),
-    }));
+    setForm((f) => {
+      let updatedRows = f.slabRows.map((row, idx) => {
+        if (idx === index) {
+          const updatedRow = { ...row, [field]: value };
+          if (field === "taxability" && (value === "Exempt" || value === "Nil Rated")) {
+            updatedRow.gst_rate = "0";
+          }
+          return updatedRow;
+        }
+        return row;
+      });
+
+      if (field === "up_to") {
+        if (index + 1 < updatedRows.length) {
+          updatedRows = updatedRows.map((row, idx) => idx === index + 1 ? { ...row, greater_than: value } : row);
+        }
+      }
+      return { ...f, slabRows: updatedRows };
+    });
   }, []);
 
   const removeSlabRow = useCallback((index: number) => {
@@ -224,6 +249,19 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
         [key]: typedVal,
         rate_type: typedVal === "Specify Slab-Based Rates" ? "Slab Based" : "Fixed Rate",
       }));
+    } else if (key === "taxability") {
+      const typedVal = val as FormData["taxability"];
+      if (typedVal === "Exempt" || typedVal === "Nil Rated") {
+        setForm((f) => ({
+          ...f,
+          [key]: typedVal,
+          igst_rate: "0",
+          cgst_rate: "0",
+          sgst_rate: "0",
+        }));
+      } else {
+        setForm((f) => ({ ...f, [key]: typedVal }));
+      }
     } else {
       setForm((f) => ({ ...f, [key]: val }));
     }
@@ -289,13 +327,13 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
         is_reverse_charge: form.is_reverse_charge === "Yes" ? 1 : 0,
         is_ineligible_for_itc: form.is_ineligible_for_itc === "Yes" ? 1 : 0,
         rate_type: form.rate_type,
-        igst_rate: form.gst_rate_details === "Specify Slab-Based Rates" ? 0 : Number(form.igst_rate) || 0,
+        igst_rate: (form.gst_rate_details === "Specify Slab-Based Rates" || form.taxability === "Exempt" || form.taxability === "Nil Rated") ? 0 : Number(form.igst_rate) || 0,
         igst_valuation_type: form.igst_valuation_type,
-        cgst_rate: form.gst_rate_details === "Specify Slab-Based Rates" ? 0 : Number(form.cgst_rate) || 0,
+        cgst_rate: (form.gst_rate_details === "Specify Slab-Based Rates" || form.taxability === "Exempt" || form.taxability === "Nil Rated") ? 0 : Number(form.cgst_rate) || 0,
         cgst_valuation_type: form.cgst_valuation_type,
-        sgst_rate: form.gst_rate_details === "Specify Slab-Based Rates" ? 0 : Number(form.sgst_rate) || 0,
+        sgst_rate: (form.gst_rate_details === "Specify Slab-Based Rates" || form.taxability === "Exempt" || form.taxability === "Nil Rated") ? 0 : Number(form.sgst_rate) || 0,
         sgst_valuation_type: form.sgst_valuation_type,
-        cess_rate: Number(form.cess_rate) || 0,
+        cess_rate: (form.taxability === "Exempt" || form.taxability === "Nil Rated") ? 0 : Number(form.cess_rate) || 0,
         cess_valuation_type: form.cess_valuation_type,
         slab_rows: form.gst_rate_details === "Specify Slab-Based Rates" ? form.slabRows : undefined,
         is_predefined: mode === "create" ? 0 : selectedClass?.is_predefined ?? 0,

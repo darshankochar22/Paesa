@@ -135,7 +135,7 @@ export default function GSTClassificationFormFields({
                 </select>
                 <div className="flex items-center gap-1">
                   <input
-                    disabled={isPredefined}
+                    disabled={isPredefined || row.taxability === "Exempt" || row.taxability === "Nil Rated"}
                     type="number"
                     min="0"
                     max="100"
@@ -188,7 +188,7 @@ export default function GSTClassificationFormFields({
                   min="0"
                   max="100"
                   step="0.01"
-                  disabled={gstDisabled}
+                  disabled={gstDisabled || form.taxability === "Exempt" || form.taxability === "Nil Rated"}
                   className={`${inputCls} ${dis()} w-20`}
                   value={form.igst_rate}
                   onChange={setField("igst_rate")}
