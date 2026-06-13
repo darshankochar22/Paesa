@@ -21,4 +21,6 @@ export type { PayrollUnitType, PayHeadType, SalaryStructureType, AttendanceTypeT
 export type { FeatureGroupType, FeatureItemType } from './Feature';
 export type { TallyFeaturesType } from './TallyFeatures';
 export type { CompanyGSTDetails } from './CompanyGSTDetails';
+export type { CompanyTDSDetails } from './CompanyTDSDetails';
+export type { CompanyTCSDetails } from './CompanyTCSDetails';
 export type { TaxUnitType } from './TaxUnit';

@@ -3,6 +3,8 @@ import type { VoucherTypeType } from '../entities/VoucherType';
 import type { GSTRegistrationType } from '../entities/GSTRegistration';
 import type { GSTClassificationType } from '../entities/GSTClassification';
 import type { CompanyGSTDetails } from '../entities/CompanyGSTDetails';
+import type { CompanyTDSDetails } from '../entities/CompanyTDSDetails';
+import type { CompanyTCSDetails } from '../entities/CompanyTCSDetails';
 import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
 import type { TDSNatureOfPaymentType } from '../entities/TDSNatureOfPayment';
 
@@ -10,6 +12,16 @@ export interface MasterDataAPI {
   companyGstDetails: {
     get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CompanyGSTDetails | null; error?: string }>;
     save: (data: CompanyGSTDetails & { company_id: number }) => Promise<{ success: boolean; record?: any; error?: string }>;
+  };
+
+  companyTdsDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CompanyTDSDetails | null; error?: string }>;
+    save: (data: CompanyTDSDetails & { company_id: number }) => Promise<{ success: boolean; record?: any; error?: string }>;
+  };
+
+  companyTcsDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CompanyTCSDetails | null; error?: string }>;
+    save: (data: CompanyTCSDetails & { company_id: number }) => Promise<{ success: boolean; record?: any; error?: string }>;
   };
 
   currency: {

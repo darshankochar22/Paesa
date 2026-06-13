@@ -281,4 +281,12 @@ contextBridge.exposeInMainWorld('api', {
         get:  (company_id) => invoke('companyGstDetails:get', company_id),
         save: (data)       => invoke('companyGstDetails:save', data),
     },
+    companyTdsDetails: {
+        get:  (company_id) => invoke('companyTdsDetails:get', company_id),
+        save: (data)       => invoke('companyTdsDetails:save', data),
+    },
+    companyTcsDetails: {
+        get:  (company_id) => invoke('companyTcsDetails:get', company_id),
+        save: (data)       => invoke('companyTcsDetails:save', data),
+    },
 });

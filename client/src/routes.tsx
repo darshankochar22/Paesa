@@ -121,7 +121,7 @@ export const APP_ROUTES: RouteConfig[] = [
 
   {path: "/master/create/tds-details", element: <TDSDetailsCreate/>},
   {path: "/master/alter/tds-details", element: <TDSDetailsAlter/>},
-  {path: "/master/alter/tds-details", element: <TDSDetailsCOA/>},
+  {path: "/master/coa/tds-details", element: <TDSDetailsCOA/>},
 
   {path: "/master/create/tcs-details", element: <TCSDetailsCreate/>},
   {path: "/master/alter/tcs-details", element: <TCSDetailsAlter/>},
