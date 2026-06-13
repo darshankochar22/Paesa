@@ -13,7 +13,7 @@ import type { FeatureManagementAPI } from './FeatureManagement';
 import type { VoucherTypeAPI } from './VoucherType';
 import type { PhysicalStockAPI } from './PhysicalStock';
 import type { AttendanceAPI } from './Attendance';
-import type { TaxUnitAPI } from './taxUnits';
+import type { TaxUnitAPI } from './TaxUnits';
 
 export type {
   CompanyType,

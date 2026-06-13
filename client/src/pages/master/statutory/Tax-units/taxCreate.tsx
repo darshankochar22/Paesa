@@ -1,15 +1,15 @@
-import RightPanel from "@/components/RightPanel.tsx";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useCompany } from "@/context/CompanyContext";
 import { INDIAN_STATES } from "@/constants/states";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
-import { taxUnitApi, TaxUnit } from "@/api/taxUnitApi";
+import RightPanel from "@/components/RightPanel.tsx";
+import type { TaxUnitType } from "@/types/entities";
 
 const inputCls =
   "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-400 transition-colors bg-[#fffbe6] rounded";
 
 const REGISTRATION_TYPES = ["Dealer", "Importer", "Manufacturer"];
-
-const COMPANY_ID = 1; // TODO: replace with actual company context/session value
 
 function ExciseDetailsPopup({
   unitName,
@@ -132,6 +132,10 @@ function ExciseDetailsPopup({
 }
 
 export default function TaxCreate() {
+  const navigate = useNavigate();
+  const { selectedCompany } = useCompany();
+  const companyId = selectedCompany?.company_id;
+
   const [form, setForm] = useState({
     name: "",
     alias: "",
@@ -189,12 +193,16 @@ export default function TaxCreate() {
       setError("Name is required");
       return;
     }
+    if (!companyId) {
+      setError("No company selected");
+      return;
+    }
 
     setSaving(true);
     setError(null);
 
-    const payload: TaxUnit = {
-      company_id: COMPANY_ID,
+    const payload: TaxUnitType = {
+      company_id: companyId,
       name: form.name,
       alias: form.alias || undefined,
       address_line1: form.addressLine1 || undefined,
@@ -205,15 +213,15 @@ export default function TaxCreate() {
       pincode: form.pincode || undefined,
       telephone: form.telephone || undefined,
       registered_for: "Excise",
-      set_alter_excise_details: form.setAlterExciseDetails,
+      set_alter_excise_details: form.setAlterExciseDetails ? 1 : 0,
       registration_type: registrationType,
       ecc_number: eccNumber || undefined,
-      set_alter_excise_tariff: setAlterTariff,
-      set_alter_rule11_book: setAlterRule11,
+      set_alter_excise_tariff: setAlterTariff ? 1 : 0,
+      set_alter_rule11_book: setAlterRule11 ? 1 : 0,
     };
 
     try {
-      const result = await taxUnitApi.create(payload);
+      const result = await window.api.taxUnits.create(payload);
 
       if (result.success) {
         resetForm();
@@ -228,10 +236,27 @@ export default function TaxCreate() {
   };
 
   const handleQuit = () => {
-    resetForm();
-    setError(null);
-    // navigate away if needed, e.g. navigate("/")
+    navigate("/master/create");
   };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleQuit();
+      }
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSave();
+      }
+      if (e.altKey && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        navigate("/master/alter/tax-units");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleSave, navigate, companyId]);
 
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-100 font-mono text-sm select-none">

@@ -129,9 +129,9 @@ export const APP_ROUTES: RouteConfig[] = [
 
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
   
-  { path:"/master/create/Tax-units",element: <TaxCreate/>},
-  { path:"/master/alter/Tax-units",element: <TaxAlter/>},
-  { path:"/master/coa/Tax-units",element: <TaxCOA/>},
+  { path: "/master/create/tax-units", element: <TaxCreate /> },
+  { path: "/master/alter/tax-units", element: <TaxAlter /> },
+  { path: "/master/coa/tax-units", element: <TaxCOA /> },
 
   
 
