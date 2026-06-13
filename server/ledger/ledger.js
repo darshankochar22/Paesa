@@ -25,6 +25,16 @@ const init = async (db) => {
       pan                         TEXT,
       registration_type           TEXT DEFAULT 'Unregistered',
       allow_cost_centres          INTEGER DEFAULT 0,
+      default_credit_period       INTEGER DEFAULT 0,
+      check_credit_days           INTEGER DEFAULT 0,
+      invoice_rounding            INTEGER DEFAULT 0,
+      rounding_method             TEXT,
+      rounding_limit              REAL DEFAULT 0,
+      additional_gst_details      INTEGER DEFAULT 0,
+      service_tax_details         INTEGER DEFAULT 0,
+      include_assessable_value    TEXT DEFAULT 'Not Applicable',
+      method_of_calculation       TEXT DEFAULT 'Based on Value',
+      other_statutory_details     INTEGER DEFAULT 0,
       is_active                   INTEGER DEFAULT 1,
       is_predefined               INTEGER DEFAULT 0,
       created_at                  TEXT DEFAULT (datetime('now')),
@@ -111,6 +121,26 @@ const init = async (db) => {
   } catch (err) {}
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN rounding_limit REAL DEFAULT 0`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN additional_gst_details INTEGER DEFAULT 0`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN service_tax_details INTEGER DEFAULT 0`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN include_assessable_value TEXT DEFAULT 'Not Applicable'`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN method_of_calculation TEXT DEFAULT 'Based on Value'`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN other_statutory_details INTEGER DEFAULT 0`);
   } catch (err) {}
 
   try {

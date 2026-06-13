@@ -18,6 +18,9 @@ jobs:
       - name: Install root deps
         run: npm install
 
+      - name: Run Integration Tests
+        run: npm run test
+
       - name: Install client deps
         run: cd client && npm install
 
@@ -47,6 +50,9 @@ jobs:
 
       - name: Install root deps
         run: npm install
+
+      - name: Run Integration Tests
+        run: npm run test
 
       - name: Install client deps
         run: cd client && npm install
@@ -80,6 +86,9 @@ jobs:
 
       - name: Install root deps
         run: npm install
+
+      - name: Run Integration Tests
+        run: npm run test
 
       - name: Install client deps
         run: cd client && npm install

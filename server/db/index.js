@@ -1,8 +1,14 @@
 const { createClient } = require("@libsql/client");
 const path = require("path");
-const { app } = require("electron");
 
-const dbPath = `file:${path.join(app.getPath("userData"), "startup.db")}`;
+let dbPath;
+if (process.env.NODE_ENV === "test") {
+  dbPath = "file::memory:";
+} else {
+  const { app } = require("electron");
+  dbPath = `file:${path.join(app.getPath("userData"), "startup.db")}`;
+}
+
 const db = createClient({ url: dbPath });
 
 const initDB = async () => {
@@ -47,6 +53,7 @@ const initDB = async () => {
   await require('../profitLossReport/profitLossReport').init(db);
   await require('../trialBalanceReport/trialBalanceReport').init(db);
   await require('../salaryStructure/salaryStructure').init(db);
+  await require('../taxUnits/taxUnit').init(db);
   await require('../voucherEntryActions/voucherEntryActions').init(db);
   await require('../eInvoice/eInvoice').init(db);
   await require('../whatsapp/whatsapp').init(db);
