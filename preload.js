@@ -21,6 +21,18 @@ contextBridge.exposeInMainWorld('api', {
         update:           (data) => invoke('taxUnits:update', data),
         delete:           (id) => invoke('taxUnits:delete',id),
     },
+    priceList:{
+        create:  (data)       => invoke('priceList:create', data),
+        getAll:  (company_id) => invoke('priceList:getAll', company_id),
+        getById: (id)         => invoke('priceList:getById', id),
+        update:  (data)       => invoke('priceList:update', data),
+        delete:  (id)         => invoke('priceList:delete', id),
+    },
+      priceLevels: {
+        get:    (company_id) => invoke('priceLevels:get', company_id),
+        save:   (data)       => invoke('priceLevels:save', data),
+        delete: (company_id) => invoke('priceLevels:delete', company_id),
+    },
     fy: {
         create:    (data)                  => invoke('fy:create', data),
         getAll:    (company_id)            => invoke('fy:getAll', company_id),

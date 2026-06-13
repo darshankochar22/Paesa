@@ -4,9 +4,9 @@ import CostCentreCreate from "./pages/master/cost-centre/cost-centreCreate.tsx";
 import PricelevelsCreate from "./pages/master/inventory/price-levels/pricelevelsCreate.tsx";
 import PricelevelsAlter from "./pages/master/inventory/price-levels/pricelevelsAlter.tsx";
 import PricelevelsCOA from "./pages/master/inventory/price-levels/pricelevelsCOA.tsx";
-import PricelistsgCreate from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)Create.tsx";
-import PricelistsgAlter from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)Alter.tsx";
-import PricelistsgCOA from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)COA.tsx";
+import PriceListSGCreate from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)Create.tsx";
+import PriceListSGAlter from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)Alter.tsx";
+import PriceListSGCOA from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)COA.tsx";
 import PricelistscCreate from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)Create.tsx";
 import PricelistscAlter from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)Alter.tsx";
 import PricelistscCOA from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)COA.tsx";
@@ -139,13 +139,13 @@ export const APP_ROUTES: RouteConfig[] = [
   {path: "/master/alter/price-levels", element: <PricelevelsAlter/>},
   {path: "/master/coa/price-levels", element: <PricelevelsCOA/>},
 
-  {path: "/master/create/price-lists-sg", element: <PricelistsgCreate/>},
-  {path: "/master/alter/price-lists-sg", element: <PricelistsgAlter/>},
-  {path: "/master/coa/price-lists-sg", element: <PricelistsgCOA/>},
+  {path: "/master/create/price-lists-sg", element: <PriceListSGCreate/>},
+  {path: "/master/alter/price-lists-sg", element: <PriceListSGAlter/>},
+  {path: "/master/coa/price-lists-sg", element: <PriceListSGCOA/>},
 
-  {path: "/master/create/price-lists-sc", element: <PricelistsgCreate/>},
-  {path: "/master/alter/price-lists-sc", element: <PricelistsgAlter/>},
-  {path: "/master/coa/price-lists-sc", element: <PricelistsgCOA/>},
+  {path: "/master/create/price-lists-sc", element: <PricelistscCreate/>},
+  {path: "/master/alter/price-lists-sc", element: <PricelistscAlter/>},
+  {path: "/master/coa/price-lists-sc", element: <PricelistscCOA/>},
 
   {path: "/master/create/payroll-voucher-type", element: <PayrollvtCreate/>},
   {path: "/master/alter/payroll-voucher-type", element: <PayrollvtAlter/>},

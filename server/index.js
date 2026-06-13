@@ -45,18 +45,25 @@ const attendanceController = require('./attendance/attendanceController');
 const companyGstDetailsController = require('./companyGstDetails/companyGstDetailsController');
 const companyTdsDetailsController = require('./companyTdsDetails/companyTdsDetailsController');
 const companyTcsDetailsController = require('./companyTcsDetails/companyTcsDetailsController');
-const taxUnitController=require('./taxUnits/taxUnitController');
-const priceLevelController = require('./priceLevels/priceLevelController');
+const taxUnitController      = require('./taxUnits/taxUnitController');
+const priceLevelController   = require('./priceLevels/priceLevelController');
+const priceListController    = require('./priceList/priceListController');
 
-ipcMain.handle('taxUnits:create',taxUnitController.create);
-ipcMain.handle('taxUnits:getAll',taxUnitController.getAll);
-ipcMain.handle('taxUnits:getById',taxUnitController.getById);
-ipcMain.handle('taxUnits:update',taxUnitController.update);
-ipcMain.handle('taxUnits:delete',taxUnitController.delete);
+ipcMain.handle('taxUnits:create',  taxUnitController.create);
+ipcMain.handle('taxUnits:getAll',  taxUnitController.getAll);
+ipcMain.handle('taxUnits:getById', taxUnitController.getById);
+ipcMain.handle('taxUnits:update',  taxUnitController.update);
+ipcMain.handle('taxUnits:delete',  taxUnitController.delete);
 
-ipcMain.handle('price-levels:get',    priceLevelController.get);
-ipcMain.handle('price-levels:save',   priceLevelController.save);
-ipcMain.handle('price-levels:delete', priceLevelController.delete);
+ipcMain.handle('priceLevels:get',    priceLevelController.get);
+ipcMain.handle('priceLevels:save',   priceLevelController.save);
+ipcMain.handle('priceLevels:delete', priceLevelController.delete);
+
+ipcMain.handle('priceList:create',  priceListController.create);
+ipcMain.handle('priceList:getAll',  priceListController.getAll);
+ipcMain.handle('priceList:getById', priceListController.getById);
+ipcMain.handle('priceList:update',  priceListController.update);
+ipcMain.handle('priceList:delete',  priceListController.delete);
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
