@@ -46,12 +46,17 @@ const companyGstDetailsController = require('./companyGstDetails/companyGstDetai
 const companyTdsDetailsController = require('./companyTdsDetails/companyTdsDetailsController');
 const companyTcsDetailsController = require('./companyTcsDetails/companyTcsDetailsController');
 const taxUnitController=require('./taxUnits/taxUnitController');
+const priceLevelController = require('./priceLevels/priceLevelController');
 
 ipcMain.handle('taxUnits:create',taxUnitController.create);
 ipcMain.handle('taxUnits:getAll',taxUnitController.getAll);
 ipcMain.handle('taxUnits:getById',taxUnitController.getById);
 ipcMain.handle('taxUnits:update',taxUnitController.update);
 ipcMain.handle('taxUnits:delete',taxUnitController.delete);
+
+ipcMain.handle('price-levels:get',    priceLevelController.get);
+ipcMain.handle('price-levels:save',   priceLevelController.save);
+ipcMain.handle('price-levels:delete', priceLevelController.delete);
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
