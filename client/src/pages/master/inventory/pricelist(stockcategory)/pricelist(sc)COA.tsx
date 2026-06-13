@@ -1,6 +1,6 @@
 
 
-export default function pricelistscCOA(){
+export default function PricelistscCOA(){
   return (
    <div>
     pricelistscCOA

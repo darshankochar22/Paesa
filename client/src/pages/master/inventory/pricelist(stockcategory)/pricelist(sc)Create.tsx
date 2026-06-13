@@ -1,6 +1,6 @@
 
 
-export default function pricelistscCreate(){
+export default function PricelistscCreate(){
   return (
    <div>
     pricelistscCreate

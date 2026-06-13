@@ -1,9 +1,9 @@
 
 
-export default function pricelistsgCreate() {
+export default function PricelistsgCreate() {
   return(
    <div>
-    pricelistsgCreate
+    PricelistsgCreate
    </div>
   );
 }

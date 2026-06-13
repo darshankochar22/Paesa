@@ -1,6 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import App from './App.tsx';
 import CostCentreCreate from "./pages/master/cost-centre/cost-centreCreate.tsx";
+import PricelevelsCreate from "./pages/master/inventory/price-levels/pricelevelsCreate.tsx";
+import PricelevelsAlter from "./pages/master/inventory/price-levels/pricelevelsAlter.tsx";
+import PricelevelsCOA from "./pages/master/inventory/price-levels/pricelevelsCOA.tsx";
+import PricelistsgCreate from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)Create.tsx";
+import PricelistsgAlter from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)Alter.tsx";
+import PricelistsgCOA from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)COA.tsx";
+import PricelistscCreate from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)Create.tsx";
+import PricelistscAlter from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)Alter.tsx";
+import PricelistscCOA from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)COA.tsx";
 import TDSDetailsCreate from "./pages/master/statutory-details/TDSDetails/TDSDetailsCreate.tsx";
 import TDSDetailsAlter from "./pages/master/statutory-details/TDSDetails/TDSDetailsAlter.tsx";
 import TDSDetailsCOA from "./pages/master/statutory-details/TDSDetails/TDSDetailsCOA.tsx";
@@ -10,6 +19,9 @@ import TCSDetailsCOA from "./pages/master/statutory-details/TCSDetails/TCSDetail
 import VATRDCreate from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCreate.tsx";
 import VATRDAlter from "./pages/master/statutory-details/VATRegistrationDetails/VATRDAlter.tsx";
 import VATRDCOA from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCOA.tsx";
+import ExciseRDCreate from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDCreate.tsx";
+import ExciseRDAlter from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDAlter.tsx";
+import ExciseRDCOA from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDCOA.tsx";
 import CostCentreAlter from "./pages/master/cost-centre/cost-centreAlter.tsx";
 import CostCentreCOA from "./pages/master/cost-centre/cost-centreCOA.tsx";
 import GenericDataView from './pages/GenericDataView.tsx';
@@ -112,9 +124,25 @@ export const APP_ROUTES: RouteConfig[] = [
   {path: "/master/alter/tcs-details", element: <TCSDetailsAlter/>},
   {path: "/master/coa/tcs-details", element: <TCSDetailsCOA/>},
 
-  {path: "/master/create/vatregistrationdetails", element: <VATRDCreate/>},
-  {path: "/master/alter/vatregistrationdetails",element: <VATRDAlter/>},
-  {path: "/master/coa/vatregistrationdetails", element: <VATRDCOA/>},
+  {path: "/master/create/vat-registration-details", element: <VATRDCreate/>},
+  {path: "/master/alter/vat-registration-details",element: <VATRDAlter/>},
+  {path: "/master/coa/vat-registration-details", element: <VATRDCOA/>},
+
+  {path: "/master/create/excise-registration-details", element: <ExciseRDCreate/>},
+  {path: "/master/alter/excise-registration-details", element: <ExciseRDAlter/>},
+  {path: "/master/coa/excise-registration-details", element: <ExciseRDCOA/>},
+
+  {path: "/master/create/price-levels", element: <PricelevelsCreate/>},
+  {path: "/master/alter/price-levels", element: <PricelevelsAlter/>},
+  {path: "/master/coa/price-levels", element: <PricelevelsCOA/>},
+
+  {path: "/master/create/price-lists-sg", element: <PricelistsgCreate/>},
+  {path: "/master/alter/price-lists-sg", element: <PricelistsgAlter/>},
+  {path: "/master/coa/price-lists-sg", element: <PricelistsgCOA/>},
+
+  {path: "/master/create/price-lists-sc", element: <PricelistsgCreate/>},
+  {path: "/master/alter/price-lists-sc", element: <PricelistsgAlter/>},
+  {path: "/master/coa/price-lists-sc", element: <PricelistsgCOA/>},
 
   { path: "/master/create/cost-centre", element: <CostCentreCreate/>},
   { path: "/master/alter/cost-centre", element: <CostCentreAlter/>},

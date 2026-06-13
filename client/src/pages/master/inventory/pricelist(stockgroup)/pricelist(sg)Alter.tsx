@@ -1,6 +1,6 @@
 
 
-export default function pricelistsgAlter() {
+export default function PricelistsgAlter() {
   return(
    <div>
     pricelistsgAlter

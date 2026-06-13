@@ -1,6 +1,6 @@
 
 
-export default function pricelistscAlter(){
+export default function PricelistscAlter(){
   return (
    <div>
     pricelistscAlter
