@@ -111,8 +111,14 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       "interstateThresholdLimit",
       "intrastateThresholdLimit",
       "thresholdLimitIncludes",
-      "createHSNSummaryFor",
-      "minimumHSNLength",
+      "createHSNSummaryFor"
+    );
+
+    if (form.createHSNSummaryFor !== "None") {
+      list.push("minimumHSNLength");
+    }
+
+    list.push(
       "showGSTAdvances",
       "updateGSTStatus",
       "gstReturnsConfigured"
@@ -232,10 +238,20 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         if (selectedClass.taxability) setField("taxabilityType", selectedClass.taxability);
         if (selectedClass.gst_rate !== undefined) setField("gstRate", selectedClass.gst_rate);
       }
+    } else if (fieldId === "createHSNSummaryFor") {
+      setField("createHSNSummaryFor", val);
+      if (val === "None") {
+        setListPanelOpen(false);
+        setTimeout(() => setShowEffectiveDatePrompt(true), 50);
+        return;
+      }
     } else if (TALLY_FIELDS_CONFIG[fieldId]?.type === "yesno") {
       setField(fieldId as keyof CompanyGSTDetails, val === "Yes");
     } else if (fieldId === "minimumHSNLength") {
       setField("minimumHSNLength", Number(val) || 4);
+      setListPanelOpen(false);
+      setTimeout(() => setShowEffectiveDatePrompt(true), 50);
+      return;
     } else {
       setField(fieldId as keyof CompanyGSTDetails, val);
     }

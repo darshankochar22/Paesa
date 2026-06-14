@@ -26,17 +26,18 @@ interface FieldRowProps {
   label: string;
   labelWidth: string;
   subLabel?: string;
+  disabled?: boolean;
   children: React.ReactNode;
 }
 
-function FieldRow({ label, labelWidth, subLabel, children }: FieldRowProps) {
+function FieldRow({ label, labelWidth, subLabel, disabled, children }: FieldRowProps) {
   return (
     <div
       className="grid items-center min-h-[24px]"
       style={{ gridTemplateColumns: `${labelWidth} 10px 1fr` }}
     >
       <div>
-        <span className="text-zinc-700">{label}</span>
+        <span className={disabled ? "text-zinc-400" : "text-zinc-700"}>{label}</span>
         {subLabel && (
           <span className="text-zinc-400 block text-[9px] pl-4 italic leading-tight">{subLabel}</span>
         )}
@@ -134,8 +135,8 @@ export default function GSTDetailsFormFields({
               </FieldRow>
             )}
 
-            {/* HSN/SAC code — only visible when type is "Specify Details Here" */}
-            {form.hsnSacType === "Specify Details Here" && (
+            {/* HSN/SAC code */}
+            {form.hsnSacType === "Specify Details Here" ? (
               <FieldRow label="HSN/SAC" labelWidth="140px">
                 <input
                   ref={hsnCodeRef}
@@ -147,10 +148,14 @@ export default function GSTDetailsFormFields({
                   className={`${inputClass(activeField === "hsnSacCode")} w-32`}
                 />
               </FieldRow>
-            )}
+            ) : form.hsnSacType === "Not Defined" || form.hsnSacType === "Use GST Classification" ? (
+              <FieldRow label="HSN/SAC" labelWidth="140px" disabled>
+                <div className="flex-1"></div>
+              </FieldRow>
+            ) : null}
 
-            {/* Description — only visible when type is "Specify Details Here" */}
-            {form.hsnSacType === "Specify Details Here" && (
+            {/* Description */}
+            {form.hsnSacType === "Specify Details Here" ? (
               <FieldRow label="Description" labelWidth="140px">
                 <input
                   ref={descRef}
@@ -161,7 +166,11 @@ export default function GSTDetailsFormFields({
                   className={`${inputClass(activeField === "description")} flex-1`}
                 />
               </FieldRow>
-            )}
+            ) : form.hsnSacType === "Not Defined" || form.hsnSacType === "Use GST Classification" ? (
+              <FieldRow label="Description" labelWidth="140px" disabled>
+                <div className="flex-1"></div>
+              </FieldRow>
+            ) : null}
           </div>
         </div>
 
@@ -193,8 +202,8 @@ export default function GSTDetailsFormFields({
               </FieldRow>
             )}
 
-            {/* Taxability Type — only when "Specify Details Here" (not slab-based) */}
-            {gstRateDetails === "Specify Details Here" && (
+            {/* Taxability Type */}
+            {gstRateDetails === "Specify Details Here" ? (
               <FieldRow label="Taxability Type" labelWidth="140px">
                 <div
                   onClick={() => setActiveField("taxabilityType")}
@@ -203,10 +212,14 @@ export default function GSTDetailsFormFields({
                   {form.taxabilityType}
                 </div>
               </FieldRow>
-            )}
+            ) : gstRateDetails === "Not Defined" || gstRateDetails === "Use GST Classification" ? (
+              <FieldRow label="Taxability Type" labelWidth="140px" disabled>
+                <div className="flex-1"></div>
+              </FieldRow>
+            ) : null}
 
-            {/* GST Rate — only when Specify Details Here + Taxable */}
-            {gstRateDetails === "Specify Details Here" && form.taxabilityType === "Taxable" && (
+            {/* GST Rate */}
+            {gstRateDetails === "Specify Details Here" && form.taxabilityType === "Taxable" ? (
               <FieldRow label="GST Rate" labelWidth="140px">
                 <div className="flex items-center gap-1.5 w-32">
                   <input
@@ -222,21 +235,16 @@ export default function GSTDetailsFormFields({
                   <span className="font-bold text-zinc-600">%</span>
                 </div>
               </FieldRow>
-            )}
-
-            {/* Slab Rates — summary + edit button when "Specify Slab-Based Rates" */}
-            {gstRateDetails === "Specify Slab-Based Rates" && (
-              <FieldRow label="Slab Rates" labelWidth="140px">
-                <button
-                  onClick={onOpenSlab}
-                  className="text-left px-2 py-0.5 font-bold text-[#007a78] underline hover:text-[#005a58] font-sans text-xs"
-                >
-                  {slabRows.length > 0
-                    ? `${slabRows.length} slab(s) configured — Edit`
-                    : "Not configured — Click to define"}
-                </button>
+            ) : gstRateDetails === "Not Defined" || gstRateDetails === "Use GST Classification" || (gstRateDetails === "Specify Details Here" && form.taxabilityType !== "Taxable") ? (
+              <FieldRow label="GST Rate" labelWidth="140px" disabled>
+                <div className="flex items-center gap-1.5 w-32 pl-2">
+                  <span className="w-full text-right text-zinc-500 pr-[10px]">0</span>
+                  <span className="font-bold text-zinc-500">%</span>
+                </div>
               </FieldRow>
-            )}
+            ) : null}
+
+
           </div>
         </div>
       </div>
@@ -309,19 +317,30 @@ export default function GSTDetailsFormFields({
               </div>
             </FieldRow>
 
-            {/* Minimum Length of HSN/SAC (dropdown now!) */}
-            <FieldRow
-              label="Minimum length of HSN/SAC"
-              labelWidth="230px"
-              subLabel="(based on annual turnover)"
-            >
-              <div
-                onClick={() => setActiveField("minimumHSNLength")}
-                className={`${dropdownClass(activeField === "minimumHSNLength")} w-16 text-right`}
+            {/* Minimum Length of HSN/SAC */}
+            {form.createHSNSummaryFor === "None" ? (
+              <FieldRow
+                label="Minimum length of HSN/SAC"
+                labelWidth="230px"
+                subLabel="(based on annual turnover)"
+                disabled
               >
-                {form.minimumHSNLength}
-              </div>
-            </FieldRow>
+                <div className="flex-1"></div>
+              </FieldRow>
+            ) : (
+              <FieldRow
+                label="Minimum length of HSN/SAC"
+                labelWidth="230px"
+                subLabel="(based on annual turnover)"
+              >
+                <div
+                  onClick={() => setActiveField("minimumHSNLength")}
+                  className={`${dropdownClass(activeField === "minimumHSNLength")} w-16 text-right`}
+                >
+                  {form.minimumHSNLength}
+                </div>
+              </FieldRow>
+            )}
 
             {/* Show GST Advances (Yes/No dropdown) */}
             <FieldRow

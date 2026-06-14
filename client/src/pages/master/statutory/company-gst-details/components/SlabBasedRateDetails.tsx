@@ -8,11 +8,11 @@ import GSTDetailsListPanel from "./GSTDetailsListPanel";
 export interface SlabRow {
   greaterThan: number;
   upTo: string;           // empty string means "and above" (last row)
-  taxabilityType: string; // "Taxable" | "Exempt" | "Nil Rated" | "Non GST"
+  taxabilityType: string; // "Taxable" | "Exempt" | "Nil Rated" 
   gstRate: number;        // percentage
 }
 
-const TAXABILITY_OPTIONS = ["Taxable", "Exempt", "Nil Rated", "Non GST"];
+const TAXABILITY_OPTIONS = ["Taxable", "Exempt", "Nil Rated"];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -138,11 +138,11 @@ export default function SlabBasedRateDetails({
 
   /** Apply taxability from the list to the active row */
   const applyTaxability = (val: string) => {
-    updateRow(activeRow, { 
-      taxabilityType: val, 
-      gstRate: val === "Taxable" ? rows[activeRow].gstRate : 0 
+    updateRow(activeRow, {
+      taxabilityType: val,
+      gstRate: val === "Taxable" ? rows[activeRow].gstRate : 0
     });
-    
+
     // Move to next field
     if (val === "Taxable") {
       setActiveCol("gstRate");
@@ -336,9 +336,8 @@ export default function SlabBasedRateDetails({
                             updateRow(i, { upTo: e.target.value.replace(/[^\d.]/g, "") })
                           }
                           onFocus={() => { setActiveRow(i); setActiveCol("upTo"); }}
-                          className={`w-full px-2 py-0.5 outline-none bg-transparent text-right font-mono text-[11px] font-bold ${
-                            isUpToActive ? "bg-[#ffea5d]" : "bg-transparent"
-                          }`}
+                          className={`w-full px-2 py-0.5 outline-none bg-transparent text-right font-mono text-[11px] font-bold ${isUpToActive ? "bg-[#ffea5d]" : "bg-transparent"
+                            }`}
                           placeholder={i === rows.length - 1 ? "(and above)" : ""}
                         />
                       </td>
@@ -368,14 +367,13 @@ export default function SlabBasedRateDetails({
                               type="number"
                               min={0}
                               max={100}
-                              value={row.gstRate || ""}
+                              value={row.gstRate !== undefined ? row.gstRate : 0}
                               onChange={(e) =>
                                 updateRow(i, { gstRate: Number(e.target.value) })
                               }
                               onFocus={() => { setActiveRow(i); setActiveCol("gstRate"); }}
-                              className={`w-12 px-1 py-0.5 outline-none bg-transparent text-right font-mono text-[11px] font-bold ${
-                                isRateActive ? "bg-[#ffea5d]" : "bg-transparent"
-                              }`}
+                              className={`w-12 px-1 py-0.5 outline-none bg-transparent text-right font-mono text-[11px] font-bold ${isRateActive ? "bg-[#ffea5d]" : "bg-transparent"
+                                }`}
                             />
                             <span className="font-bold text-zinc-600">%</span>
                           </div>

@@ -73,7 +73,15 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
     <div className="fixed inset-0 bg-black/10 z-[11000] flex items-center justify-center font-mono text-[11px] backdrop-blur-[1px]">
       <div className="flex gap-4">
         {/* Main Prompt Box */}
-        <div className="bg-white border border-zinc-400 shadow-2xl w-[400px] flex flex-col pt-3 pb-8 px-6">
+        <div className="relative bg-white border border-zinc-400 shadow-2xl w-[400px] flex flex-col pt-3 pb-8 px-6">
+          <button
+            onClick={onClose}
+            className="absolute top-2 right-2 text-zinc-400 hover:text-zinc-700 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
           <div className="text-center font-bold text-xs pb-6 text-zinc-900 tracking-wide">
             Effective Date
           </div>
@@ -102,7 +110,7 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
             <div className="bg-[#4d66cc] text-white font-bold text-xs py-1.5 px-3 tracking-wide flex justify-between">
               <span>List of Effective Dates</span>
             </div>
-            
+
             <div className="flex justify-end px-3 pt-1">
               <span className="text-[10px] italic text-zinc-600 font-sans">New Effective Date</span>
             </div>
@@ -112,11 +120,10 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
                 <div
                   key={index}
                   onClick={() => onAccept(opt.label)}
-                  className={`px-3 py-1 cursor-pointer flex justify-between font-mono text-[11px] ${
-                    index === selectedIndex
-                      ? "bg-[#ffb62b] text-black font-bold" // Tally yellow highlight
-                      : "hover:bg-zinc-100 text-zinc-900"
-                  }`}
+                  className={`px-3 py-1 cursor-pointer flex justify-between font-mono text-[11px] ${index === selectedIndex
+                    ? "bg-[#ffb62b] text-black font-bold" // Tally yellow highlight
+                    : "hover:bg-zinc-100 text-zinc-900"
+                    }`}
                 >
                   <span className="w-20">{opt.label}</span>
                   <span className="text-right italic text-zinc-700">{opt.desc}</span>
