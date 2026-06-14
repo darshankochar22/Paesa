@@ -71,7 +71,7 @@ export default function PriceListSGAlter() {
   const [showGroupList, setShowGroupList] = useState(false);
   const [showLevelList, setShowLevelList] = useState(false);
   const [activeItemDropdown, setActiveItemDropdown] = useState<number | null>(null);
-  const [itemSearch, setItemSearch] = useState("");
+
 
   const particularRefs = useRef<(HTMLInputElement | null)[]>([]);
   const qtyFromRefs    = useRef<(HTMLInputElement | null)[]>([]);
@@ -175,7 +175,6 @@ export default function PriceListSGAlter() {
       return next;
     });
     setActiveItemDropdown(null);
-    setItemSearch("");
     setTimeout(() => qtyFromRefs.current[index]?.focus(), 0);
   };
 
@@ -280,9 +279,6 @@ export default function PriceListSGAlter() {
     }
   };
 
-  const filteredItems = stockItems.filter((it) =>
-    it.name.toLowerCase().includes(itemSearch.toLowerCase())
-  );
 
   const actions = [
     { key: "Alt+A", label: "Accept", onClick: handleSubmit },
@@ -483,11 +479,9 @@ export default function PriceListSGAlter() {
                             setLineField(i, "particulars", e.target.value);
                             setLineField(i, "item_id", null);
                             setActiveItemDropdown(i);
-                            setItemSearch(e.target.value);
                           }}
                           onFocus={() => {
                             setActiveItemDropdown(i);
-                            setItemSearch(line.particulars);
                           }}
                           onBlur={() => setTimeout(() => setActiveItemDropdown(null), 150)}
                           onKeyDown={(e) => handleParticularKeyDown(e, i)}

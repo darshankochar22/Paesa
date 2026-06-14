@@ -552,7 +552,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       {/* ── Effective Date Prompt overlay ─────────────────────────────────── */}
       <GSTEffectiveDatePrompt
         isOpen={showEffectiveDatePrompt}
-        onAccept={(dateStr) => {
+        onAccept={(_dateStr) => {
           // For now, we don't persist the effective date in the DB as there is no column,
           // but we accept it and advance focus.
           setShowEffectiveDatePrompt(false);

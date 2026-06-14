@@ -47,6 +47,8 @@ const companyTdsDetailsController = require('./companyTdsDetails/companyTdsDetai
 const companyTcsDetailsController = require('./companyTcsDetails/companyTcsDetailsController');
 const companyPanCinDetailsController = require('./companyPanCinDetails/companyPanCinDetailsController');
 const taxUnitController=require('./taxUnits/taxUnitController');
+const priceLevelController = require('./priceLevels/priceLevelController');
+const priceListController = require('./priceList/priceListController');
 
 ipcMain.handle('taxUnits:create',  taxUnitController.create);
 ipcMain.handle('taxUnits:getAll',  taxUnitController.getAll);

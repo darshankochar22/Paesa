@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import GSTDetailsListPanel from "./GSTDetailsListPanel";
 
 interface GSTEffectiveDatePromptProps {
   isOpen: boolean;

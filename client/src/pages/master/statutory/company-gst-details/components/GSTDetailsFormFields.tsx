@@ -83,8 +83,8 @@ export default function GSTDetailsFormFields({
   activeField,
   setActiveField,
   setField,
-  slabRows = [],
-  onOpenSlab,
+  slabRows: _slabRows = [],
+  onOpenSlab: _onOpenSlab,
 }: GSTDetailsFormFieldsProps) {
   const hsnCodeRef = useRef<HTMLInputElement>(null);
   const descRef = useRef<HTMLInputElement>(null);
