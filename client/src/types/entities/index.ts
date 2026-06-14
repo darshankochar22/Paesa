@@ -24,3 +24,4 @@ export type { CompanyGSTDetails } from './CompanyGSTDetails';
 export type { CompanyTDSDetails } from './CompanyTDSDetails';
 export type { CompanyTCSDetails } from './CompanyTCSDetails';
 export type { TaxUnitType } from './TaxUnit';
+export type { CompanyPanCinDetails } from './CompanyPanCinDetails';

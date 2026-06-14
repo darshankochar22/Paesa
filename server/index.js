@@ -45,9 +45,8 @@ const attendanceController = require('./attendance/attendanceController');
 const companyGstDetailsController = require('./companyGstDetails/companyGstDetailsController');
 const companyTdsDetailsController = require('./companyTdsDetails/companyTdsDetailsController');
 const companyTcsDetailsController = require('./companyTcsDetails/companyTcsDetailsController');
-const taxUnitController      = require('./taxUnits/taxUnitController');
-const priceLevelController   = require('./priceLevels/priceLevelController');
-const priceListController    = require('./priceList/priceListController');
+const companyPanCinDetailsController = require('./companyPanCinDetails/companyPanCinDetailsController');
+const taxUnitController=require('./taxUnits/taxUnitController');
 
 ipcMain.handle('taxUnits:create',  taxUnitController.create);
 ipcMain.handle('taxUnits:getAll',  taxUnitController.getAll);
@@ -345,3 +344,6 @@ ipcMain.handle('companyTdsDetails:save', companyTdsDetailsController.save);
 
 ipcMain.handle('companyTcsDetails:get', companyTcsDetailsController.get);
 ipcMain.handle('companyTcsDetails:save', companyTcsDetailsController.save);
+
+ipcMain.handle('companyPanCinDetails:get', companyPanCinDetailsController.get);
+ipcMain.handle('companyPanCinDetails:save', companyPanCinDetailsController.save);

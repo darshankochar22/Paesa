@@ -5,6 +5,7 @@ import type { GSTClassificationType } from '../entities/GSTClassification';
 import type { CompanyGSTDetails } from '../entities/CompanyGSTDetails';
 import type { CompanyTDSDetails } from '../entities/CompanyTDSDetails';
 import type { CompanyTCSDetails } from '../entities/CompanyTCSDetails';
+import type { CompanyPanCinDetails } from '../entities/CompanyPanCinDetails';
 import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
 import type { TDSNatureOfPaymentType } from '../entities/TDSNatureOfPayment';
 
@@ -22,6 +23,11 @@ export interface MasterDataAPI {
   companyTcsDetails: {
     get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CompanyTCSDetails | null; error?: string }>;
     save: (data: CompanyTCSDetails & { company_id: number }) => Promise<{ success: boolean; record?: any; error?: string }>;
+  };
+
+  companyPanCinDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CompanyPanCinDetails | null; error?: string }>;
+    save: (data: CompanyPanCinDetails & { company_id: number }) => Promise<{ success: boolean; record?: any; error?: string }>;
   };
 
   currency: {

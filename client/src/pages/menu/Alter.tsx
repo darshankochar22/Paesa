@@ -43,6 +43,7 @@ export default function Alter() {
        "VAT registration Details": "/master/alter/vat-registration-details",
         "Excise Registration Details": "/master/alter/excise-registration-details",
       "Company GST Details": "modal",
+      "PAN / CIN Details": "/master/alter/pan-cin-details",
       "TCS Nature of Goods": "/master/alter/tcs-nature-of-goods",
       "TDS Nature of Payment": "/master/alter/tds-nature-of-payment",
       "Price levels": "/master/alter/price-levels",

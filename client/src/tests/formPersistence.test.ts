@@ -5,7 +5,7 @@
  * no window.api calls, no mocking required beyond what jsdom already gives us.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   saveFormState,
   loadFormState,

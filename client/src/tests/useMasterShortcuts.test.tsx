@@ -17,10 +17,10 @@ function fireKey(key: string, modifiers: { altKey?: boolean; ctrlKey?: boolean }
 }
 
 describe('useMasterShortcuts', () => {
-  let onAccept: ReturnType<typeof vi.fn>;
-  let onQuit: ReturnType<typeof vi.fn>;
-  let onDelete: ReturnType<typeof vi.fn>;
-  let onCreate: ReturnType<typeof vi.fn>;
+  let onAccept: any;
+  let onQuit: any;
+  let onDelete: any;
+  let onCreate: any;
 
   beforeEach(() => {
     onAccept = vi.fn();
