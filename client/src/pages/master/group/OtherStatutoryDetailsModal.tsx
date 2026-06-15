@@ -1,35 +1,45 @@
 import { useState, useEffect } from "react";
 
+export type StatutoryField = "serviceTax" | "tds" | "vat" | "excise";
+
 interface OtherStatutoryDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   groupName?: string;
+  showFields?: StatutoryField[];
   openServiceTaxModal: () => void;
   openTdsModal: () => void;
   openVatModal: () => void;
   openExciseModal: () => void;
 }
 
+const ALL_FIELDS: { key: StatutoryField; label: string; open: keyof Omit<OtherStatutoryDetailsModalProps, "isOpen" | "onClose" | "groupName" | "showFields"> }[] = [
+  { key: "serviceTax", label: "Set/Alter service tax details", open: "openServiceTaxModal" },
+  { key: "tds", label: "Set/Alter TDS details", open: "openTdsModal" },
+  { key: "vat", label: "Set/Alter VAT Details", open: "openVatModal" },
+  { key: "excise", label: "Set/Alter excise details", open: "openExciseModal" },
+];
+
 export default function OtherStatutoryDetailsModal({
   isOpen,
   onClose,
   groupName,
+  showFields,
   openServiceTaxModal,
   openTdsModal,
   openVatModal,
   openExciseModal,
 }: OtherStatutoryDetailsModalProps) {
-  const [serviceTax, setServiceTax] = useState(false);
-  const [tds, setTds] = useState(false);
-  const [vat, setVat] = useState(false);
-  const [excise, setExcise] = useState(false);
+  const [values, setValues] = useState<Record<StatutoryField, boolean>>({
+    serviceTax: false,
+    tds: false,
+    vat: false,
+    excise: false,
+  });
 
   useEffect(() => {
     if (!isOpen) {
-      setServiceTax(false);
-      setTds(false);
-      setVat(false);
-      setExcise(false);
+      setValues({ serviceTax: false, tds: false, vat: false, excise: false });
     }
   }, [isOpen]);
 
@@ -46,6 +56,17 @@ export default function OtherStatutoryDetailsModal({
 
   if (!isOpen) return null;
 
+  const visibleFields = showFields
+    ? ALL_FIELDS.filter((f) => showFields.includes(f.key))
+    : ALL_FIELDS;
+
+  const openers: Record<string, () => void> = {
+    openServiceTaxModal,
+    openTdsModal,
+    openVatModal,
+    openExciseModal,
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white border border-zinc-200 rounded shadow-xl w-[460px] flex flex-col">
@@ -56,58 +77,27 @@ export default function OtherStatutoryDetailsModal({
         </div>
 
         <div className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-zinc-600 w-56">Set/Alter service tax details</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <button
-              onClick={() => {
-                setServiceTax(!serviceTax);
-                if (!serviceTax) setTimeout(() => openServiceTaxModal(), 0);
-              }}
-              className={`text-sm py-0.5 px-2 rounded font-medium ${serviceTax ? "bg-zinc-800 text-white" : "text-zinc-800"}`}
-            >
-              {serviceTax ? "Yes" : "No"}
-            </button>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-zinc-600 w-56">Set/Alter TDS details</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <button
-              onClick={() => {
-                setTds(!tds);
-                if (!tds) setTimeout(() => openTdsModal(), 0);
-              }}
-              className={`text-sm py-0.5 px-2 rounded font-medium ${tds ? "bg-zinc-800 text-white" : "text-zinc-800"}`}
-            >
-              {tds ? "Yes" : "No"}
-            </button>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-zinc-600 w-56">Set/Alter VAT Details</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <button
-              onClick={() => {
-                setVat(!vat);
-                if (!vat) setTimeout(() => openVatModal(), 0);
-              }}
-              className={`text-sm py-0.5 px-2 rounded font-medium ${vat ? "bg-zinc-800 text-white" : "text-zinc-800"}`}
-            >
-              {vat ? "Yes" : "No"}
-            </button>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-zinc-600 w-56">Set/Alter excise details</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <button
-              onClick={() => {
-                setExcise(!excise);
-                if (!excise) setTimeout(() => openExciseModal(), 0);
-              }}
-              className={`text-sm py-0.5 px-2 rounded font-medium ${excise ? "bg-zinc-800 text-white" : "text-zinc-800"}`}
-            >
-              {excise ? "Yes" : "No"}
-            </button>
-          </div>
+          {visibleFields.map((f) => {
+            const current = values[f.key];
+            return (
+              <div key={f.key} className="flex items-center gap-2 mb-3">
+                <span className="text-sm text-zinc-600 w-56">{f.label}</span>
+                <span className="text-zinc-400 mr-2">:</span>
+                <button
+                  onClick={() => {
+                    const newVal = !current;
+                    setValues((prev) => ({ ...prev, [f.key]: newVal }));
+                    if (newVal) {
+                      setTimeout(() => openers[f.open]?.(), 0);
+                    }
+                  }}
+                  className={`text-sm py-0.5 px-2 rounded font-medium ${current ? "bg-zinc-800 text-white" : "text-zinc-800"}`}
+                >
+                  {current ? "Yes" : "No"}
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         <div className="px-4 py-3 border-t border-zinc-200 flex justify-end bg-zinc-50 shrink-0">

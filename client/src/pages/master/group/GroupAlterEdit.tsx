@@ -6,7 +6,7 @@ import type { GroupType } from "@/types/api";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import NatureOfPaymentDetailsModal from "./NatureOfPaymentDetailsModal";
 import NatureOfGoodsDetailsModal from "./NatureOfGoodsDetailsModal";
-import OtherStatutoryDetailsModal from "./OtherStatutoryDetailsModal";
+import OtherStatutoryDetailsModal, { type StatutoryField } from "./OtherStatutoryDetailsModal";
 import ServiceCategoryDetailsModal from "./ServiceCategoryDetailsModal";
 import VATDetailsModal from "./VATDetailsModal";
 import ExciseTariffDetailsModal from "./ExciseTariffDetailsModal";
@@ -132,6 +132,13 @@ export default function GroupAlterEdit() {
     }
     return null;
   }, [parentGroup, flatGroups]);
+
+  const statutoryFields = useMemo<StatutoryField[] | undefined>(() => {
+    if (primaryGroupName === "Investments" || primaryGroupName === "Loans(Liability)" || primaryGroupName === "Misc.Expenses(Asset)") {
+      return ["tds"];
+    }
+    return undefined;
+  }, [primaryGroupName]);
 
   const isPrimarySelected = !form.parent_group_id;
 
@@ -455,6 +462,7 @@ export default function GroupAlterEdit() {
         isOpen={showOtherStatutoryModal}
         onClose={() => setShowOtherStatutoryModal(false)}
         groupName={form.name}
+        showFields={statutoryFields}
         openServiceTaxModal={() => setShowServiceTaxModal(true)}
         openTdsModal={() => setShowStatutoryTdsModal(true)}
         openVatModal={() => setShowVatModal(true)}
