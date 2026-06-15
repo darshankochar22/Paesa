@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { SectionCard, AlertBanner } from "../../components/ui";
-import { VoucherTypeBadge, AmountDisplay, PageFooterBar } from "./ui";
+import { AlertBanner } from "../../components/ui";
+import { PageFooterBar } from "./ui";
 
 interface VoucherEntry {
   entry_id: number;
@@ -9,38 +9,166 @@ interface VoucherEntry {
   ledger_name: string;
   type: "Dr" | "Cr";
   amount: number;
+  amount_forex: number;
   currency: string;
+  narration: string | null;
+}
+
+interface StockBatch {
+  batch_id: number;
+  batch_number: string;
+  expiry_date: string;
+  quantity: number;
+  rate: number;
 }
 
 interface StockEntry {
   stock_entry_id: number;
+  stock_item_id: number;
   item_name: string;
+  godown_id: number;
+  unit_id: number;
   quantity: number;
   rate: number;
   amount: number;
+  additional_amount: number;
+  discount_amount: number;
+  hsn_code: string;
+  gst_rate: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  is_source: number;
+  batches: StockBatch[];
+}
+
+interface PayrollEntry {
+  payroll_entry_id: number;
+  employee_id: number;
+  employee_name: string;
+  employee_number: string;
+  pay_head_id: number;
+  pay_head_name: string;
+  amount: number;
+}
+
+interface BillReference {
+  bill_id: number;
+  ledger_id: number;
+  bill_name: string;
+  bill_type: string;
+  amount: number;
+  credit_period: string;
+  due_date: string;
+}
+
+interface BankDetails {
+  bank_detail_id: number;
+  ledger_id: number;
+  transaction_type: string;
+  cheque_range: string;
+  instrument_number: string;
+  instrument_date: string;
+  bank_name: string;
+  branch: string;
+  amount: number;
+}
+
+interface CostCentreEntry {
+  cc_entry_id: number;
+  entry_id: number;
+  cost_centre_id: number;
+  amount: number;
+}
+
+interface CashDenomination {
+  id: number;
+  ledger_id: number;
+  denomination: string;
+  quantity: number;
+  amount: number;
+}
+
+interface ReceiptDetails {
+  receipt_note_no: string;
+  receipt_doc_no: string;
+  dispatched_through: string;
+  destination: string;
+  carrier_name: string;
+  bill_of_lading_no: string;
+  bill_of_lading_date: string;
+  motor_vehicle_no: string;
+}
+
+interface PartyDetails {
+  supplier_name: string;
+  mailing_name: string;
+  address: string;
+  state: string;
+  country: string;
+}
+
+interface DispatchDetails {
+  delivery_note_nos: string;
+  dispatch_doc_no: string;
+  dispatched_through: string;
+  destination: string;
+  carrier_name: string;
+  bill_of_lading_no: string;
+  bill_of_lading_date: string;
+  motor_vehicle_no: string;
+}
+
+interface NoteDetails {
+  tracking_no: string;
+  dispatch_doc_no: string;
+  dispatched_through: string;
+  destination: string;
+  carrier_name: string;
+  bill_of_lading_no: string;
+  bill_of_lading_date: string;
+  motor_vehicle_no: string;
+  original_invoice_no: string;
+  original_invoice_date: string;
 }
 
 interface Voucher {
   voucher_id: number;
+  company_id: number;
+  fy_id: number;
   voucher_type: string;
   voucher_number: string;
   date: string;
+  status: string;
+  supplier_invoice_no: string | null;
+  supplier_invoice_date: string | null;
   reference_number: string | null;
   reference_date: string | null;
   narration: string | null;
-  party_name: string | null;
   party_ledger_id: number | null;
+  party_name: string | null;
   place_of_supply: string | null;
   is_invoice: number;
+  is_accounting_voucher: number;
+  is_inventory_voucher: number;
+  is_order_voucher: number;
   is_cancelled: number;
+  is_optional: number;
+  is_post_dated: number;
   created_at: string;
+  updated_at: string;
   entries: VoucherEntry[];
   stock_entries: StockEntry[];
-  receipt_details?: any;
-  party_details?: any;
-  dispatch_details?: any;
-  credit_note_details?: any;
-  debit_note_details?: any;
+  payroll_entries: PayrollEntry[];
+  bill_references: BillReference[];
+  bank_details: BankDetails | null;
+  cost_centres: CostCentreEntry[];
+  cash_denominations: CashDenomination[];
+  receipt_details: ReceiptDetails | null;
+  party_details: PartyDetails | null;
+  dispatch_details: DispatchDetails | null;
+  credit_note_details: NoteDetails | null;
+  debit_note_details: NoteDetails | null;
 }
 
 const formatDate = (d: string | null) => {
@@ -49,40 +177,40 @@ const formatDate = (d: string | null) => {
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+const formatAmount = (n: number | null | undefined) => {
+  if (!n) return "";
+  return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
-/** A single labelled detail cell inside the header card */
-function DetailCell({ label, value }: { label: string; value: string }) {
+const formatQty = (n: number | null | undefined) => {
+  if (!n) return "";
+  return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="px-3 py-2.5">
-      <div className="text-[9px] text-zinc-400 uppercase font-bold tracking-wider mb-0.5">{label}</div>
-      <div className="text-zinc-800 font-semibold truncate" title={value}>{value}</div>
+    <div className="border border-gray-200 rounded">
+      <div className="bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+        {title}
+      </div>
+      {children}
     </div>
   );
 }
 
-/** Dr / Cr badge pill for entry rows */
+function FieldRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="flex items-baseline px-3 py-1.5 border-b border-gray-100 last:border-b-0">
+      <span className="text-xs text-gray-500 w-44 shrink-0">{label}</span>
+      <span className={`text-xs ${highlight ? "font-bold text-black" : "text-gray-800"}`}>{value || "—"}</span>
+    </div>
+  );
+}
+
 function DrCrBadge({ type }: { type: "Dr" | "Cr" }) {
-  const cls = type === "Dr"
-    ? "bg-black text-white"
-    : "bg-zinc-600 text-white";
-  return (
-    <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${cls}`}>{type}</span>
-  );
+  const cls = type === "Dr" ? "bg-black text-white" : "bg-gray-600 text-white";
+  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cls}`}>{type}</span>;
 }
-
-
-function TableHeader({ cols }: { cols: { label: string; span: string; align?: string }[] }) {
-  return (
-    <div className="grid grid-cols-12 px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 text-[9px] font-bold uppercase tracking-wider text-zinc-500 select-none">
-      {cols.map(c => (
-        <div key={c.label} className={`${c.span} ${c.align ?? ""}`}>{c.label}</div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function VoucherView() {
   const { id } = useParams<{ id: string }>();
@@ -136,10 +264,9 @@ export default function VoucherView() {
     }
   };
 
-  // ── Loading / error states ──
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 text-xs">
+      <div className="flex-1 flex items-center justify-center text-gray-400 text-xs">
         Loading voucher…
       </div>
     );
@@ -147,49 +274,49 @@ export default function VoucherView() {
 
   if (error && !voucher) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-500 text-xs">
         <span className="text-red-600">{error}</span>
-        <button onClick={() => navigate(-1)} className="underline hover:text-zinc-900">← Go Back</button>
+        <button onClick={() => navigate(-1)} className="underline hover:text-gray-900">← Go Back</button>
       </div>
     );
   }
 
   if (!voucher) return null;
 
-  // ── Computed totals ──
-  const drTotal    = voucher.entries.filter(e => e.type === "Dr").reduce((s, e) => s + e.amount, 0);
-  const crTotal    = voucher.entries.filter(e => e.type === "Cr").reduce((s, e) => s + e.amount, 0);
+  const drTotal = voucher.entries.filter(e => e.type === "Dr").reduce((s, e) => s + e.amount, 0);
+  const crTotal = voucher.entries.filter(e => e.type === "Cr").reduce((s, e) => s + e.amount, 0);
   const stockTotal = voucher.stock_entries.reduce((s, e) => s + e.amount, 0);
-  const balanced   = Math.abs(drTotal - crTotal) < 0.01;
+  const balanced = Math.abs(drTotal - crTotal) < 0.01;
 
-  const accentClass = "bg-zinc-900";
-
-  // Header detail cells (skip nulls)
-  const headerCells: { label: string; value: string }[] = [
-    { label: "Voucher No.", value: voucher.voucher_number },
-    { label: "Type",        value: voucher.voucher_type },
-    { label: "Date",        value: formatDate(voucher.date) },
-    ...(voucher.party_name       ? [{ label: "Party",          value: voucher.party_name }]                   : []),
-    ...(voucher.reference_number ? [{ label: "Ref No.",        value: voucher.reference_number }]             : []),
-    ...(voucher.reference_date   ? [{ label: "Ref Date",       value: formatDate(voucher.reference_date) }]   : []),
-    ...(voucher.place_of_supply  ? [{ label: "Place of Supply",value: voucher.place_of_supply }]              : []),
-    ...(voucher.narration        ? [{ label: "Narration",      value: voucher.narration }]                    : []),
-  ];
+  const hasEntries = voucher.entries.length > 0;
+  const hasStock = voucher.stock_entries.length > 0;
+  const hasPayroll = voucher.payroll_entries?.length > 0;
+  const hasBills = voucher.bill_references?.length > 0;
+  const hasCostCentres = voucher.cost_centres?.length > 0;
+  const hasCashDenoms = voucher.cash_denominations?.length > 0;
+  const hasBank = voucher.bank_details;
+  const hasReceipt = voucher.receipt_details;
+  const hasPartyDetails = voucher.party_details;
+  const hasDispatch = voucher.dispatch_details;
+  const hasCreditNote = voucher.credit_note_details;
+  const hasDebitNote = voucher.debit_note_details;
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
+    <div className="flex-1 flex flex-col bg-white h-full text-xs select-none overflow-hidden">
+      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
-      {/* Coloured Title Bar */}
-      <div className={`px-4 py-2.5 text-white flex justify-between items-center shadow-sm shrink-0 ${accentClass}`}>
+      {/* Title bar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-900 text-white shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-white/70 hover:text-white transition-colors text-sm">←</button>
+          <button onClick={() => navigate(-1)} className="text-white/70 hover:text-white text-sm">←</button>
           <div>
             <div className="text-sm font-bold tracking-wide uppercase">
               {voucher.voucher_type} Voucher — {voucher.voucher_number}
             </div>
-            <div className="text-[10px] text-white/60 font-sans">
+            <div className="text-[10px] text-white/60">
               {formatDate(voucher.date)}
               {voucher.is_cancelled ? " · CANCELLED" : ""}
+              {voucher.is_post_dated ? " · POST-DATED" : ""}
             </div>
           </div>
         </div>
@@ -212,137 +339,288 @@ export default function VoucherView() {
         </div>
       </div>
 
-      {/* Error banner */}
-      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto p-4 space-y-4">
 
-      {/* Body */}
-      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-
-        {/* Header Details Card */}
-        <SectionCard title="Voucher Details">
-          <div className="grid grid-cols-2 md:grid-cols-3 divide-x divide-y divide-zinc-100">
-            {headerCells.map(({ label, value }) => (
-              <DetailCell key={label} label={label} value={value} />
-            ))}
-          </div>
-        </SectionCard>
-
-        {/* Accounting Entries */}
-        {voucher.entries.length > 0 && (
-          <SectionCard
-            title="Accounting Entries"
-            headerRight={
-              <div className="flex gap-3 text-[10px] text-zinc-500">
-                <span>Dr: <span className="font-bold text-zinc-800"><AmountDisplay amount={drTotal} /></span></span>
-                <span>Cr: <span className="font-bold text-zinc-800"><AmountDisplay amount={crTotal} /></span></span>
-              </div>
-            }
-          >
-            <TableHeader cols={[
-              { label: "Dr/Cr", span: "col-span-1", align: "text-center" },
-              { label: "Ledger Account", span: "col-span-7" },
-              { label: "Amount", span: "col-span-4", align: "text-right" },
-            ]} />
-
-            {voucher.entries.map(entry => (
-              <div key={entry.entry_id} className="grid grid-cols-12 px-3 py-2 border-b border-zinc-100 items-center hover:bg-zinc-50/50 transition-colors">
-                <div className="col-span-1 text-center">
-                  <DrCrBadge type={entry.type} />
-                </div>
-                <div className="col-span-7 text-zinc-800 font-semibold truncate">
-                  {entry.ledger_name || `Ledger #${entry.ledger_id}`}
-                </div>
-                <div className="col-span-4 text-right font-bold text-zinc-900">
-                  <AmountDisplay amount={entry.amount} />
-                </div>
-              </div>
-            ))}
-
-            {/* Balance indicator */}
-            <div className={`px-3 py-1.5 text-[10px] font-bold text-right border-t border-zinc-100 ${balanced ? "bg-zinc-50 text-zinc-700" : "bg-zinc-900 text-white"}`}>
-              {balanced
-                ? "✓ Balanced"
-                : `⚠ Difference: `}
-              {!balanced && <AmountDisplay amount={Math.abs(drTotal - crTotal)} />}
+          {/* Voucher Header Section */}
+          <Section title="Voucher Header">
+            <div className="grid grid-cols-2 lg:grid-cols-3">
+              <FieldRow label="Voucher ID" value={String(voucher.voucher_id)} highlight />
+              <FieldRow label="Voucher Type" value={voucher.voucher_type} highlight />
+              <FieldRow label="Voucher Number" value={voucher.voucher_number} highlight />
+              <FieldRow label="Date" value={formatDate(voucher.date)} highlight />
+              <FieldRow label="Status" value={voucher.status || "Regular"} />
+              <FieldRow label="Party Name" value={voucher.party_name || ""} highlight={!!voucher.party_name} />
+              <FieldRow label="Party Ledger ID" value={voucher.party_ledger_id ? String(voucher.party_ledger_id) : ""} />
+              <FieldRow label="Place of Supply" value={voucher.place_of_supply || ""} />
+              <FieldRow label="Reference No." value={voucher.reference_number || ""} />
+              <FieldRow label="Reference Date" value={formatDate(voucher.reference_date)} />
+              <FieldRow label="Narration" value={voucher.narration || ""} />
+              <FieldRow label="Flags" value={[
+                voucher.is_invoice ? "Invoice" : "",
+                voucher.is_accounting_voucher ? "Accounting" : "",
+                voucher.is_inventory_voucher ? "Inventory" : "",
+                voucher.is_order_voucher ? "Order" : "",
+                voucher.is_optional ? "Optional" : "",
+                voucher.is_post_dated ? "Post-Dated" : "",
+                voucher.is_cancelled ? "Cancelled" : "",
+              ].filter(Boolean).join(", ") || "—"} />
+              <FieldRow label="Supplier Invoice No." value={voucher.supplier_invoice_no || ""} />
+              <FieldRow label="Supplier Invoice Date" value={formatDate(voucher.supplier_invoice_date)} />
+              <FieldRow label="Created At" value={formatDate(voucher.created_at)} />
+              <FieldRow label="Updated At" value={formatDate(voucher.updated_at)} />
             </div>
-          </SectionCard>
-        )}
+          </Section>
 
-        {/* Inventory / Stock Entries */}
-        {voucher.stock_entries.length > 0 && (
-          <SectionCard title="Inventory Particulars">
-            <TableHeader cols={[
-              { label: "Item Name", span: "col-span-5" },
-              { label: "Qty",       span: "col-span-2", align: "text-right" },
-              { label: "Rate",      span: "col-span-2", align: "text-right" },
-              { label: "Amount",    span: "col-span-3", align: "text-right" },
-            ]} />
-
-            {voucher.stock_entries.map(item => (
-              <div key={item.stock_entry_id} className="grid grid-cols-12 px-3 py-2 border-b border-zinc-100 items-center hover:bg-zinc-50/50 transition-colors">
-                <div className="col-span-5 text-zinc-800 font-semibold truncate">{item.item_name || "—"}</div>
-                <div className="col-span-2 text-right text-zinc-600">{item.quantity}</div>
-                <div className="col-span-2 text-right text-zinc-600"><AmountDisplay amount={item.rate} /></div>
-                <div className="col-span-3 text-right font-bold text-zinc-900"><AmountDisplay amount={item.amount} /></div>
+          {/* Supplier Invoice Fields */}
+          {voucher.voucher_type === "Purchase" && (voucher.supplier_invoice_no || voucher.supplier_invoice_date) && (
+            <Section title="Supplier Invoice">
+              <div className="grid grid-cols-2">
+                <FieldRow label="Invoice No." value={voucher.supplier_invoice_no || ""} highlight />
+                <FieldRow label="Invoice Date" value={formatDate(voucher.supplier_invoice_date)} />
               </div>
-            ))}
+            </Section>
+          )}
 
-            {/* Stock total row */}
-            <div className="grid grid-cols-12 px-3 py-2 bg-zinc-50 border-t border-zinc-200">
-              <div className="col-span-9 font-bold text-zinc-700 uppercase text-[10px] tracking-wider">Total Inventory Value</div>
-              <div className="col-span-3 text-right font-bold text-zinc-900"><AmountDisplay amount={stockTotal} /></div>
-            </div>
-          </SectionCard>
-        )}
-
-        {/* Credit Note / Debit Note Details */}
-        {(voucher.credit_note_details || voucher.debit_note_details) && (
-          <SectionCard title={voucher.voucher_type === "Credit Note" ? "Credit Note Details" : "Debit Note Details"}>
-            <div className="grid grid-cols-2 md:grid-cols-3 divide-x divide-y divide-zinc-100">
-              {[
-                ...(voucher.credit_note_details || voucher.debit_note_details).tracking_no
-                  ? [{ label: "Tracking No.", value: (voucher.credit_note_details || voucher.debit_note_details).tracking_no }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).dispatch_doc_no
-                  ? [{ label: "Dispatch Doc No.", value: (voucher.credit_note_details || voucher.debit_note_details).dispatch_doc_no }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).dispatched_through
-                  ? [{ label: "Dispatched through", value: (voucher.credit_note_details || voucher.debit_note_details).dispatched_through }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).destination
-                  ? [{ label: "Destination", value: (voucher.credit_note_details || voucher.debit_note_details).destination }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).carrier_name
-                  ? [{ label: "Carrier Name/Agent", value: (voucher.credit_note_details || voucher.debit_note_details).carrier_name }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_no
-                  ? [{ label: "Bill of Lading/LR-RR No.", value: (voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_no }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_date
-                  ? [{ label: "Bill of Lading Date", value: formatDate((voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_date) }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).motor_vehicle_no
-                  ? [{ label: "Motor Vehicle No.", value: (voucher.credit_note_details || voucher.debit_note_details).motor_vehicle_no }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).original_invoice_no
-                  ? [{ label: "Original Invoice No.", value: (voucher.credit_note_details || voucher.debit_note_details).original_invoice_no }]
-                  : [],
-                ...(voucher.credit_note_details || voucher.debit_note_details).original_invoice_date
-                  ? [{ label: "Original Invoice Date", value: formatDate((voucher.credit_note_details || voucher.debit_note_details).original_invoice_date) }]
-                  : [],
-              ].map(({ label, value }) => (
-                <DetailCell key={label} label={label} value={value} />
+          {/* Accounting Entries */}
+          {hasEntries && (
+            <Section title={`Accounting Entries (Dr: ${formatAmount(drTotal)} | Cr: ${formatAmount(crTotal)})`}>
+              {/* Table header */}
+              <div className="flex items-center px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                <div className="w-12 text-center">Dr/Cr</div>
+                <div className="flex-1">Ledger Account</div>
+                <div className="w-28 text-right">Amount</div>
+                <div className="w-28 text-right">Forex</div>
+                <div className="w-24 text-center">Currency</div>
+                <div className="w-40">Narration</div>
+              </div>
+              {voucher.entries.map(e => (
+                <div key={e.entry_id} className="flex items-center px-3 py-2 border-b border-gray-100 text-xs hover:bg-gray-50/50">
+                  <div className="w-12 text-center"><DrCrBadge type={e.type} /></div>
+                  <div className="flex-1 font-semibold text-gray-900">{e.ledger_name || `Ledger #${e.ledger_id}`}</div>
+                  <div className="w-28 text-right font-bold text-gray-900">{formatAmount(e.amount)}</div>
+                  <div className="w-28 text-right text-gray-500">{e.amount_forex ? formatAmount(e.amount_forex) : ""}</div>
+                  <div className="w-24 text-center text-gray-500">{e.currency || "INR"}</div>
+                  <div className="w-40 text-gray-500 truncate" title={e.narration || ""}>{e.narration || ""}</div>
+                </div>
               ))}
-            </div>
-          </SectionCard>
-        )}
+              {/* Balance row */}
+              <div className={`flex items-center px-3 py-1.5 text-[10px] font-bold ${balanced ? "bg-gray-50 text-gray-700" : "bg-red-100 text-red-700"}`}>
+                <div className="flex-1 text-right">{balanced ? "✓ Balanced" : `Difference: ${formatAmount(Math.abs(drTotal - crTotal))}`}</div>
+              </div>
+            </Section>
+          )}
 
-        {/* Type badge (visual flourish at bottom) */}
-        <div className="flex items-center gap-2 text-[10px] text-zinc-400">
-          <VoucherTypeBadge type={voucher.voucher_type} size="sm" />
-          <span>Voucher ID: {voucher.voucher_id}</span>
-          <span>·</span>
-          <span>Created: {formatDate(voucher.created_at)}</span>
+          {/* Stock Entries */}
+          {hasStock && (
+            <Section title={`Inventory / Stock Entries (Total: ${formatAmount(stockTotal)})`}>
+              <div className="flex items-center px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                <div className="flex-1">Item Name</div>
+                <div className="w-16 text-right">Qty</div>
+                <div className="w-20 text-right">Rate</div>
+                <div className="w-24 text-right">Amount</div>
+                <div className="w-20 text-right">Addl.</div>
+                <div className="w-20 text-right">Disc.</div>
+                <div className="w-20 text-center">HSN</div>
+                <div className="w-14 text-center">GST%</div>
+                <div className="w-20 text-right">CGST</div>
+                <div className="w-20 text-right">SGST</div>
+                <div className="w-20 text-right">IGST</div>
+              </div>
+              {voucher.stock_entries.map(s => (
+                <div key={s.stock_entry_id}>
+                  <div className="flex items-center px-3 py-2 border-b border-gray-100 text-xs hover:bg-gray-50/50">
+                    <div className="flex-1 font-semibold text-gray-900">{s.item_name || "—"}</div>
+                    <div className="w-16 text-right text-gray-800">{formatQty(s.quantity)}</div>
+                    <div className="w-20 text-right text-gray-800">{formatAmount(s.rate)}</div>
+                    <div className="w-24 text-right font-bold text-gray-900">{formatAmount(s.amount)}</div>
+                    <div className="w-20 text-right text-gray-500">{s.additional_amount ? formatAmount(s.additional_amount) : ""}</div>
+                    <div className="w-20 text-right text-gray-500">{s.discount_amount ? formatAmount(s.discount_amount) : ""}</div>
+                    <div className="w-20 text-center text-gray-500">{s.hsn_code || ""}</div>
+                    <div className="w-14 text-center text-gray-500">{s.gst_rate ? `${s.gst_rate}%` : ""}</div>
+                    <div className="w-20 text-right text-gray-500">{s.cgst_amount ? formatAmount(s.cgst_amount) : ""}</div>
+                    <div className="w-20 text-right text-gray-500">{s.sgst_amount ? formatAmount(s.sgst_amount) : ""}</div>
+                    <div className="w-20 text-right text-gray-500">{s.igst_amount ? formatAmount(s.igst_amount) : ""}</div>
+                  </div>
+                  {/* Batches */}
+                  {s.batches && s.batches.length > 0 && (
+                    <div className="px-6 py-1.5 bg-gray-50/50 border-b border-gray-100">
+                      {s.batches.map(b => (
+                        <div key={b.batch_id} className="flex items-center gap-4 text-[10px] text-gray-500">
+                          <span>Batch: <strong>{b.batch_number}</strong></span>
+                          {b.expiry_date && <span>Expiry: {formatDate(b.expiry_date)}</span>}
+                          {b.quantity ? <span>Qty: {formatQty(b.quantity)}</span> : null}
+                          {b.rate ? <span>Rate: {formatAmount(b.rate)}</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Payroll Entries */}
+          {hasPayroll && (
+            <Section title="Payroll Entries">
+              <div className="flex items-center px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                <div className="w-20">Emp. Code</div>
+                <div className="flex-1">Employee Name</div>
+                <div className="flex-1">Pay Head</div>
+                <div className="w-28 text-right">Amount</div>
+              </div>
+              {voucher.payroll_entries.map(p => (
+                <div key={p.payroll_entry_id} className="flex items-center px-3 py-2 border-b border-gray-100 text-xs hover:bg-gray-50/50">
+                  <div className="w-20 text-gray-700">{p.employee_number || "—"}</div>
+                  <div className="flex-1 font-semibold text-gray-900">{p.employee_name || "—"}</div>
+                  <div className="flex-1 text-gray-700">{p.pay_head_name || "—"}</div>
+                  <div className="w-28 text-right font-bold text-gray-900">{formatAmount(p.amount)}</div>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Bill-wise Allocations */}
+          {hasBills && (
+            <Section title="Bill-wise Allocations">
+              <div className="flex items-center px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                <div className="flex-1">Bill Name</div>
+                <div className="w-24">Type</div>
+                <div className="w-28 text-right">Amount</div>
+                <div className="w-24">Credit Period</div>
+                <div className="w-28">Due Date</div>
+              </div>
+              {voucher.bill_references.map(b => (
+                <div key={b.bill_id} className="flex items-center px-3 py-2 border-b border-gray-100 text-xs hover:bg-gray-50/50">
+                  <div className="flex-1 font-semibold text-gray-900">{b.bill_name || "—"}</div>
+                  <div className="w-24 text-gray-600">{b.bill_type || "—"}</div>
+                  <div className="w-28 text-right font-bold text-gray-900">{formatAmount(b.amount)}</div>
+                  <div className="w-24 text-gray-600">{b.credit_period || "—"}</div>
+                  <div className="w-28 text-gray-600">{formatDate(b.due_date)}</div>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Bank Details */}
+          {hasBank && (
+            <Section title="Bank Details">
+              <div className="grid grid-cols-2 lg:grid-cols-3">
+                <FieldRow label="Transaction Type" value={hasBank.transaction_type || "—"} highlight />
+                <FieldRow label="Cheque Range" value={hasBank.cheque_range || ""} />
+                <FieldRow label="Instrument No." value={hasBank.instrument_number || ""} />
+                <FieldRow label="Instrument Date" value={formatDate(hasBank.instrument_date)} />
+                <FieldRow label="Bank Name" value={hasBank.bank_name || ""} />
+                <FieldRow label="Branch" value={hasBank.branch || ""} />
+                <FieldRow label="Amount" value={formatAmount(hasBank.amount)} highlight />
+              </div>
+            </Section>
+          )}
+
+          {/* Cost Centre Allocations */}
+          {hasCostCentres && (
+            <Section title="Cost Centre Allocations">
+              <div className="flex items-center px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                <div className="w-28">Cost Centre ID</div>
+                <div className="w-28 text-right">Amount</div>
+              </div>
+              {voucher.cost_centres.map(c => (
+                <div key={c.cc_entry_id} className="flex items-center px-3 py-2 border-b border-gray-100 text-xs hover:bg-gray-50/50">
+                  <div className="w-28 text-gray-700">{c.cost_centre_id || "—"}</div>
+                  <div className="w-28 text-right font-semibold text-gray-900">{formatAmount(c.amount)}</div>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Cash Denominations */}
+          {hasCashDenoms && (
+            <Section title="Cash Denominations">
+              <div className="flex items-center px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                <div className="flex-1">Denomination</div>
+                <div className="w-28 text-right">Quantity</div>
+                <div className="w-28 text-right">Amount</div>
+              </div>
+              {voucher.cash_denominations.map(c => (
+                <div key={c.id} className="flex items-center px-3 py-2 border-b border-gray-100 text-xs hover:bg-gray-50/50">
+                  <div className="flex-1 text-gray-700">{c.denomination || "—"}</div>
+                  <div className="w-28 text-right text-gray-800">{c.quantity || 0}</div>
+                  <div className="w-28 text-right font-semibold text-gray-900">{formatAmount(c.amount)}</div>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Receipt Details (Receipt Note) */}
+          {hasReceipt && (
+            <Section title="Receipt Details">
+              <div className="grid grid-cols-2 lg:grid-cols-3">
+                <FieldRow label="Receipt Note No." value={hasReceipt.receipt_note_no || ""} />
+                <FieldRow label="Receipt Doc No." value={hasReceipt.receipt_doc_no || ""} />
+                <FieldRow label="Dispatched Through" value={hasReceipt.dispatched_through || ""} />
+                <FieldRow label="Destination" value={hasReceipt.destination || ""} />
+                <FieldRow label="Carrier Name" value={hasReceipt.carrier_name || ""} />
+                <FieldRow label="Bill of Lading No." value={hasReceipt.bill_of_lading_no || ""} />
+                <FieldRow label="Bill of Lading Date" value={formatDate(hasReceipt.bill_of_lading_date)} />
+                <FieldRow label="Motor Vehicle No." value={hasReceipt.motor_vehicle_no || ""} />
+              </div>
+            </Section>
+          )}
+
+          {/* Party Details */}
+          {hasPartyDetails && (
+            <Section title="Party / Supplier Details">
+              <div className="grid grid-cols-2 lg:grid-cols-3">
+                <FieldRow label="Supplier Name" value={hasPartyDetails.supplier_name || ""} highlight />
+                <FieldRow label="Mailing Name" value={hasPartyDetails.mailing_name || ""} />
+                <FieldRow label="Address" value={hasPartyDetails.address || ""} />
+                <FieldRow label="State" value={hasPartyDetails.state || ""} />
+                <FieldRow label="Country" value={hasPartyDetails.country || ""} />
+              </div>
+            </Section>
+          )}
+
+          {/* Dispatch Details */}
+          {hasDispatch && (
+            <Section title="Dispatch Details">
+              <div className="grid grid-cols-2 lg:grid-cols-3">
+                <FieldRow label="Delivery Note Nos." value={hasDispatch.delivery_note_nos || ""} />
+                <FieldRow label="Dispatch Doc No." value={hasDispatch.dispatch_doc_no || ""} />
+                <FieldRow label="Dispatched Through" value={hasDispatch.dispatched_through || ""} />
+                <FieldRow label="Destination" value={hasDispatch.destination || ""} />
+                <FieldRow label="Carrier Name" value={hasDispatch.carrier_name || ""} />
+                <FieldRow label="Bill of Lading No." value={hasDispatch.bill_of_lading_no || ""} />
+                <FieldRow label="Bill of Lading Date" value={formatDate(hasDispatch.bill_of_lading_date)} />
+                <FieldRow label="Motor Vehicle No." value={hasDispatch.motor_vehicle_no || ""} />
+              </div>
+            </Section>
+          )}
+
+          {/* Credit Note / Debit Note Details */}
+          {(hasCreditNote || hasDebitNote) && (
+            <Section title={`${voucher.voucher_type === "Credit Note" ? "Credit" : "Debit"} Note Details`}>
+              <div className="grid grid-cols-2 lg:grid-cols-3">
+                <FieldRow label="Tracking No." value={(hasCreditNote || hasDebitNote).tracking_no || ""} />
+                <FieldRow label="Dispatch Doc No." value={(hasCreditNote || hasDebitNote).dispatch_doc_no || ""} />
+                <FieldRow label="Dispatched Through" value={(hasCreditNote || hasDebitNote).dispatched_through || ""} />
+                <FieldRow label="Destination" value={(hasCreditNote || hasDebitNote).destination || ""} />
+                <FieldRow label="Carrier Name" value={(hasCreditNote || hasDebitNote).carrier_name || ""} />
+                <FieldRow label="Bill of Lading No." value={(hasCreditNote || hasDebitNote).bill_of_lading_no || ""} />
+                <FieldRow label="Bill of Lading Date" value={formatDate((hasCreditNote || hasDebitNote).bill_of_lading_date)} />
+                <FieldRow label="Motor Vehicle No." value={(hasCreditNote || hasDebitNote).motor_vehicle_no || ""} />
+                <FieldRow label="Original Invoice No." value={(hasCreditNote || hasDebitNote).original_invoice_no || ""} highlight />
+                <FieldRow label="Original Invoice Date" value={formatDate((hasCreditNote || hasDebitNote).original_invoice_date)} />
+              </div>
+            </Section>
+          )}
+
+          {/* Narration */}
+          {voucher.narration && (
+            <div className="text-xs text-gray-500 italic border-t border-gray-100 pt-2">
+              Narration: {voucher.narration}
+            </div>
+          )}
         </div>
       </div>
 
