@@ -1,0 +1,442 @@
+openapi: 3.1.0
+info:
+  title: trialBalanceReport module API
+  version: 1.0.0
+  description: >
+    IPC contract for the backend module "trialBalanceReport" of an Electron + SQLite
+    accounting/ERP app. Each operation models an `ipcMain.handle('trialBalanceReport:<action>', ...)`
+    channel registered in server/index.js. Handlers are async functions in
+    trialBalanceReportController.js delegating to trialBalanceReportService.js.
+
+    NOTE: None of this module's channels are exposed in preload.js. There is therefore
+    no `window.api` binding for any of these operations (see x-window-api notes and the
+    warnings in the accompanying .md file). The `window.api.report.trialBalance` binding
+    found in preload.js belongs to a DIFFERENT module ('report' / channel 'report:trialBalance')
+    and is unrelated to this module.
+
+paths:
+  /trialBalanceReport/create:
+    post:
+      operationId: trialBalanceReport.create
+      tags: [trialBalanceReport]
+      summary: Create a saved trial balance report (header) plus its detail rows.
+      x-ipc-channel: "trialBalanceReport:create"
+      x-window-api: "NOT EXPOSED in preload.js (no window.api binding for this channel)"
+      x-controller: "trialBalanceReportController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrialBalanceReportCreateInput'
+      responses:
+        '200':
+          description: Report created; returns the inserted report header row.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  report:
+                    $ref: '#/components/schemas/TrialBalanceReport'
+                required: [success, report]
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: >
+            Server/DB error. NOTE: the service catches errors and returns
+            `{ success: false, error: string }` with a 200 transport status rather
+            than throwing. See ServiceFailure schema.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ServiceFailure'
+                  - $ref: '#/components/schemas/Error'
+
+  /trialBalanceReport/getAll:
+    post:
+      operationId: trialBalanceReport.getAll
+      tags: [trialBalanceReport]
+      summary: List all saved trial balance report headers for a company (newest first).
+      x-ipc-channel: "trialBalanceReport:getAll"
+      x-window-api: "NOT EXPOSED in preload.js (no window.api binding for this channel)"
+      x-controller: "trialBalanceReportController.getAll"
+      requestBody:
+        required: true
+        description: >
+          Handler receives a bare scalar as its 2nd IPC arg (company_id), not an object.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id to filter reports by.
+              required: [company_id]
+      responses:
+        '200':
+          description: Array of report header rows.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrialBalanceReport'
+                required: [success, reports]
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/DB error (service returns ServiceFailure with 200 transport).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ServiceFailure'
+                  - $ref: '#/components/schemas/Error'
+
+  /trialBalanceReport/getById:
+    post:
+      operationId: trialBalanceReport.getById
+      tags: [trialBalanceReport]
+      summary: Fetch one report header plus its detail rows (ordered by display_order).
+      x-ipc-channel: "trialBalanceReport:getById"
+      x-window-api: "NOT EXPOSED in preload.js (no window.api binding for this channel)"
+      x-controller: "trialBalanceReportController.getById"
+      requestBody:
+        required: true
+        description: Handler receives a bare scalar as its 2nd IPC arg (report id).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: trial_balance_reports.report_id to fetch.
+              required: [id]
+      responses:
+        '200':
+          description: >
+            On success, report header with an embedded `rows` array. If no report
+            matches the id, returns `{ success: false, error: "Report not found" }`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        const: true
+                      report:
+                        allOf:
+                          - $ref: '#/components/schemas/TrialBalanceReport'
+                          - type: object
+                            properties:
+                              rows:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/TrialBalanceRow'
+                            required: [rows]
+                    required: [success, report]
+                  - $ref: '#/components/schemas/ServiceFailure'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/DB error (service returns ServiceFailure with 200 transport).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ServiceFailure'
+                  - $ref: '#/components/schemas/Error'
+
+  /trialBalanceReport/delete:
+    post:
+      operationId: trialBalanceReport.delete
+      tags: [trialBalanceReport]
+      summary: Delete a saved trial balance report by id (cascades to its rows).
+      x-ipc-channel: "trialBalanceReport:delete"
+      x-window-api: "NOT EXPOSED in preload.js (no window.api binding for this channel)"
+      x-controller: "trialBalanceReportController.delete"
+      requestBody:
+        required: true
+        description: Handler receives a bare scalar as its 2nd IPC arg (report id).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: trial_balance_reports.report_id to delete.
+              required: [id]
+      responses:
+        '200':
+          description: >
+            On success `{ success: true }`. If no report matches the id, returns
+            `{ success: false, error: "Report not found" }`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        const: true
+                    required: [success]
+                  - $ref: '#/components/schemas/ServiceFailure'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/DB error (service returns ServiceFailure with 200 transport).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ServiceFailure'
+                  - $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared error envelope.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    ServiceFailure:
+      type: object
+      description: >
+        Actual failure envelope returned by trialBalanceReportService when a DB
+        error occurs or a record is not found. Transport status is still 200.
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+      required: [success, error]
+
+    TrialBalanceReport:
+      type: object
+      description: A row of the trial_balance_reports table (saved report header).
+      properties:
+        report_id:
+          type: integer
+          description: Primary key (INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: FK -> companies.company_id (explicit in source, ON DELETE CASCADE).
+        company_name:
+          type: [string, 'null']
+        report_date:
+          type: [string, 'null']
+          description: Date-only string (defaults to today YYYY-MM-DD when omitted on create).
+        period_start:
+          type: [string, 'null']
+          description: Date-only string.
+        period_end:
+          type: [string, 'null']
+          description: Date-only string.
+        show_closing_balance:
+          type: integer
+          description: 0/1 boolean flag. Default 1.
+        show_debit_credit:
+          type: integer
+          description: 0/1 boolean flag. Default 1.
+        show_groups:
+          type: integer
+          description: 0/1 boolean flag. Default 1.
+        show_grand_total:
+          type: integer
+          description: 0/1 boolean flag. Default 1.
+        detailed_mode:
+          type: integer
+          description: 0/1 boolean flag. Default 0.
+        created_at:
+          type: string
+          description: ISO-8601 / SQLite datetime string. Default datetime('now').
+        updated_at:
+          type: string
+          description: ISO-8601 / SQLite datetime string. Default datetime('now').
+      required: [report_id, company_id]
+
+    TrialBalanceRow:
+      type: object
+      description: A row of the trial_balance_rows table (saved report detail line).
+      properties:
+        row_id:
+          type: integer
+          description: Primary key (INTEGER PRIMARY KEY AUTOINCREMENT).
+        report_id:
+          type: integer
+          description: FK -> trial_balance_reports.report_id (explicit, ON DELETE CASCADE).
+        parent_row_id:
+          type: [integer, 'null']
+          description: Self FK -> trial_balance_rows.row_id (inferred from naming; no FK in source).
+        row_type:
+          type: string
+          description: e.g. 'Ledger', 'Group'. Default 'Ledger'.
+        particulars:
+          type: [string, 'null']
+        group_id:
+          type: [integer, 'null']
+          description: Inferred FK -> groups.group_id (no FK in source).
+        ledger_id:
+          type: [integer, 'null']
+          description: Inferred FK -> ledgers.ledger_id (no FK in source).
+        display_order:
+          type: integer
+          description: Sort order. Default 0.
+        opening_debit:
+          type: number
+          description: Currency amount. Default 0.
+        opening_credit:
+          type: number
+          description: Currency amount. Default 0.
+        period_debit:
+          type: number
+          description: Currency amount. Default 0.
+        period_credit:
+          type: number
+          description: Currency amount. Default 0.
+        closing_debit:
+          type: number
+          description: Currency amount. Default 0.
+        closing_credit:
+          type: number
+          description: Currency amount. Default 0.
+        is_drillable:
+          type: integer
+          description: 0/1 boolean flag. Default 1.
+        is_grand_total:
+          type: integer
+          description: 0/1 boolean flag. Default 0.
+        notes:
+          type: [string, 'null']
+        created_at:
+          type: string
+          description: ISO-8601 / SQLite datetime string. Default datetime('now').
+        updated_at:
+          type: string
+          description: ISO-8601 / SQLite datetime string. Default datetime('now').
+      required: [row_id, report_id]
+
+    TrialBalanceRowInput:
+      type: object
+      description: Detail-row shape accepted inside TrialBalanceReportCreateInput.rows[].
+      properties:
+        parent_row_id:
+          type: [integer, 'null']
+        row_type:
+          type: string
+          default: Ledger
+        particulars:
+          type: [string, 'null']
+        group_id:
+          type: [integer, 'null']
+        ledger_id:
+          type: [integer, 'null']
+        display_order:
+          type: integer
+          description: Defaults to array index + 1 when omitted.
+        opening_debit:
+          type: number
+          default: 0
+        opening_credit:
+          type: number
+          default: 0
+        period_debit:
+          type: number
+          default: 0
+        period_credit:
+          type: number
+          default: 0
+        closing_debit:
+          type: number
+          default: 0
+        closing_credit:
+          type: number
+          default: 0
+        is_drillable:
+          type: [integer, boolean]
+          description: 0/1 flag. Default 1.
+        is_grand_total:
+          type: [integer, boolean]
+          description: 0/1 flag. Default 0.
+        notes:
+          type: [string, 'null']
+
+    TrialBalanceReportCreateInput:
+      type: object
+      description: >
+        Payload for trialBalanceReport:create. Controller passes the whole 2nd IPC
+        arg (`data`) to the service. Only company_id is effectively required;
+        all other header fields fall back to defaults.
+      properties:
+        company_id:
+          type: integer
+          description: Required. FK -> companies.company_id.
+        company_name:
+          type: [string, 'null']
+        report_date:
+          type: [string, 'null']
+          description: Date-only. Defaults to today (YYYY-MM-DD) if omitted.
+        period_start:
+          type: [string, 'null']
+        period_end:
+          type: [string, 'null']
+        show_closing_balance:
+          type: [integer, boolean]
+          default: 1
+        show_debit_credit:
+          type: [integer, boolean]
+          default: 1
+        show_groups:
+          type: [integer, boolean]
+          default: 1
+        show_grand_total:
+          type: [integer, boolean]
+          default: 1
+        detailed_mode:
+          type: [integer, boolean]
+          default: 0
+        rows:
+          type: array
+          description: Optional detail rows inserted into trial_balance_rows.
+          items:
+            $ref: '#/components/schemas/TrialBalanceRowInput'
+      required: [company_id]

@@ -1,0 +1,651 @@
+openapi: 3.1.0
+info:
+  title: GST Module API
+  version: 1.0.0
+  description: >
+    IPC API for the "gst" backend module of an Electron + SQLite accounting/ERP
+    application. Each operation models an `ipcMain.handle('gst:<action>', ...)`
+    channel from server/index.js. These are NOT HTTP endpoints; they are
+    Electron IPC channels invoked from the renderer via
+    `window.api.gst.<method>` (see x-window-api). The HTTP POST modeling here is
+    purely a documentation convention so the contract renders in OpenAPI tools.
+
+    This module covers GST tax computation, GSTR-1 return generation/retrieval,
+    and HSN rate master maintenance. The renderer namespace ('gst') matches the
+    backend module name 'gst'.
+servers:
+  - url: ipc://gst
+    description: Electron IPC pseudo-server for the gst module.
+
+paths:
+  /gst/computeTax:
+    post:
+      tags: [gst]
+      summary: Compute GST tax lines (CGST/SGST/IGST/CESS) for a voucher payload.
+      description: >
+        Resolves company and party state, determines intra/inter-state supply,
+        walks the statutory rate hierarchy (stock item -> stock group -> ledger
+        -> company HSN override) for each stock entry, and returns computed tax
+        amounts plus balanced double-entry accounting lines. Does NOT persist
+        anything by itself.
+      operationId: gst.computeTax
+      x-ipc-channel: "gst:computeTax"
+      x-window-api: "window.api.gst.computeTax"
+      x-controller: "gstController.computeTax"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputeTaxRequest'
+      responses:
+        '200':
+          description: Computed tax breakdown and rebalanced accounting entries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeTaxResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /gst/generateGSTR1:
+    post:
+      tags: [gst]
+      summary: Generate (and persist a Draft snapshot of) the GSTR-1 return for a period.
+      description: >
+        Fetches all sales/credit-note/debit-note vouchers in the return period,
+        classifies them into B2B, B2CL, B2CS, CDNR sections plus an HSN summary,
+        validates GSTIN/state consistency (collecting warnings into `errors`),
+        deletes any existing Draft for the same period, then inserts a new Draft
+        row into gstr1_exports. Return period is "MMYYYY" (e.g. "052026").
+      operationId: gst.generateGSTR1
+      x-ipc-channel: "gst:generateGSTR1"
+      x-window-api: "window.api.gst.generateGSTR1"
+      x-controller: "gstController.generateGSTR1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GSTR1PeriodRequest'
+      responses:
+        '200':
+          description: Generated GSTR-1 payload, persisted export id, and validation errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateGSTR1Result'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /gst/getGSTR1:
+    post:
+      tags: [gst]
+      summary: Fetch the latest GSTR-1 snapshot for a period (auto-generates if none exists).
+      description: >
+        Returns the most recent gstr1_exports row for the company/fy/period. If
+        no snapshot exists, it transparently delegates to generateGSTR1 and
+        returns that result instead. The stored JSON columns are parsed back
+        into objects in the response.
+      operationId: gst.getGSTR1
+      x-ipc-channel: "gst:getGSTR1"
+      x-window-api: "window.api.gst.getGSTR1"
+      x-controller: "gstController.getGSTR1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GSTR1PeriodRequest'
+      responses:
+        '200':
+          description: Stored GSTR-1 snapshot (or freshly generated result).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GetGSTR1Result'
+                  - $ref: '#/components/schemas/GenerateGSTR1Result'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /gst/getHSNRates:
+    post:
+      tags: [gst]
+      summary: List all HSN/SAC GST rate overrides for a company.
+      description: >
+        Returns all gst_hsn_rates rows for the given company, ordered by
+        hsn_code then effective_from descending. The handler takes a bare scalar
+        company_id as its argument (not an object).
+      operationId: gst.getHSNRates
+      x-ipc-channel: "gst:getHSNRates"
+      x-window-api: "window.api.gst.getHSNRates"
+      x-controller: "gstController.getHSNRates"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdScalarRequest'
+      responses:
+        '200':
+          description: All HSN rate rows for the company.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetHSNRatesResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /gst/upsertHSNRate:
+    post:
+      tags: [gst]
+      summary: Insert or update an HSN/SAC GST rate override row.
+      description: >
+        If rate_id is present, updates that row (scoped to company_id);
+        otherwise inserts a new row. Requires company_id, hsn_code and
+        effective_from. Numeric rate fields default to 0 and the string fields
+        default to taxability='Taxable', type_of_supply='Goods'.
+      operationId: gst.upsertHSNRate
+      x-ipc-channel: "gst:upsertHSNRate"
+      x-window-api: "window.api.gst.upsertHSNRate"
+      x-controller: "gstController.upsertHSNRate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertHSNRateRequest'
+      responses:
+        '200':
+          description: Success flag (no row returned).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessOnly'
+        '4XX':
+          description: Validation error (missing required fields).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /gst/deleteHSNRate:
+    post:
+      tags: [gst]
+      summary: Delete an HSN/SAC GST rate override row.
+      description: >
+        Deletes the gst_hsn_rates row matching both rate_id and company_id.
+      operationId: gst.deleteHSNRate
+      x-ipc-channel: "gst:deleteHSNRate"
+      x-window-api: "window.api.gst.deleteHSNRate"
+      x-controller: "gstController.deleteHSNRate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteHSNRateRequest'
+      responses:
+        '200':
+          description: Success flag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessOnly'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+
+    Error:
+      type: object
+      description: Shared error envelope. Note this module typically returns errors as { success:false, error } rather than throwing; this schema documents the conventional error contract.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    SuccessOnly:
+      type: object
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    # ---- Table row schemas -------------------------------------------------
+
+    GstHsnRate:
+      type: object
+      description: Row of the gst_hsn_rates table (company-level HSN/SAC GST rate override, effective-dated).
+      properties:
+        rate_id:
+          type: integer
+          description: Primary key (SQLite AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company (FK companies.company_id).
+        hsn_code:
+          type: string
+        effective_from:
+          type: string
+          description: Date-only ISO string (YYYY-MM-DD).
+        effective_to:
+          type: [string, 'null']
+          description: Date-only ISO string or null (open-ended).
+        taxability:
+          type: string
+          default: Taxable
+        gst_rate:
+          type: number
+          default: 0
+        cgst_rate:
+          type: number
+          default: 0
+        sgst_rate:
+          type: number
+          default: 0
+        igst_rate:
+          type: number
+          default: 0
+        cess_rate:
+          type: number
+          default: 0
+        type_of_supply:
+          type: string
+          default: Goods
+          description: "'Goods' or 'Services'."
+        created_at:
+          type: string
+          description: ISO datetime string (datetime('now')).
+      required: [rate_id, company_id, hsn_code, effective_from]
+
+    GstVoucherTaxLine:
+      type: object
+      description: Row of gst_voucher_tax_lines (per-voucher GST audit/breakdown line). Written by saveVoucherTaxLines / read by GSTR-1 generation.
+      properties:
+        tax_line_id:
+          type: integer
+        voucher_id:
+          type: integer
+          description: FK vouchers.voucher_id.
+        entry_id:
+          type: [integer, 'null']
+          description: FK voucher_entries.entry_id (nullable, ON DELETE SET NULL).
+        hsn_code:
+          type: [string, 'null']
+        description:
+          type: [string, 'null']
+        quantity:
+          type: number
+          default: 0
+        unit:
+          type: [string, 'null']
+        assessable_value:
+          type: number
+          default: 0
+        tax_type:
+          type: [string, 'null']
+          description: "'CGST' | 'SGST' | 'IGST' | 'CESS'."
+        rate:
+          type: number
+          default: 0
+        amount:
+          type: number
+          default: 0
+        is_inter_state:
+          type: integer
+          default: 0
+          description: 0/1 boolean flag.
+        party_gstin:
+          type: [string, 'null']
+        party_state:
+          type: [string, 'null']
+        gst_classification_id:
+          type: [integer, 'null']
+          description: FK gst_classifications (inferred, not enforced in source).
+        created_at:
+          type: string
+      required: [tax_line_id, voucher_id]
+
+    Gstr1Export:
+      type: object
+      description: Row of gstr1_exports (snapshot of a generated GSTR-1 return for a period).
+      properties:
+        export_id:
+          type: integer
+        company_id:
+          type: integer
+          description: FK companies.company_id.
+        fy_id:
+          type: integer
+          description: FK financial_years.fy_id.
+        return_period:
+          type: string
+          description: "'MMYYYY' e.g. '052026'."
+        filed_date:
+          type: [string, 'null']
+        status:
+          type: string
+          default: Draft
+          description: "'Draft' | 'Filed'."
+        b2b_json:
+          type: [string, 'null']
+        b2cl_json:
+          type: [string, 'null']
+        b2cs_json:
+          type: [string, 'null']
+        cdnr_json:
+          type: [string, 'null']
+        hsn_json:
+          type: [string, 'null']
+        errors_json:
+          type: [string, 'null']
+        full_payload_json:
+          type: [string, 'null']
+        created_at:
+          type: string
+      required: [export_id, company_id, fy_id, return_period]
+
+    # ---- Request schemas ---------------------------------------------------
+
+    ComputeTaxRequest:
+      type: object
+      description: Voucher payload passed straight to computeVoucherTaxLines.
+      properties:
+        company_id:
+          type: integer
+          description: Required; throws if missing.
+        date:
+          type: string
+          description: Voucher date (YYYY-MM-DD), used for effective-dated rate resolution.
+        party_ledger_id:
+          type: integer
+          description: Party (Sundry Debtor/Creditor) ledger id.
+        place_of_supply:
+          type: string
+          description: Destination state; overrides party state for intra/inter-state determination.
+        voucher_type:
+          type: string
+          description: "e.g. 'Sales', 'Purchase', 'Credit Note', 'Debit Note'. Affects Dr/Cr direction."
+        stock_entries:
+          type: array
+          items:
+            type: object
+            properties:
+              stock_item_id: { type: integer }
+              ledger_id: { type: integer }
+              hsn_code: { type: string }
+              quantity: { type: number }
+              rate: { type: number }
+              discount_amount: { type: number }
+              item_name: { type: string }
+        entries:
+          type: array
+          description: Existing accounting entries; tax ledger lines are stripped and recomputed.
+          items:
+            type: object
+            properties:
+              ledger_id: { type: integer }
+              ledger_name: { type: string }
+              type: { type: string, description: "'Dr' or 'Cr'." }
+              amount: { type: number }
+      required: [company_id]
+
+    GSTR1PeriodRequest:
+      type: object
+      description: Identifies a GSTR-1 return period. Used by both generateGSTR1 and getGSTR1.
+      properties:
+        company_id:
+          type: integer
+        fy_id:
+          type: integer
+        return_period:
+          type: string
+          description: "'MMYYYY' format e.g. '052026'."
+      required: [company_id, fy_id, return_period]
+
+    CompanyIdScalarRequest:
+      type: object
+      description: getHSNRates receives a bare scalar company_id as IPC arg 2 (not wrapped in an object). Modeled here with a named property for clarity.
+      properties:
+        company_id:
+          type: integer
+      required: [company_id]
+
+    UpsertHSNRateRequest:
+      type: object
+      description: Insert (omit rate_id) or update (include rate_id) an HSN rate override.
+      properties:
+        rate_id:
+          type: integer
+          description: Omit/falsy to insert; present to update.
+        company_id:
+          type: integer
+        hsn_code:
+          type: string
+        effective_from:
+          type: string
+          description: YYYY-MM-DD.
+        effective_to:
+          type: [string, 'null']
+        taxability:
+          type: string
+          default: Taxable
+        gst_rate:
+          type: number
+          default: 0
+        cgst_rate:
+          type: number
+          default: 0
+        sgst_rate:
+          type: number
+          default: 0
+        igst_rate:
+          type: number
+          default: 0
+        cess_rate:
+          type: number
+          default: 0
+        type_of_supply:
+          type: string
+          default: Goods
+      required: [company_id, hsn_code, effective_from]
+
+    DeleteHSNRateRequest:
+      type: object
+      properties:
+        rate_id:
+          type: integer
+        company_id:
+          type: integer
+      required: [rate_id, company_id]
+
+    # ---- Response schemas --------------------------------------------------
+
+    ComputeTaxResult:
+      type: object
+      description: Result of computeVoucherTaxLines spread under success:true.
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+        is_inter_state:
+          type: integer
+          description: 0/1 flag.
+        party_gstin:
+          type: string
+        party_state:
+          type: string
+        total_cgst:
+          type: number
+        total_sgst:
+          type: number
+        total_igst:
+          type: number
+        total_cess:
+          type: number
+        stock_entries:
+          type: array
+          description: Input stock entries enriched with resolved hsn_code, gst_rate and computed cgst/sgst/igst/cess amounts + assessable_value.
+          items:
+            type: object
+        entries:
+          type: array
+          description: Rebalanced double-entry accounting lines (party line balanced against injected tax lines).
+          items:
+            type: object
+        taxLinesBreakdown:
+          type: array
+          items:
+            type: object
+      required: [success]
+
+    GenerateGSTR1Result:
+      type: object
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+        export_id:
+          type: integer
+          description: lastInsertRowid of the inserted gstr1_exports Draft row.
+        payload:
+          $ref: '#/components/schemas/GSTR1Payload'
+        errors:
+          type: array
+          description: Validation warnings collected during generation.
+          items:
+            type: object
+            properties:
+              voucher_id: { type: integer }
+              voucher_number: { type: string }
+              error: { type: string }
+      required: [success]
+
+    GetGSTR1Result:
+      type: object
+      description: Shape returned by getGSTR1 when an existing snapshot is found.
+      properties:
+        success:
+          type: boolean
+        export_id:
+          type: integer
+        status:
+          type: string
+        filed_date:
+          type: [string, 'null']
+        payload:
+          $ref: '#/components/schemas/GSTR1Payload'
+        errors:
+          type: array
+          items:
+            type: object
+      required: [success]
+
+    GSTR1Payload:
+      type: object
+      description: Full GSTR-1 JSON payload assembled per GSTN section structure.
+      properties:
+        gstin:
+          type: string
+        fp:
+          type: string
+          description: Filing period (MMYYYY).
+        cur_gt:
+          type: number
+        b2b:
+          type: array
+          items: { type: object }
+        b2cl:
+          type: array
+          items: { type: object }
+        b2cs:
+          type: array
+          items: { type: object }
+        cdnr:
+          type: array
+          items: { type: object }
+        hsn:
+          type: object
+          properties:
+            data:
+              type: array
+              items: { type: object }
+
+    GetHSNRatesResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+        hsnRates:
+          type: array
+          items:
+            $ref: '#/components/schemas/GstHsnRate'
+      required: [success]

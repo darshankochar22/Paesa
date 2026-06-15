@@ -1,13 +1,19 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const {
+  attendanceVouchers,
+  attendanceVoucherEntries,
+  employees,
+  attendanceTypes,
+} = require('../db/schema');
 
 const generateVoucherNumber = async (company_id) => {
   const prefix = 'ATT-';
-  const result = await db.execute({
-    sql: `SELECT COALESCE(MAX(CAST(REPLACE(voucher_number, ?, '') AS INTEGER)), 0) + 1 as next_num
-          FROM attendance_vouchers WHERE company_id = ?`,
-    args: [prefix, company_id],
-  });
-  const next = Number(result.rows[0].next_num);
+  const rows = await db.all(
+    sql`SELECT COALESCE(MAX(CAST(REPLACE(${attendanceVouchers.voucherNumber}, ${prefix}, '') AS INTEGER)), 0) + 1 as next_num
+        FROM ${attendanceVouchers} WHERE ${attendanceVouchers.companyId} = ${company_id}`
+  );
+  const next = Number(rows[0].next_num);
   return `${prefix}${String(next).padStart(5, '0')}`;
 };
 
@@ -23,41 +29,36 @@ const getNextVoucherNumber = async (company_id) => {
 const create = async (data) => {
   try {
     const voucher_number = data.voucher_number || await generateVoucherNumber(data.company_id);
-    await db.execute({ sql: 'BEGIN TRANSACTION', args: [] });
+    await db.run(sql`BEGIN TRANSACTION`);
     try {
-      const result = await db.execute({
-        sql: `INSERT INTO attendance_vouchers (
-                company_id, voucher_number, date, narration
-              ) VALUES (?, ?, ?, ?)`,
-        args: [
-          data.company_id,
-          voucher_number,
-          data.date,
-          data.narration || null,
-        ],
-      });
-      const attendance_voucher_id = Number(result.lastInsertRowid);
+      const inserted = await db
+        .insert(attendanceVouchers)
+        .values({
+          companyId: data.company_id,
+          voucherNumber: voucher_number,
+          date: data.date,
+          narration: data.narration || null,
+        })
+        .returning({ id: attendanceVouchers.attendanceVoucherId });
+      const attendance_voucher_id = Number(inserted[0].id);
 
       if (data.entries && data.entries.length > 0) {
         for (const entry of data.entries) {
-          await db.execute({
-            sql: `INSERT INTO attendance_voucher_entries (
-                    attendance_voucher_id, employee_id, attendance_type_id, value
-                  ) VALUES (?, ?, ?, ?)`,
-            args: [
-              attendance_voucher_id,
-              entry.employee_id || null,
-              entry.attendance_type_id || null,
-              Number(entry.value) || 0,
-            ],
-          });
+          await db
+            .insert(attendanceVoucherEntries)
+            .values({
+              attendanceVoucherId: attendance_voucher_id,
+              employeeId: entry.employee_id || null,
+              attendanceTypeId: entry.attendance_type_id || null,
+              value: Number(entry.value) || 0,
+            });
         }
       }
 
-      await db.execute({ sql: 'COMMIT', args: [] });
+      await db.run(sql`COMMIT`);
       return { success: true, attendance_voucher_id, voucher_number };
     } catch (err) {
-      await db.execute({ sql: 'ROLLBACK', args: [] });
+      await db.run(sql`ROLLBACK`);
       throw err;
     }
   } catch (err) {
@@ -67,11 +68,12 @@ const create = async (data) => {
 
 const getAll = async (company_id) => {
   try {
-    const result = await db.execute({
-      sql: `SELECT * FROM attendance_vouchers WHERE company_id = ? ORDER BY date DESC, attendance_voucher_id DESC`,
-      args: [company_id],
-    });
-    return { success: true, vouchers: result.rows };
+    const rows = await db.all(
+      sql`SELECT * FROM ${attendanceVouchers}
+          WHERE ${attendanceVouchers.companyId} = ${company_id}
+          ORDER BY ${attendanceVouchers.date} DESC, ${attendanceVouchers.attendanceVoucherId} DESC`
+    );
+    return { success: true, vouchers: rows };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -79,27 +81,25 @@ const getAll = async (company_id) => {
 
 const getById = async (id) => {
   try {
-    const entryResult = await db.execute({
-      sql: `SELECT * FROM attendance_vouchers WHERE attendance_voucher_id = ?`,
-      args: [id],
-    });
-    if (entryResult.rows.length === 0) return { success: false, error: 'Voucher not found' };
-    const voucher = entryResult.rows[0];
+    const voucherRows = await db.all(
+      sql`SELECT * FROM ${attendanceVouchers} WHERE ${attendanceVouchers.attendanceVoucherId} = ${id}`
+    );
+    if (voucherRows.length === 0) return { success: false, error: 'Voucher not found' };
+    const voucher = voucherRows[0];
 
-    const entriesResult = await db.execute({
-      sql: `SELECT e.*, emp.name as employee_name, emp.employee_code AS employee_number, t.name as attendance_type_name
-            FROM attendance_voucher_entries e
-            LEFT JOIN employees emp ON emp.employee_id = e.employee_id
-            LEFT JOIN attendance_types t ON t.attendance_type_id = e.attendance_type_id
-            WHERE e.attendance_voucher_id = ?`,
-      args: [id],
-    });
+    const entries = await db.all(
+      sql`SELECT e.*, emp.name as employee_name, emp.employee_code AS employee_number, t.name as attendance_type_name
+          FROM ${attendanceVoucherEntries} e
+          LEFT JOIN ${employees} emp ON emp.employee_id = e.employee_id
+          LEFT JOIN ${attendanceTypes} t ON t.attendance_type_id = e.attendance_type_id
+          WHERE e.attendance_voucher_id = ${id}`
+    );
 
     return {
       success: true,
       voucher: {
         ...voucher,
-        entries: entriesResult.rows,
+        entries,
       },
     };
   } catch (err) {
@@ -109,10 +109,9 @@ const getById = async (id) => {
 
 const deleteVoucher = async (id) => {
   try {
-    await db.execute({
-      sql: `DELETE FROM attendance_vouchers WHERE attendance_voucher_id = ?`,
-      args: [id],
-    });
+    await db
+      .delete(attendanceVouchers)
+      .where(eq(attendanceVouchers.attendanceVoucherId, id));
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };

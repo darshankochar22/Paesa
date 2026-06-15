@@ -1,0 +1,345 @@
+openapi: 3.1.0
+info:
+  title: stockCategory module API
+  version: 1.0.0
+  description: >-
+    IPC API contract for the stockCategory backend module of the Electron +
+    SQLite accounting/ERP app. Each operation maps to an
+    `ipcMain.handle('stockCategory:<action>', ...)` channel, invoked from the
+    renderer via `window.api.stockCategory.<method>`. All operations use HTTP
+    `post` as a documentation convention; at runtime they are IPC calls, not
+    HTTP endpoints. All handlers return an envelope `{ success: boolean, ... }`
+    rather than throwing; the 4xx/5xx responses below model the error envelope.
+paths:
+  /stockCategory/create:
+    post:
+      operationId: stockCategory.create
+      tags: [stockCategory]
+      summary: Create a stock category (rejects duplicate active name within a company).
+      x-ipc-channel: "stockCategory:create"
+      x-window-api: "window.api.stockCategory.create"
+      x-controller: "stockCategoryController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockCategoryCreateInput'
+      responses:
+        '200':
+          description: Success envelope with the created category, or a failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockCategoryItemSuccess'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /stockCategory/getAll:
+    post:
+      operationId: stockCategory.getAll
+      tags: [stockCategory]
+      summary: List all active stock categories for a company.
+      x-ipc-channel: "stockCategory:getAll"
+      x-window-api: "window.api.stockCategory.getAll"
+      x-controller: "stockCategoryController.getAll"
+      requestBody:
+        required: true
+        description: >-
+          The handler takes a bare scalar `company_id` as its second IPC
+          argument (not an object). Modeled here as a single-property object.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id to filter by.
+      responses:
+        '200':
+          description: Success envelope with the list of active categories.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockCategoryListSuccess'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /stockCategory/getById:
+    post:
+      operationId: stockCategory.getById
+      tags: [stockCategory]
+      summary: Fetch a single stock category by its primary key.
+      x-ipc-channel: "stockCategory:getById"
+      x-window-api: "window.api.stockCategory.getById"
+      x-controller: "stockCategoryController.getById"
+      requestBody:
+        required: true
+        description: >-
+          The handler takes a bare scalar `id` (sc_id) as its second IPC
+          argument. Modeled here as a single-property object.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: stock_categories.sc_id to fetch.
+      responses:
+        '200':
+          description: Success envelope with the category, or a not-found failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockCategoryItemSuccess'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /stockCategory/update:
+    post:
+      operationId: stockCategory.update
+      tags: [stockCategory]
+      summary: Update a stock category (rejects rename to a duplicate active name).
+      x-ipc-channel: "stockCategory:update"
+      x-window-api: "window.api.stockCategory.update"
+      x-controller: "stockCategoryController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockCategoryUpdateInput'
+      responses:
+        '200':
+          description: Success envelope with the updated category, or a failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockCategoryItemSuccess'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /stockCategory/delete:
+    post:
+      operationId: stockCategory.delete
+      tags: [stockCategory]
+      summary: Soft-delete a stock category (sets is_active = 0); blocked if it has active subcategories.
+      x-ipc-channel: "stockCategory:delete"
+      x-window-api: "window.api.stockCategory.delete"
+      x-controller: "stockCategoryController.delete"
+      requestBody:
+        required: true
+        description: >-
+          The handler takes a bare scalar `id` (sc_id) as its second IPC
+          argument. Modeled here as a single-property object.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: stock_categories.sc_id to soft-delete.
+      responses:
+        '200':
+          description: Success envelope (no payload) or a failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    StockCategory:
+      type: object
+      description: >-
+        A row of the `stock_categories` table. Maps to docs/db/modules/stockCategory.sql.
+      properties:
+        sc_id:
+          type: integer
+          description: Primary key (SQLite INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company. FK -> companies.company_id.
+        name:
+          type: string
+          description: Category name (NOT NULL).
+        alias:
+          type: [string, "null"]
+          description: Optional short alias.
+        description:
+          type: [string, "null"]
+          description: Optional free-text description.
+        parent_category_id:
+          type: [integer, "null"]
+          description: Self-referencing parent category. FK -> stock_categories.sc_id.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: >-
+            Soft-delete / active flag stored as 0/1 in SQLite (maps to BOOLEAN
+            in Postgres; 1 = active/true, 0 = deleted/false). DEFAULT 1.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required: [sc_id, company_id, name, is_active]
+    StockCategoryCreateInput:
+      type: object
+      additionalProperties: false
+      required: [company_id, name]
+      properties:
+        company_id:
+          type: integer
+          description: Owning company id (NOT NULL).
+        name:
+          type: string
+          description: Category name (NOT NULL). Duplicate active names per company are rejected.
+        alias:
+          type: [string, "null"]
+          description: Optional alias; defaults to null.
+        description:
+          type: [string, "null"]
+          description: Optional description; defaults to null.
+        parent_category_id:
+          type: [integer, "null"]
+          description: Optional parent category id; defaults to null.
+    StockCategoryUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [sc_id]
+      description: >-
+        Partial update keyed by sc_id. Omitted fields fall back to the existing
+        row value (service uses `?? current.<field>`). company_id is not
+        updatable via this operation.
+      properties:
+        sc_id:
+          type: integer
+          description: Primary key of the category to update.
+        name:
+          type: string
+          description: New name. Rename to an existing active name in the same company is rejected.
+        alias:
+          type: [string, "null"]
+        description:
+          type: [string, "null"]
+        parent_category_id:
+          type: [integer, "null"]
+    StockCategoryItemSuccess:
+      type: object
+      additionalProperties: false
+      required: [success, category]
+      properties:
+        success:
+          const: true
+        category:
+          $ref: '#/components/schemas/StockCategory'
+    StockCategoryListSuccess:
+      type: object
+      additionalProperties: false
+      required: [success, stockCategories]
+      properties:
+        success:
+          const: true
+        stockCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockCategory'
+    SuccessEnvelope:
+      type: object
+      additionalProperties: false
+      required: [success]
+      properties:
+        success:
+          const: true
+    FailureEnvelope:
+      type: object
+      additionalProperties: false
+      required: [success, error]
+      description: >-
+        Handlers catch errors and return this envelope (HTTP 200) instead of
+        throwing. Known error strings include "Stock Category already exists",
+        "Stock Category not found", "Stock Category name already exists",
+        "Cannot delete category with subcategories", or a raw err.message.
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error, message]
+      description: Shared transport-level error shape (unexpected IPC failure).
+      properties:
+        error:
+          type: string
+        message:
+          type: string

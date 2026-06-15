@@ -1,4 +1,12 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { financialYears } = require('../db/schema');
+
+// Fetch a single financial_years row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${financialYears} WHERE ${whereSql}`);
+  return rows[0];
+};
 
 module.exports = {
   seedDefaultFY: async (company_id, financial_year_beginning_from) => {
@@ -13,11 +21,16 @@ module.exports = {
       end.setDate(end.getDate() - 1);
       const endDate = end.toISOString().split('T')[0];
 
-      await db.execute(
-        `INSERT INTO financial_years (company_id, start_date, end_date, is_active, is_closed, closing_date)
-         VALUES (?, ?, ?, 1, 0, null)`,
-        [company_id, startDate, endDate]
-      );
+      await db
+        .insert(financialYears)
+        .values({
+          companyId: company_id,
+          startDate,
+          endDate,
+          isActive: 1,
+          isClosed: 0,
+          closingDate: null,
+        });
     } catch (err) {
       console.error('seedDefaultFY error:', err.message);
     }
@@ -25,33 +38,32 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM financial_years WHERE company_id = ? AND start_date = ?`,
-        [data.company_id, data.start_date]
+      const existing = await db.all(
+        sql`SELECT * FROM ${financialYears}
+            WHERE ${financialYears.companyId} = ${data.company_id}
+              AND ${financialYears.startDate} = ${data.start_date}`
       );
-      if (existing.rows.length > 0) return { success: false, error: 'Financial year already exists' };
+      if (existing.length > 0) return { success: false, error: 'Financial year already exists' };
 
       const start = new Date(data.start_date);
       const end = new Date(start);
       end.setFullYear(end.getFullYear() + 1);
       end.setDate(end.getDate() - 1);
 
-      const result = await db.execute(
-        `INSERT INTO financial_years (company_id, start_date, end_date, is_active, is_closed, closing_date)
-         VALUES (?, ?, ?, ?, 0, null)`,
-        [
-          data.company_id,
-          data.start_date,
-          data.end_date || end.toISOString().split('T')[0],
-          0,
-        ]
-      );
+      const inserted = await db
+        .insert(financialYears)
+        .values({
+          companyId: data.company_id,
+          startDate: data.start_date,
+          endDate: data.end_date || end.toISOString().split('T')[0],
+          isActive: 0,
+          isClosed: 0,
+          closingDate: null,
+        })
+        .returning({ id: financialYears.fyId });
 
-      const fy = await db.execute(
-        `SELECT * FROM financial_years WHERE fy_id = ?`,
-        [result.lastInsertRowid]
-      );
-      return { success: true, fy: fy.rows[0] };
+      const fy = await findRow(sql`${financialYears.fyId} = ${inserted[0].id}`);
+      return { success: true, fy };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -60,11 +72,10 @@ module.exports = {
   getAll: async (company_id) => {
     console.log(' getAll called with:', company_id, typeof company_id);
     try {
-      const result = await db.execute(
-        `SELECT * FROM financial_years WHERE company_id = ?`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${financialYears} WHERE ${financialYears.companyId} = ${company_id}`
       );
-      return { success: true, financialYears: result.rows };
+      return { success: true, financialYears: rows };
     } catch (err) {
       console.log('getAll error:', err.message);
       return { success: false, error: err.message };
@@ -73,12 +84,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM financial_years WHERE fy_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'Financial year not found' };
-      return { success: true, fy: result.rows[0] };
+      const fy = await findRow(sql`${financialYears.fyId} = ${id}`);
+      if (!fy) return { success: false, error: 'Financial year not found' };
+      return { success: true, fy };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -86,21 +94,18 @@ module.exports = {
 
   setActive: async (fy_id, company_id) => {
     try {
-      const fy = await db.execute(
-        `SELECT * FROM financial_years WHERE fy_id = ?`,
-        [fy_id]
-      );
-      if (fy.rows.length === 0) return { success: false, error: 'Financial year not found' };
-      if (fy.rows[0].is_closed) return { success: false, error: 'Cannot activate a closed financial year' };
+      const fy = await findRow(sql`${financialYears.fyId} = ${fy_id}`);
+      if (!fy) return { success: false, error: 'Financial year not found' };
+      if (fy.is_closed) return { success: false, error: 'Cannot activate a closed financial year' };
 
-      await db.execute(
-        `UPDATE financial_years SET is_active = 0 WHERE company_id = ?`,
-        [company_id]
-      );
-      await db.execute(
-        `UPDATE financial_years SET is_active = 1 WHERE fy_id = ?`,
-        [fy_id]
-      );
+      await db
+        .update(financialYears)
+        .set({ isActive: 0 })
+        .where(eq(financialYears.companyId, company_id));
+      await db
+        .update(financialYears)
+        .set({ isActive: 1 })
+        .where(eq(financialYears.fyId, fy_id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -109,16 +114,12 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM financial_years WHERE fy_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'Financial year not found' };
-      const fy = result.rows[0];
+      const fy = await findRow(sql`${financialYears.fyId} = ${id}`);
+      if (!fy) return { success: false, error: 'Financial year not found' };
       if (fy.is_active) return { success: false, error: 'Cannot delete active financial year' };
       if (fy.is_closed) return { success: false, error: 'Cannot delete closed financial year' };
 
-      await db.execute(`DELETE FROM financial_years WHERE fy_id = ?`, [id]);
+      await db.delete(financialYears).where(eq(financialYears.fyId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

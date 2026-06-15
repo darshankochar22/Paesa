@@ -1,3 +1,15 @@
+const { sql, eq, and } = require('drizzle-orm');
+const {
+  gstRegistrations,
+  ledgers,
+  ledgerStatutoryDetails,
+  groups,
+  stockItems,
+  stockGroups,
+  gstHsnRates,
+  gstVoucherTaxLines,
+} = require('../db/schema');
+
 const STATE_CODE_MAP = {
   "jammu and kashmir": "01",
   "himachal pradesh": "02",
@@ -67,11 +79,11 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
 
   // 1. Resolve by Stock Item if stock_item_id is provided
   if (stock_item_id) {
-    const itemResult = await db.execute({
-      sql: `SELECT * FROM stock_items WHERE item_id = ? AND company_id = ?`,
-      args: [stock_item_id, company_id]
-    });
-    const item = itemResult.rows[0];
+    const itemRows = await db.all(
+      sql`SELECT * FROM ${stockItems}
+          WHERE ${stockItems.itemId} = ${stock_item_id} AND ${stockItems.companyId} = ${company_id}`
+    );
+    const item = itemRows[0];
     if (item) {
       if (item.hsn_code) resolved.hsn_code = item.hsn_code;
       if (item.gst_applicable === 'Applicable' || item.gst_rate > 0) {
@@ -85,11 +97,11 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
       
       // 2. Check Stock Group of this item
       if (item.group_id) {
-        const groupResult = await db.execute({
-          sql: `SELECT * FROM stock_groups WHERE sg_id = ? AND company_id = ?`,
-          args: [item.group_id, company_id]
-        });
-        const group = groupResult.rows[0];
+        const groupRows = await db.all(
+          sql`SELECT * FROM ${stockGroups}
+              WHERE ${stockGroups.sgId} = ${item.group_id} AND ${stockGroups.companyId} = ${company_id}`
+        );
+        const group = groupRows[0];
         if (group && (group.gst_rate > 0 || group.hsn_sac_code)) {
           if (group.hsn_sac_code) resolved.hsn_code = group.hsn_sac_code;
           resolved.gst_rate = group.gst_rate || 0;
@@ -106,11 +118,10 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
 
   // 3. Check Ledger Statutory Details
   if (ledger_id) {
-    const ledgerStatResult = await db.execute({
-      sql: `SELECT * FROM ledger_statutory_details WHERE ledger_id = ?`,
-      args: [ledger_id]
-    });
-    const stat = ledgerStatResult.rows[0];
+    const ledgerStatRows = await db.all(
+      sql`SELECT * FROM ${ledgerStatutoryDetails} WHERE ${ledgerStatutoryDetails.ledgerId} = ${ledger_id}`
+    );
+    const stat = ledgerStatRows[0];
     if (stat && (stat.gst_rate > 0 || stat.hsn_sac_code)) {
       if (stat.hsn_sac_code) resolved.hsn_code = stat.hsn_sac_code;
       resolved.gst_rate = stat.gst_rate || 0;
@@ -125,13 +136,15 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
   // 4. Fallback to Company HSN Rate overrides (if HSN code is resolved)
   const queryHsn = resolved.hsn_code || hsn_code;
   if (queryHsn) {
-    const hsnRateResult = await db.execute({
-      sql: `SELECT * FROM gst_hsn_rates 
-            WHERE company_id = ? AND hsn_code = ? AND effective_from <= ? 
-            ORDER BY effective_from DESC LIMIT 1`,
-      args: [company_id, queryHsn, date || new Date().toISOString().split('T')[0]]
-    });
-    const hsnRate = hsnRateResult.rows[0];
+    const effectiveDate = date || new Date().toISOString().split('T')[0];
+    const hsnRateRows = await db.all(
+      sql`SELECT * FROM ${gstHsnRates}
+          WHERE ${gstHsnRates.companyId} = ${company_id}
+            AND ${gstHsnRates.hsnCode} = ${queryHsn}
+            AND ${gstHsnRates.effectiveFrom} <= ${effectiveDate}
+          ORDER BY ${gstHsnRates.effectiveFrom} DESC LIMIT 1`
+    );
+    const hsnRate = hsnRateRows[0];
     if (hsnRate) {
       resolved.gst_rate = hsnRate.gst_rate || 0;
       resolved.cgst_rate = hsnRate.cgst_rate || 0;
@@ -151,48 +164,60 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
  */
 const resolveOrCreateTaxLedger = async (db, company_id, tax_type) => {
   // Try to find an existing ledger under "Duties & Taxes" group or name matching tax_type
-  const ledgerResult = await db.execute({
-    sql: `SELECT l.ledger_id FROM ledgers l
-          LEFT JOIN groups g ON g.group_id = l.group_id
-          WHERE l.company_id = ? AND l.is_active = 1
-          AND (LOWER(l.name) = LOWER(?) OR LOWER(COALESCE(l.ledger_type, '')) = LOWER(?) OR l.ledger_id IN (
-            SELECT ledger_id FROM ledger_statutory_details WHERE type_of_duty_tax = ?
-          ))
-          LIMIT 1`,
-    args: [company_id, tax_type, tax_type, tax_type]
-  });
+  // Typed sql: multi-table join with a correlated IN-subquery — kept as Drizzle sql.
+  const ledgerRows = await db.all(
+    sql`SELECT l.ledger_id FROM ${ledgers} l
+        LEFT JOIN ${groups} g ON g.group_id = l.group_id
+        WHERE l.company_id = ${company_id} AND l.is_active = 1
+        AND (LOWER(l.name) = LOWER(${tax_type}) OR LOWER(COALESCE(l.ledger_type, '')) = LOWER(${tax_type}) OR l.ledger_id IN (
+          SELECT ledger_id FROM ${ledgerStatutoryDetails} WHERE type_of_duty_tax = ${tax_type}
+        ))
+        LIMIT 1`
+  );
 
-  if (ledgerResult.rows.length > 0) {
-    return ledgerResult.rows[0].ledger_id;
+  if (ledgerRows.length > 0) {
+    return ledgerRows[0].ledger_id;
   }
 
   // Find the group_id for "Duties & Taxes"
-  const groupResult = await db.execute({
-    sql: `SELECT group_id FROM groups WHERE company_id = ? AND name = 'Duties & Taxes' AND is_active = 1 LIMIT 1`,
-    args: [company_id]
-  });
-  const group_id = groupResult.rows.length > 0 ? groupResult.rows[0].group_id : null;
+  const groupRows = await db.all(
+    sql`SELECT group_id FROM ${groups}
+        WHERE ${groups.companyId} = ${company_id} AND ${groups.name} = 'Duties & Taxes' AND ${groups.isActive} = 1
+        LIMIT 1`
+  );
+  const group_id = groupRows.length > 0 ? groupRows[0].group_id : null;
 
   // Insert the ledger
   const name = tax_type.toUpperCase();
-  const insertResult = await db.execute({
-    sql: `INSERT INTO ledgers (
-            company_id, group_id, name, ledger_type, nature,
-            opening_balance, closing_balance, is_bill_wise, maintain_inventory_values,
-            registration_type, is_active, is_predefined
-          ) VALUES (?, ?, ?, 'Duties & Taxes', 'Liabilities', 0, 0, 0, 0, 'Unregistered', 1, 0)`,
-    args: [company_id, group_id, name]
-  });
+  const insertedLedger = await db
+    .insert(ledgers)
+    .values({
+      companyId: company_id,
+      groupId: group_id,
+      name: name,
+      ledgerType: 'Duties & Taxes',
+      nature: 'Liabilities',
+      openingBalance: 0,
+      closingBalance: 0,
+      isBillWise: 0,
+      maintainInventoryValues: 0,
+      registrationType: 'Unregistered',
+      isActive: 1,
+      isPredefined: 0,
+    })
+    .returning({ id: ledgers.ledgerId });
 
-  const ledger_id = Number(insertResult.lastInsertRowid);
+  const ledger_id = Number(insertedLedger[0].id);
 
   // Insert statutory details
-  await db.execute({
-    sql: `INSERT INTO ledger_statutory_details (
-            ledger_id, gst_applicability, type_of_duty_tax, percentage_of_calculation
-          ) VALUES (?, 'Applicable', ?, 0)`,
-    args: [ledger_id, tax_type]
-  });
+  await db
+    .insert(ledgerStatutoryDetails)
+    .values({
+      ledgerId: ledger_id,
+      gstApplicability: 'Applicable',
+      typeOfDutyTax: tax_type,
+      percentageOfCalculation: 0,
+    });
 
   return ledger_id;
 };
@@ -216,11 +241,11 @@ const computeVoucherTaxLines = async (db, payload) => {
   }
 
   // 1. Resolve Company State
-  const companyGstResult = await db.execute({
-    sql: `SELECT * FROM gst_registrations WHERE company_id = ? AND is_active = 1 LIMIT 1`,
-    args: [company_id]
-  });
-  const companyReg = companyGstResult.rows[0];
+  const companyGstRows = await db.all(
+    sql`SELECT * FROM ${gstRegistrations}
+        WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1 LIMIT 1`
+  );
+  const companyReg = companyGstRows[0];
   const companyState = companyReg ? companyReg.state_id : "";
   const companyGSTIN = companyReg ? companyReg.gstin : "";
   const companyStateCode = resolveStateCode(companyState, companyGSTIN);
@@ -229,11 +254,11 @@ const computeVoucherTaxLines = async (db, payload) => {
   let partyState = "";
   let partyGSTIN = "";
   if (party_ledger_id) {
-    const partyResult = await db.execute({
-      sql: `SELECT * FROM ledgers WHERE ledger_id = ? AND company_id = ?`,
-      args: [party_ledger_id, company_id]
-    });
-    const party = partyResult.rows[0];
+    const partyRows = await db.all(
+      sql`SELECT * FROM ${ledgers}
+          WHERE ${ledgers.ledgerId} = ${party_ledger_id} AND ${ledgers.companyId} = ${company_id}`
+    );
+    const party = partyRows[0];
     if (party) {
       partyState = party.state || "";
       partyGSTIN = party.gstin || "";
@@ -432,10 +457,7 @@ const computeVoucherTaxLines = async (db, payload) => {
  */
 const saveVoucherTaxLines = async (db, voucher_id, computedTax) => {
   // First clean out existing lines for this voucher
-  await db.execute({
-    sql: `DELETE FROM gst_voucher_tax_lines WHERE voucher_id = ?`,
-    args: [voucher_id]
-  });
+  await db.delete(gstVoucherTaxLines).where(eq(gstVoucherTaxLines.voucherId, voucher_id));
 
   const { is_inter_state, party_gstin, party_state, stock_entries = [] } = computedTax;
 
@@ -443,87 +465,68 @@ const saveVoucherTaxLines = async (db, voucher_id, computedTax) => {
     // Save line for CGST/SGST or IGST if tax is applicable
     if (entry.gst_rate > 0) {
       if (is_inter_state) {
-        await db.execute({
-          sql: `INSERT INTO gst_voucher_tax_lines (
-                  voucher_id, hsn_code, description, quantity, unit,
-                  assessable_value, tax_type, rate, amount, is_inter_state, party_gstin, party_state
-                ) VALUES (?, ?, ?, ?, ?, ?, 'IGST', ?, ?, ?, ?, ?)`,
-          args: [
-            voucher_id,
-            entry.hsn_code || "",
-            entry.item_name || "",
-            entry.quantity || 0,
-            "",
-            entry.assessable_value || 0,
-            entry.gst_rate,
-            entry.igst_amount || 0,
-            is_inter_state,
-            party_gstin,
-            party_state
-          ]
+        await db.insert(gstVoucherTaxLines).values({
+          voucherId: voucher_id,
+          hsnCode: entry.hsn_code || "",
+          description: entry.item_name || "",
+          quantity: entry.quantity || 0,
+          unit: "",
+          assessableValue: entry.assessable_value || 0,
+          taxType: 'IGST',
+          rate: entry.gst_rate,
+          amount: entry.igst_amount || 0,
+          isInterState: is_inter_state,
+          partyGstin: party_gstin,
+          partyState: party_state,
         });
       } else {
         // CGST
-        await db.execute({
-          sql: `INSERT INTO gst_voucher_tax_lines (
-                  voucher_id, hsn_code, description, quantity, unit,
-                  assessable_value, tax_type, rate, amount, is_inter_state, party_gstin, party_state
-                ) VALUES (?, ?, ?, ?, ?, ?, 'CGST', ?, ?, ?, ?, ?)`,
-          args: [
-            voucher_id,
-            entry.hsn_code || "",
-            entry.item_name || "",
-            entry.quantity || 0,
-            "",
-            entry.assessable_value || 0,
-            entry.gst_rate / 2,
-            entry.cgst_amount || 0,
-            is_inter_state,
-            party_gstin,
-            party_state
-          ]
+        await db.insert(gstVoucherTaxLines).values({
+          voucherId: voucher_id,
+          hsnCode: entry.hsn_code || "",
+          description: entry.item_name || "",
+          quantity: entry.quantity || 0,
+          unit: "",
+          assessableValue: entry.assessable_value || 0,
+          taxType: 'CGST',
+          rate: entry.gst_rate / 2,
+          amount: entry.cgst_amount || 0,
+          isInterState: is_inter_state,
+          partyGstin: party_gstin,
+          partyState: party_state,
         });
         // SGST
-        await db.execute({
-          sql: `INSERT INTO gst_voucher_tax_lines (
-                  voucher_id, hsn_code, description, quantity, unit,
-                  assessable_value, tax_type, rate, amount, is_inter_state, party_gstin, party_state
-                ) VALUES (?, ?, ?, ?, ?, ?, 'SGST', ?, ?, ?, ?, ?)`,
-          args: [
-            voucher_id,
-            entry.hsn_code || "",
-            entry.item_name || "",
-            entry.quantity || 0,
-            "",
-            entry.assessable_value || 0,
-            entry.gst_rate / 2,
-            entry.sgst_amount || 0,
-            is_inter_state,
-            party_gstin,
-            party_state
-          ]
+        await db.insert(gstVoucherTaxLines).values({
+          voucherId: voucher_id,
+          hsnCode: entry.hsn_code || "",
+          description: entry.item_name || "",
+          quantity: entry.quantity || 0,
+          unit: "",
+          assessableValue: entry.assessable_value || 0,
+          taxType: 'SGST',
+          rate: entry.gst_rate / 2,
+          amount: entry.sgst_amount || 0,
+          isInterState: is_inter_state,
+          partyGstin: party_gstin,
+          partyState: party_state,
         });
       }
     }
 
     if (entry.cess_amount > 0) {
-      await db.execute({
-        sql: `INSERT INTO gst_voucher_tax_lines (
-                voucher_id, hsn_code, description, quantity, unit,
-                assessable_value, tax_type, rate, amount, is_inter_state, party_gstin, party_state
-              ) VALUES (?, ?, ?, ?, ?, ?, 'CESS', 0, ?, ?, ?, ?)`,
-        args: [
-          voucher_id,
-          entry.hsn_code || "",
-          entry.item_name || "",
-          entry.quantity || 0,
-          "",
-          entry.assessable_value || 0,
-          entry.cess_amount || 0,
-          is_inter_state,
-          party_gstin,
-          party_state
-        ]
+      await db.insert(gstVoucherTaxLines).values({
+        voucherId: voucher_id,
+        hsnCode: entry.hsn_code || "",
+        description: entry.item_name || "",
+        quantity: entry.quantity || 0,
+        unit: "",
+        assessableValue: entry.assessable_value || 0,
+        taxType: 'CESS',
+        rate: 0,
+        amount: entry.cess_amount || 0,
+        isInterState: is_inter_state,
+        partyGstin: party_gstin,
+        partyState: party_state,
       });
     }
   }

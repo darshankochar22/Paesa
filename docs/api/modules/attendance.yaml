@@ -1,0 +1,378 @@
+openapi: 3.1.0
+info:
+  title: Attendance Module API
+  version: 1.0.0
+  description: >
+    IPC contracts for the "attendance" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation models an `ipcMain.handle('attendance:<action>', ...)`
+    channel. Transport is Electron IPC (renderer -> main via window.api), not HTTP;
+    the POST + path modelling is a documentation convention so the surface renders
+    as OpenAPI.
+tags:
+  - name: attendance
+    description: Attendance vouchers and their per-employee entries.
+
+paths:
+  /attendance/create:
+    post:
+      tags: [attendance]
+      summary: Create an attendance voucher with its employee entries (transactional).
+      operationId: attendance.create
+      x-ipc-channel: "attendance:create"
+      x-window-api: "window.api.attendance.create"
+      x-controller: "attendanceController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceVoucherCreateInput'
+      responses:
+        '200':
+          description: Voucher created, or a failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AttendanceCreateResult'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /attendance/getAll:
+    post:
+      tags: [attendance]
+      summary: List all attendance vouchers for a company (no entries), newest first.
+      operationId: attendance.getAll
+      x-ipc-channel: "attendance:getAll"
+      x-window-api: "window.api.attendance.getAll"
+      x-controller: "attendanceController.getAll"
+      x-note: >
+        The controller receives a bare scalar company_id (event, company_id),
+        not an object. Modelled below as an object with a single company_id field.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdScalar'
+      responses:
+        '200':
+          description: List envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AttendanceVoucherListResult'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /attendance/getById:
+    post:
+      tags: [attendance]
+      summary: Fetch a single attendance voucher with its joined entries.
+      operationId: attendance.getById
+      x-ipc-channel: "attendance:getById"
+      x-window-api: "window.api.attendance.getById"
+      x-controller: "attendanceController.getById"
+      x-note: "Controller receives a bare scalar id (event, id)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceVoucherIdScalar'
+      responses:
+        '200':
+          description: Voucher-with-entries envelope, or not-found failure.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AttendanceVoucherDetailResult'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /attendance/delete:
+    post:
+      tags: [attendance]
+      summary: Delete an attendance voucher by id (cascades to its entries).
+      operationId: attendance.delete
+      x-ipc-channel: "attendance:delete"
+      x-window-api: "window.api.attendance.delete"
+      x-controller: "attendanceController.delete"
+      x-note: "Controller receives a bare scalar id (event, id)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceVoucherIdScalar'
+      responses:
+        '200':
+          description: Success or failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /attendance/getNextNumber:
+    post:
+      tags: [attendance]
+      summary: Compute the next auto-generated voucher number (ATT-NNNNN) for a company.
+      operationId: attendance.getNextNumber
+      x-ipc-channel: "attendance:getNextNumber"
+      x-window-api: "window.api.attendance.getNextNumber"
+      x-controller: "attendanceController.getNextNumber"
+      x-note: >
+        Unlike the other read methods, this controller DESTRUCTURES an object:
+        (event, { company_id }). The preload binding takes a bare company_id and
+        wraps it: invoke('attendance:getNextNumber', { company_id }). So callers
+        of window.api.attendance.getNextNumber pass a scalar company_id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetNextNumberInput'
+      responses:
+        '200':
+          description: Next voucher number envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/NextNumberResult'
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  responses:
+    ErrorResponse:
+      description: IPC/handler error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    SuccessEnvelope:
+      type: object
+      additionalProperties: false
+      required: [success]
+      properties:
+        success:
+          const: true
+
+    FailureEnvelope:
+      description: >
+        Service-level failure. Every service method catches errors and returns
+        { success: false, error: <message> } instead of throwing.
+      type: object
+      additionalProperties: false
+      required: [success, error]
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+
+    CompanyIdScalar:
+      description: Bare company_id scalar passed as the IPC argument.
+      type: object
+      additionalProperties: false
+      required: [company_id]
+      properties:
+        company_id:
+          type: integer
+          description: companies.company_id (passed directly, not wrapped).
+
+    GetNextNumberInput:
+      description: >
+        Controller destructures { company_id }. Preload wraps the scalar
+        company_id into this object automatically.
+      type: object
+      additionalProperties: false
+      required: [company_id]
+      properties:
+        company_id:
+          type: integer
+
+    AttendanceVoucherIdScalar:
+      description: Bare attendance_voucher_id scalar passed as the IPC argument.
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: attendance_vouchers.attendance_voucher_id.
+
+    AttendanceVoucherEntryInput:
+      type: object
+      additionalProperties: false
+      properties:
+        employee_id:
+          type: [integer, "null"]
+          description: employees.employee_id; null/omitted -> stored NULL.
+        attendance_type_id:
+          type: [integer, "null"]
+          description: attendance_types.attendance_type_id; null/omitted -> stored NULL.
+        value:
+          type: number
+          description: Quantity/value for the entry; coerced via Number(...), defaults to 0.
+
+    AttendanceVoucherCreateInput:
+      type: object
+      additionalProperties: false
+      required: [company_id, date]
+      properties:
+        company_id:
+          type: integer
+          description: Owning company (companies.company_id).
+        voucher_number:
+          type: [string, "null"]
+          description: >
+            Optional. If falsy, the service auto-generates ATT-NNNNN via
+            generateVoucherNumber(company_id).
+        date:
+          type: string
+          format: date
+          description: Voucher date (stored as TEXT in SQLite; NOT NULL).
+        narration:
+          type: [string, "null"]
+          description: Optional free-text note.
+        entries:
+          type: array
+          description: Optional list of per-employee entries inserted in the same transaction.
+          items:
+            $ref: '#/components/schemas/AttendanceVoucherEntryInput'
+
+    AttendanceVoucher:
+      description: A row of attendance_vouchers (returned as-is by SELECT *).
+      type: object
+      properties:
+        attendance_voucher_id:
+          type: integer
+        company_id:
+          type: integer
+        voucher_number:
+          type: [string, "null"]
+        date:
+          type: string
+        narration:
+          type: [string, "null"]
+        created_at:
+          type: [string, "null"]
+          description: ISO datetime string (DEFAULT datetime('now')).
+        updated_at:
+          type: [string, "null"]
+          description: ISO datetime string (DEFAULT datetime('now')).
+
+    AttendanceVoucherEntryRow:
+      description: >
+        A row of attendance_voucher_entries enriched by getById's JOIN with
+        employees and attendance_types.
+      type: object
+      properties:
+        entry_id:
+          type: integer
+        attendance_voucher_id:
+          type: integer
+        employee_id:
+          type: [integer, "null"]
+        attendance_type_id:
+          type: [integer, "null"]
+        value:
+          type: [number, "null"]
+        employee_name:
+          type: [string, "null"]
+          description: employees.name (via LEFT JOIN).
+        employee_number:
+          type: [string, "null"]
+          description: employees.employee_code aliased as employee_number (via LEFT JOIN).
+        attendance_type_name:
+          type: [string, "null"]
+          description: attendance_types.name (via LEFT JOIN).
+
+    AttendanceCreateResult:
+      type: object
+      additionalProperties: false
+      required: [success, attendance_voucher_id, voucher_number]
+      properties:
+        success:
+          const: true
+        attendance_voucher_id:
+          type: integer
+        voucher_number:
+          type: string
+
+    AttendanceVoucherListResult:
+      type: object
+      additionalProperties: false
+      required: [success, vouchers]
+      properties:
+        success:
+          const: true
+        vouchers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttendanceVoucher'
+
+    AttendanceVoucherDetailResult:
+      type: object
+      additionalProperties: false
+      required: [success, voucher]
+      properties:
+        success:
+          const: true
+        voucher:
+          allOf:
+            - $ref: '#/components/schemas/AttendanceVoucher'
+            - type: object
+              properties:
+                entries:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AttendanceVoucherEntryRow'
+
+    NextNumberResult:
+      type: object
+      additionalProperties: false
+      required: [success, nextNumber, voucher_number]
+      properties:
+        success:
+          const: true
+        nextNumber:
+          type: string
+          description: e.g. "ATT-00001".
+        voucher_number:
+          type: string
+          description: Same value as nextNumber.

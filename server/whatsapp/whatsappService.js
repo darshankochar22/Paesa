@@ -1,5 +1,7 @@
 const https = require('https');
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { whatsappConfig, whatsappLogs } = require('../db/schema');
 
 const META_API_VERSION = 'v19.0';
 const META_HOST = 'graph.facebook.com';
@@ -61,24 +63,29 @@ const normalizePhone = (phone) => {
 
 const saveConfig = async (data) => {
   try {
-    const existing = await db.execute(
-      `SELECT * FROM whatsapp_config WHERE company_id = ?`,
-      [data.company_id]
+    const existing = await db.all(
+      sql`SELECT * FROM ${whatsappConfig} WHERE ${whatsappConfig.companyId} = ${data.company_id}`
     );
-    if (existing.rows.length > 0) {
-      await db.execute(
-        `UPDATE whatsapp_config SET
-          phone_number_id = ?, waba_id = ?, access_token = ?,
-          is_active = 1, updated_at = datetime('now')
-        WHERE company_id = ?`,
-        [data.phone_number_id, data.waba_id, data.access_token, data.company_id]
-      );
+    if (existing.length > 0) {
+      await db
+        .update(whatsappConfig)
+        .set({
+          phoneNumberId: data.phone_number_id,
+          wabaId: data.waba_id,
+          accessToken: data.access_token,
+          isActive: 1,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(whatsappConfig.companyId, data.company_id));
     } else {
-      await db.execute(
-        `INSERT INTO whatsapp_config (company_id, phone_number_id, waba_id, access_token)
-         VALUES (?, ?, ?, ?)`,
-        [data.company_id, data.phone_number_id, data.waba_id, data.access_token]
-      );
+      await db
+        .insert(whatsappConfig)
+        .values({
+          companyId: data.company_id,
+          phoneNumberId: data.phone_number_id,
+          wabaId: data.waba_id,
+          accessToken: data.access_token,
+        });
     }
     return { success: true };
   } catch (err) {
@@ -88,12 +95,13 @@ const saveConfig = async (data) => {
 
 const getConfig = async (company_id) => {
   try {
-    const res = await db.execute(
-      `SELECT * FROM whatsapp_config WHERE company_id = ? AND is_active = 1`,
-      [company_id]
+    const rows = await db.all(
+      sql`SELECT * FROM ${whatsappConfig}
+          WHERE ${whatsappConfig.companyId} = ${company_id}
+            AND ${whatsappConfig.isActive} = 1`
     );
-    if (res.rows.length === 0) return { success: false, error: 'WhatsApp not configured' };
-    return { success: true, config: res.rows[0] };
+    if (rows.length === 0) return { success: false, error: 'WhatsApp not configured' };
+    return { success: true, config: rows[0] };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -101,12 +109,18 @@ const getConfig = async (company_id) => {
 
 const saveLog = async (company_id, voucher_id, to_number, message_type, template_name, status, wamid, error) => {
   try {
-    await db.execute(
-      `INSERT INTO whatsapp_logs
-        (company_id, voucher_id, to_number, message_type, template_name, status, wamid, error)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [company_id, voucher_id || null, to_number, message_type, template_name || null, status, wamid || null, error || null]
-    );
+    await db
+      .insert(whatsappLogs)
+      .values({
+        companyId: company_id,
+        voucherId: voucher_id || null,
+        toNumber: to_number,
+        messageType: message_type,
+        templateName: template_name || null,
+        status: status,
+        wamid: wamid || null,
+        error: error || null,
+      });
   } catch (_) {}
 };
 
@@ -318,12 +332,13 @@ const sendText = async (company_id, to_phone, message) => {
 
 const getLogs = async (company_id, limit = 50) => {
   try {
-    const res = await db.execute(
-      `SELECT * FROM whatsapp_logs WHERE company_id = ?
-       ORDER BY sent_at DESC LIMIT ?`,
-      [company_id, limit]
+    const rows = await db.all(
+      sql`SELECT * FROM ${whatsappLogs}
+          WHERE ${whatsappLogs.companyId} = ${company_id}
+          ORDER BY ${whatsappLogs.sentAt} DESC
+          LIMIT ${limit}`
     );
-    return { success: true, logs: res.rows };
+    return { success: true, logs: rows };
   } catch (err) {
     return { success: false, error: err.message };
   }

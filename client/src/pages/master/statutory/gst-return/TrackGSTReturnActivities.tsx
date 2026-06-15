@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
 
 export default function TrackGSTReturnActivities() {
-  const { selectedCompany, activeFY } = useCompany();
+  const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);

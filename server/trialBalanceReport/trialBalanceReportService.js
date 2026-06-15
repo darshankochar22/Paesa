@@ -1,64 +1,58 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { trialBalanceReports, trialBalanceRows } = require('../db/schema');
 
 module.exports = {
   create: async (data) => {
     try {
-      const result = await db.execute(
-        `INSERT INTO trial_balance_reports (
-          company_id, company_name, report_date, period_start, period_end,
-          show_closing_balance, show_debit_credit, show_groups, show_grand_total, detailed_mode
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          data.company_id,
-          data.company_name || null,
-          data.report_date || new Date().toISOString().split('T')[0],
-          data.period_start || null,
-          data.period_end || null,
-          data.show_closing_balance ?? 1,
-          data.show_debit_credit ?? 1,
-          data.show_groups ?? 1,
-          data.show_grand_total ?? 1,
-          data.detailed_mode ? 1 : 0,
-        ]
-      );
+      const inserted = await db
+        .insert(trialBalanceReports)
+        .values({
+          companyId: data.company_id,
+          companyName: data.company_name || null,
+          reportDate: data.report_date || new Date().toISOString().split('T')[0],
+          periodStart: data.period_start || null,
+          periodEnd: data.period_end || null,
+          showClosingBalance: data.show_closing_balance ?? 1,
+          showDebitCredit: data.show_debit_credit ?? 1,
+          showGroups: data.show_groups ?? 1,
+          showGrandTotal: data.show_grand_total ?? 1,
+          detailedMode: data.detailed_mode ? 1 : 0,
+        })
+        .returning({ id: trialBalanceReports.reportId });
 
-      const report_id = Number(result.lastInsertRowid);
+      const report_id = Number(inserted[0].id);
 
       if (data.rows && data.rows.length > 0) {
         for (let i = 0; i < data.rows.length; i++) {
           const row = data.rows[i];
-          await db.execute(
-            `INSERT INTO trial_balance_rows (
-              report_id, parent_row_id, row_type, particulars, group_id, ledger_id,
-              display_order, opening_debit, opening_credit, period_debit, period_credit,
-              closing_debit, closing_credit, is_drillable, is_grand_total, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              report_id,
-              row.parent_row_id || null,
-              row.row_type || 'Ledger',
-              row.particulars,
-              row.group_id || null,
-              row.ledger_id || null,
-              row.display_order || i + 1,
-              row.opening_debit || 0,
-              row.opening_credit || 0,
-              row.period_debit || 0,
-              row.period_credit || 0,
-              row.closing_debit || 0,
-              row.closing_credit || 0,
-              row.is_drillable ?? 1,
-              row.is_grand_total ? 1 : 0,
-              row.notes || null,
-            ]
-          );
+          await db
+            .insert(trialBalanceRows)
+            .values({
+              reportId: report_id,
+              parentRowId: row.parent_row_id || null,
+              rowType: row.row_type || 'Ledger',
+              particulars: row.particulars,
+              groupId: row.group_id || null,
+              ledgerId: row.ledger_id || null,
+              displayOrder: row.display_order || i + 1,
+              openingDebit: row.opening_debit || 0,
+              openingCredit: row.opening_credit || 0,
+              periodDebit: row.period_debit || 0,
+              periodCredit: row.period_credit || 0,
+              closingDebit: row.closing_debit || 0,
+              closingCredit: row.closing_credit || 0,
+              isDrillable: row.is_drillable ?? 1,
+              isGrandTotal: row.is_grand_total ? 1 : 0,
+              notes: row.notes || null,
+            });
         }
       }
 
-      const report = await db.execute(
-        `SELECT * FROM trial_balance_reports WHERE report_id = ?`, [report_id]
+      const report = await db.all(
+        sql`SELECT * FROM ${trialBalanceReports} WHERE ${trialBalanceReports.reportId} = ${report_id}`
       );
-      return { success: true, report: report.rows[0] };
+      return { success: true, report: report[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -66,11 +60,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM trial_balance_reports WHERE company_id = ? ORDER BY created_at DESC`,
-        [company_id]
+      const reports = await db.all(
+        sql`SELECT * FROM ${trialBalanceReports}
+            WHERE ${trialBalanceReports.companyId} = ${company_id}
+            ORDER BY ${trialBalanceReports.createdAt} DESC`
       );
-      return { success: true, reports: result.rows };
+      return { success: true, reports };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -78,16 +73,18 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const report = await db.execute(
-        `SELECT * FROM trial_balance_reports WHERE report_id = ?`, [id]
+      const report = await db.all(
+        sql`SELECT * FROM ${trialBalanceReports} WHERE ${trialBalanceReports.reportId} = ${id}`
       );
-      if (report.rows.length === 0) return { success: false, error: 'Report not found' };
+      if (report.length === 0) return { success: false, error: 'Report not found' };
 
-      const rows = await db.execute(
-        `SELECT * FROM trial_balance_rows WHERE report_id = ? ORDER BY display_order ASC`, [id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${trialBalanceRows}
+            WHERE ${trialBalanceRows.reportId} = ${id}
+            ORDER BY ${trialBalanceRows.displayOrder} ASC`
       );
 
-      return { success: true, report: { ...report.rows[0], rows: rows.rows } };
+      return { success: true, report: { ...report[0], rows } };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -95,12 +92,12 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM trial_balance_reports WHERE report_id = ?`, [id]
+      const existing = await db.all(
+        sql`SELECT * FROM ${trialBalanceReports} WHERE ${trialBalanceReports.reportId} = ${id}`
       );
-      if (existing.rows.length === 0) return { success: false, error: 'Report not found' };
+      if (existing.length === 0) return { success: false, error: 'Report not found' };
 
-      await db.execute(`DELETE FROM trial_balance_reports WHERE report_id = ?`, [id]);
+      await db.delete(trialBalanceReports).where(eq(trialBalanceReports.reportId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

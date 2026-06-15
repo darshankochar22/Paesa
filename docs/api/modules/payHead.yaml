@@ -1,0 +1,730 @@
+openapi: 3.1.0
+info:
+  title: payHead Module API
+  version: 1.0.0
+  description: >
+    IPC API contracts for the "payHead" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('payHead:<action>')`
+    channel registered in server/index.js and exposed to the renderer through
+    preload.js as `window.api.payHead.<method>`.
+
+    Transport note: these are NOT HTTP endpoints. They are Electron IPC channels
+    modeled here as POST operations for OpenAPI tooling compatibility. The request
+    body documents the single argument passed as the 2nd parameter to the handler
+    (the `event` is the 1st parameter and is omitted). Handlers that take a bare
+    scalar (e.g. an id) are modeled with a single-property request body.
+
+    Every service method returns a plain object with a `success` boolean and never
+    throws across the IPC boundary; failures are returned as `{ success: false, error }`.
+servers:
+  - url: ipc://payHead
+    description: Electron IPC (not HTTP). Channel = path segments joined by ':'.
+
+paths:
+  /payHead/create:
+    post:
+      operationId: payHead.create
+      tags: [payHead]
+      summary: Create a new pay head for a company (rejects duplicate active names).
+      x-ipc-channel: "payHead:create"
+      x-window-api: "window.api.payHead.create"
+      x-controller: "payHeadController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayHeadCreateInput'
+      responses:
+        '200':
+          description: Result wrapper. On success contains the created pay head row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PayHeadResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/getAll:
+    post:
+      operationId: payHead.getAll
+      tags: [payHead]
+      summary: List all active pay heads for a company.
+      x-ipc-channel: "payHead:getAll"
+      x-window-api: "window.api.payHead.getAll"
+      x-controller: "payHeadController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: >
+                    Bare scalar argument. The handler receives company_id directly
+                    as its 2nd parameter (not wrapped in an object).
+              required: [company_id]
+      responses:
+        '200':
+          description: Result wrapper with an array of pay head rows.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PayHeadListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/getById:
+    post:
+      operationId: payHead.getById
+      tags: [payHead]
+      summary: Fetch a single pay head by its primary key.
+      x-ipc-channel: "payHead:getById"
+      x-window-api: "window.api.payHead.getById"
+      x-controller: "payHeadController.getById"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: >
+                    Bare scalar argument (pay_head_id). Passed directly as the
+                    2nd handler parameter.
+              required: [id]
+      responses:
+        '200':
+          description: Result wrapper with the pay head row, or not-found failure.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PayHeadResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/update:
+    post:
+      operationId: payHead.update
+      tags: [payHead]
+      summary: Update an existing pay head (blocked for predefined pay heads).
+      x-ipc-channel: "payHead:update"
+      x-window-api: "window.api.payHead.update"
+      x-controller: "payHeadController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayHeadUpdateInput'
+      responses:
+        '200':
+          description: Result wrapper with the updated pay head row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PayHeadResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/delete:
+    post:
+      operationId: payHead.delete
+      tags: [payHead]
+      summary: Soft-delete a pay head (sets is_active = 0; blocked for predefined).
+      x-ipc-channel: "payHead:delete"
+      x-window-api: "window.api.payHead.delete"
+      x-controller: "payHeadController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: Bare scalar argument (pay_head_id).
+              required: [id]
+      responses:
+        '200':
+          description: Result wrapper indicating success or failure only.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/getSlabs:
+    post:
+      operationId: payHead.getSlabs
+      tags: [payHead]
+      summary: List slab lines for a pay head, ordered by effective_from.
+      x-ipc-channel: "payHead:getSlabs"
+      x-window-api: "window.api.payHead.getSlabs"
+      x-controller: "payHeadController.getSlabs"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pay_head_id:
+                  type: integer
+                  description: Bare scalar argument (parent pay_head_id).
+              required: [pay_head_id]
+      responses:
+        '200':
+          description: Result wrapper with an array of slab line rows.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SlabListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/createSlab:
+    post:
+      operationId: payHead.createSlab
+      tags: [payHead]
+      summary: Create a slab line under a pay head.
+      x-ipc-channel: "payHead:createSlab"
+      x-window-api: "window.api.payHead.createSlab"
+      x-controller: "payHeadController.createSlab"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SlabCreateInput'
+      responses:
+        '200':
+          description: Result wrapper with the created slab line row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SlabResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/deleteSlab:
+    post:
+      operationId: payHead.deleteSlab
+      tags: [payHead]
+      summary: Hard-delete a slab line by its id.
+      x-ipc-channel: "payHead:deleteSlab"
+      x-window-api: "window.api.payHead.deleteSlab"
+      x-controller: "payHeadController.deleteSlab"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: Bare scalar argument (slab_line_id).
+              required: [id]
+      responses:
+        '200':
+          description: Result wrapper indicating success or failure only.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/getFormulas:
+    post:
+      operationId: payHead.getFormulas
+      tags: [payHead]
+      summary: >
+        List formula lines for a pay head (joined with referenced pay head name),
+        ordered by sequence.
+      x-ipc-channel: "payHead:getFormulas"
+      x-window-api: "window.api.payHead.getFormulas"
+      x-controller: "payHeadController.getFormulas"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pay_head_id:
+                  type: integer
+                  description: Bare scalar argument (parent pay_head_id).
+              required: [pay_head_id]
+      responses:
+        '200':
+          description: Result wrapper with an array of formula line rows.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FormulaListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/createFormula:
+    post:
+      operationId: payHead.createFormula
+      tags: [payHead]
+      summary: Create a formula line under a pay head.
+      x-ipc-channel: "payHead:createFormula"
+      x-window-api: "window.api.payHead.createFormula"
+      x-controller: "payHeadController.createFormula"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormulaCreateInput'
+      responses:
+        '200':
+          description: Result wrapper with the created formula line row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FormulaResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /payHead/deleteFormula:
+    post:
+      operationId: payHead.deleteFormula
+      tags: [payHead]
+      summary: Hard-delete a formula line by its id.
+      x-ipc-channel: "payHead:deleteFormula"
+      x-window-api: "window.api.payHead.deleteFormula"
+      x-controller: "payHeadController.deleteFormula"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: Bare scalar argument (formula_line_id).
+              required: [id]
+      responses:
+        '200':
+          description: Result wrapper indicating success or failure only.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+components:
+  responses:
+    Error:
+      description: Unexpected IPC/runtime error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      description: Shared error envelope.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    SuccessResult:
+      type: object
+      description: Minimal success envelope (no payload).
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]
+
+    FailureResult:
+      type: object
+      description: Failure envelope returned in-band (no exception thrown across IPC).
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: Human-readable reason (validation message or caught err.message).
+      required: [success, error]
+
+    PayHead:
+      type: object
+      description: A row of the pay_heads table. Booleans are stored as 0/1 in SQLite.
+      properties:
+        pay_head_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: Owning company.
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        pay_head_type:
+          type: [string, "null"]
+          description: "e.g. Earnings, Deductions, Employer Statutory Contributions. Default 'Earnings for Employees'."
+        income_type:
+          type: [string, "null"]
+          description: "Default 'Fixed'."
+        under_group:
+          type: [string, "null"]
+        affects_net_salary:
+          type: integer
+          description: 0/1 boolean. Default 1.
+        payslip_display_name:
+          type: [string, "null"]
+        use_for_gratuity:
+          type: integer
+          description: 0/1 boolean. Default 0.
+        set_alter_income_tax:
+          type: integer
+          description: 0/1 boolean. Default 0.
+        calculation_type:
+          type: [string, "null"]
+          description: "Default 'As User Defined Value'."
+        calculation_period:
+          type: [string, "null"]
+          description: "Default 'Months'."
+        rounding_method:
+          type: [string, "null"]
+          description: "Default 'Not Applicable'."
+        rounding_limit:
+          type: number
+          description: Default 0.
+        statutory_component:
+          type: [string, "null"]
+        percentage_or_amount:
+          type: number
+          description: Percentage or flat amount used by calculation. Default 0.
+        is_active:
+          type: integer
+          description: 0/1 boolean soft-delete flag. Default 1.
+        is_predefined:
+          type: integer
+          description: 0/1 boolean. Predefined pay heads cannot be edited/deleted. Default 0.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (datetime('now')).
+      required: [pay_head_id, company_id, name]
+
+    PayHeadSlabLine:
+      type: object
+      description: A row of the pay_head_slab_lines table (income-tax / amount slabs).
+      properties:
+        slab_line_id:
+          type: integer
+        pay_head_id:
+          type: integer
+        effective_from:
+          type: [string, "null"]
+          description: Date the slab takes effect (stored as TEXT).
+        amount_gt:
+          type: number
+          description: Lower bound (amount greater-than). Default 0.
+        amount_up_to:
+          type: number
+          description: Upper bound (amount up to). Default 0.
+        slab_type:
+          type: [string, "null"]
+        value:
+          type: number
+          description: Slab value (percentage or amount). Default 0.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string.
+      required: [slab_line_id, pay_head_id]
+
+    PayHeadFormulaLine:
+      type: object
+      description: A row of the pay_head_formula_lines table (computation formula).
+      properties:
+        formula_line_id:
+          type: integer
+        pay_head_id:
+          type: integer
+          description: Pay head this formula line belongs to.
+        sequence:
+          type: integer
+          description: Ordering within the formula. Default 0.
+        function:
+          type: [string, "null"]
+        pay_head_id_ref:
+          type: [integer, "null"]
+          description: Referenced pay head used as an operand.
+        operator:
+          type: [string, "null"]
+        created_at:
+          type: string
+          description: ISO-8601 datetime string.
+        pay_head_name:
+          type: [string, "null"]
+          description: >
+            JOINed convenience column (name of the referenced pay head). Present
+            only in getFormulas results, not a stored column.
+      required: [formula_line_id, pay_head_id]
+
+    PayHeadResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        payHead:
+          $ref: '#/components/schemas/PayHead'
+      required: [success, payHead]
+
+    PayHeadListResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        payHeads:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayHead'
+      required: [success, payHeads]
+
+    SlabResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        slab:
+          $ref: '#/components/schemas/PayHeadSlabLine'
+      required: [success, slab]
+
+    SlabListResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        slabs:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayHeadSlabLine'
+      required: [success, slabs]
+
+    FormulaResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        formula:
+          $ref: '#/components/schemas/PayHeadFormulaLine'
+      required: [success, formula]
+
+    FormulaListResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        formulas:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayHeadFormulaLine'
+      required: [success, formulas]
+
+    PayHeadCreateInput:
+      type: object
+      description: >
+        Payload for payHead:create (controller passes `data` straight to service).
+        Only company_id and name are effectively required; the rest fall back to
+        DB-level defaults in the service.
+      properties:
+        company_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        pay_head_type:
+          type: string
+          default: Earnings for Employees
+        income_type:
+          type: string
+          default: Fixed
+        under_group:
+          type: [string, "null"]
+        affects_net_salary:
+          type: integer
+          default: 1
+          description: 0/1 boolean.
+        payslip_display_name:
+          type: [string, "null"]
+        use_for_gratuity:
+          type: integer
+          default: 0
+          description: 0/1 boolean.
+        set_alter_income_tax:
+          type: integer
+          default: 0
+          description: 0/1 boolean.
+        calculation_type:
+          type: string
+          default: As User Defined Value
+        calculation_period:
+          type: string
+          default: Months
+        rounding_method:
+          type: string
+          default: Not Applicable
+        rounding_limit:
+          type: number
+          default: 0
+        statutory_component:
+          type: [string, "null"]
+        percentage_or_amount:
+          type: number
+          default: 0
+      required: [company_id, name]
+
+    PayHeadUpdateInput:
+      type: object
+      description: >
+        Payload for payHead:update. pay_head_id is required to locate the row;
+        any omitted field keeps its current value (service uses `?? current`).
+      properties:
+        pay_head_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        pay_head_type:
+          type: string
+        income_type:
+          type: string
+        under_group:
+          type: [string, "null"]
+        affects_net_salary:
+          type: integer
+        payslip_display_name:
+          type: [string, "null"]
+        use_for_gratuity:
+          type: integer
+        set_alter_income_tax:
+          type: integer
+        calculation_type:
+          type: string
+        calculation_period:
+          type: string
+        rounding_method:
+          type: string
+        rounding_limit:
+          type: number
+        statutory_component:
+          type: [string, "null"]
+        percentage_or_amount:
+          type: number
+      required: [pay_head_id]
+
+    SlabCreateInput:
+      type: object
+      description: Payload for payHead:createSlab.
+      properties:
+        pay_head_id:
+          type: integer
+        effective_from:
+          type: [string, "null"]
+        amount_gt:
+          type: number
+          default: 0
+        amount_up_to:
+          type: number
+          default: 0
+        slab_type:
+          type: [string, "null"]
+        value:
+          type: number
+          default: 0
+      required: [pay_head_id]
+
+    FormulaCreateInput:
+      type: object
+      description: Payload for payHead:createFormula.
+      properties:
+        pay_head_id:
+          type: integer
+        sequence:
+          type: integer
+          default: 0
+        function:
+          type: [string, "null"]
+        pay_head_id_ref:
+          type: [integer, "null"]
+        operator:
+          type: [string, "null"]
+      required: [pay_head_id]

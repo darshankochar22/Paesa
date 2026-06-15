@@ -1,47 +1,56 @@
-// models/voucherEntryAction.js
-
+// ---------------------------------------------------------------------------
+// Drizzle ORM conversion — follows the GOLDEN EXEMPLAR (currencyService.js).
+//
+//   * MUTATIONS use the query builder: db.insert(...).values(...),
+//     db.delete(...).where(...), with eq()/and()/sql`` predicates.
+//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
+//     WHERE ...`) to preserve the EXACT legacy snake_case row shape that the
+//     controllers / test oracle assert against (and which parseAction below
+//     post-processes by snake_case key).
+//   * New-row id after INSERT comes from .returning({ id: table.pkCol }).
+//   * Dynamic optional filters are appended with sql.join (still parameterized
+//     Drizzle), mirroring the original string-concatenated WHERE builder.
+// ---------------------------------------------------------------------------
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { voucherEntryActions } = require('../db/schema');
 
 const serialize = (v) => (v != null && typeof v === 'object' ? JSON.stringify(v) : v ?? null);
 const nullify   = (v) => (v === undefined ? null : v ?? null);
 
+// Fetch a single action row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${voucherEntryActions} WHERE ${whereSql}`);
+  return rows[0];
+};
+
 module.exports = {
   create: async (data) => {
     try {
-      const result = await db.execute({
-        sql: `INSERT INTO voucher_entry_actions (
-                company_id, voucher_id, action_type, action_data,
-                autofill_ledger_id, autofill_amount, autofill_narration,
-                previous_mode, new_mode, additional_details,
-                related_report_type, related_report_id,
-                is_optional, optional_reason, performed_by, performed_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          data.company_id,
-          nullify(data.voucher_id),
-          data.action_type,
-          serialize(data.action_data),
-          nullify(data.autofill_ledger_id),
-          nullify(data.autofill_amount),
-          nullify(data.autofill_narration),
-          nullify(data.previous_mode),
-          nullify(data.new_mode),
-          serialize(data.additional_details),
-          nullify(data.related_report_type),
-          nullify(data.related_report_id),
-          data.is_optional ? 1 : 0,
-          nullify(data.optional_reason),
-          nullify(data.performed_by),
-          data.performed_at || new Date().toISOString(),
-        ],
-      });
+      const inserted = await db
+        .insert(voucherEntryActions)
+        .values({
+          companyId: data.company_id,
+          voucherId: nullify(data.voucher_id),
+          actionType: data.action_type,
+          actionData: serialize(data.action_data),
+          autofillLedgerId: nullify(data.autofill_ledger_id),
+          autofillAmount: nullify(data.autofill_amount),
+          autofillNarration: nullify(data.autofill_narration),
+          previousMode: nullify(data.previous_mode),
+          newMode: nullify(data.new_mode),
+          additionalDetails: serialize(data.additional_details),
+          relatedReportType: nullify(data.related_report_type),
+          relatedReportId: nullify(data.related_report_id),
+          isOptional: data.is_optional ? 1 : 0,
+          optionalReason: nullify(data.optional_reason),
+          performedBy: nullify(data.performed_by),
+          performedAt: data.performed_at || new Date().toISOString(),
+        })
+        .returning({ id: voucherEntryActions.actionId });
 
-      const action = await db.execute({
-        sql: `SELECT * FROM voucher_entry_actions WHERE action_id = ?`,
-        args: [Number(result.lastInsertRowid)],
-      });
-
-      return { success: true, action: parseAction(action.rows[0]) };
+      const action = await findRow(sql`${voucherEntryActions.actionId} = ${inserted[0].id}`);
+      return { success: true, action: parseAction(action) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -49,13 +58,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM voucher_entry_actions
-              WHERE company_id = ?
-              ORDER BY performed_at DESC`,
-        args: [company_id],
-      });
-      return { success: true, actions: result.rows.map(parseAction) };
+      const rows = await db.all(
+        sql`SELECT * FROM ${voucherEntryActions}
+            WHERE ${voucherEntryActions.companyId} = ${company_id}
+            ORDER BY ${voucherEntryActions.performedAt} DESC`
+      );
+      return { success: true, actions: rows.map(parseAction) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -63,13 +71,12 @@ module.exports = {
 
   getByVoucher: async (voucher_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM voucher_entry_actions
-              WHERE voucher_id = ?
-              ORDER BY performed_at ASC`,
-        args: [voucher_id],
-      });
-      return { success: true, actions: result.rows.map(parseAction) };
+      const rows = await db.all(
+        sql`SELECT * FROM ${voucherEntryActions}
+            WHERE ${voucherEntryActions.voucherId} = ${voucher_id}
+            ORDER BY ${voucherEntryActions.performedAt} ASC`
+      );
+      return { success: true, actions: rows.map(parseAction) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -77,18 +84,19 @@ module.exports = {
 
   getByCompany: async (company_id, { from_date, to_date, action_type, limit = 200 } = {}) => {
     try {
-      let sql  = `SELECT * FROM voucher_entry_actions WHERE company_id = ?`;
-      const args = [company_id];
+      const conditions = [sql`${voucherEntryActions.companyId} = ${company_id}`];
 
-      if (from_date)   { sql += ` AND performed_at >= ?`; args.push(from_date); }
-      if (to_date)     { sql += ` AND performed_at <= ?`; args.push(to_date);   }
-      if (action_type) { sql += ` AND action_type = ?`;   args.push(action_type); }
+      if (from_date)   conditions.push(sql`${voucherEntryActions.performedAt} >= ${from_date}`);
+      if (to_date)     conditions.push(sql`${voucherEntryActions.performedAt} <= ${to_date}`);
+      if (action_type) conditions.push(sql`${voucherEntryActions.actionType} = ${action_type}`);
 
-      sql += ` ORDER BY performed_at DESC LIMIT ?`;
-      args.push(limit);
-
-      const result = await db.execute({ sql, args });
-      return { success: true, actions: result.rows.map(parseAction) };
+      const rows = await db.all(
+        sql`SELECT * FROM ${voucherEntryActions}
+            WHERE ${sql.join(conditions, sql` AND `)}
+            ORDER BY ${voucherEntryActions.performedAt} DESC
+            LIMIT ${limit}`
+      );
+      return { success: true, actions: rows.map(parseAction) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -96,16 +104,12 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT action_id FROM voucher_entry_actions WHERE action_id = ?`,
-        args: [id],
-      });
-      if (existing.rows.length === 0) return { success: false, error: 'Action not found' };
+      const existing = await findRow(sql`${voucherEntryActions.actionId} = ${id}`);
+      if (!existing) return { success: false, error: 'Action not found' };
 
-      await db.execute({
-        sql: `DELETE FROM voucher_entry_actions WHERE action_id = ?`,
-        args: [id],
-      });
+      await db
+        .delete(voucherEntryActions)
+        .where(eq(voucherEntryActions.actionId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

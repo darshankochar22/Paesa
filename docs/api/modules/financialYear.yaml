@@ -1,0 +1,315 @@
+openapi: 3.1.0
+info:
+  title: financialYear module API
+  version: 1.0.0
+  description: >
+    IPC API for the financialYear backend module of the Electron + SQLite
+    accounting/ERP app. Each operation models an `ipcMain.handle(channel, ...)`
+    handler. Transport is Electron IPC (renderer -> main via
+    contextBridge `window.api`), not HTTP; the POST method and /{namespace}/{action}
+    paths are a documentation convention so the contract renders/merges as OpenAPI.
+    Namespace for this module is `fy` (differs from the module name `financialYear`).
+
+paths:
+  /fy/create:
+    post:
+      operationId: fy.create
+      tags: [financialYear]
+      summary: >
+        Create a financial year for a company. Rejects duplicates (same
+        company_id + start_date). end_date defaults to start_date + 1 year - 1 day
+        when omitted. Always created inactive (is_active=0, is_closed=0).
+      x-ipc-channel: "fy:create"
+      x-window-api: "window.api.fy.create"
+      x-controller: "financialYearController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinancialYearCreateInput'
+      responses:
+        '200':
+          description: Creation result (success flag + created row, or error)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      fy: { $ref: '#/components/schemas/FinancialYear' }
+                    required: [success, fy]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /fy/getAll:
+    post:
+      operationId: fy.getAll
+      tags: [financialYear]
+      summary: List all financial years for a given company_id.
+      x-ipc-channel: "fy:getAll"
+      x-window-api: "window.api.fy.getAll"
+      x-controller: "financialYearController.getAll"
+      requestBody:
+        required: true
+        description: >
+          The handler receives the company_id as a bare scalar (arg 2), not an
+          object. Modeled here as a single property `company_id`.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Company whose financial years to fetch (bare scalar arg).
+              required: [company_id]
+      responses:
+        '200':
+          description: List result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      financialYears:
+                        type: array
+                        items: { $ref: '#/components/schemas/FinancialYear' }
+                    required: [success, financialYears]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /fy/getById:
+    post:
+      operationId: fy.getById
+      tags: [financialYear]
+      summary: Fetch a single financial year by fy_id.
+      x-ipc-channel: "fy:getById"
+      x-window-api: "window.api.fy.getById"
+      x-controller: "financialYearController.getById"
+      requestBody:
+        required: true
+        description: The handler receives the fy_id as a bare scalar (arg 2).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: fy_id (primary key) of the financial year to fetch.
+              required: [id]
+      responses:
+        '200':
+          description: Single financial year, or not-found error
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      fy: { $ref: '#/components/schemas/FinancialYear' }
+                    required: [success, fy]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /fy/setActive:
+    post:
+      operationId: fy.setActive
+      tags: [financialYear]
+      summary: >
+        Mark one financial year active for a company. Deactivates all other FYs
+        of that company first. Refuses to activate a closed FY.
+      x-ipc-channel: "fy:setActive"
+      x-window-api: "window.api.fy.setActive"
+      x-controller: "financialYearController.setActive"
+      requestBody:
+        required: true
+        description: >
+          The handler destructures `{ fy_id, company_id }` from arg 2 (an object).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fy_id:
+                  type: integer
+                  description: Financial year to activate.
+                company_id:
+                  type: integer
+                  description: Company whose other FYs get deactivated.
+              required: [fy_id, company_id]
+      responses:
+        '200':
+          description: Success flag, or error
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                    required: [success]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /fy/delete:
+    post:
+      operationId: fy.delete
+      tags: [financialYear]
+      summary: >
+        Delete a financial year by fy_id. Refuses if the FY is active or closed.
+      x-ipc-channel: "fy:delete"
+      x-window-api: "window.api.fy.delete"
+      x-controller: "financialYearController.delete"
+      requestBody:
+        required: true
+        description: The handler receives the fy_id as a bare scalar (arg 2).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: fy_id of the financial year to delete.
+              required: [id]
+      responses:
+        '200':
+          description: Success flag, or error
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                    required: [success]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  schemas:
+    FinancialYear:
+      type: object
+      description: >
+        A row from the `financial_years` table. Booleans (is_active, is_closed)
+        are stored as SQLite INTEGER 0/1; document/consume them as 0=false, 1=true.
+      properties:
+        fy_id:
+          type: integer
+          description: Primary key (SQLite INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company. FK -> companies(company_id) ON DELETE CASCADE.
+        start_date:
+          type: string
+          format: date
+          description: FY start (date-only TEXT, ISO yyyy-mm-dd).
+        end_date:
+          type: string
+          format: date
+          description: FY end (date-only TEXT, ISO yyyy-mm-dd).
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: 1 if this is the active FY for the company, else 0.
+        is_closed:
+          type: integer
+          enum: [0, 1]
+          description: 1 if the FY is closed, else 0.
+        closing_date:
+          type: ['string', 'null']
+          format: date
+          description: Date the FY was closed (nullable TEXT).
+        created_at:
+          type: string
+          description: Creation timestamp, ISO string from SQLite datetime('now').
+      required: [fy_id, company_id, start_date, end_date, is_active, is_closed]
+
+    FinancialYearCreateInput:
+      type: object
+      description: Payload for fy:create (data object passed straight to the service).
+      properties:
+        company_id:
+          type: integer
+          description: Owning company.
+        start_date:
+          type: string
+          format: date
+          description: FY start (yyyy-mm-dd). Used for the duplicate check.
+        end_date:
+          type: string
+          format: date
+          description: >
+            FY end. Optional — defaults to start_date + 1 year - 1 day if omitted.
+      required: [company_id, start_date]
+
+    ServiceError:
+      type: object
+      description: >
+        Soft failure returned by the service (HTTP 200 envelope). Examples:
+        'Financial year already exists', 'Financial year not found',
+        'Cannot activate a closed financial year', 'Cannot delete active
+        financial year', 'Cannot delete closed financial year'.
+      properties:
+        success: { const: false }
+        error: { type: string }
+      required: [success, error]
+
+    Error:
+      type: object
+      description: Generic transport/server error envelope.
+      properties:
+        error: { type: string }
+        message: { type: string }
+      required: [error, message]

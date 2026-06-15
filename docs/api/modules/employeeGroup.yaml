@@ -1,0 +1,360 @@
+openapi: 3.1.0
+info:
+  title: employeeGroup module API
+  version: 1.0.0
+  description: >-
+    IPC contract for the employeeGroup backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('employeeGroup:<action>', ...)`
+    channel and is exposed to the renderer as `window.api.employeeGroup.<method>`.
+    All handlers return a result envelope `{ success: boolean, ... }` rather than
+    throwing; service-level failures are returned as `{ success: false, error }`.
+tags:
+  - name: employeeGroup
+    description: CRUD and hierarchy operations for employee groups.
+
+paths:
+  /employeeGroup/create:
+    post:
+      tags: [employeeGroup]
+      operationId: employeeGroup.create
+      summary: Create a new (non-predefined) employee group for a company.
+      description: >-
+        Rejects creation if an active group with the same name (case-insensitive)
+        already exists for the company. New groups are always created with
+        is_active=1 and is_predefined=0.
+      x-ipc-channel: "employeeGroup:create"
+      x-window-api: "window.api.employeeGroup.create"
+      x-controller: "employeeGroupController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeGroupCreateInput'
+      responses:
+        '200':
+          description: Created group on success, or a failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EmployeeGroupSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /employeeGroup/getAll:
+    post:
+      tags: [employeeGroup]
+      operationId: employeeGroup.getAll
+      summary: List all active employee groups for a company.
+      description: >-
+        The handler receives a bare company_id value (not an object). Returns
+        only rows where is_active = 1.
+      x-ipc-channel: "employeeGroup:getAll"
+      x-window-api: "window.api.employeeGroup.getAll"
+      x-controller: "employeeGroupController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Array of active employee groups.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeGroupListResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /employeeGroup/getById:
+    post:
+      tags: [employeeGroup]
+      operationId: employeeGroup.getById
+      summary: Fetch a single employee group by its primary key.
+      description: >-
+        The handler receives a bare id value (not an object). Returns
+        { success:false, error:'Employee Group not found' } when no row matches.
+      x-ipc-channel: "employeeGroup:getById"
+      x-window-api: "window.api.employeeGroup.getById"
+      x-controller: "employeeGroupController.getById"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeGroupIdInput'
+      responses:
+        '200':
+          description: The matching group, or a not-found failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EmployeeGroupSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /employeeGroup/update:
+    post:
+      tags: [employeeGroup]
+      operationId: employeeGroup.update
+      summary: Update an editable employee group's name, alias and parent.
+      description: >-
+        Predefined groups (is_predefined=1) cannot be edited. Only name, alias and
+        parent_group_id are mutable; each field falls back to the current value when
+        the corresponding input is null/undefined. updated_at is set to datetime('now').
+      x-ipc-channel: "employeeGroup:update"
+      x-window-api: "window.api.employeeGroup.update"
+      x-controller: "employeeGroupController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeGroupUpdateInput'
+      responses:
+        '200':
+          description: Updated group on success, or a failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EmployeeGroupSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /employeeGroup/delete:
+    post:
+      tags: [employeeGroup]
+      operationId: employeeGroup.delete
+      summary: Soft-delete an employee group (sets is_active = 0).
+      description: >-
+        The handler receives a bare id value (not an object). Refuses to delete
+        predefined groups, groups that have active sub-groups, or groups with active
+        employees. On success performs a soft delete (is_active = 0).
+      x-ipc-channel: "employeeGroup:delete"
+      x-window-api: "window.api.employeeGroup.delete"
+      x-controller: "employeeGroupController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeGroupIdInput'
+      responses:
+        '200':
+          description: Success envelope, or a failure envelope with a reason.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /employeeGroup/getTree:
+    post:
+      tags: [employeeGroup]
+      operationId: employeeGroup.getTree
+      summary: Return active employee groups as a nested parent/child tree.
+      description: >-
+        The handler receives a bare company_id value (not an object). Active groups
+        are fetched and assembled into a hierarchy via parent_group_id; each node
+        gains a `children` array.
+      x-ipc-channel: "employeeGroup:getTree"
+      x-window-api: "window.api.employeeGroup.getTree"
+      x-controller: "employeeGroupController.getTree"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Nested tree of employee groups.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeGroupTreeResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  responses:
+    ErrorResponse:
+      description: Unexpected transport/runtime error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      description: Shared error shape for transport/runtime failures.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    EmployeeGroup:
+      type: object
+      description: A row from the employee_groups table.
+      properties:
+        employee_group_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        employee_category_id:
+          type: [integer, "null"]
+          description: Optional category (FK -> employee_categories.employee_category_id).
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_group_id:
+          type: [integer, "null"]
+          description: Self-referential parent (FK -> employee_groups.employee_group_id).
+        is_active:
+          type: integer
+          description: Stored as 0/1 in SQLite; maps to BOOLEAN in Postgres.
+          enum: [0, 1]
+        is_predefined:
+          type: integer
+          description: Stored as 0/1 in SQLite; maps to BOOLEAN in Postgres. Predefined groups cannot be edited or deleted.
+          enum: [0, 1]
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (datetime('now')).
+      required: [employee_group_id, company_id, name, is_active, is_predefined, created_at, updated_at]
+
+    EmployeeGroupNode:
+      description: An EmployeeGroup row augmented with a children array (getTree).
+      allOf:
+        - $ref: '#/components/schemas/EmployeeGroup'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/EmployeeGroupNode'
+          required: [children]
+
+    CompanyIdInput:
+      type: integer
+      description: Bare company_id value passed as the second IPC argument.
+
+    EmployeeGroupIdInput:
+      type: integer
+      description: Bare employee_group_id value passed as the second IPC argument.
+
+    EmployeeGroupCreateInput:
+      type: object
+      properties:
+        company_id:
+          type: integer
+          description: Owning company id (required).
+        name:
+          type: string
+          description: Group name (required; uniqueness checked case-insensitively per company).
+        alias:
+          type: [string, "null"]
+          description: Optional alias; defaults to null.
+        parent_group_id:
+          type: [integer, "null"]
+          description: Optional parent group id; defaults to null.
+      required: [company_id, name]
+
+    EmployeeGroupUpdateInput:
+      type: object
+      properties:
+        employee_group_id:
+          type: integer
+          description: Primary key of the group to update (required).
+        name:
+          type: [string, "null"]
+          description: New name; falls back to current value when null/undefined.
+        alias:
+          type: [string, "null"]
+          description: New alias; falls back to current value when null/undefined.
+        parent_group_id:
+          type: [integer, "null"]
+          description: New parent; falls back to current value when null/undefined.
+      required: [employee_group_id]
+
+    SuccessResult:
+      type: object
+      properties:
+        success:
+          const: true
+      required: [success]
+
+    FailureResult:
+      type: object
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+      required: [success, error]
+
+    EmployeeGroupSingleResult:
+      type: object
+      description: Returned by create, getById and update on success.
+      properties:
+        success:
+          const: true
+        group:
+          $ref: '#/components/schemas/EmployeeGroup'
+      required: [success, group]
+
+    EmployeeGroupListResult:
+      type: object
+      description: Returned by getAll. Note the property name is `employeeGroups`.
+      properties:
+        success:
+          const: true
+        employeeGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeGroup'
+      required: [success, employeeGroups]
+
+    EmployeeGroupTreeResult:
+      type: object
+      description: Returned by getTree.
+      properties:
+        success:
+          const: true
+        tree:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeGroupNode'
+      required: [success, tree]

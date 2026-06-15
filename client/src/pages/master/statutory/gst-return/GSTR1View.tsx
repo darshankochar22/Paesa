@@ -1,19 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
 
 export default function GSTR1View() {
   const { selectedCompany, activeFY } = useCompany();
-  const navigate = useNavigate();
   const location = useLocation();
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
 
   const today = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(String(today.getMonth() + 1).padStart(2, "0"));
-  const [selectedYear, setSelectedYear] = useState(String(today.getFullYear()));
+  const [selectedMonth] = useState(String(today.getMonth() + 1).padStart(2, "0"));
+  const [selectedYear] = useState(String(today.getFullYear()));
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);

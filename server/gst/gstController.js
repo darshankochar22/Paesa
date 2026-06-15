@@ -1,4 +1,6 @@
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { gstHsnRates } = require('../db/schema');
 const gstTaxEngine = require('./gstTaxEngine');
 const gstr1Service = require('./gstr1Service');
 
@@ -22,11 +24,12 @@ module.exports = {
 
   getHSNRates: async (event, company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM gst_hsn_rates WHERE company_id = ? ORDER BY hsn_code, effective_from DESC`,
-        args: [company_id]
-      });
-      return { success: true, hsnRates: result.rows };
+      const rows = await db.all(
+        sql`SELECT * FROM ${gstHsnRates}
+            WHERE ${gstHsnRates.companyId} = ${company_id}
+            ORDER BY ${gstHsnRates.hsnCode}, ${gstHsnRates.effectiveFrom} DESC`
+      );
+      return { success: true, hsnRates: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -54,27 +57,34 @@ module.exports = {
       }
 
       if (rate_id) {
-        await db.execute({
-          sql: `UPDATE gst_hsn_rates SET
-                  hsn_code = ?, effective_from = ?, effective_to = ?, taxability = ?,
-                  gst_rate = ?, cgst_rate = ?, sgst_rate = ?, igst_rate = ?, cess_rate = ?, type_of_supply = ?
-                WHERE rate_id = ? AND company_id = ?`,
-          args: [
-            hsn_code, effective_from, effective_to || null, taxability || 'Taxable',
-            gst_rate || 0, cgst_rate || 0, sgst_rate || 0, igst_rate || 0, cess_rate || 0, type_of_supply || 'Goods',
-            rate_id, company_id
-          ]
-        });
+        await db
+          .update(gstHsnRates)
+          .set({
+            hsnCode: hsn_code,
+            effectiveFrom: effective_from,
+            effectiveTo: effective_to || null,
+            taxability: taxability || 'Taxable',
+            gstRate: gst_rate || 0,
+            cgstRate: cgst_rate || 0,
+            sgstRate: sgst_rate || 0,
+            igstRate: igst_rate || 0,
+            cessRate: cess_rate || 0,
+            typeOfSupply: type_of_supply || 'Goods',
+          })
+          .where(and(eq(gstHsnRates.rateId, rate_id), eq(gstHsnRates.companyId, company_id)));
       } else {
-        await db.execute({
-          sql: `INSERT INTO gst_hsn_rates (
-                  company_id, hsn_code, effective_from, effective_to, taxability,
-                  gst_rate, cgst_rate, sgst_rate, igst_rate, cess_rate, type_of_supply
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
-            company_id, hsn_code, effective_from, effective_to || null, taxability || 'Taxable',
-            gst_rate || 0, cgst_rate || 0, sgst_rate || 0, igst_rate || 0, cess_rate || 0, type_of_supply || 'Goods'
-          ]
+        await db.insert(gstHsnRates).values({
+          companyId: company_id,
+          hsnCode: hsn_code,
+          effectiveFrom: effective_from,
+          effectiveTo: effective_to || null,
+          taxability: taxability || 'Taxable',
+          gstRate: gst_rate || 0,
+          cgstRate: cgst_rate || 0,
+          sgstRate: sgst_rate || 0,
+          igstRate: igst_rate || 0,
+          cessRate: cess_rate || 0,
+          typeOfSupply: type_of_supply || 'Goods',
         });
       }
 
@@ -86,10 +96,9 @@ module.exports = {
 
   deleteHSNRate: async (event, { rate_id, company_id }) => {
     try {
-      await db.execute({
-        sql: `DELETE FROM gst_hsn_rates WHERE rate_id = ? AND company_id = ?`,
-        args: [rate_id, company_id]
-      });
+      await db
+        .delete(gstHsnRates)
+        .where(and(eq(gstHsnRates.rateId, rate_id), eq(gstHsnRates.companyId, company_id)));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

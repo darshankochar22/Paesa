@@ -1,0 +1,272 @@
+openapi: 3.1.0
+info:
+  title: companyTdsDetails Module API
+  version: 1.0.0
+  description: >
+    IPC API for the companyTdsDetails backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle(channel, ...)`
+    handler and is exposed to the renderer via `window.api.companyTdsDetails.<method>`.
+    Stores TDS (Tax Deducted at Source) deductor configuration for a company.
+    There is exactly one row per company (company_id is the primary key).
+tags:
+  - name: companyTdsDetails
+    description: Company TDS deductor details (1:1 with companies).
+paths:
+  /companyTdsDetails/get:
+    post:
+      operationId: companyTdsDetails.get
+      tags: [companyTdsDetails]
+      summary: Get the TDS details for a company by company_id.
+      x-ipc-channel: "companyTdsDetails:get"
+      x-window-api: "window.api.companyTdsDetails.get"
+      x-controller: "companyTdsDetailsController.get"
+      description: >
+        The handler receives a bare scalar `company_id` (2nd arg of the IPC
+        handler). The service reads at most one matching row and returns a
+        camelCased projection. SQLite 0/1 flag columns are converted to booleans
+        (`=== 1`). NULL text columns are coerced to empty strings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: The companies.company_id to look up.
+      responses:
+        '200':
+          description: Lookup result envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TdsGetFound'
+                  - $ref: '#/components/schemas/TdsGetNotFound'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /companyTdsDetails/save:
+    post:
+      operationId: companyTdsDetails.save
+      tags: [companyTdsDetails]
+      summary: Create or update (upsert) the TDS details for a company.
+      x-ipc-channel: "companyTdsDetails:save"
+      x-window-api: "window.api.companyTdsDetails.save"
+      x-controller: "companyTdsDetailsController.save"
+      description: >
+        Upsert keyed on company_id. The service checks for an existing row; if
+        present it UPDATEs and bumps updated_at, otherwise it INSERTs. Boolean
+        payload fields are stored as 0/1. Missing text fields are stored as NULL
+        (deductorType defaults to 'Company'). Requires `data.company_id`;
+        returns `{ success: false, error: 'Company ID is required' }` if absent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TdsSaveInput'
+      responses:
+        '200':
+          description: Save result envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TdsSaveSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared transport-level error shape.
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+    ServiceError:
+      type: object
+      description: >
+        Service-level failure envelope returned in the 200 body when a
+        try/catch fails or validation fails (e.g. missing company_id).
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+    CompanyTdsDetailsRow:
+      type: object
+      description: >
+        Raw persisted shape of one `company_tds_details` row (snake_case),
+        matching the SQLite/Postgres table. Flag columns are 0/1 integers in
+        storage.
+      properties:
+        company_id:
+          type: integer
+          description: PK and FK to companies.company_id.
+        tan_reg_number:
+          type: [string, 'null']
+        tan:
+          type: [string, 'null']
+        deductor_type:
+          type: [string, 'null']
+          default: Company
+        deductor_branch:
+          type: [string, 'null']
+        set_alter_person_responsible:
+          type: integer
+          enum: [0, 1]
+          default: 0
+        person_responsible_name:
+          type: [string, 'null']
+        person_responsible_designation:
+          type: [string, 'null']
+        person_responsible_pan:
+          type: [string, 'null']
+        person_responsible_phone:
+          type: [string, 'null']
+        person_responsible_email:
+          type: [string, 'null']
+        ignore_it_exemption:
+          type: integer
+          enum: [0, 1]
+          default: 1
+        activate_tds_for_items:
+          type: integer
+          enum: [0, 1]
+          default: 0
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+    TdsDetailsData:
+      type: object
+      description: >
+        camelCased projection returned by `get` (subset of the row, flags as
+        booleans, text NULLs coerced to '').
+      properties:
+        tanRegNumber:
+          type: string
+        tan:
+          type: string
+        deductorType:
+          type: string
+          default: Company
+        deductorBranch:
+          type: string
+        setAlterPersonResponsible:
+          type: boolean
+        personResponsibleName:
+          type: string
+        personResponsibleDesignation:
+          type: string
+        personResponsiblePan:
+          type: string
+        personResponsiblePhone:
+          type: string
+        personResponsibleEmail:
+          type: string
+        ignoreItExemption:
+          type: boolean
+        activateTdsForItems:
+          type: boolean
+    TdsGetFound:
+      type: object
+      description: get() result when a row exists.
+      required: [success, exists, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        exists:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/TdsDetailsData'
+    TdsGetNotFound:
+      type: object
+      description: get() result when no row exists for the company_id.
+      required: [success, exists, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        exists:
+          type: boolean
+          const: false
+        data:
+          type: 'null'
+    TdsSaveInput:
+      type: object
+      description: >
+        Payload for save() (camelCase). company_id is required; all other fields
+        optional. Boolean fields are persisted as 0/1; absent text fields become
+        NULL; deductorType defaults to 'Company'.
+      required: [company_id]
+      properties:
+        company_id:
+          type: integer
+          description: companies.company_id this row belongs to.
+        tanRegNumber:
+          type: [string, 'null']
+        tan:
+          type: [string, 'null']
+        deductorType:
+          type: string
+          default: Company
+        deductorBranch:
+          type: [string, 'null']
+        setAlterPersonResponsible:
+          type: boolean
+        personResponsibleName:
+          type: [string, 'null']
+        personResponsibleDesignation:
+          type: [string, 'null']
+        personResponsiblePan:
+          type: [string, 'null']
+        personResponsiblePhone:
+          type: [string, 'null']
+        personResponsibleEmail:
+          type: [string, 'null']
+        ignoreItExemption:
+          type: boolean
+        activateTdsForItems:
+          type: boolean
+    TdsSaveSuccess:
+      type: object
+      description: save() success envelope (no payload echoed back).
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true

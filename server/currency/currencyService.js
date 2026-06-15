@@ -1,15 +1,55 @@
+// ---------------------------------------------------------------------------
+// GOLDEN EXEMPLAR — Drizzle ORM conversion reference.
+//
+// This module is the pattern other modules copy. Key conventions:
+//
+//   * Import the drizzle instance `db` and the raw `sql` template tag, plus the
+//     comparison helpers (`eq`, `and`) from drizzle-orm. Import table objects
+//     from the dialect-switching schema barrel ('../db/schema').
+//
+//   * MUTATIONS / CONDITIONS use the query builder: db.insert(...).values(...),
+//     db.update(...).set(...).where(...), with eq()/and()/sql`` predicates.
+//
+//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
+//     WHERE ...`). This preserves the EXACT legacy return shape: snake_case
+//     column keys (iso_code, is_default, ...) and numeric 0/1 booleans, which
+//     the test oracle asserts against. (The query builder would return
+//     camelCase keys, changing the public shape — so we do not use it for the
+//     returned row.) Column identifiers inside the template are still taken
+//     from the schema (${currencies.isoCode}) rather than hardcoded strings.
+//
+//   * New-row id after INSERT comes from .returning({ id: table.pkCol }).
+// ---------------------------------------------------------------------------
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { currencies } = require('../db/schema');
+
+// Fetch a single currency row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${currencies} WHERE ${whereSql}`);
+  return rows[0];
+};
 
 const seedDefaultCurrency = async (company_id) => {
-  await db.execute(
-    `INSERT INTO currencies (
-      company_id, name, formal_name, iso_code, symbol, decimal_places,
-      decimal_symbol, decimal_places_in_words, suffix_symbol_to_amount,
-      show_amount_in_millions, word_representing_amount_after_decimal,
-      add_space_between_amount_and_symbol, is_active, is_default, is_predefined
-    ) VALUES (?, 'Indian Rupee', 'Indian Rupee', 'INR', '₹', 2, '.', 'Paise', 0, 0, 'Paise', 0, 1, 1, 1)`,
-    [company_id]
-  );
+  await db
+    .insert(currencies)
+    .values({
+      companyId: company_id,
+      name: 'Indian Rupee',
+      formalName: 'Indian Rupee',
+      isoCode: 'INR',
+      symbol: '₹',
+      decimalPlaces: 2,
+      decimalSymbol: '.',
+      decimalPlacesInWords: 'Paise',
+      suffixSymbolToAmount: 0,
+      showAmountInMillions: 0,
+      wordRepresentingAmountAfterDecimal: 'Paise',
+      addSpaceBetweenAmountAndSymbol: 0,
+      isActive: 1,
+      isDefault: 1,
+      isPredefined: 1,
+    });
 };
 
 module.exports = {
@@ -17,40 +57,37 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute(
-        `SELECT * FROM currencies WHERE company_id = ? AND LOWER(iso_code) = LOWER(?) AND is_active = 1`,
-        [data.company_id, data.iso_code]
+      const exists = await db.all(
+        sql`SELECT * FROM ${currencies}
+            WHERE ${currencies.companyId} = ${data.company_id}
+              AND LOWER(${currencies.isoCode}) = LOWER(${data.iso_code})
+              AND ${currencies.isActive} = 1`
       );
-      if (exists.rows.length > 0) return { success: false, error: 'Currency already exists' };
+      if (exists.length > 0) return { success: false, error: 'Currency already exists' };
 
-      const result = await db.execute(
-        `INSERT INTO currencies (
-          company_id, name, formal_name, iso_code, symbol, decimal_places,
-          decimal_symbol, decimal_places_in_words, suffix_symbol_to_amount,
-          show_amount_in_millions, word_representing_amount_after_decimal,
-          add_space_between_amount_and_symbol, is_active, is_default, is_predefined
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 0)`,
-        [
-          data.company_id,
-          data.name,
-          data.formal_name || data.name,
-          data.iso_code,
-          data.symbol,
-          data.decimal_places ?? 2,
-          data.decimal_symbol || '.',
-          data.decimal_places_in_words || null,
-          data.suffix_symbol_to_amount ? 1 : 0,
-          data.show_amount_in_millions ? 1 : 0,
-          data.word_representing_amount_after_decimal || null,
-          data.add_space_between_amount_and_symbol ? 1 : 0,
-        ]
-      );
+      const inserted = await db
+        .insert(currencies)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          formalName: data.formal_name || data.name,
+          isoCode: data.iso_code,
+          symbol: data.symbol,
+          decimalPlaces: data.decimal_places ?? 2,
+          decimalSymbol: data.decimal_symbol || '.',
+          decimalPlacesInWords: data.decimal_places_in_words || null,
+          suffixSymbolToAmount: data.suffix_symbol_to_amount ? 1 : 0,
+          showAmountInMillions: data.show_amount_in_millions ? 1 : 0,
+          wordRepresentingAmountAfterDecimal: data.word_representing_amount_after_decimal || null,
+          addSpaceBetweenAmountAndSymbol: data.add_space_between_amount_and_symbol ? 1 : 0,
+          isActive: 1,
+          isDefault: 0,
+          isPredefined: 0,
+        })
+        .returning({ id: currencies.currencyId });
 
-      const currency = await db.execute(
-        `SELECT * FROM currencies WHERE currency_id = ?`,
-        [result.lastInsertRowid]
-      );
-      return { success: true, currency: currency.rows[0] };
+      const currency = await findRow(sql`${currencies.currencyId} = ${inserted[0].id}`);
+      return { success: true, currency };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -58,11 +95,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM currencies WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${currencies}
+            WHERE ${currencies.companyId} = ${company_id}
+              AND ${currencies.isActive} = 1`
       );
-      return { success: true, currencies: result.rows };
+      return { success: true, currencies: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -70,12 +108,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM currencies WHERE currency_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'Currency not found' };
-      return { success: true, currency: result.rows[0] };
+      const currency = await findRow(sql`${currencies.currencyId} = ${id}`);
+      if (!currency) return { success: false, error: 'Currency not found' };
+      return { success: true, currency };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -83,20 +118,17 @@ module.exports = {
 
   setDefault: async (company_id, id) => {
     try {
-      const exists = await db.execute(
-        `SELECT * FROM currencies WHERE currency_id = ?`,
-        [id]
-      );
-      if (exists.rows.length === 0) return { success: false, error: 'Currency not found' };
+      const exists = await findRow(sql`${currencies.currencyId} = ${id}`);
+      if (!exists) return { success: false, error: 'Currency not found' };
 
-      await db.execute(
-        `UPDATE currencies SET is_default = 0 WHERE company_id = ?`,
-        [company_id]
-      );
-      await db.execute(
-        `UPDATE currencies SET is_default = 1 WHERE currency_id = ?`,
-        [id]
-      );
+      await db
+        .update(currencies)
+        .set({ isDefault: 0 })
+        .where(eq(currencies.companyId, company_id));
+      await db
+        .update(currencies)
+        .set({ isDefault: 1 })
+        .where(eq(currencies.currencyId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -105,44 +137,32 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM currencies WHERE currency_id = ?`,
-        [data.currency_id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Currency not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit base currency' };
+      const current = await findRow(sql`${currencies.currencyId} = ${data.currency_id}`);
+      if (!current) return { success: false, error: 'Currency not found' };
+      if (current.is_predefined) return { success: false, error: 'Cannot edit base currency' };
 
-      const current = existing.rows[0];
-      await db.execute(
-        `UPDATE currencies SET
-          name = ?, formal_name = ?, iso_code = ?, symbol = ?,
-          decimal_places = ?, decimal_symbol = ?, decimal_places_in_words = ?,
-          suffix_symbol_to_amount = ?, show_amount_in_millions = ?,
-          word_representing_amount_after_decimal = ?,
-          add_space_between_amount_and_symbol = ?,
-          updated_at = datetime('now')
-         WHERE currency_id = ?`,
-        [
-          data.name ?? current.name,
-          data.formal_name ?? current.formal_name,
-          data.iso_code ?? current.iso_code,
-          data.symbol ?? current.symbol,
-          data.decimal_places ?? current.decimal_places,
-          data.decimal_symbol ?? current.decimal_symbol,
-          data.decimal_places_in_words ?? current.decimal_places_in_words,
-          data.suffix_symbol_to_amount ? 1 : 0,
-          data.show_amount_in_millions ? 1 : 0,
-          data.word_representing_amount_after_decimal ?? current.word_representing_amount_after_decimal,
-          data.add_space_between_amount_and_symbol ? 1 : 0,
-          data.currency_id,
-        ]
-      );
+      await db
+        .update(currencies)
+        .set({
+          name: data.name ?? current.name,
+          formalName: data.formal_name ?? current.formal_name,
+          isoCode: data.iso_code ?? current.iso_code,
+          symbol: data.symbol ?? current.symbol,
+          decimalPlaces: data.decimal_places ?? current.decimal_places,
+          decimalSymbol: data.decimal_symbol ?? current.decimal_symbol,
+          decimalPlacesInWords: data.decimal_places_in_words ?? current.decimal_places_in_words,
+          suffixSymbolToAmount: data.suffix_symbol_to_amount ? 1 : 0,
+          showAmountInMillions: data.show_amount_in_millions ? 1 : 0,
+          wordRepresentingAmountAfterDecimal:
+            data.word_representing_amount_after_decimal ??
+            current.word_representing_amount_after_decimal,
+          addSpaceBetweenAmountAndSymbol: data.add_space_between_amount_and_symbol ? 1 : 0,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(currencies.currencyId, data.currency_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM currencies WHERE currency_id = ?`,
-        [data.currency_id]
-      );
-      return { success: true, currency: updated.rows[0] };
+      const updated = await findRow(sql`${currencies.currencyId} = ${data.currency_id}`);
+      return { success: true, currency: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -150,18 +170,15 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM currencies WHERE currency_id = ?`,
-        [id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Currency not found' };
-      if (existing.rows[0].is_default) return { success: false, error: 'Cannot delete default currency' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete base currency' };
+      const existing = await findRow(sql`${currencies.currencyId} = ${id}`);
+      if (!existing) return { success: false, error: 'Currency not found' };
+      if (existing.is_default) return { success: false, error: 'Cannot delete default currency' };
+      if (existing.is_predefined) return { success: false, error: 'Cannot delete base currency' };
 
-      await db.execute(
-        `UPDATE currencies SET is_active = 0 WHERE currency_id = ?`,
-        [id]
-      );
+      await db
+        .update(currencies)
+        .set({ isActive: 0 })
+        .where(eq(currencies.currencyId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

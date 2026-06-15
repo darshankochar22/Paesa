@@ -1,15 +1,16 @@
 const { db } = require('../db/index');
+const { sql } = require('drizzle-orm');
+const { voucherEntries, vouchers, ledgers, groups } = require('../db/schema');
 const voucherService = require('../voucher/voucherService');
 
 const getEntries = async (company_id, fy_id) => {
-  const result = await db.execute(
-    `SELECT e.*, v.date, v.voucher_type, v.voucher_number
-     FROM voucher_entries e
-     INNER JOIN vouchers v ON v.voucher_id = e.voucher_id
-     WHERE v.company_id = ? AND v.fy_id = ? AND v.is_cancelled = 0`,
-    [company_id, fy_id]
+  const rows = await db.all(
+    sql`SELECT e.*, v.date, v.voucher_type, v.voucher_number
+        FROM ${voucherEntries} e
+        INNER JOIN ${vouchers} v ON v.voucher_id = e.voucher_id
+        WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0`
   );
-  return result.rows;
+  return rows;
 };
 
 const calcLedgerBalance = (ledger_id, entries, opening_balance = 0) => {
@@ -26,12 +27,12 @@ module.exports = {
   trialBalance: async (company_id, fy_id) => {
     try {
       const entries = await getEntries(company_id, fy_id);
-      const ledgers = await db.execute(
-        `SELECT * FROM ledgers WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const ledgerRows = await db.all(
+        sql`SELECT * FROM ${ledgers}
+            WHERE ${ledgers.companyId} = ${company_id} AND ${ledgers.isActive} = 1`
       );
 
-      const rows = ledgers.rows.map(l => {
+      const rows = ledgerRows.map(l => {
         const balance = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0);
         return {
           ledger_id: l.ledger_id,
@@ -55,14 +56,13 @@ module.exports = {
     try {
       const entries = await getEntries(company_id, fy_id);
 
-      const ledgers = await db.execute(
-        `SELECT l.*, g.nature FROM ledgers l
-         INNER JOIN groups g ON g.group_id = l.group_id
-         WHERE l.company_id = ? AND l.is_active = 1`,
-        [company_id]
+      const ledgerRows = await db.all(
+        sql`SELECT l.*, g.nature FROM ${ledgers} l
+            INNER JOIN ${groups} g ON g.group_id = l.group_id
+            WHERE l.company_id = ${company_id} AND l.is_active = 1`
       );
 
-      const getLedgersByNature = (nature) => ledgers.rows
+      const getLedgersByNature = (nature) => ledgerRows
         .filter(l => l.nature === nature)
         .map(l => ({
           ledger_id: l.ledger_id,
@@ -87,14 +87,13 @@ module.exports = {
     try {
       const entries = await getEntries(company_id, fy_id);
 
-      const ledgers = await db.execute(
-        `SELECT l.*, g.nature FROM ledgers l
-         INNER JOIN groups g ON g.group_id = l.group_id
-         WHERE l.company_id = ? AND l.is_active = 1`,
-        [company_id]
+      const ledgerRows = await db.all(
+        sql`SELECT l.*, g.nature FROM ${ledgers} l
+            INNER JOIN ${groups} g ON g.group_id = l.group_id
+            WHERE l.company_id = ${company_id} AND l.is_active = 1`
       );
 
-      const getLedgersByNature = (nature) => ledgers.rows
+      const getLedgersByNature = (nature) => ledgerRows
         .filter(l => l.nature === nature)
         .map(l => ({
           ledger_id: l.ledger_id,
@@ -123,28 +122,33 @@ module.exports = {
 
   ledgerReport: async (company_id, fy_id, ledger_id, from_date, to_date) => {
     try {
-      const ledger = await db.execute(
-        `SELECT * FROM ledgers WHERE ledger_id = ?`,
-        [ledger_id]
+      const ledgerRows = await db.all(
+        sql`SELECT * FROM ${ledgers} WHERE ${ledgers.ledgerId} = ${ledger_id}`
       );
-      if (ledger.rows.length === 0) return { success: false, error: 'Ledger not found' };
+      if (ledgerRows.length === 0) return { success: false, error: 'Ledger not found' };
 
-      let query = `
-        SELECT e.*, v.date, v.voucher_type, v.voucher_number, v.narration as voucher_narration
-        FROM voucher_entries e
-        INNER JOIN vouchers v ON v.voucher_id = e.voucher_id
-        WHERE v.company_id = ? AND v.fy_id = ? AND e.ledger_id = ? AND v.is_cancelled = 0
-      `;
-      const params = [company_id, fy_id, ledger_id];
+      // Build the entry query with optional date bounds, mirroring the legacy
+      // conditional WHERE clauses. sql.join lets us append predicates only when
+      // the corresponding date filter is supplied.
+      const conditions = [
+        sql`v.company_id = ${company_id}`,
+        sql`v.fy_id = ${fy_id}`,
+        sql`e.ledger_id = ${ledger_id}`,
+        sql`v.is_cancelled = 0`,
+      ];
+      if (from_date) conditions.push(sql`v.date >= ${from_date}`);
+      if (to_date)   conditions.push(sql`v.date <= ${to_date}`);
 
-      if (from_date) { query += ` AND v.date >= ?`; params.push(from_date); }
-      if (to_date)   { query += ` AND v.date <= ?`; params.push(to_date); }
-      query += ` ORDER BY v.date ASC`;
+      const result = await db.all(
+        sql`SELECT e.*, v.date, v.voucher_type, v.voucher_number, v.narration as voucher_narration
+            FROM ${voucherEntries} e
+            INNER JOIN ${vouchers} v ON v.voucher_id = e.voucher_id
+            WHERE ${sql.join(conditions, sql` AND `)}
+            ORDER BY v.date ASC`
+      );
 
-      const result = await db.execute(query, params);
-
-      let runningBalance = ledger.rows[0].opening_balance || 0;
-      const rows = result.rows.map(e => {
+      let runningBalance = ledgerRows[0].opening_balance || 0;
+      const rows = result.map(e => {
         runningBalance += e.type === 'Dr' ? e.amount : -e.amount;
         return {
           date: e.date,
@@ -159,8 +163,8 @@ module.exports = {
 
       return {
         success: true,
-        ledger_name: ledger.rows[0].name,
-        opening_balance: ledger.rows[0].opening_balance || 0,
+        ledger_name: ledgerRows[0].name,
+        opening_balance: ledgerRows[0].opening_balance || 0,
         rows,
         closing_balance: runningBalance,
       };
@@ -171,14 +175,17 @@ module.exports = {
 
   cashBook: async (company_id, fy_id, from_date, to_date) => {
     try {
-      const cashLedger = await db.execute(
-        `SELECT * FROM ledgers WHERE company_id = ? AND ledger_type = 'Cash' AND is_active = 1 LIMIT 1`,
-        [company_id]
+      const cashLedger = await db.all(
+        sql`SELECT * FROM ${ledgers}
+            WHERE ${ledgers.companyId} = ${company_id}
+              AND ${ledgers.ledgerType} = 'Cash'
+              AND ${ledgers.isActive} = 1
+            LIMIT 1`
       );
-      if (cashLedger.rows.length === 0) return { success: false, error: 'Cash ledger not found' };
+      if (cashLedger.length === 0) return { success: false, error: 'Cash ledger not found' };
 
       return await module.exports.ledgerReport(
-        company_id, fy_id, cashLedger.rows[0].ledger_id, from_date, to_date
+        company_id, fy_id, cashLedger[0].ledger_id, from_date, to_date
       );
     } catch (err) {
       return { success: false, error: err.message };

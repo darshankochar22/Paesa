@@ -1,0 +1,229 @@
+openapi: 3.1.0
+info:
+  title: companyCreationSuccess module API
+  version: 1.0.0
+  description: >
+    IPC contract for the "companyCreationSuccess" backend module of the
+    Electron + SQLite accounting/ERP app. Tracks the onboarding / "company
+    created successfully" UI state and feature-setup flags for a company.
+    Each operation below maps to an `ipcMain.handle('companyCreationSuccess:<action>', ...)`
+    channel and is invoked from the renderer via the corresponding
+    `window.api.companyCreationSuccess.<method>` binding (exposed in preload.js).
+    Modeled as POST operations purely for documentation/OpenAPI rendering; the
+    real transport is Electron IPC, not HTTP.
+
+tags:
+  - name: companyCreationSuccess
+    description: Company creation success / onboarding feature-flag state.
+
+paths:
+  /companyCreationSuccess/get:
+    post:
+      operationId: companyCreationSuccess.get
+      tags: [companyCreationSuccess]
+      summary: Fetch the creation-success / onboarding flag record for a company.
+      description: >
+        Returns the `company_creation_success` row for the given company_id.
+        The controller receives a bare scalar (the company_id) as IPC arg 2.
+      x-ipc-channel: "companyCreationSuccess:get"
+      x-window-api: "window.api.companyCreationSuccess.get"
+      x-controller: "companyCreationSuccessController.get"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: ID of the company whose creation-success record to fetch.
+      responses:
+        '200':
+          description: Lookup result envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CompanyCreationSuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server / database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /companyCreationSuccess/update:
+    post:
+      operationId: companyCreationSuccess.update
+      tags: [companyCreationSuccess]
+      summary: Update the creation-success / onboarding feature flags for a company.
+      description: >
+        Updates the flag columns on the existing `company_creation_success` row
+        identified by `data.company_id`, then returns the refreshed row.
+        Any flag omitted from the payload retains its current stored value
+        (the service uses `value ?? current.value`). Fails if no record exists.
+      x-ipc-channel: "companyCreationSuccess:update"
+      x-window-api: "window.api.companyCreationSuccess.update"
+      x-controller: "companyCreationSuccessController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyCreationSuccessUpdateInput'
+      responses:
+        '200':
+          description: Update result envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CompanyCreationSuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server / database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    CompanyCreationSuccessRow:
+      type: object
+      description: >
+        A row of the `company_creation_success` table. Boolean-like flags are
+        stored as INTEGER 0/1 in SQLite; in Postgres they translate to BOOLEAN
+        (0 -> false, 1 -> true).
+      properties:
+        id:
+          type: integer
+          description: Surrogate primary key (SQLite AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: FK -> companies(company_id). ON DELETE CASCADE.
+        created_successfully:
+          type: integer
+          enum: [0, 1]
+          description: Whether the company was created successfully. SQLite DEFAULT 1.
+        success_screen_shown:
+          type: integer
+          enum: [0, 1]
+          description: Whether the success screen has been shown. SQLite DEFAULT 0.
+        show_more_features:
+          type: integer
+          enum: [0, 1]
+          description: UI flag - show "more features". SQLite DEFAULT 0.
+        show_all_features:
+          type: integer
+          enum: [0, 1]
+          description: UI flag - show "all features". SQLite DEFAULT 0.
+        default_features_loaded:
+          type: integer
+          enum: [0, 1]
+          description: Whether default features were loaded. SQLite DEFAULT 1.
+        feature_setup_completed:
+          type: integer
+          enum: [0, 1]
+          description: Whether feature setup is complete. SQLite DEFAULT 0.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required:
+        - id
+        - company_id
+        - created_successfully
+        - success_screen_shown
+        - show_more_features
+        - show_all_features
+        - default_features_loaded
+        - feature_setup_completed
+        - created_at
+        - updated_at
+
+    CompanyCreationSuccessUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [company_id]
+      description: >
+        Update payload. Only `company_id` is required (used to locate the row).
+        Each flag is optional; when omitted the existing stored value is kept.
+      properties:
+        company_id:
+          type: integer
+          description: ID of the company whose record to update.
+        created_successfully:
+          type: integer
+          enum: [0, 1]
+        success_screen_shown:
+          type: integer
+          enum: [0, 1]
+        show_more_features:
+          type: integer
+          enum: [0, 1]
+        show_all_features:
+          type: integer
+          enum: [0, 1]
+        default_features_loaded:
+          type: integer
+          enum: [0, 1]
+        feature_setup_completed:
+          type: integer
+          enum: [0, 1]
+
+    CompanyCreationSuccessResult:
+      type: object
+      description: Success envelope returned by get/update.
+      additionalProperties: false
+      required: [success, record]
+      properties:
+        success:
+          type: boolean
+          const: true
+        record:
+          $ref: '#/components/schemas/CompanyCreationSuccessRow'
+
+    FailureResult:
+      type: object
+      description: >
+        Failure envelope returned in-band (HTTP 200 equivalent). Used both for
+        "Record not found" and caught DB exceptions (`err.message`).
+      additionalProperties: false
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: Human-readable error message.
+
+    Error:
+      type: object
+      description: Shared transport-level error schema.
+      additionalProperties: false
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string

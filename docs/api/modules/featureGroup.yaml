@@ -1,0 +1,166 @@
+openapi: 3.1.0
+info:
+  title: featureGroup module API
+  version: 1.0.0
+  description: >-
+    IPC contract for the `featureGroup` backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle` channel in
+    server/index.js, exposed to the renderer as a `window.api.featureGroup.*`
+    binding via preload.js. HTTP method/path are a documentation convention only;
+    the real transport is Electron IPC (see x-ipc-channel).
+paths:
+  /featureGroup/getAll:
+    post:
+      tags: [featureGroup]
+      summary: List all active feature groups ordered by display_order.
+      operationId: featureGroup.getAll
+      x-ipc-channel: "featureGroup:getAll"
+      x-window-api: "window.api.featureGroup.getAll"
+      x-controller: "featureGroupController.getAll"
+      requestBody:
+        required: false
+        description: No payload. The handler ignores arg 2; only the IPC event is used.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              description: Empty body. No parameters are read by the controller/service.
+      responses:
+        "200":
+          description: Success envelope with the list of active feature groups.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureGroupListResponse"
+        "4XX":
+          description: Client-side error envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "5XX":
+          description: Server-side error envelope (DB failure caught by the service).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /featureGroup/getById:
+    post:
+      tags: [featureGroup]
+      summary: Fetch a single feature group by its primary key.
+      operationId: featureGroup.getById
+      x-ipc-channel: "featureGroup:getById"
+      x-window-api: "window.api.featureGroup.getById"
+      x-controller: "featureGroupController.getById"
+      requestBody:
+        required: true
+        description: >-
+          The handler takes a bare value as arg 2 (the id), not an object.
+          `getById: (event, id) => featureGroupService.getById(id)`.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: feature_group_id (INTEGER PRIMARY KEY) to look up.
+      responses:
+        "200":
+          description: >-
+            Success envelope with the matching group, or a not-found envelope
+            (`{ success: false, error: 'Feature Group not found' }`) when no row
+            matches.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureGroupByIdResponse"
+        "4XX":
+          description: Client-side error envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "5XX":
+          description: Server-side error envelope (DB failure caught by the service).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    FeatureGroup:
+      type: object
+      description: >-
+        A row of the `feature_groups` table. Boolean-like INTEGER columns
+        (online_access, is_active) are stored as 0/1 in SQLite.
+      properties:
+        feature_group_id:
+          type: integer
+          description: INTEGER PRIMARY KEY AUTOINCREMENT.
+        group_key:
+          type: string
+          description: Stable machine key (e.g. 'accounts', 'gst'). NOT NULL UNIQUE.
+        group_name:
+          type: string
+          description: Human-readable group label. NOT NULL.
+        online_access:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 flag; 1 = requires online/connected access. DEFAULT 0.
+        display_order:
+          type: integer
+          description: Sort order for UI listing. DEFAULT 0.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 soft-active flag. DEFAULT 1. getAll filters is_active = 1.
+      required:
+        - feature_group_id
+        - group_key
+        - group_name
+    FeatureGroupListResponse:
+      type: object
+      additionalProperties: false
+      description: Return shape of featureGroupService.getAll().
+      properties:
+        success:
+          type: boolean
+        featureGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeatureGroup"
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+    FeatureGroupByIdResponse:
+      type: object
+      additionalProperties: false
+      description: Return shape of featureGroupService.getById(id).
+      properties:
+        success:
+          type: boolean
+        group:
+          $ref: "#/components/schemas/FeatureGroup"
+        error:
+          type: string
+          description: >-
+            Present only when success is false (DB error or 'Feature Group not found').
+      required: [success]
+    Error:
+      type: object
+      additionalProperties: false
+      description: >-
+        Shared error envelope. NOTE: this module does not throw HTTP-style errors;
+        it returns `{ success: false, error: <message> }`. This schema documents the
+        canonical { error, message } contract for cross-module consistency.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]

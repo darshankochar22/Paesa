@@ -30,10 +30,10 @@ export interface VoucherAPI {
   };
 
   banking: {
-    getUnreconciled: (company_id: number, fy_id: number, ledgerId: number) => Promise<{ success: boolean; transactions: { entry_id: number; voucher_id: number; date: string; type: string; amount: number }[] }>;
+    getUnreconciled: (company_id: number, fy_id: number, ledgerId: number) => Promise<{ success: boolean; error?: string; transactions: { entry_id: number; voucher_id: number; voucher_number?: string; date: string; type: string; amount: number; narration?: string; party_name?: string }[] }>;
     reconcile: (data: { entry_id: number; voucher_id: number; ledger_id: number; reconciled_date?: string; bank_date?: string; bank_reference?: string }) => Promise<{ success: boolean; error?: string }>;
-    unreconcile: (entry_id: number) => Promise<{ success: boolean; error?: string }>;
-    getStatement: (company_id: number, fy_id: number, ledger_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; ledger_name: string; rows: { entry_id: number; date: string; type: string; amount: number; is_reconciled: boolean; balance: number }[] }>;
-    getSummary: (company_id: number, fy_id: number, ledgerId: number) => Promise<{ success: boolean; ledger_name: string; book_balance: number; reconciled_amount: number; unreconciled_amount: number; total_reconciled_count: number }>;
+    unreconcile: (entry_id: number) => Promise<{ success: boolean; error?: string; removed?: number }>;
+    getStatement: (company_id: number, fy_id: number, ledger_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; error?: string; ledger_name: string; rows: { entry_id: number; voucher_id: number; voucher_number?: string; date: string; type: string; amount: number; is_reconciled: boolean; balance: number; bank_reference?: string | null; reconciliation_id?: number | null }[] }>;
+    getSummary: (company_id: number, fy_id: number, ledgerId: number) => Promise<{ success: boolean; error?: string; ledger_name: string; book_balance: number; reconciled_amount: number; unreconciled_amount: number; total_reconciled_count: number; total_unreconciled_count?: number; total_count?: number }>;
   };
 }

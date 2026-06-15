@@ -1,11 +1,25 @@
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { employeeCategories, employeeGroups, employees } = require('../db/schema');
+
+// Fetch a single employee_categories row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${employeeCategories} WHERE ${whereSql}`);
+  return rows[0];
+};
 
 const seedDefaultEmployeeCategory = async (company_id) => {
-  await db.execute(
-    `INSERT INTO employee_categories (company_id, name, alias, allocate_revenue, allocate_non_revenue, is_active, is_predefined)
-     VALUES (?, ?, null, 0, 0, 1, 1)`,
-    [company_id, 'Primary Employee Category']
-  );
+  await db
+    .insert(employeeCategories)
+    .values({
+      companyId: company_id,
+      name: 'Primary Employee Category',
+      alias: null,
+      allocateRevenue: 0,
+      allocateNonRevenue: 0,
+      isActive: 1,
+      isPredefined: 1,
+    });
 };
 
 module.exports = {
@@ -13,29 +27,31 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute(
-        `SELECT * FROM employee_categories WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        [data.company_id, data.name]
+      const exists = await db.all(
+        sql`SELECT * FROM ${employeeCategories}
+            WHERE ${employeeCategories.companyId} = ${data.company_id}
+              AND LOWER(${employeeCategories.name}) = LOWER(${data.name})
+              AND ${employeeCategories.isActive} = 1`
       );
-      if (exists.rows.length > 0) return { success: false, error: 'Employee Category already exists' };
+      if (exists.length > 0) return { success: false, error: 'Employee Category already exists' };
 
-      const result = await db.execute(
-        `INSERT INTO employee_categories (company_id, name, alias, allocate_revenue, allocate_non_revenue, is_active, is_predefined)
-         VALUES (?, ?, ?, ?, ?, 1, 0)`,
-        [
-          data.company_id,
-          data.name,
-          data.alias || null,
-          data.allocate_revenue ? 1 : 0,
-          data.allocate_non_revenue ? 1 : 0
-        ]
-      );
+      const inserted = await db
+        .insert(employeeCategories)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          alias: data.alias || null,
+          allocateRevenue: data.allocate_revenue ? 1 : 0,
+          allocateNonRevenue: data.allocate_non_revenue ? 1 : 0,
+          isActive: 1,
+          isPredefined: 0,
+        })
+        .returning({ id: employeeCategories.employeeCategoryId });
 
-      const category = await db.execute(
-        `SELECT * FROM employee_categories WHERE employee_category_id = ?`,
-        [result.lastInsertRowid]
+      const category = await findRow(
+        sql`${employeeCategories.employeeCategoryId} = ${inserted[0].id}`
       );
-      return { success: true, category: category.rows[0] };
+      return { success: true, category };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -43,11 +59,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM employee_categories WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${employeeCategories}
+            WHERE ${employeeCategories.companyId} = ${company_id}
+              AND ${employeeCategories.isActive} = 1`
       );
-      return { success: true, employeeCategories: result.rows };
+      return { success: true, employeeCategories: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -55,12 +72,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM employee_categories WHERE employee_category_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'Employee Category not found' };
-      return { success: true, category: result.rows[0] };
+      const category = await findRow(sql`${employeeCategories.employeeCategoryId} = ${id}`);
+      if (!category) return { success: false, error: 'Employee Category not found' };
+      return { success: true, category };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -68,33 +82,38 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM employee_categories WHERE employee_category_id = ?`,
-        [data.employee_category_id]
+      const current = await findRow(
+        sql`${employeeCategories.employeeCategoryId} = ${data.employee_category_id}`
       );
-      if (existing.rows.length === 0) return { success: false, error: 'Employee Category not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined employee categories' };
+      if (!current) return { success: false, error: 'Employee Category not found' };
+      if (current.is_predefined)
+        return { success: false, error: 'Cannot edit predefined employee categories' };
 
-      const current = existing.rows[0];
-      await db.execute(
-        `UPDATE employee_categories SET
-          name = ?, alias = ?, allocate_revenue = ?, allocate_non_revenue = ?,
-          updated_at = datetime('now')
-         WHERE employee_category_id = ?`,
-        [
-          data.name ?? current.name,
-          data.alias ?? current.alias,
-          data.allocate_revenue !== undefined ? (data.allocate_revenue ? 1 : 0) : current.allocate_revenue,
-          data.allocate_non_revenue !== undefined ? (data.allocate_non_revenue ? 1 : 0) : current.allocate_non_revenue,
-          data.employee_category_id,
-        ]
-      );
+      await db
+        .update(employeeCategories)
+        .set({
+          name: data.name ?? current.name,
+          alias: data.alias ?? current.alias,
+          allocateRevenue:
+            data.allocate_revenue !== undefined
+              ? data.allocate_revenue
+                ? 1
+                : 0
+              : current.allocate_revenue,
+          allocateNonRevenue:
+            data.allocate_non_revenue !== undefined
+              ? data.allocate_non_revenue
+                ? 1
+                : 0
+              : current.allocate_non_revenue,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(employeeCategories.employeeCategoryId, data.employee_category_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM employee_categories WHERE employee_category_id = ?`,
-        [data.employee_category_id]
+      const updated = await findRow(
+        sql`${employeeCategories.employeeCategoryId} = ${data.employee_category_id}`
       );
-      return { success: true, category: updated.rows[0] };
+      return { success: true, category: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -102,31 +121,33 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM employee_categories WHERE employee_category_id = ?`,
-        [id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Employee Category not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete predefined employee categories' };
+      const existing = await findRow(sql`${employeeCategories.employeeCategoryId} = ${id}`);
+      if (!existing) return { success: false, error: 'Employee Category not found' };
+      if (existing.is_predefined)
+        return { success: false, error: 'Cannot delete predefined employee categories' };
 
       // Check if any employee groups are using it
-      const hasGroups = await db.execute(
-        `SELECT * FROM employee_groups WHERE employee_category_id = ? AND is_active = 1`,
-        [id]
+      const hasGroups = await db.all(
+        sql`SELECT * FROM ${employeeGroups}
+            WHERE ${employeeGroups.employeeCategoryId} = ${id}
+              AND ${employeeGroups.isActive} = 1`
       );
-      if (hasGroups.rows.length > 0) return { success: false, error: 'Cannot delete category with active employee groups' };
+      if (hasGroups.length > 0)
+        return { success: false, error: 'Cannot delete category with active employee groups' };
 
       // Check if any employees are using it
-      const hasEmployees = await db.execute(
-        `SELECT * FROM employees WHERE employee_category_id = ? AND is_active = 1`,
-        [id]
+      const hasEmployees = await db.all(
+        sql`SELECT * FROM ${employees}
+            WHERE ${employees.employeeCategoryId} = ${id}
+              AND ${employees.isActive} = 1`
       );
-      if (hasEmployees.rows.length > 0) return { success: false, error: 'Cannot delete category with active employees' };
+      if (hasEmployees.length > 0)
+        return { success: false, error: 'Cannot delete category with active employees' };
 
-      await db.execute(
-        `UPDATE employee_categories SET is_active = 0 WHERE employee_category_id = ?`,
-        [id]
-      );
+      await db
+        .update(employeeCategories)
+        .set({ isActive: 0 })
+        .where(eq(employeeCategories.employeeCategoryId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
