@@ -70,7 +70,7 @@ module.exports = {
   getAll: async (company_id) => {
     try {
       const result = await db.execute(
-        `SELECT * FROM gst_registrations WHERE company_id = ? AND is_active = 1`,
+        `SELECT * FROM gst_registrations WHERE company_id = ?`,
         [company_id]
       );
       return { success: true, gstRegistrations: result.rows };

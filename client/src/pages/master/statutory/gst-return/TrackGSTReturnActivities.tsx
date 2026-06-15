@@ -15,8 +15,10 @@ export default function TrackGSTReturnActivities() {
       try {
         setLoading(true);
         const res = await window.api.gstRegistration.getAll(selectedCompany.company_id);
-        if (res.success && res.gstRegistrations) {
+        if (res.success && res.gstRegistrations && res.gstRegistrations.length > 0) {
           setRegistrations(res.gstRegistrations);
+        } else {
+          setRegistrations([]);
         }
       } catch (e) {
         console.error("Failed to fetch registrations", e);

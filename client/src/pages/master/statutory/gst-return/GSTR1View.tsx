@@ -7,8 +7,6 @@ export default function GSTR1View() {
   const { selectedCompany, activeFY } = useCompany();
   const navigate = useNavigate();
   const location = useLocation();
-  const registration = location.state?.registration;
-  const registrationName = registration?.state_id ? `${registration.state_id} Registration` : "Assam Registration";
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -21,11 +19,27 @@ export default function GSTR1View() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gstr1Data, setGstr1Data] = useState<any>(null);
+  const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
+
+  const activeRegistration = location.state?.registration || fetchedRegistration;
+  const registrationName = activeRegistration?.state_id ? `${activeRegistration.state_id} Registration` : " All Registrations";
 
   const returnPeriod = `${selectedMonth}${selectedYear}`;
 
   const loadData = async (forceGenerate = false) => {
     if (!companyId || !fyId) return;
+
+    // Fetch registration if not passed
+    if (!location.state?.registration && !fetchedRegistration) {
+      try {
+        const regRes = await window.api.gstRegistration.getAll(companyId);
+        if (regRes.success && regRes.gstRegistrations && regRes.gstRegistrations.length > 0) {
+          setFetchedRegistration(regRes.gstRegistrations[0]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch registrations", err);
+      }
+    }
     try {
       setLoading(true);
       setError(null);
