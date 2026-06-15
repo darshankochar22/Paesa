@@ -29,7 +29,7 @@ const INITIAL_FORM: Partial<GroupType> = {
     parent_group_id: undefined,
     is_primary: 0,
     nature: "Assets",
-    affect_gross_profit: 0,
+    set_alter_tds_details: 0,
     behaves_like_subledger: 0,
     show_net_debit_credit: 0,
     used_for_calculation: 0,
@@ -162,7 +162,7 @@ export default function GroupCreate() {
         parent_group_id: form.parent_group_id ? Number(form.parent_group_id) : undefined,
         is_primary: form.parent_group_id ? 0 : 1,
         nature: form.nature || undefined,
-        affect_gross_profit: form.affect_gross_profit ? 1 : 0,
+        set_alter_tds_details: form.set_alter_tds_details ? 1 : 0,
         behaves_like_subledger: form.behaves_like_subledger ? 1 : 0,
         show_net_debit_credit: form.show_net_debit_credit ? 1 : 0,
         used_for_calculation: form.used_for_calculation ? 1 : 0,
@@ -182,7 +182,7 @@ export default function GroupCreate() {
           parent_group_id: capital?.group_id,
           is_primary: 0,
           nature: capital?.nature || "Liabilities",
-          affect_gross_profit: 0,
+          set_alter_tds_details: 0,
           behaves_like_subledger: 0,
           show_net_debit_credit: 0,
           used_for_calculation: 0,
@@ -266,13 +266,13 @@ export default function GroupCreate() {
             <Row label="Used for calculation (for example: taxes, discounts) (for sales invoice entries)" onClick={toggleField("used_for_calculation")}>
               <span className="text-sm py-1">{form.used_for_calculation ? "Yes" : "No"}</span>
             </Row>
-            <Row label="Affect Gross Profit" onClick={toggleField("affect_gross_profit")}>
-              <span className="text-sm py-1">{form.affect_gross_profit ? "Yes" : "No"}</span>
-            </Row>
             <Row label="Method to allocate when used in purchase invoice">
               <select className={selectCls} value={form.allocation_method || "Not Applicable"} onChange={setField("allocation_method")}>
                 {ALLOC_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
+            </Row>
+            <Row label="Set/Alter TDS details" onClick={toggleField("set_alter_tds_details")}>
+              <span className="text-sm py-1">{form.set_alter_tds_details ? "Yes" : "No"}</span>
             </Row>
           </div>
 

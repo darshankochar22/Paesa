@@ -7,7 +7,7 @@ export interface GroupType {
   is_primary?: number;
   is_predefined?: number;
   nature?: string;
-  affect_gross_profit?: number;
+  set_alter_tds_details?: number;
   behaves_like_subledger?: number;
   show_net_debit_credit?: number;
   used_for_calculation?: number;
