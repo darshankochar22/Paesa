@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
-import { PageTitleBar, AlertBanner, SearchInput, DataTable, StatusBadge, RightActionPanel } from "../../components/ui";
-import type { TableColumn } from "../../components/ui";
-import { VoucherTypeBadge, PageFooterBar } from "./ui";
+import { PageTitleBar, AlertBanner, SearchInput, RightActionPanel } from "../../components/ui";
+import { PageFooterBar } from "./ui";
 
 const VOUCHER_TYPES = ["Receipt", "Payment", "Contra", "Journal", "Sales", "Purchase", "Credit Note", "Debit Note"];
 
@@ -15,23 +14,23 @@ interface VoucherRow {
   narration: string | null;
   party_name: string | null;
   is_cancelled: number;
+  debit_amount: number;
+  credit_amount: number;
+  inwards_qty: number;
+  outwards_qty: number;
 }
 
 const formatDate = (d: string) => {
-  if (!d) return "—";
+  if (!d) return "";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return d;
-  return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
 };
 
-const TABLE_COLUMNS: TableColumn[] = [
-  { key: "voucher_number", label: "Voucher No.",    span: "col-span-2" },
-  { key: "voucher_type",   label: "Type",           span: "col-span-1" },
-  { key: "date",           label: "Date",           span: "col-span-2" },
-  { key: "party_name",     label: "Party / Narration", span: "col-span-4" },
-  { key: "status",         label: "Status",         span: "col-span-2" },
-  { key: "actions",        label: "",               span: "col-span-1", align: "right" },
-];
+const formatAmount = (n: number) => {
+  if (!n) return "";
+  return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 export default function VoucherList() {
   const navigate = useNavigate();
@@ -41,6 +40,7 @@ export default function VoucherList() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -53,7 +53,10 @@ export default function VoucherList() {
       const res: any = selectedType === "All"
         ? await window.api.voucher.getAll(companyId, fyId)
         : await window.api.voucher.getByType(companyId, fyId, selectedType);
-      if (res.success) setVouchers(res.vouchers || []);
+      if (res.success) {
+        setVouchers(res.vouchers || []);
+        setSelectedIndex(0);
+      }
       else setError(res.error || "Failed to fetch vouchers");
     } catch (e: any) {
       setError(e.message);
@@ -78,6 +81,18 @@ export default function VoucherList() {
         e.preventDefault();
         navigate("/utilities/banking");
       }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.min(prev + 1, filtered.length - 1));
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.max(prev - 1, 0));
+      }
+      if (e.key === "Enter" && filtered.length > 0) {
+        e.preventDefault();
+        navigate(`/transactions/voucher/${filtered[selectedIndex].voucher_id}`);
+      }
       if (e.key === "Escape") {
         e.preventDefault();
         navigate("/");
@@ -85,7 +100,7 @@ export default function VoucherList() {
     };
     window.addEventListener("keydown", handleKeys);
     return () => window.removeEventListener("keydown", handleKeys);
-  }, [navigate]);
+  }, [navigate, selectedIndex]);
 
   const listActions = [
     { key: "Alt+C", label: "New Voucher", onClick: () => navigate("/transactions/vouchers") },
@@ -104,35 +119,13 @@ export default function VoucherList() {
     );
   });
 
-  // Augment rows with rendered fields for DataTable
-  const tableRows = filtered.map(v => ({
-    ...v,
-    voucher_number: v.voucher_number || "—",
-    date: formatDate(v.date),
-    party_name: v.party_name || v.narration || "—",
-  }));
-
-  const columns: TableColumn[] = TABLE_COLUMNS.map(col => ({
-    ...col,
-    render: col.key === "voucher_type"
-      ? (row) => <VoucherTypeBadge type={row.voucher_type} />
-      : col.key === "status"
-        ? (row) => <StatusBadge label={row.is_cancelled ? "Cancelled" : "Active"} />
-        : col.key === "actions"
-          ? (row) => (
-              <button
-                onClick={e => { e.stopPropagation(); navigate(`/transactions/voucher/${row.voucher_id}`); }}
-                className="text-[10px] text-zinc-500 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-400 px-1.5 py-0.5 rounded transition-all font-sans uppercase opacity-0 group-hover:opacity-100"
-              >
-                View
-              </button>
-            )
-          : undefined,
-  }));
+  const handleRowClick = (idx: number) => {
+    setSelectedIndex(idx);
+    navigate(`/transactions/voucher/${filtered[idx].voucher_id}`);
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
-      {/* Title Bar */}
       <PageTitleBar
         title="Voucher Register"
         subtitle={selectedCompany?.name}
@@ -146,11 +139,8 @@ export default function VoucherList() {
         }
       />
 
-      {/* Main Body Layout */}
       <div className="flex-1 flex min-h-0">
-        {/* Left Side: Table & Filters */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Type Filter Tabs */}
           <div className="flex border-b border-zinc-200 bg-zinc-50 overflow-x-auto shrink-0">
             {["All", ...VOUCHER_TYPES].map(type => (
               <button
@@ -167,7 +157,6 @@ export default function VoucherList() {
             ))}
           </div>
 
-          {/* Search Bar */}
           <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50/50">
             <SearchInput
               value={search}
@@ -177,32 +166,77 @@ export default function VoucherList() {
             />
           </div>
 
-          {/* Error Banner */}
           {error && (
             <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />
           )}
 
-          {/* Table */}
-          <DataTable
-            columns={columns}
-            rows={tableRows}
-            rowKey={row => row.voucher_id}
-            loading={loading}
-            onRowClick={row => navigate(`/transactions/voucher/${row.voucher_id}`)}
-            emptyMessage={
-              vouchers.length === 0
-                ? "No vouchers found. Create your first voucher."
-                : "No results match your search."
-            }
-            rowClassName={row => row.is_cancelled ? "opacity-50" : "group"}
-          />
+          {/* Tally-style table */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {loading && (
+              <div className="px-3 py-8 text-center text-zinc-400 italic text-xs">Loading…</div>
+            )}
+
+            {!loading && filtered.length === 0 && (
+              <div className="px-3 py-8 text-center text-zinc-400 italic text-xs">
+                {vouchers.length === 0 ? "No vouchers found. Create your first voucher." : "No results match your search."}
+              </div>
+            )}
+
+            {!loading && filtered.length > 0 && (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-zinc-300">
+                    <th className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[10%]">Date</th>
+                    <th className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[35%]">Particulars</th>
+                    <th className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[15%]">Vch Type</th>
+                    <th className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[10%]">Vch No.</th>
+                    <th className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[15%]">Debit Amount</th>
+                    <th className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[15%]">Credit Amount</th>
+                  </tr>
+                  <tr className="border-b border-zinc-300">
+                    <th className="px-3 py-0.5"></th>
+                    <th className="px-3 py-0.5"></th>
+                    <th className="px-3 py-0.5"></th>
+                    <th className="px-3 py-0.5"></th>
+                    <th className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5">Inwards Qty</th>
+                    <th className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5">Outwards Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((v, idx) => {
+                    const isSelected = idx === selectedIndex;
+                    return (
+                      <tr
+                        key={v.voucher_id}
+                        onClick={() => handleRowClick(idx)}
+                        className={`border-b border-zinc-100 cursor-pointer transition-colors ${
+                          isSelected
+                            ? "bg-zinc-100"
+                            : "hover:bg-zinc-50"
+                        } ${v.is_cancelled ? "opacity-50" : ""}`}
+                      >
+                        <td className="px-3 py-1.5 text-zinc-800 text-[12px]">{formatDate(v.date)}</td>
+                        <td className="px-3 py-1.5 font-bold text-zinc-900 text-[12px]">{v.party_name || v.narration || "—"}</td>
+                        <td className={`px-3 py-1.5 text-right text-[12px] ${idx === 0 ? "font-bold text-zinc-900" : "text-zinc-700"}`}>{v.voucher_type}</td>
+                        <td className="px-3 py-1.5 text-right text-zinc-700 text-[12px]">{v.voucher_number || "—"}</td>
+                        <td className={`px-3 py-1.5 text-right text-[12px] ${v.debit_amount ? "font-bold text-zinc-900" : "text-zinc-400"}`}>
+                          {v.debit_amount ? formatAmount(v.debit_amount) : ""}
+                        </td>
+                        <td className="px-3 py-1.5 text-right text-[12px] text-zinc-700">
+                          {v.credit_amount ? formatAmount(v.credit_amount) : ""}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
 
-        {/* Right Side: Action Panel */}
         <RightActionPanel actions={listActions} />
       </div>
 
-      {/* Footer */}
       <PageFooterBar
         countLabel={`${filtered.length} voucher${filtered.length !== 1 ? "s" : ""}`}
         onBack={() => navigate("/")}

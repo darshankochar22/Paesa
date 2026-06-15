@@ -184,7 +184,7 @@ export default function TDSNatureOfPaymentCOA() {
                           <span className="font-semibold text-zinc-800">{node.is_zero_rated === 1 ? "Yes" : "No"}</span>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-zinc-400">Threshold/Exemption Limit:</span>{" "}
+                          <span className="text-zinc-400">Threshold/exemption limit:</span>{" "}
                           <span className="font-semibold text-zinc-800">{node.threshold_limit ?? 0}</span>
                         </div>
                       </div>

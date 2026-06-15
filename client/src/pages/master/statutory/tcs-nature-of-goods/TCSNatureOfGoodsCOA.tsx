@@ -183,15 +183,15 @@ export default function TCSNatureOfGoodsCOA() {
                           <span className="font-bold text-zinc-800">{node.rate_other_without_pan ?? 0}%</span>
                         </div>
                         <div>
-                          <span className="text-zinc-400">Is own PAN available?:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.is_own_status === 1 ? "Yes" : "No"}</span>
+                          <span className="text-zinc-400">Is zero rated?:</span>{" "}
+                          <span className="font-semibold text-zinc-800">{node.is_zero_rated === 1 ? "Yes" : "No"}</span>
                         </div>
                         <div>
                           <span className="text-zinc-400">Tax calculation basis:</span>{" "}
                           <span className="font-semibold text-zinc-800">{node.tax_on_receipt_or_realization || "Tax Calculated on Receipt"}</span>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-zinc-400">Threshold/Reservation Limit:</span>{" "}
+                          <span className="text-zinc-400">Threshold/exemption limit:</span>{" "}
                           <span className="font-semibold text-zinc-800">{node.threshold_level ?? 0}</span>
                         </div>
                       </div>

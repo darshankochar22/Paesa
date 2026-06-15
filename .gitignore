@@ -3,6 +3,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+AGENTS.md
 
 # Logs
 logs/
@@ -49,6 +50,3 @@ coverage/
 *.orig
 *.rej
 *.patch
-
-package.json
-package-lock.json

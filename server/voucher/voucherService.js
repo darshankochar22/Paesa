@@ -760,7 +760,22 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
   getAll: async (company_id, fy_id) => {
     try {
       const result = await db.execute({
-        sql: `SELECT * FROM vouchers WHERE company_id = ? AND fy_id = ? AND is_cancelled = 0 ORDER BY date DESC, voucher_id DESC`,
+        sql: `SELECT v.*,
+                COALESCE((SELECT SUM(amount) FROM voucher_entries WHERE voucher_id = v.voucher_id AND type = 'Dr'), 0) AS debit_amount,
+                COALESCE((SELECT SUM(amount) FROM voucher_entries WHERE voucher_id = v.voucher_id AND type = 'Cr'), 0) AS credit_amount,
+                CASE
+                  WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
+                  THEN COALESCE((SELECT SUM(quantity) FROM voucher_stock_entries WHERE voucher_id = v.voucher_id), 0)
+                  ELSE 0
+                END AS inwards_qty,
+                CASE
+                  WHEN v.voucher_type IN ('Sales','Delivery Note','Rejection Out','Material Out')
+                  THEN COALESCE((SELECT SUM(quantity) FROM voucher_stock_entries WHERE voucher_id = v.voucher_id), 0)
+                  ELSE 0
+                END AS outwards_qty
+              FROM vouchers v
+              WHERE v.company_id = ? AND v.fy_id = ? AND v.is_cancelled = 0
+              ORDER BY v.date DESC, v.voucher_id DESC`,
         args: [company_id, fy_id],
       });
       return { success: true, vouchers: result.rows };
@@ -833,14 +848,29 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         sql: `SELECT * FROM voucher_debit_note_details WHERE voucher_id = ?`,
         args: [id],
       });
-      const payrollEntries = await db.execute({
-        sql: `SELECT pe.*, emp.name as employee_name, emp.employee_code AS employee_number, ph.name as pay_head_name
-              FROM voucher_payroll_entries pe
-              LEFT JOIN employees emp ON emp.employee_id = pe.employee_id
-              LEFT JOIN pay_heads ph ON ph.pay_head_id = pe.pay_head_id
-              WHERE pe.voucher_id = ?`,
-        args: [id],
-      });
+      let payrollEntries = { rows: [] };
+      try {
+        payrollEntries = await db.execute({
+          sql: `SELECT pe.*, emp.name as employee_name, emp.employee_code AS employee_number, ph.name as pay_head_name
+                FROM voucher_payroll_entries pe
+                LEFT JOIN employees emp ON emp.employee_id = pe.employee_id
+                LEFT JOIN pay_heads ph ON ph.pay_head_id = pe.pay_head_id
+                WHERE pe.voucher_id = ?`,
+          args: [id],
+        });
+      } catch (_) {
+        try {
+          payrollEntries = await db.execute({
+            sql: `SELECT pe.*, emp.name as employee_name, emp.employee_code AS employee_number
+                  FROM voucher_payroll_entries pe
+                  LEFT JOIN employees emp ON emp.employee_id = pe.employee_id
+                  WHERE pe.voucher_id = ?`,
+            args: [id],
+          });
+        } catch (_) {
+          payrollEntries = { rows: [] };
+        }
+      }
 
       return {
         success: true,
@@ -867,14 +897,29 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
 
   getDaybook: async (company_id, fy_id, from_date, to_date) => {
     try {
-      let query = `SELECT * FROM vouchers WHERE company_id = ? AND fy_id = ? AND is_cancelled = 0`;
-      const params = [company_id, fy_id];
-
-      if (from_date) { query += ` AND date >= ?`; params.push(from_date); }
-      if (to_date)   { query += ` AND date <= ?`; params.push(to_date); }
-      query += ` ORDER BY date ASC`;
-
-      const result = await db.execute({ sql: query, args: params });
+      const today = new Date().toISOString().split('T')[0];
+      const from = from_date || today;
+      const to = to_date || today;
+      const result = await db.execute({
+        sql: `SELECT v.*,
+                COALESCE((SELECT SUM(amount) FROM voucher_entries WHERE voucher_id = v.voucher_id AND type = 'Dr'), 0) AS debit_amount,
+                COALESCE((SELECT SUM(amount) FROM voucher_entries WHERE voucher_id = v.voucher_id AND type = 'Cr'), 0) AS credit_amount,
+                CASE
+                  WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
+                  THEN COALESCE((SELECT SUM(quantity) FROM voucher_stock_entries WHERE voucher_id = v.voucher_id), 0)
+                  ELSE 0
+                END AS inwards_qty,
+                CASE
+                  WHEN v.voucher_type IN ('Sales','Delivery Note','Rejection Out','Material Out')
+                  THEN COALESCE((SELECT SUM(quantity) FROM voucher_stock_entries WHERE voucher_id = v.voucher_id), 0)
+                  ELSE 0
+                END AS outwards_qty
+              FROM vouchers v
+              WHERE v.company_id = ? AND v.fy_id = ? AND v.is_cancelled = 0
+              AND v.date >= ? AND v.date <= ?
+              ORDER BY v.date ASC, v.voucher_id ASC`,
+        args: [company_id, fy_id, from, to],
+      });
       return { success: true, vouchers: result.rows };
     } catch (err) {
       return { success: false, error: err.message };
@@ -884,7 +929,22 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
   getByType: async (company_id, fy_id, voucher_type) => {
     try {
       const result = await db.execute({
-        sql: `SELECT * FROM vouchers WHERE company_id = ? AND fy_id = ? AND voucher_type = ? AND is_cancelled = 0 ORDER BY date DESC, voucher_id DESC`,
+        sql: `SELECT v.*,
+                COALESCE((SELECT SUM(amount) FROM voucher_entries WHERE voucher_id = v.voucher_id AND type = 'Dr'), 0) AS debit_amount,
+                COALESCE((SELECT SUM(amount) FROM voucher_entries WHERE voucher_id = v.voucher_id AND type = 'Cr'), 0) AS credit_amount,
+                CASE
+                  WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
+                  THEN COALESCE((SELECT SUM(quantity) FROM voucher_stock_entries WHERE voucher_id = v.voucher_id), 0)
+                  ELSE 0
+                END AS inwards_qty,
+                CASE
+                  WHEN v.voucher_type IN ('Sales','Delivery Note','Rejection Out','Material Out')
+                  THEN COALESCE((SELECT SUM(quantity) FROM voucher_stock_entries WHERE voucher_id = v.voucher_id), 0)
+                  ELSE 0
+                END AS outwards_qty
+              FROM vouchers v
+              WHERE v.company_id = ? AND v.fy_id = ? AND v.voucher_type = ? AND v.is_cancelled = 0
+              ORDER BY v.date DESC, v.voucher_id DESC`,
         args: [company_id, fy_id, voucher_type],
       });
       return { success: true, vouchers: result.rows };

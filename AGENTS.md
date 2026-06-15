@@ -1,47 +1,120 @@
-# Agent Rules & Safety Guidelines
+# Agent Notes
 
-To ensure the safety, stability, and integrity of this codebase, any AI agent interacting with this repository must strictly adhere to the following rules.
+High-signal guidance for working in this repo. If a fact is obvious from filenames or standard tooling, it is not here.
 
----
+## What this repo is
 
-## 🛡️ Codebase Preservation & Safety
+Electron desktop app (accounting/ERP). The Electron main process loads a React + Vite frontend and a Node.js backend that talks to a local SQLite DB via IPC.
 
-1. **Precise & Minimal Edits**
-   * Do not rewrite entire files if only small changes are needed. Always use targeted replacements (`replace_file_content` or `multi_replace_file_content`).
-   * Preserve all existing comments, docstrings, formatting, and structure unless they are directly related to the requested change.
+- `main.js` / `preload.js` — Electron main process and IPC bridge
+- `client/` — React + TypeScript + Vite frontend
+- `server/` — CommonJS backend loaded into the Electron main process
 
-2. **No Placeholders or Truncated Code**
-   * Never output partial code blocks, generic `// TODO` comments, or `...` placeholders that replace existing functional code.
-   * Every line of code written must be complete, syntactically valid, and fully operational.
+## Setup
 
-3. **Incremental Development**
-   * Implement complex tasks in small, logical, and self-contained steps.
-   * Verify each step before moving on to the next one to avoid compounding errors.
+Install deps in **both** root and client:
 
-4. **Verify Imports and Dependencies**
-   * When modifying or introducing files, ensure all import paths are correct and resolve successfully.
-   * Respect standard import patterns and TypeScript `type` imports (`import type { ... }`) to comply with `verbatimModuleSyntax` as established in this project.
+```bash
+npm i              # root Electron + backend deps
+npm i --prefix client
+```
 
----
+> Note: `.gitignore` currently ignores `package.json` and `package-lock.json`. Do not treat that as license to delete them.
 
-## 🛠️ Verification & Quality Assurance
+## Running locally
 
-1. **Compilation & Static Checks**
-   * After making changes, always run the appropriate build or compilation commands (e.g., `npm run build` or type checks) to ensure that no typescript errors or broken imports are introduced.
-   * Ensure that the client app and server processes compile cleanly without syntax or type errors.
+```bash
+npm start          # concurrently: Vite dev server + Electron
+```
 
-2. **No Destructive Tool Usage**
-   * Never run destructive shell commands (like `rm -rf` on critical directories, `git clean -fd`, etc.) without explicit user approval.
-   * If a file needs to be deleted, ensure it is completely unused and obsolete before proposing its deletion.
+- Frontend dev server runs on `http://localhost:5173`.
+- Electron loads `http://localhost:5173` in dev; `client/dist/index.html` in production.
+- `main.js` has a typo (`isPacakaged` instead of `app.isPackaged`). Do not "fix" it unless asked — the current build works because production falls through to the `else` branch and loads `client/dist`.
 
----
+## Testing
 
-## 🎨 Architectural Consistency
+Backend integration tests use Jest with an in-memory SQLite DB:
 
-1. **Respect Design Patterns**
-   * Follow the existing folder structure and design patterns. For instance, respect the modular API type definitions under `client/src/types/` and the server route/controller separation.
-   * Do not introduce arbitrary coding styles, styling frameworks, or libraries that diverge from the current technology stack unless specifically instructed by the user.
+```bash
+npm test           # root; sets NODE_ENV=test automatically
+```
 
-2. **Error Handling & Resilience**
-   * All new handlers, utility functions, or API routes must include appropriate `try/catch` blocks, descriptive error logging, and graceful error responses.
-   * Always validate inputs at system boundaries (e.g., IPC channels or API endpoints) to prevent crashes.
+Frontend unit tests use Vitest:
+
+```bash
+cd client && npm test
+```
+
+CI order (`.github/workflows/build-win.yml`): root install → `npm test` → client install → `cd client && npm test` → `cd client && npm run build` → `electron-builder`.
+
+## Build / package
+
+```bash
+npm run build:client      # cd client && npm run build
+npm run dist              # build client + electron-builder
+npm run dist:win          # --win --publish never
+npm run dist:mac          # --mac --publish never
+npm run dist:linux        # --linux --publish never
+```
+
+- `electron-builder` config lives in root `package.json` under `"build"`.
+- `asar: false`; `extraResources` copies the `server/` folder; `files` includes `main.js`, `preload.js`, `server/**/*`, `client/dist/**/*`, `node_modules/**/*`.
+- The packaged app is not a monorepo with separate packages — `server/` has no `package.json`. All Node deps live in root `node_modules`.
+
+## Architecture patterns
+
+### Backend module layout
+
+Each feature under `server/` is split the same way:
+
+```
+server/<feature>/
+  <feature>.js           # schema init: exports { init(db) }
+  <feature>Service.js    # business logic / DB queries
+  <feature>Controller.js # thin wrapper invoked by ipcMain
+```
+
+- Schema tables are created by each module's `init(db)` function, registered in `server/db/index.js`.
+- Controllers are wired to IPC channels in `server/index.js`.
+- Shared DB helpers are in `server/db/dbUtils.js`.
+
+### IPC contract
+
+Three files must stay in sync for every channel:
+
+1. `preload.js` — exposes the channel under `window.api.*`
+2. `server/index.js` — registers `ipcMain.handle('<channel>', controllerFn)`
+3. Frontend call site — invokes `window.api.<namespace>.<method>(...)`
+
+If you add or rename a backend operation, update all three. Existing channel names use the form `namespace:action` (e.g. `company:create`, `voucher:getById`).
+
+### Database
+
+- Runtime DB: SQLite file in the user's Electron `userData` dir (`startup.db`).
+- Test DB: `file::memory:` when `NODE_ENV=test`.
+- Uses `@libsql/client` directly for raw SQL and `drizzle-orm/libsql` via `server/db/dbUtils.js`.
+- No migrations — schema is created by `initDB()` on every app start with `CREATE TABLE IF NOT EXISTS`.
+
+### Frontend
+
+- Vite + React 19 + TypeScript + Tailwind CSS v4.
+- Routing uses `HashRouter` (Electron-friendly).
+- Path alias `@/` maps to `client/src/`. TypeScript `verbatimModuleSyntax` is enabled, so use `import type { ... }` for type-only imports.
+- ESLint config is in `client/eslint.config.js`; several rules are intentionally disabled (`no-explicit-any`, `no-unused-vars`, `react-hooks/exhaustive-deps`, `react-refresh/only-export-components`). Do not re-enable them without a reason.
+- Frontend tests mock `window.api` globally in `client/src/tests/setup.ts`. Add new IPC mocks there when components need them.
+
+## TypeScript conventions
+
+- `verbatimModuleSyntax: true` — use `import type { Foo }` when `Foo` is only a type.
+- `strictNullChecks: false` and `noImplicitAny: false` in the client app config.
+- Backend is plain CommonJS JavaScript, not TypeScript.
+
+## Editing rules
+
+- Make minimal, targeted edits. Do not rewrite whole files for small changes.
+- Never leave placeholders, `// TODO`, or truncated code in place of working logic.
+- Preserve existing formatting, comments, and file structure unless the change directly touches them.
+- After changes, run the relevant verification:
+  - Backend changes: `npm test`
+  - Client changes: `cd client && npm run build` and `cd client && npm test`
+- Do not run destructive commands (`rm -rf`, `git clean -fd`, etc.) without explicit approval.

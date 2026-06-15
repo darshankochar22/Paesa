@@ -24,12 +24,14 @@ describe("TCS Nature of Goods Service Tests", () => {
       is_own_status: 1,
       tax_on_receipt_or_realization: "Tax Calculated on Realization",
       threshold_level: 50000,
+      is_zero_rated: 0,
     };
 
     const result = await tcsService.create(data);
     expect(result.success).toBe(true);
     expect(result.tcsNatureOfGoods).toBeDefined();
     expect(result.tcsNatureOfGoods.tcs_id).toBeDefined();
+    expect(result.tcsNatureOfGoods.is_zero_rated).toBe(0);
     tcsId = result.tcsNatureOfGoods.tcs_id;
   });
 
@@ -49,10 +51,12 @@ describe("TCS Nature of Goods Service Tests", () => {
     const updateData = {
       tcs_id: tcsId,
       rate_individual_without_pan: 6.0,
+      is_zero_rated: 1,
     };
     const result = await tcsService.update(updateData);
     expect(result.success).toBe(true);
     expect(result.tcsNatureOfGoods.rate_individual_without_pan).toBe(6.0);
+    expect(result.tcsNatureOfGoods.is_zero_rated).toBe(1);
   });
 
   it("should delete TCS Nature of Goods", async () => {

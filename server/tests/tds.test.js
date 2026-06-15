@@ -28,6 +28,7 @@ describe("TDS Nature of Payment Service Tests", () => {
     expect(result.success).toBe(true);
     expect(result.tdsNatureOfPayment).toBeDefined();
     expect(result.tdsNatureOfPayment.tds_id).toBeDefined();
+    expect(result.tdsNatureOfPayment.is_zero_rated).toBe(0);
     tdsId = result.tdsNatureOfPayment.tds_id;
   });
 
@@ -47,10 +48,12 @@ describe("TDS Nature of Payment Service Tests", () => {
     const updateData = {
       tds_id: tdsId,
       rate_other_with_pan: 12,
+      is_zero_rated: 1,
     };
     const result = await tdsService.update(updateData);
     expect(result.success).toBe(true);
     expect(result.tdsNatureOfPayment.rate_other_with_pan).toBe(12);
+    expect(result.tdsNatureOfPayment.is_zero_rated).toBe(1);
   });
 
   it("should delete TDS Nature of Payment", async () => {

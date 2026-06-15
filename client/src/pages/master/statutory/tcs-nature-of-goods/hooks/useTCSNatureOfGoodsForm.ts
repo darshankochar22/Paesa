@@ -12,8 +12,9 @@ export interface FormData {
   rate_other_with_pan: string;
   rate_other_without_pan: string;
   is_own_status: "No" | "Yes";
-  tax_on_receipt_or_realization: "Tax Calculated on Receipt" | "Tax Calculated on Realization";
+  tax_on_receipt_or_realization: "No" | "Yes";
   threshold_level: string;
+  is_zero_rated: "No" | "Yes";
 }
 
 export const INITIAL_FORM: FormData = {
@@ -25,8 +26,9 @@ export const INITIAL_FORM: FormData = {
   rate_other_with_pan: "0",
   rate_other_without_pan: "0",
   is_own_status: "No",
-  tax_on_receipt_or_realization: "Tax Calculated on Receipt",
+  tax_on_receipt_or_realization: "No",
   threshold_level: "0",
+  is_zero_rated: "No",
 };
 
 interface UseTCSNatureOfGoodsFormOptions {
@@ -108,8 +110,9 @@ export function useTCSNatureOfGoodsForm({ mode }: UseTCSNatureOfGoodsFormOptions
         rate_other_with_pan: String(record.rate_other_with_pan ?? 0),
         rate_other_without_pan: String(record.rate_other_without_pan ?? 0),
         is_own_status: record.is_own_status === 1 ? "Yes" : "No",
-        tax_on_receipt_or_realization: (record.tax_on_receipt_or_realization as any) || "Tax Calculated on Receipt",
+        tax_on_receipt_or_realization: record.tax_on_receipt_or_realization === "Tax Calculated on Realization" ? "Yes" : "No",
         threshold_level: String(record.threshold_level ?? 0),
+        is_zero_rated: record.is_zero_rated === 1 ? "Yes" : "No",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load selected TCS Nature of Goods.");
@@ -154,18 +157,20 @@ export function useTCSNatureOfGoodsForm({ mode }: UseTCSNatureOfGoodsFormOptions
     setLoading(true);
     setError(null);
     try {
+      const isZero = form.is_zero_rated === "Yes";
       const data: any = {
         company_id: companyId,
         name: form.name.trim(),
         section: form.section.trim() || undefined,
         payment_code: form.payment_code.trim() || undefined,
-        rate_individual_with_pan: Number(form.rate_individual_with_pan) || 0,
-        rate_individual_without_pan: Number(form.rate_individual_without_pan) || 0,
-        rate_other_with_pan: Number(form.rate_other_with_pan) || 0,
-        rate_other_without_pan: Number(form.rate_other_without_pan) || 0,
+        rate_individual_with_pan: isZero ? 0 : (Number(form.rate_individual_with_pan) || 0),
+        rate_individual_without_pan: isZero ? 0 : (Number(form.rate_individual_without_pan) || 0),
+        rate_other_with_pan: isZero ? 0 : (Number(form.rate_other_with_pan) || 0),
+        rate_other_without_pan: isZero ? 0 : (Number(form.rate_other_without_pan) || 0),
         is_own_status: form.is_own_status === "Yes" ? 1 : 0,
-        tax_on_receipt_or_realization: form.tax_on_receipt_or_realization,
+        tax_on_receipt_or_realization: form.tax_on_receipt_or_realization === "Yes" ? "Tax Calculated on Realization" : "Tax Calculated on Receipt",
         threshold_level: Number(form.threshold_level) || 0,
+        is_zero_rated: isZero ? 1 : 0,
         is_predefined: mode === "create" ? 0 : selectedTcs?.is_predefined ?? 0,
         is_active: mode === "create" ? 1 : selectedTcs?.is_active ?? 1,
       };

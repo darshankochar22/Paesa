@@ -11,6 +11,7 @@ export interface TCSNatureOfGoodsType {
   is_own_status?: number;
   tax_on_receipt_or_realization?: string;
   threshold_level?: number;
+  is_zero_rated?: number;
   is_predefined?: number;
   is_active?: number;
   created_at?: string;

@@ -15,8 +15,8 @@ module.exports = {
           rate_individual_with_pan, rate_individual_without_pan,
           rate_other_with_pan, rate_other_without_pan,
           is_own_status, tax_on_receipt_or_realization,
-          threshold_level, is_predefined, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
+          threshold_level, is_zero_rated, is_predefined, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
         [
           data.company_id,
           data.name,
@@ -29,6 +29,7 @@ module.exports = {
           data.is_own_status ?? 0,
           data.tax_on_receipt_or_realization || 'Tax Calculated on Receipt',
           data.threshold_level ?? 0,
+          data.is_zero_rated ?? 0,
         ]
       );
 
@@ -91,6 +92,7 @@ module.exports = {
           is_own_status = ?,
           tax_on_receipt_or_realization = ?,
           threshold_level = ?,
+          is_zero_rated = ?,
           updated_at = datetime('now')
         WHERE tcs_id = ?`,
         [
@@ -104,6 +106,7 @@ module.exports = {
           data.is_own_status ?? c.is_own_status,
           data.tax_on_receipt_or_realization ?? c.tax_on_receipt_or_realization,
           data.threshold_level ?? c.threshold_level,
+          data.is_zero_rated ?? c.is_zero_rated,
           data.tcs_id,
         ]
       );

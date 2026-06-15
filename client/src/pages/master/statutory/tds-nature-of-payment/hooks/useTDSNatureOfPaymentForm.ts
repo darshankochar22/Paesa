@@ -146,15 +146,16 @@ export function useTDSNatureOfPaymentForm({ mode }: UseTDSNatureOfPaymentFormOpt
     setLoading(true);
     setError(null);
     try {
+      const isZero = form.is_zero_rated === "Yes";
       const data: any = {
         company_id: companyId,
         name: form.name.trim(),
         section: form.section.trim() || undefined,
         payment_code: form.payment_code.trim() || undefined,
         remittance_code: form.remittance_code.trim() || undefined,
-        rate_individual_with_pan: Number(form.rate_individual_with_pan) || 0,
-        rate_other_with_pan: Number(form.rate_other_with_pan) || 0,
-        is_zero_rated: form.is_zero_rated === "Yes" ? 1 : 0,
+        rate_individual_with_pan: isZero ? 0 : (Number(form.rate_individual_with_pan) || 0),
+        rate_other_with_pan: isZero ? 0 : (Number(form.rate_other_with_pan) || 0),
+        is_zero_rated: isZero ? 1 : 0,
         threshold_limit: Number(form.threshold_limit) || 0,
         is_predefined: mode === "create" ? 0 : selectedTds?.is_predefined ?? 0,
         is_active: mode === "create" ? 1 : selectedTds?.is_active ?? 1,

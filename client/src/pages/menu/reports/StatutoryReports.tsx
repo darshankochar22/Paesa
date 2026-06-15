@@ -19,7 +19,7 @@ export default function StatutoryReports() {
     }
   ];
 
-  const getRoute = (section: string, item: string) => {
+  const getRoute = (_section: string, item: string) => {
     if (item === "GST Reports") {
       return "/reports/statutory/gst";
     }
