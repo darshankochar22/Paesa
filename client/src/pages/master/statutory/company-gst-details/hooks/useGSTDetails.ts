@@ -33,6 +33,7 @@ export const DEFAULT_GST_DETAILS: CompanyGSTDetails = {
   showGSTAdvances: false,
   updateGSTStatus: false,
   gstReturnsConfigured: false,
+  effectiveDate: "1-Apr-26",
   gstClassification: "",
   setStateWiseThresholdLimit: false,
   gstAdvancesApplicableFrom: "",
@@ -66,6 +67,7 @@ function sanitizeForm(raw: Partial<CompanyGSTDetails>): CompanyGSTDetails {
       ? 50000
       : Number(base.intrastateThresholdLimit),
     setStateWiseThresholdLimit: !!base.setStateWiseThresholdLimit,
+    effectiveDate: base.effectiveDate || "1-Apr-26",
   };
 }
 

@@ -57,6 +57,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   const [secondaryOpen, setSecondaryOpen] = useState(false);
   const [showSlabOverlay, setShowSlabOverlay] = useState(false);
   const [showEffectiveDatePrompt, setShowEffectiveDatePrompt] = useState(false);
+  const [effectiveDateTriggerContext, setEffectiveDateTriggerContext] = useState<"field" | "save">("save");
   const [showStateWiseModal, setShowStateWiseModal] = useState(false);
   const [slabRows, setSlabRows] = useState<SlabRow[]>([]);
 
@@ -178,16 +179,24 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   };
 
   /** Move keyboard focus one step forward (+1) or backward (-1) */
-  const moveFocus = (direction: 1 | -1) => {
+  const moveFocus = (direction: 1 | -1, bypassPrompt = false) => {
     const fields = getFocusableFields();
     let index = fields.indexOf(activeField);
     if (index === -1) {
       setActiveField(fields[0]);
       return;
     }
+
+    if (direction === 1 && activeField === "description" && !bypassPrompt) {
+      setEffectiveDateTriggerContext("field");
+      setShowEffectiveDatePrompt(true);
+      return;
+    }
+
     index += direction;
     if (index >= fields.length) {
-      setShowAcceptPrompt(true);
+      setEffectiveDateTriggerContext("save");
+      setShowEffectiveDatePrompt(true);
     } else if (index < 0) {
       setActiveField(fields[0]);
     } else {
@@ -210,6 +219,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         setField("hsnSacCode", "");
         setField("description", "");
       } else if (val === "Specify in Voucher") {
+        setEffectiveDateTriggerContext("field");
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
@@ -232,6 +242,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         setActiveField("gstClassification");
         return;
       } else if (val === "Specify in Voucher") {
+        setEffectiveDateTriggerContext("field");
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
@@ -248,6 +259,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     } else if (fieldId === "createHSNSummaryFor") {
       setField("createHSNSummaryFor", val);
       if (val === "None") {
+        setEffectiveDateTriggerContext("field");
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
@@ -263,6 +275,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       }
     } else if (fieldId === "minimumHSNLength") {
       setField("minimumHSNLength", Number(val) || 4);
+      setEffectiveDateTriggerContext("field");
       setListPanelOpen(false);
       setTimeout(() => setShowEffectiveDatePrompt(true), 50);
       return;
@@ -352,10 +365,11 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         return;
       }
 
-      // Ctrl+A / Alt+A — immediately show accept prompt
+      // Ctrl+A / Alt+A — immediately show effective date prompt
       if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        setShowAcceptPrompt(true);
+        setEffectiveDateTriggerContext("save");
+        setShowEffectiveDatePrompt(true);
         return;
       }
 
@@ -508,7 +522,10 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
                 Quit
               </button>
               <button
-                onClick={() => setShowAcceptPrompt(true)}
+                onClick={() => {
+                  setEffectiveDateTriggerContext("save");
+                  setShowEffectiveDatePrompt(true);
+                }}
                 disabled={loading}
                 className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
               >
@@ -569,11 +586,14 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       {/* ── Effective Date Prompt overlay ─────────────────────────────────── */}
       <GSTEffectiveDatePrompt
         isOpen={showEffectiveDatePrompt}
-        onAccept={(_dateStr) => {
-          // For now, we don't persist the effective date in the DB as there is no column,
-          // but we accept it and advance focus.
+        onAccept={(dateStr) => {
           setShowEffectiveDatePrompt(false);
-          moveFocus(1);
+          if (effectiveDateTriggerContext === "field") {
+            moveFocus(1, true);
+          } else {
+            setField("effectiveDate", dateStr);
+            setShowAcceptPrompt(true);
+          }
         }}
         onClose={() => setShowEffectiveDatePrompt(false)}
       />

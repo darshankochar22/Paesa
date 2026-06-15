@@ -25,6 +25,7 @@ const get = async (company_id) => {
           showGSTAdvances: false,
           updateGSTStatus: false,
           gstReturnsConfigured: false,
+          effectiveDate: '1-Apr-26',
         },
       };
     }
@@ -47,6 +48,7 @@ const get = async (company_id) => {
         showGSTAdvances: record.show_gst_advances === 1,
         updateGSTStatus: record.update_gst_status === 1,
         gstReturnsConfigured: record.gst_returns_configured === 1,
+        effectiveDate: record.effective_date || '1-Apr-26',
       },
     };
   } catch (err) {
@@ -85,6 +87,7 @@ const save = async (data) => {
                 show_gst_advances = ?,
                 update_gst_status = ?,
                 gst_returns_configured = ?,
+                effective_date = ?,
                 updated_at = datetime('now')
               WHERE company_id = ?`,
         args: [
@@ -101,6 +104,7 @@ const save = async (data) => {
           data.showGSTAdvances ? 1 : 0,
           data.updateGSTStatus ? 1 : 0,
           data.gstReturnsConfigured ? 1 : 0,
+          data.effectiveDate || '1-Apr-26',
           company_id,
         ],
       });
@@ -121,8 +125,9 @@ const save = async (data) => {
                 minimum_hsn_length,
                 show_gst_advances,
                 update_gst_status,
-                gst_returns_configured
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                gst_returns_configured,
+                effective_date
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           company_id,
           data.hsnSacType,
@@ -138,6 +143,7 @@ const save = async (data) => {
           data.showGSTAdvances ? 1 : 0,
           data.updateGSTStatus ? 1 : 0,
           data.gstReturnsConfigured ? 1 : 0,
+          data.effectiveDate || '1-Apr-26',
         ],
       });
     }

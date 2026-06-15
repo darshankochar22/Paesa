@@ -11,6 +11,7 @@ const PRESET_DATES = [
   { label: "1-Apr-26", desc: "Date of Last Entry" },
   { label: "13-Jun-26", desc: "Today (Computer Date)" },
   { label: "14-Jun-26", desc: "Tomorrow (Computer Date)" },
+  { label: "New Effective Date", desc: "Specify custom date" },
 ];
 
 export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GSTEffectiveDatePromptProps) {
@@ -53,9 +54,14 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
       if (e.key === "Enter") {
         e.preventDefault();
         if (listOpen) {
-          // If list is open, we can just accept the current input text or the selected list item
-          // Tally usually takes the input text if it was modified, else the selected list item
-          onAccept(date);
+          const opt = PRESET_DATES[selectedIndex];
+          if (opt.label === "New Effective Date") {
+            setDate("");
+            setListOpen(false);
+            inputRef.current?.focus();
+          } else {
+            onAccept(opt.label);
+          }
         } else {
           onAccept(date);
         }
@@ -110,7 +116,14 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
               <span>List of Effective Dates</span>
             </div>
 
-            <div className="flex justify-end px-3 pt-1">
+            <div 
+              className="flex justify-end px-3 pt-1 cursor-pointer hover:underline decoration-zinc-400"
+              onClick={() => {
+                setDate("");
+                setListOpen(false);
+                inputRef.current?.focus();
+              }}
+            >
               <span className="text-[10px] italic text-zinc-600 font-sans">New Effective Date</span>
             </div>
 
@@ -118,13 +131,21 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
               {PRESET_DATES.map((opt, index) => (
                 <div
                   key={index}
-                  onClick={() => onAccept(opt.label)}
+                  onClick={() => {
+                    if (opt.label === "New Effective Date") {
+                      setDate("");
+                      setListOpen(false);
+                      inputRef.current?.focus();
+                    } else {
+                      onAccept(opt.label);
+                    }
+                  }}
                   className={`px-3 py-1 cursor-pointer flex justify-between font-mono text-[11px] ${index === selectedIndex
                     ? "bg-[#ffb62b] text-black font-bold" // Tally yellow highlight
                     : "hover:bg-zinc-100 text-zinc-900"
                     }`}
                 >
-                  <span className="w-20">{opt.label}</span>
+                  <span className="w-24 truncate">{opt.label}</span>
                   <span className="text-right italic text-zinc-700">{opt.desc}</span>
                 </div>
               ))}
