@@ -10,6 +10,7 @@ const init = async (db) => {
       is_predefined             INTEGER DEFAULT 0,
       nature                    TEXT,
       set_alter_tds_details    INTEGER DEFAULT 0,
+      set_alter_tcs_details    INTEGER DEFAULT 0,
       behaves_like_subledger    INTEGER DEFAULT 0,
       show_net_debit_credit     INTEGER DEFAULT 0,
       used_for_calculation      INTEGER DEFAULT 0,

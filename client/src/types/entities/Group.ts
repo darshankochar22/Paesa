@@ -8,6 +8,7 @@ export interface GroupType {
   is_predefined?: number;
   nature?: string;
   set_alter_tds_details?: number;
+  set_alter_tcs_details?: number;
   behaves_like_subledger?: number;
   show_net_debit_credit?: number;
   used_for_calculation?: number;

@@ -4,6 +4,8 @@ import { useCompany } from "@/context/CompanyContext";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import GroupFlatList from "@/components/GroupFlatList";
 import type { GroupType } from "@/types/api";
+import NatureOfPaymentDetailsModal from "./NatureOfPaymentDetailsModal";
+import NatureOfGoodsDetailsModal from "./NatureOfGoodsDetailsModal";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -30,6 +32,7 @@ const INITIAL_FORM: Partial<GroupType> = {
     is_primary: 0,
     nature: "Assets",
     set_alter_tds_details: 0,
+    set_alter_tcs_details: 0,
     behaves_like_subledger: 0,
     show_net_debit_credit: 0,
     used_for_calculation: 0,
@@ -48,6 +51,8 @@ export default function GroupCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
+  const [showTdsModal, setShowTdsModal] = useState(false);
+  const [showTcsModal, setShowTcsModal] = useState(false);
 
   const [form, setForm] = useState<Partial<GroupType>>(
     () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
@@ -66,14 +71,14 @@ export default function GroupCreate() {
   // Escape key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !showGroupPanel) {
+      if (e.key === "Escape" && !showGroupPanel && !showTdsModal && !showTcsModal) {
         e.preventDefault();
         navigate("/master/create");
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showGroupPanel, navigate]);
+  }, [showGroupPanel, showTdsModal, showTcsModal, navigate]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -140,6 +145,26 @@ export default function GroupCreate() {
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const toggleField = (key: keyof GroupType) => () => {
+    if (key === "set_alter_tds_details") {
+      setForm((f) => {
+        const newVal = f[key] ? 0 : 1;
+        if (newVal === 1) {
+          setTimeout(() => setShowTdsModal(true), 0);
+        }
+        return { ...f, [key]: newVal };
+      });
+      return;
+    }
+    if (key === "set_alter_tcs_details") {
+      setForm((f) => {
+        const newVal = f[key] ? 0 : 1;
+        if (newVal === 1) {
+          setTimeout(() => setShowTcsModal(true), 0);
+        }
+        return { ...f, [key]: newVal };
+      });
+      return;
+    }
     setForm((f) => ({ ...f, [key]: f[key] ? 0 : 1 }));
   };
 
@@ -163,6 +188,7 @@ export default function GroupCreate() {
         is_primary: form.parent_group_id ? 0 : 1,
         nature: form.nature || undefined,
         set_alter_tds_details: form.set_alter_tds_details ? 1 : 0,
+        set_alter_tcs_details: form.set_alter_tcs_details ? 1 : 0,
         behaves_like_subledger: form.behaves_like_subledger ? 1 : 0,
         show_net_debit_credit: form.show_net_debit_credit ? 1 : 0,
         used_for_calculation: form.used_for_calculation ? 1 : 0,
@@ -183,6 +209,7 @@ export default function GroupCreate() {
           is_primary: 0,
           nature: capital?.nature || "Liabilities",
           set_alter_tds_details: 0,
+          set_alter_tcs_details: 0,
           behaves_like_subledger: 0,
           show_net_debit_credit: 0,
           used_for_calculation: 0,
@@ -274,6 +301,9 @@ export default function GroupCreate() {
             <Row label="Set/Alter TDS details" onClick={toggleField("set_alter_tds_details")}>
               <span className="text-sm py-1">{form.set_alter_tds_details ? "Yes" : "No"}</span>
             </Row>
+            <Row label="Set/Alter TCS details" onClick={toggleField("set_alter_tcs_details")}>
+              <span className="text-sm py-1">{form.set_alter_tcs_details ? "Yes" : "No"}</span>
+            </Row>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
@@ -308,6 +338,18 @@ export default function GroupCreate() {
           />
         </div>
       )}
+
+      <NatureOfPaymentDetailsModal
+        isOpen={showTdsModal}
+        onClose={() => setShowTdsModal(false)}
+        companyId={companyId}
+      />
+
+      <NatureOfGoodsDetailsModal
+        isOpen={showTcsModal}
+        onClose={() => setShowTcsModal(false)}
+        companyId={companyId}
+      />
     </div>
   );
 }
