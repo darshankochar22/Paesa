@@ -46,11 +46,14 @@ export default function Gateway() {
       if (item == "Day Book") return "/transactions/daybook";
       if (item == "Banking") return "/utilities/banking";
     }
+    if (section === "Reports") {
+      if (item === "Display More Reports") return "/reports/display-more";
+    }
     return null;
   };
 
   return (
-    <aside className="w-72 min-h-full border flex flex-col px-10 py-10 gap-6">
+    <aside className="w-96 mx-auto mt-10 bg-white border shadow-sm flex flex-col px-10 py-10 gap-6">
 
       <div className="text-xl font-semibold pb-2">
         Gateway of Tally
