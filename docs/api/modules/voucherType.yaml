@@ -1,0 +1,529 @@
+openapi: 3.1.0
+info:
+  title: voucherType module API
+  version: 1.0.0
+  description: >-
+    IPC API contract for the `voucherType` backend module of the Electron +
+    SQLite accounting/ERP application. Each operation maps to an
+    `ipcMain.handle(channel, ...)` registration in server/index.js and is
+    invoked from the renderer via the preload-exposed `window.api.voucherType.*`
+    bindings. HTTP method/path are a documentation convention only; transport is
+    Electron IPC, not HTTP.
+    All handlers resolve with a `{ success: boolean, ... }` envelope; on a thrown
+    error they resolve with `{ success: false, error: string }` rather than
+    rejecting.
+
+paths:
+  /voucherType/create:
+    post:
+      tags: [voucherType]
+      summary: Create a new (user-defined) voucher type and its config row.
+      operationId: voucherType.create
+      x-ipc-channel: "voucherType:create"
+      x-window-api: "window.api.voucherType.create"
+      x-controller: "voucherTypeController.create"
+      description: >-
+        Rejects (success:false) if an active voucher type with the same name
+        (case-insensitive) already exists for the company. Inserts a row into
+        voucher_types (is_predefined forced to 0, is_active forced to 1) and a
+        companion row into voucher_type_configs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoucherTypeCreateInput'
+      responses:
+        '200':
+          description: Result envelope with the created voucher_types row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      voucherType: { $ref: '#/components/schemas/VoucherType' }
+                    required: [success, voucherType]
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Validation/transport error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /voucherType/getAll:
+    post:
+      tags: [voucherType]
+      summary: List all active voucher types for a company (with config flags joined).
+      operationId: voucherType.getAll
+      x-ipc-channel: "voucherType:getAll"
+      x-window-api: "window.api.voucherType.getAll"
+      x-controller: "voucherTypeController.getAll"
+      description: >-
+        Handler receives a bare company_id scalar (NOT an object). Returns active
+        voucher types joined with selected config flags and a derived parent_name
+        (COALESCE(parent.name, vt.name)). Ordered by is_predefined DESC, name ASC.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: integer
+              description: >-
+                The company_id. The IPC handler is invoked with this scalar as
+                arg 2 (window.api.voucherType.getAll(company_id)).
+      responses:
+        '200':
+          description: Result envelope with the list of voucher types.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      voucherTypes:
+                        type: array
+                        items: { $ref: '#/components/schemas/VoucherTypeWithConfigSummary' }
+                    required: [success, voucherTypes]
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Validation/transport error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /voucherType/getById:
+    post:
+      tags: [voucherType]
+      summary: Fetch one voucher type by id, with full config columns joined.
+      operationId: voucherType.getById
+      x-ipc-channel: "voucherType:getById"
+      x-window-api: "window.api.voucherType.getById"
+      x-controller: "voucherTypeController.getById"
+      description: >-
+        Handler receives a bare vt_id scalar. Joins voucher_type_configs for the
+        complete config column set. Returns success:false with error
+        'Voucher Type not found' when no row matches.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: integer
+              description: The vt_id of the voucher type (bare scalar passed as arg 2).
+      responses:
+        '200':
+          description: Result envelope with the voucher type + config columns.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      voucherType: { $ref: '#/components/schemas/VoucherTypeWithFullConfig' }
+                    required: [success, voucherType]
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Validation/transport error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /voucherType/update:
+    post:
+      tags: [voucherType]
+      summary: Update an existing user-defined voucher type.
+      operationId: voucherType.update
+      x-ipc-channel: "voucherType:update"
+      x-window-api: "window.api.voucherType.update"
+      x-controller: "voucherTypeController.update"
+      description: >-
+        Rejects (success:false) when the target row does not exist, or when it is
+        predefined ('Cannot edit predefined voucher types'). Unsupplied fields
+        fall back to the existing stored value via the ?? operator (note:
+        affects_inventory/affects_accounting/affects_gst are always coerced to
+        0/1 from the truthiness of the supplied value, so omitting them sets 0).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoucherTypeUpdateInput'
+      responses:
+        '200':
+          description: Result envelope with the updated voucher_types row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      voucherType: { $ref: '#/components/schemas/VoucherType' }
+                    required: [success, voucherType]
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Validation/transport error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /voucherType/delete:
+    post:
+      tags: [voucherType]
+      summary: Soft-delete a user-defined voucher type (sets is_active = 0).
+      operationId: voucherType.delete
+      x-ipc-channel: "voucherType:delete"
+      x-window-api: "window.api.voucherType.delete"
+      x-controller: "voucherTypeController.delete"
+      description: >-
+        Handler receives a bare vt_id scalar. Performs a soft delete (is_active=0,
+        updated_at=now). Rejects (success:false) when the row is missing or is
+        predefined ('Cannot delete predefined voucher types').
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: integer
+              description: The vt_id of the voucher type to soft-delete (bare scalar).
+      responses:
+        '200':
+          description: Result envelope (boolean success only).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                    required: [success]
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Validation/transport error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /voucherType/getConfig:
+    post:
+      tags: [voucherType]
+      summary: Fetch the voucher_type_configs row for a voucher type.
+      operationId: voucherType.getConfig
+      x-ipc-channel: "voucherType:getConfig"
+      x-window-api: "window.api.voucherType.getConfig"
+      x-controller: "voucherTypeController.getConfig"
+      description: >-
+        Handler receives a bare voucher_type_id scalar. Returns success:false with
+        error 'Config not found' when no config row matches.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: integer
+              description: >-
+                The voucher_type_id (= voucher_types.vt_id) whose config to fetch
+                (bare scalar passed as arg 2).
+      responses:
+        '200':
+          description: Result envelope with the voucher_type_configs row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      config: { $ref: '#/components/schemas/VoucherTypeConfig' }
+                    required: [success, config]
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Validation/transport error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /voucherType/updateConfig:
+    post:
+      tags: [voucherType]
+      summary: Update the voucher_type_configs row for a voucher type.
+      operationId: voucherType.updateConfig
+      x-ipc-channel: "voucherType:updateConfig"
+      x-window-api: "window.api.voucherType.updateConfig"
+      x-controller: "voucherTypeController.updateConfig"
+      description: >-
+        Rejects (success:false) when no config row exists for the voucher_type_id
+        ('Config not found'). Unsupplied fields fall back to the existing stored
+        value via the ?? operator.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoucherTypeConfigUpdateInput'
+      responses:
+        '200':
+          description: Result envelope with the updated voucher_type_configs row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      config: { $ref: '#/components/schemas/VoucherTypeConfig' }
+                    required: [success, config]
+                  - $ref: '#/components/schemas/FailureEnvelope'
+        '4XX':
+          description: Validation/transport error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared error shape (also used as the body of the failure envelope's `error`).
+      properties:
+        error: { type: string }
+        message: { type: string }
+      required: [error, message]
+
+    FailureEnvelope:
+      type: object
+      description: >-
+        Failure form of every handler's resolved value. Note the service returns
+        the human-readable string under `error` (not a nested Error object).
+      properties:
+        success: { const: false }
+        error:
+          type: string
+          description: Human-readable failure message.
+      required: [success, error]
+
+    VoucherType:
+      type: object
+      description: A row of the voucher_types table (SELECT * shape).
+      properties:
+        vt_id: { type: integer, description: Primary key. }
+        company_id: { type: integer, description: Owning company (FK -> companies.company_id). }
+        name: { type: string }
+        short_name: { type: [string, "null"] }
+        category: { type: [string, "null"] }
+        default_voucher_class: { type: [string, "null"] }
+        affects_inventory:
+          type: integer
+          enum: [0, 1]
+          description: Stored as 0/1 (boolean). 1 = affects inventory.
+        affects_accounting:
+          type: integer
+          enum: [0, 1]
+          description: Stored as 0/1 (boolean). Defaults to 1.
+        affects_gst:
+          type: integer
+          enum: [0, 1]
+          description: Stored as 0/1 (boolean).
+        numbering_method: { type: [string, "null"], description: "Defaults to 'Automatic'." }
+        numbering_prefix: { type: [string, "null"], description: "Defaults to ''." }
+        numbering_suffix: { type: [string, "null"], description: "Defaults to ''." }
+        starts_with: { type: integer, description: Starting voucher number. Defaults to 1. }
+        is_predefined:
+          type: integer
+          enum: [0, 1]
+          description: Stored as 0/1 (boolean). 1 = system-seeded, non-editable/non-deletable.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: Stored as 0/1 (boolean). 0 = soft-deleted.
+        parent_vt_id:
+          type: [integer, "null"]
+          description: Self-referential parent voucher type (FK -> voucher_types.vt_id).
+        created_at: { type: string, description: "ISO-8601 datetime string (datetime('now'))." }
+        updated_at: { type: string, description: "ISO-8601 datetime string (datetime('now'))." }
+      required: [vt_id, company_id, name]
+
+    VoucherTypeWithConfigSummary:
+      description: >-
+        getAll row: full voucher_types row plus a subset of config flags joined
+        from voucher_type_configs, plus a derived parent_name.
+      allOf:
+        - $ref: '#/components/schemas/VoucherType'
+        - type: object
+          properties:
+            use_effective_dates: { type: [integer, "null"], enum: [0, 1, null] }
+            allow_zero_value_transactions: { type: [integer, "null"], enum: [0, 1, null] }
+            make_voucher_optional: { type: [integer, "null"], enum: [0, 1, null] }
+            allow_narration: { type: [integer, "null"], enum: [0, 1, null] }
+            allow_narration_per_ledger: { type: [integer, "null"], enum: [0, 1, null] }
+            print_after_save: { type: [integer, "null"], enum: [0, 1, null] }
+            whatsapp_after_save: { type: [integer, "null"], enum: [0, 1, null] }
+            use_for_pos_invoicing: { type: [integer, "null"], enum: [0, 1, null] }
+            parent_name:
+              type: string
+              description: COALESCE(parent.name, vt.name) - parent's name or own name.
+
+    VoucherTypeWithFullConfig:
+      description: >-
+        getById row: full voucher_types row plus the complete set of
+        voucher_type_configs columns joined in.
+      allOf:
+        - $ref: '#/components/schemas/VoucherType'
+        - type: object
+          properties:
+            use_effective_dates: { type: [integer, "null"], enum: [0, 1, null] }
+            allow_zero_value_transactions: { type: [integer, "null"], enum: [0, 1, null] }
+            make_voucher_optional: { type: [integer, "null"], enum: [0, 1, null] }
+            allow_narration: { type: [integer, "null"], enum: [0, 1, null] }
+            allow_narration_per_ledger: { type: [integer, "null"], enum: [0, 1, null] }
+            whatsapp_after_save: { type: [integer, "null"], enum: [0, 1, null] }
+            print_after_save: { type: [integer, "null"], enum: [0, 1, null] }
+            enable_default_accounting_allocation: { type: [integer, "null"], enum: [0, 1, null] }
+            track_additional_cost_for_purchase: { type: [integer, "null"], enum: [0, 1, null] }
+            default_title_to_print: { type: [string, "null"] }
+            use_for_pos_invoicing: { type: [integer, "null"], enum: [0, 1, null] }
+            default_bank_id: { type: [integer, "null"], description: FK -> bank ledger (inferred). }
+            declaration: { type: [string, "null"] }
+            set_alter_declaration: { type: [integer, "null"], enum: [0, 1, null] }
+
+    VoucherTypeConfig:
+      type: object
+      description: A row of the voucher_type_configs table (SELECT * shape).
+      properties:
+        config_id: { type: integer, description: Primary key. }
+        voucher_type_id:
+          type: integer
+          description: FK -> voucher_types.vt_id (the owning voucher type).
+        use_effective_dates: { type: integer, enum: [0, 1] }
+        allow_zero_value_transactions: { type: integer, enum: [0, 1] }
+        make_voucher_optional: { type: integer, enum: [0, 1] }
+        allow_narration: { type: integer, enum: [0, 1], description: "Defaults to 1." }
+        allow_narration_per_ledger: { type: integer, enum: [0, 1] }
+        print_after_save: { type: integer, enum: [0, 1] }
+        whatsapp_after_save: { type: integer, enum: [0, 1] }
+        enable_default_accounting_allocation: { type: integer, enum: [0, 1] }
+        track_additional_cost_for_purchase: { type: integer, enum: [0, 1] }
+        default_title_to_print: { type: [string, "null"] }
+        use_for_pos_invoicing: { type: integer, enum: [0, 1] }
+        default_bank_id: { type: [integer, "null"], description: FK -> bank ledger (inferred). }
+        declaration: { type: [string, "null"] }
+        set_alter_declaration: { type: integer, enum: [0, 1] }
+      required: [config_id, voucher_type_id]
+
+    VoucherTypeCreateInput:
+      type: object
+      description: >-
+        Payload for voucherType:create. The service writes both a voucher_types
+        row and its voucher_type_configs row from this single object. Boolean-ish
+        flags are coerced to 0/1. is_predefined and is_active are forced to 0/1
+        by the service and cannot be supplied.
+      properties:
+        company_id: { type: integer, description: Required. Owning company. }
+        name: { type: string, description: Required. Trimmed before insert; uniqueness checked case-insensitively per company. }
+        short_name: { type: string, description: "Optional. Defaults to name.slice(0,4)." }
+        category: { type: [string, "null"] }
+        default_voucher_class: { type: [string, "null"], description: "Optional. Defaults to null." }
+        affects_inventory: { type: boolean, description: "Coerced to 0/1. Default falsey -> 0." }
+        affects_accounting: { type: boolean, description: "Coerced to 0/1. If undefined -> 1." }
+        affects_gst: { type: boolean, description: "Coerced to 0/1. Default falsey -> 0." }
+        numbering_method: { type: string, description: "Optional. Defaults to 'Automatic'." }
+        numbering_prefix: { type: string, description: "Optional. Defaults to ''." }
+        numbering_suffix: { type: string, description: "Optional. Defaults to ''." }
+        starts_with: { type: integer, description: "Optional. Defaults to 1." }
+        parent_vt_id: { type: [integer, "null"], description: "Optional self-reference. Defaults to null." }
+        use_effective_dates: { type: boolean, description: Written to config. Coerced to 0/1. }
+        allow_zero_value_transactions: { type: boolean, description: Written to config. Coerced to 0/1. }
+        make_voucher_optional: { type: boolean, description: Written to config. Coerced to 0/1. }
+        allow_narration: { type: boolean, description: "Written to config. If undefined -> 1." }
+        allow_narration_per_ledger: { type: boolean, description: Written to config. Coerced to 0/1. }
+        whatsapp_after_save: { type: boolean, description: Written to config. Coerced to 0/1. }
+        print_after_save: { type: boolean, description: Written to config. Coerced to 0/1. }
+        enable_default_accounting_allocation: { type: boolean, description: Written to config. Coerced to 0/1. }
+        track_additional_cost_for_purchase: { type: boolean, description: Written to config. Coerced to 0/1. }
+        use_for_pos_invoicing: { type: boolean, description: Written to config. Coerced to 0/1. }
+      required: [company_id, name]
+
+    VoucherTypeUpdateInput:
+      type: object
+      description: >-
+        Payload for voucherType:update. Updates the voucher_types row only (config
+        is updated separately via updateConfig). Most text/number fields fall back
+        to the existing value when omitted; the three affects_* flags are always
+        coerced from truthiness (omitting them sets 0).
+      properties:
+        vt_id: { type: integer, description: Required. Identifies the row to update. }
+        name: { type: string }
+        short_name: { type: string }
+        category: { type: [string, "null"] }
+        default_voucher_class: { type: [string, "null"] }
+        affects_inventory: { type: boolean, description: "Coerced to 0/1 (truthy->1, falsy/omitted->0)." }
+        affects_accounting: { type: boolean, description: "Coerced to 0/1 (truthy->1, falsy/omitted->0)." }
+        affects_gst: { type: boolean, description: "Coerced to 0/1 (truthy->1, falsy/omitted->0)." }
+        numbering_method: { type: string }
+        numbering_prefix: { type: string }
+        numbering_suffix: { type: string }
+        starts_with: { type: integer }
+        parent_vt_id: { type: [integer, "null"] }
+      required: [vt_id]
+
+    VoucherTypeConfigUpdateInput:
+      type: object
+      description: >-
+        Payload for voucherType:updateConfig. Each field falls back to the stored
+        value via ?? when omitted (or explicitly null/undefined).
+      properties:
+        voucher_type_id: { type: integer, description: Required. Identifies the config row by its voucher type. }
+        use_effective_dates: { type: integer, enum: [0, 1] }
+        allow_zero_value_transactions: { type: integer, enum: [0, 1] }
+        make_voucher_optional: { type: integer, enum: [0, 1] }
+        allow_narration: { type: integer, enum: [0, 1] }
+        allow_narration_per_ledger: { type: integer, enum: [0, 1] }
+        whatsapp_after_save: { type: integer, enum: [0, 1] }
+        print_after_save: { type: integer, enum: [0, 1] }
+        enable_default_accounting_allocation: { type: integer, enum: [0, 1] }
+        track_additional_cost_for_purchase: { type: integer, enum: [0, 1] }
+        default_title_to_print: { type: [string, "null"] }
+        use_for_pos_invoicing: { type: integer, enum: [0, 1] }
+        default_bank_id: { type: [integer, "null"] }
+        declaration: { type: [string, "null"] }
+        set_alter_declaration: { type: integer, enum: [0, 1] }
+      required: [voucher_type_id]

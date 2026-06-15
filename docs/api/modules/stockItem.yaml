@@ -1,0 +1,797 @@
+openapi: 3.1.0
+info:
+  title: stockItem module API
+  version: 1.0.0
+  description: >
+    IPC API contract for the "stockItem" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('stockItem:<action>', ...)`
+    channel registered in server/index.js. Renderer access is via the preload bridge
+    `window.api.stockItem.<method>`. These are NOT HTTP routes; the path/method here are a
+    documentation convention only.
+
+paths:
+  /stockItem/create:
+    post:
+      tags: [stockItem]
+      summary: Create a stock item (with optional opening godown/batch allocations).
+      description: >
+        Inserts a new row into `stock_items`. Rejects duplicates by case-insensitive name
+        within the same company (active items only). Computes `opening_value` as
+        `opening_quantity * opening_rate`. If `allocations[]` is supplied, inserts matching
+        rows into `stock_item_opening_allocations`. Returns the created item with its
+        allocations attached.
+      operationId: stockItem.create
+      x-ipc-channel: "stockItem:create"
+      x-window-api: "window.api.stockItem.create"
+      x-controller: "stockItemController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockItemCreateInput'
+      responses:
+        '200':
+          description: Create result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockItemMutationSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stockItem/getAll:
+    post:
+      tags: [stockItem]
+      summary: List all active stock items for a company.
+      description: >
+        Returns active (`is_active = 1`) stock items for the given company, ordered by name.
+        The handler takes a bare `company_id` value as its payload.
+      operationId: stockItem.getAll
+      x-ipc-channel: "stockItem:getAll"
+      x-window-api: "window.api.stockItem.getAll"
+      x-controller: "stockItemController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Company id (bare scalar passed as arg 2 of the channel).
+              required: [company_id]
+      responses:
+        '200':
+          description: List result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockItemListSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stockItem/getById:
+    post:
+      tags: [stockItem]
+      summary: Get a single stock item by id (with its opening allocations).
+      description: >
+        Returns one `stock_items` row by `item_id`, with `allocations[]` populated from
+        `stock_item_opening_allocations`. The handler takes a bare `id` value as its payload.
+        Note: this lookup does NOT filter on `is_active`, so soft-deleted items can be fetched.
+      operationId: stockItem.getById
+      x-ipc-channel: "stockItem:getById"
+      x-window-api: "window.api.stockItem.getById"
+      x-controller: "stockItemController.getById"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: stock_items.item_id (bare scalar passed as arg 2 of the channel).
+              required: [id]
+      responses:
+        '200':
+          description: Item result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockItemMutationSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stockItem/update:
+    post:
+      tags: [stockItem]
+      summary: Update a stock item (partial fields + replace allocations).
+      description: >
+        Updates an existing `stock_items` row keyed by `item_id`. Fields not supplied fall
+        back to current values (null-coalescing). Re-checks for duplicate name within the
+        company when the name changes. Recomputes `opening_value`. If `allocations` is
+        provided (even empty array), the existing allocations for the item are deleted and
+        replaced. Returns the updated item with allocations attached.
+      operationId: stockItem.update
+      x-ipc-channel: "stockItem:update"
+      x-window-api: "window.api.stockItem.update"
+      x-controller: "stockItemController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockItemUpdateInput'
+      responses:
+        '200':
+          description: Update result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockItemMutationSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stockItem/delete:
+    post:
+      tags: [stockItem]
+      summary: Soft-delete a stock item.
+      description: >
+        Soft-deletes by setting `is_active = 0` on the `stock_items` row. Does not remove the
+        row or its allocations. The handler takes a bare `id` value as its payload.
+      operationId: stockItem.delete
+      x-ipc-channel: "stockItem:delete"
+      x-window-api: "window.api.stockItem.delete"
+      x-controller: "stockItemController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: stock_items.item_id (bare scalar passed as arg 2 of the channel).
+              required: [id]
+      responses:
+        '200':
+          description: Delete result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessOnly'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stockItem/getByGroup:
+    post:
+      tags: [stockItem]
+      summary: List active stock items in a company filtered by stock group.
+      description: >
+        Returns active stock items for a company where `group_id` matches, ordered by name.
+      operationId: stockItem.getByGroup
+      x-ipc-channel: "stockItem:getByGroup"
+      x-window-api: "window.api.stockItem.getByGroup"
+      x-controller: "stockItemController.getByGroup"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                group_id:
+                  type: integer
+                  description: stock_groups.sg_id
+              required: [company_id, group_id]
+      responses:
+        '200':
+          description: List result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockItemListSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stockItem/getByCategory:
+    post:
+      tags: [stockItem]
+      summary: List active stock items in a company filtered by stock category.
+      description: >
+        Returns active stock items for a company where `category_id` matches, ordered by name.
+      operationId: stockItem.getByCategory
+      x-ipc-channel: "stockItem:getByCategory"
+      x-window-api: "window.api.stockItem.getByCategory"
+      x-controller: "stockItemController.getByCategory"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                category_id:
+                  type: integer
+                  description: stock_categories.sc_id
+              required: [company_id, category_id]
+      responses:
+        '200':
+          description: List result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockItemListSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stockItem/getStockBalances:
+    post:
+      tags: [stockItem]
+      summary: Compute current stock balances per item for a company.
+      description: >
+        Computes a per-item quantity balance for all active stock items in a company.
+        Starts from `opening_quantity`, then applies signed movement from
+        `voucher_stock_entries` joined to non-cancelled `vouchers` (Purchase / Receipt Note /
+        Rejection In / Material In / Credit Note add; Sales / Delivery Note / Rejection Out /
+        Material Out / Debit Note subtract; Stock/Manufacturing Journal use `is_source` to
+        sign). If physical stock entries exist, the latest physical count per item overrides
+        the computed balance and only voucher movements dated after the physical-stock date
+        are re-applied on top. Returns a map of `item_id -> balance`.
+      operationId: stockItem.getStockBalances
+      x-ipc-channel: "stockItem:getStockBalances"
+      x-window-api: "window.api.stockItem.getStockBalances"
+      x-controller: "stockItemController.getStockBalances"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Company id (bare scalar passed as arg 2 of the channel).
+              required: [company_id]
+      responses:
+        '200':
+          description: Balances result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockBalancesSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+
+    Error:
+      type: object
+      description: Shared transport-level error envelope (4xx/5xx).
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    ServiceError:
+      type: object
+      description: >
+        Service-level failure envelope. NOTE: this module never throws to IPC; it catches
+        errors and validation failures and returns this shape with HTTP 200.
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: >
+            Human-readable reason, e.g. "Stock Item already exists",
+            "Stock Item not found", "Stock Item name already exists", or a caught err.message.
+      required: [success, error]
+
+    SuccessOnly:
+      type: object
+      description: Minimal success envelope returned by delete.
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]
+
+    StockItemMutationSuccess:
+      type: object
+      description: Success envelope returning a single stock item with allocations (create / getById / update).
+      properties:
+        success:
+          type: boolean
+          const: true
+        item:
+          $ref: '#/components/schemas/StockItemWithAllocations'
+      required: [success, item]
+
+    StockItemListSuccess:
+      type: object
+      description: Success envelope returning a list of stock items (getAll / getByGroup / getByCategory).
+      properties:
+        success:
+          type: boolean
+          const: true
+        stockItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockItem'
+      required: [success, stockItems]
+
+    StockBalancesSuccess:
+      type: object
+      description: Success envelope returning computed quantity balances keyed by item_id.
+      properties:
+        success:
+          type: boolean
+          const: true
+        balances:
+          type: object
+          description: Map of stock item id (as string key) to current quantity balance.
+          additionalProperties:
+            type: number
+      required: [success, balances]
+
+    StockItemWithAllocations:
+      allOf:
+        - $ref: '#/components/schemas/StockItem'
+        - type: object
+          properties:
+            allocations:
+              type: array
+              items:
+                $ref: '#/components/schemas/StockItemOpeningAllocation'
+          required: [allocations]
+
+    StockItem:
+      type: object
+      description: >
+        A row of the `stock_items` table (returned via SELECT *). Boolean-like columns are
+        stored as INTEGER 0/1 in SQLite. Money/quantity columns are stored as REAL in SQLite
+        (see DB docs for the NUMERIC mapping). Maps to Postgres table `stock_items`.
+      properties:
+        item_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        group_id:
+          type: [integer, "null"]
+          description: FK -> stock_groups.sg_id
+        category_id:
+          type: [integer, "null"]
+          description: FK -> stock_categories.sc_id
+        unit_id:
+          type: [integer, "null"]
+          description: FK -> units.unit_id
+        gst_applicable:
+          type: [string, "null"]
+          default: "Not Applicable"
+        hsn_sac:
+          type: [string, "null"]
+        source_of_details:
+          type: [string, "null"]
+          default: "As per Company/Stock Group"
+        hsn_sac_description:
+          type: [string, "null"]
+        hsn_code:
+          type: [string, "null"]
+          description: Legacy column kept in sync with hsn_sac.
+        sac_code:
+          type: [string, "null"]
+          description: Legacy column.
+        gst_rate_details:
+          type: [string, "null"]
+        source_of_gst_rate:
+          type: [string, "null"]
+          default: "As per Company/Stock Group"
+        taxability_type:
+          type: [string, "null"]
+        gst_rate:
+          type: number
+          default: 0
+        cgst_rate:
+          type: number
+          default: 0
+        sgst_rate:
+          type: number
+          default: 0
+        igst_rate:
+          type: number
+          default: 0
+        type_of_supply:
+          type: [string, "null"]
+          default: "Goods"
+        rate_of_duty:
+          type: number
+          default: 0
+        statutory_details:
+          type: [string, "null"]
+        opening_quantity:
+          type: number
+          default: 0
+        opening_rate:
+          type: number
+          default: 0
+          description: Money per unit. Stored as REAL; map to NUMERIC, not float.
+        opening_value:
+          type: number
+          default: 0
+          description: Money. Computed = opening_quantity * opening_rate.
+        reorder_level:
+          type: number
+          default: 0
+        reorder_quantity:
+          type: number
+          default: 0
+        track_batches:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: Boolean stored as 0/1.
+        track_expiry:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: Boolean stored as 0/1.
+        track_date_of_manufacturing:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: Boolean stored as 0/1 (added via migration).
+        enable_cost_tracking:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: Boolean stored as 0/1 (added via migration).
+        has_bom:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: Boolean stored as 0/1.
+        bom_name:
+          type: [string, "null"]
+        excise_applicable:
+          type: [string, "null"]
+          default: "Not Applicable"
+        excise_details:
+          type: [string, "null"]
+        excise_tariff_name:
+          type: [string, "null"]
+        excise_tariff_hsn_code:
+          type: [string, "null"]
+        excise_tariff_uom:
+          type: [string, "null"]
+          default: "Undefined"
+        excise_tariff_valuation_type:
+          type: [string, "null"]
+          default: "Undefined"
+        excise_tariff_rate:
+          type: number
+          default: 0
+        excise_tariff_rate_per_unit:
+          type: number
+          default: 0
+        vat_applicable:
+          type: [string, "null"]
+          default: "Applicable"
+        vat_details:
+          type: [string, "null"]
+        is_active:
+          type: integer
+          enum: [0, 1]
+          default: 1
+          description: Boolean stored as 0/1. Soft-delete flag.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required:
+        - item_id
+        - company_id
+        - name
+
+    StockItemOpeningAllocation:
+      type: object
+      description: >
+        A row of the `stock_item_opening_allocations` table (godown/batch breakdown of an
+        item's opening stock). Maps to Postgres table `stock_item_opening_allocations`.
+      properties:
+        allocation_id:
+          type: integer
+          description: Primary key.
+        item_id:
+          type: integer
+          description: FK -> stock_items.item_id
+        godown_id:
+          type: [integer, "null"]
+          description: FK -> godowns.godown_id
+        batch_number:
+          type: [string, "null"]
+        mfg_date:
+          type: [string, "null"]
+          description: Date-only string.
+        expiry_date:
+          type: [string, "null"]
+          description: Date-only string.
+        quantity:
+          type: number
+          default: 0
+        rate:
+          type: number
+          default: 0
+          description: Money per unit. Stored as REAL; map to NUMERIC, not float.
+        amount:
+          type: number
+          default: 0
+          description: Money. Computed = quantity * rate.
+      required:
+        - allocation_id
+        - item_id
+
+    StockItemAllocationInput:
+      type: object
+      description: Allocation line accepted on create/update (server computes amount = quantity * rate).
+      properties:
+        godown_id:
+          type: [integer, "null"]
+        batch_number:
+          type: [string, "null"]
+        mfg_date:
+          type: [string, "null"]
+        expiry_date:
+          type: [string, "null"]
+        quantity:
+          type: number
+        rate:
+          type: number
+
+    StockItemCreateInput:
+      type: object
+      description: >
+        Payload for stockItem:create. Only company_id and name are effectively required; all
+        other fields default server-side. opening_value and per-allocation amount are computed
+        by the server and ignored if supplied.
+      properties:
+        company_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        group_id:
+          type: [integer, "null"]
+        category_id:
+          type: [integer, "null"]
+        unit_id:
+          type: [integer, "null"]
+        gst_applicable:
+          type: string
+          default: "Not Applicable"
+        hsn_sac:
+          type: [string, "null"]
+        source_of_details:
+          type: string
+          default: "As per Company/Stock Group"
+        hsn_sac_description:
+          type: [string, "null"]
+        hsn_code:
+          type: [string, "null"]
+        sac_code:
+          type: [string, "null"]
+        gst_rate_details:
+          type: [string, "null"]
+        source_of_gst_rate:
+          type: string
+          default: "As per Company/Stock Group"
+        taxability_type:
+          type: [string, "null"]
+        gst_rate:
+          type: number
+          default: 0
+        cgst_rate:
+          type: number
+          default: 0
+        sgst_rate:
+          type: number
+          default: 0
+        igst_rate:
+          type: number
+          default: 0
+        type_of_supply:
+          type: string
+          default: "Goods"
+        rate_of_duty:
+          type: number
+          default: 0
+        statutory_details:
+          type: [string, "null"]
+        opening_quantity:
+          type: number
+          default: 0
+        opening_rate:
+          type: number
+          default: 0
+        reorder_level:
+          type: number
+          default: 0
+        reorder_quantity:
+          type: number
+          default: 0
+        track_batches:
+          type: boolean
+          description: Truthy -> stored as 1.
+        track_expiry:
+          type: boolean
+        track_date_of_manufacturing:
+          type: boolean
+        enable_cost_tracking:
+          type: boolean
+        has_bom:
+          type: boolean
+        bom_name:
+          type: [string, "null"]
+        excise_applicable:
+          type: string
+          default: "Not Applicable"
+        excise_details:
+          type: [string, "null"]
+        excise_tariff_name:
+          type: [string, "null"]
+        excise_tariff_hsn_code:
+          type: [string, "null"]
+        excise_tariff_uom:
+          type: string
+          default: "Undefined"
+        excise_tariff_valuation_type:
+          type: string
+          default: "Undefined"
+        excise_tariff_rate:
+          type: number
+          default: 0
+        excise_tariff_rate_per_unit:
+          type: number
+          default: 0
+        vat_applicable:
+          type: string
+          default: "Applicable"
+        vat_details:
+          type: [string, "null"]
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockItemAllocationInput'
+      required:
+        - company_id
+        - name
+
+    StockItemUpdateInput:
+      allOf:
+        - $ref: '#/components/schemas/StockItemCreateInput'
+        - type: object
+          description: >
+            Same field set as create but keyed by item_id. company_id and name are NOT
+            required on update (omitted fields keep their current values). Supplying
+            `allocations` (even as []) replaces all existing allocations for the item.
+          properties:
+            item_id:
+              type: integer
+          required:
+            - item_id

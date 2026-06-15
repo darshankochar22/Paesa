@@ -1,0 +1,192 @@
+openapi: 3.1.0
+info:
+  title: companyPanCinDetails module API
+  version: 1.0.0
+  description: >
+    IPC contract for the companyPanCinDetails backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an ipcMain.handle channel exposed to the
+    renderer via the preload bridge (window.api.companyPanCinDetails.*). Stores the PAN
+    (Permanent Account Number) and CIN (Corporate Identification Number) for a company,
+    keyed one-to-one on company_id.
+tags:
+  - name: companyPanCinDetails
+    description: Company PAN / CIN detail persistence (one row per company).
+paths:
+  /companyPanCinDetails/get:
+    post:
+      operationId: companyPanCinDetails.get
+      tags: [companyPanCinDetails]
+      summary: Fetch the PAN/CIN details for a single company by company_id.
+      x-ipc-channel: "companyPanCinDetails:get"
+      x-window-api: "window.api.companyPanCinDetails.get"
+      x-controller: "companyPanCinDetailsController.get"
+      description: >
+        Controller receives a bare company_id scalar as the second IPC argument
+        (not wrapped in an object) and forwards it to the service. The service runs
+        `SELECT * FROM company_pan_cin_details WHERE company_id = ? LIMIT 1` and returns
+        a trimmed projection containing only pan and cin (each defaulted to '' when null).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  description: The company_id to look up (bare scalar passed to the handler).
+                  type: integer
+              required: [company_id]
+      responses:
+        '200':
+          description: Lookup result. `exists` distinguishes a missing row from a found one.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PanCinGetFound'
+                  - $ref: '#/components/schemas/PanCinGetNotFound'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /companyPanCinDetails/save:
+    post:
+      operationId: companyPanCinDetails.save
+      tags: [companyPanCinDetails]
+      summary: Upsert (insert or update) the PAN/CIN details for a company.
+      x-ipc-channel: "companyPanCinDetails:save"
+      x-window-api: "window.api.companyPanCinDetails.save"
+      x-controller: "companyPanCinDetailsController.save"
+      description: >
+        Controller receives a single data object as the second IPC argument and forwards
+        it to the service. The service requires data.company_id (returns an error result
+        when missing), checks for an existing row, and either UPDATEs pan/cin/updated_at or
+        INSERTs a new row. pan and cin are coerced to null when falsy.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PanCinSavePayload'
+      responses:
+        '200':
+          description: Upsert result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    CompanyPanCinDetailsRow:
+      description: >
+        Full persisted row of the company_pan_cin_details table. company_id is both the
+        primary key and a foreign key to companies(company_id). created_at / updated_at are
+        stored as ISO-8601-ish datetime strings produced by SQLite datetime('now').
+      type: object
+      properties:
+        company_id:
+          type: integer
+        pan:
+          type: [string, "null"]
+        cin:
+          type: [string, "null"]
+        created_at:
+          type: [string, "null"]
+          description: Datetime string (SQLite datetime('now') default).
+        updated_at:
+          type: [string, "null"]
+          description: Datetime string (SQLite datetime('now') default).
+      required: [company_id]
+    PanCinSavePayload:
+      description: Payload accepted by companyPanCinDetails.save.
+      type: object
+      properties:
+        company_id:
+          type: integer
+          description: Required. Service returns an error result when absent.
+        pan:
+          type: [string, "null"]
+        cin:
+          type: [string, "null"]
+      required: [company_id]
+    PanCinGetFound:
+      description: Returned by get when a row exists. Only pan and cin are projected.
+      type: object
+      properties:
+        success:
+          const: true
+        exists:
+          const: true
+        data:
+          type: object
+          properties:
+            pan:
+              type: string
+              description: Empty string when stored value is null.
+            cin:
+              type: string
+              description: Empty string when stored value is null.
+          required: [pan, cin]
+      required: [success, exists, data]
+    PanCinGetNotFound:
+      description: Returned by get when no row exists for company_id.
+      type: object
+      properties:
+        success:
+          const: true
+        exists:
+          const: false
+        data:
+          type: "null"
+      required: [success, exists, data]
+    SuccessResult:
+      description: Generic success envelope returned by save.
+      type: object
+      properties:
+        success:
+          const: true
+      required: [success]
+    ServiceError:
+      description: >
+        In-band error envelope returned by the service on caught exceptions or validation
+        failures (e.g. missing Company ID). Note this is returned with a normal resolved
+        IPC call, not an HTTP-style status.
+      type: object
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+      required: [success, error]
+    Error:
+      description: Shared transport-level error schema.
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]

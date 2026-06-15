@@ -1,0 +1,236 @@
+openapi: 3.1.0
+info:
+  title: tallyFeatures module API
+  version: 1.0.0
+  description: >
+    IPC contract for the "tallyFeatures" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an Electron `ipcMain.handle` channel
+    invoked from the renderer via `window.api.tallyFeatures.<method>`.
+    Tally-style company feature flags are stored one row per company in the
+    `tally_features` table. All toggle columns are SQLite INTEGER 0/1 values
+    (translated to BOOLEAN in Postgres).
+tags:
+  - name: tallyFeatures
+    description: Per-company Tally feature flags (F11 features).
+paths:
+  /tallyFeatures/get:
+    post:
+      tags: [tallyFeatures]
+      operationId: tallyFeatures.get
+      summary: Fetch the Tally feature flags row for a company.
+      description: >
+        Returns the single `tally_features` row for the given company_id.
+        If no row exists, returns `{ success: false, error: "Features not found" }`.
+      x-ipc-channel: "tallyFeatures:get"
+      x-window-api: "window.api.tallyFeatures.get"
+      x-controller: "tallyFeaturesController.get"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: Companies.company_id whose features to fetch.
+      responses:
+        '200':
+          description: Lookup result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TallyFeaturesResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /tallyFeatures/update:
+    post:
+      tags: [tallyFeatures]
+      operationId: tallyFeatures.update
+      summary: Update Tally feature flags for a company.
+      description: >
+        Updates the `tally_features` row identified by `company_id`. Every flag is
+        optional; any flag omitted (`undefined`) falls back to the current stored
+        value via `?? current.<flag>`. Sets `updated_at = datetime('now')`.
+        Returns the refreshed row.
+      x-ipc-channel: "tallyFeatures:update"
+      x-window-api: "window.api.tallyFeatures.update"
+      x-controller: "tallyFeaturesController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [company_id]
+                  properties:
+                    company_id:
+                      type: integer
+                      description: Target company (row selector). Required.
+                - $ref: '#/components/schemas/TallyFeaturesFlags'
+      responses:
+        '200':
+          description: Update result envelope (refreshed row on success).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TallyFeaturesResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /tallyFeatures/reset:
+    post:
+      tags: [tallyFeatures]
+      operationId: tallyFeatures.reset
+      summary: Reset a company's Tally feature flags to defaults.
+      description: >
+        Resets all flags of the company's `tally_features` row to their seed
+        defaults (maintain_accounts=1, maintain_inventory=1,
+        integrate_accounts_with_inventory=1, everything else=0) and sets
+        `updated_at = datetime('now')`. Returns the refreshed row.
+      x-ipc-channel: "tallyFeatures:reset"
+      x-window-api: "window.api.tallyFeatures.reset"
+      x-controller: "tallyFeaturesController.reset"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: Companies.company_id whose features to reset.
+      responses:
+        '200':
+          description: Reset result envelope (refreshed row on success).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TallyFeaturesResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared error shape for 4xx/5xx responses.
+      additionalProperties: false
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+    TallyFeaturesFlags:
+      type: object
+      description: >
+        The 19 boolean feature toggles. Stored in SQLite as INTEGER 0/1; modeled
+        here as integers (0|1) to mirror the actual stored/returned values.
+        In Postgres these map to BOOLEAN.
+      additionalProperties: false
+      properties:
+        maintain_accounts:                 { type: integer, enum: [0, 1], default: 1 }
+        enable_bill_wise_entry:            { type: integer, enum: [0, 1], default: 0 }
+        enable_cost_centres:               { type: integer, enum: [0, 1], default: 0 }
+        maintain_inventory:                { type: integer, enum: [0, 1], default: 1 }
+        integrate_accounts_with_inventory: { type: integer, enum: [0, 1], default: 1 }
+        enable_multiple_price_levels:      { type: integer, enum: [0, 1], default: 0 }
+        enable_batches:                    { type: integer, enum: [0, 1], default: 0 }
+        maintain_expiry_date_for_batches:  { type: integer, enum: [0, 1], default: 0 }
+        use_discount_column_in_invoices:   { type: integer, enum: [0, 1], default: 0 }
+        use_separate_actual_billed_qty:    { type: integer, enum: [0, 1], default: 0 }
+        enable_gst:                        { type: integer, enum: [0, 1], default: 0 }
+        set_alter_company_gst_details:     { type: integer, enum: [0, 1], default: 0 }
+        enable_tds:                        { type: integer, enum: [0, 1], default: 0 }
+        enable_tcs:                        { type: integer, enum: [0, 1], default: 0 }
+        enable_browser_access_for_reports: { type: integer, enum: [0, 1], default: 0 }
+        enable_tally_net_services:         { type: integer, enum: [0, 1], default: 0 }
+        enable_payment_request_qr:         { type: integer, enum: [0, 1], default: 0 }
+        enable_multiple_addresses:         { type: integer, enum: [0, 1], default: 0 }
+        mark_modified_vouchers:            { type: integer, enum: [0, 1], default: 0 }
+    TallyFeaturesRow:
+      type: object
+      description: A full row of the `tally_features` table (maps to Postgres table tally_features).
+      additionalProperties: false
+      required:
+        - tally_feature_id
+        - company_id
+      properties:
+        tally_feature_id:
+          type: integer
+          description: Primary key (SQLite INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: FK -> companies(company_id). NOT NULL, ON DELETE CASCADE.
+        maintain_accounts:                 { type: integer, enum: [0, 1] }
+        enable_bill_wise_entry:            { type: integer, enum: [0, 1] }
+        enable_cost_centres:               { type: integer, enum: [0, 1] }
+        maintain_inventory:                { type: integer, enum: [0, 1] }
+        integrate_accounts_with_inventory: { type: integer, enum: [0, 1] }
+        enable_multiple_price_levels:      { type: integer, enum: [0, 1] }
+        enable_batches:                    { type: integer, enum: [0, 1] }
+        maintain_expiry_date_for_batches:  { type: integer, enum: [0, 1] }
+        use_discount_column_in_invoices:   { type: integer, enum: [0, 1] }
+        use_separate_actual_billed_qty:    { type: integer, enum: [0, 1] }
+        enable_gst:                        { type: integer, enum: [0, 1] }
+        set_alter_company_gst_details:     { type: integer, enum: [0, 1] }
+        enable_tds:                        { type: integer, enum: [0, 1] }
+        enable_tcs:                        { type: integer, enum: [0, 1] }
+        enable_browser_access_for_reports: { type: integer, enum: [0, 1] }
+        enable_tally_net_services:         { type: integer, enum: [0, 1] }
+        enable_payment_request_qr:         { type: integer, enum: [0, 1] }
+        enable_multiple_addresses:         { type: integer, enum: [0, 1] }
+        mark_modified_vouchers:            { type: integer, enum: [0, 1] }
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')). Postgres TIMESTAMPTZ.
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')). Postgres TIMESTAMPTZ.
+    TallyFeaturesResult:
+      description: >
+        Service envelope. On success `{ success: true, features: <row> }`.
+        On failure `{ success: false, error: <string> }` (e.g. "Features not found"
+        or a caught DB error message).
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [success, features]
+          properties:
+            success: { type: boolean, enum: [true] }
+            features: { $ref: '#/components/schemas/TallyFeaturesRow' }
+        - type: object
+          additionalProperties: false
+          required: [success, error]
+          properties:
+            success: { type: boolean, enum: [false] }
+            error: { type: string }

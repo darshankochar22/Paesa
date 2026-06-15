@@ -1,4 +1,12 @@
 const { db } = require("../db/index");
+const { sql, eq, and } = require("drizzle-orm");
+const { stockGroups } = require("../db/schema");
+
+// Fetch a single stock_groups row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${stockGroups} WHERE ${whereSql}`);
+  return rows[0];
+};
 
 const seedDefaultStockGroups = async (company_id) => {
   const defaults = [
@@ -7,14 +15,25 @@ const seedDefaultStockGroups = async (company_id) => {
   ];
 
   for (const g of defaults) {
-    await db.execute({
-      sql: `INSERT INTO stock_groups (
-              company_id, name, alias, parent_group_id, should_quantities_be_added,
-              hsn_sac_code, hsn_sac_description, gst_rate, cgst_rate, sgst_rate,
-              taxability_type, statutory_details, is_primary, is_active, is_predefined
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [company_id, g.name, null, g.parent_group_id, 0, null, null, 0, 0, 0, null, null, g.is_primary, 1, 1],
-    });
+    await db
+      .insert(stockGroups)
+      .values({
+        companyId: company_id,
+        name: g.name,
+        alias: null,
+        parentGroupId: g.parent_group_id,
+        shouldQuantitiesBeAdded: 0,
+        hsnSacCode: null,
+        hsnSacDescription: null,
+        gstRate: 0,
+        cgstRate: 0,
+        sgstRate: 0,
+        taxabilityType: null,
+        statutoryDetails: null,
+        isPrimary: g.is_primary,
+        isActive: 1,
+        isPredefined: 1,
+      });
   }
 };
 
@@ -29,40 +48,37 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute({
-        sql: `SELECT sg_id FROM stock_groups WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        args: [data.company_id, data.name],
-      });
-      if (exists.rows.length > 0) return { success: false, error: "Stock Group already exists" };
+      const exists = await db.all(
+        sql`SELECT ${stockGroups.sgId} FROM ${stockGroups}
+            WHERE ${stockGroups.companyId} = ${data.company_id}
+              AND LOWER(${stockGroups.name}) = LOWER(${data.name})
+              AND ${stockGroups.isActive} = 1`
+      );
+      if (exists.length > 0) return { success: false, error: "Stock Group already exists" };
 
-      const result = await db.execute({
-        sql: `INSERT INTO stock_groups (
-                company_id, name, alias, parent_group_id, should_quantities_be_added,
-                hsn_sac_code, hsn_sac_description, gst_rate, cgst_rate, sgst_rate,
-                taxability_type, statutory_details, is_primary, is_active, is_predefined
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          data.company_id,
-          data.name,
-          data.alias || null,
-          data.parent_group_id || null,
-          data.should_quantities_be_added ?? 0,
-          data.hsn_sac_code || null,
-          data.hsn_sac_description || null,
-          data.gst_rate || 0,
-          data.cgst_rate || 0,
-          data.sgst_rate || 0,
-          data.taxability_type || null,
-          data.statutory_details || null,
-          0, 1, 0,
-        ],
-      });
+      const inserted = await db
+        .insert(stockGroups)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          alias: data.alias || null,
+          parentGroupId: data.parent_group_id || null,
+          shouldQuantitiesBeAdded: data.should_quantities_be_added ?? 0,
+          hsnSacCode: data.hsn_sac_code || null,
+          hsnSacDescription: data.hsn_sac_description || null,
+          gstRate: data.gst_rate || 0,
+          cgstRate: data.cgst_rate || 0,
+          sgstRate: data.sgst_rate || 0,
+          taxabilityType: data.taxability_type || null,
+          statutoryDetails: data.statutory_details || null,
+          isPrimary: 0,
+          isActive: 1,
+          isPredefined: 0,
+        })
+        .returning({ id: stockGroups.sgId });
 
-      const group = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE sg_id = ?`,
-        args: [Number(result.lastInsertRowid)],
-      });
-      return { success: true, group: group.rows[0] };
+      const group = await findRow(sql`${stockGroups.sgId} = ${Number(inserted[0].id)}`);
+      return { success: true, group };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -70,11 +86,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE company_id = ? AND is_active = 1`,
-        args: [company_id],
-      });
-      return { success: true, stockGroups: result.rows };
+      const rows = await db.all(
+        sql`SELECT * FROM ${stockGroups}
+            WHERE ${stockGroups.companyId} = ${company_id}
+              AND ${stockGroups.isActive} = 1`
+      );
+      return { success: true, stockGroups: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -82,12 +99,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE sg_id = ?`,
-        args: [id],
-      });
-      if (result.rows.length === 0) return { success: false, error: "Stock Group not found" };
-      return { success: true, group: result.rows[0] };
+      const group = await findRow(sql`${stockGroups.sgId} = ${id}`);
+      if (!group) return { success: false, error: "Stock Group not found" };
+      return { success: true, group };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -95,11 +109,12 @@ module.exports = {
 
   getTree: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE company_id = ? AND is_active = 1`,
-        args: [company_id],
-      });
-      return { success: true, tree: buildTree(result.rows) };
+      const rows = await db.all(
+        sql`SELECT * FROM ${stockGroups}
+            WHERE ${stockGroups.companyId} = ${company_id}
+              AND ${stockGroups.isActive} = 1`
+      );
+      return { success: true, tree: buildTree(rows) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -107,42 +122,30 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE sg_id = ?`,
-        args: [data.sg_id],
-      });
-      if (existing.rows.length === 0) return { success: false, error: "Stock Group not found" };
-      const group = existing.rows[0];
+      const group = await findRow(sql`${stockGroups.sgId} = ${data.sg_id}`);
+      if (!group) return { success: false, error: "Stock Group not found" };
       if (group.is_predefined) return { success: false, error: "Cannot edit predefined stock groups" };
 
-      await db.execute({
-        sql: `UPDATE stock_groups SET
-                name = ?, alias = ?, parent_group_id = ?, should_quantities_be_added = ?,
-                hsn_sac_code = ?, hsn_sac_description = ?, gst_rate = ?, cgst_rate = ?,
-                sgst_rate = ?, taxability_type = ?, statutory_details = ?,
-                updated_at = datetime('now')
-              WHERE sg_id = ?`,
-        args: [
-          data.name                       ?? group.name,
-          data.alias                      ?? group.alias,
-          data.parent_group_id            ?? group.parent_group_id,
-          data.should_quantities_be_added ?? group.should_quantities_be_added,
-          data.hsn_sac_code               ?? group.hsn_sac_code,
-          data.hsn_sac_description        ?? group.hsn_sac_description,
-          data.gst_rate                   ?? group.gst_rate,
-          data.cgst_rate                  ?? group.cgst_rate,
-          data.sgst_rate                  ?? group.sgst_rate,
-          data.taxability_type            ?? group.taxability_type,
-          data.statutory_details          ?? group.statutory_details,
-          data.sg_id,
-        ],
-      });
+      await db
+        .update(stockGroups)
+        .set({
+          name: data.name ?? group.name,
+          alias: data.alias ?? group.alias,
+          parentGroupId: data.parent_group_id ?? group.parent_group_id,
+          shouldQuantitiesBeAdded: data.should_quantities_be_added ?? group.should_quantities_be_added,
+          hsnSacCode: data.hsn_sac_code ?? group.hsn_sac_code,
+          hsnSacDescription: data.hsn_sac_description ?? group.hsn_sac_description,
+          gstRate: data.gst_rate ?? group.gst_rate,
+          cgstRate: data.cgst_rate ?? group.cgst_rate,
+          sgstRate: data.sgst_rate ?? group.sgst_rate,
+          taxabilityType: data.taxability_type ?? group.taxability_type,
+          statutoryDetails: data.statutory_details ?? group.statutory_details,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(stockGroups.sgId, data.sg_id));
 
-      const updated = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE sg_id = ?`,
-        args: [data.sg_id],
-      });
-      return { success: true, group: updated.rows[0] };
+      const updated = await findRow(sql`${stockGroups.sgId} = ${data.sg_id}`);
+      return { success: true, group: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -150,23 +153,21 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM stock_groups WHERE sg_id = ?`,
-        args: [id],
-      });
-      if (existing.rows.length === 0) return { success: false, error: "Stock Group not found" };
-      if (existing.rows[0].is_predefined) return { success: false, error: "Cannot delete predefined stock groups" };
+      const existing = await findRow(sql`${stockGroups.sgId} = ${id}`);
+      if (!existing) return { success: false, error: "Stock Group not found" };
+      if (existing.is_predefined) return { success: false, error: "Cannot delete predefined stock groups" };
 
-      const hasChildren = await db.execute({
-        sql: `SELECT sg_id FROM stock_groups WHERE parent_group_id = ? AND is_active = 1`,
-        args: [id],
-      });
-      if (hasChildren.rows.length > 0) return { success: false, error: "Cannot delete Stock Group with subgroups" };
+      const hasChildren = await db.all(
+        sql`SELECT ${stockGroups.sgId} FROM ${stockGroups}
+            WHERE ${stockGroups.parentGroupId} = ${id}
+              AND ${stockGroups.isActive} = 1`
+      );
+      if (hasChildren.length > 0) return { success: false, error: "Cannot delete Stock Group with subgroups" };
 
-      await db.execute({
-        sql: `UPDATE stock_groups SET is_active = 0 WHERE sg_id = ?`,
-        args: [id],
-      });
+      await db
+        .update(stockGroups)
+        .set({ isActive: 0 })
+        .where(eq(stockGroups.sgId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

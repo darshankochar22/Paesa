@@ -1,0 +1,529 @@
+openapi: 3.1.0
+info:
+  title: dayBookReport module API
+  version: 1.0.0
+  description: >
+    IPC API contract for the `dayBookReport` backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle(channel, ...)`
+    registration in server/index.js, backed by dayBookReportController -> dayBookReportService.
+
+    WARNING: None of these channels are exposed in preload.js. There is no
+    `window.api.dayBookReport.*` binding, so the renderer cannot call these channels
+    through the contextBridge as currently wired. The `x-window-api` values below are
+    the EXPECTED bindings (had they been exposed) and are annotated as missing.
+    A separate `report:daybook` channel exists but belongs to a different module.
+
+tags:
+  - name: dayBookReport
+    description: Saved Day Book report definitions with their entries and entry lines.
+
+paths:
+  /dayBookReport/create:
+    post:
+      tags: [dayBookReport]
+      summary: Create a Day Book report along with its nested entries and entry lines.
+      operationId: dayBookReport.create
+      x-ipc-channel: "dayBookReport:create"
+      x-window-api: "window.api.dayBookReport.create  (NOT exposed in preload.js)"
+      x-controller: "dayBookReportController.create"
+      description: >
+        Inserts one row into day_book_reports. If `entries[]` is supplied, inserts a
+        day_book_entries row per entry, and for each entry's `lines[]` inserts a
+        day_book_entry_lines row. Returns the freshly inserted report header row.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayBookReportCreateInput'
+      responses:
+        '200':
+          description: Report created. Returns success flag and the inserted header row.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  report:
+                    $ref: '#/components/schemas/DayBookReport'
+                required: [success, report]
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+      x-error-shape: >
+        On caught exceptions the service returns { success: false, error: <message> }
+        (HTTP 200 in IPC terms). The Error component models the conventional API error shape.
+
+  /dayBookReport/getAll:
+    post:
+      tags: [dayBookReport]
+      summary: List all Day Book reports for a company, newest first.
+      operationId: dayBookReport.getAll
+      x-ipc-channel: "dayBookReport:getAll"
+      x-window-api: "window.api.dayBookReport.getAll  (NOT exposed in preload.js)"
+      x-controller: "dayBookReportController.getAll"
+      description: >
+        The controller passes IPC arg 2 (a bare company_id scalar) straight to the
+        service. SELECT * FROM day_book_reports WHERE company_id = ? ORDER BY created_at DESC.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: >
+                    The company whose reports to list. NOTE: the controller receives
+                    this as a bare scalar (event, company_id), not an object.
+              required: [company_id]
+      responses:
+        '200':
+          description: Array of report header rows.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DayBookReport'
+                required: [success, reports]
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /dayBookReport/getById:
+    post:
+      tags: [dayBookReport]
+      summary: Fetch one Day Book report with its entries, lines, and computed totals.
+      operationId: dayBookReport.getById
+      x-ipc-channel: "dayBookReport:getById"
+      x-window-api: "window.api.dayBookReport.getById  (NOT exposed in preload.js)"
+      x-controller: "dayBookReportController.getById"
+      description: >
+        Loads the report header, its day_book_entries (ordered by display_order ASC),
+        and each entry's day_book_entry_lines (ordered by line_order ASC). Computes
+        totalDebit / totalCredit by summing entry debit_amount / credit_amount.
+        Returns { success: false, error: 'Report not found' } when the id does not exist.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: >
+                    report_id. Received by the controller as a bare scalar (event, id).
+              required: [id]
+      responses:
+        '200':
+          description: Report header enriched with entries, lines, and totals.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: string
+                    description: Present (with success=false) when the report is not found.
+                  report:
+                    allOf:
+                      - $ref: '#/components/schemas/DayBookReport'
+                      - type: object
+                        properties:
+                          entries:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/DayBookEntryWithLines'
+                          totalDebit:
+                            type: number
+                            description: Sum of entry debit_amount values (currency).
+                          totalCredit:
+                            type: number
+                            description: Sum of entry credit_amount values (currency).
+                required: [success]
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /dayBookReport/delete:
+    post:
+      tags: [dayBookReport]
+      summary: Delete a Day Book report (cascades to its entries and lines).
+      operationId: dayBookReport.delete
+      x-ipc-channel: "dayBookReport:delete"
+      x-window-api: "window.api.dayBookReport.delete  (NOT exposed in preload.js)"
+      x-controller: "dayBookReportController.delete"
+      description: >
+        Verifies the report exists, then DELETE FROM day_book_reports WHERE report_id = ?.
+        Child rows in day_book_entries and day_book_entry_lines are removed by ON DELETE
+        CASCADE. Returns { success: false, error: 'Report not found' } when the id is unknown.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: report_id. Received as a bare scalar (event, id).
+              required: [id]
+      responses:
+        '200':
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: string
+                    description: Present (with success=false) when the report is not found.
+                required: [success]
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+components:
+  responses:
+    Error:
+      description: Error response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      description: Conventional error envelope.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    DayBookReport:
+      type: object
+      description: A row of the day_book_reports table (report header).
+      properties:
+        report_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        report_name:
+          type: string
+          default: Day Book
+        date_from:
+          type: [string, "null"]
+          description: Report range start (date-only ISO string).
+        date_to:
+          type: [string, "null"]
+          description: Report range end (date-only ISO string).
+        selected_company_id:
+          type: [integer, "null"]
+          description: Defaults to company_id when not supplied.
+        basis_of_values:
+          type: string
+          default: Default
+        change_view:
+          type: [string, "null"]
+        exception_reports_enabled:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        saved_view_name:
+          type: [string, "null"]
+        filter_enabled:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        filter_details:
+          type: [string, "null"]
+        show_profit:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        show_columnar:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        show_optional:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        show_post_dated:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        show_stat_adjustment:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        show_details:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 1
+        show_related_reports:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required: [report_id, company_id]
+
+    DayBookEntry:
+      type: object
+      description: A row of the day_book_entries table.
+      properties:
+        entry_id:
+          type: integer
+        report_id:
+          type: integer
+          description: FK -> day_book_reports.report_id.
+        company_id:
+          type: integer
+          description: FK -> companies.company_id.
+        voucher_id:
+          type: [integer, "null"]
+          description: FK -> vouchers.voucher_id.
+        voucher_date:
+          type: [string, "null"]
+          description: Date-only ISO string.
+        particulars:
+          type: [string, "null"]
+        voucher_type:
+          type: [string, "null"]
+        voucher_number:
+          type: [string, "null"]
+        debit_amount:
+          type: number
+          description: Currency amount.
+          default: 0
+        credit_amount:
+          type: number
+          description: Currency amount.
+          default: 0
+        narration:
+          type: [string, "null"]
+        party_ledger_name:
+          type: [string, "null"]
+        show_profit:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        is_optional:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        is_post_dated:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        is_stat_adjustment:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 0
+        gross_profit:
+          type: number
+          description: Currency amount.
+          default: 0
+        cost:
+          type: number
+          description: Currency amount.
+          default: 0
+        display_order:
+          type: integer
+          default: 0
+        is_drillable:
+          type: integer
+          description: Boolean flag stored as 0/1.
+          default: 1
+        notes:
+          type: [string, "null"]
+        created_at:
+          type: string
+          description: ISO-8601 datetime string.
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string.
+      required: [entry_id, report_id, company_id]
+
+    DayBookEntryLine:
+      type: object
+      description: A row of the day_book_entry_lines table.
+      properties:
+        line_id:
+          type: integer
+        entry_id:
+          type: integer
+          description: FK -> day_book_entries.entry_id.
+        ledger_id:
+          type: [integer, "null"]
+          description: FK -> ledgers.ledger_id.
+        particulars:
+          type: [string, "null"]
+        debit_amount:
+          type: number
+          description: Currency amount.
+          default: 0
+        credit_amount:
+          type: number
+          description: Currency amount.
+          default: 0
+        line_order:
+          type: integer
+          default: 0
+        notes:
+          type: [string, "null"]
+      required: [line_id, entry_id]
+
+    DayBookEntryWithLines:
+      allOf:
+        - $ref: '#/components/schemas/DayBookEntry'
+        - type: object
+          properties:
+            lines:
+              type: array
+              items:
+                $ref: '#/components/schemas/DayBookEntryLine'
+
+    DayBookReportCreateInput:
+      type: object
+      description: >
+        Payload accepted by dayBookReportService.create. The controller forwards IPC
+        arg 2 unchanged. Boolean-like fields are coerced to 0/1 by the service.
+      properties:
+        company_id:
+          type: integer
+          description: Required. Owning company.
+        report_name:
+          type: string
+          default: Day Book
+        date_from:
+          type: [string, "null"]
+        date_to:
+          type: [string, "null"]
+        selected_company_id:
+          type: [integer, "null"]
+          description: Defaults to company_id when falsy.
+        basis_of_values:
+          type: string
+          default: Default
+        change_view:
+          type: [string, "null"]
+        exception_reports_enabled:
+          type: boolean
+        saved_view_name:
+          type: [string, "null"]
+        filter_enabled:
+          type: boolean
+        filter_details:
+          type: [string, "null"]
+        show_profit:
+          type: boolean
+        show_columnar:
+          type: boolean
+        show_optional:
+          type: boolean
+        show_post_dated:
+          type: boolean
+        show_stat_adjustment:
+          type: boolean
+        show_details:
+          type: boolean
+          default: true
+          description: Defaults to 1 via `?? 1` when undefined.
+        show_related_reports:
+          type: boolean
+        entries:
+          type: array
+          description: Optional nested entries to insert.
+          items:
+            type: object
+            properties:
+              voucher_id:
+                type: [integer, "null"]
+              voucher_date:
+                type: [string, "null"]
+              particulars:
+                type: [string, "null"]
+              voucher_type:
+                type: [string, "null"]
+              voucher_number:
+                type: [string, "null"]
+              debit_amount:
+                type: number
+              credit_amount:
+                type: number
+              narration:
+                type: [string, "null"]
+              party_ledger_name:
+                type: [string, "null"]
+              show_profit:
+                type: boolean
+              is_optional:
+                type: boolean
+              is_post_dated:
+                type: boolean
+              is_stat_adjustment:
+                type: boolean
+              gross_profit:
+                type: number
+              cost:
+                type: number
+              display_order:
+                type: integer
+                description: Defaults to entry index + 1 when falsy.
+              is_drillable:
+                type: boolean
+                default: true
+              notes:
+                type: [string, "null"]
+              lines:
+                type: array
+                description: Optional nested entry lines.
+                items:
+                  type: object
+                  properties:
+                    ledger_id:
+                      type: [integer, "null"]
+                    particulars:
+                      type: [string, "null"]
+                    debit_amount:
+                      type: number
+                    credit_amount:
+                      type: number
+                    line_order:
+                      type: integer
+                      description: Defaults to line index + 1 when falsy.
+                    notes:
+                      type: [string, "null"]
+      required: [company_id]

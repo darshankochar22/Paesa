@@ -1,13 +1,18 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { companyGstDetails } = require('../db/schema');
 
 const get = async (company_id) => {
   try {
-    const result = await db.execute({
-      sql: `SELECT * FROM company_gst_details WHERE company_id = ? LIMIT 1`,
-      args: [company_id],
-    });
+    // Read in the legacy snake_case shape (db.all returns raw column keys),
+    // so the field mapping below stays identical to the original service.
+    const rows = await db.all(
+      sql`SELECT * FROM ${companyGstDetails}
+          WHERE ${companyGstDetails.companyId} = ${company_id}
+          LIMIT 1`
+    );
 
-    if (!result.rows || result.rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return {
         success: true,
         exists: false,
@@ -35,7 +40,7 @@ const get = async (company_id) => {
       };
     }
 
-    const record = result.rows[0];
+    const record = rows[0];
     return {
       success: true,
       exists: true,
@@ -75,107 +80,65 @@ const save = async (data) => {
     }
 
     // Check if a record already exists
-    const existing = await db.execute({
-      sql: `SELECT company_id FROM company_gst_details WHERE company_id = ? LIMIT 1`,
-      args: [company_id],
-    });
+    const existing = await db.all(
+      sql`SELECT ${companyGstDetails.companyId} FROM ${companyGstDetails}
+          WHERE ${companyGstDetails.companyId} = ${company_id}
+          LIMIT 1`
+    );
 
-    if (existing.rows && existing.rows.length > 0) {
+    if (existing && existing.length > 0) {
       // UPDATE
-      await db.execute({
-        sql: `UPDATE company_gst_details SET
-                hsn_sac_type = ?,
-                hsn_sac_code = ?,
-                description = ?,
-                taxability_type = ?,
-                gst_rate = ?,
-                interstate_threshold_limit = ?,
-                intrastate_threshold_limit = ?,
-                threshold_limit_includes = ?,
-                create_hsn_summary_for = ?,
-                minimum_hsn_length = ?,
-                show_gst_advances = ?,
-                update_gst_status = ?,
-                gst_returns_configured = ?,
-                effective_date = ?,
-                download_gst_registration = ?,
-                download_return_type = ?,
-                set_state_wise_threshold_limit = ?,
-                state_wise_limits = ?,
-                gst_advances_applicable_from = ?,
-                updated_at = datetime('now')
-              WHERE company_id = ?`,
-        args: [
-          data.hsnSacType,
-          data.hsnSacCode || null,
-          data.description || null,
-          data.taxabilityType,
-          Number(data.gstRate) || 0,
-          Number(data.interstateThresholdLimit) || 0,
-          Number(data.intrastateThresholdLimit) || 0,
-          data.thresholdLimitIncludes,
-          data.createHSNSummaryFor,
-          Number(data.minimumHSNLength) || 4,
-          data.showGSTAdvances ? 1 : 0,
-          data.updateGSTStatus ? 1 : 0,
-          data.gstReturnsConfigured ? 1 : 0,
-          data.effectiveDate || '1-Apr-26',
-          data.downloadGSTRegistration || null,
-          data.downloadReturnType || 'All Returns',
-          data.setStateWiseThresholdLimit ? 1 : 0,
-          data.stateWiseLimits ? JSON.stringify(data.stateWiseLimits) : null,
-          data.gstAdvancesApplicableFrom || null,
-          company_id,
-        ],
-      });
+      await db
+        .update(companyGstDetails)
+        .set({
+          hsnSacType: data.hsnSacType,
+          hsnSacCode: data.hsnSacCode || null,
+          description: data.description || null,
+          taxabilityType: data.taxabilityType,
+          gstRate: Number(data.gstRate) || 0,
+          interstateThresholdLimit: Number(data.interstateThresholdLimit) || 0,
+          intrastateThresholdLimit: Number(data.intrastateThresholdLimit) || 0,
+          thresholdLimitIncludes: data.thresholdLimitIncludes,
+          createHsnSummaryFor: data.createHSNSummaryFor,
+          minimumHsnLength: Number(data.minimumHSNLength) || 4,
+          showGstAdvances: data.showGSTAdvances ? 1 : 0,
+          updateGstStatus: data.updateGSTStatus ? 1 : 0,
+          gstReturnsConfigured: data.gstReturnsConfigured ? 1 : 0,
+          effectiveDate: data.effectiveDate || '1-Apr-26',
+          downloadGstRegistration: data.downloadGSTRegistration || null,
+          downloadReturnType: data.downloadReturnType || 'All Returns',
+          setStateWiseThresholdLimit: data.setStateWiseThresholdLimit ? 1 : 0,
+          stateWiseLimits: data.stateWiseLimits ? JSON.stringify(data.stateWiseLimits) : null,
+          gstAdvancesApplicableFrom: data.gstAdvancesApplicableFrom || null,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(companyGstDetails.companyId, company_id));
     } else {
       // INSERT
-      await db.execute({
-        sql: `INSERT INTO company_gst_details (
-                company_id,
-                hsn_sac_type,
-                hsn_sac_code,
-                description,
-                taxability_type,
-                gst_rate,
-                interstate_threshold_limit,
-                intrastate_threshold_limit,
-                threshold_limit_includes,
-                create_hsn_summary_for,
-                minimum_hsn_length,
-                show_gst_advances,
-                update_gst_status,
-                gst_returns_configured,
-                effective_date,
-                download_gst_registration,
-                download_return_type,
-                set_state_wise_threshold_limit,
-                state_wise_limits,
-                gst_advances_applicable_from
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          company_id,
-          data.hsnSacType,
-          data.hsnSacCode || null,
-          data.description || null,
-          data.taxabilityType,
-          Number(data.gstRate) || 0,
-          Number(data.interstateThresholdLimit) || 0,
-          Number(data.intrastateThresholdLimit) || 0,
-          data.thresholdLimitIncludes,
-          data.createHSNSummaryFor,
-          Number(data.minimumHSNLength) || 4,
-          data.showGSTAdvances ? 1 : 0,
-          data.updateGSTStatus ? 1 : 0,
-          data.gstReturnsConfigured ? 1 : 0,
-          data.effectiveDate || '1-Apr-26',
-          data.downloadGSTRegistration || null,
-          data.downloadReturnType || 'All Returns',
-          data.setStateWiseThresholdLimit ? 1 : 0,
-          data.stateWiseLimits ? JSON.stringify(data.stateWiseLimits) : null,
-          data.gstAdvancesApplicableFrom || null,
-        ],
-      });
+      await db
+        .insert(companyGstDetails)
+        .values({
+          companyId: company_id,
+          hsnSacType: data.hsnSacType,
+          hsnSacCode: data.hsnSacCode || null,
+          description: data.description || null,
+          taxabilityType: data.taxabilityType,
+          gstRate: Number(data.gstRate) || 0,
+          interstateThresholdLimit: Number(data.interstateThresholdLimit) || 0,
+          intrastateThresholdLimit: Number(data.intrastateThresholdLimit) || 0,
+          thresholdLimitIncludes: data.thresholdLimitIncludes,
+          createHsnSummaryFor: data.createHSNSummaryFor,
+          minimumHsnLength: Number(data.minimumHSNLength) || 4,
+          showGstAdvances: data.showGSTAdvances ? 1 : 0,
+          updateGstStatus: data.updateGSTStatus ? 1 : 0,
+          gstReturnsConfigured: data.gstReturnsConfigured ? 1 : 0,
+          effectiveDate: data.effectiveDate || '1-Apr-26',
+          downloadGstRegistration: data.downloadGSTRegistration || null,
+          downloadReturnType: data.downloadReturnType || 'All Returns',
+          setStateWiseThresholdLimit: data.setStateWiseThresholdLimit ? 1 : 0,
+          stateWiseLimits: data.stateWiseLimits ? JSON.stringify(data.stateWiseLimits) : null,
+          gstAdvancesApplicableFrom: data.gstAdvancesApplicableFrom || null,
+        });
     }
 
     return { success: true };

@@ -1,0 +1,239 @@
+openapi: 3.1.0
+info:
+  title: featureItem module API
+  version: 1.0.0
+  description: >-
+    IPC API for the `featureItem` backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle(channel, ...)`
+    handler invoked from the renderer via `window.api.featureItem.<method>`.
+    Feature items are the individual company-configuration toggles (e.g.
+    "Enable GST", "Maintain Inventory") that belong to a feature group.
+    All operations in this module are read-only.
+paths:
+  /featureItem/getAll:
+    post:
+      tags: [featureItem]
+      summary: List all active feature items joined with their feature group.
+      operationId: featureItem.getAll
+      x-ipc-channel: "featureItem:getAll"
+      x-window-api: "window.api.featureItem.getAll"
+      x-controller: "featureItemController.getAll"
+      requestBody:
+        required: false
+        description: No payload. The handler ignores arguments beyond the IPC event.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Active feature items ordered by group then display order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureItemListResponse'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /featureItem/getById:
+    post:
+      tags: [featureItem]
+      summary: Fetch a single feature item by its primary key.
+      operationId: featureItem.getById
+      x-ipc-channel: "featureItem:getById"
+      x-window-api: "window.api.featureItem.getById"
+      x-controller: "featureItemController.getById"
+      requestBody:
+        required: true
+        description: >-
+          The handler receives a bare scalar id as the second IPC argument
+          (not an object). Modeled here as a single-property wrapper.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              additionalProperties: false
+              properties:
+                id:
+                  type: integer
+                  description: feature_items.feature_item_id
+      responses:
+        '200':
+          description: >-
+            Wrapped result. On success `item` holds the row; if not found,
+            `success` is false with an error message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureItemSingleResponse'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /featureItem/getByGroup:
+    post:
+      tags: [featureItem]
+      summary: List active feature items belonging to a given feature group.
+      operationId: featureItem.getByGroup
+      x-ipc-channel: "featureItem:getByGroup"
+      x-window-api: "window.api.featureItem.getByGroup"
+      x-controller: "featureItemController.getByGroup"
+      requestBody:
+        required: true
+        description: >-
+          The handler receives a bare scalar group id as the second IPC
+          argument (not an object). Modeled here as a single-property wrapper.
+          Note the preload param name is `group_id`, but the service treats it
+          as `feature_group_id`.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [group_id]
+              additionalProperties: false
+              properties:
+                group_id:
+                  type: integer
+                  description: feature_items.feature_group_id (FK to feature_groups)
+      responses:
+        '200':
+          description: Active feature items for the group, ordered by display order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureItemListResponse'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  schemas:
+    FeatureItem:
+      type: object
+      description: >-
+        A row of the `feature_items` table. INTEGER boolean-flag columns are
+        stored as 0/1 in SQLite and map to Postgres BOOLEAN (0=false, 1=true).
+      properties:
+        feature_item_id:
+          type: integer
+          description: Primary key (SQLite INTEGER PK AUTOINCREMENT).
+        feature_group_id:
+          type: integer
+          description: FK to feature_groups.feature_group_id (NOT NULL).
+        feature_key:
+          type: string
+          description: Stable unique key, e.g. "enable_gst".
+        feature_name:
+          type: string
+          description: Human-readable name, e.g. "Enable GST".
+        description:
+          type: [string, "null"]
+          description: Optional descriptive text.
+        control_type:
+          type: string
+          default: boolean
+          description: UI control type. Defaults to "boolean".
+        default_value_boolean:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: Default toggle value as 0/1 (Postgres BOOLEAN).
+        display_order:
+          type: integer
+          default: 0
+          description: Ordering within the group.
+        is_mandatory:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: Whether the feature cannot be disabled (0/1; Postgres BOOLEAN).
+        is_active:
+          type: integer
+          enum: [0, 1]
+          default: 1
+          description: Soft-active flag (0/1; Postgres BOOLEAN).
+      required:
+        - feature_item_id
+        - feature_group_id
+        - feature_key
+        - feature_name
+
+    FeatureItemWithGroup:
+      description: >-
+        A feature_items row joined with its feature group. Returned by
+        getAll via `SELECT fi.*, fg.group_key, fg.group_name`.
+      allOf:
+        - $ref: '#/components/schemas/FeatureItem'
+        - type: object
+          properties:
+            group_key:
+              type: string
+              description: feature_groups.group_key (joined).
+            group_name:
+              type: string
+              description: feature_groups.group_name (joined).
+
+    FeatureItemListResponse:
+      type: object
+      description: Wrapped list response used by getAll and getByGroup.
+      properties:
+        success:
+          type: boolean
+        featureItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureItemWithGroup'
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    FeatureItemSingleResponse:
+      type: object
+      description: >-
+        Wrapped single-row response used by getById. On success `item` is set;
+        when the id is unknown `success` is false and `error` is
+        "Feature Item not found".
+      properties:
+        success:
+          type: boolean
+        item:
+          $ref: '#/components/schemas/FeatureItem'
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    Error:
+      type: object
+      description: Shared error envelope.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]

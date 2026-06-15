@@ -1,0 +1,454 @@
+openapi: 3.1.0
+info:
+  title: Godown Module API
+  version: 1.0.0
+  description: >
+    IPC API for the "godown" backend module of an Electron + SQLite accounting/ERP app.
+    Each operation maps to an ipcMain.handle channel exposed to the renderer via
+    window.api.godown.<method>. Transport is Electron IPC (not HTTP); operations are
+    modeled as POST for OpenAPI compatibility. The request body documents the argument
+    passed to the renderer binding; the response documents the resolved value.
+tags:
+  - name: godown
+    description: Godown (storage / inventory location) master management.
+
+paths:
+  /godown/create:
+    post:
+      tags: [godown]
+      operationId: godown.create
+      summary: Create a new godown (rejects duplicate active name within the company).
+      x-ipc-channel: "godown:create"
+      x-window-api: "window.api.godown.create"
+      x-controller: "godownController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GodownCreateInput'
+      responses:
+        '200':
+          description: Creation result. success=false with error when the name already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GodownMutationResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /godown/getAll:
+    post:
+      tags: [godown]
+      operationId: godown.getAll
+      summary: List all active godowns for a company.
+      x-ipc-channel: "godown:getAll"
+      x-window-api: "window.api.godown.getAll"
+      x-controller: "godownController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                The handler receives a bare company_id value as its argument
+                (event, company_id). Modeled here as a single-property object.
+              properties:
+                company_id:
+                  type: integer
+                  description: The company whose active godowns to fetch.
+              required: [company_id]
+      responses:
+        '200':
+          description: List result containing active godown rows.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GodownListResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /godown/getById:
+    post:
+      tags: [godown]
+      operationId: godown.getById
+      summary: Fetch a single godown by its primary key.
+      x-ipc-channel: "godown:getById"
+      x-window-api: "window.api.godown.getById"
+      x-controller: "godownController.getById"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                The handler receives a bare id value as its argument (event, id).
+                Modeled here as a single-property object.
+              properties:
+                id:
+                  type: integer
+                  description: godown_id to fetch.
+              required: [id]
+      responses:
+        '200':
+          description: Single godown result. success=false with error when not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GodownMutationResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /godown/update:
+    post:
+      tags: [godown]
+      operationId: godown.update
+      summary: >
+        Update an existing godown. Predefined godowns (Main Location) cannot be
+        edited; duplicate active names within the company are rejected.
+      x-ipc-channel: "godown:update"
+      x-window-api: "window.api.godown.update"
+      x-controller: "godownController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GodownUpdateInput'
+      responses:
+        '200':
+          description: Update result. success=false with error on not-found, predefined, or duplicate name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GodownMutationResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /godown/delete:
+    post:
+      tags: [godown]
+      operationId: godown.delete
+      summary: >
+        Soft-delete a godown (sets is_active = 0). Predefined godowns and godowns
+        with active sub-godowns cannot be deleted.
+      x-ipc-channel: "godown:delete"
+      x-window-api: "window.api.godown.delete"
+      x-controller: "godownController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                The handler receives a bare id value as its argument (event, id).
+                Modeled here as a single-property object.
+              properties:
+                id:
+                  type: integer
+                  description: godown_id to soft-delete.
+              required: [id]
+      responses:
+        '200':
+          description: Delete result. success=true with no payload on success; success=false with error otherwise.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GodownDeleteResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /godown/getTree:
+    post:
+      tags: [godown]
+      operationId: godown.getTree
+      summary: >
+        Return active godowns for a company as a nested tree (children nested under
+        their parent_godown_id, roots have parent_godown_id null).
+      x-ipc-channel: "godown:getTree"
+      x-window-api: "window.api.godown.getTree"
+      x-controller: "godownController.getTree"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                The handler receives a bare company_id value as its argument
+                (event, company_id). Modeled here as a single-property object.
+              properties:
+                company_id:
+                  type: integer
+                  description: The company whose godown tree to build.
+              required: [company_id]
+      responses:
+        '200':
+          description: Hierarchical tree result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GodownTreeResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Godown:
+      type: object
+      description: A row from the `godowns` table.
+      properties:
+        godown_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_godown_id:
+          type: [integer, "null"]
+          description: Self-referential parent (FK -> godowns.godown_id). null for root godowns.
+        address:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        state:
+          type: [string, "null"]
+        pincode:
+          type: [string, "null"]
+        is_primary:
+          type: integer
+          description: SQLite boolean stored as 0/1. 1 = primary (root) godown.
+          enum: [0, 1]
+        is_main_location:
+          type: integer
+          description: SQLite boolean stored as 0/1.
+          enum: [0, 1]
+        allow_storage_of_materials:
+          type: integer
+          description: SQLite boolean stored as 0/1. Defaults to 1.
+          enum: [0, 1]
+        is_active:
+          type: integer
+          description: SQLite boolean stored as 0/1. Soft-delete flag; 0 = deleted.
+          enum: [0, 1]
+        is_predefined:
+          type: integer
+          description: SQLite boolean stored as 0/1. 1 = system godown (Main Location), not editable/deletable.
+          enum: [0, 1]
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required:
+        - godown_id
+        - company_id
+        - name
+
+    GodownCreateInput:
+      type: object
+      description: >
+        Payload for godown:create. Derived from godownService.create destructuring
+        of `data`. is_primary is derived server-side (0 when a parent is given, else 1);
+        is_main_location=0, is_active=1, is_predefined=0 are forced server-side.
+      properties:
+        company_id:
+          type: integer
+          description: Required. Owning company.
+        name:
+          type: string
+          description: Required. Duplicate active name within the company is rejected.
+        alias:
+          type: [string, "null"]
+        parent_godown_id:
+          type: [integer, "null"]
+          description: Parent godown. When provided, is_primary is set to 0.
+        address:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        state:
+          type: [string, "null"]
+        pincode:
+          type: [string, "null"]
+        allow_storage_of_materials:
+          type: integer
+          description: Optional. Defaults to 1 when omitted.
+          enum: [0, 1]
+      required:
+        - company_id
+        - name
+
+    GodownUpdateInput:
+      type: object
+      description: >
+        Payload for godown:update. Derived from godownService.update. godown_id is
+        required; other fields fall back to the current row value when omitted
+        (null/undefined coalesced to existing value).
+      properties:
+        godown_id:
+          type: integer
+          description: Required. Target godown.
+        name:
+          type: string
+          description: New name. Duplicate active name within company is rejected.
+        alias:
+          type: [string, "null"]
+        parent_godown_id:
+          type: [integer, "null"]
+        address:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        state:
+          type: [string, "null"]
+        pincode:
+          type: [string, "null"]
+        allow_storage_of_materials:
+          type: integer
+          enum: [0, 1]
+      required:
+        - godown_id
+
+    GodownNode:
+      description: A Godown row augmented with a recursive `children` array (getTree).
+      allOf:
+        - $ref: '#/components/schemas/Godown'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/GodownNode'
+
+    GodownMutationResult:
+      type: object
+      description: Result of create / getById / update. On success carries the godown row.
+      properties:
+        success:
+          type: boolean
+        godown:
+          $ref: '#/components/schemas/Godown'
+        error:
+          type: string
+          description: Present when success=false.
+      required: [success]
+
+    GodownListResult:
+      type: object
+      description: Result of getAll.
+      properties:
+        success:
+          type: boolean
+        godowns:
+          type: array
+          items:
+            $ref: '#/components/schemas/Godown'
+        error:
+          type: string
+          description: Present when success=false.
+      required: [success]
+
+    GodownTreeResult:
+      type: object
+      description: Result of getTree.
+      properties:
+        success:
+          type: boolean
+        tree:
+          type: array
+          items:
+            $ref: '#/components/schemas/GodownNode'
+        error:
+          type: string
+          description: Present when success=false.
+      required: [success]
+
+    GodownDeleteResult:
+      type: object
+      description: Result of delete. No row payload on success.
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          description: Present when success=false.
+      required: [success]
+
+    Error:
+      type: object
+      description: Shared error envelope.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]

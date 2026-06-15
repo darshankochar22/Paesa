@@ -1,104 +1,89 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { dayBookReports, dayBookEntries, dayBookEntryLines } = require('../db/schema');
 
 module.exports = {
   create: async (data) => {
     try {
-      const result = await db.execute(
-        `INSERT INTO day_book_reports (
-          company_id, report_name, date_from, date_to, selected_company_id,
-          basis_of_values, change_view, exception_reports_enabled, saved_view_name,
-          filter_enabled, filter_details, show_profit, show_columnar, show_optional,
-          show_post_dated, show_stat_adjustment, show_details, show_related_reports
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          data.company_id,
-          data.report_name || 'Day Book',
-          data.date_from,
-          data.date_to,
-          data.selected_company_id || data.company_id,
-          data.basis_of_values || 'Default',
-          data.change_view || null,
-          data.exception_reports_enabled ? 1 : 0,
-          data.saved_view_name || null,
-          data.filter_enabled ? 1 : 0,
-          data.filter_details || null,
-          data.show_profit ? 1 : 0,
-          data.show_columnar ? 1 : 0,
-          data.show_optional ? 1 : 0,
-          data.show_post_dated ? 1 : 0,
-          data.show_stat_adjustment ? 1 : 0,
-          data.show_details ?? 1,
-          data.show_related_reports ? 1 : 0,
-        ]
-      );
+      const insertedReport = await db
+        .insert(dayBookReports)
+        .values({
+          companyId: data.company_id,
+          reportName: data.report_name || 'Day Book',
+          dateFrom: data.date_from,
+          dateTo: data.date_to,
+          selectedCompanyId: data.selected_company_id || data.company_id,
+          basisOfValues: data.basis_of_values || 'Default',
+          changeView: data.change_view || null,
+          exceptionReportsEnabled: data.exception_reports_enabled ? 1 : 0,
+          savedViewName: data.saved_view_name || null,
+          filterEnabled: data.filter_enabled ? 1 : 0,
+          filterDetails: data.filter_details || null,
+          showProfit: data.show_profit ? 1 : 0,
+          showColumnar: data.show_columnar ? 1 : 0,
+          showOptional: data.show_optional ? 1 : 0,
+          showPostDated: data.show_post_dated ? 1 : 0,
+          showStatAdjustment: data.show_stat_adjustment ? 1 : 0,
+          showDetails: data.show_details ?? 1,
+          showRelatedReports: data.show_related_reports ? 1 : 0,
+        })
+        .returning({ id: dayBookReports.reportId });
 
-      const report_id = Number(result.lastInsertRowid);
+      const report_id = Number(insertedReport[0].id);
 
       if (data.entries && data.entries.length > 0) {
         for (let i = 0; i < data.entries.length; i++) {
           const entry = data.entries[i];
 
-          const entryResult = await db.execute(
-            `INSERT INTO day_book_entries (
-              report_id, company_id, voucher_id, voucher_date, particulars,
-              voucher_type, voucher_number, debit_amount, credit_amount,
-              narration, party_ledger_name, show_profit, is_optional,
-              is_post_dated, is_stat_adjustment, gross_profit, cost,
-              display_order, is_drillable, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              report_id,
-              data.company_id,
-              entry.voucher_id || null,
-              entry.voucher_date,
-              entry.particulars || null,
-              entry.voucher_type,
-              entry.voucher_number,
-              entry.debit_amount || 0,
-              entry.credit_amount || 0,
-              entry.narration || null,
-              entry.party_ledger_name || null,
-              entry.show_profit ? 1 : 0,
-              entry.is_optional ? 1 : 0,
-              entry.is_post_dated ? 1 : 0,
-              entry.is_stat_adjustment ? 1 : 0,
-              entry.gross_profit || 0,
-              entry.cost || 0,
-              entry.display_order || i + 1,
-              entry.is_drillable ?? 1,
-              entry.notes || null,
-            ]
-          );
+          const insertedEntry = await db
+            .insert(dayBookEntries)
+            .values({
+              reportId: report_id,
+              companyId: data.company_id,
+              voucherId: entry.voucher_id || null,
+              voucherDate: entry.voucher_date,
+              particulars: entry.particulars || null,
+              voucherType: entry.voucher_type,
+              voucherNumber: entry.voucher_number,
+              debitAmount: entry.debit_amount || 0,
+              creditAmount: entry.credit_amount || 0,
+              narration: entry.narration || null,
+              partyLedgerName: entry.party_ledger_name || null,
+              showProfit: entry.show_profit ? 1 : 0,
+              isOptional: entry.is_optional ? 1 : 0,
+              isPostDated: entry.is_post_dated ? 1 : 0,
+              isStatAdjustment: entry.is_stat_adjustment ? 1 : 0,
+              grossProfit: entry.gross_profit || 0,
+              cost: entry.cost || 0,
+              displayOrder: entry.display_order || i + 1,
+              isDrillable: entry.is_drillable ?? 1,
+              notes: entry.notes || null,
+            })
+            .returning({ id: dayBookEntries.entryId });
 
-          const entry_id = Number(entryResult.lastInsertRowid);
+          const entry_id = Number(insertedEntry[0].id);
 
           if (entry.lines && entry.lines.length > 0) {
             for (let j = 0; j < entry.lines.length; j++) {
               const line = entry.lines[j];
-              await db.execute(
-                `INSERT INTO day_book_entry_lines (
-                  entry_id, ledger_id, particulars, debit_amount, credit_amount, line_order, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [
-                  entry_id,
-                  line.ledger_id || null,
-                  line.particulars || null,
-                  line.debit_amount || 0,
-                  line.credit_amount || 0,
-                  line.line_order || j + 1,
-                  line.notes || null,
-                ]
-              );
+              await db.insert(dayBookEntryLines).values({
+                entryId: entry_id,
+                ledgerId: line.ledger_id || null,
+                particulars: line.particulars || null,
+                debitAmount: line.debit_amount || 0,
+                creditAmount: line.credit_amount || 0,
+                lineOrder: line.line_order || j + 1,
+                notes: line.notes || null,
+              });
             }
           }
         }
       }
 
-      const report = await db.execute(
-        `SELECT * FROM day_book_reports WHERE report_id = ?`,
-        [report_id]
+      const report = await db.all(
+        sql`SELECT * FROM ${dayBookReports} WHERE ${dayBookReports.reportId} = ${report_id}`
       );
-      return { success: true, report: report.rows[0] };
+      return { success: true, report: report[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -106,11 +91,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM day_book_reports WHERE company_id = ? ORDER BY created_at DESC`,
-        [company_id]
+      const reports = await db.all(
+        sql`SELECT * FROM ${dayBookReports}
+            WHERE ${dayBookReports.companyId} = ${company_id}
+            ORDER BY ${dayBookReports.createdAt} DESC`
       );
-      return { success: true, reports: result.rows };
+      return { success: true, reports };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -118,24 +104,25 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const report = await db.execute(
-        `SELECT * FROM day_book_reports WHERE report_id = ?`,
-        [id]
+      const report = await db.all(
+        sql`SELECT * FROM ${dayBookReports} WHERE ${dayBookReports.reportId} = ${id}`
       );
-      if (report.rows.length === 0) return { success: false, error: 'Report not found' };
+      if (report.length === 0) return { success: false, error: 'Report not found' };
 
-      const entries = await db.execute(
-        `SELECT * FROM day_book_entries WHERE report_id = ? ORDER BY display_order ASC`,
-        [id]
+      const entries = await db.all(
+        sql`SELECT * FROM ${dayBookEntries}
+            WHERE ${dayBookEntries.reportId} = ${id}
+            ORDER BY ${dayBookEntries.displayOrder} ASC`
       );
 
       const entriesWithLines = await Promise.all(
-        entries.rows.map(async (entry) => {
-          const lines = await db.execute(
-            `SELECT * FROM day_book_entry_lines WHERE entry_id = ? ORDER BY line_order ASC`,
-            [entry.entry_id]
+        entries.map(async (entry) => {
+          const lines = await db.all(
+            sql`SELECT * FROM ${dayBookEntryLines}
+                WHERE ${dayBookEntryLines.entryId} = ${entry.entry_id}
+                ORDER BY ${dayBookEntryLines.lineOrder} ASC`
           );
-          return { ...entry, lines: lines.rows };
+          return { ...entry, lines };
         })
       );
 
@@ -145,7 +132,7 @@ module.exports = {
       return {
         success: true,
         report: {
-          ...report.rows[0],
+          ...report[0],
           entries: entriesWithLines,
           totalDebit,
           totalCredit,
@@ -158,13 +145,12 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM day_book_reports WHERE report_id = ?`,
-        [id]
+      const existing = await db.all(
+        sql`SELECT * FROM ${dayBookReports} WHERE ${dayBookReports.reportId} = ${id}`
       );
-      if (existing.rows.length === 0) return { success: false, error: 'Report not found' };
+      if (existing.length === 0) return { success: false, error: 'Report not found' };
 
-      await db.execute(`DELETE FROM day_book_reports WHERE report_id = ?`, [id]);
+      await db.delete(dayBookReports).where(eq(dayBookReports.reportId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

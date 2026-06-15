@@ -1,0 +1,55 @@
+const { sqliteTable, integer, text } = require('drizzle-orm/sqlite-core');
+const { sql } = require('drizzle-orm');
+
+// CREATE TABLE employees — see server/employee/employee.js (ground truth).
+// All date_of_* / created_at / updated_at columns are raw TEXT in SQLite,
+// and is_active / define_salary_details are raw INTEGER (0/1) — kept raw to
+// preserve existing read/write behavior.
+const employees = sqliteTable('employees', {
+  employeeId: integer('employee_id').primaryKey({ autoIncrement: true }),
+  companyId: integer('company_id').notNull(),
+  employeeCategoryId: integer('employee_category_id'),
+  employeeGroupId: integer('employee_group_id'),
+  name: text('name').notNull(),
+  alias: text('alias'),
+  employeeCode: text('employee_code'),
+  designation: text('designation'),
+  department: text('department'),
+  function: text('function'),
+  location: text('location'),
+  dateOfJoining: text('date_of_joining'),
+  dateOfLeaving: text('date_of_leaving'),
+  dateOfBirth: text('date_of_birth'),
+  gender: text('gender'),
+  bloodGroup: text('blood_group'),
+  fatherName: text('father_name'),
+  motherName: text('mother_name'),
+  spouseName: text('spouse_name'),
+  address: text('address'),
+  city: text('city'),
+  state: text('state'),
+  pincode: text('pincode'),
+  mobile: text('mobile'),
+  phone: text('phone'),
+  email: text('email'),
+  defineSalaryDetails: integer('define_salary_details').default(0),
+  bankAccountNumber: text('bank_account_number'),
+  bankName: text('bank_name'),
+  bankBranch: text('bank_branch'),
+  ifscCode: text('ifsc_code'),
+  applicableTaxRegime: text('applicable_tax_regime'),
+  pan: text('pan'),
+  aadhaar: text('aadhaar'),
+  uan: text('uan'),
+  pfAccountNumber: text('pf_account_number'),
+  epsAccountNumber: text('eps_account_number'),
+  dateOfJoiningPf: text('date_of_joining_pf'),
+  pran: text('pran'),
+  esiNumber: text('esi_number'),
+  esiDispensaryName: text('esi_dispensary_name'),
+  isActive: integer('is_active').default(1),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+});
+
+module.exports = { employees };

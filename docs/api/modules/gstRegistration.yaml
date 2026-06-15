@@ -1,0 +1,478 @@
+openapi: 3.1.0
+info:
+  title: gstRegistration Module API
+  version: 1.0.0
+  description: >
+    IPC API contract for the "gstRegistration" backend module of an Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('gstRegistration:<action>', ...)`
+    channel in server/index.js, exposed to the renderer as `window.api.gstRegistration.<method>`.
+    HTTP method/path are a documentation convention; the real transport is Electron IPC.
+    Every service method returns a result envelope `{ success: boolean, ... }` rather than throwing.
+tags:
+  - name: gstRegistration
+    description: GST registration records for companies (GSTIN, e-invoice, e-way bill, composition settings).
+paths:
+  /gstRegistration/create:
+    post:
+      operationId: gstRegistration.create
+      tags: [gstRegistration]
+      summary: Create a GST registration for a company (validates GSTIN, rejects duplicates).
+      x-ipc-channel: "gstRegistration:create"
+      x-window-api: "window.api.gstRegistration.create"
+      x-controller: "gstRegistrationController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GstRegistrationCreateInput'
+      responses:
+        '200':
+          description: >
+            On success returns the created row. On validation failure (bad GSTIN or duplicate
+            GSTIN) or DB error returns `{ success: false, error }` with HTTP 200.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GstRegistrationSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /gstRegistration/getAll:
+    post:
+      operationId: gstRegistration.getAll
+      tags: [gstRegistration]
+      summary: List all GST registrations for a given company (includes soft-deleted/inactive rows).
+      x-ipc-channel: "gstRegistration:getAll"
+      x-window-api: "window.api.gstRegistration.getAll"
+      x-controller: "gstRegistrationController.getAll"
+      requestBody:
+        required: true
+        description: The handler receives a bare scalar company_id as IPC arg 2.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Company whose GST registrations to fetch (FK companies.company_id).
+              required: [company_id]
+      responses:
+        '200':
+          description: List of GST registration rows wrapped in a result envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GstRegistrationListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /gstRegistration/getById:
+    post:
+      operationId: gstRegistration.getById
+      tags: [gstRegistration]
+      summary: Fetch a single GST registration by its gst_id.
+      x-ipc-channel: "gstRegistration:getById"
+      x-window-api: "window.api.gstRegistration.getById"
+      x-controller: "gstRegistrationController.getById"
+      requestBody:
+        required: true
+        description: The handler receives a bare scalar id as IPC arg 2.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: gst_id (primary key) of the registration.
+              required: [id]
+      responses:
+        '200':
+          description: "The matching row, or `{ success: false, error }` if not found."
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GstRegistrationSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /gstRegistration/update:
+    post:
+      operationId: gstRegistration.update
+      tags: [gstRegistration]
+      summary: Update an existing GST registration (by gst_id) with partial field merge.
+      description: >
+        Boolean-like fields (assessee_of_other_territory, e_invoice_application,
+        e_way_bill_applicable, applicable_for_intrastat) are coerced to 0/1 from the payload
+        value on every update and are NOT merged from the existing row. All other absent fields
+        fall back to the current stored value.
+      x-ipc-channel: "gstRegistration:update"
+      x-window-api: "window.api.gstRegistration.update"
+      x-controller: "gstRegistrationController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GstRegistrationUpdateInput'
+      responses:
+        '200':
+          description: "Updated row, or `{ success: false, error }` if not found / invalid GSTIN."
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GstRegistrationSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /gstRegistration/delete:
+    post:
+      operationId: gstRegistration.delete
+      tags: [gstRegistration]
+      summary: Soft-delete a GST registration (sets is_active = 0) by gst_id.
+      x-ipc-channel: "gstRegistration:delete"
+      x-window-api: "window.api.gstRegistration.delete"
+      x-controller: "gstRegistrationController.delete"
+      requestBody:
+        required: true
+        description: The handler receives a bare scalar id as IPC arg 2.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: gst_id (primary key) of the registration to soft-delete.
+              required: [id]
+      responses:
+        '200':
+          description: "Success flag only, or `{ success: false, error }` if not found."
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared error shape for 4xx/5xx transport-level failures.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+    SuccessResult:
+      type: object
+      description: Result envelope with no payload (used by delete).
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]
+    FailureResult:
+      type: object
+      description: Result envelope returned on validation or DB failure (always HTTP 200).
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: >
+            One of "Invalid GSTIN format", "GSTIN already registered",
+            "GST Registration not found", or a raw SQLite error message.
+      required: [success, error]
+    GstRegistrationSingleResult:
+      type: object
+      description: Success envelope wrapping a single GST registration row.
+      properties:
+        success:
+          type: boolean
+          const: true
+        gstRegistration:
+          $ref: '#/components/schemas/GstRegistration'
+      required: [success, gstRegistration]
+    GstRegistrationListResult:
+      type: object
+      description: Success envelope wrapping an array of GST registration rows.
+      properties:
+        success:
+          type: boolean
+          const: true
+        gstRegistrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/GstRegistration'
+      required: [success, gstRegistrations]
+    GstRegistration:
+      type: object
+      description: >
+        A row of the gst_registrations table. Integer flag columns are stored as 0/1 in SQLite
+        (mapped to BOOLEAN in Postgres). Date/datetime columns are stored as ISO strings (TEXT).
+      properties:
+        gst_id:
+          type: integer
+          description: Primary key (INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company (FK companies.company_id, ON DELETE CASCADE). NOT NULL.
+        registration_type:
+          type: [string, "null"]
+          description: Default 'Regular'.
+        registration_status:
+          type: [string, "null"]
+          description: Default 'Active'.
+        assessee_of_other_territory:
+          type: [integer, "null"]
+          description: Boolean 0/1. Default 0.
+        periodicity_of_gstr1:
+          type: [string, "null"]
+          description: Default 'Monthly'.
+        gstin:
+          type: [string, "null"]
+          description: 15-char GSTIN, validated against the standard GSTIN regex when present.
+        gst_username:
+          type: [string, "null"]
+        mode_of_filing:
+          type: [string, "null"]
+          description: Default 'Online'.
+        e_invoice_details:
+          type: [string, "null"]
+        e_invoice_application:
+          type: [integer, "null"]
+          description: Boolean 0/1. Default 0.
+        e_way_bill_applicable:
+          type: [integer, "null"]
+          description: Boolean 0/1. Default 0.
+        e_way_bill_applicable_from:
+          type: [string, "null"]
+          description: ISO date string.
+        applicable_for_intrastat:
+          type: [integer, "null"]
+          description: Boolean 0/1. Default 0.
+        legal_name:
+          type: [string, "null"]
+        trade_name:
+          type: [string, "null"]
+        state_id:
+          type: [string, "null"]
+          description: Stored as TEXT in source despite the _id suffix.
+        registration_date:
+          type: [string, "null"]
+          description: ISO date string.
+        effective_from:
+          type: [string, "null"]
+          description: ISO date string.
+        address_type:
+          type: [string, "null"]
+          description: Default 'Primary'.
+        goods_dispatched_from:
+          type: [string, "null"]
+          description: Default 'Primary'.
+        e_invoice_applicable_from:
+          type: [string, "null"]
+          description: ISO date string.
+        e_invoice_bill_from_place:
+          type: [string, "null"]
+        composition_tax_rate:
+          type: [number, "null"]
+          description: Tax rate (percentage). REAL in SQLite.
+        composition_tax_calc_basis:
+          type: [string, "null"]
+        is_active:
+          type: [integer, "null"]
+          description: Boolean 0/1. Default 1. Set to 0 on soft-delete.
+        created_at:
+          type: [string, "null"]
+          description: ISO datetime string; default datetime('now').
+        updated_at:
+          type: [string, "null"]
+          description: ISO datetime string; default datetime('now'), refreshed on update.
+      required: [gst_id, company_id]
+    GstRegistrationCreateInput:
+      type: object
+      description: >
+        Payload for create. Only company_id is effectively required (NOT NULL). String/boolean
+        defaults are applied server-side; gstin is optional but validated when present, and a
+        duplicate active (company_id, gstin) pair is rejected. is_active is forced to 1.
+      properties:
+        company_id:
+          type: integer
+          description: FK companies.company_id. Required.
+        registration_type:
+          type: string
+          default: Regular
+        registration_status:
+          type: string
+          default: Active
+        assessee_of_other_territory:
+          type: boolean
+          description: Coerced to 0/1. Default 0.
+        periodicity_of_gstr1:
+          type: string
+          default: Monthly
+        gstin:
+          type: string
+          description: Validated against GSTIN regex when provided.
+        gst_username:
+          type: string
+        mode_of_filing:
+          type: string
+          default: Online
+        e_invoice_details:
+          type: string
+        e_invoice_application:
+          type: boolean
+          description: Coerced to 0/1.
+        e_way_bill_applicable:
+          type: boolean
+          description: Coerced to 0/1.
+        e_way_bill_applicable_from:
+          type: string
+        applicable_for_intrastat:
+          type: boolean
+          description: Coerced to 0/1.
+        legal_name:
+          type: string
+        trade_name:
+          type: string
+        state_id:
+          type: string
+        registration_date:
+          type: string
+        effective_from:
+          type: string
+        address_type:
+          type: string
+          default: Primary
+        goods_dispatched_from:
+          type: string
+          default: Primary
+        e_invoice_applicable_from:
+          type: string
+        e_invoice_bill_from_place:
+          type: string
+        composition_tax_rate:
+          type: number
+        composition_tax_calc_basis:
+          type: string
+      required: [company_id]
+    GstRegistrationUpdateInput:
+      type: object
+      description: >
+        Payload for update. gst_id is required to locate the row. company_id is NOT updatable
+        (not part of the UPDATE statement). Omitted non-boolean fields keep their current value;
+        boolean fields are always re-derived from the payload (omitted => 0).
+      properties:
+        gst_id:
+          type: integer
+          description: Primary key of the row to update. Required.
+        registration_type:
+          type: string
+        registration_status:
+          type: string
+        assessee_of_other_territory:
+          type: boolean
+        periodicity_of_gstr1:
+          type: string
+        gstin:
+          type: string
+        gst_username:
+          type: string
+        mode_of_filing:
+          type: string
+        e_invoice_details:
+          type: string
+        e_invoice_application:
+          type: boolean
+        e_way_bill_applicable:
+          type: boolean
+        e_way_bill_applicable_from:
+          type: string
+        applicable_for_intrastat:
+          type: boolean
+        legal_name:
+          type: string
+        trade_name:
+          type: string
+        state_id:
+          type: string
+        registration_date:
+          type: string
+        effective_from:
+          type: string
+        address_type:
+          type: string
+        goods_dispatched_from:
+          type: string
+        e_invoice_applicable_from:
+          type: string
+        e_invoice_bill_from_place:
+          type: string
+        composition_tax_rate:
+          type: number
+        composition_tax_calc_basis:
+          type: string
+      required: [gst_id]

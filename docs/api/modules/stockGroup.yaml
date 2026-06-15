@@ -1,0 +1,443 @@
+openapi: 3.1.0
+info:
+  title: stockGroup module API
+  version: 1.0.0
+  description: >
+    IPC contract for the "stockGroup" backend module of an Electron + SQLite
+    accounting/ERP app. Each operation models an `ipcMain.handle(channel, ...)`
+    call. Transport is Electron IPC (not HTTP); paths/methods are a documentation
+    convention. The renderer invokes these via the preload `window.api.stockGroup.*`
+    bindings.
+tags:
+  - name: stockGroup
+    description: Inventory stock-group hierarchy (groups/subgroups) per company.
+
+paths:
+  /stockGroup/create:
+    post:
+      tags: [stockGroup]
+      summary: Create a stock group (rejects duplicate active name within company).
+      operationId: stockGroup.create
+      x-ipc-channel: "stockGroup:create"
+      x-window-api: "window.api.stockGroup.create"
+      x-controller: "stockGroupController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockGroupCreateInput'
+      responses:
+        '200':
+          description: Created group, or a failure flag when name already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockGroupResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /stockGroup/getAll:
+    post:
+      tags: [stockGroup]
+      summary: List all active stock groups for a company.
+      operationId: stockGroup.getAll
+      x-ipc-channel: "stockGroup:getAll"
+      x-window-api: "window.api.stockGroup.getAll"
+      x-controller: "stockGroupController.getAll"
+      requestBody:
+        required: true
+        description: The handler receives a bare company_id scalar as arg 2.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Active stock groups for the company.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockGroupListResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /stockGroup/getById:
+    post:
+      tags: [stockGroup]
+      summary: Fetch a single stock group by its primary key.
+      operationId: stockGroup.getById
+      x-ipc-channel: "stockGroup:getById"
+      x-window-api: "window.api.stockGroup.getById"
+      x-controller: "stockGroupController.getById"
+      requestBody:
+        required: true
+        description: The handler receives a bare sg_id scalar as arg 2.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SgIdInput'
+      responses:
+        '200':
+          description: The group, or a failure flag if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockGroupResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /stockGroup/update:
+    post:
+      tags: [stockGroup]
+      summary: Update a stock group (blocked for predefined groups).
+      operationId: stockGroup.update
+      x-ipc-channel: "stockGroup:update"
+      x-window-api: "window.api.stockGroup.update"
+      x-controller: "stockGroupController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockGroupUpdateInput'
+      responses:
+        '200':
+          description: Updated group, or a failure flag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockGroupResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /stockGroup/delete:
+    post:
+      tags: [stockGroup]
+      summary: >
+        Soft-delete a stock group (sets is_active = 0). Blocked for predefined
+        groups and for groups that still have active subgroups.
+      operationId: stockGroup.delete
+      x-ipc-channel: "stockGroup:delete"
+      x-window-api: "window.api.stockGroup.delete"
+      x-controller: "stockGroupController.delete"
+      requestBody:
+        required: true
+        description: The handler receives a bare sg_id scalar as arg 2.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SgIdInput'
+      responses:
+        '200':
+          description: Success flag, or a failure flag with reason.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockGroupDeleteResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /stockGroup/getTree:
+    post:
+      tags: [stockGroup]
+      summary: Return active stock groups for a company as a nested parent/child tree.
+      operationId: stockGroup.getTree
+      x-ipc-channel: "stockGroup:getTree"
+      x-window-api: "window.api.stockGroup.getTree"
+      x-controller: "stockGroupController.getTree"
+      requestBody:
+        required: true
+        description: The handler receives a bare company_id scalar as arg 2.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Nested tree of stock groups.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockGroupTreeResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  schemas:
+
+    StockGroup:
+      type: object
+      description: A row of the stock_groups table.
+      properties:
+        sg_id:
+          type: integer
+          description: Primary key (INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company. FK -> companies(company_id).
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_group_id:
+          type: [integer, "null"]
+          description: Self-FK -> stock_groups(sg_id). null for top-level groups.
+        should_quantities_be_added:
+          type: integer
+          description: SQLite 0/1 flag (boolean in Postgres). Default 0.
+        hsn_sac_code:
+          type: [string, "null"]
+        hsn_sac_description:
+          type: [string, "null"]
+        gst_rate:
+          type: number
+          description: GST percentage rate. Default 0.
+        cgst_rate:
+          type: number
+          description: CGST percentage rate. Default 0.
+        sgst_rate:
+          type: number
+          description: SGST percentage rate. Default 0.
+        taxability_type:
+          type: [string, "null"]
+        statutory_details:
+          type: [string, "null"]
+        is_primary:
+          type: integer
+          description: SQLite 0/1 flag (boolean in Postgres). Default 0.
+        is_active:
+          type: integer
+          description: SQLite 0/1 flag (boolean in Postgres). Default 1. Soft-delete marker.
+        is_predefined:
+          type: integer
+          description: SQLite 0/1 flag (boolean in Postgres). Default 0. Predefined groups cannot be edited/deleted.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required:
+        - sg_id
+        - company_id
+        - name
+
+    StockGroupCreateInput:
+      type: object
+      description: >
+        Payload for stockGroup:create. The service ignores any client-supplied
+        is_primary / is_active / is_predefined and forces them to 0, 1, 0.
+      properties:
+        company_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_group_id:
+          type: [integer, "null"]
+        should_quantities_be_added:
+          type: integer
+          description: 0 or 1. Defaults to 0 when omitted/null.
+        hsn_sac_code:
+          type: [string, "null"]
+        hsn_sac_description:
+          type: [string, "null"]
+        gst_rate:
+          type: number
+          description: Defaults to 0 when falsy.
+        cgst_rate:
+          type: number
+          description: Defaults to 0 when falsy.
+        sgst_rate:
+          type: number
+          description: Defaults to 0 when falsy.
+        taxability_type:
+          type: [string, "null"]
+        statutory_details:
+          type: [string, "null"]
+      required:
+        - company_id
+        - name
+
+    StockGroupUpdateInput:
+      type: object
+      description: >
+        Payload for stockGroup:update. sg_id identifies the row; any omitted
+        field falls back to the existing stored value (?? coalescing).
+      properties:
+        sg_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_group_id:
+          type: [integer, "null"]
+        should_quantities_be_added:
+          type: integer
+        hsn_sac_code:
+          type: [string, "null"]
+        hsn_sac_description:
+          type: [string, "null"]
+        gst_rate:
+          type: number
+        cgst_rate:
+          type: number
+        sgst_rate:
+          type: number
+        taxability_type:
+          type: [string, "null"]
+        statutory_details:
+          type: [string, "null"]
+      required:
+        - sg_id
+
+    CompanyIdInput:
+      type: object
+      description: Bare scalar payload — the handler's arg 2 is company_id itself.
+      properties:
+        company_id:
+          type: integer
+      required:
+        - company_id
+
+    SgIdInput:
+      type: object
+      description: Bare scalar payload — the handler's arg 2 is the stock-group id (sg_id) itself.
+      properties:
+        sg_id:
+          type: integer
+      required:
+        - sg_id
+
+    StockGroupResult:
+      type: object
+      description: Result of create/getById/update.
+      properties:
+        success:
+          type: boolean
+        group:
+          $ref: '#/components/schemas/StockGroup'
+        error:
+          type: string
+          description: Present only when success is false.
+      required:
+        - success
+
+    StockGroupListResult:
+      type: object
+      description: Result of getAll.
+      properties:
+        success:
+          type: boolean
+        stockGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockGroup'
+        error:
+          type: string
+      required:
+        - success
+
+    StockGroupTreeNode:
+      type: object
+      description: A StockGroup row augmented with a recursive children array.
+      allOf:
+        - $ref: '#/components/schemas/StockGroup'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/StockGroupTreeNode'
+
+    StockGroupTreeResult:
+      type: object
+      description: Result of getTree.
+      properties:
+        success:
+          type: boolean
+        tree:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockGroupTreeNode'
+        error:
+          type: string
+      required:
+        - success
+
+    StockGroupDeleteResult:
+      type: object
+      description: Result of delete (soft-delete).
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          description: >
+            Present when success is false. Possible reasons: "Stock Group not found",
+            "Cannot delete predefined stock groups", "Cannot delete Stock Group with subgroups".
+      required:
+        - success
+
+    Error:
+      type: object
+      description: Shared error envelope.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message

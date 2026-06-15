@@ -1,0 +1,447 @@
+openapi: 3.1.0
+info:
+  title: Company Module API
+  version: 1.0.0
+  description: >-
+    IPC API contract for the "company" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('company:<action>', ...)`
+    channel registered in server/index.js and exposed to the renderer through
+    preload.js as `window.api.company.<method>`.
+
+    Transport note: these are not real HTTP endpoints. They are Electron IPC
+    channels modeled as POST operations for documentation/tooling purposes.
+    The HTTP method, path and requestBody are documentation conventions only.
+
+    Security note: the `companies.password` column is bcrypt-hashed on write and is
+    ALWAYS stripped from every returned `company` object (the service destructures
+    `{ password, ...safe }`). Passwords are never returned to the renderer.
+
+paths:
+  /company/create:
+    post:
+      operationId: company.create
+      tags: [company]
+      summary: >-
+        Create a new company, hash its password, persist it, then seed all
+        default masters (groups, ledgers, units, stock groups, godowns, currency,
+        voucher types, GST classifications, employee categories/groups, payroll
+        units, tally features, attendance types, pay heads, financial year, etc.)
+        for the new company_id. Returns the created company without its password.
+      x-ipc-channel: "company:create"
+      x-window-api: "window.api.company.create"
+      x-controller: "companyController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyCreateInput'
+      responses:
+        '200':
+          description: Company created (and masters seeded) or a failure envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResult'
+        '4XX':
+          description: Client/validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /company/getAll:
+    post:
+      operationId: company.getAll
+      tags: [company]
+      summary: >-
+        Return all companies (passwords stripped). Handler takes no payload.
+      x-ipc-channel: "company:getAll"
+      x-window-api: "window.api.company.getAll"
+      x-controller: "companyController.getAll"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              description: No payload. `window.api.company.getAll()` is called with no arguments.
+      responses:
+        '200':
+          description: List of companies (passwords removed).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyListResult'
+        '4XX':
+          description: Client/validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /company/getById:
+    post:
+      operationId: company.getById
+      tags: [company]
+      summary: >-
+        Return a single company by its company_id (password stripped). The IPC
+        handler receives the id as a bare scalar (arg 2), not wrapped in an object.
+      x-ipc-channel: "company:getById"
+      x-window-api: "window.api.company.getById"
+      x-controller: "companyController.getById"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: The company, or a failure envelope if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResult'
+        '4XX':
+          description: Client/validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /company/update:
+    post:
+      operationId: company.update
+      tags: [company]
+      summary: >-
+        Update an existing company identified by data.company_id. Each field
+        falls back to the current stored value when omitted (null/undefined).
+        A new password is bcrypt-hashed only if provided; otherwise the existing
+        hash is retained. Returns the updated company without its password.
+      x-ipc-channel: "company:update"
+      x-window-api: "window.api.company.update"
+      x-controller: "companyController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyUpdateInput'
+      responses:
+        '200':
+          description: Updated company, or a failure envelope if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResult'
+        '4XX':
+          description: Client/validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /company/delete:
+    post:
+      operationId: company.delete
+      tags: [company]
+      summary: >-
+        Delete a company by company_id. The IPC handler receives the id as a
+        bare scalar (arg 2). Returns { success: true } when deleted.
+      x-ipc-channel: "company:delete"
+      x-window-api: "window.api.company.delete"
+      x-controller: "companyController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Deletion result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          description: Client/validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /company/verifyPassword:
+    post:
+      operationId: company.verifyPassword
+      tags: [company]
+      summary: >-
+        Verify a plaintext password against a company's stored bcrypt hash.
+        If the company has no password set, verification succeeds. Returns
+        { success: true } on match, or a failure envelope on mismatch / not found.
+      x-ipc-channel: "company:verifyPassword"
+      x-window-api: "window.api.company.verifyPassword"
+      x-controller: "companyController.verifyPassword"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyPasswordInput'
+      responses:
+        '200':
+          description: Verification result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          description: Client/validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+
+    Company:
+      type: object
+      description: >-
+        A row of the `companies` table as returned to the renderer. The
+        `password` column is always stripped before returning, so it never
+        appears here.
+      properties:
+        company_id:
+          type: integer
+          description: Primary key (SQLite INTEGER PRIMARY KEY AUTOINCREMENT).
+        name:
+          type: string
+          description: Company name (NOT NULL in the table).
+        mailing_name:
+          type: [string, "null"]
+        address1:
+          type: [string, "null"]
+        address2:
+          type: [string, "null"]
+        state:
+          type: [string, "null"]
+        country:
+          type: [string, "null"]
+        pincode:
+          type: [string, "null"]
+          description: Stored as TEXT.
+        telephone:
+          type: [string, "null"]
+        mobile:
+          type: [string, "null"]
+        fax:
+          type: [string, "null"]
+        email:
+          type: [string, "null"]
+        website:
+          type: [string, "null"]
+        base_currency_symbol:
+          type: [string, "null"]
+        formal_name:
+          type: [string, "null"]
+        financial_year_beginning_from:
+          type: [string, "null"]
+          description: ISO date string used to seed the default financial year.
+        books_beginning_from:
+          type: [string, "null"]
+          description: ISO date string.
+        access_control:
+          type: [string, "null"]
+          description: Inserted as NULL on create.
+        edit_log:
+          type: [string, "null"]
+          description: Inserted as NULL on create.
+        created_at:
+          type: string
+          description: ISO datetime string, DEFAULT datetime('now').
+      required: [company_id, name]
+      additionalProperties: true
+
+    CompanyCreateInput:
+      type: object
+      description: Payload for company:create (data object the controller forwards to service.create).
+      properties:
+        name:
+          type: string
+          description: Required. Company name.
+        mailing_name: { type: [string, "null"] }
+        address1: { type: [string, "null"] }
+        address2: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        country: { type: [string, "null"] }
+        pincode: { type: [string, "null"] }
+        telephone: { type: [string, "null"] }
+        mobile: { type: [string, "null"] }
+        fax: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        website: { type: [string, "null"] }
+        base_currency_symbol: { type: [string, "null"] }
+        formal_name: { type: [string, "null"] }
+        financial_year_beginning_from:
+          type: [string, "null"]
+          description: ISO date; also passed to financialYearService.seedDefaultFY.
+        books_beginning_from: { type: [string, "null"] }
+        password:
+          type: [string, "null"]
+          description: Plaintext password; bcrypt-hashed (cost 10) before storage if present.
+      required: [name]
+      additionalProperties: true
+
+    CompanyUpdateInput:
+      type: object
+      description: >-
+        Payload for company:update. company_id is required to locate the row.
+        Any omitted field falls back to the existing stored value.
+      properties:
+        company_id:
+          type: integer
+          description: Required. Identifies the company to update.
+        name: { type: string }
+        mailing_name: { type: [string, "null"] }
+        address1: { type: [string, "null"] }
+        address2: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        country: { type: [string, "null"] }
+        pincode: { type: [string, "null"] }
+        telephone: { type: [string, "null"] }
+        mobile: { type: [string, "null"] }
+        fax: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        website: { type: [string, "null"] }
+        base_currency_symbol: { type: [string, "null"] }
+        formal_name: { type: [string, "null"] }
+        financial_year_beginning_from: { type: [string, "null"] }
+        books_beginning_from: { type: [string, "null"] }
+        password:
+          type: [string, "null"]
+          description: If provided, bcrypt-hashed and replaces the existing hash; otherwise the current hash is kept.
+      required: [company_id]
+      additionalProperties: true
+
+    CompanyIdInput:
+      type: object
+      description: >-
+        Scalar id payload. The IPC handler receives this as a bare value
+        (arg 2), e.g. window.api.company.getById(id) / delete(id). Modeled here
+        as an object with a single `id` property for tooling clarity.
+      properties:
+        id:
+          type: integer
+          description: company_id of the target company.
+      required: [id]
+      additionalProperties: false
+
+    VerifyPasswordInput:
+      type: object
+      description: Payload for company:verifyPassword (controller destructures { id, password }).
+      properties:
+        id:
+          type: integer
+          description: company_id of the company.
+        password:
+          type: string
+          description: Plaintext password to compare against the stored bcrypt hash.
+      required: [id, password]
+      additionalProperties: false
+
+    CompanyResult:
+      description: >-
+        Success/failure envelope wrapping a single company. On success
+        { success: true, company }. On failure { success: false, error }.
+      oneOf:
+        - type: object
+          properties:
+            success: { const: true }
+            company: { $ref: '#/components/schemas/Company' }
+          required: [success, company]
+          additionalProperties: false
+        - $ref: '#/components/schemas/FailureEnvelope'
+
+    CompanyListResult:
+      description: Envelope for company:getAll.
+      oneOf:
+        - type: object
+          properties:
+            success: { const: true }
+            companies:
+              type: array
+              items: { $ref: '#/components/schemas/Company' }
+          required: [success, companies]
+          additionalProperties: false
+        - $ref: '#/components/schemas/FailureEnvelope'
+
+    SuccessResult:
+      description: >-
+        Generic envelope for delete / verifyPassword. On success { success: true }.
+        On failure { success: false, error }.
+      oneOf:
+        - type: object
+          properties:
+            success: { const: true }
+          required: [success]
+          additionalProperties: false
+        - $ref: '#/components/schemas/FailureEnvelope'
+
+    FailureEnvelope:
+      type: object
+      description: Failure shape returned by the service's try/catch and not-found paths.
+      properties:
+        success: { const: false }
+        error:
+          type: string
+          description: Human-readable error message (e.g. "Company not found", "Wrong password", or err.message).
+      required: [success, error]
+      additionalProperties: false
+
+    Error:
+      type: object
+      description: Shared error schema for non-200 transport-level responses.
+      properties:
+        error: { type: string }
+        message: { type: string }
+      required: [error, message]
+      additionalProperties: false

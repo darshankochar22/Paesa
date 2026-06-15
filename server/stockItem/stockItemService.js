@@ -1,163 +1,146 @@
+// ---------------------------------------------------------------------------
+// Drizzle ORM conversion (pattern: currencyService golden exemplar).
+//
+//   * MUTATIONS use the query builder: db.insert(...).values(...),
+//     db.update(...).set(...).where(...), db.delete(...).where(...).
+//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
+//     WHERE ...`) so the legacy snake_case row shape (item_id, opening_quantity,
+//     numeric 0/1 booleans, ...) is preserved exactly for the test oracle.
+//   * The getStockBalances analytical query (multi-join, GROUP BY, CASE,
+//     dynamic IN lists, COALESCE/SUM) is kept as a typed `sql` query via
+//     db.all — still Drizzle and parameterized. Column/table identifiers come
+//     from the schema objects.
+//   * New-row id after INSERT comes from .returning({ id: table.pkCol }).
+// ---------------------------------------------------------------------------
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const {
+  stockItems,
+  stockItemOpeningAllocations,
+  vouchers,
+  voucherStockEntries,
+  physicalStockEntries,
+  physicalStockEntryLines,
+} = require('../db/schema');
+
+// Fetch stock_items rows in the legacy snake_case shape.
+const findItemRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${stockItems} WHERE ${whereSql}`);
+  return rows[0];
+};
+
+const getAllocations = async (item_id) =>
+  db.all(
+    sql`SELECT * FROM ${stockItemOpeningAllocations}
+        WHERE ${stockItemOpeningAllocations.itemId} = ${item_id}`
+  );
+
+const insertAllocation = async (item_id, alloc) => {
+  const qty = Number(alloc.quantity) || 0;
+  const rate = Number(alloc.rate) || 0;
+  const amt = qty * rate;
+  await db.insert(stockItemOpeningAllocations).values({
+    itemId: item_id,
+    godownId: alloc.godown_id ? Number(alloc.godown_id) : null,
+    batchNumber: alloc.batch_number || null,
+    mfgDate: alloc.mfg_date || null,
+    expiryDate: alloc.expiry_date || null,
+    quantity: qty,
+    rate: rate,
+    amount: amt,
+  });
+};
 
 module.exports = {
 
   // ── CREATE ─────────────────────────────────────────────────────────────────
   create: async (data) => {
     try {
-      const exists = await db.execute({
-        sql: `SELECT item_id FROM stock_items
-              WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        args: [data.company_id, data.name],
-      });
-      if (exists.rows.length > 0)
+      const exists = await db.all(
+        sql`SELECT ${stockItems.itemId} FROM ${stockItems}
+            WHERE ${stockItems.companyId} = ${data.company_id}
+              AND LOWER(${stockItems.name}) = LOWER(${data.name})
+              AND ${stockItems.isActive} = 1`
+      );
+      if (exists.length > 0)
         return { success: false, error: 'Stock Item already exists' };
 
       const opening_value = (data.opening_quantity || 0) * (data.opening_rate || 0);
 
-      const result = await db.execute({
-        sql: `INSERT INTO stock_items (
-                company_id, name, alias,
-                group_id, category_id, unit_id,
+      const inserted = await db
+        .insert(stockItems)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          alias: data.alias || null,
 
-                gst_applicable,
-                hsn_sac, source_of_details, hsn_sac_description,
-                hsn_code, sac_code,
-                gst_rate_details, source_of_gst_rate, taxability_type,
-                gst_rate, cgst_rate, sgst_rate, igst_rate,
-                type_of_supply,
+          groupId: data.group_id || null,
+          categoryId: data.category_id || null,
+          unitId: data.unit_id || null,
 
-                rate_of_duty, statutory_details,
+          gstApplicable: data.gst_applicable || 'Not Applicable',
 
-                opening_quantity, opening_rate, opening_value,
-                reorder_level, reorder_quantity,
-                track_batches, track_expiry,
-                track_date_of_manufacturing, enable_cost_tracking,
-                has_bom, bom_name,
-                excise_applicable, excise_details,
-                excise_tariff_name, excise_tariff_hsn_code,
-                excise_tariff_uom, excise_tariff_valuation_type,
-                excise_tariff_rate, excise_tariff_rate_per_unit,
-                vat_applicable, vat_details,
-                is_active
-              )
-              VALUES (
-                ?, ?, ?,
-                ?, ?, ?,
-                ?,
-                ?, ?, ?,
-                ?, ?,
-                ?, ?, ?,
-                ?, ?, ?, ?,
-                ?,
-                ?, ?,
-                ?, ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?,
-                ?, ?,
-                1
-              )`,
-        args: [
-          data.company_id,
-          data.name,
-          data.alias || null,
-
-          data.group_id    || null,
-          data.category_id || null,
-          data.unit_id     || null,
-
-          data.gst_applicable   || 'Not Applicable',
-
-          data.hsn_sac              || null,
-          data.source_of_details    || 'As per Company/Stock Group',
-          data.hsn_sac_description  || null,
+          hsnSac: data.hsn_sac || null,
+          sourceOfDetails: data.source_of_details || 'As per Company/Stock Group',
+          hsnSacDescription: data.hsn_sac_description || null,
           // keep legacy cols in sync if caller passes them
-          data.hsn_code || data.hsn_sac || null,
-          data.sac_code || null,
+          hsnCode: data.hsn_code || data.hsn_sac || null,
+          sacCode: data.sac_code || null,
 
-          data.gst_rate_details   || null,
-          data.source_of_gst_rate || 'As per Company/Stock Group',
-          data.taxability_type    || null,
-          data.gst_rate   || 0,
-          data.cgst_rate  || 0,
-          data.sgst_rate  || 0,
-          data.igst_rate  || 0,
+          gstRateDetails: data.gst_rate_details || null,
+          sourceOfGstRate: data.source_of_gst_rate || 'As per Company/Stock Group',
+          taxabilityType: data.taxability_type || null,
+          gstRate: data.gst_rate || 0,
+          cgstRate: data.cgst_rate || 0,
+          sgstRate: data.sgst_rate || 0,
+          igstRate: data.igst_rate || 0,
 
-          data.type_of_supply || 'Goods',
+          typeOfSupply: data.type_of_supply || 'Goods',
 
-          data.rate_of_duty     || 0,
-          data.statutory_details || null,
+          rateOfDuty: data.rate_of_duty || 0,
+          statutoryDetails: data.statutory_details || null,
 
-          data.opening_quantity || 0,
-          data.opening_rate     || 0,
-          opening_value,
+          openingQuantity: data.opening_quantity || 0,
+          openingRate: data.opening_rate || 0,
+          openingValue: opening_value,
 
-          data.reorder_level    || 0,
-          data.reorder_quantity || 0,
+          reorderLevel: data.reorder_level || 0,
+          reorderQuantity: data.reorder_quantity || 0,
 
-          data.track_batches ? 1 : 0,
-          data.track_expiry  ? 1 : 0,
+          trackBatches: data.track_batches ? 1 : 0,
+          trackExpiry: data.track_expiry ? 1 : 0,
 
-          data.track_date_of_manufacturing ? 1 : 0,
-          data.enable_cost_tracking ? 1 : 0,
+          trackDateOfManufacturing: data.track_date_of_manufacturing ? 1 : 0,
+          enableCostTracking: data.enable_cost_tracking ? 1 : 0,
 
-          data.has_bom ? 1 : 0,
-          data.bom_name || null,
+          hasBom: data.has_bom ? 1 : 0,
+          bomName: data.bom_name || null,
 
-          data.excise_applicable || 'Not Applicable',
-          data.excise_details || null,
-          data.excise_tariff_name || null,
-          data.excise_tariff_hsn_code || null,
-          data.excise_tariff_uom || 'Undefined',
-          data.excise_tariff_valuation_type || 'Undefined',
-          data.excise_tariff_rate || 0,
-          data.excise_tariff_rate_per_unit || 0,
-          data.vat_applicable || 'Applicable',
-          data.vat_details || null,
-        ],
-      });
+          exciseApplicable: data.excise_applicable || 'Not Applicable',
+          exciseDetails: data.excise_details || null,
+          exciseTariffName: data.excise_tariff_name || null,
+          exciseTariffHsnCode: data.excise_tariff_hsn_code || null,
+          exciseTariffUom: data.excise_tariff_uom || 'Undefined',
+          exciseTariffValuationType: data.excise_tariff_valuation_type || 'Undefined',
+          exciseTariffRate: data.excise_tariff_rate || 0,
+          exciseTariffRatePerUnit: data.excise_tariff_rate_per_unit || 0,
+          vatApplicable: data.vat_applicable || 'Applicable',
+          vatDetails: data.vat_details || null,
 
-      const itemId = Number(result.lastInsertRowid);
+          isActive: 1,
+        })
+        .returning({ id: stockItems.itemId });
+
+      const itemId = Number(inserted[0].id);
 
       if (Array.isArray(data.allocations) && data.allocations.length > 0) {
         for (const alloc of data.allocations) {
-          const qty = Number(alloc.quantity) || 0;
-          const rate = Number(alloc.rate) || 0;
-          const amt = qty * rate;
-          await db.execute({
-            sql: `INSERT INTO stock_item_opening_allocations (
-                    item_id, godown_id, batch_number, mfg_date, expiry_date, quantity, rate, amount
-                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: [
-              itemId,
-              alloc.godown_id ? Number(alloc.godown_id) : null,
-              alloc.batch_number || null,
-              alloc.mfg_date || null,
-              alloc.expiry_date || null,
-              qty,
-              rate,
-              amt
-            ]
-          });
+          await insertAllocation(itemId, alloc);
         }
       }
 
-      const item = await db.execute({
-        sql: `SELECT * FROM stock_items WHERE item_id = ?`,
-        args: [itemId],
-      });
-      const allocs = await db.execute({
-        sql: `SELECT * FROM stock_item_opening_allocations WHERE item_id = ?`,
-        args: [itemId],
-      });
-      const itemData = item.rows[0];
-      itemData.allocations = allocs.rows;
+      const itemData = await findItemRow(sql`${stockItems.itemId} = ${itemId}`);
+      itemData.allocations = await getAllocations(itemId);
 
       return { success: true, item: itemData };
     } catch (err) {
@@ -168,13 +151,12 @@ module.exports = {
   // ── GET ALL ────────────────────────────────────────────────────────────────
   getAll: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM stock_items
-              WHERE company_id = ? AND is_active = 1
-              ORDER BY name ASC`,
-        args: [company_id],
-      });
-      return { success: true, stockItems: result.rows };
+      const rows = await db.all(
+        sql`SELECT * FROM ${stockItems}
+            WHERE ${stockItems.companyId} = ${company_id} AND ${stockItems.isActive} = 1
+            ORDER BY ${stockItems.name} ASC`
+      );
+      return { success: true, stockItems: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -183,19 +165,11 @@ module.exports = {
   // ── GET BY ID ──────────────────────────────────────────────────────────────
   getById: async (id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM stock_items WHERE item_id = ?`,
-        args: [id],
-      });
-      if (result.rows.length === 0)
+      const item = await findItemRow(sql`${stockItems.itemId} = ${id}`);
+      if (!item)
         return { success: false, error: 'Stock Item not found' };
-      
-      const item = result.rows[0];
-      const allocs = await db.execute({
-        sql: `SELECT * FROM stock_item_opening_allocations WHERE item_id = ?`,
-        args: [id],
-      });
-      item.allocations = allocs.rows;
+
+      item.allocations = await getAllocations(id);
 
       return { success: true, item };
     } catch (err) {
@@ -206,13 +180,14 @@ module.exports = {
   // ── GET BY GROUP ───────────────────────────────────────────────────────────
   getByGroup: async (company_id, group_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM stock_items
-              WHERE company_id = ? AND group_id = ? AND is_active = 1
-              ORDER BY name ASC`,
-        args: [company_id, group_id],
-      });
-      return { success: true, stockItems: result.rows };
+      const rows = await db.all(
+        sql`SELECT * FROM ${stockItems}
+            WHERE ${stockItems.companyId} = ${company_id}
+              AND ${stockItems.groupId} = ${group_id}
+              AND ${stockItems.isActive} = 1
+            ORDER BY ${stockItems.name} ASC`
+      );
+      return { success: true, stockItems: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -221,13 +196,14 @@ module.exports = {
   // ── GET BY CATEGORY ────────────────────────────────────────────────────────
   getByCategory: async (company_id, category_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM stock_items
-              WHERE company_id = ? AND category_id = ? AND is_active = 1
-              ORDER BY name ASC`,
-        args: [company_id, category_id],
-      });
-      return { success: true, stockItems: result.rows };
+      const rows = await db.all(
+        sql`SELECT * FROM ${stockItems}
+            WHERE ${stockItems.companyId} = ${company_id}
+              AND ${stockItems.categoryId} = ${category_id}
+              AND ${stockItems.isActive} = 1
+            ORDER BY ${stockItems.name} ASC`
+      );
+      return { success: true, stockItems: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -236,169 +212,123 @@ module.exports = {
   // ── UPDATE ─────────────────────────────────────────────────────────────────
   update: async (data) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM stock_items WHERE item_id = ?`,
-        args: [data.item_id],
-      });
-      if (existing.rows.length === 0)
+      const cur = await findItemRow(sql`${stockItems.itemId} = ${data.item_id}`);
+      if (!cur)
         return { success: false, error: 'Stock Item not found' };
-
-      const cur = existing.rows[0];
 
       // duplicate name check
       if (data.name && data.name.toLowerCase() !== cur.name.toLowerCase()) {
-        const dupe = await db.execute({
-          sql: `SELECT item_id FROM stock_items
-                WHERE company_id = ? AND LOWER(name) = LOWER(?)
-                  AND is_active = 1 AND item_id != ?`,
-          args: [cur.company_id, data.name, data.item_id],
-        });
-        if (dupe.rows.length > 0)
+        const dupe = await db.all(
+          sql`SELECT ${stockItems.itemId} FROM ${stockItems}
+              WHERE ${stockItems.companyId} = ${cur.company_id}
+                AND LOWER(${stockItems.name}) = LOWER(${data.name})
+                AND ${stockItems.isActive} = 1
+                AND ${stockItems.itemId} != ${data.item_id}`
+        );
+        if (dupe.length > 0)
           return { success: false, error: 'Stock Item name already exists' };
       }
 
-      const qty           = data.opening_quantity ?? cur.opening_quantity;
-      const rate          = data.opening_rate     ?? cur.opening_rate;
+      const qty = data.opening_quantity ?? cur.opening_quantity;
+      const rate = data.opening_rate ?? cur.opening_rate;
       const opening_value = qty * rate;
 
       // resolve hsn_sac: new field takes priority, fall back to legacy hsn_code
       const hsn_sac = data.hsn_sac ?? cur.hsn_sac ?? cur.hsn_code ?? null;
 
-      await db.execute({
-        sql: `UPDATE stock_items SET
-                name = ?, alias = ?,
-                group_id = ?, category_id = ?, unit_id = ?,
+      await db
+        .update(stockItems)
+        .set({
+          name: data.name ?? cur.name,
+          alias: data.alias ?? cur.alias,
 
-                gst_applicable = ?,
-                hsn_sac = ?, source_of_details = ?, hsn_sac_description = ?,
-                hsn_code = ?, sac_code = ?,
-                gst_rate_details = ?, source_of_gst_rate = ?, taxability_type = ?,
-                gst_rate = ?, cgst_rate = ?, sgst_rate = ?, igst_rate = ?,
-                type_of_supply = ?,
+          groupId: data.group_id ?? cur.group_id,
+          categoryId: data.category_id ?? cur.category_id,
+          unitId: data.unit_id ?? cur.unit_id,
 
-                rate_of_duty = ?, statutory_details = ?,
+          gstApplicable: data.gst_applicable ?? cur.gst_applicable,
 
-                opening_quantity = ?, opening_rate = ?, opening_value = ?,
-                reorder_level = ?, reorder_quantity = ?,
-                track_batches = ?, track_expiry = ?,
-                track_date_of_manufacturing = ?, enable_cost_tracking = ?,
-                has_bom = ?, bom_name = ?,
-                excise_applicable = ?, excise_details = ?,
-                excise_tariff_name = ?, excise_tariff_hsn_code = ?,
-                excise_tariff_uom = ?, excise_tariff_valuation_type = ?,
-                excise_tariff_rate = ?, excise_tariff_rate_per_unit = ?,
-                vat_applicable = ?, vat_details = ?,
+          hsnSac: hsn_sac,
+          sourceOfDetails: data.source_of_details ?? cur.source_of_details,
+          hsnSacDescription: data.hsn_sac_description ?? cur.hsn_sac_description,
+          hsnCode: data.hsn_code ?? hsn_sac, // keep legacy in sync
+          sacCode: data.sac_code ?? cur.sac_code,
 
-                updated_at = datetime('now')
-              WHERE item_id = ?`,
-        args: [
-          data.name  ?? cur.name,
-          data.alias ?? cur.alias,
+          gstRateDetails: data.gst_rate_details ?? cur.gst_rate_details,
+          sourceOfGstRate: data.source_of_gst_rate ?? cur.source_of_gst_rate,
+          taxabilityType: data.taxability_type ?? cur.taxability_type,
+          gstRate: data.gst_rate ?? cur.gst_rate,
+          cgstRate: data.cgst_rate ?? cur.cgst_rate,
+          sgstRate: data.sgst_rate ?? cur.sgst_rate,
+          igstRate: data.igst_rate ?? cur.igst_rate,
 
-          data.group_id    ?? cur.group_id,
-          data.category_id ?? cur.category_id,
-          data.unit_id     ?? cur.unit_id,
+          typeOfSupply: data.type_of_supply ?? cur.type_of_supply,
 
-          data.gst_applicable  ?? cur.gst_applicable,
+          rateOfDuty: data.rate_of_duty ?? cur.rate_of_duty,
+          statutoryDetails: data.statutory_details ?? cur.statutory_details,
 
-          hsn_sac,
-          data.source_of_details   ?? cur.source_of_details,
-          data.hsn_sac_description ?? cur.hsn_sac_description,
-          data.hsn_code ?? hsn_sac,   // keep legacy in sync
-          data.sac_code ?? cur.sac_code,
+          openingQuantity: qty,
+          openingRate: rate,
+          openingValue: opening_value,
 
-          data.gst_rate_details   ?? cur.gst_rate_details,
-          data.source_of_gst_rate ?? cur.source_of_gst_rate,
-          data.taxability_type    ?? cur.taxability_type,
-          data.gst_rate  ?? cur.gst_rate,
-          data.cgst_rate ?? cur.cgst_rate,
-          data.sgst_rate ?? cur.sgst_rate,
-          data.igst_rate ?? cur.igst_rate,
+          reorderLevel: data.reorder_level ?? cur.reorder_level,
+          reorderQuantity: data.reorder_quantity ?? cur.reorder_quantity,
 
-          data.type_of_supply ?? cur.type_of_supply,
+          trackBatches:
+            data.track_batches !== undefined
+              ? (data.track_batches ? 1 : 0)
+              : cur.track_batches,
+          trackExpiry:
+            data.track_expiry !== undefined
+              ? (data.track_expiry ? 1 : 0)
+              : cur.track_expiry,
 
-          data.rate_of_duty     ?? cur.rate_of_duty,
-          data.statutory_details ?? cur.statutory_details,
+          trackDateOfManufacturing:
+            data.track_date_of_manufacturing !== undefined
+              ? (data.track_date_of_manufacturing ? 1 : 0)
+              : cur.track_date_of_manufacturing,
+          enableCostTracking:
+            data.enable_cost_tracking !== undefined
+              ? (data.enable_cost_tracking ? 1 : 0)
+              : cur.enable_cost_tracking,
 
-          qty, rate, opening_value,
+          hasBom:
+            data.has_bom !== undefined
+              ? (data.has_bom ? 1 : 0)
+              : cur.has_bom,
+          bomName: data.bom_name ?? cur.bom_name,
 
-          data.reorder_level    ?? cur.reorder_level,
-          data.reorder_quantity ?? cur.reorder_quantity,
+          exciseApplicable: data.excise_applicable ?? cur.excise_applicable,
+          exciseDetails: data.excise_details ?? cur.excise_details,
+          exciseTariffName: data.excise_tariff_name ?? cur.excise_tariff_name,
+          exciseTariffHsnCode: data.excise_tariff_hsn_code ?? cur.excise_tariff_hsn_code,
+          exciseTariffUom: data.excise_tariff_uom ?? cur.excise_tariff_uom,
+          exciseTariffValuationType:
+            data.excise_tariff_valuation_type ?? cur.excise_tariff_valuation_type,
+          exciseTariffRate: data.excise_tariff_rate ?? cur.excise_tariff_rate,
+          exciseTariffRatePerUnit:
+            data.excise_tariff_rate_per_unit ?? cur.excise_tariff_rate_per_unit,
+          vatApplicable: data.vat_applicable ?? cur.vat_applicable,
+          vatDetails: data.vat_details ?? cur.vat_details,
 
-          data.track_batches !== undefined
-            ? (data.track_batches ? 1 : 0)
-            : cur.track_batches,
-          data.track_expiry !== undefined
-            ? (data.track_expiry ? 1 : 0)
-            : cur.track_expiry,
-
-          data.track_date_of_manufacturing !== undefined
-            ? (data.track_date_of_manufacturing ? 1 : 0)
-            : cur.track_date_of_manufacturing,
-          data.enable_cost_tracking !== undefined
-            ? (data.enable_cost_tracking ? 1 : 0)
-            : cur.enable_cost_tracking,
-
-          data.has_bom !== undefined
-            ? (data.has_bom ? 1 : 0)
-            : cur.has_bom,
-          data.bom_name ?? cur.bom_name,
-
-          data.excise_applicable ?? cur.excise_applicable,
-          data.excise_details ?? cur.excise_details,
-          data.excise_tariff_name ?? cur.excise_tariff_name,
-          data.excise_tariff_hsn_code ?? cur.excise_tariff_hsn_code,
-          data.excise_tariff_uom ?? cur.excise_tariff_uom,
-          data.excise_tariff_valuation_type ?? cur.excise_tariff_valuation_type,
-          data.excise_tariff_rate ?? cur.excise_tariff_rate,
-          data.excise_tariff_rate_per_unit ?? cur.excise_tariff_rate_per_unit,
-          data.vat_applicable ?? cur.vat_applicable,
-          data.vat_details ?? cur.vat_details,
-
-          data.item_id,
-        ],
-      });
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(stockItems.itemId, data.item_id));
 
       if (data.allocations !== undefined) {
-        await db.execute({
-          sql: `DELETE FROM stock_item_opening_allocations WHERE item_id = ?`,
-          args: [data.item_id],
-        });
+        await db
+          .delete(stockItemOpeningAllocations)
+          .where(eq(stockItemOpeningAllocations.itemId, data.item_id));
 
         if (Array.isArray(data.allocations) && data.allocations.length > 0) {
           for (const alloc of data.allocations) {
-            const qtyAlloc = Number(alloc.quantity) || 0;
-            const rateAlloc = Number(alloc.rate) || 0;
-            const amtAlloc = qtyAlloc * rateAlloc;
-            await db.execute({
-              sql: `INSERT INTO stock_item_opening_allocations (
-                      item_id, godown_id, batch_number, mfg_date, expiry_date, quantity, rate, amount
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              args: [
-                data.item_id,
-                alloc.godown_id ? Number(alloc.godown_id) : null,
-                alloc.batch_number || null,
-                alloc.mfg_date || null,
-                alloc.expiry_date || null,
-                qtyAlloc,
-                rateAlloc,
-                amtAlloc
-              ]
-            });
+            await insertAllocation(data.item_id, alloc);
           }
         }
       }
 
-      const updated = await db.execute({
-        sql: `SELECT * FROM stock_items WHERE item_id = ?`,
-        args: [data.item_id],
-      });
-      const item = updated.rows[0];
-      const allocs = await db.execute({
-        sql: `SELECT * FROM stock_item_opening_allocations WHERE item_id = ?`,
-        args: [data.item_id],
-      });
-      item.allocations = allocs.rows;
+      const item = await findItemRow(sql`${stockItems.itemId} = ${data.item_id}`);
+      item.allocations = await getAllocations(data.item_id);
 
       return { success: true, item };
     } catch (err) {
@@ -409,17 +339,14 @@ module.exports = {
   // ── DELETE (soft) ──────────────────────────────────────────────────────────
   delete: async (id) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT item_id FROM stock_items WHERE item_id = ?`,
-        args: [id],
-      });
-      if (existing.rows.length === 0)
+      const existing = await findItemRow(sql`${stockItems.itemId} = ${id}`);
+      if (!existing)
         return { success: false, error: 'Stock Item not found' };
 
-      await db.execute({
-        sql: `UPDATE stock_items SET is_active = 0 WHERE item_id = ?`,
-        args: [id],
-      });
+      await db
+        .update(stockItems)
+        .set({ isActive: 0 })
+        .where(eq(stockItems.itemId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -439,36 +366,38 @@ module.exports = {
         'Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note',
       ];
 
-      const result = await db.execute({
-        sql: `
+      // Complex analytical query kept as typed `sql` (multi-join, GROUP BY, CASE,
+      // dynamic IN lists). Identifiers come from the schema objects; the IN-list
+      // values and company_id are bound parameters.
+      const result = await db.all(
+        sql`
           SELECT
-            si.item_id,
-            si.opening_quantity,
+            ${stockItems.itemId} AS item_id,
+            ${stockItems.openingQuantity} AS opening_quantity,
             COALESCE(SUM(
               CASE
-                WHEN v.voucher_type IN (${stockInTypes.map(() => '?').join(',')})
-                  THEN vse.quantity
-                WHEN v.voucher_type IN (${stockOutTypes.map(() => '?').join(',')})
-                  THEN -vse.quantity
-                WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 0
-                  THEN vse.quantity
-                WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 1
-                  THEN -vse.quantity
+                WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                  THEN ${voucherStockEntries.quantity}
+                WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                  THEN -${voucherStockEntries.quantity}
+                WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
+                  THEN ${voucherStockEntries.quantity}
+                WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 1
+                  THEN -${voucherStockEntries.quantity}
                 ELSE 0
               END
             ), 0) AS movement_qty
-          FROM stock_items si
-          LEFT JOIN voucher_stock_entries vse ON vse.stock_item_id = si.item_id
-          LEFT JOIN vouchers v ON v.voucher_id = vse.voucher_id AND v.is_cancelled = 0
-          WHERE si.company_id = ? AND si.is_active = 1
-          GROUP BY si.item_id
-          ORDER BY si.name ASC
-        `,
-        args: [...stockInTypes, ...stockOutTypes, company_id],
-      });
+          FROM ${stockItems}
+          LEFT JOIN ${voucherStockEntries} ON ${voucherStockEntries.stockItemId} = ${stockItems.itemId}
+          LEFT JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId} AND ${vouchers.isCancelled} = 0
+          WHERE ${stockItems.companyId} = ${company_id} AND ${stockItems.isActive} = 1
+          GROUP BY ${stockItems.itemId}
+          ORDER BY ${stockItems.name} ASC
+        `
+      );
 
       const balances = {};
-      for (const row of result.rows) {
+      for (const row of result) {
         const opening = Number(row.opening_quantity) || 0;
         const movement = Number(row.movement_qty) || 0;
         balances[row.item_id] = opening + movement;
@@ -478,19 +407,20 @@ module.exports = {
       // Latest physical stock entry overrides the computed balance for that item.
       // Voucher movements after the physical stock date are added on top.
       try {
-        const physResult = await db.execute({
-          sql: `
-            SELECT psel.stock_item_id, psel.quantity, pse.voucher_date
-            FROM physical_stock_entry_lines psel
-            JOIN physical_stock_entries pse ON pse.physical_stock_entry_id = psel.physical_stock_entry_id
-            WHERE pse.company_id = ? AND psel.stock_item_id IS NOT NULL
-            ORDER BY pse.voucher_date DESC
-          `,
-          args: [company_id],
-        });
+        const physResult = await db.all(
+          sql`
+            SELECT ${physicalStockEntryLines.stockItemId} AS stock_item_id,
+                   ${physicalStockEntryLines.quantity} AS quantity,
+                   ${physicalStockEntries.voucherDate} AS voucher_date
+            FROM ${physicalStockEntryLines}
+            JOIN ${physicalStockEntries} ON ${physicalStockEntries.physicalStockEntryId} = ${physicalStockEntryLines.physicalStockEntryId}
+            WHERE ${physicalStockEntries.companyId} = ${company_id} AND ${physicalStockEntryLines.stockItemId} IS NOT NULL
+            ORDER BY ${physicalStockEntries.voucherDate} DESC
+          `
+        );
 
         const seenItems = new Set();
-        for (const ph of physResult.rows) {
+        for (const ph of physResult) {
           const itemId = ph.stock_item_id;
           if (seenItems.has(itemId)) continue;
           seenItems.add(itemId);
@@ -500,28 +430,27 @@ module.exports = {
 
           // Compute voucher movement after physical stock date for this item
           if (physDate) {
-            const postPhysResult = await db.execute({
-              sql: `
+            const postPhysResult = await db.all(
+              sql`
                 SELECT COALESCE(SUM(
                   CASE
-                    WHEN v.voucher_type IN (${stockInTypes.map(() => '?').join(',')})
-                      THEN vse.quantity
-                    WHEN v.voucher_type IN (${stockOutTypes.map(() => '?').join(',')})
-                      THEN -vse.quantity
-                    WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 0
-                      THEN vse.quantity
-                    WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 1
-                      THEN -vse.quantity
+                    WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                      THEN ${voucherStockEntries.quantity}
+                    WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                      THEN -${voucherStockEntries.quantity}
+                    WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
+                      THEN ${voucherStockEntries.quantity}
+                    WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 1
+                      THEN -${voucherStockEntries.quantity}
                     ELSE 0
                   END
                 ), 0) AS post_qty
-                FROM voucher_stock_entries vse
-                JOIN vouchers v ON v.voucher_id = vse.voucher_id AND v.is_cancelled = 0
-                WHERE vse.stock_item_id = ? AND v.date > ?
-              `,
-              args: [...stockInTypes, ...stockOutTypes, itemId, physDate],
-            });
-            const postMovement = Number(postPhysResult.rows[0]?.post_qty) || 0;
+                FROM ${voucherStockEntries}
+                JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId} AND ${vouchers.isCancelled} = 0
+                WHERE ${voucherStockEntries.stockItemId} = ${itemId} AND ${vouchers.date} > ${physDate}
+              `
+            );
+            const postMovement = Number(postPhysResult[0]?.post_qty) || 0;
             balances[itemId] = physicalQty + postMovement;
           } else {
             balances[itemId] = physicalQty;

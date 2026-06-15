@@ -1,0 +1,443 @@
+openapi: 3.1.0
+info:
+  title: Employee Module API
+  version: 1.0.0
+  description: >
+    IPC contract for the "employee" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation models an `ipcMain.handle('employee:<action>', ...)`
+    channel. Transport is Electron IPC (ipcRenderer.invoke), not HTTP; the
+    path/method below are a documentation convention so this renders as OpenAPI.
+    All handlers resolve to a `{ success, ... }` envelope and do not throw to the
+    renderer; the 4xx/5xx responses describe failure envelopes / unexpected errors.
+
+paths:
+  /employee/create:
+    post:
+      tags: [employee]
+      summary: Create an employee (auto-generates employee_code if absent; rejects duplicate active code).
+      operationId: employee.create
+      x-ipc-channel: "employee:create"
+      x-window-api: "window.api.employee.create"
+      x-controller: "employeeController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreateInput'
+      responses:
+        '200':
+          description: Success envelope with the created row, or a failure envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResult'
+        '4XX':
+          description: Validation/expected failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employee/getAll:
+    post:
+      tags: [employee]
+      summary: List all active employees for a company.
+      operationId: employee.getAll
+      x-ipc-channel: "employee:getAll"
+      x-window-api: "window.api.employee.getAll"
+      x-controller: "employeeController.getAll"
+      requestBody:
+        required: true
+        description: Bare scalar value (company_id) passed as the 2nd IPC arg.
+        content:
+          application/json:
+            schema:
+              type: integer
+              description: company_id of the company whose active employees to list.
+      responses:
+        '200':
+          description: Success envelope with an array of employee rows.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeListResult'
+        '4XX':
+          description: Validation/expected failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employee/getById:
+    post:
+      tags: [employee]
+      summary: Fetch a single employee by employee_id (active or inactive).
+      operationId: employee.getById
+      x-ipc-channel: "employee:getById"
+      x-window-api: "window.api.employee.getById"
+      x-controller: "employeeController.getById"
+      requestBody:
+        required: true
+        description: Bare scalar value (employee_id) passed as the 2nd IPC arg.
+        content:
+          application/json:
+            schema:
+              type: integer
+              description: employee_id (primary key) of the employee to fetch.
+      responses:
+        '200':
+          description: Success envelope with the employee row, or failure if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResult'
+        '4XX':
+          description: Not found / expected failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employee/update:
+    post:
+      tags: [employee]
+      summary: Update an employee by employee_id (partial; unset fields fall back to current values).
+      operationId: employee.update
+      x-ipc-channel: "employee:update"
+      x-window-api: "window.api.employee.update"
+      x-controller: "employeeController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeUpdateInput'
+      responses:
+        '200':
+          description: Success envelope with the updated row, or failure (not found / duplicate code).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResult'
+        '4XX':
+          description: Not found / duplicate code / expected failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employee/delete:
+    post:
+      tags: [employee]
+      summary: Soft-delete an employee (sets is_active=0 and date_of_leaving if unset).
+      operationId: employee.delete
+      x-ipc-channel: "employee:delete"
+      x-window-api: "window.api.employee.delete"
+      x-controller: "employeeController.delete"
+      requestBody:
+        required: true
+        description: Bare scalar value (employee_id) passed as the 2nd IPC arg.
+        content:
+          application/json:
+            schema:
+              type: integer
+              description: employee_id of the employee to soft-delete.
+      responses:
+        '200':
+          description: Success envelope (no row returned), or failure if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          description: Not found / expected failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employee/getByGroup:
+    post:
+      tags: [employee]
+      summary: List active employees for a company filtered by employee_group_id.
+      operationId: employee.getByGroup
+      x-ipc-channel: "employee:getByGroup"
+      x-window-api: "window.api.employee.getByGroup"
+      x-controller: "employeeController.getByGroup"
+      requestBody:
+        required: true
+        description: >
+          WARNING: preload/controller payload mismatch. The controller destructures
+          `{ company_id, employee_group_id }`, but preload.js sends
+          `invoke('employee:getByGroup', { company_id, group_id })`. The `group_id`
+          key never maps to `employee_group_id`, so via window.api the group filter
+          binds to `undefined`. Documented verbatim; the controller-expected shape is below.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeGetByGroupInput'
+      responses:
+        '200':
+          description: Success envelope with an array of employee rows.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeListResult'
+        '4XX':
+          description: Validation/expected failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared error shape for unexpected/transport-level failures.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    SuccessResult:
+      type: object
+      description: Minimal success/failure envelope returned by delete.
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    Employee:
+      type: object
+      description: >
+        A row of the `employees` table (SELECT *). Integer flags are stored 0/1
+        in SQLite; they map to BOOLEAN in Postgres. Datetime/date fields are ISO
+        strings in SQLite.
+      properties:
+        employee_id: { type: integer }
+        company_id: { type: integer }
+        employee_category_id: { type: [integer, "null"] }
+        employee_group_id: { type: [integer, "null"] }
+        name: { type: string }
+        alias: { type: [string, "null"] }
+        employee_code: { type: [string, "null"] }
+        designation: { type: [string, "null"] }
+        department: { type: [string, "null"] }
+        function: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+        date_of_joining: { type: [string, "null"], description: "date-only ISO string" }
+        date_of_leaving: { type: [string, "null"], description: "date-only ISO string" }
+        date_of_birth: { type: [string, "null"], description: "date-only ISO string" }
+        gender: { type: [string, "null"] }
+        blood_group: { type: [string, "null"] }
+        father_name: { type: [string, "null"] }
+        mother_name: { type: [string, "null"] }
+        spouse_name: { type: [string, "null"] }
+        address: { type: [string, "null"] }
+        city: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        pincode: { type: [string, "null"] }
+        mobile: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        define_salary_details: { type: integer, description: "0/1 flag (BOOLEAN in Postgres). Default 0." }
+        bank_account_number: { type: [string, "null"] }
+        bank_name: { type: [string, "null"] }
+        bank_branch: { type: [string, "null"] }
+        ifsc_code: { type: [string, "null"] }
+        applicable_tax_regime: { type: [string, "null"] }
+        pan: { type: [string, "null"] }
+        aadhaar: { type: [string, "null"] }
+        uan: { type: [string, "null"] }
+        pf_account_number: { type: [string, "null"] }
+        eps_account_number: { type: [string, "null"] }
+        date_of_joining_pf: { type: [string, "null"], description: "date-only ISO string" }
+        pran: { type: [string, "null"] }
+        esi_number: { type: [string, "null"] }
+        esi_dispensary_name: { type: [string, "null"] }
+        is_active: { type: integer, description: "0/1 flag (BOOLEAN in Postgres). Default 1." }
+        created_at: { type: string, description: "ISO datetime string (TIMESTAMPTZ in Postgres)" }
+        updated_at: { type: string, description: "ISO datetime string (TIMESTAMPTZ in Postgres)" }
+      required: [employee_id, company_id, name]
+
+    EmployeeResult:
+      type: object
+      description: Envelope returned by create/getById/update.
+      properties:
+        success:
+          type: boolean
+        employee:
+          $ref: '#/components/schemas/Employee'
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    EmployeeListResult:
+      type: object
+      description: Envelope returned by getAll/getByGroup.
+      properties:
+        success:
+          type: boolean
+        employees:
+          type: array
+          items:
+            $ref: '#/components/schemas/Employee'
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    EmployeeCreateInput:
+      type: object
+      description: >
+        Payload for employee:create. The service reads these keys off `data`.
+        Only company_id and name are effectively required; all others are
+        optional and default to null (or the noted default). employee_code is
+        auto-generated as `EMP-NNNNN` when omitted.
+      properties:
+        company_id: { type: integer, description: "Required. Owning company." }
+        name: { type: string, description: "Required. Employee name." }
+        employee_group_id: { type: [integer, "null"] }
+        alias: { type: [string, "null"] }
+        employee_code: { type: [string, "null"], description: "Auto-generated EMP-NNNNN if omitted; must be unique among active rows of the company." }
+        designation: { type: [string, "null"] }
+        department: { type: [string, "null"] }
+        function: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+        date_of_joining: { type: [string, "null"] }
+        date_of_leaving: { type: [string, "null"] }
+        date_of_birth: { type: [string, "null"] }
+        gender: { type: [string, "null"] }
+        blood_group: { type: [string, "null"] }
+        father_name: { type: [string, "null"] }
+        mother_name: { type: [string, "null"] }
+        spouse_name: { type: [string, "null"] }
+        address: { type: [string, "null"] }
+        city: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        pincode: { type: [string, "null"] }
+        mobile: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        define_salary_details: { type: integer, description: "0/1 flag; defaults to 0." }
+        bank_account_number: { type: [string, "null"] }
+        bank_name: { type: [string, "null"] }
+        bank_branch: { type: [string, "null"] }
+        ifsc_code: { type: [string, "null"] }
+        applicable_tax_regime: { type: [string, "null"] }
+        pan: { type: [string, "null"] }
+        aadhaar: { type: [string, "null"] }
+        uan: { type: [string, "null"] }
+        pf_account_number: { type: [string, "null"] }
+        eps_account_number: { type: [string, "null"] }
+        date_of_joining_pf: { type: [string, "null"] }
+        pran: { type: [string, "null"] }
+        esi_number: { type: [string, "null"] }
+        esi_dispensary_name: { type: [string, "null"] }
+      required: [company_id, name]
+
+    EmployeeUpdateInput:
+      type: object
+      description: >
+        Payload for employee:update. employee_id selects the row. Every other
+        field is optional; the service uses `?? current.<field>` so omitted (or
+        null/undefined) fields keep their existing value. company_id and
+        employee_category_id are NOT updatable through this handler. Changing
+        employee_code is rejected if it collides with another active row.
+      properties:
+        employee_id: { type: integer, description: "Required. Selects the row to update." }
+        employee_group_id: { type: [integer, "null"] }
+        name: { type: [string, "null"] }
+        alias: { type: [string, "null"] }
+        employee_code: { type: [string, "null"] }
+        designation: { type: [string, "null"] }
+        department: { type: [string, "null"] }
+        function: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+        date_of_joining: { type: [string, "null"] }
+        date_of_leaving: { type: [string, "null"] }
+        date_of_birth: { type: [string, "null"] }
+        gender: { type: [string, "null"] }
+        blood_group: { type: [string, "null"] }
+        father_name: { type: [string, "null"] }
+        mother_name: { type: [string, "null"] }
+        spouse_name: { type: [string, "null"] }
+        address: { type: [string, "null"] }
+        city: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        pincode: { type: [string, "null"] }
+        mobile: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        define_salary_details: { type: [integer, "null"], description: "0/1 flag." }
+        bank_account_number: { type: [string, "null"] }
+        bank_name: { type: [string, "null"] }
+        bank_branch: { type: [string, "null"] }
+        ifsc_code: { type: [string, "null"] }
+        applicable_tax_regime: { type: [string, "null"] }
+        pan: { type: [string, "null"] }
+        aadhaar: { type: [string, "null"] }
+        uan: { type: [string, "null"] }
+        pf_account_number: { type: [string, "null"] }
+        eps_account_number: { type: [string, "null"] }
+        date_of_joining_pf: { type: [string, "null"] }
+        pran: { type: [string, "null"] }
+        esi_number: { type: [string, "null"] }
+        esi_dispensary_name: { type: [string, "null"] }
+      required: [employee_id]
+
+    EmployeeGetByGroupInput:
+      type: object
+      description: >
+        Controller-expected payload for employee:getByGroup. NOTE the preload
+        binding sends `{ company_id, group_id }` instead of
+        `{ company_id, employee_group_id }`, so employee_group_id arrives
+        undefined when called through window.api.
+      properties:
+        company_id: { type: integer }
+        employee_group_id: { type: integer }
+      required: [company_id, employee_group_id]

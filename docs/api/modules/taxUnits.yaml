@@ -1,0 +1,429 @@
+openapi: 3.1.0
+info:
+  title: taxUnits Module API
+  version: 1.0.0
+  description: >-
+    IPC API contract for the `taxUnits` backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('taxUnits:<action>', ...)`
+    channel and the matching `window.api.taxUnits.<method>` renderer binding.
+    All operations are modeled as HTTP POST for OpenAPI rendering purposes;
+    at runtime they are Electron IPC `invoke` calls.
+
+paths:
+  /taxUnits/create:
+    post:
+      operationId: taxUnits.create
+      tags: [taxUnits]
+      summary: Create a tax unit (rejects duplicate active name within the same company).
+      x-ipc-channel: "taxUnits:create"
+      x-window-api: "window.api.taxUnits.create"
+      x-controller: "taxUnitController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxUnitCreateInput'
+      responses:
+        '200':
+          description: Created tax unit, or a failure object if a duplicate active name exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxUnitSingleResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /taxUnits/getAll:
+    post:
+      operationId: taxUnits.getAll
+      tags: [taxUnits]
+      summary: List all active tax units for a company.
+      x-ipc-channel: "taxUnits:getAll"
+      x-window-api: "window.api.taxUnits.getAll"
+      x-controller: "taxUnitController.getAll"
+      requestBody:
+        required: true
+        description: >-
+          The handler receives a bare scalar `company_id` as IPC arg 2
+          (not wrapped in an object).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: List of active tax units for the company.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxUnitListResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /taxUnits/getById:
+    post:
+      operationId: taxUnits.getById
+      tags: [taxUnits]
+      summary: Fetch a single tax unit by its primary key.
+      x-ipc-channel: "taxUnits:getById"
+      x-window-api: "window.api.taxUnits.getById"
+      x-controller: "taxUnitController.getById"
+      requestBody:
+        required: true
+        description: >-
+          The handler receives a bare scalar `tax_unit_id` as IPC arg 2
+          (not wrapped in an object).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxUnitIdInput'
+      responses:
+        '200':
+          description: The tax unit, or a failure object if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxUnitSingleResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /taxUnits/update:
+    post:
+      operationId: taxUnits.update
+      tags: [taxUnits]
+      summary: >-
+        Partially update an existing tax unit (fields omitted in the payload
+        keep their current values). Note: company_id is NOT updatable.
+      x-ipc-channel: "taxUnits:update"
+      x-window-api: "window.api.taxUnits.update"
+      x-controller: "taxUnitController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxUnitUpdateInput'
+      responses:
+        '200':
+          description: The updated tax unit, or a failure object if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxUnitSingleResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /taxUnits/delete:
+    post:
+      operationId: taxUnits.delete
+      tags: [taxUnits]
+      summary: >-
+        Soft-delete a tax unit by setting is_active = 0 (no physical row removal).
+      x-ipc-channel: "taxUnits:delete"
+      x-window-api: "window.api.taxUnits.delete"
+      x-controller: "taxUnitController.delete"
+      requestBody:
+        required: true
+        description: >-
+          The handler receives a bare scalar `tax_unit_id` as IPC arg 2
+          (not wrapped in an object).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxUnitIdInput'
+      responses:
+        '200':
+          description: Success flag, or a failure object if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared error envelope for non-2xx responses.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    CompanyIdInput:
+      type: integer
+      description: >-
+        Bare scalar company_id passed directly as the IPC payload
+        (window.api.taxUnits.getAll(company_id)).
+      x-bare-scalar: true
+      x-property-name: company_id
+
+    TaxUnitIdInput:
+      type: integer
+      description: >-
+        Bare scalar tax_unit_id passed directly as the IPC payload
+        (window.api.taxUnits.getById(id) / delete(id)).
+      x-bare-scalar: true
+      x-property-name: tax_unit_id
+
+    TaxUnitCreateInput:
+      type: object
+      description: Payload for taxUnits:create. Booleans are coerced to 0/1 before storage.
+      properties:
+        company_id:
+          type: integer
+          description: Owning company. Required.
+        name:
+          type: string
+          description: Tax unit name. Required. Uniqueness is enforced case-insensitively per company among active rows.
+        alias:
+          type: [string, "null"]
+        address_line1:
+          type: [string, "null"]
+        address_line2:
+          type: [string, "null"]
+        address_line3:
+          type: [string, "null"]
+        address_line4:
+          type: [string, "null"]
+        state:
+          type: [string, "null"]
+        pincode:
+          type: [string, "null"]
+        telephone:
+          type: [string, "null"]
+        registered_for:
+          type: string
+          default: Excise
+        set_alter_excise_details:
+          type: boolean
+          default: false
+          description: Stored as INTEGER 0/1 (false/true).
+        registration_type:
+          type: string
+          default: Importer
+        ecc_number:
+          type: [string, "null"]
+        set_alter_excise_tariff:
+          type: boolean
+          default: false
+          description: Stored as INTEGER 0/1 (false/true).
+        set_alter_rule11_book:
+          type: boolean
+          default: false
+          description: Stored as INTEGER 0/1 (false/true).
+        sort_order:
+          type: integer
+          default: 0
+      required: [company_id, name]
+
+    TaxUnitUpdateInput:
+      type: object
+      description: >-
+        Payload for taxUnits:update. Only tax_unit_id is required; any other field
+        omitted (undefined) retains its existing stored value. company_id and
+        is_active are not modifiable via this operation.
+      properties:
+        tax_unit_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        address_line1:
+          type: [string, "null"]
+        address_line2:
+          type: [string, "null"]
+        address_line3:
+          type: [string, "null"]
+        address_line4:
+          type: [string, "null"]
+        state:
+          type: [string, "null"]
+        pincode:
+          type: [string, "null"]
+        telephone:
+          type: [string, "null"]
+        registered_for:
+          type: string
+        set_alter_excise_details:
+          type: boolean
+          description: Stored as INTEGER 0/1 (false/true).
+        registration_type:
+          type: string
+        ecc_number:
+          type: [string, "null"]
+        set_alter_excise_tariff:
+          type: boolean
+          description: Stored as INTEGER 0/1 (false/true).
+        set_alter_rule11_book:
+          type: boolean
+          description: Stored as INTEGER 0/1 (false/true).
+        sort_order:
+          type: integer
+      required: [tax_unit_id]
+
+    TaxUnit:
+      type: object
+      description: >-
+        A row of the tax_units table as returned by the service (raw SQLite row).
+        Boolean-like columns are surfaced as 0/1 integers.
+      properties:
+        tax_unit_id:
+          type: integer
+        company_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        address_line1:
+          type: [string, "null"]
+        address_line2:
+          type: [string, "null"]
+        address_line3:
+          type: [string, "null"]
+        address_line4:
+          type: [string, "null"]
+        state:
+          type: [string, "null"]
+        pincode:
+          type: [string, "null"]
+        telephone:
+          type: [string, "null"]
+        registered_for:
+          type: [string, "null"]
+          default: Excise
+        set_alter_excise_details:
+          type: integer
+          enum: [0, 1]
+        registration_type:
+          type: [string, "null"]
+          default: Importer
+        ecc_number:
+          type: [string, "null"]
+        set_alter_excise_tariff:
+          type: integer
+          enum: [0, 1]
+        set_alter_rule11_book:
+          type: integer
+          enum: [0, 1]
+        sort_order:
+          type: integer
+        is_active:
+          type: integer
+          enum: [0, 1]
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+
+    TaxUnitSingleResult:
+      description: Result envelope for create / getById / update.
+      oneOf:
+        - type: object
+          properties:
+            success:
+              const: true
+            taxUnit:
+              $ref: '#/components/schemas/TaxUnit'
+          required: [success, taxUnit]
+        - type: object
+          properties:
+            success:
+              const: false
+            error:
+              type: string
+          required: [success, error]
+
+    TaxUnitListResult:
+      description: Result envelope for getAll.
+      oneOf:
+        - type: object
+          properties:
+            success:
+              const: true
+            taxUnits:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaxUnit'
+          required: [success, taxUnits]
+        - type: object
+          properties:
+            success:
+              const: false
+            error:
+              type: string
+          required: [success, error]
+
+    SuccessResult:
+      description: Result envelope for delete.
+      oneOf:
+        - type: object
+          properties:
+            success:
+              const: true
+          required: [success]
+        - type: object
+          properties:
+            success:
+              const: false
+            error:
+              type: string
+          required: [success, error]

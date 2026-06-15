@@ -1,0 +1,338 @@
+openapi: 3.1.0
+info:
+  title: profitLossReport module API
+  version: 1.0.0
+  description: >
+    IPC contract for the backend module "profitLossReport" of an Electron + SQLite
+    accounting/ERP app. Each operation models an `ipcMain.handle('profitLossReport:<action>', ...)`
+    channel registered in server/index.js and backed by profitLossReportService.js.
+
+
+    WARNING — preload binding gap: None of the `profitLossReport:*` channels documented
+    here are exposed in preload.js. There is therefore NO `window.api.profitLossReport.*`
+    renderer binding for this module. The only profit-and-loss related preload binding is
+    `window.api.report.profitLoss(company_id, fy_id)` which invokes the SEPARATE channel
+    `report:profitLoss` (a live report-computation channel belonging to a different "report"
+    module — it does NOT touch the profit_loss_reports / profit_loss_views tables). The
+    x-window-api fields below are marked accordingly.
+servers:
+  - url: ipc://local
+    description: Electron IPC (not HTTP). Path/method are a documentation convention.
+paths:
+  /profitLossReport/create:
+    post:
+      tags: [profitLossReport]
+      summary: Create a saved Profit & Loss report (header + its section view rows).
+      operationId: profitLossReport.create
+      x-ipc-channel: "profitLossReport:create"
+      x-window-api: "NONE — channel not exposed in preload.js (no window.api.profitLossReport.create)"
+      x-controller: "profitLossReportController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfitLossReportCreateInput'
+      responses:
+        '200':
+          description: Created report header (note - the inserted view rows are NOT returned here).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  report:
+                    $ref: '#/components/schemas/ProfitLossReport'
+                required: [success, report]
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: >
+            Service-level failure. The service catches errors and returns
+            `{ success: false, error: string }` with a 200-style IPC resolution rather than rejecting.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceFailure' }
+  /profitLossReport/getAll:
+    post:
+      tags: [profitLossReport]
+      summary: List all saved P&L report headers for a company (newest first).
+      operationId: profitLossReport.getAll
+      x-ipc-channel: "profitLossReport:getAll"
+      x-window-api: "NONE — channel not exposed in preload.js (no window.api.profitLossReport.getAll)"
+      x-controller: "profitLossReportController.getAll"
+      requestBody:
+        required: true
+        description: The controller receives a bare company_id as its second IPC argument.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id to filter by.
+              required: [company_id]
+      responses:
+        '200':
+          description: List of report headers ordered by created_at DESC.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  reports:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProfitLossReport' }
+                required: [success, reports]
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Service-level failure (returned as `{ success:false, error }`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceFailure' }
+  /profitLossReport/getById:
+    post:
+      tags: [profitLossReport]
+      summary: Fetch one saved P&L report header with its view rows grouped into sections.
+      operationId: profitLossReport.getById
+      x-ipc-channel: "profitLossReport:getById"
+      x-window-api: "NONE — channel not exposed in preload.js (no window.api.profitLossReport.getById)"
+      x-controller: "profitLossReportController.getById"
+      requestBody:
+        required: true
+        description: The controller receives a bare report id as its second IPC argument.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: profit_loss_reports.report_id to fetch.
+              required: [id]
+      responses:
+        '200':
+          description: >
+            Report header merged with section-grouped view rows. On a missing id the service
+            instead returns `{ success:false, error:'Report not found' }`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { type: boolean, const: true }
+                      report: { $ref: '#/components/schemas/ProfitLossReportWithSections' }
+                    required: [success, report]
+                  - $ref: '#/components/schemas/ServiceFailure'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Service-level failure (returned as `{ success:false, error }`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceFailure' }
+  /profitLossReport/delete:
+    post:
+      tags: [profitLossReport]
+      summary: Delete a saved P&L report header by id (cascades to its view rows).
+      operationId: profitLossReport.delete
+      x-ipc-channel: "profitLossReport:delete"
+      x-window-api: "NONE — channel not exposed in preload.js (no window.api.profitLossReport.delete)"
+      x-controller: "profitLossReportController.delete"
+      requestBody:
+        required: true
+        description: The controller receives a bare report id as its second IPC argument.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: profit_loss_reports.report_id to delete.
+              required: [id]
+      responses:
+        '200':
+          description: >
+            Deletion outcome. On success `{ success:true }`. On a missing id
+            `{ success:false, error:'Report not found' }`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { type: boolean, const: true }
+                    required: [success]
+                  - $ref: '#/components/schemas/ServiceFailure'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Service-level failure (returned as `{ success:false, error }`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceFailure' }
+components:
+  schemas:
+    Error:
+      type: object
+      description: Standard transport-level error envelope.
+      properties:
+        error: { type: string }
+        message: { type: string }
+      required: [error, message]
+    ServiceFailure:
+      type: object
+      description: >
+        Service-level failure envelope. The service swallows exceptions and resolves with this
+        shape instead of rejecting the IPC call.
+      properties:
+        success: { type: boolean, const: false }
+        error: { type: string }
+      required: [success, error]
+    ProfitLossReport:
+      type: object
+      description: A row of the profit_loss_reports table (the saved P&L report header).
+      properties:
+        report_id: { type: integer, description: PK (SQLite INTEGER PRIMARY KEY AUTOINCREMENT). }
+        company_id: { type: integer, description: FK -> companies.company_id (explicit in source). }
+        report_name: { type: string, default: 'Profit & Loss A/c' }
+        report_date: { type: [string, 'null'], format: date, description: Date-only TEXT. }
+        period_start: { type: [string, 'null'], format: date }
+        period_end: { type: [string, 'null'], format: date }
+        format_type: { type: string, default: 'Vertical' }
+        compare_with_previous_period: { type: boolean, description: Stored 0/1 in SQLite. }
+        comparison_period_start: { type: [string, 'null'], format: date }
+        comparison_period_end: { type: [string, 'null'], format: date }
+        basis_of_values: { type: string, default: 'Default' }
+        change_view: { type: [string, 'null'] }
+        exception_report_enabled: { type: boolean, description: Stored 0/1. }
+        saved_view_name: { type: [string, 'null'] }
+        filter_enabled: { type: boolean, description: Stored 0/1. }
+        filter_details: { type: [string, 'null'], description: Free-form/serialized filter payload (TEXT). }
+        show_detail_view: { type: boolean, description: Stored 0/1. }
+        show_condensed_view: { type: boolean, description: Stored 0/1. }
+        show_percentage_of_sales: { type: boolean, description: Stored 0/1. }
+        show_auto_column: { type: boolean, description: Stored 0/1. }
+        show_profit: { type: boolean, default: true, description: Stored 0/1, defaults 1. }
+        show_optional: { type: boolean, description: Stored 0/1. }
+        show_post_dated: { type: boolean, description: Stored 0/1. }
+        show_stat_adjustment: { type: boolean, description: Stored 0/1. }
+        show_schedule_vi: { type: boolean, description: Stored 0/1. }
+        created_at: { type: string, format: date-time, description: ISO-8601 string (datetime('now')). }
+        updated_at: { type: string, format: date-time, description: ISO-8601 string (datetime('now')). }
+      required: [report_id, company_id]
+    ProfitLossView:
+      type: object
+      description: A row of the profit_loss_views table (one section/group line of a saved report).
+      properties:
+        view_id: { type: integer, description: PK (SQLite INTEGER PRIMARY KEY AUTOINCREMENT). }
+        report_id: { type: integer, description: FK -> profit_loss_reports.report_id (explicit in source). }
+        company_id: { type: integer, description: FK -> companies.company_id (explicit in source). }
+        report_date: { type: [string, 'null'], format: date }
+        section:
+          type: string
+          default: 'Income'
+          description: One of Income / Expense / GrossProfit / NetProfit (used to group rows on read).
+        group_name: { type: [string, 'null'] }
+        parent_group_name: { type: [string, 'null'] }
+        opening_balance: { type: number, default: 0, description: MONEY — NUMERIC(18,2), not float. }
+        current_period_amount: { type: number, default: 0, description: MONEY — NUMERIC(18,2), not float. }
+        closing_balance: { type: number, default: 0, description: MONEY — NUMERIC(18,2), not float. }
+        display_order: { type: integer, default: 0 }
+        is_total_row: { type: boolean, description: Stored 0/1. }
+        is_gross_profit_row: { type: boolean, description: Stored 0/1. }
+        is_drill_down_available: { type: boolean, default: true, description: Stored 0/1, defaults 1. }
+        created_at: { type: string, format: date-time, description: ISO-8601 string (datetime('now')). }
+      required: [view_id, report_id, company_id]
+    ProfitLossReportWithSections:
+      description: >
+        Returned by getById — the report header plus its view rows split by section.
+      allOf:
+        - $ref: '#/components/schemas/ProfitLossReport'
+        - type: object
+          properties:
+            income:
+              type: array
+              items: { $ref: '#/components/schemas/ProfitLossView' }
+              description: Rows where section = 'Income'.
+            expenses:
+              type: array
+              items: { $ref: '#/components/schemas/ProfitLossView' }
+              description: Rows where section = 'Expense'.
+            grossProfit:
+              type: array
+              items: { $ref: '#/components/schemas/ProfitLossView' }
+              description: Rows where section = 'GrossProfit'.
+            netProfit:
+              type: array
+              items: { $ref: '#/components/schemas/ProfitLossView' }
+              description: Rows where section = 'NetProfit'.
+    ProfitLossViewInput:
+      type: object
+      description: One section row supplied on create (inserted into profit_loss_views).
+      properties:
+        section: { type: string, default: 'Income' }
+        group_name: { type: [string, 'null'] }
+        parent_group_name: { type: [string, 'null'] }
+        opening_balance: { type: number, default: 0 }
+        current_period_amount: { type: number, default: 0 }
+        closing_balance: { type: number, default: 0 }
+        display_order: { type: integer, description: Defaults to row index+1 if omitted. }
+        is_total_row: { type: boolean, default: false }
+        is_gross_profit_row: { type: boolean, default: false }
+        is_drill_down_available: { type: boolean, default: true }
+    ProfitLossReportCreateInput:
+      type: object
+      description: >
+        Payload for profitLossReport:create. company_id is required; all other header fields fall
+        back to documented defaults. `rows` (if present) are inserted into profit_loss_views.
+      properties:
+        company_id: { type: integer }
+        report_name: { type: string, default: 'Profit & Loss A/c' }
+        report_date: { type: string, format: date, description: Defaults to today (YYYY-MM-DD) if omitted. }
+        period_start: { type: [string, 'null'], format: date }
+        period_end: { type: [string, 'null'], format: date }
+        format_type: { type: string, default: 'Vertical' }
+        compare_with_previous_period: { type: boolean, default: false }
+        comparison_period_start: { type: [string, 'null'], format: date }
+        comparison_period_end: { type: [string, 'null'], format: date }
+        basis_of_values: { type: string, default: 'Default' }
+        change_view: { type: [string, 'null'] }
+        exception_report_enabled: { type: boolean, default: false }
+        saved_view_name: { type: [string, 'null'] }
+        filter_enabled: { type: boolean, default: false }
+        filter_details: { type: [string, 'null'] }
+        show_detail_view: { type: boolean, default: false }
+        show_condensed_view: { type: boolean, default: false }
+        show_percentage_of_sales: { type: boolean, default: false }
+        show_auto_column: { type: boolean, default: false }
+        show_profit: { type: boolean, default: true }
+        show_optional: { type: boolean, default: false }
+        show_post_dated: { type: boolean, default: false }
+        show_stat_adjustment: { type: boolean, default: false }
+        show_schedule_vi: { type: boolean, default: false }
+        rows:
+          type: array
+          description: Optional section rows persisted to profit_loss_views.
+          items: { $ref: '#/components/schemas/ProfitLossViewInput' }
+      required: [company_id]

@@ -1,0 +1,305 @@
+openapi: 3.1.0
+info:
+  title: employeeCategory module API
+  version: 1.0.0
+  description: >
+    IPC contract for the employeeCategory backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('employeeCategory:<action>', ...)`
+    channel registered in server/index.js and exposed to the renderer via preload.js as
+    `window.api.employeeCategory.<method>`. HTTP method/path are a documentation convention
+    only; transport is Electron IPC, not HTTP.
+paths:
+  /employeeCategory/create:
+    post:
+      operationId: employeeCategory.create
+      tags: [employeeCategory]
+      summary: Create a new (non-predefined) employee category for a company.
+      x-ipc-channel: "employeeCategory:create"
+      x-window-api: "window.api.employeeCategory.create"
+      x-controller: "employeeCategoryController.create"
+      description: >
+        Inserts a new employee category. Rejects when an active category with the same
+        (case-insensitive) name already exists for the company. New categories are always
+        created with is_active=1 and is_predefined=0.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCategoryCreateInput'
+      responses:
+        '200':
+          description: Created category, or a failure result if a duplicate name exists.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EmployeeCategorySingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+  /employeeCategory/getAll:
+    post:
+      operationId: employeeCategory.getAll
+      tags: [employeeCategory]
+      summary: List all active employee categories for a company.
+      x-ipc-channel: "employeeCategory:getAll"
+      x-window-api: "window.api.employeeCategory.getAll"
+      x-controller: "employeeCategoryController.getAll"
+      description: >
+        Returns all employee categories for the given company where is_active = 1.
+        The handler takes a bare scalar company_id as its argument (not an object).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: List of active employee categories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeCategoryListResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+  /employeeCategory/getById:
+    post:
+      operationId: employeeCategory.getById
+      tags: [employeeCategory]
+      summary: Fetch a single employee category by its id.
+      x-ipc-channel: "employeeCategory:getById"
+      x-window-api: "window.api.employeeCategory.getById"
+      x-controller: "employeeCategoryController.getById"
+      description: >
+        Returns one employee category by employee_category_id, or a failure result if not found.
+        The handler takes a bare scalar id as its argument (not an object).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCategoryIdInput'
+      responses:
+        '200':
+          description: The matching category, or a failure result if not found.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EmployeeCategorySingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+  /employeeCategory/update:
+    post:
+      operationId: employeeCategory.update
+      tags: [employeeCategory]
+      summary: Update an existing non-predefined employee category.
+      x-ipc-channel: "employeeCategory:update"
+      x-window-api: "window.api.employeeCategory.update"
+      x-controller: "employeeCategoryController.update"
+      description: >
+        Updates name, alias, allocate_revenue and allocate_non_revenue of a category and
+        refreshes updated_at. Each field falls back to the current stored value when omitted.
+        Rejects when the category does not exist or is_predefined = 1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCategoryUpdateInput'
+      responses:
+        '200':
+          description: Updated category, or a failure result (not found / predefined).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EmployeeCategorySingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+  /employeeCategory/delete:
+    post:
+      operationId: employeeCategory.delete
+      tags: [employeeCategory]
+      summary: Soft-delete (deactivate) a non-predefined employee category.
+      x-ipc-channel: "employeeCategory:delete"
+      x-window-api: "window.api.employeeCategory.delete"
+      x-controller: "employeeCategoryController.delete"
+      description: >
+        Soft-deletes by setting is_active = 0. Rejects when the category does not exist,
+        is_predefined = 1, or is still referenced by active employee_groups or active employees.
+        The handler takes a bare scalar id as its argument (not an object).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCategoryIdInput'
+      responses:
+        '200':
+          description: Success flag, or a failure result with a reason.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+components:
+  responses:
+    Error:
+      description: Unexpected/transport error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      description: Generic error envelope for transport/unexpected failures.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+    EmployeeCategory:
+      type: object
+      description: >
+        A row of the employee_categories table. Integer flag columns (allocate_revenue,
+        allocate_non_revenue, is_active, is_predefined) are stored as 0/1 in SQLite.
+        Timestamps are ISO-8601 strings produced by SQLite datetime('now').
+      properties:
+        employee_category_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        allocate_revenue:
+          type: integer
+          enum: [0, 1]
+          description: Boolean flag stored as 0/1.
+        allocate_non_revenue:
+          type: integer
+          enum: [0, 1]
+          description: Boolean flag stored as 0/1.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: Boolean flag stored as 0/1; soft-delete marker.
+        is_predefined:
+          type: integer
+          enum: [0, 1]
+          description: Boolean flag stored as 0/1; predefined rows cannot be edited or deleted.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string.
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string.
+      required:
+        - employee_category_id
+        - company_id
+        - name
+    CompanyIdInput:
+      type: integer
+      description: Bare company_id scalar passed as the single IPC argument to getAll.
+    EmployeeCategoryIdInput:
+      type: integer
+      description: Bare employee_category_id scalar passed as the single IPC argument to getById/delete.
+    EmployeeCategoryCreateInput:
+      type: object
+      description: Payload for employeeCategory:create.
+      properties:
+        company_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+          description: Optional; defaults to null when falsy.
+        allocate_revenue:
+          type: boolean
+          description: "Coerced to 0/1 (data.allocate_revenue ? 1 : 0)."
+        allocate_non_revenue:
+          type: boolean
+          description: "Coerced to 0/1 (data.allocate_non_revenue ? 1 : 0)."
+      required: [company_id, name]
+    EmployeeCategoryUpdateInput:
+      type: object
+      description: >
+        Payload for employeeCategory:update. employee_category_id is required to locate the row;
+        every other field is optional and falls back to the current stored value when omitted.
+      properties:
+        employee_category_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        allocate_revenue:
+          type: boolean
+        allocate_non_revenue:
+          type: boolean
+      required: [employee_category_id]
+    EmployeeCategorySingleResult:
+      type: object
+      description: Success envelope wrapping a single category (key is "category").
+      properties:
+        success:
+          type: boolean
+          const: true
+        category:
+          $ref: '#/components/schemas/EmployeeCategory'
+      required: [success, category]
+    EmployeeCategoryListResult:
+      type: object
+      description: Success envelope wrapping the list (key is "employeeCategories").
+      properties:
+        success:
+          type: boolean
+        employeeCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeCategory'
+      required: [success]
+    SuccessResult:
+      type: object
+      description: Minimal success envelope (used by delete).
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]
+    FailureResult:
+      type: object
+      description: >
+        Failure envelope returned by service methods for validation/business-rule failures
+        (duplicate name, not found, predefined, in-use). Returned inside the 200 response.
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+      required: [success, error]

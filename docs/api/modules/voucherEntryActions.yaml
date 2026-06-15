@@ -1,0 +1,397 @@
+openapi: 3.1.0
+info:
+  title: voucherEntryActions module API
+  version: 1.0.0
+  description: >-
+    IPC contract for the `voucherEntryActions` backend module of the Electron +
+    SQLite accounting/ERP app. Each operation models one `ipcMain.handle()`
+    channel registered in server/index.js. Transport is Electron IPC
+    (ipcRenderer.invoke), not HTTP; the POST + path modeling here is purely a
+    convention so the surface can be rendered/merged as OpenAPI.
+
+    WARNING: this module is NOT exposed in preload.js. There is no
+    `window.api.voucherEntryActions` binding at the time of writing. The
+    `x-window-api` values below are the conventional binding that WOULD be used
+    if added; they are currently unreachable from the renderer.
+
+servers:
+  - url: ipc://local
+    description: Electron IPC (ipcRenderer.invoke). Not a network server.
+
+paths:
+  /voucherEntryActions/create:
+    post:
+      operationId: voucherEntryActions.create
+      tags: [voucherEntryActions]
+      summary: Insert a voucher entry action (audit/automation log row) and return the created row.
+      x-ipc-channel: "voucherEntryActions:create"
+      x-window-api: "window.api.voucherEntryActions.create"
+      x-controller: "voucherEntryActionsController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoucherEntryActionCreateInput'
+      responses:
+        '200':
+          description: Created action wrapped in a success envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoucherEntryActionCreateResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /voucherEntryActions/getAll:
+    post:
+      operationId: voucherEntryActions.getAll
+      tags: [voucherEntryActions]
+      summary: List all voucher entry actions for a company, newest performed first.
+      description: >-
+        Controller passes arg 2 straight through as `company_id` (a bare scalar,
+        not an object). Service orders by performed_at DESC.
+      x-ipc-channel: "voucherEntryActions:getAll"
+      x-window-api: "window.api.voucherEntryActions.getAll"
+      x-controller: "voucherEntryActionsController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: Bare scalar passed as IPC arg 2.
+      responses:
+        '200':
+          description: Action list wrapped in a success envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoucherEntryActionListResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /voucherEntryActions/getByVoucher:
+    post:
+      operationId: voucherEntryActions.getByVoucher
+      tags: [voucherEntryActions]
+      summary: List voucher entry actions for a single voucher, oldest performed first.
+      description: >-
+        Controller passes arg 2 straight through as `voucher_id` (a bare
+        scalar). Service orders by performed_at ASC.
+      x-ipc-channel: "voucherEntryActions:getByVoucher"
+      x-window-api: "window.api.voucherEntryActions.getByVoucher"
+      x-controller: "voucherEntryActionsController.getByVoucher"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [voucher_id]
+              properties:
+                voucher_id:
+                  type: integer
+                  description: Bare scalar passed as IPC arg 2.
+      responses:
+        '200':
+          description: Action list wrapped in a success envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoucherEntryActionListResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /voucherEntryActions/delete:
+    post:
+      operationId: voucherEntryActions.delete
+      tags: [voucherEntryActions]
+      summary: Delete one voucher entry action by its action_id.
+      description: >-
+        Controller passes arg 2 straight through as `id` (a bare scalar matched
+        against action_id). Returns { success:false, error:'Action not found' }
+        if no row matches.
+      x-ipc-channel: "voucherEntryActions:delete"
+      x-window-api: "window.api.voucherEntryActions.delete"
+      x-controller: "voucherEntryActionsController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: action_id of the row to delete. Bare scalar passed as IPC arg 2.
+      responses:
+        '200':
+          description: Deletion result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResult'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+components:
+  responses:
+    Error:
+      description: Error response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    VoucherEntryAction:
+      type: object
+      description: >-
+        A row of voucher_entry_actions as returned by the service. Note the
+        service parses the JSON-text columns `action_data` and
+        `additional_details` back into objects on read (parseAction); on the DB
+        they are TEXT.
+      properties:
+        action_id:
+          type: integer
+          description: INTEGER PRIMARY KEY AUTOINCREMENT.
+        company_id:
+          type: integer
+        voucher_id:
+          type:
+            - integer
+            - "null"
+        action_type:
+          type: string
+        action_data:
+          description: Stored as JSON TEXT; parsed to object/value on read.
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+            - type: "null"
+        autofill_ledger_id:
+          type:
+            - integer
+            - "null"
+        autofill_amount:
+          type:
+            - number
+            - "null"
+          description: Money/quantity column (REAL in SQLite -> NUMERIC in Postgres).
+        autofill_narration:
+          type:
+            - string
+            - "null"
+        previous_mode:
+          type:
+            - string
+            - "null"
+        new_mode:
+          type:
+            - string
+            - "null"
+        additional_details:
+          description: Stored as JSON TEXT; parsed to object/value on read.
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+            - type: "null"
+        related_report_type:
+          type:
+            - string
+            - "null"
+        related_report_id:
+          type:
+            - integer
+            - "null"
+        is_optional:
+          type: integer
+          enum: [0, 1]
+          description: Stored 0/1 in SQLite; maps to BOOLEAN in Postgres (0=false, 1=true).
+        optional_reason:
+          type:
+            - string
+            - "null"
+        performed_by:
+          type:
+            - string
+            - "null"
+        performed_at:
+          type: string
+          description: ISO-8601 datetime string (DEFAULT datetime('now')).
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (DEFAULT datetime('now')).
+      required:
+        - action_id
+        - company_id
+        - action_type
+        - performed_at
+        - created_at
+
+    VoucherEntryActionCreateInput:
+      type: object
+      description: >-
+        Payload consumed by the service `create(data)`. `action_data` and
+        `additional_details` are JSON.stringify'd before insert if objects.
+        `is_optional` is coerced via `data.is_optional ? 1 : 0`. `performed_at`
+        defaults to new Date().toISOString() if falsy. created_at is set by the
+        DB default and is not part of the input.
+      additionalProperties: false
+      required: [company_id, action_type]
+      properties:
+        company_id:
+          type: integer
+        voucher_id:
+          type:
+            - integer
+            - "null"
+        action_type:
+          type: string
+        action_data:
+          description: Object/array/string; serialized to JSON TEXT on insert.
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+            - type: "null"
+        autofill_ledger_id:
+          type:
+            - integer
+            - "null"
+        autofill_amount:
+          type:
+            - number
+            - "null"
+        autofill_narration:
+          type:
+            - string
+            - "null"
+        previous_mode:
+          type:
+            - string
+            - "null"
+        new_mode:
+          type:
+            - string
+            - "null"
+        additional_details:
+          description: Object/array/string; serialized to JSON TEXT on insert.
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+            - type: "null"
+        related_report_type:
+          type:
+            - string
+            - "null"
+        related_report_id:
+          type:
+            - integer
+            - "null"
+        is_optional:
+          description: Truthy -> 1, falsy -> 0.
+          oneOf:
+            - type: boolean
+            - type: integer
+        optional_reason:
+          type:
+            - string
+            - "null"
+        performed_by:
+          type:
+            - string
+            - "null"
+        performed_at:
+          type:
+            - string
+            - "null"
+          description: ISO-8601 datetime; defaults to now() if omitted/falsy.
+
+    VoucherEntryActionCreateResult:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [success, action]
+          properties:
+            success:
+              const: true
+            action:
+              $ref: '#/components/schemas/VoucherEntryAction'
+        - type: object
+          additionalProperties: false
+          required: [success, error]
+          properties:
+            success:
+              const: false
+            error:
+              type: string
+
+    VoucherEntryActionListResult:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [success, actions]
+          properties:
+            success:
+              const: true
+            actions:
+              type: array
+              items:
+                $ref: '#/components/schemas/VoucherEntryAction'
+        - type: object
+          additionalProperties: false
+          required: [success, error]
+          properties:
+            success:
+              const: false
+            error:
+              type: string
+
+    DeleteResult:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [success]
+          properties:
+            success:
+              const: true
+        - type: object
+          additionalProperties: false
+          required: [success, error]
+          properties:
+            success:
+              const: false
+            error:
+              type: string
+              description: e.g. 'Action not found'.

@@ -1,17 +1,20 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { companyPanCinDetails } = require('../db/schema');
 
 const get = async (company_id) => {
   try {
-    const result = await db.execute({
-      sql: `SELECT * FROM company_pan_cin_details WHERE company_id = ? LIMIT 1`,
-      args: [company_id],
-    });
+    const rows = await db.all(
+      sql`SELECT * FROM ${companyPanCinDetails}
+          WHERE ${companyPanCinDetails.companyId} = ${company_id}
+          LIMIT 1`
+    );
 
-    if (!result.rows || result.rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return { success: true, exists: false, data: null };
     }
 
-    const record = result.rows[0];
+    const record = rows[0];
     return {
       success: true,
       exists: true,
@@ -34,39 +37,31 @@ const save = async (data) => {
     }
 
     // Check if record exists
-    const existing = await db.execute({
-      sql: `SELECT company_id FROM company_pan_cin_details WHERE company_id = ? LIMIT 1`,
-      args: [company_id],
-    });
+    const existing = await db.all(
+      sql`SELECT ${companyPanCinDetails.companyId} FROM ${companyPanCinDetails}
+          WHERE ${companyPanCinDetails.companyId} = ${company_id}
+          LIMIT 1`
+    );
 
-    if (existing.rows && existing.rows.length > 0) {
+    if (existing && existing.length > 0) {
       // UPDATE
-      await db.execute({
-        sql: `UPDATE company_pan_cin_details SET
-                pan = ?,
-                cin = ?,
-                updated_at = datetime('now')
-              WHERE company_id = ?`,
-        args: [
-          data.pan || null,
-          data.cin || null,
-          company_id,
-        ],
-      });
+      await db
+        .update(companyPanCinDetails)
+        .set({
+          pan: data.pan || null,
+          cin: data.cin || null,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(companyPanCinDetails.companyId, company_id));
     } else {
       // INSERT
-      await db.execute({
-        sql: `INSERT INTO company_pan_cin_details (
-                company_id,
-                pan,
-                cin
-              ) VALUES (?, ?, ?)`,
-        args: [
-          company_id,
-          data.pan || null,
-          data.cin || null,
-        ],
-      });
+      await db
+        .insert(companyPanCinDetails)
+        .values({
+          companyId: company_id,
+          pan: data.pan || null,
+          cin: data.cin || null,
+        });
     }
 
     return { success: true };

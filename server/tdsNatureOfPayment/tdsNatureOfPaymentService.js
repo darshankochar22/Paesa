@@ -1,38 +1,43 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { tdsNatureOfPayment } = require('../db/schema');
+
+// Fetch a single tds_nature_of_payment row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${tdsNatureOfPayment} WHERE ${whereSql}`);
+  return rows[0];
+};
 
 module.exports = {
   create: async (data) => {
     try {
-      const exists = await db.execute(
-        `SELECT * FROM tds_nature_of_payment WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        [data.company_id, data.name]
+      const exists = await db.all(
+        sql`SELECT * FROM ${tdsNatureOfPayment}
+            WHERE ${tdsNatureOfPayment.companyId} = ${data.company_id}
+              AND LOWER(${tdsNatureOfPayment.name}) = LOWER(${data.name})
+              AND ${tdsNatureOfPayment.isActive} = 1`
       );
-      if (exists.rows.length > 0) return { success: false, error: 'TDS Nature of Payment already exists' };
+      if (exists.length > 0) return { success: false, error: 'TDS Nature of Payment already exists' };
 
-      const result = await db.execute(
-        `INSERT INTO tds_nature_of_payment (
-          company_id, name, section, payment_code, remittance_code,
-          rate_individual_with_pan, rate_other_with_pan,
-          is_zero_rated, threshold_limit, is_predefined, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
-        [
-          data.company_id,
-          data.name,
-          data.section || null,
-          data.payment_code || null,
-          data.remittance_code || null,
-          data.rate_individual_with_pan ?? 0,
-          data.rate_other_with_pan ?? 0,
-          data.is_zero_rated ?? 0,
-          data.threshold_limit ?? 0,
-        ]
-      );
+      const inserted = await db
+        .insert(tdsNatureOfPayment)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          section: data.section || null,
+          paymentCode: data.payment_code || null,
+          remittanceCode: data.remittance_code || null,
+          rateIndividualWithPan: data.rate_individual_with_pan ?? 0,
+          rateOtherWithPan: data.rate_other_with_pan ?? 0,
+          isZeroRated: data.is_zero_rated ?? 0,
+          thresholdLimit: data.threshold_limit ?? 0,
+          isPredefined: 0,
+          isActive: 1,
+        })
+        .returning({ id: tdsNatureOfPayment.tdsId });
 
-      const record = await db.execute(
-        `SELECT * FROM tds_nature_of_payment WHERE tds_id = ?`,
-        [result.lastInsertRowid]
-      );
-      return { success: true, tdsNatureOfPayment: record.rows[0] };
+      const record = await findRow(sql`${tdsNatureOfPayment.tdsId} = ${inserted[0].id}`);
+      return { success: true, tdsNatureOfPayment: record };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -40,13 +45,14 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM tds_nature_of_payment WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${tdsNatureOfPayment}
+            WHERE ${tdsNatureOfPayment.companyId} = ${company_id}
+              AND ${tdsNatureOfPayment.isActive} = 1`
       );
       return {
         success: true,
-        tdsNatureOfPaymentList: result.rows,
+        tdsNatureOfPaymentList: rows,
       };
     } catch (err) {
       return { success: false, error: err.message };
@@ -55,12 +61,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM tds_nature_of_payment WHERE tds_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'TDS Nature of Payment not found' };
-      return { success: true, tdsNatureOfPayment: result.rows[0] };
+      const record = await findRow(sql`${tdsNatureOfPayment.tdsId} = ${id}`);
+      if (!record) return { success: false, error: 'TDS Nature of Payment not found' };
+      return { success: true, tdsNatureOfPayment: record };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -68,43 +71,26 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM tds_nature_of_payment WHERE tds_id = ?`,
-        [data.tds_id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'TDS Nature of Payment not found' };
+      const c = await findRow(sql`${tdsNatureOfPayment.tdsId} = ${data.tds_id}`);
+      if (!c) return { success: false, error: 'TDS Nature of Payment not found' };
 
-      const c = existing.rows[0];
-      await db.execute(
-        `UPDATE tds_nature_of_payment SET
-          name = ?,
-          section = ?,
-          payment_code = ?,
-          remittance_code = ?,
-          rate_individual_with_pan = ?,
-          rate_other_with_pan = ?,
-          is_zero_rated = ?,
-          threshold_limit = ?,
-          updated_at = datetime('now')
-        WHERE tds_id = ?`,
-        [
-          data.name ?? c.name,
-          data.section ?? c.section,
-          data.payment_code ?? c.payment_code,
-          data.remittance_code ?? c.remittance_code,
-          data.rate_individual_with_pan ?? c.rate_individual_with_pan,
-          data.rate_other_with_pan ?? c.rate_other_with_pan,
-          data.is_zero_rated ?? c.is_zero_rated,
-          data.threshold_limit ?? c.threshold_limit,
-          data.tds_id,
-        ]
-      );
+      await db
+        .update(tdsNatureOfPayment)
+        .set({
+          name: data.name ?? c.name,
+          section: data.section ?? c.section,
+          paymentCode: data.payment_code ?? c.payment_code,
+          remittanceCode: data.remittance_code ?? c.remittance_code,
+          rateIndividualWithPan: data.rate_individual_with_pan ?? c.rate_individual_with_pan,
+          rateOtherWithPan: data.rate_other_with_pan ?? c.rate_other_with_pan,
+          isZeroRated: data.is_zero_rated ?? c.is_zero_rated,
+          thresholdLimit: data.threshold_limit ?? c.threshold_limit,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(tdsNatureOfPayment.tdsId, data.tds_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM tds_nature_of_payment WHERE tds_id = ?`,
-        [data.tds_id]
-      );
-      return { success: true, tdsNatureOfPayment: updated.rows[0] };
+      const updated = await findRow(sql`${tdsNatureOfPayment.tdsId} = ${data.tds_id}`);
+      return { success: true, tdsNatureOfPayment: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -112,16 +98,13 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM tds_nature_of_payment WHERE tds_id = ?`,
-        [id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'TDS Nature of Payment not found' };
+      const existing = await findRow(sql`${tdsNatureOfPayment.tdsId} = ${id}`);
+      if (!existing) return { success: false, error: 'TDS Nature of Payment not found' };
 
-      await db.execute(
-        `UPDATE tds_nature_of_payment SET is_active = 0 WHERE tds_id = ?`,
-        [id]
-      );
+      await db
+        .update(tdsNatureOfPayment)
+        .set({ isActive: 0 })
+        .where(eq(tdsNatureOfPayment.tdsId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

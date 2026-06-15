@@ -1,0 +1,509 @@
+openapi: 3.1.0
+info:
+  title: Group Module API
+  version: 1.0.0
+  description: >
+    IPC API for the "group" backend module of the Electron + SQLite accounting/ERP app.
+    Account groups form the chart-of-accounts hierarchy (Tally-style primary/predefined/user
+    groups). Each operation is an Electron `ipcMain.handle` channel, invoked from the renderer
+    via the preload-exposed `window.api.group.*` bindings. Transport is IPC, not HTTP; the
+    HTTP method `post` and `/{namespace}/{action}` paths are a documentation convention so the
+    contract renders and merges as standard OpenAPI 3.1.
+tags:
+  - name: group
+    description: Account group (chart-of-accounts hierarchy) management.
+
+paths:
+  /group/create:
+    post:
+      tags: [group]
+      summary: Create a new (user) account group; rejects duplicate active names per company.
+      operationId: group.create
+      x-ipc-channel: "group:create"
+      x-window-api: "window.api.group.create"
+      x-controller: "groupController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupCreateInput'
+      responses:
+        '200':
+          description: Created group wrapped in a success envelope, or a failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GroupSuccess'
+                  - $ref: '#/components/schemas/Failure'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /group/getAll:
+    post:
+      tags: [group]
+      summary: List all active groups for a company.
+      operationId: group.getAll
+      x-ipc-channel: "group:getAll"
+      x-window-api: "window.api.group.getAll"
+      x-controller: "groupController.getAll"
+      requestBody:
+        required: true
+        description: >
+          The handler receives the raw second IPC argument as `company_id` (a bare scalar,
+          not an object).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Array of active group rows wrapped in a success envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GroupListSuccess'
+                  - $ref: '#/components/schemas/Failure'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /group/getById:
+    post:
+      tags: [group]
+      summary: Fetch a single group by its primary key.
+      operationId: group.getById
+      x-ipc-channel: "group:getById"
+      x-window-api: "window.api.group.getById"
+      x-controller: "groupController.getById"
+      requestBody:
+        required: true
+        description: The handler receives the raw second IPC argument as `id` (a bare scalar).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupIdInput'
+      responses:
+        '200':
+          description: The group row, or a not-found failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GroupSuccess'
+                  - $ref: '#/components/schemas/Failure'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /group/update:
+    post:
+      tags: [group]
+      summary: Update an existing group; unspecified fields fall back to current row values.
+      operationId: group.update
+      x-ipc-channel: "group:update"
+      x-window-api: "window.api.group.update"
+      x-controller: "groupController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupUpdateInput'
+      responses:
+        '200':
+          description: Updated group row, or a not-found failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GroupSuccess'
+                  - $ref: '#/components/schemas/Failure'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /group/delete:
+    post:
+      tags: [group]
+      summary: >
+        Soft-delete a group (sets is_active = 0). Refuses predefined groups and groups that
+        still have active subgroups.
+      operationId: group.delete
+      x-ipc-channel: "group:delete"
+      x-window-api: "window.api.group.delete"
+      x-controller: "groupController.delete"
+      requestBody:
+        required: true
+        description: The handler receives the raw second IPC argument as `id` (a bare scalar).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupIdInput'
+      responses:
+        '200':
+          description: Success envelope, or a failure envelope explaining why deletion was refused.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DeleteSuccess'
+                  - $ref: '#/components/schemas/Failure'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /group/getTree:
+    post:
+      tags: [group]
+      summary: Return all active groups for a company as a nested parent/children tree.
+      operationId: group.getTree
+      x-ipc-channel: "group:getTree"
+      x-window-api: "window.api.group.getTree"
+      x-controller: "groupController.getTree"
+      requestBody:
+        required: true
+        description: >
+          The handler receives the raw second IPC argument as `company_id` (a bare scalar).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Nested tree of group nodes wrapped in a success envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GroupTreeSuccess'
+                  - $ref: '#/components/schemas/Failure'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+components:
+  responses:
+    Error:
+      description: Unexpected/transport-level error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    Failure:
+      type: object
+      description: >
+        Standard failure envelope returned by the service when a business rule fails or an
+        exception is caught.
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: Human-readable reason (e.g. "Group already exists", "Group not found").
+      required: [success, error]
+
+    CompanyIdInput:
+      type: integer
+      format: int64
+      description: >
+        Bare scalar passed as the second IPC argument. Identifies the company whose groups
+        are queried (companies.company_id).
+
+    GroupIdInput:
+      type: integer
+      format: int64
+      description: Bare scalar group primary key (groups.group_id).
+
+    Group:
+      type: object
+      description: A row of the `groups` table.
+      properties:
+        group_id:
+          type: integer
+          format: int64
+          description: Primary key.
+        company_id:
+          type: integer
+          format: int64
+          description: Owning company (FK -> companies.company_id).
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_group_id:
+          type: [integer, "null"]
+          format: int64
+          description: Self-referential parent group (FK -> groups.group_id); null for primary groups.
+        is_primary:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 boolean flag; whether this is a primary (top-level) group.
+        is_predefined:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 boolean flag; seeded system group that cannot be deleted.
+        nature:
+          type: [string, "null"]
+          description: 'Assets | Liabilities | Income | Expenses.'
+        set_alter_tds_details:
+          type: integer
+          enum: [0, 1]
+        set_alter_tcs_details:
+          type: integer
+          enum: [0, 1]
+        set_alter_other_statutory_details:
+          type: integer
+          enum: [0, 1]
+        hsn_sac_source:
+          type: [string, "null"]
+        hsn_sac_description:
+          type: [string, "null"]
+        gst_rate_source:
+          type: [string, "null"]
+        taxability_type:
+          type: [string, "null"]
+        behaves_like_subledger:
+          type: integer
+          enum: [0, 1]
+        show_net_debit_credit:
+          type: integer
+          enum: [0, 1]
+        used_for_calculation:
+          type: integer
+          enum: [0, 1]
+        allocation_method:
+          type: [string, "null"]
+          description: Default 'Average Cost'.
+        gst_rate:
+          type: [number, "null"]
+        cgst_rate:
+          type: [number, "null"]
+        sgst_rate:
+          type: [number, "null"]
+        igst_rate:
+          type: [number, "null"]
+        hsn_sac_code:
+          type: [string, "null"]
+        statutory_details:
+          type: [string, "null"]
+        sort_order:
+          type: integer
+        group_type:
+          type: [string, "null"]
+          description: "'Primary' | 'Predefined' | 'User' (set by service, not by caller)."
+        display_order:
+          type: integer
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 boolean soft-delete flag; 1 = active.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+
+    GroupNode:
+      description: A group row plus its recursively nested children (getTree output node).
+      allOf:
+        - $ref: '#/components/schemas/Group'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupNode'
+
+    GroupCreateInput:
+      type: object
+      description: >
+        Payload destructured by the service `create(data)`. is_predefined is forced to 0 and
+        group_type is derived from is_primary ('Primary' vs 'User'); is_active is forced to 1.
+      properties:
+        company_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_group_id:
+          type: [integer, "null"]
+          format: int64
+        is_primary:
+          type: boolean
+          description: Truthy/falsy; coerced to 0/1.
+        nature:
+          type: [string, "null"]
+        set_alter_tds_details:
+          type: boolean
+        set_alter_tcs_details:
+          type: boolean
+        set_alter_other_statutory_details:
+          type: boolean
+        hsn_sac_source:
+          type: [string, "null"]
+        hsn_sac_description:
+          type: [string, "null"]
+        gst_rate_source:
+          type: [string, "null"]
+        taxability_type:
+          type: [string, "null"]
+        behaves_like_subledger:
+          type: boolean
+        show_net_debit_credit:
+          type: boolean
+        used_for_calculation:
+          type: boolean
+        allocation_method:
+          type: [string, "null"]
+          description: Defaults to 'Average Cost' when falsy.
+        gst_rate:
+          type: [number, "null"]
+        cgst_rate:
+          type: [number, "null"]
+        sgst_rate:
+          type: [number, "null"]
+        igst_rate:
+          type: [number, "null"]
+        hsn_sac_code:
+          type: [string, "null"]
+        statutory_details:
+          type: [string, "null"]
+        sort_order:
+          type: [integer, "null"]
+          description: Defaults to 0 when falsy.
+        display_order:
+          type: [integer, "null"]
+          description: Defaults to 0 when falsy.
+      required: [company_id, name]
+
+    GroupUpdateInput:
+      type: object
+      description: >
+        Payload destructured by the service `update(data)`. group_id is required; any field
+        left undefined falls back to the existing row value (boolean flags are coerced to 0/1
+        regardless). Note: is_predefined, group_type and is_active are NOT updatable here.
+      properties:
+        group_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_group_id:
+          type: [integer, "null"]
+          format: int64
+        is_primary:
+          type: boolean
+        nature:
+          type: [string, "null"]
+        set_alter_tds_details:
+          type: boolean
+        set_alter_tcs_details:
+          type: boolean
+        set_alter_other_statutory_details:
+          type: boolean
+        hsn_sac_source:
+          type: [string, "null"]
+        hsn_sac_description:
+          type: [string, "null"]
+        gst_rate_source:
+          type: [string, "null"]
+        taxability_type:
+          type: [string, "null"]
+        behaves_like_subledger:
+          type: boolean
+        show_net_debit_credit:
+          type: boolean
+        used_for_calculation:
+          type: boolean
+        allocation_method:
+          type: [string, "null"]
+        gst_rate:
+          type: [number, "null"]
+        cgst_rate:
+          type: [number, "null"]
+        sgst_rate:
+          type: [number, "null"]
+        igst_rate:
+          type: [number, "null"]
+        hsn_sac_code:
+          type: [string, "null"]
+        statutory_details:
+          type: [string, "null"]
+        sort_order:
+          type: [integer, "null"]
+        display_order:
+          type: [integer, "null"]
+      required: [group_id]
+
+    GroupSuccess:
+      type: object
+      description: Success envelope wrapping a single group row.
+      properties:
+        success:
+          type: boolean
+          const: true
+        group:
+          $ref: '#/components/schemas/Group'
+      required: [success, group]
+
+    GroupListSuccess:
+      type: object
+      description: Success envelope wrapping an array of group rows.
+      properties:
+        success:
+          type: boolean
+          const: true
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
+      required: [success, groups]
+
+    GroupTreeSuccess:
+      type: object
+      description: Success envelope wrapping the nested group tree.
+      properties:
+        success:
+          type: boolean
+          const: true
+        tree:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupNode'
+      required: [success, tree]
+
+    DeleteSuccess:
+      type: object
+      description: Success envelope for delete (no payload beyond the flag).
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]

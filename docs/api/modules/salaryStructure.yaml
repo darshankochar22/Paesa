@@ -1,0 +1,540 @@
+openapi: 3.1.0
+info:
+  title: salaryStructure module API
+  version: 1.0.0
+  description: >-
+    IPC API contract for the salaryStructure backend module of the Electron +
+    SQLite accounting/ERP app. Each operation maps to an Electron
+    `ipcMain.handle(channel, ...)` registration. There is no HTTP transport; the
+    `post` method and `/{namespace}/{action}` paths are a documentation
+    convention so the contract renders and merges as OpenAPI 3.1.
+    Renderer access is via `window.api.salaryStructure.<method>` (see
+    x-window-api).
+tags:
+  - name: salaryStructure
+    description: Employee salary structure (per pay-head amounts effective from a date).
+
+paths:
+  /salaryStructure/create:
+    post:
+      operationId: salaryStructure.create
+      tags: [salaryStructure]
+      summary: Create a single salary-structure line (one pay head) for an employee.
+      x-ipc-channel: "salaryStructure:create"
+      x-window-api: "window.api.salaryStructure.create"
+      x-controller: "salaryStructureController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryStructureCreateInput'
+      responses:
+        '200':
+          description: >-
+            Created structure wrapped in a success envelope. If an active row
+            already exists for the same company/employee/effective_from/pay_head,
+            returns `{ success: false, error: 'Salary structure already exists for this date' }`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SalaryStructureCreateResult'
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /salaryStructure/createBulk:
+    post:
+      operationId: salaryStructure.createBulk
+      tags: [salaryStructure]
+      summary: Create multiple salary-structure lines for one employee/effective date in one call.
+      x-ipc-channel: "salaryStructure:createBulk"
+      x-window-api: "window.api.salaryStructure.createBulk"
+      x-controller: "salaryStructureController.createBulk"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryStructureCreateBulkInput'
+      responses:
+        '200':
+          description: All created rows wrapped in a success envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SalaryStructureBulkResult'
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /salaryStructure/getAll:
+    post:
+      operationId: salaryStructure.getAll
+      tags: [salaryStructure]
+      summary: List all active salary-structure rows for a company.
+      description: >-
+        The handler takes the company id as a bare scalar (2nd IPC arg), not an
+        object. It is modeled here as `{ company_id }`.
+      x-ipc-channel: "salaryStructure:getAll"
+      x-window-api: "window.api.salaryStructure.getAll"
+      x-controller: "salaryStructureController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Active rows for the company.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SalaryStructureListResult'
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /salaryStructure/getById:
+    post:
+      operationId: salaryStructure.getById
+      tags: [salaryStructure]
+      summary: Fetch a single salary-structure row by structure_id.
+      description: >-
+        The handler takes the structure id as a bare scalar (2nd IPC arg).
+        Modeled here as `{ id }`.
+      x-ipc-channel: "salaryStructure:getById"
+      x-window-api: "window.api.salaryStructure.getById"
+      x-controller: "salaryStructureController.getById"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StructureIdInput'
+      responses:
+        '200':
+          description: >-
+            The row in a success envelope, or
+            `{ success: false, error: 'Salary Structure not found' }` if absent.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SalaryStructureSingleResult'
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /salaryStructure/getByEmployee:
+    post:
+      operationId: salaryStructure.getByEmployee
+      tags: [salaryStructure]
+      summary: List an employee's active salary structures grouped by effective date (newest first).
+      x-ipc-channel: "salaryStructure:getByEmployee"
+      x-window-api: "window.api.salaryStructure.getByEmployee"
+      x-controller: "salaryStructureController.getByEmployee"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetByEmployeeInput'
+      responses:
+        '200':
+          description: Active rows grouped by effective_from, sorted descending.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SalaryStructureGroupedResult'
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /salaryStructure/update:
+    post:
+      operationId: salaryStructure.update
+      tags: [salaryStructure]
+      summary: Update amount and/or calculation_mode of an existing salary-structure row.
+      description: >-
+        Only `amount` and `calculation_mode` are mutable; both fall back to the
+        current stored value when omitted (null/undefined). `updated_at` is set
+        to datetime('now').
+      x-ipc-channel: "salaryStructure:update"
+      x-window-api: "window.api.salaryStructure.update"
+      x-controller: "salaryStructureController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryStructureUpdateInput'
+      responses:
+        '200':
+          description: >-
+            The updated row in a success envelope, or
+            `{ success: false, error: 'Salary Structure not found' }`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SalaryStructureSingleResult'
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /salaryStructure/delete:
+    post:
+      operationId: salaryStructure.delete
+      tags: [salaryStructure]
+      summary: Soft-delete a salary-structure row (sets is_active = 0).
+      description: >-
+        The handler takes the structure id as a bare scalar (2nd IPC arg).
+        Modeled here as `{ id }`. This is a soft delete; the row is not removed.
+      x-ipc-channel: "salaryStructure:delete"
+      x-window-api: "window.api.salaryStructure.delete"
+      x-controller: "salaryStructureController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StructureIdInput'
+      responses:
+        '200':
+          description: >-
+            `{ success: true }` on success, or
+            `{ success: false, error: 'Salary Structure not found' }`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessOnly'
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    SalaryStructure:
+      type: object
+      description: >-
+        One row of the salary_structures table (one pay head amount for an
+        employee, effective from a date). Maps to the documented
+        `salary_structures` Postgres table.
+      properties:
+        structure_id:
+          type: integer
+          description: Primary key (SQLite INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        employee_id:
+          type: integer
+          description: Employee (FK -> employees.employee_id).
+        effective_from:
+          type: string
+          description: Effective-from date (date-only TEXT in SQLite).
+        pay_head_id:
+          type: integer
+          description: Pay head (FK -> pay_heads.pay_head_id).
+        amount:
+          type: number
+          description: Monetary amount for this pay head. SQLite REAL DEFAULT 0; treat as currency NUMERIC(18,2).
+        calculation_mode:
+          type: string
+          description: How the amount is computed. SQLite TEXT DEFAULT 'Flat Rate'.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: Soft-delete flag (0/1). Maps to BOOLEAN in Postgres (0 -> false, 1 -> true).
+        created_at:
+          type: string
+          description: ISO/SQLite datetime('now') string. Maps to TIMESTAMPTZ.
+        updated_at:
+          type: string
+          description: ISO/SQLite datetime('now') string. Maps to TIMESTAMPTZ.
+      required:
+        - structure_id
+        - company_id
+        - employee_id
+        - effective_from
+        - pay_head_id
+
+    SalaryStructureCreateInput:
+      type: object
+      description: Payload for create (controller passes `data` straight through).
+      properties:
+        company_id:
+          type: integer
+        employee_id:
+          type: integer
+        effective_from:
+          type: string
+          description: Effective-from date.
+        pay_head_id:
+          type: integer
+        amount:
+          type: number
+          description: Defaults to 0 if omitted.
+        calculation_mode:
+          type: string
+          description: Defaults to 'Flat Rate' if omitted.
+      required:
+        - company_id
+        - employee_id
+        - effective_from
+        - pay_head_id
+
+    SalaryStructureBulkEntry:
+      type: object
+      properties:
+        pay_head_id:
+          type: integer
+        amount:
+          type: number
+          description: Defaults to 0 if omitted.
+        calculation_mode:
+          type: string
+          description: Defaults to 'Flat Rate' if omitted.
+      required:
+        - pay_head_id
+
+    SalaryStructureCreateBulkInput:
+      type: object
+      description: >-
+        Payload for createBulk. Preload binds positional args
+        (company_id, employee_id, effective_from, entries) into this object.
+      properties:
+        company_id:
+          type: integer
+        employee_id:
+          type: integer
+        effective_from:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryStructureBulkEntry'
+      required:
+        - company_id
+        - employee_id
+        - effective_from
+        - entries
+
+    SalaryStructureUpdateInput:
+      type: object
+      description: >-
+        Payload for update. Only amount/calculation_mode are applied; omitted
+        fields keep their current stored value.
+      properties:
+        structure_id:
+          type: integer
+        amount:
+          type: number
+        calculation_mode:
+          type: string
+      required:
+        - structure_id
+
+    GetByEmployeeInput:
+      type: object
+      properties:
+        company_id:
+          type: integer
+        employee_id:
+          type: integer
+      required:
+        - company_id
+        - employee_id
+
+    CompanyIdInput:
+      type: object
+      description: Handler receives company_id as a bare scalar (2nd IPC arg).
+      properties:
+        company_id:
+          type: integer
+      required:
+        - company_id
+
+    StructureIdInput:
+      type: object
+      description: Handler receives the structure id as a bare scalar (2nd IPC arg).
+      properties:
+        id:
+          type: integer
+      required:
+        - id
+
+    SalaryStructureCreateResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        structure:
+          $ref: '#/components/schemas/SalaryStructure'
+      required: [success, structure]
+
+    SalaryStructureBulkResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        structures:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryStructure'
+      required: [success, structures]
+
+    SalaryStructureListResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        salaryStructures:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryStructure'
+      required: [success, salaryStructures]
+
+    SalaryStructureSingleResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        structure:
+          $ref: '#/components/schemas/SalaryStructure'
+      required: [success, structure]
+
+    SalaryStructureGroupedItem:
+      type: object
+      properties:
+        effective_from:
+          type: string
+        pay_heads:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryStructure'
+      required: [effective_from, pay_heads]
+
+    SalaryStructureGroupedResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        salaryStructures:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryStructureGroupedItem'
+      required: [success, salaryStructures]
+
+    SuccessOnly:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]
+
+    ErrorEnvelope:
+      type: object
+      description: >-
+        Service-level failure envelope. The service catches errors and returns
+        `{ success: false, error }` rather than throwing.
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+      required: [success, error]
+
+    Error:
+      type: object
+      description: Generic transport/IPC error shape.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]

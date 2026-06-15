@@ -1,0 +1,218 @@
+openapi: 3.1.0
+info:
+  title: companyTcsDetails module API
+  version: 1.0.0
+  description: >
+    IPC contract for the companyTcsDetails backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an ipcMain.handle channel exposed to
+    the renderer via the preload bridge as window.api.companyTcsDetails.<method>.
+    This module stores a single TCS (Tax Collected at Source) profile row per company,
+    keyed 1:1 by company_id.
+
+tags:
+  - name: companyTcsDetails
+    description: Company-level TCS registration and "person responsible" details.
+
+paths:
+  /companyTcsDetails/get:
+    post:
+      tags: [companyTcsDetails]
+      operationId: companyTcsDetails.get
+      summary: Fetch the TCS details for a company (returns exists=false if not yet saved).
+      x-ipc-channel: "companyTcsDetails:get"
+      x-window-api: "window.api.companyTcsDetails.get"
+      x-controller: "companyTcsDetailsController.get"
+      description: >
+        The handler takes a bare company_id (the second IPC argument), not an object.
+        The service SELECTs the single row keyed by company_id and maps the stored
+        snake_case columns into a camelCase data object. The two INTEGER 0/1 flag
+        columns (set_alter_person_responsible, ignore_it_exemption) are converted to
+        booleans via `=== 1`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: >
+                    The company primary key. NOTE: the handler is invoked as
+                    invoke('companyTcsDetails:get', company_id) with a bare scalar, so the
+                    transport payload is this id value, modelled here as a single property.
+              required: [company_id]
+      responses:
+        '200':
+          description: Lookup result envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CompanyTcsDetailsGetFound'
+                  - $ref: '#/components/schemas/CompanyTcsDetailsGetNotFound'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /companyTcsDetails/save:
+    post:
+      tags: [companyTcsDetails]
+      operationId: companyTcsDetails.save
+      summary: Upsert (insert or update) the TCS details for a company.
+      x-ipc-channel: "companyTcsDetails:save"
+      x-window-api: "window.api.companyTcsDetails.save"
+      x-controller: "companyTcsDetailsController.save"
+      description: >
+        Upsert keyed by company_id. The service first SELECTs for an existing row; if
+        present it UPDATEs and bumps updated_at, otherwise it INSERTs. Boolean inputs
+        setAlterPersonResponsible and ignoreItExemption are persisted as 1/0 INTEGERs.
+        Empty/falsy string fields are coerced to NULL; collectorType defaults to 'Company'.
+        Returns only a success envelope (no row echoed back).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyTcsDetailsSaveInput'
+      responses:
+        '200':
+          description: Save result envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+
+    CompanyTcsDetailsRow:
+      type: object
+      description: >
+        Maps to the company_tcs_details Postgres table (see docs/db/modules/companyTcsDetails.sql).
+        Shape as returned by the service's `data` object in get() — camelCase, with the two
+        INTEGER flag columns surfaced as booleans.
+      properties:
+        tanRegNumber:        { type: string, description: "tan_reg_number column ('' when NULL)." }
+        tan:                 { type: string, description: "tan column." }
+        collectorType:       { type: string, default: "Company", description: "collector_type column." }
+        collectorBranch:     { type: string, description: "collector_branch column." }
+        setAlterPersonResponsible:
+          type: boolean
+          description: "set_alter_person_responsible INTEGER 0/1 -> false/true."
+        personResponsibleName:          { type: string }
+        personResponsibleSonDaughterOf: { type: string }
+        personResponsibleDesignation:   { type: string }
+        personResponsiblePan:           { type: string }
+        personResponsibleFlatNo:        { type: string }
+        personResponsiblePremises:      { type: string }
+        personResponsibleRoad:          { type: string }
+        personResponsibleArea:          { type: string }
+        personResponsibleCity:          { type: string }
+        personResponsibleState:         { type: string }
+        personResponsiblePincode:       { type: string }
+        personResponsiblePhone:         { type: string }
+        personResponsibleStdCode:       { type: string }
+        personResponsibleTelephone:     { type: string }
+        personResponsibleEmail:         { type: string }
+        ignoreItExemption:
+          type: boolean
+          description: "ignore_it_exemption INTEGER 0/1 -> false/true (DEFAULT 1)."
+
+    CompanyTcsDetailsGetFound:
+      type: object
+      description: get() result when a row exists.
+      properties:
+        success: { type: boolean, const: true }
+        exists:  { type: boolean, const: true }
+        data:    { $ref: '#/components/schemas/CompanyTcsDetailsRow' }
+      required: [success, exists, data]
+
+    CompanyTcsDetailsGetNotFound:
+      type: object
+      description: get() result when no row exists for the company_id.
+      properties:
+        success: { type: boolean, const: true }
+        exists:  { type: boolean, const: false }
+        data:    { type: 'null' }
+      required: [success, exists, data]
+
+    CompanyTcsDetailsSaveInput:
+      type: object
+      description: >
+        Payload for save(). company_id is required; all other fields optional and
+        default to NULL (or 'Company'/0 where noted) when omitted.
+      properties:
+        company_id:                     { type: integer, description: "Required. Target company PK." }
+        tanRegNumber:                   { type: string, nullable: true }
+        tan:                            { type: string, nullable: true }
+        collectorType:                  { type: string, nullable: true, default: "Company" }
+        collectorBranch:                { type: string, nullable: true }
+        setAlterPersonResponsible:      { type: boolean, default: false, description: "Stored as 1/0." }
+        personResponsibleName:          { type: string, nullable: true }
+        personResponsibleSonDaughterOf: { type: string, nullable: true }
+        personResponsibleDesignation:   { type: string, nullable: true }
+        personResponsiblePan:           { type: string, nullable: true }
+        personResponsibleFlatNo:        { type: string, nullable: true }
+        personResponsiblePremises:      { type: string, nullable: true }
+        personResponsibleRoad:          { type: string, nullable: true }
+        personResponsibleArea:          { type: string, nullable: true }
+        personResponsibleCity:          { type: string, nullable: true }
+        personResponsibleState:         { type: string, nullable: true }
+        personResponsiblePincode:       { type: string, nullable: true }
+        personResponsiblePhone:         { type: string, nullable: true }
+        personResponsibleStdCode:       { type: string, nullable: true }
+        personResponsibleTelephone:     { type: string, nullable: true }
+        personResponsibleEmail:         { type: string, nullable: true }
+        ignoreItExemption:              { type: boolean, default: false, description: "Stored as 1/0." }
+      required: [company_id]
+
+    SuccessResult:
+      type: object
+      description: Generic success envelope returned by save().
+      properties:
+        success: { type: boolean, const: true }
+      required: [success]
+
+    ServiceError:
+      type: object
+      description: >
+        In-band error envelope. The service catches exceptions and returns this object
+        (HTTP 200 at the IPC layer) rather than throwing. Also returned by save() when
+        company_id is missing ("Company ID is required").
+      properties:
+        success: { type: boolean, const: false }
+        error:   { type: string }
+      required: [success, error]
+
+    Error:
+      type: object
+      description: Shared transport-level error schema (4xx/5xx).
+      properties:
+        error:   { type: string }
+        message: { type: string }
+      required: [error, message]

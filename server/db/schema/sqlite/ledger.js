@@ -1,0 +1,93 @@
+const { sqliteTable, text, integer, real } = require('drizzle-orm/sqlite-core');
+const { sql } = require('drizzle-orm');
+
+// Mirrors server/ledger/ledger.js CREATE TABLE statements (SQLite ground truth).
+// Raw SQLite types preserved: 0/1 INTEGER flags kept as integer, money/rate as REAL,
+// created_at / updated_at are TEXT ISO datetime strings.
+const ledgers = sqliteTable('ledgers', {
+  ledgerId: integer('ledger_id').primaryKey({ autoIncrement: true }),
+  // FK -> companies(company_id) ON DELETE CASCADE (companies owned by another module).
+  companyId: integer('company_id').notNull(),
+  // FK -> groups(group_id) (groups owned by another module).
+  groupId: integer('group_id'),
+  name: text('name').notNull(),
+  alias: text('alias'),
+  ledgerType: text('ledger_type').default('General'),
+  nature: text('nature'),
+  openingBalance: real('opening_balance').default(0),
+  closingBalance: real('closing_balance').default(0),
+  isBillWise: integer('is_bill_wise').default(0),
+  maintainInventoryValues: integer('maintain_inventory_values').default(0),
+  mailingName: text('mailing_name'),
+  address1: text('address1'),
+  address2: text('address2'),
+  city: text('city'),
+  state: text('state'),
+  country: text('country'),
+  pincode: text('pincode'),
+  phone: text('phone'),
+  email: text('email'),
+  gstin: text('gstin'),
+  pan: text('pan'),
+  registrationType: text('registration_type').default('Unregistered'),
+  allowCostCentres: integer('allow_cost_centres').default(0),
+  defaultCreditPeriod: integer('default_credit_period').default(0),
+  checkCreditDays: integer('check_credit_days').default(0),
+  invoiceRounding: integer('invoice_rounding').default(0),
+  roundingMethod: text('rounding_method'),
+  roundingLimit: real('rounding_limit').default(0),
+  additionalGstDetails: integer('additional_gst_details').default(0),
+  serviceTaxDetails: integer('service_tax_details').default(0),
+  includeAssessableValue: text('include_assessable_value').default('Not Applicable'),
+  methodOfCalculation: text('method_of_calculation').default('Based on Value'),
+  otherStatutoryDetails: integer('other_statutory_details').default(0),
+  isActive: integer('is_active').default(1),
+  isPredefined: integer('is_predefined').default(0),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+});
+
+// transaction_type, cross_using, company_bank added via ALTER in source init().
+const ledgerBankDetails = sqliteTable('ledger_bank_details', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  // FK -> ledgers(ledger_id) ON DELETE CASCADE.
+  ledgerId: integer('ledger_id').notNull().references(() => ledgers.ledgerId),
+  accountHolderName: text('account_holder_name'),
+  accountNumber: text('account_number'),
+  ifscCode: text('ifsc_code'),
+  swiftCode: text('swift_code'),
+  bankName: text('bank_name'),
+  branchName: text('branch_name'),
+  bankConfiguration: text('bank_configuration'),
+  chequeBookStartNo: text('cheque_book_start_no'),
+  chequeBookEndNo: text('cheque_book_end_no'),
+  enableChequePrinting: integer('enable_cheque_printing').default(0),
+  chequePrintingConfiguration: text('cheque_printing_configuration'),
+  odLimit: real('od_limit').default(0),
+  transactionType: text('transaction_type'),
+  crossUsing: text('cross_using').default('A/c Payee'),
+  companyBank: text('company_bank'),
+});
+
+// include_in_assessable_value_calculation, appropriate_to, method_of_calculation
+// added via ALTER in source init().
+const ledgerStatutoryDetails = sqliteTable('ledger_statutory_details', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  // FK -> ledgers(ledger_id) ON DELETE CASCADE.
+  ledgerId: integer('ledger_id').notNull().references(() => ledgers.ledgerId),
+  gstApplicability: text('gst_applicability').default('Not Applicable'),
+  hsnSacCode: text('hsn_sac_code'),
+  hsnSacDescription: text('hsn_sac_description'),
+  gstRate: real('gst_rate').default(0),
+  cgstRate: real('cgst_rate').default(0),
+  sgstRate: real('sgst_rate').default(0),
+  igstRate: real('igst_rate').default(0),
+  typeOfDutyTax: text('type_of_duty_tax'),
+  percentageOfCalculation: real('percentage_of_calculation').default(0),
+  statutoryDetails: text('statutory_details'),
+  includeInAssessableValueCalculation: text('include_in_assessable_value_calculation').default('Not Applicable'),
+  appropriateTo: text('appropriate_to').default('Goods'),
+  methodOfCalculation: text('method_of_calculation').default('Based on Quantity'),
+});
+
+module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails };

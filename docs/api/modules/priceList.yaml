@@ -1,0 +1,400 @@
+openapi: 3.1.0
+info:
+  title: priceList Module API
+  version: 1.0.0
+  description: >
+    IPC contract for the priceList backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle` channel
+    in server/index.js and is exposed to the renderer via preload.js as
+    `window.api.priceList.<method>`. Transport is Electron IPC (not HTTP);
+    operations are modelled as POST for OpenAPI tooling compatibility.
+    Every handler resolves to an envelope of shape
+    `{ success: boolean, data?: ..., error?: string }` and does NOT throw to
+    the renderer (errors are caught and returned in the envelope).
+
+paths:
+  /priceList/create:
+    post:
+      operationId: priceList.create
+      tags: [priceList]
+      summary: Create a price list header plus its rate lines (transactional insert).
+      x-ipc-channel: "priceList:create"
+      x-window-api: "window.api.priceList.create"
+      x-controller: "priceListController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceListCreateInput'
+      responses:
+        '200':
+          description: Created price list with attached lines, or a validation/error envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /priceList/getAll:
+    post:
+      operationId: priceList.getAll
+      tags: [priceList]
+      summary: List all active price lists for a company, each with its lines.
+      x-ipc-channel: "priceList:getAll"
+      x-window-api: "window.api.priceList.getAll"
+      x-controller: "priceListController.getAll"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare scalar (the company_id) as its second IPC
+          argument, not an object.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id to filter price lists by (bare scalar argument).
+              required: [company_id]
+      responses:
+        '200':
+          description: Envelope whose data is an array of price lists (each with lines).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListListEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /priceList/getById:
+    post:
+      operationId: priceList.getById
+      tags: [priceList]
+      summary: Fetch one active price list by id, with its lines.
+      x-ipc-channel: "priceList:getById"
+      x-window-api: "window.api.priceList.getById"
+      x-controller: "priceListController.getById"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare scalar (the price_list_id) as its second
+          IPC argument, not an object.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: price_lists.price_list_id (bare scalar argument).
+              required: [id]
+      responses:
+        '200':
+          description: Envelope with the single price list, or `success:false` if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /priceList/update:
+    post:
+      operationId: priceList.update
+      tags: [priceList]
+      summary: Update a price list header and fully replace its lines (delete + re-insert).
+      x-ipc-channel: "priceList:update"
+      x-window-api: "window.api.priceList.update"
+      x-controller: "priceListController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceListUpdateInput'
+      responses:
+        '200':
+          description: Envelope with the updated price list and its new lines.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /priceList/delete:
+    post:
+      operationId: priceList.delete
+      tags: [priceList]
+      summary: Soft-delete a price list (sets is_active = 0; lines retained for audit).
+      x-ipc-channel: "priceList:delete"
+      x-window-api: "window.api.priceList.delete"
+      x-controller: "priceListController.delete"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare scalar (the price_list_id) as its second
+          IPC argument, not an object.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: price_lists.price_list_id to soft-delete (bare scalar argument).
+              required: [id]
+      responses:
+        '200':
+          description: "Envelope `{ success: true }` on success, or `success:false` if not found."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+
+    Error:
+      type: object
+      description: Shared error shape for 4xx/5xx transport-level failures.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    PriceListLineInput:
+      type: object
+      description: One line item supplied when creating/updating a price list.
+      properties:
+        item_id:
+          type: [integer, "null"]
+          description: stock_items.item_id; null when the line is not tied to a stock item. Defaults to null.
+        particulars:
+          type: string
+          description: Free-text description of the line (NOT NULL in storage).
+        qty_from:
+          type: number
+          description: Lower quantity bound for this slab. Defaults to 0.
+        qty_less_than:
+          type: number
+          description: Upper (exclusive) quantity bound for this slab. Defaults to 0.
+        rate:
+          type: number
+          description: Rate / price for this slab. Defaults to 0.
+        disc_percent:
+          type: number
+          description: Discount percentage for this slab. Defaults to 0.
+      required: [particulars]
+
+    PriceListCreateInput:
+      type: object
+      description: >
+        Payload destructured by priceListService.create. sort_order is assigned
+        by the server from the array index and is not accepted from the client.
+      properties:
+        company_id:
+          type: integer
+          description: Owning company (required). companies.company_id.
+        stock_group:
+          type: string
+          description: Stock group filter. Defaults to 'All Items' when falsy.
+        price_level:
+          type: string
+          description: Price level / tier name (required).
+        applicable_from:
+          type: string
+          description: Date the price list takes effect (stored as TEXT; required).
+        lines:
+          type: array
+          minItems: 1
+          description: At least one line is required.
+          items:
+            $ref: '#/components/schemas/PriceListLineInput'
+      required: [company_id, price_level, applicable_from, lines]
+
+    PriceListUpdateInput:
+      type: object
+      description: >
+        Payload destructured by priceListService.update. Note `id` (not
+        price_list_id) is the header key. company_id is destructured but NOT
+        used by the UPDATE SQL (company ownership is immutable here). Lines are
+        fully replaced.
+      properties:
+        id:
+          type: integer
+          description: price_lists.price_list_id of the record to update (required).
+        company_id:
+          type: integer
+          description: Accepted but ignored by the update SQL.
+        stock_group:
+          type: string
+          description: Defaults to 'All Items' when falsy.
+        price_level:
+          type: string
+          description: Price level / tier name (required).
+        applicable_from:
+          type: string
+          description: Effective date (required).
+        lines:
+          type: array
+          minItems: 1
+          description: At least one line is required; replaces all existing lines.
+          items:
+            $ref: '#/components/schemas/PriceListLineInput'
+      required: [id, price_level, applicable_from, lines]
+
+    PriceListLine:
+      type: object
+      description: A row of the price_list_lines table (as returned by SELECT *).
+      properties:
+        line_id:
+          type: integer
+        price_list_id:
+          type: integer
+        item_id:
+          type: [integer, "null"]
+        particulars:
+          type: string
+        qty_from:
+          type: number
+        qty_less_than:
+          type: number
+        rate:
+          type: number
+        disc_percent:
+          type: number
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+
+    PriceList:
+      type: object
+      description: >
+        A row of the price_lists table (SELECT *) with its child lines attached
+        under `lines`.
+      properties:
+        price_list_id:
+          type: integer
+        company_id:
+          type: integer
+        stock_group:
+          type: string
+        price_level:
+          type: string
+        applicable_from:
+          type: string
+        is_active:
+          type: integer
+          description: 1 = active, 0 = soft-deleted.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string.
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string.
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceListLine'
+
+    SuccessEnvelope:
+      type: object
+      description: Minimal envelope returned by delete on success.
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    PriceListEnvelope:
+      type: object
+      description: Envelope for single-record operations (create, getById, update).
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/PriceList'
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    PriceListListEnvelope:
+      type: object
+      description: Envelope for getAll; data is an array of price lists.
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceList'
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]

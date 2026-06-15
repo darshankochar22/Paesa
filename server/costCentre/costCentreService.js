@@ -1,4 +1,24 @@
+// ---------------------------------------------------------------------------
+// Drizzle ORM conversion (follows the currencyService golden exemplar).
+//
+//   * Import the drizzle instance `db` and the `sql` template tag plus the
+//     comparison helpers (`eq`, `and`) from drizzle-orm. Table objects come
+//     from the dialect-switching schema barrel ('../db/schema').
+//
+//   * MUTATIONS use the query builder: db.insert(...).values(...),
+//     db.update(...).set(...).where(...).
+//
+//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
+//     WHERE ...`) so the EXACT legacy return shape is preserved: snake_case
+//     column keys (cc_id, parent_id, is_active, ...) and numeric 0/1 booleans,
+//     which buildTree() and the test oracle assert against. Column identifiers
+//     inside the template come from the schema (${costCentres.companyId}).
+//
+//   * New-row id after INSERT comes from .returning({ id: costCentres.ccId }).
+// ---------------------------------------------------------------------------
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { costCentres } = require('../db/schema');
 
 const buildTree = (all, parentId = null) => {
   return all
@@ -6,32 +26,38 @@ const buildTree = (all, parentId = null) => {
     .map(c => ({ ...c, children: buildTree(all, c.cc_id) }));
 };
 
+// Fetch a single cost centre row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${costCentres} WHERE ${whereSql}`);
+  return rows[0];
+};
+
 module.exports = {
   create: async (data) => {
     try {
-      const exists = await db.execute(
-        `SELECT * FROM cost_centres WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        [data.company_id, data.name]
+      const exists = await db.all(
+        sql`SELECT * FROM ${costCentres}
+            WHERE ${costCentres.companyId} = ${data.company_id}
+              AND LOWER(${costCentres.name}) = LOWER(${data.name})
+              AND ${costCentres.isActive} = 1`
       );
-      if (exists.rows.length > 0) return { success: false, error: 'Cost Centre already exists' };
+      if (exists.length > 0) return { success: false, error: 'Cost Centre already exists' };
 
-      const result = await db.execute(
-        `INSERT INTO cost_centres (company_id, name, alias, parent_id, category, is_active, is_predefined)
-         VALUES (?, ?, ?, ?, ?, 1, 0)`,
-        [
-          data.company_id,
-          data.name,
-          data.alias || null,
-          data.parent_id || null,
-          data.parent_id ? 'Secondary' : 'Primary',
-        ]
-      );
+      const inserted = await db
+        .insert(costCentres)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          alias: data.alias || null,
+          parentId: data.parent_id || null,
+          category: data.parent_id ? 'Secondary' : 'Primary',
+          isActive: 1,
+          isPredefined: 0,
+        })
+        .returning({ id: costCentres.ccId });
 
-      const costCentre = await db.execute(
-        `SELECT * FROM cost_centres WHERE cc_id = ?`,
-        [result.lastInsertRowid]
-      );
-      return { success: true, costCentre: costCentre.rows[0] };
+      const costCentre = await findRow(sql`${costCentres.ccId} = ${inserted[0].id}`);
+      return { success: true, costCentre };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -39,11 +65,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM cost_centres WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${costCentres}
+            WHERE ${costCentres.companyId} = ${company_id}
+              AND ${costCentres.isActive} = 1`
       );
-      return { success: true, costCentres: result.rows };
+      return { success: true, costCentres: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -51,12 +78,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM cost_centres WHERE cc_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'Cost Centre not found' };
-      return { success: true, costCentre: result.rows[0] };
+      const costCentre = await findRow(sql`${costCentres.ccId} = ${id}`);
+      if (!costCentre) return { success: false, error: 'Cost Centre not found' };
+      return { success: true, costCentre };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -64,11 +88,12 @@ module.exports = {
 
   getTree: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM cost_centres WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${costCentres}
+            WHERE ${costCentres.companyId} = ${company_id}
+              AND ${costCentres.isActive} = 1`
       );
-      const tree = buildTree(result.rows);
+      const tree = buildTree(rows);
       return { success: true, tree };
     } catch (err) {
       return { success: false, error: err.message };
@@ -77,32 +102,22 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM cost_centres WHERE cc_id = ?`,
-        [data.cc_id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Cost Centre not found' };
+      const current = await findRow(sql`${costCentres.ccId} = ${data.cc_id}`);
+      if (!current) return { success: false, error: 'Cost Centre not found' };
 
-      const current = existing.rows[0];
-      await db.execute(
-        `UPDATE cost_centres SET
-          name = ?, alias = ?, parent_id = ?, category = ?,
-          updated_at = datetime('now')
-         WHERE cc_id = ?`,
-        [
-          data.name ?? current.name,
-          data.alias ?? current.alias,
-          data.parent_id ?? current.parent_id,
-          data.parent_id ? 'Secondary' : 'Primary',
-          data.cc_id,
-        ]
-      );
+      await db
+        .update(costCentres)
+        .set({
+          name: data.name ?? current.name,
+          alias: data.alias ?? current.alias,
+          parentId: data.parent_id ?? current.parent_id,
+          category: data.parent_id ? 'Secondary' : 'Primary',
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(costCentres.ccId, data.cc_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM cost_centres WHERE cc_id = ?`,
-        [data.cc_id]
-      );
-      return { success: true, costCentre: updated.rows[0] };
+      const updated = await findRow(sql`${costCentres.ccId} = ${data.cc_id}`);
+      return { success: true, costCentre: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -110,22 +125,20 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM cost_centres WHERE cc_id = ?`,
-        [id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Cost Centre not found' };
+      const existing = await findRow(sql`${costCentres.ccId} = ${id}`);
+      if (!existing) return { success: false, error: 'Cost Centre not found' };
 
-      const hasChildren = await db.execute(
-        `SELECT * FROM cost_centres WHERE parent_id = ? AND is_active = 1`,
-        [id]
+      const hasChildren = await db.all(
+        sql`SELECT * FROM ${costCentres}
+            WHERE ${costCentres.parentId} = ${id}
+              AND ${costCentres.isActive} = 1`
       );
-      if (hasChildren.rows.length > 0) return { success: false, error: 'Cannot delete Cost Centre with sub-centres' };
+      if (hasChildren.length > 0) return { success: false, error: 'Cannot delete Cost Centre with sub-centres' };
 
-      await db.execute(
-        `UPDATE cost_centres SET is_active = 0 WHERE cc_id = ?`,
-        [id]
-      );
+      await db
+        .update(costCentres)
+        .set({ isActive: 0 })
+        .where(eq(costCentres.ccId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

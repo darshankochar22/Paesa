@@ -1,0 +1,428 @@
+openapi: 3.1.0
+info:
+  title: Currency Module API
+  version: 1.0.0
+  description: >
+    IPC API for the "currency" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation models an `ipcMain.handle` channel.
+    Transport is Electron IPC (not HTTP); the POST method and /{namespace}/{action}
+    paths are a documentation convention so the contract renders as OpenAPI.
+    Channels are exposed to the renderer via `window.api.currency.*` (see preload.js).
+
+paths:
+  /currency/create:
+    post:
+      operationId: currency.create
+      tags: [currency]
+      summary: Create a new currency for a company (rejects duplicate active ISO codes).
+      x-ipc-channel: "currency:create"
+      x-window-api: "window.api.currency.create"
+      x-controller: "currencyController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CurrencyCreateInput'
+      responses:
+        '200':
+          description: Result envelope with the created currency, or an error message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /currency/getAll:
+    post:
+      operationId: currency.getAll
+      tags: [currency]
+      summary: List all active currencies for a company.
+      x-ipc-channel: "currency:getAll"
+      x-window-api: "window.api.currency.getAll"
+      x-controller: "currencyController.getAll"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare scalar `company_id` as IPC arg 2
+          (not an object). Modeled here as a single property.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Company whose active currencies should be returned.
+              required: [company_id]
+      responses:
+        '200':
+          description: Result envelope with the list of active currencies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyListResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /currency/getById:
+    post:
+      operationId: currency.getById
+      tags: [currency]
+      summary: Fetch a single currency by its primary key.
+      x-ipc-channel: "currency:getById"
+      x-window-api: "window.api.currency.getById"
+      x-controller: "currencyController.getById"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare scalar `id` (currency_id) as IPC arg 2.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: currency_id to look up.
+              required: [id]
+      responses:
+        '200':
+          description: Result envelope with the currency, or a "not found" error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /currency/update:
+    post:
+      operationId: currency.update
+      tags: [currency]
+      summary: Update an editable currency (predefined/base currency cannot be edited).
+      x-ipc-channel: "currency:update"
+      x-window-api: "window.api.currency.update"
+      x-controller: "currencyController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CurrencyUpdateInput'
+      responses:
+        '200':
+          description: Result envelope with the updated currency, or an error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /currency/delete:
+    post:
+      operationId: currency.delete
+      tags: [currency]
+      summary: >
+        Soft-delete a currency (sets is_active = 0). Default and predefined
+        currencies cannot be deleted.
+      x-ipc-channel: "currency:delete"
+      x-window-api: "window.api.currency.delete"
+      x-controller: "currencyController.delete"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare scalar `id` (currency_id) as IPC arg 2.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: currency_id to soft-delete.
+              required: [id]
+      responses:
+        '200':
+          description: Result envelope indicating success or an error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /currency/setDefault:
+    post:
+      operationId: currency.setDefault
+      tags: [currency]
+      summary: >
+        Set a currency as the company default (clears is_default on all the
+        company's currencies, then sets it on the chosen one).
+      x-ipc-channel: "currency:setDefault"
+      x-window-api: "window.api.currency.setDefault"
+      x-controller: "currencyController.setDefault"
+      requestBody:
+        required: true
+        description: >
+          The handler destructures `{ company_id, id }` from IPC arg 2.
+          Note the preload binding signature is `setDefault(company_id, id)`,
+          which wraps the two positional args into this object.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Company that owns the currency.
+                id:
+                  type: integer
+                  description: currency_id to mark as default.
+              required: [company_id, id]
+      responses:
+        '200':
+          description: Result envelope indicating success or an error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  responses:
+    ErrorResponse:
+      description: Unexpected/transport-level error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      description: Shared transport/unexpected error shape.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    Currency:
+      type: object
+      description: >
+        A row of the `currencies` table. Integer flag columns (suffix_symbol_to_amount,
+        show_amount_in_millions, add_space_between_amount_and_symbol, is_active,
+        is_default, is_predefined) are stored as 0/1 in SQLite and map to BOOLEAN
+        in Postgres (0 -> false, 1 -> true).
+      properties:
+        currency_id:
+          type: integer
+          description: Primary key (SQLite AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id, ON DELETE CASCADE).
+        name:
+          type: string
+        formal_name:
+          type: [string, "null"]
+        iso_code:
+          type: string
+          description: ISO currency code (e.g. INR). Duplicate-active check is case-insensitive.
+        symbol:
+          type: [string, "null"]
+        decimal_places:
+          type: integer
+          default: 2
+        decimal_symbol:
+          type: string
+          default: "."
+        decimal_places_in_words:
+          type: [string, "null"]
+        suffix_symbol_to_amount:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: SQLite 0/1 boolean flag.
+        show_amount_in_millions:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: SQLite 0/1 boolean flag.
+        word_representing_amount_after_decimal:
+          type: [string, "null"]
+        add_space_between_amount_and_symbol:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: SQLite 0/1 boolean flag.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          default: 1
+          description: SQLite 0/1 boolean flag. Soft-delete sets this to 0.
+        is_default:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: SQLite 0/1 boolean flag.
+        is_predefined:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: SQLite 0/1 boolean flag. Marks the seeded base currency.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite default datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite default datetime('now')).
+      required:
+        - currency_id
+        - company_id
+        - name
+        - iso_code
+
+    CurrencyCreateInput:
+      type: object
+      description: >
+        Payload for currency:create. The service ignores any client-supplied
+        is_active/is_default/is_predefined and forces them to 1/0/0 on insert.
+        formal_name defaults to name; decimal_places defaults to 2;
+        decimal_symbol defaults to '.'. The three flag inputs are coerced to 0/1.
+      properties:
+        company_id:
+          type: integer
+        name:
+          type: string
+        formal_name:
+          type: string
+          description: Defaults to `name` if omitted.
+        iso_code:
+          type: string
+        symbol:
+          type: string
+        decimal_places:
+          type: integer
+          default: 2
+        decimal_symbol:
+          type: string
+          default: "."
+        decimal_places_in_words:
+          type: [string, "null"]
+        suffix_symbol_to_amount:
+          type: boolean
+          description: Coerced to 0/1 on insert.
+        show_amount_in_millions:
+          type: boolean
+          description: Coerced to 0/1 on insert.
+        word_representing_amount_after_decimal:
+          type: [string, "null"]
+        add_space_between_amount_and_symbol:
+          type: boolean
+          description: Coerced to 0/1 on insert.
+      required:
+        - company_id
+        - name
+        - iso_code
+
+    CurrencyUpdateInput:
+      type: object
+      description: >
+        Payload for currency:update. currency_id selects the row; other fields
+        fall back to the current stored value when omitted (?? coalescing).
+        The three flag inputs are coerced to 0/1 on every update.
+        company_id, is_active, is_default, is_predefined are NOT updatable here.
+      properties:
+        currency_id:
+          type: integer
+        name:
+          type: string
+        formal_name:
+          type: string
+        iso_code:
+          type: string
+        symbol:
+          type: string
+        decimal_places:
+          type: integer
+        decimal_symbol:
+          type: string
+        decimal_places_in_words:
+          type: [string, "null"]
+        suffix_symbol_to_amount:
+          type: boolean
+        show_amount_in_millions:
+          type: boolean
+        word_representing_amount_after_decimal:
+          type: [string, "null"]
+        add_space_between_amount_and_symbol:
+          type: boolean
+      required:
+        - currency_id
+
+    CurrencyResult:
+      oneOf:
+        - type: object
+          description: Success envelope carrying a single currency row.
+          properties:
+            success:
+              const: true
+            currency:
+              $ref: '#/components/schemas/Currency'
+          required: [success, currency]
+        - $ref: '#/components/schemas/FailureResult'
+
+    CurrencyListResult:
+      oneOf:
+        - type: object
+          description: Success envelope carrying the list of active currencies.
+          properties:
+            success:
+              const: true
+            currencies:
+              type: array
+              items:
+                $ref: '#/components/schemas/Currency'
+          required: [success, currencies]
+        - $ref: '#/components/schemas/FailureResult'
+
+    SuccessResult:
+      oneOf:
+        - type: object
+          description: Bare success envelope (no payload).
+          properties:
+            success:
+              const: true
+          required: [success]
+        - $ref: '#/components/schemas/FailureResult'
+
+    FailureResult:
+      type: object
+      description: >
+        Application-level failure envelope returned in-band (HTTP 200 equivalent).
+        Examples of `error`: "Currency already exists", "Currency not found",
+        "Cannot edit base currency", "Cannot delete default currency",
+        "Cannot delete base currency", or a caught exception message.
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+      required: [success, error]

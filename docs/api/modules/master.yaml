@@ -1,0 +1,133 @@
+openapi: 3.1.0
+info:
+  title: Master Module API
+  version: 1.0.0
+  description: >-
+    API contracts for the "master" backend module of the Electron + SQLite
+    accounting/ERP app. This module exposes a single read-only operation that
+    builds the dynamic "Masters" navigation menu for a company. The menu content
+    is computed from the company's Tally feature flags (read via the
+    tallyFeatures module); the master module itself owns NO database tables.
+
+    Transport note: these are NOT HTTP endpoints. Each operation maps to an
+    Electron IPC channel (ipcMain.handle) invoked from the renderer through a
+    preload contextBridge binding (window.api.master.*). The HTTP method/path
+    modeling below is a documentation convention only.
+paths:
+  /master/getMenu:
+    post:
+      operationId: master.getMenu
+      tags: [master]
+      summary: >-
+        Build the dynamic Masters navigation menu for a company, with sections
+        toggled by the company's Tally feature flags.
+      description: >-
+        Reads the company's Tally feature flags via tallyFeaturesService.get(company_id)
+        and assembles a grouped menu. Sections are conditional:
+        "Payment Request" appears only when enable_payment_request_qr is set;
+        "Inventory Masters" appears only when maintain_inventory !== 0; the
+        "Cost Centre" accounting item is appended again when enable_cost_centres
+        is set (so it may be duplicated within "Accounting Masters"). The
+        Statutory, Statutory Details and Payroll sections are always included.
+      x-ipc-channel: "master:getMenu"
+      x-window-api: "window.api.master.getMenu"
+      x-controller: "masterController.getMenu"
+      requestBody:
+        required: false
+        description: >-
+          The controller receives the raw second IPC argument as company_id
+          (a bare scalar, NOT an object). The service defaults it to 1 when
+          undefined.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetMenuRequest'
+      responses:
+        '200':
+          description: Menu built successfully (or a handled error wrapped in the result).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetMenuResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/unhandled error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    GetMenuRequest:
+      type: object
+      description: >-
+        Bare scalar payload. The preload binding passes company_id directly as
+        the IPC argument: window.api.master.getMenu(company_id).
+      properties:
+        company_id:
+          type: integer
+          description: Company id to build the menu for. Defaults to 1 in the service if omitted.
+          default: 1
+      additionalProperties: false
+    MenuSection:
+      type: object
+      description: A single titled group of master item labels.
+      required: [title, items]
+      properties:
+        title:
+          type: string
+          description: Section heading (e.g. "Accounting Masters", "Inventory Masters").
+          examples: ["Accounting Masters"]
+        items:
+          type: array
+          description: Display labels for the masters in this section.
+          items:
+            type: string
+          examples:
+            - ["Group", "Ledger", "Cost Centre", "Currency", "Voucher Type"]
+      additionalProperties: false
+    GetMenuResult:
+      oneOf:
+        - $ref: '#/components/schemas/GetMenuSuccess'
+        - $ref: '#/components/schemas/GetMenuFailure'
+      description: >-
+        Service return shape. On success { success: true, menu: [...] };
+        on a caught error { success: false, error: <message> }.
+    GetMenuSuccess:
+      type: object
+      required: [success, menu]
+      properties:
+        success:
+          type: boolean
+          const: true
+        menu:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuSection'
+      additionalProperties: false
+    GetMenuFailure:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: Error message captured from the thrown exception.
+      additionalProperties: false
+    Error:
+      type: object
+      description: Shared error envelope.
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      additionalProperties: false
