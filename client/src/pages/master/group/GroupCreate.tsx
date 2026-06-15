@@ -6,6 +6,10 @@ import GroupFlatList from "@/components/GroupFlatList";
 import type { GroupType } from "@/types/api";
 import NatureOfPaymentDetailsModal from "./NatureOfPaymentDetailsModal";
 import NatureOfGoodsDetailsModal from "./NatureOfGoodsDetailsModal";
+import OtherStatutoryDetailsModal from "./OtherStatutoryDetailsModal";
+import ServiceCategoryDetailsModal from "./ServiceCategoryDetailsModal";
+import VATDetailsModal from "./VATDetailsModal";
+import ExciseTariffDetailsModal from "./ExciseTariffDetailsModal";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -24,6 +28,9 @@ const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-
 
 const NATURES = ["Assets", "Liabilities", "Income", "Expenses"];
 const ALLOC_METHODS = ["Not Applicable", "Appropriate by Quantity", "Appropriate by Value"];
+const HSN_SAC_SOURCES = ["As per Company/Group", "Not Available"];
+const GST_RATE_SOURCES = ["As per Company/Group", "Not Available"];
+const TAXABILITY_TYPES = ["Taxable", "Exempt", "Nil Rated", "Zero Rated", "Reverse Charge"];
 
 const INITIAL_FORM: Partial<GroupType> = {
     name: "",
@@ -33,6 +40,13 @@ const INITIAL_FORM: Partial<GroupType> = {
     nature: "Assets",
     set_alter_tds_details: 0,
     set_alter_tcs_details: 0,
+    set_alter_other_statutory_details: 0,
+    hsn_sac_source: "As per Company/Group",
+    hsn_sac_code: "",
+    hsn_sac_description: "",
+    gst_rate_source: "As per Company/Group",
+    gst_rate: 0,
+    taxability_type: "",
     behaves_like_subledger: 0,
     show_net_debit_credit: 0,
     used_for_calculation: 0,
@@ -53,6 +67,11 @@ export default function GroupCreate() {
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [showTdsModal, setShowTdsModal] = useState(false);
   const [showTcsModal, setShowTcsModal] = useState(false);
+  const [showOtherStatutoryModal, setShowOtherStatutoryModal] = useState(false);
+  const [showServiceTaxModal, setShowServiceTaxModal] = useState(false);
+  const [showStatutoryTdsModal, setShowStatutoryTdsModal] = useState(false);
+  const [showVatModal, setShowVatModal] = useState(false);
+  const [showExciseModal, setShowExciseModal] = useState(false);
 
   const [form, setForm] = useState<Partial<GroupType>>(
     () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
@@ -71,14 +90,17 @@ export default function GroupCreate() {
   // Escape key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !showGroupPanel && !showTdsModal && !showTcsModal) {
+      const anyModal = showGroupPanel || showTdsModal || showTcsModal || showOtherStatutoryModal ||
+        showServiceTaxModal || showStatutoryTdsModal || showVatModal || showExciseModal;
+      if (e.key === "Escape" && !anyModal) {
         e.preventDefault();
         navigate("/master/create");
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showGroupPanel, showTdsModal, showTcsModal, navigate]);
+  }, [showGroupPanel, showTdsModal, showTcsModal, showOtherStatutoryModal,
+      showServiceTaxModal, showStatutoryTdsModal, showVatModal, showExciseModal, navigate]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -165,6 +187,16 @@ export default function GroupCreate() {
       });
       return;
     }
+    if (key === "set_alter_other_statutory_details") {
+      setForm((f) => {
+        const newVal = f[key] ? 0 : 1;
+        if (newVal === 1) {
+          setTimeout(() => setShowOtherStatutoryModal(true), 0);
+        }
+        return { ...f, [key]: newVal };
+      });
+      return;
+    }
     setForm((f) => ({ ...f, [key]: f[key] ? 0 : 1 }));
   };
 
@@ -189,6 +221,13 @@ export default function GroupCreate() {
         nature: form.nature || undefined,
         set_alter_tds_details: form.set_alter_tds_details ? 1 : 0,
         set_alter_tcs_details: form.set_alter_tcs_details ? 1 : 0,
+        set_alter_other_statutory_details: form.set_alter_other_statutory_details ? 1 : 0,
+        hsn_sac_source: form.hsn_sac_source || undefined,
+        hsn_sac_code: form.hsn_sac_code || undefined,
+        hsn_sac_description: form.hsn_sac_description || undefined,
+        gst_rate_source: form.gst_rate_source || undefined,
+        gst_rate: form.gst_rate || 0,
+        taxability_type: form.taxability_type || undefined,
         behaves_like_subledger: form.behaves_like_subledger ? 1 : 0,
         show_net_debit_credit: form.show_net_debit_credit ? 1 : 0,
         used_for_calculation: form.used_for_calculation ? 1 : 0,
@@ -210,6 +249,13 @@ export default function GroupCreate() {
           nature: capital?.nature || "Liabilities",
           set_alter_tds_details: 0,
           set_alter_tcs_details: 0,
+          set_alter_other_statutory_details: 0,
+          hsn_sac_source: "As per Company/Group",
+          hsn_sac_code: "",
+          hsn_sac_description: "",
+          gst_rate_source: "As per Company/Group",
+          gst_rate: 0,
+          taxability_type: "",
           behaves_like_subledger: 0,
           show_net_debit_credit: 0,
           used_for_calculation: 0,
@@ -306,6 +352,82 @@ export default function GroupCreate() {
             </Row>
           </div>
 
+          <div>
+            <div className="text-sm font-semibold text-zinc-800 mb-2">Statutory Details</div>
+            <div className="border rounded overflow-hidden">
+              <div className="px-3 py-2 bg-zinc-50 border-b">
+                <span className="text-xs font-semibold text-zinc-700 underline">HSN/SAC & Related Details</span>
+              </div>
+              <Row label="HSN/SAC Details">
+                <select
+                  className={selectCls}
+                  value={form.hsn_sac_source || "As per Company/Group"}
+                  onChange={(e) => setForm((f) => ({ ...f, hsn_sac_source: e.target.value }))}
+                >
+                  {HSN_SAC_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </Row>
+              <Row label="Source of details">
+                <span className="text-sm py-1">Not Available</span>
+              </Row>
+              <Row label="HSN/SAC">
+                <input
+                  className={inputCls}
+                  value={form.hsn_sac_code || ""}
+                  onChange={setField("hsn_sac_code")}
+                  placeholder=""
+                />
+              </Row>
+              <Row label="Description">
+                <input
+                  className={inputCls}
+                  value={form.hsn_sac_description || ""}
+                  onChange={setField("hsn_sac_description")}
+                  placeholder=""
+                />
+              </Row>
+              <div className="px-3 py-2 bg-zinc-50 border-b border-t">
+                <span className="text-xs font-semibold text-zinc-700 underline">GST Rate & Related Details</span>
+              </div>
+              <Row label="GST Rate Details">
+                <select
+                  className={selectCls}
+                  value={form.gst_rate_source || "As per Company/Group"}
+                  onChange={(e) => setForm((f) => ({ ...f, gst_rate_source: e.target.value }))}
+                >
+                  {GST_RATE_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </Row>
+              <Row label="Source of details">
+                <span className="text-sm py-1">Not Available</span>
+              </Row>
+              <Row label="Taxability Type">
+                <select
+                  className={selectCls}
+                  value={form.taxability_type || ""}
+                  onChange={(e) => setForm((f) => ({ ...f, taxability_type: e.target.value }))}
+                >
+                  <option value="">-- None --</option>
+                  {TAXABILITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </Row>
+              <Row label="GST Rate">
+                <div className="flex items-center gap-1">
+                  <input
+                    className={inputCls}
+                    type="number"
+                    value={form.gst_rate || 0}
+                    onChange={(e) => setForm((f) => ({ ...f, gst_rate: Number(e.target.value) }))}
+                  />
+                  <span className="text-sm text-zinc-500">%</span>
+                </div>
+              </Row>
+            </div>
+            <Row label="Set/Alter other Statutory details" onClick={toggleField("set_alter_other_statutory_details")}>
+              <span className="text-sm py-1">{form.set_alter_other_statutory_details ? "Yes" : "No"}</span>
+            </Row>
+          </div>
+
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={handleSubmit}
@@ -349,6 +471,37 @@ export default function GroupCreate() {
         isOpen={showTcsModal}
         onClose={() => setShowTcsModal(false)}
         companyId={companyId}
+      />
+
+      <OtherStatutoryDetailsModal
+        isOpen={showOtherStatutoryModal}
+        onClose={() => setShowOtherStatutoryModal(false)}
+        groupName={form.name}
+        openServiceTaxModal={() => setShowServiceTaxModal(true)}
+        openTdsModal={() => setShowStatutoryTdsModal(true)}
+        openVatModal={() => setShowVatModal(true)}
+        openExciseModal={() => setShowExciseModal(true)}
+      />
+
+      <ServiceCategoryDetailsModal
+        isOpen={showServiceTaxModal}
+        onClose={() => setShowServiceTaxModal(false)}
+      />
+
+      <NatureOfPaymentDetailsModal
+        isOpen={showStatutoryTdsModal}
+        onClose={() => setShowStatutoryTdsModal(false)}
+        companyId={companyId}
+      />
+
+      <VATDetailsModal
+        isOpen={showVatModal}
+        onClose={() => setShowVatModal(false)}
+      />
+
+      <ExciseTariffDetailsModal
+        isOpen={showExciseModal}
+        onClose={() => setShowExciseModal(false)}
       />
     </div>
   );

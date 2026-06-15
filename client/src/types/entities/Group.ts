@@ -9,6 +9,11 @@ export interface GroupType {
   nature?: string;
   set_alter_tds_details?: number;
   set_alter_tcs_details?: number;
+  set_alter_other_statutory_details?: number;
+  hsn_sac_source?: string;
+  hsn_sac_description?: string;
+  gst_rate_source?: string;
+  taxability_type?: string;
   behaves_like_subledger?: number;
   show_net_debit_credit?: number;
   used_for_calculation?: number;
