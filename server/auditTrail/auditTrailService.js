@@ -96,38 +96,53 @@ module.exports = {
   canonicalJSON,
   computeRowHash,
 
+  // Core insert (chains to the previous row). May throw. Because libsql is a single
+  // shared connection, calling this between a caller's BEGIN and COMMIT makes the audit
+  // row part of that transaction — it commits or rolls back atomically with the write.
+  insertRow: async ({ company_id, entity_type, entity_id, action, before, after, user } = {}) => {
+    const created_at = new Date().toISOString();
+    const beforeText = toSnapshotText(before);
+    const afterText = toSnapshotText(after);
+    const prev_hash = await lastRowHash(company_id);
+
+    // Hash over the parsed snapshots so verifyChain (which reads them back
+    // from TEXT) reproduces the identical payload.
+    const row_hash = computeRowHash(prev_hash, {
+      company_id,
+      entity_type,
+      entity_id: entity_id ?? null,
+      action,
+      before: parseSnapshot(beforeText),
+      after: parseSnapshot(afterText),
+      created_at,
+    });
+
+    const rows = await db.all(sql`
+      INSERT INTO ${auditTrail}
+        (company_id, entity_type, entity_id, action, user,
+         before_snapshot, after_snapshot, prev_hash, row_hash, created_at)
+      VALUES (
+        ${company_id}, ${entity_type}, ${entity_id ?? null}, ${action}, ${user ?? 'system'},
+        ${beforeText}, ${afterText}, ${prev_hash}, ${row_hash}, ${created_at}
+      )
+      RETURNING *
+    `);
+    return rows[0] || null;
+  },
+
+  // TRANSACTIONAL: call this INSIDE a service's open transaction (between BEGIN and
+  // COMMIT). It throws on failure so the caller's catch rolls back BOTH the business
+  // write and the audit row together — no write without its audit row, and vice-versa.
+  recordInTx: async function (meta) {
+    return this.insertRow(meta);
+  },
+
   // Append an audit row. BEST-EFFORT: never throws to the caller — returns the
-  // inserted row on success, or null on any failure (logged).
-  record: async ({ company_id, entity_type, entity_id, action, before, after, user } = {}) => {
+  // inserted row on success, or null on any failure (logged). Use for non-transactional
+  // (masters) paths where a logging failure must not block the business operation.
+  record: async function (meta) {
     try {
-      const created_at = new Date().toISOString();
-      const beforeText = toSnapshotText(before);
-      const afterText = toSnapshotText(after);
-      const prev_hash = await lastRowHash(company_id);
-
-      // Hash over the parsed snapshots so verifyChain (which reads them back
-      // from TEXT) reproduces the identical payload.
-      const row_hash = computeRowHash(prev_hash, {
-        company_id,
-        entity_type,
-        entity_id: entity_id ?? null,
-        action,
-        before: parseSnapshot(beforeText),
-        after: parseSnapshot(afterText),
-        created_at,
-      });
-
-      const rows = await db.all(sql`
-        INSERT INTO ${auditTrail}
-          (company_id, entity_type, entity_id, action, user,
-           before_snapshot, after_snapshot, prev_hash, row_hash, created_at)
-        VALUES (
-          ${company_id}, ${entity_type}, ${entity_id ?? null}, ${action}, ${user ?? 'system'},
-          ${beforeText}, ${afterText}, ${prev_hash}, ${row_hash}, ${created_at}
-        )
-        RETURNING *
-      `);
-      return rows[0] || null;
+      return await this.insertRow(meta);
     } catch (err) {
       console.error('Error in auditTrail.record:', err);
       return null;
