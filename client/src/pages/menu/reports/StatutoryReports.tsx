@@ -1,4 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
+import { Button } from "@/components/shadcn/button";
 
 export default function StatutoryReports() {
   const navigate = useNavigate();
@@ -27,37 +29,39 @@ export default function StatutoryReports() {
   };
 
   return (
-    <aside className="w-96 mx-auto mt-10 bg-white border shadow-sm flex flex-col px-10 py-10 gap-6">
-      <div className="flex flex-col pb-2">
-        <div className="text-sm italic text-gray-600 mb-1 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-gray-900">Gateway of Tally</Link>
+    <Card className="w-96 mx-auto mt-10 gap-4 text-xs">
+      <CardHeader className="pb-2">
+        <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
+          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-gray-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
         </div>
-        <div className="text-xl font-semibold">Statutory Reports</div>
-      </div>
+        <CardTitle className="text-base font-semibold">Statutory Reports</CardTitle>
+      </CardHeader>
 
-      <div className="flex flex-col gap-5">
+      <CardContent className="flex flex-col gap-5">
         {sections.map((section, idx) => (
           <div key={idx} className="flex flex-col gap-2">
             {section.title && (
-              <div className="font-semibold text-lg uppercase">
+              <div className="font-semibold text-xs uppercase tracking-wide text-zinc-500">
                 {section.title}
               </div>
             )}
 
             {section.items.length > 0 && (
-              <div className="flex flex-col pl-4 gap-1">
+              <div className="flex flex-col pl-4 gap-0.5">
                 {section.items.map((item) => {
                   if (item === "Quit") {
                     return (
-                      <button
+                      <Button
                         key={item}
+                        variant="ghost"
+                        size="sm"
                         onClick={() => navigate(-1)}
-                        className="text-left rounded px-2 py-1 font-semibold mt-2"
+                        className="h-auto justify-start px-2 py-1 font-semibold mt-2 text-xs"
                       >
                         {item}
-                      </button>
+                      </Button>
                     );
                   }
 
@@ -65,30 +69,34 @@ export default function StatutoryReports() {
 
                   if (route) {
                     return (
-                      <Link
+                      <Button
                         key={item}
-                        to={route}
-                        className="text-left rounded px-2 py-1"
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto justify-start px-2 py-1 font-normal text-xs"
                       >
-                        {item}
-                      </Link>
+                        <Link to={route}>{item}</Link>
+                      </Button>
                     );
                   }
 
                   return (
-                    <button
+                    <Button
                       key={item}
-                      className="text-left rounded px-2 py-1"
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto justify-start px-2 py-1 font-normal text-xs"
                     >
                       {item}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
             )}
           </div>
         ))}
-      </div>
-    </aside>
+      </CardContent>
+    </Card>
   );
 }

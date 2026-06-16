@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { useVoucherForm } from "./hooks/useVoucherForm";
 import { AlertBanner } from "../../components/ui";
+import { Button } from "@/components/shadcn/button";
+import { cn } from "@/lib/utils";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
@@ -115,12 +117,13 @@ function RightSidebar({
   return (
     <div ref={sidebarRef} className="w-36 border-l border-black flex flex-col shrink-0 bg-white">
       <div className="border-b border-black px-2 py-1">
-        <button
+        <Button
+          variant="ghost"
           onClick={onDateClick}
-          className="w-full text-left text-xs text-black hover:underline"
+          className="w-full h-auto justify-start rounded-none p-0 text-xs font-normal text-black hover:bg-transparent hover:underline"
         >
           <span className="text-gray-500">F2</span>: Date
-        </button>
+        </Button>
       </div>
 
       {types.map(({ key, label }) => {
@@ -128,7 +131,8 @@ function RightSidebar({
         const hasChildren = children && children.length > 0;
         return (
           <div key={key} className="border-b border-gray-200 relative">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => {
                 if (hasChildren) {
                   onSubDropdownToggle(label);
@@ -137,11 +141,12 @@ function RightSidebar({
                   onTypeChange(label);
                 }
               }}
-              className={`w-full text-left px-2 py-1 text-xs ${
+              className={cn(
+                "w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal",
                 voucherType === label || children?.includes(voucherType)
-                  ? "bg-black text-white font-semibold"
+                  ? "bg-black text-white font-semibold hover:bg-black hover:text-white"
                   : "text-black hover:bg-gray-100"
-              }`}
+              )}
             >
               <span className={voucherType === label || children?.includes(voucherType) ? "text-gray-300" : "text-gray-500"}>
                 {key}
@@ -150,31 +155,35 @@ function RightSidebar({
               {hasChildren && (
                 <span className="ml-1 text-[9px] opacity-60">{subDropdownType === label ? "\u25B2" : "\u25BC"}</span>
               )}
-            </button>
+            </Button>
             {hasChildren && subDropdownType === label && (
               <div className="absolute left-0 right-0 top-full z-30 bg-white border border-zinc-300 shadow-lg rounded-b">
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => { onTypeChange(label); onSubDropdownToggle(label); }}
-                  className={`w-full text-left px-2 py-1 text-xs ${
+                  className={cn(
+                    "w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal",
                     voucherType === label
-                      ? "bg-black text-white font-semibold"
+                      ? "bg-black text-white font-semibold hover:bg-black hover:text-white"
                       : "text-black hover:bg-gray-100"
-                  }`}
+                  )}
                 >
                   {label}
-                </button>
+                </Button>
                 {children.map((child) => (
-                  <button
+                  <Button
                     key={child}
+                    variant="ghost"
                     onClick={() => { onTypeChange(child); onSubDropdownToggle(label); }}
-                    className={`w-full text-left pl-4 pr-2 py-1 text-xs ${
+                    className={cn(
+                      "w-full h-auto justify-start rounded-none pl-4 pr-2 py-1 text-xs font-normal",
                       voucherType === child
-                        ? "bg-black text-white font-semibold"
+                        ? "bg-black text-white font-semibold hover:bg-black hover:text-white"
                         : "text-black hover:bg-gray-100"
-                    }`}
+                    )}
                   >
                     {child}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -183,65 +192,75 @@ function RightSidebar({
       })}
 
       <div className="border-b border-gray-200">
-        <button
+        <Button
+          variant="ghost"
           onClick={onOtherVouchersClick}
-          className={`w-full text-left px-2 py-1 text-xs ${
+          className={cn(
+            "w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal",
             isOtherActive
-              ? "bg-black text-white font-semibold"
+              ? "bg-black text-white font-semibold hover:bg-black hover:text-white"
               : "text-black hover:bg-gray-100"
-          }`}
+          )}
         >
           <span className={isOtherActive ? "text-gray-300" : "text-gray-500"}>F10</span>
           : Other Vouchers
-        </button>
+        </Button>
       </div>
 
       <div className="border-b border-gray-200">
-        <button
+        <Button
+          variant="ghost"
           onClick={onCreateLedger}
-          className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
+          className="w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal text-black hover:bg-gray-100"
         >
           <span className="text-gray-500">Alt+C</span>: Create Ldgr
-        </button>
+        </Button>
       </div>
 
       <div className="border-b border-gray-200">
-        <button
+        <Button
+          variant="ghost"
           onClick={onStatusChange}
-          className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
+          className="w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal text-black hover:bg-gray-100"
         >
           <span className="text-gray-500">T</span>:{" "}
           {status === "Post-Dated" ? "✓ " : ""}Post-Dated
-        </button>
+        </Button>
       </div>
 
       {["Contra", "Receipt", "Journal", "Payment"].includes(voucherType) && (
         <div className="border-b border-gray-200">
-          <button
+          <Button
+            variant="ghost"
             onClick={onEntryModeChange}
-            className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
+            className="w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal text-black hover:bg-gray-100"
           >
             <span className="text-gray-500">H</span>:{" "}
             {entryMode === "double" ? "✓ " : ""}Double Entry
-          </button>
+          </Button>
         </div>
       )}
 
       <div className="flex-1" />
 
       <div className="border-t border-black px-2 py-1">
-        <button
+        <Button
+          variant="ghost"
           onClick={onAccept}
           disabled={!canAccept}
-          className="w-full text-left text-xs text-black hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
+          className="w-full h-auto justify-start rounded-none p-0 text-xs font-normal text-black hover:bg-transparent hover:underline disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-100"
         >
           <span className="text-gray-500">A</span>: Accept
-        </button>
+        </Button>
       </div>
       <div className="border-t border-gray-300 px-2 py-1">
-        <button onClick={onQuit} className="w-full text-left text-xs text-black hover:underline">
+        <Button
+          variant="ghost"
+          onClick={onQuit}
+          className="w-full h-auto justify-start rounded-none p-0 text-xs font-normal text-black hover:bg-transparent hover:underline"
+        >
           <span className="text-gray-500">Q</span>: Quit
-        </button>
+        </Button>
       </div>
     </div>
   );

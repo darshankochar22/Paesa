@@ -3,6 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { PageTitleBar, AlertBanner, RightActionPanel } from "../../components/ui";
 import { PageFooterBar } from "./ui";
+import { Button } from "@/components/shadcn/button";
+import { Input } from "@/components/shadcn/input";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/shadcn/table";
+import { EmptyState } from "@/components/blocks/EmptyState";
+import { cn } from "@/lib/utils";
 
 const todayISO = () => new Date().toISOString().split("T")[0];
 
@@ -124,18 +136,20 @@ export default function Daybook() {
           {/* Date picker bar */}
           <div className="flex items-center gap-3 px-3 py-2 border-b border-zinc-200 bg-zinc-50 shrink-0">
             <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider">Date</span>
-            <input
+            <Input
               type="date"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
-              className="text-xs border border-zinc-300 px-2 py-1 rounded bg-white focus:outline-none focus:border-zinc-900"
+              className="text-xs w-auto h-7 px-2 py-1 rounded border-zinc-300 bg-white focus-visible:ring-0 focus-visible:border-zinc-900"
             />
-            <button
+            <Button
+              variant="link"
+              size="xs"
               onClick={() => setSelectedDate(todayISO())}
-              className="text-[10px] text-zinc-500 hover:text-zinc-900 underline"
+              className="h-auto p-0 text-[10px] text-zinc-500 hover:text-zinc-900 underline"
             >
               Today
-            </button>
+            </Button>
             <span className="text-[10px] text-zinc-400 ml-auto">
               {vouchers.length} transaction{vouchers.length !== 1 ? "s" : ""} on {formatDate(selectedDate)}
             </span>
@@ -148,63 +162,62 @@ export default function Daybook() {
           {/* Tally-style table */}
           <div className="flex-1 overflow-y-auto min-h-0">
             {loading && (
-              <div className="px-3 py-8 text-center text-zinc-400 italic text-xs">Loading…</div>
+              <EmptyState message="Loading…" className="py-8 italic text-xs" />
             )}
 
             {!loading && vouchers.length === 0 && (
-              <div className="px-3 py-8 text-center text-zinc-400 italic text-xs">
-                No vouchers found for this date.
-              </div>
+              <EmptyState message="No vouchers found for this date." className="py-8 italic text-xs" />
             )}
 
             {!loading && vouchers.length > 0 && (
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-zinc-300">
-                    <th className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[10%]">Date</th>
-                    <th className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[35%]">Particulars</th>
-                    <th className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[15%]">Vch Type</th>
-                    <th className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[10%]">Vch No.</th>
-                    <th className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[15%]">Debit Amount</th>
-                    <th className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 w-[15%]">Credit Amount</th>
-                  </tr>
-                  <tr className="border-b border-zinc-300">
-                    <th className="px-3 py-0.5"></th>
-                    <th className="px-3 py-0.5"></th>
-                    <th className="px-3 py-0.5"></th>
-                    <th className="px-3 py-0.5"></th>
-                    <th className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5">Inwards Qty</th>
-                    <th className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5">Outwards Qty</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="border-collapse">
+                <TableHeader>
+                  <TableRow className="border-b border-zinc-300 hover:bg-transparent">
+                    <TableHead className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[10%]">Date</TableHead>
+                    <TableHead className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[35%]">Particulars</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Vch Type</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[10%]">Vch No.</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Debit Amount</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Credit Amount</TableHead>
+                  </TableRow>
+                  <TableRow className="border-b border-zinc-300 hover:bg-transparent">
+                    <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+                    <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+                    <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+                    <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+                    <TableHead className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5 h-auto">Inwards Qty</TableHead>
+                    <TableHead className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5 h-auto">Outwards Qty</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {vouchers.map((v, idx) => {
                     const isSelected = idx === selectedIndex;
                     return (
-                      <tr
+                      <TableRow
                         key={v.voucher_id}
                         onClick={() => handleRowClick(idx)}
-                        className={`border-b border-zinc-100 cursor-pointer transition-colors ${
-                          isSelected
-                            ? "bg-zinc-100"
-                            : "hover:bg-zinc-50"
-                        } ${v.is_cancelled ? "opacity-50" : ""}`}
+                        data-state={isSelected ? "selected" : undefined}
+                        className={cn(
+                          "border-b border-zinc-100 cursor-pointer transition-colors",
+                          isSelected ? "bg-zinc-100 data-[state=selected]:bg-zinc-100" : "hover:bg-zinc-50",
+                          v.is_cancelled ? "opacity-50" : ""
+                        )}
                       >
-                        <td className="px-3 py-1.5 text-zinc-800 text-[12px]">{formatDate(v.date)}</td>
-                        <td className="px-3 py-1.5 font-bold text-zinc-900 text-[12px]">{v.party_name || v.narration || "—"}</td>
-                        <td className={`px-3 py-1.5 text-right text-[12px] ${idx === 0 ? "font-bold text-zinc-900" : "text-zinc-700"}`}>{v.voucher_type}</td>
-                        <td className="px-3 py-1.5 text-right text-zinc-700 text-[12px]">{v.voucher_number || "—"}</td>
-                        <td className={`px-3 py-1.5 text-right text-[12px] ${v.debit_amount ? "font-bold text-zinc-900" : "text-zinc-400"}`}>
+                        <TableCell className="px-3 py-1.5 text-zinc-800 text-[12px]">{formatDate(v.date)}</TableCell>
+                        <TableCell className="px-3 py-1.5 font-bold text-zinc-900 text-[12px]">{v.party_name || v.narration || "—"}</TableCell>
+                        <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", idx === 0 ? "font-bold text-zinc-900" : "text-zinc-700")}>{v.voucher_type}</TableCell>
+                        <TableCell className="px-3 py-1.5 text-right text-zinc-700 text-[12px]">{v.voucher_number || "—"}</TableCell>
+                        <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", v.debit_amount ? "font-bold text-zinc-900" : "text-zinc-400")}>
                           {v.debit_amount ? formatAmount(v.debit_amount) : ""}
-                        </td>
-                        <td className="px-3 py-1.5 text-right text-[12px] text-zinc-700">
+                        </TableCell>
+                        <TableCell className="px-3 py-1.5 text-right text-[12px] text-zinc-700">
                           {v.credit_amount ? formatAmount(v.credit_amount) : ""}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </div>
         </div>
