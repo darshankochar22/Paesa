@@ -217,7 +217,7 @@ export default function GSTRegistrationCOA() {
                         </div>
                         <div>
                           <span className="text-zinc-400">Assessee of Other Territory:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.assessee_of_other_territory === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.assessee_of_other_territory ? "Yes" : "No"}</span>
                         </div>
                         <div>
                           <span className="text-zinc-400">Registration Date:</span>{" "}
@@ -233,9 +233,9 @@ export default function GSTRegistrationCOA() {
                         </div>
                         <div>
                           <span className="text-zinc-400">E-Way Bill Applicable:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.e_way_bill_applicable === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.e_way_bill_applicable ? "Yes" : "No"}</span>
                         </div>
-                        {node.e_way_bill_applicable === 1 && (
+                        {!!node.e_way_bill_applicable && (
                           <div>
                             <span className="text-zinc-400">E-Way Bill Applicable From:</span>{" "}
                             <span className="font-semibold text-zinc-800">{node.e_way_bill_applicable_from || "—"}</span>
@@ -243,9 +243,9 @@ export default function GSTRegistrationCOA() {
                         )}
                         <div>
                           <span className="text-zinc-400">E-Invoice Applicable:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.e_invoice_application === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.e_invoice_application ? "Yes" : "No"}</span>
                         </div>
-                        {node.e_invoice_application === 1 && node.e_invoice_details && (
+                        {!!node.e_invoice_application && node.e_invoice_details && (
                           <div className="col-span-2">
                             <span className="text-zinc-400">E-Invoice Billing Details:</span>{" "}
                             <span className="font-semibold text-zinc-800 block p-1.5 border border-zinc-100 bg-zinc-50/50 rounded mt-1 whitespace-pre-wrap">{node.e_invoice_details}</span>
@@ -253,7 +253,7 @@ export default function GSTRegistrationCOA() {
                         )}
                         <div>
                           <span className="text-zinc-400">Applicable for Intrastat:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.applicable_for_intrastat === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.applicable_for_intrastat ? "Yes" : "No"}</span>
                         </div>
                       </div>
                     )}

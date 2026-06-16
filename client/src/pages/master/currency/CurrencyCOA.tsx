@@ -158,12 +158,12 @@ export default function CurrencyCOA() {
                       </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
                         {node.name}
-                        {node.is_predefined === 1 && (
+                        {!!node.is_predefined && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200 font-sans">
                             PREDEFINED
                           </span>
                         )}
-                        {node.is_default === 1 && (
+                        {!!node.is_default && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-emerald-50 text-emerald-600 rounded tracking-wider border border-emerald-200 font-sans">
                             DEFAULT BASE
                           </span>
@@ -204,11 +204,11 @@ export default function CurrencyCOA() {
                         </div>
                         <div>
                           <span className="text-zinc-400">Suffix to Amount:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.suffix_symbol_to_amount === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.suffix_symbol_to_amount ? "Yes" : "No"}</span>
                         </div>
                         <div>
                           <span className="text-zinc-400">Show in Millions:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.show_amount_in_millions === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.show_amount_in_millions ? "Yes" : "No"}</span>
                         </div>
                       </div>
                     )}

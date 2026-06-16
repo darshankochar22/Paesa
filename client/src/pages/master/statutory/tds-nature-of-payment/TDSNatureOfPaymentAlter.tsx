@@ -79,7 +79,7 @@ export default function TDSNatureOfPaymentAlter() {
     );
   }
 
-  const isPredefined = selectedTds.is_predefined === 1;
+  const isPredefined = !!selectedTds.is_predefined;
 
   const alterActions = [
     ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) }]),

@@ -32,7 +32,7 @@ export default function OpeningBalanceAllocationModal({
       setRows(initialAllocations.map(a => ({ ...a })));
     } else {
       // Default to one row with the first godown, or "Main Location" if available
-      const defaultGodown = godowns.find(g => g.is_main_location === 1 || g.is_predefined === 1) || godowns[0];
+      const defaultGodown = godowns.find(g => !!g.is_main_location || !!g.is_predefined) || godowns[0];
       setRows([
         {
           godown_id: defaultGodown ? String(defaultGodown.godown_id) : "",
@@ -47,7 +47,7 @@ export default function OpeningBalanceAllocationModal({
   }, [initialAllocations, godowns, totalQuantity, defaultRate]);
 
   const handleAddRow = () => {
-    const defaultGodown = godowns.find(g => g.is_main_location === 1 || g.is_predefined === 1) || godowns[0];
+    const defaultGodown = godowns.find(g => !!g.is_main_location || !!g.is_predefined) || godowns[0];
     
     // Auto-calculate remaining quantity to fill in the next row
     const allocatedQty = rows.reduce((sum, r) => sum + (parseFloat(r.quantity) || 0), 0);

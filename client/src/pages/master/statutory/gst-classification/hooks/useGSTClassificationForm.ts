@@ -153,7 +153,7 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
           : ((classification.igst_rate ?? 0) > 0 || (classification.taxability && classification.taxability !== "Unknown"))
             ? "Specify Details Here"
             : "Not Defined",
-        is_non_gst_goods: classification.is_non_gst_goods === 1 ? "Yes" : "No",
+        is_non_gst_goods: !!classification.is_non_gst_goods ? "Yes" : "No",
         slabRows: classification.rate_type === "Slab Based"
           ? (classification.slab_rows && classification.slab_rows.length > 0
               ? classification.slab_rows.map((row) => ({
@@ -168,8 +168,8 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
           : [DEFAULT_GST_SLAB],
         nature_of_transaction: classification.nature_of_transaction ?? "Not Applicable",
         taxability: (classification.taxability as any) ?? "Unknown",
-        is_reverse_charge: classification.is_reverse_charge === 1 ? "Yes" : "No",
-        is_ineligible_for_itc: classification.is_ineligible_for_itc === 1 ? "Yes" : "No",
+        is_reverse_charge: !!classification.is_reverse_charge ? "Yes" : "No",
+        is_ineligible_for_itc: !!classification.is_ineligible_for_itc ? "Yes" : "No",
         rate_type: classification.rate_type === "Slab Based" ? "Slab Based" : "Fixed Rate",
         igst_rate: String(classification.igst_rate ?? 0),
         igst_valuation_type: (classification.igst_valuation_type as any) ?? "Based on Value",
@@ -306,7 +306,7 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
       setError(validationError);
       return;
     }
-    if (mode === "alter" && selectedClass?.is_predefined === 1) {
+    if (mode === "alter" && !!selectedClass?.is_predefined) {
       setError("Predefined GST classifications cannot be altered.");
       return;
     }
@@ -375,7 +375,7 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
 
   const handleDelete = useCallback(async () => {
     if (mode !== "alter" || !selectedClass) return;
-    if (selectedClass.is_predefined === 1) {
+    if (!!selectedClass.is_predefined) {
       setError("Predefined GST classifications cannot be deleted.");
       return;
     }

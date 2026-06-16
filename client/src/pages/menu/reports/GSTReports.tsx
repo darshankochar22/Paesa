@@ -31,6 +31,9 @@ export default function GSTReports() {
     if (item === "GSTR-1") {
       return "/master/statutory/gstr1";
     }
+    if (item === "GSTR-3B") {
+      return "/master/statutory/gstr3b";
+    }
     return null;
   };
 

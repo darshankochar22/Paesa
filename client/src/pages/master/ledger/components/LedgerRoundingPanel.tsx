@@ -44,7 +44,7 @@ export default function LedgerRoundingPanel({
           <option value="Invoice Rounding">Invoice Rounding</option>
         </select>
       </FormRow>
-      {form.invoice_rounding === 1 && (
+      {!!form.invoice_rounding && (
         <>
           <FormRow label="Rounding method" labelWidth="w-52" className="flex items-center min-h-[26px]">
             <select

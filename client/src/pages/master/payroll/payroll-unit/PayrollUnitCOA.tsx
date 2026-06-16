@@ -112,7 +112,7 @@ export default function PayrollUnitCOA() {
               filtered.map(u => {
                 const uId = u.payroll_unit_id!;
                 const isOpen = !!openDrawers[uId];
-                const isPredefined = u.is_predefined === 1;
+                const isPredefined = !!u.is_predefined;
                 return (
                   <div key={uId}>
                     <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => toggleDrawer(uId)}>

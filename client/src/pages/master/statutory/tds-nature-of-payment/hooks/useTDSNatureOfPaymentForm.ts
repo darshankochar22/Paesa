@@ -102,7 +102,7 @@ export function useTDSNatureOfPaymentForm({ mode }: UseTDSNatureOfPaymentFormOpt
         remittance_code: record.remittance_code ?? "",
         rate_individual_with_pan: String(record.rate_individual_with_pan ?? 0),
         rate_other_with_pan: String(record.rate_other_with_pan ?? 0),
-        is_zero_rated: record.is_zero_rated === 1 ? "Yes" : "No",
+        is_zero_rated: !!record.is_zero_rated ? "Yes" : "No",
         threshold_limit: String(record.threshold_limit ?? 0),
       });
     } catch (err) {

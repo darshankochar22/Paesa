@@ -42,7 +42,7 @@ function TreeNodeRow({
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = node.group_id === selectedId;
-  const isProtected = node.is_predefined === 1 || node.is_primary === 1;
+  const isProtected = !!node.is_predefined || !!node.is_primary;
 
   return (
     <div className="select-none">

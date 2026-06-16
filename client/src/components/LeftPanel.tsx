@@ -75,7 +75,7 @@ export default function LeftPanel() {
             <span className="font-medium">{periodLabel}</span>
           )}
 
-          {activeFY?.is_closed === 1 && (
+          {!!activeFY?.is_closed && (
             <span className="text-xs text-zinc-500 font-medium mt-0.5">
               ⚠ Closed Year — entries allowed
             </span>
@@ -106,7 +106,7 @@ export default function LeftPanel() {
                       {formatDate(fy.start_date)} — {formatDate(fy.end_date)}
                     </span>
                     <span className="flex items-center gap-1 shrink-0">
-                      {fy.is_closed === 1 && (
+                      {!!fy.is_closed && (
                         <span
                           className={`text-xs px-1.5 py-0.5 rounded ${
                             isSelected

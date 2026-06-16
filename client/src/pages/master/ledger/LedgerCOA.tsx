@@ -64,7 +64,7 @@ function LedgerDetailsGrid({ ledger }: { ledger: LedgerType }) {
         </span>
       </div>
 
-      {ledger.invoice_rounding === 1 && (
+      {!!ledger.invoice_rounding && (
         <>
           <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Invoice Rounding Details</span>

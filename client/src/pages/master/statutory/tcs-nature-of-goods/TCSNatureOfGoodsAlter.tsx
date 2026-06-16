@@ -79,7 +79,7 @@ export default function TCSNatureOfGoodsAlter() {
     );
   }
 
-  const isPredefined = selectedTcs.is_predefined === 1;
+  const isPredefined = !!selectedTcs.is_predefined;
 
   const alterActions = [
     ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) }]),

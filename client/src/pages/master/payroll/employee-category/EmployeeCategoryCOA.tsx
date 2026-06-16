@@ -172,7 +172,7 @@ export default function EmployeeCategoryCOA() {
                     >
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
                         {node.name}
-                        {node.is_predefined === 1 && (
+                        {!!node.is_predefined && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
                             PREDEFINED
                           </span>
@@ -209,13 +209,13 @@ export default function EmployeeCategoryCOA() {
                         <div>
                           <span className="text-zinc-400">Allocate Revenue:</span>{" "}
                           <span className="font-semibold text-zinc-800">
-                            {node.allocate_revenue === 1 ? "Yes" : "No"}
+                            {!!node.allocate_revenue ? "Yes" : "No"}
                           </span>
                         </div>
                         <div>
                           <span className="text-zinc-400">Allocate Non-Revenue:</span>{" "}
                           <span className="font-semibold text-zinc-800">
-                            {node.allocate_non_revenue === 1 ? "Yes" : "No"}
+                            {!!node.allocate_non_revenue ? "Yes" : "No"}
                           </span>
                         </div>
                         <div>

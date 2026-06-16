@@ -137,7 +137,7 @@ export default function TCSNatureOfGoodsCOA() {
                       </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
                         {node.name}
-                        {node.is_predefined === 1 && (
+                        {!!node.is_predefined && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
                             PREDEFINED
                           </span>
@@ -184,7 +184,7 @@ export default function TCSNatureOfGoodsCOA() {
                         </div>
                         <div>
                           <span className="text-zinc-400">Is zero rated?:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.is_zero_rated === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.is_zero_rated ? "Yes" : "No"}</span>
                         </div>
                         <div>
                           <span className="text-zinc-400">Tax calculation basis:</span>{" "}

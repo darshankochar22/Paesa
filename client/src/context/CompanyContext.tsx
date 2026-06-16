@@ -23,7 +23,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       const result = await window.api.fy.getAll(company_id);
       if (result.success) {
         setAvailableFYs(result.financialYears);
-        const active = result.financialYears.find((f: FYType) => f.is_active === 1);
+        const active = result.financialYears.find((f: FYType) => !!f.is_active);
         setActiveFY(active ?? result.financialYears[0] ?? null);
       }
     } catch (err) {

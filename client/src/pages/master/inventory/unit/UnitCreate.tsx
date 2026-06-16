@@ -67,7 +67,7 @@ export default function UnitCreate() {
         if (units.length === 0) {
           const r = await window.api.unit.getAll(companyId);
           if (r.success) {
-            units = (r.units ?? []).filter(u => u.unit_type === "Simple" || u.is_simple === 1);
+            units = (r.units ?? []).filter(u => u.unit_type === "Simple" || !!u.is_simple);
           }
         }
         setSimpleUnits(units);

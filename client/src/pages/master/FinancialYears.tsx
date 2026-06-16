@@ -58,11 +58,11 @@ export default function FinancialYears() {
   // Handle Delete Financial Year
   const handleDelete = async (fy: FYType) => {
     if (!fy.fy_id) return;
-    if (fy.is_active === 1) {
+    if (!!fy.is_active) {
       setError("Cannot delete the active financial year");
       return;
     }
-    if (fy.is_closed === 1) {
+    if (!!fy.is_closed) {
       setError("Cannot delete a closed financial year");
       return;
     }
@@ -91,7 +91,7 @@ export default function FinancialYears() {
   // Handle Switch / Set Active
   const handleSetActive = async (fy: FYType) => {
     if (!fy.fy_id || fy.fy_id === activeFY?.fy_id) return;
-    if (fy.is_closed === 1) {
+    if (!!fy.is_closed) {
       setError("Cannot activate a closed financial year");
       return;
     }
@@ -278,7 +278,7 @@ export default function FinancialYears() {
             ) : (
               sortedFYs.map((fy, idx) => {
                 const isActive = activeFY?.fy_id === fy.fy_id;
-                const isClosed = fy.is_closed === 1;
+                const isClosed = !!fy.is_closed;
                 const isHighlighted = idx === selectedIndex && !showCreate;
 
                 return (
@@ -398,7 +398,7 @@ export default function FinancialYears() {
                 const selected = sortedFYs[selectedIndex];
                 if (selected) handleDelete(selected);
               }}
-              disabled={sortedFYs[selectedIndex]?.is_active === 1 || sortedFYs[selectedIndex]?.is_closed === 1}
+              disabled={!!sortedFYs[selectedIndex]?.is_active || !!sortedFYs[selectedIndex]?.is_closed}
               className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-left shadow-sm hover:border-zinc-400"
             >
               <span className="font-bold text-zinc-900 text-[10px]">Ctrl+D</span>

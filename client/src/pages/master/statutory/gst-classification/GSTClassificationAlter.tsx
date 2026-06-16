@@ -81,7 +81,7 @@ export default function GSTClassificationAlter() {
     );
   }
 
-  const isPredefined = selectedClass.is_predefined === 1;
+  const isPredefined = !!selectedClass.is_predefined;
 
   const alterActions = [
     ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) }]),

@@ -108,7 +108,7 @@ export default function AttendanceTypeCOA() {
               filtered.map(t => {
                 const tId = t.attendance_type_id!;
                 const isOpen = !!openDrawers[tId];
-                const isPredefined = t.is_predefined === 1;
+                const isPredefined = !!t.is_predefined;
                 return (
                   <div key={tId}>
                     <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => toggleDrawer(tId)}>

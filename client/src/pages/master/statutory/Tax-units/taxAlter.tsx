@@ -288,12 +288,12 @@ export default function TaxAlter() {
       state: unit.state || "",
       pincode: unit.pincode || "",
       telephone: unit.telephone || "",
-      setAlterExciseDetails: unit.set_alter_excise_details === 1,
+      setAlterExciseDetails: !!unit.set_alter_excise_details,
     });
     setRegistrationType(unit.registration_type || "Importer");
     setEccNumber(unit.ecc_number || "");
-    setSetAlterTariff(unit.set_alter_excise_tariff === 1);
-    setSetAlterRule11(unit.set_alter_rule11_book === 1);
+    setSetAlterTariff(!!unit.set_alter_excise_tariff);
+    setSetAlterRule11(!!unit.set_alter_rule11_book);
     setError(null);
     setSuccess(null);
     setActiveField("name");

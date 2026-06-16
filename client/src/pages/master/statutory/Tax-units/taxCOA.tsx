@@ -205,7 +205,7 @@ export default function TaxCOA() {
                           <span className="text-zinc-400">Registered For:</span>{" "}
                           <span className="font-semibold text-zinc-800">{node.registered_for || "—"}</span>
                         </div>
-                        {node.set_alter_excise_details === 1 && (
+                        {!!node.set_alter_excise_details && (
                           <>
                             <div className="col-span-2 border-t border-zinc-100 my-1 pt-1 font-bold text-[10px] text-zinc-500 uppercase tracking-wide">
                               Excise Details
@@ -220,11 +220,11 @@ export default function TaxCOA() {
                             </div>
                             <div>
                               <span className="text-zinc-400">Excise Tariff Setup:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.set_alter_excise_tariff === 1 ? "Yes" : "No"}</span>
+                              <span className="font-semibold text-zinc-800">{!!node.set_alter_excise_tariff ? "Yes" : "No"}</span>
                             </div>
                             <div>
                               <span className="text-zinc-400">Rule 11 Setup:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.set_alter_rule11_book === 1 ? "Yes" : "No"}</span>
+                              <span className="font-semibold text-zinc-800">{!!node.set_alter_rule11_book ? "Yes" : "No"}</span>
                             </div>
                           </>
                         )}

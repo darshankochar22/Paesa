@@ -109,10 +109,10 @@ export function useTCSNatureOfGoodsForm({ mode }: UseTCSNatureOfGoodsFormOptions
         rate_individual_without_pan: String(record.rate_individual_without_pan ?? 0),
         rate_other_with_pan: String(record.rate_other_with_pan ?? 0),
         rate_other_without_pan: String(record.rate_other_without_pan ?? 0),
-        is_own_status: record.is_own_status === 1 ? "Yes" : "No",
+        is_own_status: !!record.is_own_status ? "Yes" : "No",
         tax_on_receipt_or_realization: record.tax_on_receipt_or_realization === "Tax Calculated on Realization" ? "Yes" : "No",
         threshold_level: String(record.threshold_level ?? 0),
-        is_zero_rated: record.is_zero_rated === 1 ? "Yes" : "No",
+        is_zero_rated: !!record.is_zero_rated ? "Yes" : "No",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load selected TCS Nature of Goods.");

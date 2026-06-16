@@ -101,7 +101,7 @@ export default function PayHeadCOA() {
               filtered.map(p => {
                 const pId = p.pay_head_id!;
                 const isOpen = !!openDrawers[pId];
-                const isPredefined = p.is_predefined === 1;
+                const isPredefined = !!p.is_predefined;
                 return (
                   <div key={pId}>
                     <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => toggleDrawer(pId)}>

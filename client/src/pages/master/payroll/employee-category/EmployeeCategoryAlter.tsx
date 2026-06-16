@@ -46,8 +46,8 @@ export default function EmployeeCategoryAlter() {
     setForm({
       name: c.name ?? "",
       alias: c.alias ?? "",
-      allocate_revenue: c.allocate_revenue === 1 ? "Yes" : "No",
-      allocate_non_revenue: c.allocate_non_revenue === 1 ? "Yes" : "No",
+      allocate_revenue: !!c.allocate_revenue ? "Yes" : "No",
+      allocate_non_revenue: !!c.allocate_non_revenue ? "Yes" : "No",
     });
     setError(null);
     setSuccess(null);
@@ -65,7 +65,7 @@ export default function EmployeeCategoryAlter() {
 
   const handleSubmit = useCallback(async () => {
     if (!form || !selectedCategory) return;
-    if (selectedCategory.is_predefined === 1) {
+    if (!!selectedCategory.is_predefined) {
       setError("Predefined categories cannot be altered.");
       return;
     }
@@ -108,7 +108,7 @@ export default function EmployeeCategoryAlter() {
 
   const handleDelete = useCallback(async () => {
     if (!selectedCategory) return;
-    if (selectedCategory.is_predefined === 1) {
+    if (!!selectedCategory.is_predefined) {
       setError("Predefined categories cannot be deleted.");
       return;
     }
@@ -161,7 +161,7 @@ export default function EmployeeCategoryAlter() {
         render: (r: EmployeeCategoryType) => (
           <span className="font-bold text-zinc-950 uppercase flex items-center gap-1.5">
             {r.name}
-            {r.is_predefined === 1 && (
+            {!!r.is_predefined && (
               <span className="text-[9px] font-bold px-1 py-0.2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
                 PREDEFINED
               </span>
@@ -197,7 +197,7 @@ export default function EmployeeCategoryAlter() {
     );
   }
 
-  const isPredefined = selectedCategory.is_predefined === 1;
+  const isPredefined = !!selectedCategory.is_predefined;
 
   const alterActions = [
     ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: handleSubmit }]),

@@ -120,7 +120,7 @@ export default function UnitAlter() {
         const allUnits = allR.units ?? [];
         setUnits(allUnits);
         // Filter simple units from all units as fallback
-        setSimpleUnits(allUnits.filter(u => u.unit_type === "Simple" || u.is_simple === 1));
+        setSimpleUnits(allUnits.filter(u => u.unit_type === "Simple" || !!u.is_simple));
       }
       // Try dedicated endpoint if available (more efficient)
       try {

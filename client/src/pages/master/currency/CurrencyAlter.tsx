@@ -69,12 +69,12 @@ function SelectionPanel({
       render: (r: CurrencyType) => (
         <span className="font-bold text-zinc-950 uppercase flex items-center gap-1.5">
           {r.name}
-          {r.is_predefined === 1 && (
+          {!!r.is_predefined && (
             <span className="text-[9px] font-bold px-1.5 py-0.2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
               PREDEFINED
             </span>
           )}
-          {r.is_default === 1 && (
+          {!!r.is_default && (
             <span className="text-[9px] font-bold px-1.5 py-0.2 bg-emerald-50 text-emerald-600 rounded tracking-wider border border-emerald-200">
               DEFAULT
             </span>
@@ -169,9 +169,9 @@ export default function CurrencyAlter() {
       decimal_places: String(c.decimal_places ?? 2),
       decimal_symbol: c.decimal_symbol ?? ".",
       decimal_places_in_words: c.decimal_places_in_words ?? "",
-      suffix_symbol_to_amount: c.suffix_symbol_to_amount === 1 ? "Yes" : "No",
-      show_amount_in_millions: c.show_amount_in_millions === 1 ? "Yes" : "No",
-      add_space_between_amount_and_symbol: c.add_space_between_amount_and_symbol === 1 ? "Yes" : "No",
+      suffix_symbol_to_amount: !!c.suffix_symbol_to_amount ? "Yes" : "No",
+      show_amount_in_millions: !!c.show_amount_in_millions ? "Yes" : "No",
+      add_space_between_amount_and_symbol: !!c.add_space_between_amount_and_symbol ? "Yes" : "No",
     });
     setError(null);
     setSuccess(null);
@@ -192,7 +192,7 @@ export default function CurrencyAlter() {
 
   const handleSubmit = useCallback(async () => {
     if (!form || !selectedCurrency) return;
-    if (selectedCurrency.is_predefined === 1) {
+    if (!!selectedCurrency.is_predefined) {
       setError("Predefined currencies cannot be altered.");
       return;
     }
@@ -241,11 +241,11 @@ export default function CurrencyAlter() {
 
   const handleDelete = useCallback(async () => {
     if (!selectedCurrency) return;
-    if (selectedCurrency.is_predefined === 1) {
+    if (!!selectedCurrency.is_predefined) {
       setError("Predefined currencies cannot be deleted.");
       return;
     }
-    if (selectedCurrency.is_default === 1) {
+    if (!!selectedCurrency.is_default) {
       setError("Default base currency cannot be deleted.");
       return;
     }
@@ -337,7 +337,7 @@ export default function CurrencyAlter() {
     );
   }
 
-  const isPredefined = selectedCurrency.is_predefined === 1;
+  const isPredefined = !!selectedCurrency.is_predefined;
 
   const alterActions = [
     ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: handleSubmit }]),

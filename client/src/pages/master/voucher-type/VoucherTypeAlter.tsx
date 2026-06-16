@@ -188,7 +188,7 @@ function SelectionPanel({
       render: (r: VoucherTypeType) => (
         <span className="font-bold text-zinc-950 uppercase flex items-center gap-1.5">
           {r.name}
-          {r.is_predefined === 1 && (
+          {!!r.is_predefined && (
             <span className="text-[9px] font-bold px-1.5 py-0.2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
               PREDEFINED
             </span>
@@ -288,7 +288,7 @@ export default function VoucherTypeAlter() {
       name:             vt.name ?? "",
       short_name:       vt.short_name ?? "",
       category:         vt.category ?? "Receipt",
-      is_active:        vt.is_active === 1 ? "Yes" : "No",
+      is_active:        !!vt.is_active ? "Yes" : "No",
       numbering_method: (vt.numbering_method as FormData["numbering_method"]) ?? "Automatic",
       parent_vt_id:     vt.parent_vt_id ? String(vt.parent_vt_id) : "",
     });
@@ -298,12 +298,12 @@ export default function VoucherTypeAlter() {
       if (configRes.success && configRes.config) {
         const c = configRes.config;
         setConfigForm({
-          use_effective_dates:           c.use_effective_dates === 1           ? "Yes" : "No",
-          allow_zero_value_transactions: c.allow_zero_value_transactions === 1 ? "Yes" : "No",
-          make_voucher_optional:         c.make_voucher_optional === 1         ? "Yes" : "No",
-          allow_narration:               c.allow_narration === 1               ? "Yes" : "No",
-          allow_narration_per_ledger:    c.allow_narration_per_ledger === 1    ? "Yes" : "No",
-          print_after_save:              c.print_after_save === 1              ? "Yes" : "No",
+          use_effective_dates:           !!c.use_effective_dates           ? "Yes" : "No",
+          allow_zero_value_transactions: !!c.allow_zero_value_transactions ? "Yes" : "No",
+          make_voucher_optional:         !!c.make_voucher_optional         ? "Yes" : "No",
+          allow_narration:               !!c.allow_narration               ? "Yes" : "No",
+          allow_narration_per_ledger:    !!c.allow_narration_per_ledger    ? "Yes" : "No",
+          print_after_save:              !!c.print_after_save              ? "Yes" : "No",
         });
       } else {
         setConfigForm(null);
@@ -344,12 +344,12 @@ export default function VoucherTypeAlter() {
         const c = configRes.config;
         setConfigForm((cf) =>
           cf ? {
-            use_effective_dates: c.use_effective_dates === 1 ? "Yes" : "No",
-            allow_zero_value_transactions: c.allow_zero_value_transactions === 1 ? "Yes" : "No",
-            make_voucher_optional: c.make_voucher_optional === 1 ? "Yes" : "No",
-            allow_narration: c.allow_narration === 1 ? "Yes" : "No",
-            allow_narration_per_ledger: c.allow_narration_per_ledger === 1 ? "Yes" : "No",
-            print_after_save: c.print_after_save === 1 ? "Yes" : "No",
+            use_effective_dates: !!c.use_effective_dates ? "Yes" : "No",
+            allow_zero_value_transactions: !!c.allow_zero_value_transactions ? "Yes" : "No",
+            make_voucher_optional: !!c.make_voucher_optional ? "Yes" : "No",
+            allow_narration: !!c.allow_narration ? "Yes" : "No",
+            allow_narration_per_ledger: !!c.allow_narration_per_ledger ? "Yes" : "No",
+            print_after_save: !!c.print_after_save ? "Yes" : "No",
           } : cf
         );
       }
@@ -378,7 +378,7 @@ export default function VoucherTypeAlter() {
     setLoading(true);
     setError(null);
     try {
-      if (selectedVT.is_predefined !== 1) {
+      if (!selectedVT.is_predefined) {
         const payload: VoucherTypeUpdatePayload = {
           vt_id:            selectedVT.vt_id!,
           name:             form.name.trim(),
@@ -429,7 +429,7 @@ export default function VoucherTypeAlter() {
 
   const handleDelete = useCallback(async () => {
     if (!selectedVT) return;
-    if (selectedVT.is_predefined === 1) {
+    if (!!selectedVT.is_predefined) {
       setError("Predefined voucher types cannot be deleted.");
       return;
     }
@@ -491,7 +491,7 @@ export default function VoucherTypeAlter() {
     );
   }
 
-  const isPredefined = selectedVT.is_predefined === 1;
+  const isPredefined = !!selectedVT.is_predefined;
 
   const alterActions = [
     { key: "Alt+A", label: "Accept", onClick: handleSubmit },

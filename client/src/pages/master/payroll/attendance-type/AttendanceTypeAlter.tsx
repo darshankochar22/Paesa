@@ -178,7 +178,7 @@ export default function AttendanceTypeAlter() {
         render: (r: AttendanceTypeType) => (
           <span className="font-bold text-zinc-950 uppercase flex items-center gap-1.5">
             {r.name}
-            {r.is_predefined === 1 && (
+            {!!r.is_predefined && (
               <span className="text-[9px] font-bold px-1 py-0.2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
                 PREDEFINED
               </span>
@@ -218,7 +218,7 @@ export default function AttendanceTypeAlter() {
     );
   }
 
-  const isPredefined = selectedType.is_predefined === 1;
+  const isPredefined = !!selectedType.is_predefined;
 
   const alterActions = [
     ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: handleSubmit }]),

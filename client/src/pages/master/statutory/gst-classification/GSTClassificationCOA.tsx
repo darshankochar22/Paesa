@@ -137,7 +137,7 @@ export default function GSTClassificationCOA() {
                       </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
                         {node.name}
-                        {node.is_predefined === 1 && (
+                        {!!node.is_predefined && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
                             PREDEFINED
                           </span>
@@ -174,15 +174,15 @@ export default function GSTClassificationCOA() {
                         </div>
                         <div>
                           <span className="text-zinc-400">Is non-GST goods:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.is_non_gst_goods === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.is_non_gst_goods ? "Yes" : "No"}</span>
                         </div>
                         <div>
                           <span className="text-zinc-400">Reverse Charge:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.is_reverse_charge === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.is_reverse_charge ? "Yes" : "No"}</span>
                         </div>
                         <div>
                           <span className="text-zinc-400">Ineligible for ITC:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.is_ineligible_for_itc === 1 ? "Yes" : "No"}</span>
+                          <span className="font-semibold text-zinc-800">{!!node.is_ineligible_for_itc ? "Yes" : "No"}</span>
                         </div>
                         {node.description && (
                           <div className="col-span-2">
