@@ -51,9 +51,18 @@ const PREDEFINED_GROUPS = [
 ];
 
 // Fetch a single group row in the legacy snake_case shape (or undefined).
+// libsql can only bind numbers/strings/bigints/buffers/null — arrays/objects (e.g. the UI's
+// slab_based_rates: []) must be JSON-serialized before they hit a TEXT column.
+const toDbText = (v) => (v === undefined || v === null ? null : (typeof v === 'object' ? JSON.stringify(v) : v));
+
 const findRow = async (whereSql) => {
   const rows = await db.all(sql`SELECT * FROM ${groups} WHERE ${whereSql}`);
-  return rows[0];
+  const row = rows[0];
+  // Parse JSON-array columns back to arrays so the alter form round-trips.
+  if (row && typeof row.slab_based_rates === 'string') {
+    try { row.slab_based_rates = JSON.parse(row.slab_based_rates); } catch (_) { /* leave raw */ }
+  }
+  return row;
 };
 
 const seedDefaultGroups = async (company_id) => {
@@ -183,10 +192,10 @@ module.exports = {
           sgstRate: data.sgst_rate || null,
           igstRate: data.igst_rate || null,
           hsnSacCode: data.hsn_sac_code || null,
-          statutoryDetails: data.statutory_details || null,
+          statutoryDetails: toDbText(data.statutory_details),
           hsnSacClassificationId: data.hsn_sac_classification_id || null,
           gstClassificationId: data.gst_classification_id || null,
-          slabBasedRates: data.slab_based_rates || null,
+          slabBasedRates: toDbText(data.slab_based_rates),
           sortOrder: data.sort_order || 0,
           groupType: data.is_primary ? "Primary" : "User",
           displayOrder: data.display_order || 0,
@@ -269,10 +278,10 @@ module.exports = {
           sgstRate: data.sgst_rate !== undefined ? data.sgst_rate : group.sgst_rate,
           igstRate: data.igst_rate !== undefined ? data.igst_rate : group.igst_rate,
           hsnSacCode: data.hsn_sac_code !== undefined ? data.hsn_sac_code : group.hsn_sac_code,
-          statutoryDetails: data.statutory_details !== undefined ? data.statutory_details : group.statutory_details,
+          statutoryDetails: toDbText(data.statutory_details !== undefined ? data.statutory_details : group.statutory_details),
           hsnSacClassificationId: data.hsn_sac_classification_id !== undefined ? data.hsn_sac_classification_id : group.hsn_sac_classification_id,
           gstClassificationId: data.gst_classification_id !== undefined ? data.gst_classification_id : group.gst_classification_id,
-          slabBasedRates: data.slab_based_rates !== undefined ? data.slab_based_rates : group.slab_based_rates,
+          slabBasedRates: toDbText(data.slab_based_rates !== undefined ? data.slab_based_rates : group.slab_based_rates),
           sortOrder: data.sort_order !== undefined ? data.sort_order : group.sort_order,
           displayOrder: data.display_order !== undefined ? data.display_order : group.display_order,
           updatedAt: sql`datetime('now')`,
