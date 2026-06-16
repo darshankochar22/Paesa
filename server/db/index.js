@@ -117,6 +117,16 @@ const initDB = async () => {
   await require("../eInvoice/eInvoice").init(rawDb);
   await require("../whatsapp/whatsapp").init(rawDb);
   await require("../auditTrail/auditTrail").init(rawDb);
+
+  // Heal schema drift in pre-existing databases: add any columns the Drizzle schema
+  // expects but an older startup.db is missing (CREATE TABLE IF NOT EXISTS won't).
+  if (DIALECT !== "pg") {
+    try {
+      await require("./reconcile").reconcileSchema(rawDb);
+    } catch (err) {
+      console.error("Schema reconcile failed:", err);
+    }
+  }
 };
 
 module.exports = { rawDb, db, initDB };

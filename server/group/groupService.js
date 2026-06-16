@@ -57,12 +57,7 @@ const toDbText = (v) => (v === undefined || v === null ? null : (typeof v === 'o
 
 const findRow = async (whereSql) => {
   const rows = await db.all(sql`SELECT * FROM ${groups} WHERE ${whereSql}`);
-  const row = rows[0];
-  // Parse JSON-array columns back to arrays so the alter form round-trips.
-  if (row && typeof row.slab_based_rates === 'string') {
-    try { row.slab_based_rates = JSON.parse(row.slab_based_rates); } catch (_) { /* leave raw */ }
-  }
-  return row;
+  return rows[0];
 };
 
 const seedDefaultGroups = async (company_id) => {
