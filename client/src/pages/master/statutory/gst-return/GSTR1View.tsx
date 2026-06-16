@@ -2,6 +2,18 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
+import { Button } from "@/components/shadcn/button";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/shadcn/table";
+import { EmptyState } from "@/components/blocks/EmptyState";
+import { cn } from "@/lib/utils";
 
 export default function GSTR1View() {
   const { selectedCompany, activeFY } = useCompany();
@@ -197,13 +209,18 @@ export default function GSTR1View() {
         </>
       }
       footerControls={
-        <button onClick={() => loadData(true)} className="hover:underline text-black-900 font-bold ml-4">
+        <Button
+          onClick={() => loadData(true)}
+          variant="ghost"
+          size="xs"
+          className="h-auto p-0 ml-4 font-bold text-black-900 hover:underline hover:bg-transparent"
+        >
           F5: Refresh
-        </button>
+        </Button>
       }
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
-        {loading && <div className="p-2 text-center text-black-800 italic">Computing and compiling GSTR-1 payload...</div>}
+        {loading && <EmptyState message="Computing and compiling GSTR-1 payload..." className="italic" />}
         {error && <div className="p-2 text-center text-red-600 font-bold">{error}</div>}
 
         {/* Top Summary Table */}
@@ -230,59 +247,70 @@ export default function GSTR1View() {
           </div>
         </div>
 
-        {/* Particulars Header */}
-        <div className="flex border-b border-gray-300 font-bold px-2 py-1 bg-white">
-          <div className="flex-1">P a r t i c u l a r s</div>
-          <div className="w-20 text-center">Vch Count<br />(Summary)</div>
-          <div className="w-24 text-right">Taxable<br />Amount</div>
-          <div className="w-24 text-right">IGST</div>
-          <div className="w-24 text-right">CGST</div>
-          <div className="w-24 text-right">SGST/<br />UTGST</div>
-          <div className="w-20 text-right">Cess</div>
-          <div className="w-24 text-right">Tax<br />Amount</div>
-          <div className="w-24 text-right">Invoice<br />Amount</div>
-        </div>
+        {/* Particulars Table */}
+        <Table className="text-xs table-fixed">
+          <TableHeader>
+            <TableRow className="border-b border-gray-300 hover:bg-transparent">
+              <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black">P a r t i c u l a r s</TableHead>
+              <TableHead className="h-auto w-20 px-2 py-1 text-center align-bottom font-bold text-black">Vch Count<br />(Summary)</TableHead>
+              <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">Taxable<br />Amount</TableHead>
+              <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">IGST</TableHead>
+              <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">CGST</TableHead>
+              <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">SGST/<br />UTGST</TableHead>
+              <TableHead className="h-auto w-20 px-2 py-1 text-right align-bottom font-bold text-black">Cess</TableHead>
+              <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">Tax<br />Amount</TableHead>
+              <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">Invoice<br />Amount</TableHead>
+            </TableRow>
+            <TableRow className="hover:bg-transparent border-0">
+              <TableCell colSpan={9} className="px-2 py-1 font-bold">Return View</TableCell>
+            </TableRow>
+          </TableHeader>
 
-        <div className="flex px-2 py-1 font-bold">
-          <div className="flex-1">Return View</div>
-        </div>
+          <TableBody>
+            {rows.map((row, idx) => {
+              const isSelected = selectedRow === idx;
+              return (
+                <TableRow
+                  key={idx}
+                  onClick={() => setSelectedRow(idx)}
+                  className={cn(
+                    "border-0 cursor-pointer hover:bg-[#e6f2ff]",
+                    isSelected
+                      ? "bg-[#ffcc00] text-black font-bold hover:bg-[#ffcc00]"
+                      : row.data.count === 0
+                        ? "text-gray-600"
+                        : "text-black"
+                  )}
+                >
+                  <TableCell className="px-2 py-0.5 pl-4">{row.label}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-center">{row.data.count || ""}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-right">{row.data.txval ? row.data.txval.toFixed(2) : ""}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-right">{row.data.iamt ? row.data.iamt.toFixed(2) : ""}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-right">{row.data.camt ? row.data.camt.toFixed(2) : ""}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-right">{row.data.samt ? row.data.samt.toFixed(2) : ""}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-right"></TableCell>
+                  <TableCell className="px-2 py-0.5 text-right">{(row.data.iamt + row.data.camt + row.data.samt) ? (row.data.iamt + row.data.camt + row.data.samt).toFixed(2) : ""}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-right">{row.data.val ? row.data.val.toFixed(2) : ""}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
 
-        {/* Particulars Data Rows */}
-        <div className="flex flex-col">
-          {rows.map((row, idx) => {
-            const isSelected = selectedRow === idx;
-            return (
-              <div
-                key={idx}
-                onClick={() => setSelectedRow(idx)}
-                className={`flex px-2 py-0.5 hover:bg-[#e6f2ff] cursor-pointer ${isSelected ? 'bg-[#ffcc00] text-black font-bold' : ''} ${row.data.count === 0 && !isSelected ? 'text-gray-600' : 'text-black'}`}
-              >
-                <div className="flex-1 pl-2">{row.label}</div>
-                <div className="w-20 text-center">{row.data.count || ""}</div>
-                <div className="w-24 text-right">{row.data.txval ? row.data.txval.toFixed(2) : ""}</div>
-                <div className="w-24 text-right">{row.data.iamt ? row.data.iamt.toFixed(2) : ""}</div>
-                <div className="w-24 text-right">{row.data.camt ? row.data.camt.toFixed(2) : ""}</div>
-                <div className="w-24 text-right">{row.data.samt ? row.data.samt.toFixed(2) : ""}</div>
-                <div className="w-20 text-right"></div>
-                <div className="w-24 text-right">{(row.data.iamt + row.data.camt + row.data.samt) ? (row.data.iamt + row.data.camt + row.data.samt).toFixed(2) : ""}</div>
-                <div className="w-24 text-right">{row.data.val ? row.data.val.toFixed(2) : ""}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Total Row */}
-        <div className="flex border-t border-gray-300 font-bold px-2 py-1 mt-4">
-          <div className="flex-1 text-center pr-4">Total</div>
-          <div className="w-20 text-center"></div>
-          <div className="w-24 text-right"></div>
-          <div className="w-24 text-right"></div>
-          <div className="w-24 text-right"></div>
-          <div className="w-24 text-right"></div>
-          <div className="w-20 text-right"></div>
-          <div className="w-24 text-right"></div>
-          <div className="w-24 text-right"></div>
-        </div>
+          {/* Total Row */}
+          <TableFooter className="bg-transparent">
+            <TableRow className="border-t border-gray-300 hover:bg-transparent font-bold">
+              <TableCell className="px-2 py-1 text-center pr-4">Total</TableCell>
+              <TableCell className="w-20 px-2 py-1 text-center"></TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
+              <TableCell className="w-20 px-2 py-1 text-right"></TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
 
       </div>
     </TallyReportLayout>
