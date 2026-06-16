@@ -312,4 +312,10 @@ contextBridge.exposeInMainWorld('api', {
         testKey:      (apiKey)  => invoke('ai:testKey', { apiKey }),
         ask:          (payload) => invoke('ai:ask', payload),
     },
+    tally: {
+        testConnection: (params)  => invoke('tally:testConnection', params),
+        preview:        (params)  => invoke('tally:preview', params),
+        importMasters:  (params)  => invoke('tally:importMasters', params),
+        importVouchers: (params)  => invoke('tally:importVouchers', params),
+    },
 });
