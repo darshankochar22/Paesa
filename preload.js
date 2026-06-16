@@ -142,6 +142,11 @@ contextBridge.exposeInMainWorld('api', {
         getStatement:    (company_id, fy_id, ledger_id, from_date, to_date)      => invoke('banking:getStatement', { company_id, fy_id, ledger_id, from_date, to_date }),
         getSummary:      (company_id, fy_id, ledger_id)                          => invoke('banking:getSummary', { company_id, fy_id, ledger_id }),
     },
+    auditTrail: {
+        getAll:      (company_id, limit)                                         => invoke('auditTrail:getAll', { company_id, limit }),
+        getByEntity: (company_id, entity_type, entity_id)                       => invoke('auditTrail:getByEntity', { company_id, entity_type, entity_id }),
+        verifyChain: (company_id)                                               => invoke('auditTrail:verifyChain', { company_id }),
+    },
     currency: {
         create:     (data)               => invoke('currency:create', data),
         getAll:     (company_id)         => invoke('currency:getAll', company_id),

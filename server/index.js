@@ -13,6 +13,7 @@ const godownController = require('./godown/godownController');
 const voucherController = require('./voucher/voucherController');
 const reportController = require('./report/reportController');
 const bankingController = require('./banking/bankingController');
+const auditTrailController = require('./auditTrail/auditTrailController');
 const currencyController = require('./currency/currencyController');
 const voucherTypeController = require('./voucherType/voucherTypeController');
 const gstRegistrationController = require('./gstRegistration/gstRegistrationController');
@@ -171,6 +172,10 @@ ipcMain.handle('banking:reconcile', bankingController.reconcile);
 ipcMain.handle('banking:unreconcile', bankingController.unreconcile);
 ipcMain.handle('banking:getStatement', bankingController.getStatement);
 ipcMain.handle('banking:getSummary', bankingController.getSummary);
+
+ipcMain.handle('auditTrail:getAll', auditTrailController.getAll);
+ipcMain.handle('auditTrail:getByEntity', auditTrailController.getByEntity);
+ipcMain.handle('auditTrail:verifyChain', auditTrailController.verifyChain);
 
 ipcMain.handle('currency:create', currencyController.create);
 ipcMain.handle('currency:getAll', currencyController.getAll);

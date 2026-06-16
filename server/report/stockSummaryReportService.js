@@ -51,7 +51,9 @@ module.exports = {
               INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
               WHERE v.company_id = ${company_id}
                 AND v.fy_id = ${fy_id}
-                AND v.is_cancelled = 0${dateCond}
+                AND v.is_cancelled = 0
+                AND COALESCE(v.is_optional, 0) = 0
+                AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
               GROUP BY vse.stock_item_id
             ) mv ON mv.stock_item_id = si.item_id
             WHERE si.company_id = ${company_id}

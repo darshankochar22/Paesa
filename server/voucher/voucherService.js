@@ -107,6 +107,7 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
          FROM ${ledgers} l
          LEFT JOIN ${voucherEntries} e ON e.ledger_id = l.ledger_id
          LEFT JOIN ${vouchers} v ON v.voucher_id = e.voucher_id AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+           AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0
          WHERE l.ledger_id = ${ledger_id} AND l.company_id = ${company_id}
          GROUP BY l.ledger_id`
   );
@@ -154,6 +155,7 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
         FROM ${voucherBillReferences} vbr
         JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
         WHERE vbr.ledger_id = ${ledger_id} AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+          AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0
           AND vbr.bill_type IN ('New Ref', 'Advance')
         GROUP BY vbr.bill_name
         HAVING total_amount > 0.01

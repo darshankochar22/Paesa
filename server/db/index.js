@@ -116,6 +116,7 @@ const initDB = async () => {
   await require("../voucherEntryActions/voucherEntryActions").init(rawDb);
   await require("../eInvoice/eInvoice").init(rawDb);
   await require("../whatsapp/whatsapp").init(rawDb);
+  await require("../auditTrail/auditTrail").init(rawDb);
 };
 
 module.exports = { rawDb, db, initDB };

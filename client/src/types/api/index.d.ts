@@ -16,6 +16,7 @@ import type { AttendanceAPI } from './Attendance';
 import type { TaxUnitAPI } from './TaxUnits';
 import type { AiAPI } from './Ai';
 import type { TallyAPI } from './Tally';
+import type { AuditTrailAPI } from './AuditTrail';
 
 export type {
   CompanyType,
@@ -70,6 +71,7 @@ export type WindowAPI =
   & TaxUnitAPI
   & AiAPI
   & TallyAPI
+  & AuditTrailAPI
   & { app: { getDataPath: () => Promise<string> } };
 
 declare global {
