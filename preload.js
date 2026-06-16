@@ -305,4 +305,11 @@ contextBridge.exposeInMainWorld('api', {
         get:  (company_id) => invoke('companyPanCinDetails:get', company_id),
         save: (data)       => invoke('companyPanCinDetails:save', data),
     },
+    ai: {
+        getKeyStatus: ()        => invoke('ai:getKeyStatus'),
+        setKey:       (apiKey)  => invoke('ai:setKey', { apiKey }),
+        clearKey:     ()        => invoke('ai:clearKey'),
+        testKey:      (apiKey)  => invoke('ai:testKey', { apiKey }),
+        ask:          (payload) => invoke('ai:ask', payload),
+    },
 });
