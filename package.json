@@ -80,6 +80,7 @@
     "@libsql/client": "^0.17.3",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
+    "fast-xml-parser": "^5.9.0",
     "fastmcp": "^4.3.0",
     "hono": "^4.12.25",
     "pg": "^8.21.0",

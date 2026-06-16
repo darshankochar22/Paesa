@@ -15,6 +15,7 @@ import type { PhysicalStockAPI } from './PhysicalStock';
 import type { AttendanceAPI } from './Attendance';
 import type { TaxUnitAPI } from './TaxUnits';
 import type { AiAPI } from './Ai';
+import type { TallyAPI } from './Tally';
 
 export type {
   CompanyType,
@@ -68,6 +69,7 @@ export type WindowAPI =
   & AttendanceAPI
   & TaxUnitAPI
   & AiAPI
+  & TallyAPI
   & { app: { getDataPath: () => Promise<string> } };
 
 declare global {

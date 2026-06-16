@@ -50,6 +50,7 @@ const taxUnitController=require('./taxUnits/taxUnitController');
 const priceLevelController = require('./priceLevels/priceLevelController');
 const priceListController = require('./priceList/priceListController');
 const aiController = require('./ai/aiController');
+const tallyController = require('./integrations/tally/tallyController');
 
 ipcMain.handle('taxUnits:create',  taxUnitController.create);
 ipcMain.handle('taxUnits:getAll',  taxUnitController.getAll);
@@ -357,3 +358,8 @@ ipcMain.handle('ai:setKey',       aiController.setKey);
 ipcMain.handle('ai:clearKey',     aiController.clearKey);
 ipcMain.handle('ai:testKey',      aiController.testKey);
 ipcMain.handle('ai:ask',          aiController.ask);
+
+ipcMain.handle('tally:testConnection', tallyController.testConnection);
+ipcMain.handle('tally:preview',        tallyController.preview);
+ipcMain.handle('tally:importMasters',  tallyController.importMasters);
+ipcMain.handle('tally:importVouchers', tallyController.importVouchers);

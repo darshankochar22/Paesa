@@ -1,0 +1,201 @@
+openapi: 3.1.0
+info:
+  title: Tally Integration Module API
+  version: 1.0.0
+  description: >
+    IPC API for the Tally interoperability connector. Imports masters (groups,
+    ledgers, stock items, units) and vouchers from Tally via Tally's OFFICIAL
+    HTTP/XML interface (Tally runs an HTTP/XML server on localhost:9000). Channels
+    are registered in server/index.js and exposed to the renderer via preload.js
+    as window.api.tally.<method>; the controller is
+    server/integrations/tally/tallyController.js.
+
+    Every method accepts EITHER a live Tally endpoint ({ host, port }) — fetched
+    over HTTP and parsed — OR a raw { xml } string (parse-only), so the connector
+    works without a live Tally. The pure parser (xmlParser.js) turns the Tally
+    <ENVELOPE> response into plain objects; the importer (importer.js) owns all DB
+    I/O through the existing group/ledger/stockItem/unit/voucher services, name→id
+    resolution, import ordering, and the per-voucher Dr=Cr balance check.
+    company_id / fy_id are NOT in Tally XML — the caller supplies them (active
+    company + financial year) and the importer stamps them on every payload.
+tags:
+  - name: tally
+    description: Tally XML import (masters + vouchers) via Tally's official HTTP/XML interface.
+paths:
+  /tally/testConnection:
+    post:
+      operationId: tally.testConnection
+      tags: [tally]
+      summary: Probe a live Tally endpoint and report reachability + the open company name.
+      x-ipc-channel: "tally:testConnection"
+      x-window-api: "window.api.tally.testConnection"
+      x-controller: "tallyController.testConnection"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                host: { type: string, description: "Tally host (default 127.0.0.1)." }
+                port: { type: number, description: "Tally port (default 9000)." }
+      responses:
+        '200':
+          description: Reachability result with the open company name when reachable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TestConnectionResult' }
+  /tally/preview:
+    post:
+      operationId: tally.preview
+      tags: [tally]
+      summary: Dry-run — count what would be imported (no DB writes). Accepts raw xml or a live endpoint.
+      x-ipc-channel: "tally:preview"
+      x-window-api: "window.api.tally.preview"
+      x-controller: "tallyController.preview"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/XmlParams'
+                - $ref: '#/components/schemas/DateRangeParams'
+      responses:
+        '200':
+          description: Preview counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  preview: { $ref: '#/components/schemas/Preview' }
+                  error: { type: string }
+  /tally/importMasters:
+    post:
+      operationId: tally.importMasters
+      tags: [tally]
+      summary: Import groups, units, ledgers and stock items into the active company.
+      x-ipc-channel: "tally:importMasters"
+      x-window-api: "window.api.tally.importMasters"
+      x-controller: "tallyController.importMasters"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  properties:
+                    company_id: { type: number, description: "Active company id (injected into every payload)." }
+                    fy_id: { type: number, description: "Active financial year id (optional for masters)." }
+                  required: [company_id]
+                - oneOf:
+                    - $ref: '#/components/schemas/XmlParams'
+                    - $ref: '#/components/schemas/EndpointParams'
+      responses:
+        '200':
+          description: Per-entity import summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  groups: { $ref: '#/components/schemas/ImportSummary' }
+                  units: { $ref: '#/components/schemas/ImportSummary' }
+                  ledgers: { $ref: '#/components/schemas/ImportSummary' }
+                  stockItems: { $ref: '#/components/schemas/ImportSummary' }
+                  error: { type: string }
+  /tally/importVouchers:
+    post:
+      operationId: tally.importVouchers
+      tags: [tally]
+      summary: Import Day Book vouchers into the active company + financial year (Dr=Cr balance checked).
+      x-ipc-channel: "tally:importVouchers"
+      x-window-api: "window.api.tally.importVouchers"
+      x-controller: "tallyController.importVouchers"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  properties:
+                    company_id: { type: number, description: "Active company id." }
+                    fy_id: { type: number, description: "Active financial year id (required for vouchers)." }
+                  required: [company_id, fy_id]
+                - oneOf:
+                    - $ref: '#/components/schemas/XmlParams'
+                    - $ref: '#/components/schemas/DateRangeParams'
+      responses:
+        '200':
+          description: Voucher import summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  vouchers: { $ref: '#/components/schemas/ImportSummary' }
+                  error: { type: string }
+components:
+  schemas:
+    EndpointParams:
+      type: object
+      description: "A live Tally endpoint (Tally's HTTP/XML server)."
+      properties:
+        host: { type: string }
+        port: { type: number }
+    XmlParams:
+      type: object
+      description: "Raw Tally <ENVELOPE> XML response (parse-only; no live Tally needed)."
+      properties:
+        xml: { type: string }
+      required: [xml]
+    DateRangeParams:
+      type: object
+      description: "A live endpoint plus an optional Day Book date range (YYYY-MM-DD)."
+      properties:
+        host: { type: string }
+        port: { type: number }
+        from_date: { type: string }
+        to_date: { type: string }
+    TestConnectionResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        reachable: { type: boolean }
+        company: { type: [string, "null"] }
+        error: { type: string }
+        code: { type: string }
+        status: { type: number }
+    ImportSummary:
+      type: object
+      description: "Per-entity outcome from the importer."
+      properties:
+        created: { type: number }
+        skipped: { type: number }
+        failed: { type: number }
+        errors:
+          type: array
+          items: { type: string }
+    Preview:
+      type: object
+      description: "Dry-run counts of what would be imported."
+      properties:
+        meta:
+          type: [object, "null"]
+          properties:
+            source: { type: string }
+            requestType: { type: [string, "null"] }
+            collectionType: { type: [string, "null"] }
+        groups: { type: number }
+        units: { type: number }
+        ledgers: { type: number }
+        stockItems: { type: number }
+        vouchers: { type: number }
+        balancedVouchers: { type: number }
+        unbalancedVouchers: { type: number }
