@@ -34,6 +34,24 @@ const init = async (db) => {
       updated_at                TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  // Migrations for additional statutory-detail fields used by group creation
+  // for Current Assets / Current Liabilities (and the other statutory groups).
+  const pragmaResult = await db.execute("PRAGMA table_info('groups')");
+  const colNames = new Set(
+    Array.isArray(pragmaResult.rows)
+      ? pragmaResult.rows.map((row) => row.name)
+      : []
+  );
+  const addCol = async (name, def) => {
+    if (!colNames.has(name)) {
+      await db.execute(`ALTER TABLE groups ADD COLUMN ${name} ${def}`);
+    }
+  };
+  await addCol("set_alter_service_tax_details", "INTEGER DEFAULT 0");
+  await addCol("hsn_sac_classification_id", "INTEGER");
+  await addCol("gst_classification_id", "INTEGER");
+  await addCol("slab_based_rates", "TEXT");
 };
 
 module.exports = { init };

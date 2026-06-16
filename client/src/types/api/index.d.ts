@@ -19,6 +19,7 @@ export type {
   CompanyType,
   FYType,
   GroupType,
+  SlabBasedRate,
   LedgerType,
   CostCentreType,
   UnitType,

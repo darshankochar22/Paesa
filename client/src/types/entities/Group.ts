@@ -1,3 +1,10 @@
+export interface SlabBasedRate {
+  greater_than: number;
+  up_to: number | null;
+  taxability_type: string;
+  gst_rate: number;
+}
+
 export interface GroupType {
   group_id?: number;
   company_id?: number;
@@ -10,6 +17,7 @@ export interface GroupType {
   set_alter_tds_details?: number;
   set_alter_tcs_details?: number;
   set_alter_other_statutory_details?: number;
+  set_alter_service_tax_details?: number;
   hsn_sac_source?: string;
   hsn_sac_description?: string;
   gst_rate_source?: string;
@@ -24,6 +32,9 @@ export interface GroupType {
   igst_rate?: number;
   hsn_sac_code?: string;
   statutory_details?: string;
+  hsn_sac_classification_id?: number;
+  gst_classification_id?: number;
+  slab_based_rates?: string;
   sort_order?: number;
   group_type?: string;
   display_order?: number;
