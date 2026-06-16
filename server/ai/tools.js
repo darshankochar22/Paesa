@@ -18,6 +18,7 @@ const ratioAnalysisReportService = require('../report/ratioAnalysisReportService
 const voucherService = require('../voucher/voucherService');
 const bankingService = require('../banking/bankingService');
 const ledgerService = require('../ledger/ledgerService');
+const auditTrailService = require('../auditTrail/auditTrailService');
 
 const QUERY_RESOURCES = {
   trial_balance:    (c) => reportService.trialBalance(c.company_id, c.fy_id),
@@ -39,6 +40,7 @@ const QUERY_RESOURCES = {
   unreconciled_bank:(c, a) => bankingService.getUnreconciled(c.company_id, c.fy_id, a.ledger_id),
   bank_summary:     (c, a) => bankingService.getSummary(c.company_id, c.fy_id, a.ledger_id),
   ledgers:          (c) => ledgerService.getAll(c.company_id),
+  audit_trail:      (c, a) => auditTrailService.getAll(c.company_id, { limit: a.limit || 50 }),
 };
 
 const PROPOSABLE = {
@@ -62,6 +64,7 @@ const TOOL_DEFS = [
         ledger_id: { type: 'number', description: 'Required for ledger_* / bank_* resources. Resolve names via the lookup tool first.' },
         from_date: { type: 'string', description: 'ISO date YYYY-MM-DD (optional range start)' },
         to_date: { type: 'string', description: 'ISO date YYYY-MM-DD (optional range end)' },
+        limit: { type: 'number', description: 'Max rows to return (used by the audit_trail resource; defaults to 50).' },
       },
       required: ['resource'],
     },

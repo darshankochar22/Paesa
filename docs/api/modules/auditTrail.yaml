@@ -1,0 +1,222 @@
+openapi: 3.1.0
+info:
+  title: Audit Trail Module API
+  version: 1.0.0
+  description: >
+    IPC API contracts for the "auditTrail" backend module — a tamper-evident edit
+    log (MCA Rule 11(g)). Each operation maps to an
+    `ipcMain.handle('auditTrail:<action>', ...)` channel registered in
+    server/index.js and exposed to the renderer via contextBridge in preload.js as
+    `window.api.auditTrail.<method>`.
+
+    Every business write (voucher / ledger / group create|update|delete|cancel) is
+    recorded (best-effort, hooked at the controller level) by
+    server/auditTrail/auditTrailService.record(). Each row's `row_hash` is a SHA-256
+    chained to the previous row's `row_hash` for the same `company_id`
+    (`row_hash = sha256(prev_hash + canonicalJSON({company_id, entity_type,
+    entity_id, action, before, after, created_at}))`). Any later mutation of a logged
+    row breaks `verifyChain()`. Snapshots are stored as TEXT JSON (`before` is null on
+    create, `after` is null on delete).
+
+    Read surface only: writes happen implicitly via record() inside business
+    controllers and are not exposed as IPC channels.
+tags:
+  - name: auditTrail
+    description: Tamper-evident audit log — read and integrity-verification.
+
+paths:
+  /auditTrail/getAll:
+    post:
+      tags: [auditTrail]
+      operationId: auditTrail.getAll
+      summary: List audit-trail rows for a company, newest first (log_id DESC).
+      x-ipc-channel: "auditTrail:getAll"
+      x-window-api: "window.api.auditTrail.getAll"
+      x-controller: "auditTrailController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetAllRequest'
+      responses:
+        '200':
+          description: Array of audit-trail rows for the company (newest first).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditTrailEntry'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /auditTrail/getByEntity:
+    post:
+      tags: [auditTrail]
+      operationId: auditTrail.getByEntity
+      summary: Audit history for a single entity, oldest first (log_id ASC).
+      x-ipc-channel: "auditTrail:getByEntity"
+      x-window-api: "window.api.auditTrail.getByEntity"
+      x-controller: "auditTrailController.getByEntity"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetByEntityRequest'
+      responses:
+        '200':
+          description: Chronological audit history for the entity (oldest first).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditTrailEntry'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /auditTrail/verifyChain:
+    post:
+      tags: [auditTrail]
+      operationId: auditTrail.verifyChain
+      summary: Recompute the per-company hash chain and report whether it is intact.
+      x-ipc-channel: "auditTrail:verifyChain"
+      x-window-api: "window.api.auditTrail.verifyChain"
+      x-controller: "auditTrailController.verifyChain"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyChainRequest'
+      responses:
+        '200':
+          description: Chain integrity result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyChainResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  responses:
+    ErrorResponse:
+      description: Error returned by the IPC handler.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Short error code or class.
+        message:
+          type: string
+          description: Human-readable error message.
+
+    GetAllRequest:
+      type: object
+      description: Scope an audit-log read to a company, with an optional row cap.
+      required: [company_id]
+      properties:
+        company_id:
+          type: integer
+          description: Owning company id.
+        limit:
+          type: integer
+          nullable: true
+          description: Optional max rows to return (newest first). Omit for all.
+
+    GetByEntityRequest:
+      type: object
+      description: Scope an audit-history read to one entity within a company.
+      required: [company_id, entity_type, entity_id]
+      properties:
+        company_id:
+          type: integer
+          description: Owning company id.
+        entity_type:
+          type: string
+          description: Entity kind (e.g. "voucher", "ledger", "group").
+        entity_id:
+          type: integer
+          description: Primary key of the entity whose history is requested.
+
+    VerifyChainRequest:
+      type: object
+      description: Scope a chain-integrity check to a company.
+      required: [company_id]
+      properties:
+        company_id:
+          type: integer
+          description: Owning company id.
+
+    AuditTrailEntry:
+      type: object
+      description: A single audit_trail row.
+      properties:
+        log_id:
+          type: integer
+          description: Autoincrement primary key (chain order within a company).
+        company_id:
+          type: integer
+        entity_type:
+          type: string
+          description: Entity kind (e.g. "voucher", "ledger", "group").
+        entity_id:
+          type: integer
+          nullable: true
+        action:
+          type: string
+          description: Mutation kind (e.g. "create", "update", "delete", "cancel").
+        user:
+          type: string
+          nullable: true
+          description: Acting user (defaults to "system").
+        before_snapshot:
+          type: string
+          nullable: true
+          description: JSON TEXT of the entity before the change (null on create).
+        after_snapshot:
+          type: string
+          nullable: true
+          description: JSON TEXT of the entity after the change (null on delete).
+        prev_hash:
+          type: string
+          nullable: true
+          description: row_hash of the previous row for this company ('' for the first).
+        row_hash:
+          type: string
+          nullable: true
+          description: SHA-256 chaining prev_hash + canonical payload of this row.
+        created_at:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp recorded by record().
+
+    VerifyChainResult:
+      type: object
+      description: Result of recomputing the per-company hash chain.
+      required: [intact]
+      properties:
+        intact:
+          type: boolean
+          description: True when every row's prev_hash linkage and row_hash recompute.
+        brokenAt:
+          type: integer
+          nullable: true
+          description: log_id of the first row whose hash/linkage failed (absent when intact).

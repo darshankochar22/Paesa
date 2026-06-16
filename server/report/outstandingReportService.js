@@ -59,6 +59,8 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
       WHERE v.company_id = ${company_id}
         AND v.fy_id = ${fy_id}
         AND v.is_cancelled = 0
+        AND COALESCE(v.is_optional, 0) = 0
+        AND COALESCE(v.is_post_dated, 0) = 0
         AND vbr.bill_type IN ('New Ref', 'Advance')
         AND g.company_id = ${company_id}
         AND g.name = ${groupName}

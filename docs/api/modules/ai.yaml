@@ -12,6 +12,11 @@ info:
     otherwise Google Gemini) and drives the LLM with three consolidated, loop-resistant tools
     (query / lookup / propose) over the existing accounting services. Writes are returned as
     proposals the user must approve in the app; the agent never commits changes itself.
+
+    The query tool's `resource` enum includes an `audit_trail` resource that routes to
+    auditTrailService.getAll(company_id, {limit: args.limit || 50}), exposing the
+    tamper-evident edit log (MCA Rule 11(g); see the auditTrail module) read-only to the
+    copilot. Pass `limit` to cap the rows returned (defaults to 50).
 tags:
   - name: ai
     description: AI copilot and BYOK key management.

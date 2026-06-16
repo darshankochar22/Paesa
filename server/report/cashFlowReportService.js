@@ -48,6 +48,8 @@ const cashFlow = async (company_id, fy_id, from_date, to_date) => {
       sql`v.company_id = ${company_id}`,
       sql`v.fy_id = ${fy_id}`,
       sql`v.is_cancelled = 0`,
+      sql`COALESCE(v.is_optional, 0) = 0`,
+      sql`COALESCE(v.is_post_dated, 0) = 0`,
     ];
     if (from_date) conditions.push(sql`v.date >= ${from_date}`);
     if (to_date)   conditions.push(sql`v.date <= ${to_date}`);
