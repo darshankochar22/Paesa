@@ -15,6 +15,7 @@ const tdsNatureOfPayment = pgTable('tds_nature_of_payment', {
   rateOtherWithPan: numeric('rate_other_with_pan', { precision: 18, scale: 4 }).notNull().default('0'),
   isZeroRated: boolean('is_zero_rated').notNull().default(false),
   thresholdLimit: numeric('threshold_limit', { precision: 18, scale: 2 }).notNull().default('0'),
+  calculateTaxOnExceedingThreshold: boolean('calculate_tax_on_exceeding_threshold').notNull().default(false),
   isPredefined: boolean('is_predefined').notNull().default(false),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),

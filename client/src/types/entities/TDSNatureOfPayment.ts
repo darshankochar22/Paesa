@@ -9,6 +9,7 @@ export interface TDSNatureOfPaymentType {
   rate_other_with_pan?: number;
   is_zero_rated?: number;
   threshold_limit?: number;
+  calculate_tax_on_exceeding_threshold?: number;
   is_predefined?: number;
   is_active?: number;
   created_at?: string;

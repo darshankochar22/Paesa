@@ -23,6 +23,7 @@ export default function TDSNatureOfPaymentCreation({
   const [rateOtherWithPan, setRateOtherWithPan] = useState("0");
   const [isZeroRated, setIsZeroRated] = useState("");
   const [thresholdLimit, setThresholdLimit] = useState("");
+  const [calculateTaxOnExceedingThreshold, setCalculateTaxOnExceedingThreshold] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -36,6 +37,7 @@ export default function TDSNatureOfPaymentCreation({
       setRateOtherWithPan("0");
       setIsZeroRated("");
       setThresholdLimit("");
+      setCalculateTaxOnExceedingThreshold("");
       setError(null);
     }
   }, [isOpen]);
@@ -75,6 +77,7 @@ export default function TDSNatureOfPaymentCreation({
         rate_other_with_pan: Number(rateOtherWithPan) || 0,
         is_zero_rated: isZeroRated === "Yes" ? 1 : 0,
         threshold_limit: Number(thresholdLimit) || 0,
+        calculate_tax_on_exceeding_threshold: calculateTaxOnExceedingThreshold === "Yes" ? 1 : 0,
       });
       if (res.success && res.tdsNatureOfPayment) {
         const createdName = res.tdsNatureOfPayment.name || name.trim();
@@ -218,6 +221,18 @@ export default function TDSNatureOfPaymentCreation({
               onChange={(e) => setThresholdLimit(e.target.value)}
               placeholder=""
             />
+          </div>
+
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[13px] text-zinc-700 w-80 shrink-0">Calculate tax on value exceeding threshold/exemption limit</span>
+            <span className="text-zinc-400 mr-2">:</span>
+            <button
+              type="button"
+              onClick={() => setCalculateTaxOnExceedingThreshold(calculateTaxOnExceedingThreshold === "Yes" ? "No" : "Yes")}
+              className="text-[13px] py-0.5 px-2 min-w-[28px] text-center font-medium hover:bg-zinc-100"
+            >
+              {calculateTaxOnExceedingThreshold || "No"}
+            </button>
           </div>
         </div>
 

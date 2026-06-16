@@ -15,6 +15,7 @@ const tdsNatureOfPayment = sqliteTable('tds_nature_of_payment', {
   rateOtherWithPan: real('rate_other_with_pan').default(0),
   isZeroRated: integer('is_zero_rated').default(0),
   thresholdLimit: real('threshold_limit').default(0),
+  calculateTaxOnExceedingThreshold: integer('calculate_tax_on_exceeding_threshold').default(0),
   isPredefined: integer('is_predefined').default(0),
   isActive: integer('is_active').default(1),
   createdAt: text('created_at').default(sql`(datetime('now'))`),

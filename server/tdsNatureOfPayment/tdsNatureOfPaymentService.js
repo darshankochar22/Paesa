@@ -31,6 +31,7 @@ module.exports = {
           rateOtherWithPan: data.rate_other_with_pan ?? 0,
           isZeroRated: data.is_zero_rated ?? 0,
           thresholdLimit: data.threshold_limit ?? 0,
+          calculateTaxOnExceedingThreshold: data.calculate_tax_on_exceeding_threshold ?? 0,
           isPredefined: 0,
           isActive: 1,
         })
@@ -85,6 +86,7 @@ module.exports = {
           rateOtherWithPan: data.rate_other_with_pan ?? c.rate_other_with_pan,
           isZeroRated: data.is_zero_rated ?? c.is_zero_rated,
           thresholdLimit: data.threshold_limit ?? c.threshold_limit,
+          calculateTaxOnExceedingThreshold: data.calculate_tax_on_exceeding_threshold ?? c.calculate_tax_on_exceeding_threshold,
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(tdsNatureOfPayment.tdsId, data.tds_id));
