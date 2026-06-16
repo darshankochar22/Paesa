@@ -1,0 +1,450 @@
+openapi: 3.1.0
+info:
+  title: payrollUnit module API
+  version: 1.0.0
+  description: >
+    IPC contract for the payrollUnit backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps 1:1 to an `ipcMain.handle` channel
+    registered in server/index.js and is exposed to the renderer via
+    window.api.payrollUnit.<method> (see preload.js).
+
+    Transport note: these are not real HTTP endpoints. They are Electron IPC
+    channels modeled as POST operations so the contract can be rendered/merged
+    with the rest of the API docs. The "path" is synthesized as
+    /{namespace}/{action} from the channel string.
+
+    Note: every operation returns 200 at the IPC layer. The service catches
+    errors and returns `{ success: false, error: string }` in the same payload
+    rather than throwing. The Error schema documents the unexpected-failure shape.
+tags:
+  - name: payrollUnit
+    description: Payroll unit (unit of measure for payroll) master data per company.
+
+paths:
+  /payrollUnit/create:
+    post:
+      tags: [payrollUnit]
+      summary: Create a new (non-predefined) payroll unit for a company.
+      operationId: payrollUnit.create
+      x-ipc-channel: "payrollUnit:create"
+      x-window-api: "window.api.payrollUnit.create"
+      x-controller: "payrollUnitController.create"
+      description: >
+        Inserts a payroll unit. Rejects (success=false) if an active unit with
+        the same name (case-insensitive) already exists for the company.
+        is_active is forced to 1 and is_predefined to 0 on insert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayrollUnitCreateInput'
+      responses:
+        '200':
+          description: Result envelope with the created unit, or a validation error.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PayrollUnitSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected server/database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payrollUnit/getAll:
+    post:
+      tags: [payrollUnit]
+      summary: List all active payroll units for a company.
+      operationId: payrollUnit.getAll
+      x-ipc-channel: "payrollUnit:getAll"
+      x-window-api: "window.api.payrollUnit.getAll"
+      x-controller: "payrollUnitController.getAll"
+      description: >
+        Returns all payroll_units rows for the given company_id where
+        is_active = 1. The handler receives a bare company_id scalar as its
+        second argument.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: Result envelope containing the list of active payroll units.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PayrollUnitListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected server/database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payrollUnit/getById:
+    post:
+      tags: [payrollUnit]
+      summary: Fetch a single payroll unit by its primary key.
+      operationId: payrollUnit.getById
+      x-ipc-channel: "payrollUnit:getById"
+      x-window-api: "window.api.payrollUnit.getById"
+      x-controller: "payrollUnitController.getById"
+      description: >
+        Returns the payroll_units row matching payroll_unit_id (active or not).
+        The handler receives a bare id scalar as its second argument.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayrollUnitIdInput'
+      responses:
+        '200':
+          description: Result envelope with the unit, or not-found failure.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PayrollUnitSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected server/database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payrollUnit/update:
+    post:
+      tags: [payrollUnit]
+      summary: Update an existing (non-predefined) payroll unit.
+      operationId: payrollUnit.update
+      x-ipc-channel: "payrollUnit:update"
+      x-window-api: "window.api.payrollUnit.update"
+      x-controller: "payrollUnitController.update"
+      description: >
+        Updates editable fields of a payroll unit identified by payroll_unit_id.
+        Fails (success=false) if the unit does not exist or is predefined
+        (is_predefined = 1). Any omitted field falls back to its current value.
+        updated_at is refreshed to now.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayrollUnitUpdateInput'
+      responses:
+        '200':
+          description: Result envelope with the updated unit, or a failure.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PayrollUnitSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected server/database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payrollUnit/delete:
+    post:
+      tags: [payrollUnit]
+      summary: Soft-delete a (non-predefined) payroll unit.
+      operationId: payrollUnit.delete
+      x-ipc-channel: "payrollUnit:delete"
+      x-window-api: "window.api.payrollUnit.delete"
+      x-controller: "payrollUnitController.delete"
+      description: >
+        Soft delete: sets is_active = 0 for the given payroll_unit_id. The row is
+        NOT physically removed. Fails (success=false) if the unit does not exist
+        or is predefined (is_predefined = 1). Handler receives a bare id scalar.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayrollUnitIdInput'
+      responses:
+        '200':
+          description: Success flag, or a failure with reason.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Unexpected server/database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    PayrollUnit:
+      type: object
+      description: >
+        A row of the payroll_units table. A payroll unit is a unit of measure
+        used in payroll (Days, Hours, Pieces, etc.) scoped to a company.
+      properties:
+        payroll_unit_id:
+          type: integer
+          description: Primary key (SQLite INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        name:
+          type: string
+          description: Unit name (e.g. "Hours"). NOT NULL.
+        symbol:
+          type: [string, 'null']
+          description: Short symbol (e.g. "Hrs").
+        formal_name:
+          type: [string, 'null']
+          description: Formal/long name of the unit.
+        unit_type:
+          type: string
+          description: Unit type. Defaults to "Simple".
+          default: Simple
+        decimal_places:
+          type: integer
+          description: Number of decimal places for quantities. Defaults to 0.
+          default: 0
+        first_unit:
+          type: [string, 'null']
+          description: First unit (for compound units).
+        conversion:
+          type: [number, 'null']
+          description: Conversion factor between first_unit and second_unit.
+        second_unit:
+          type: [string, 'null']
+          description: Second unit (for compound units).
+        is_active:
+          type: integer
+          description: >
+            Active flag stored as 0/1 (boolean in Postgres). 1 = active,
+            0 = soft-deleted. Defaults to 1.
+          enum: [0, 1]
+          default: 1
+        is_predefined:
+          type: integer
+          description: >
+            Predefined/system flag stored as 0/1 (boolean in Postgres). 1 =
+            seeded default (cannot be edited/deleted), 0 = user-created.
+            Defaults to 0.
+          enum: [0, 1]
+          default: 0
+        created_at:
+          type: string
+          description: Creation timestamp, ISO-8601 string (datetime('now')).
+        updated_at:
+          type: string
+          description: Last update timestamp, ISO-8601 string (datetime('now')).
+      required:
+        - payroll_unit_id
+        - company_id
+        - name
+
+    PayrollUnitCreateInput:
+      type: object
+      description: Payload destructured by payrollUnitService.create(data).
+      properties:
+        company_id:
+          type: integer
+          description: Owning company id. Required.
+        name:
+          type: string
+          description: Unit name. Required (uniqueness checked case-insensitively per company among active units).
+        symbol:
+          type: [string, 'null']
+          description: Short symbol.
+        formal_name:
+          type: [string, 'null']
+          description: Formal name. Defaults to null when omitted.
+        unit_type:
+          type: string
+          description: Defaults to "Simple" when omitted.
+          default: Simple
+        decimal_places:
+          type: integer
+          description: Defaults to 0 when omitted (uses `?? 0`).
+          default: 0
+        first_unit:
+          type: [string, 'null']
+          description: First unit. Defaults to null when omitted.
+        conversion:
+          type: [number, 'null']
+          description: Conversion factor. Defaults to null when omitted/falsy.
+        second_unit:
+          type: [string, 'null']
+          description: Second unit. Defaults to null when omitted.
+      required:
+        - company_id
+        - name
+
+    PayrollUnitUpdateInput:
+      type: object
+      description: >
+        Payload destructured by payrollUnitService.update(data). All fields
+        except payroll_unit_id are optional; any omitted field (`?? current`)
+        keeps its existing value.
+      properties:
+        payroll_unit_id:
+          type: integer
+          description: Primary key of the unit to update. Required.
+        name:
+          type: string
+        symbol:
+          type: [string, 'null']
+        formal_name:
+          type: [string, 'null']
+        unit_type:
+          type: string
+        decimal_places:
+          type: integer
+        first_unit:
+          type: [string, 'null']
+        conversion:
+          type: [number, 'null']
+        second_unit:
+          type: [string, 'null']
+      required:
+        - payroll_unit_id
+
+    CompanyIdInput:
+      type: object
+      description: >
+        The getAll handler receives a bare company_id scalar as its second IPC
+        argument. Modeled here with a single named property.
+      properties:
+        company_id:
+          type: integer
+          description: Company id to list active payroll units for.
+      required:
+        - company_id
+
+    PayrollUnitIdInput:
+      type: object
+      description: >
+        The getById / delete handlers receive a bare id scalar (the
+        payroll_unit_id) as their second IPC argument. Modeled here with a
+        single named property.
+      properties:
+        id:
+          type: integer
+          description: payroll_unit_id of the target row.
+      required:
+        - id
+
+    PayrollUnitSingleResult:
+      type: object
+      description: Success envelope wrapping a single payroll unit (key `unit`).
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        unit:
+          $ref: '#/components/schemas/PayrollUnit'
+      required:
+        - success
+        - unit
+
+    PayrollUnitListResult:
+      type: object
+      description: Success envelope wrapping the list of payroll units (key `payrollUnits`).
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        payrollUnits:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollUnit'
+      required:
+        - success
+        - payrollUnits
+
+    SuccessResult:
+      type: object
+      description: Minimal success envelope (returned by delete on success).
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+      required:
+        - success
+
+    FailureResult:
+      type: object
+      description: >
+        In-band failure envelope. Returned by the service for validation
+        failures (e.g. "Payroll Unit already exists", "Payroll Unit not found",
+        "Cannot edit predefined payroll units") and for caught exceptions
+        (error = err.message). The IPC status is still 200.
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: string
+          description: Human-readable failure reason.
+      required:
+        - success
+        - error
+
+    Error:
+      type: object
+      description: >
+        Shared error schema for unexpected transport-level failures. The service
+        itself surfaces errors via FailureResult (HTTP 200); this schema is the
+        canonical out-of-band error shape used across modules.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message

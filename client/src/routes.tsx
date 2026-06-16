@@ -82,6 +82,7 @@ import TCSNatureOfGoodsCOA from "./pages/master/statutory/tcs-nature-of-goods/TC
 import TDSNatureOfPaymentCreate from "./pages/master/statutory/tds-nature-of-payment/TDSNatureOfPaymentCreate.tsx";
 import TDSNatureOfPaymentAlter from "./pages/master/statutory/tds-nature-of-payment/TDSNatureOfPaymentAlter.tsx";
 import TDSNatureOfPaymentCOA from "./pages/master/statutory/tds-nature-of-payment/TDSNatureOfPaymentCOA.tsx";
+import TrackGSTReturnActivities from "./pages/master/statutory/gst-return/TrackGSTReturnActivities.tsx";
 import GSTR1View from "./pages/master/statutory/gst-return/GSTR1View.tsx";
 import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
 import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
@@ -196,6 +197,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter/tds-nature-of-payment", element: <TDSNatureOfPaymentAlter /> },
   { path: "/master/coa/tds-nature-of-payment", element: <TDSNatureOfPaymentCOA /> },
 
+  { path: "/master/statutory/gst/track-activities", element: <TrackGSTReturnActivities /> },
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
 
   { path: "/master/create/tax-units", element: <TaxCreate /> },

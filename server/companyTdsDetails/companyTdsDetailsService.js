@@ -1,17 +1,20 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { companyTdsDetails } = require('../db/schema');
 
 const get = async (company_id) => {
   try {
-    const result = await db.execute({
-      sql: `SELECT * FROM company_tds_details WHERE company_id = ? LIMIT 1`,
-      args: [company_id],
-    });
+    const rows = await db.all(
+      sql`SELECT * FROM ${companyTdsDetails}
+          WHERE ${companyTdsDetails.companyId} = ${company_id}
+          LIMIT 1`
+    );
 
-    if (!result.rows || result.rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return { success: true, exists: false, data: null };
     }
 
-    const record = result.rows[0];
+    const record = rows[0];
     return {
       success: true,
       exists: true,
@@ -44,78 +47,48 @@ const save = async (data) => {
     }
 
     // Check if record exists
-    const existing = await db.execute({
-      sql: `SELECT company_id FROM company_tds_details WHERE company_id = ? LIMIT 1`,
-      args: [company_id],
-    });
+    const existing = await db.all(
+      sql`SELECT ${companyTdsDetails.companyId} FROM ${companyTdsDetails}
+          WHERE ${companyTdsDetails.companyId} = ${company_id}
+          LIMIT 1`
+    );
 
-    if (existing.rows && existing.rows.length > 0) {
+    if (existing && existing.length > 0) {
       // UPDATE
-      await db.execute({
-        sql: `UPDATE company_tds_details SET
-                tan_reg_number = ?,
-                tan = ?,
-                deductor_type = ?,
-                deductor_branch = ?,
-                set_alter_person_responsible = ?,
-                person_responsible_name = ?,
-                person_responsible_designation = ?,
-                person_responsible_pan = ?,
-                person_responsible_phone = ?,
-                person_responsible_email = ?,
-                ignore_it_exemption = ?,
-                activate_tds_for_items = ?,
-                updated_at = datetime('now')
-              WHERE company_id = ?`,
-        args: [
-          data.tanRegNumber || null,
-          data.tan || null,
-          data.deductorType || 'Company',
-          data.deductorBranch || null,
-          data.setAlterPersonResponsible ? 1 : 0,
-          data.personResponsibleName || null,
-          data.personResponsibleDesignation || null,
-          data.personResponsiblePan || null,
-          data.personResponsiblePhone || null,
-          data.personResponsibleEmail || null,
-          data.ignoreItExemption ? 1 : 0,
-          data.activateTdsForItems ? 1 : 0,
-          company_id,
-        ],
-      });
+      await db
+        .update(companyTdsDetails)
+        .set({
+          tanRegNumber: data.tanRegNumber || null,
+          tan: data.tan || null,
+          deductorType: data.deductorType || 'Company',
+          deductorBranch: data.deductorBranch || null,
+          setAlterPersonResponsible: data.setAlterPersonResponsible ? 1 : 0,
+          personResponsibleName: data.personResponsibleName || null,
+          personResponsibleDesignation: data.personResponsibleDesignation || null,
+          personResponsiblePan: data.personResponsiblePan || null,
+          personResponsiblePhone: data.personResponsiblePhone || null,
+          personResponsibleEmail: data.personResponsibleEmail || null,
+          ignoreItExemption: data.ignoreItExemption ? 1 : 0,
+          activateTdsForItems: data.activateTdsForItems ? 1 : 0,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(companyTdsDetails.companyId, company_id));
     } else {
       // INSERT
-      await db.execute({
-        sql: `INSERT INTO company_tds_details (
-                company_id,
-                tan_reg_number,
-                tan,
-                deductor_type,
-                deductor_branch,
-                set_alter_person_responsible,
-                person_responsible_name,
-                person_responsible_designation,
-                person_responsible_pan,
-                person_responsible_phone,
-                person_responsible_email,
-                ignore_it_exemption,
-                activate_tds_for_items
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          company_id,
-          data.tanRegNumber || null,
-          data.tan || null,
-          data.deductorType || 'Company',
-          data.deductorBranch || null,
-          data.setAlterPersonResponsible ? 1 : 0,
-          data.personResponsibleName || null,
-          data.personResponsibleDesignation || null,
-          data.personResponsiblePan || null,
-          data.personResponsiblePhone || null,
-          data.personResponsibleEmail || null,
-          data.ignoreItExemption ? 1 : 0,
-          data.activateTdsForItems ? 1 : 0,
-        ],
+      await db.insert(companyTdsDetails).values({
+        companyId: company_id,
+        tanRegNumber: data.tanRegNumber || null,
+        tan: data.tan || null,
+        deductorType: data.deductorType || 'Company',
+        deductorBranch: data.deductorBranch || null,
+        setAlterPersonResponsible: data.setAlterPersonResponsible ? 1 : 0,
+        personResponsibleName: data.personResponsibleName || null,
+        personResponsibleDesignation: data.personResponsibleDesignation || null,
+        personResponsiblePan: data.personResponsiblePan || null,
+        personResponsiblePhone: data.personResponsiblePhone || null,
+        personResponsibleEmail: data.personResponsibleEmail || null,
+        ignoreItExemption: data.ignoreItExemption ? 1 : 0,
+        activateTdsForItems: data.activateTdsForItems ? 1 : 0,
       });
     }
 

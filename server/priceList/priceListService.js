@@ -1,22 +1,38 @@
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { priceLists, priceListLines } = require('../db/schema');
 
-const INSERT_PRICE_LIST_SQL = `
-  INSERT INTO price_lists (
-    company_id, stock_group, price_level, applicable_from, is_active
-  ) VALUES (
-    :company_id, :stock_group, :price_level, :applicable_from, 1
-  )
-`;
+// Fetch a single price_lists row in the legacy snake_case shape (or undefined).
+const findHeader = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${priceLists} WHERE ${whereSql}`);
+  return rows[0];
+};
 
-const INSERT_LINE_SQL = `
-  INSERT INTO price_list_lines (
-    price_list_id, item_id, particulars,
-    qty_from, qty_less_than, rate, disc_percent, sort_order
-  ) VALUES (
-    :price_list_id, :item_id, :particulars,
-    :qty_from, :qty_less_than, :rate, :disc_percent, :sort_order
-  )
-`;
+// Fetch all line rows for a price list in the legacy snake_case shape, ordered.
+const findLines = async (price_list_id) => {
+  return db.all(
+    sql`SELECT * FROM ${priceListLines}
+        WHERE ${priceListLines.priceListId} = ${price_list_id}
+        ORDER BY ${priceListLines.sortOrder} ASC`
+  );
+};
+
+// Insert the lines for a price list (shared by create + update).
+const insertLines = async (price_list_id, lines) => {
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    await db.insert(priceListLines).values({
+      priceListId: price_list_id,
+      itemId: l.item_id ?? null,
+      particulars: l.particulars,
+      qtyFrom: l.qty_from ?? 0,
+      qtyLessThan: l.qty_less_than ?? 0,
+      rate: l.rate ?? 0,
+      discPercent: l.disc_percent ?? 0,
+      sortOrder: i,
+    });
+  }
+};
 
 module.exports = {
 
@@ -31,49 +47,29 @@ module.exports = {
                             return { success: false, error: 'At least one line is required.' };
 
       // Insert header
-      const headerResult = await db.execute({
-        sql: INSERT_PRICE_LIST_SQL,
-        args: {
-          company_id,
-          stock_group:     stock_group || 'All Items',
-          price_level,
-          applicable_from,
-        },
-      });
+      const inserted = await db
+        .insert(priceLists)
+        .values({
+          companyId: company_id,
+          stockGroup: stock_group || 'All Items',
+          priceLevel: price_level,
+          applicableFrom: applicable_from,
+          isActive: 1,
+        })
+        .returning({ id: priceLists.priceListId });
 
-      const price_list_id = Number(headerResult.lastInsertRowid);
+      const price_list_id = Number(inserted[0].id);
 
       // Insert lines
-      for (let i = 0; i < lines.length; i++) {
-        const l = lines[i];
-        await db.execute({
-          sql: INSERT_LINE_SQL,
-          args: {
-            price_list_id,
-            item_id:       l.item_id       ?? null,
-            particulars:   l.particulars,
-            qty_from:      l.qty_from       ?? 0,
-            qty_less_than: l.qty_less_than  ?? 0,
-            rate:          l.rate           ?? 0,
-            disc_percent:  l.disc_percent   ?? 0,
-            sort_order:    i,
-          },
-        });
-      }
+      await insertLines(price_list_id, lines);
 
       // Fetch full record to return
-      const fetchResult = await db.execute({
-        sql: `SELECT * FROM price_lists WHERE price_list_id = ?`,
-        args: [price_list_id],
-      });
-      const fetchLines = await db.execute({
-        sql: `SELECT * FROM price_list_lines WHERE price_list_id = ? ORDER BY sort_order ASC`,
-        args: [price_list_id],
-      });
+      const header = await findHeader(sql`${priceLists.priceListId} = ${price_list_id}`);
+      const fetchLines = await findLines(price_list_id);
 
       return {
         success: true,
-        data: { ...fetchResult.rows[0], lines: fetchLines.rows },
+        data: { ...header, lines: fetchLines },
       };
     } catch (err) {
       return { success: false, error: err.message };
@@ -82,23 +78,18 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `
-          SELECT * FROM price_lists
-          WHERE company_id = ? AND is_active = 1
-          ORDER BY applicable_from DESC, price_list_id DESC
-        `,
-        args: [company_id],
-      });
+      const rows = await db.all(
+        sql`SELECT * FROM ${priceLists}
+            WHERE ${priceLists.companyId} = ${company_id}
+              AND ${priceLists.isActive} = 1
+            ORDER BY ${priceLists.applicableFrom} DESC, ${priceLists.priceListId} DESC`
+      );
 
       // Attach lines to each record
       const records = [];
-      for (const row of result.rows) {
-        const linesResult = await db.execute({
-          sql: `SELECT * FROM price_list_lines WHERE price_list_id = ? ORDER BY sort_order ASC`,
-          args: [row.price_list_id],
-        });
-        records.push({ ...row, lines: linesResult.rows });
+      for (const row of rows) {
+        const lines = await findLines(row.price_list_id);
+        records.push({ ...row, lines });
       }
 
       return { success: true, data: records };
@@ -109,22 +100,18 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM price_lists WHERE price_list_id = ? AND is_active = 1`,
-        args: [id],
-      });
+      const header = await findHeader(
+        sql`${priceLists.priceListId} = ${id} AND ${priceLists.isActive} = 1`
+      );
 
-      if (result.rows.length === 0)
+      if (!header)
         return { success: false, error: 'Price list not found.' };
 
-      const linesResult = await db.execute({
-        sql: `SELECT * FROM price_list_lines WHERE price_list_id = ? ORDER BY sort_order ASC`,
-        args: [id],
-      });
+      const lines = await findLines(id);
 
       return {
         success: true,
-        data: { ...result.rows[0], lines: linesResult.rows },
+        data: { ...header, lines },
       };
     } catch (err) {
       return { success: false, error: err.message };
@@ -142,62 +129,37 @@ module.exports = {
                             return { success: false, error: 'At least one line is required.' };
 
       // Check exists
-      const checkResult = await db.execute({
-        sql: `SELECT * FROM price_lists WHERE price_list_id = ? AND is_active = 1`,
-        args: [id],
-      });
-      if (checkResult.rows.length === 0)
+      const existing = await findHeader(
+        sql`${priceLists.priceListId} = ${id} AND ${priceLists.isActive} = 1`
+      );
+      if (!existing)
         return { success: false, error: 'Price list not found.' };
 
       // Update header
-      await db.execute({
-        sql: `
-          UPDATE price_lists SET
-            stock_group     = ?,
-            price_level     = ?,
-            applicable_from = ?,
-            updated_at      = datetime('now')
-          WHERE price_list_id = ?
-        `,
-        args: [stock_group || 'All Items', price_level, applicable_from, id],
-      });
+      await db
+        .update(priceLists)
+        .set({
+          stockGroup: stock_group || 'All Items',
+          priceLevel: price_level,
+          applicableFrom: applicable_from,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(priceLists.priceListId, id));
 
       // Delete old lines and re-insert (clean replace)
-      await db.execute({
-        sql: `DELETE FROM price_list_lines WHERE price_list_id = ?`,
-        args: [id],
-      });
+      await db
+        .delete(priceListLines)
+        .where(eq(priceListLines.priceListId, id));
 
-      for (let i = 0; i < lines.length; i++) {
-        const l = lines[i];
-        await db.execute({
-          sql: INSERT_LINE_SQL,
-          args: {
-            price_list_id: id,
-            item_id:       l.item_id       ?? null,
-            particulars:   l.particulars,
-            qty_from:      l.qty_from       ?? 0,
-            qty_less_than: l.qty_less_than  ?? 0,
-            rate:          l.rate           ?? 0,
-            disc_percent:  l.disc_percent   ?? 0,
-            sort_order:    i,
-          },
-        });
-      }
+      await insertLines(id, lines);
 
       // Fetch updated record
-      const updatedResult = await db.execute({
-        sql: `SELECT * FROM price_lists WHERE price_list_id = ?`,
-        args: [id],
-      });
-      const updatedLines = await db.execute({
-        sql: `SELECT * FROM price_list_lines WHERE price_list_id = ? ORDER BY sort_order ASC`,
-        args: [id],
-      });
+      const updatedHeader = await findHeader(sql`${priceLists.priceListId} = ${id}`);
+      const updatedLines = await findLines(id);
 
       return {
         success: true,
-        data: { ...updatedResult.rows[0], lines: updatedLines.rows },
+        data: { ...updatedHeader, lines: updatedLines },
       };
     } catch (err) {
       return { success: false, error: err.message };
@@ -206,18 +168,17 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const checkResult = await db.execute({
-        sql: `SELECT * FROM price_lists WHERE price_list_id = ? AND is_active = 1`,
-        args: [id],
-      });
-      if (checkResult.rows.length === 0)
+      const existing = await findHeader(
+        sql`${priceLists.priceListId} = ${id} AND ${priceLists.isActive} = 1`
+      );
+      if (!existing)
         return { success: false, error: 'Price list not found.' };
 
       // Soft delete header (lines kept for audit; cascade handles hard delete)
-      await db.execute({
-        sql: `UPDATE price_lists SET is_active = 0, updated_at = datetime('now') WHERE price_list_id = ?`,
-        args: [id],
-      });
+      await db
+        .update(priceLists)
+        .set({ isActive: 0, updatedAt: sql`datetime('now')` })
+        .where(eq(priceLists.priceListId, id));
 
       return { success: true };
     } catch (err) {

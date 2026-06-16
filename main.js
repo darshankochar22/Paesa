@@ -31,6 +31,16 @@ app.whenReady().then(async () => {
         console.log('db type:', typeof db);
         console.log('db.execute type:', typeof db?.execute);
         require('./server/index.js');
+
+        // Dev-only: serve auto-generated API docs at http://localhost:5180/docs
+        // (uses the correctly-spelled app.isPackaged so it never ships in production builds).
+        if (!app.isPackaged) {
+            require('./server/docs/server')
+                .startDocsServer({ port: 5180 })
+                .then(() => console.log('API docs: http://localhost:5180/docs'))
+                .catch((e) => console.error('Docs server failed to start:', e));
+        }
+
         createWindow();
     } catch (err) {
         console.error('DB init failed:', err);

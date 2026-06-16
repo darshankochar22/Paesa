@@ -1,5 +1,7 @@
 const https = require('https');
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { einvoiceRecords, einvoiceCredentials } = require('../db/schema');
 
 const SANDBOX_HOST = 'einv-apisandbox.nic.in';
 
@@ -123,29 +125,24 @@ const generateIRN = async (company_id, voucher_id, invoice_payload, creds) => {
       const d = res.body.Data;
 
       // Save to DB
-      await db.execute(
-        `INSERT INTO einvoice_records (
-          company_id, voucher_id, invoice_number, invoice_date,
-          buyer_gstin, irn, ack_no, ack_dt,
-          signed_invoice, signed_qr_code,
-          ewb_no, ewb_dt, status, raw_response
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'GENERATED', ?)`,
-        [
-          company_id,
-          voucher_id || null,
-          invoice_payload.DocDtls?.No,
-          invoice_payload.DocDtls?.Dt,
-          invoice_payload.BuyerDtls?.Gstin,
-          d.Irn,
-          d.AckNo,
-          d.AckDt,
-          d.SignedInvoice,
-          d.SignedQRCode,
-          d.EwbNo   || null,
-          d.EwbDt   || null,
-          JSON.stringify(res.body),
-        ]
-      );
+      await db
+        .insert(einvoiceRecords)
+        .values({
+          companyId: company_id,
+          voucherId: voucher_id || null,
+          invoiceNumber: invoice_payload.DocDtls?.No,
+          invoiceDate: invoice_payload.DocDtls?.Dt,
+          buyerGstin: invoice_payload.BuyerDtls?.Gstin,
+          irn: d.Irn,
+          ackNo: d.AckNo,
+          ackDt: d.AckDt,
+          signedInvoice: d.SignedInvoice,
+          signedQrCode: d.SignedQRCode,
+          ewbNo: d.EwbNo || null,
+          ewbDt: d.EwbDt || null,
+          status: 'GENERATED',
+          rawResponse: JSON.stringify(res.body),
+        });
 
       return { success: true, data: d };
     }
@@ -189,16 +186,16 @@ const cancelIRN = async (irn, cancel_reason, cancel_remarks, creds) => {
     );
 
     if (res.body?.Status === '1') {
-      await db.execute(
-        `UPDATE einvoice_records SET
-          status = 'CANCELLED',
-          cancel_reason = ?,
-          cancel_remarks = ?,
-          cancelled_at = datetime('now'),
-          updated_at = datetime('now')
-        WHERE irn = ?`,
-        [cancel_reason, cancel_remarks, irn]
-      );
+      await db
+        .update(einvoiceRecords)
+        .set({
+          status: 'CANCELLED',
+          cancelReason: cancel_reason,
+          cancelRemarks: cancel_remarks,
+          cancelledAt: sql`datetime('now')`,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(einvoiceRecords.irn, irn));
       return { success: true, data: res.body.Data };
     }
 
@@ -213,29 +210,36 @@ const cancelIRN = async (irn, cancel_reason, cancel_remarks, creds) => {
 
 const saveCredentials = async (data) => {
   try {
-    const existing = await db.execute(
-      `SELECT * FROM einvoice_credentials WHERE company_id = ?`,
-      [data.company_id]
+    const existing = await db.all(
+      sql`SELECT * FROM ${einvoiceCredentials}
+          WHERE ${einvoiceCredentials.companyId} = ${data.company_id}`
     );
 
-    if (existing.rows.length > 0) {
-      await db.execute(
-        `UPDATE einvoice_credentials SET
-          client_id = ?, client_secret = ?, username = ?,
-          password = ?, app_key = ?, is_sandbox = ?,
-          updated_at = datetime('now')
-        WHERE company_id = ?`,
-        [data.client_id, data.client_secret, data.username,
-         data.password, data.app_key, data.is_sandbox ?? 1, data.company_id]
-      );
+    if (existing.length > 0) {
+      await db
+        .update(einvoiceCredentials)
+        .set({
+          clientId: data.client_id,
+          clientSecret: data.client_secret,
+          username: data.username,
+          password: data.password,
+          appKey: data.app_key,
+          isSandbox: data.is_sandbox ?? 1,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(einvoiceCredentials.companyId, data.company_id));
     } else {
-      await db.execute(
-        `INSERT INTO einvoice_credentials
-          (company_id, client_id, client_secret, username, password, app_key, is_sandbox)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [data.company_id, data.client_id, data.client_secret,
-         data.username, data.password, data.app_key, data.is_sandbox ?? 1]
-      );
+      await db
+        .insert(einvoiceCredentials)
+        .values({
+          companyId: data.company_id,
+          clientId: data.client_id,
+          clientSecret: data.client_secret,
+          username: data.username,
+          password: data.password,
+          appKey: data.app_key,
+          isSandbox: data.is_sandbox ?? 1,
+        });
     }
     return { success: true };
   } catch (err) {
@@ -245,12 +249,12 @@ const saveCredentials = async (data) => {
 
 const getCredentials = async (company_id) => {
   try {
-    const res = await db.execute(
-      `SELECT * FROM einvoice_credentials WHERE company_id = ?`,
-      [company_id]
+    const rows = await db.all(
+      sql`SELECT * FROM ${einvoiceCredentials}
+          WHERE ${einvoiceCredentials.companyId} = ${company_id}`
     );
-    if (res.rows.length === 0) return { success: false, error: 'No credentials found' };
-    return { success: true, credentials: res.rows[0] };
+    if (rows.length === 0) return { success: false, error: 'No credentials found' };
+    return { success: true, credentials: rows[0] };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -258,11 +262,12 @@ const getCredentials = async (company_id) => {
 
 const getRecords = async (company_id) => {
   try {
-    const res = await db.execute(
-      `SELECT * FROM einvoice_records WHERE company_id = ? ORDER BY created_at DESC`,
-      [company_id]
+    const rows = await db.all(
+      sql`SELECT * FROM ${einvoiceRecords}
+          WHERE ${einvoiceRecords.companyId} = ${company_id}
+          ORDER BY ${einvoiceRecords.createdAt} DESC`
     );
-    return { success: true, records: res.rows };
+    return { success: true, records: rows };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -270,12 +275,12 @@ const getRecords = async (company_id) => {
 
 const getRecordByIRN = async (irn) => {
   try {
-    const res = await db.execute(
-      `SELECT * FROM einvoice_records WHERE irn = ?`,
-      [irn]
+    const rows = await db.all(
+      sql`SELECT * FROM ${einvoiceRecords}
+          WHERE ${einvoiceRecords.irn} = ${irn}`
     );
-    if (res.rows.length === 0) return { success: false, error: 'Record not found' };
-    return { success: true, record: res.rows[0] };
+    if (rows.length === 0) return { success: false, error: 'Record not found' };
+    return { success: true, record: rows[0] };
   } catch (err) {
     return { success: false, error: err.message };
   }

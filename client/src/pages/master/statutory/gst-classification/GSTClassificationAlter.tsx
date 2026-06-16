@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel } from "@/components/ui";
@@ -9,6 +9,8 @@ import GSTClassificationSelectionPanel from "./components/GSTClassificationSelec
 export default function GSTClassificationAlter() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
+  const [activeField, setActiveField] = useState<string>("name");
+  const [showAccept, setShowAccept] = useState(false);
 
   const {
     form,
@@ -30,6 +32,22 @@ export default function GSTClassificationAlter() {
   } = useGSTClassificationForm({ mode: "alter" });
 
   useEffect(() => {
+    if (showAccept) {
+      const handler = (e: KeyboardEvent) => {
+        const key = e.key.toLowerCase();
+        if (key === "y" || e.key === "Enter") {
+          e.preventDefault();
+          setShowAccept(false);
+          handleSubmit();
+        } else if (key === "n" || e.key === "Escape") {
+          e.preventDefault();
+          setShowAccept(false);
+        }
+      };
+      window.addEventListener("keydown", handler);
+      return () => window.removeEventListener("keydown", handler);
+    }
+
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -41,7 +59,7 @@ export default function GSTClassificationAlter() {
       }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        handleSubmit();
+        setShowAccept(true);
       }
       if (e.altKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
@@ -50,7 +68,7 @@ export default function GSTClassificationAlter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, handleDelete, navigate, selectedClass, handleBack]);
+  }, [handleSubmit, handleDelete, navigate, selectedClass, handleBack, showAccept]);
 
   if (!selectedClass) {
     return (
@@ -66,13 +84,13 @@ export default function GSTClassificationAlter() {
   const isPredefined = selectedClass.is_predefined === 1;
 
   const alterActions = [
-    ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: handleSubmit }]),
+    ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) }]),
     ...(isPredefined ? [] : [{ key: "Alt+D", label: "Delete", onClick: handleDelete }]),
     { key: "Esc", label: "Back", onClick: handleBack },
   ];
 
   return (
-    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none font-sans">
+    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none font-mono">
       <PageTitleBar
         title={`GST Classification Alteration: ${selectedClass.name}`}
         subtitle={selectedCompany?.name}
@@ -104,6 +122,9 @@ export default function GSTClassificationAlter() {
           updateSlabRow={updateSlabRow}
           removeSlabRow={removeSlabRow}
           isPredefined={isPredefined}
+          activeField={activeField}
+          setActiveField={setActiveField}
+          onSubmitPrompt={() => setShowAccept(true)}
         />
         <RightActionPanel actions={alterActions} />
       </div>
@@ -127,7 +148,7 @@ export default function GSTClassificationAlter() {
           </button>
           {!isPredefined && (
             <button
-              onClick={handleSubmit}
+              onClick={() => setShowAccept(true)}
               disabled={loading}
               className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium font-sans"
             >
@@ -136,6 +157,30 @@ export default function GSTClassificationAlter() {
           )}
         </div>
       </div>
+
+      {showAccept && (
+        <div className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in">
+          <h4 className="font-bold text-zinc-900 text-[11px] mb-3">Accept?</h4>
+          <div className="flex items-center gap-3 w-full justify-center">
+            <button
+              onClick={() => {
+                setShowAccept(false);
+                handleSubmit();
+              }}
+              disabled={loading}
+              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => setShowAccept(false)}
+              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center transition-colors cursor-pointer"
+            >
+              No
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

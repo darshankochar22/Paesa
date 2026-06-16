@@ -1,4 +1,14 @@
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { payHeads, payHeadSlabLines, payHeadFormulaLines } = require('../db/schema');
+
+// Fetch a single pay_head row in the legacy snake_case shape (or undefined).
+const findPayHead = async (id) => {
+  const rows = await db.all(
+    sql`SELECT * FROM ${payHeads} WHERE ${payHeads.payHeadId} = ${id}`
+  );
+  return rows[0];
+};
 
 const seedDefaultPayHeads = async (company_id) => {
   const defaults = [
@@ -13,18 +23,20 @@ const seedDefaultPayHeads = async (company_id) => {
   ];
 
   for (const p of defaults) {
-    await db.execute(
-      `INSERT INTO pay_heads (
-        company_id, name, pay_head_type, calculation_type,
-        affects_net_salary, under_group, statutory_component,
-        percentage_or_amount, is_active, is_predefined
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1)`,
-      [
-        company_id, p.name, p.pay_head_type, p.calculation_type,
-        p.affects_net_salary, p.under_group, p.statutory_component,
-        p.percentage_or_amount,
-      ]
-    );
+    await db
+      .insert(payHeads)
+      .values({
+        companyId: company_id,
+        name: p.name,
+        payHeadType: p.pay_head_type,
+        calculationType: p.calculation_type,
+        affectsNetSalary: p.affects_net_salary,
+        underGroup: p.under_group,
+        statutoryComponent: p.statutory_component,
+        percentageOrAmount: p.percentage_or_amount,
+        isActive: 1,
+        isPredefined: 1,
+      });
   }
 };
 
@@ -33,47 +45,40 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute(
-        `SELECT * FROM pay_heads WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        [data.company_id, data.name]
+      const exists = await db.all(
+        sql`SELECT * FROM ${payHeads}
+            WHERE ${payHeads.companyId} = ${data.company_id}
+              AND LOWER(${payHeads.name}) = LOWER(${data.name})
+              AND ${payHeads.isActive} = 1`
       );
-      if (exists.rows.length > 0) return { success: false, error: 'Pay Head already exists' };
+      if (exists.length > 0) return { success: false, error: 'Pay Head already exists' };
 
-      const result = await db.execute(
-        `INSERT INTO pay_heads (
-          company_id, name, alias, pay_head_type, income_type,
-          under_group, affects_net_salary, payslip_display_name,
-          use_for_gratuity, set_alter_income_tax,
-          calculation_type, calculation_period,
-          rounding_method, rounding_limit,
-          statutory_component, percentage_or_amount,
-          is_active, is_predefined
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
-        [
-          data.company_id,
-          data.name,
-          data.alias || null,
-          data.pay_head_type || 'Earnings for Employees',
-          data.income_type || 'Fixed',
-          data.under_group || null,
-          data.affects_net_salary ?? 1,
-          data.payslip_display_name || null,
-          data.use_for_gratuity ?? 0,
-          data.set_alter_income_tax ?? 0,
-          data.calculation_type || 'As User Defined Value',
-          data.calculation_period || 'Months',
-          data.rounding_method || 'Not Applicable',
-          data.rounding_limit || 0,
-          data.statutory_component || null,
-          data.percentage_or_amount || 0,
-        ]
-      );
+      const inserted = await db
+        .insert(payHeads)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          alias: data.alias || null,
+          payHeadType: data.pay_head_type || 'Earnings for Employees',
+          incomeType: data.income_type || 'Fixed',
+          underGroup: data.under_group || null,
+          affectsNetSalary: data.affects_net_salary ?? 1,
+          payslipDisplayName: data.payslip_display_name || null,
+          useForGratuity: data.use_for_gratuity ?? 0,
+          setAlterIncomeTax: data.set_alter_income_tax ?? 0,
+          calculationType: data.calculation_type || 'As User Defined Value',
+          calculationPeriod: data.calculation_period || 'Months',
+          roundingMethod: data.rounding_method || 'Not Applicable',
+          roundingLimit: data.rounding_limit || 0,
+          statutoryComponent: data.statutory_component || null,
+          percentageOrAmount: data.percentage_or_amount || 0,
+          isActive: 1,
+          isPredefined: 0,
+        })
+        .returning({ id: payHeads.payHeadId });
 
-      const payHead = await db.execute(
-        `SELECT * FROM pay_heads WHERE pay_head_id = ?`,
-        [result.lastInsertRowid]
-      );
-      return { success: true, payHead: payHead.rows[0] };
+      const payHead = await findPayHead(inserted[0].id);
+      return { success: true, payHead };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -81,11 +86,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM pay_heads WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${payHeads}
+            WHERE ${payHeads.companyId} = ${company_id}
+              AND ${payHeads.isActive} = 1`
       );
-      return { success: true, payHeads: result.rows };
+      return { success: true, payHeads: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -93,12 +99,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM pay_heads WHERE pay_head_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'Pay Head not found' };
-      return { success: true, payHead: result.rows[0] };
+      const payHead = await findPayHead(id);
+      if (!payHead) return { success: false, error: 'Pay Head not found' };
+      return { success: true, payHead };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -106,49 +109,34 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM pay_heads WHERE pay_head_id = ?`,
-        [data.pay_head_id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Pay Head not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined pay heads' };
+      const current = await findPayHead(data.pay_head_id);
+      if (!current) return { success: false, error: 'Pay Head not found' };
+      if (current.is_predefined) return { success: false, error: 'Cannot edit predefined pay heads' };
 
-      const current = existing.rows[0];
-      await db.execute(
-        `UPDATE pay_heads SET
-          name = ?, alias = ?, pay_head_type = ?, income_type = ?,
-          under_group = ?, affects_net_salary = ?, payslip_display_name = ?,
-          use_for_gratuity = ?, set_alter_income_tax = ?,
-          calculation_type = ?, calculation_period = ?,
-          rounding_method = ?, rounding_limit = ?,
-          statutory_component = ?, percentage_or_amount = ?,
-          updated_at = datetime('now')
-         WHERE pay_head_id = ?`,
-        [
-          data.name ?? current.name,
-          data.alias ?? current.alias,
-          data.pay_head_type ?? current.pay_head_type,
-          data.income_type ?? current.income_type,
-          data.under_group ?? current.under_group,
-          data.affects_net_salary ?? current.affects_net_salary,
-          data.payslip_display_name ?? current.payslip_display_name,
-          data.use_for_gratuity ?? current.use_for_gratuity,
-          data.set_alter_income_tax ?? current.set_alter_income_tax,
-          data.calculation_type ?? current.calculation_type,
-          data.calculation_period ?? current.calculation_period,
-          data.rounding_method ?? current.rounding_method,
-          data.rounding_limit ?? current.rounding_limit,
-          data.statutory_component ?? current.statutory_component,
-          data.percentage_or_amount ?? current.percentage_or_amount,
-          data.pay_head_id,
-        ]
-      );
+      await db
+        .update(payHeads)
+        .set({
+          name: data.name ?? current.name,
+          alias: data.alias ?? current.alias,
+          payHeadType: data.pay_head_type ?? current.pay_head_type,
+          incomeType: data.income_type ?? current.income_type,
+          underGroup: data.under_group ?? current.under_group,
+          affectsNetSalary: data.affects_net_salary ?? current.affects_net_salary,
+          payslipDisplayName: data.payslip_display_name ?? current.payslip_display_name,
+          useForGratuity: data.use_for_gratuity ?? current.use_for_gratuity,
+          setAlterIncomeTax: data.set_alter_income_tax ?? current.set_alter_income_tax,
+          calculationType: data.calculation_type ?? current.calculation_type,
+          calculationPeriod: data.calculation_period ?? current.calculation_period,
+          roundingMethod: data.rounding_method ?? current.rounding_method,
+          roundingLimit: data.rounding_limit ?? current.rounding_limit,
+          statutoryComponent: data.statutory_component ?? current.statutory_component,
+          percentageOrAmount: data.percentage_or_amount ?? current.percentage_or_amount,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(payHeads.payHeadId, data.pay_head_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM pay_heads WHERE pay_head_id = ?`,
-        [data.pay_head_id]
-      );
-      return { success: true, payHead: updated.rows[0] };
+      const updated = await findPayHead(data.pay_head_id);
+      return { success: true, payHead: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -156,17 +144,14 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM pay_heads WHERE pay_head_id = ?`,
-        [id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Pay Head not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete predefined pay heads' };
+      const existing = await findPayHead(id);
+      if (!existing) return { success: false, error: 'Pay Head not found' };
+      if (existing.is_predefined) return { success: false, error: 'Cannot delete predefined pay heads' };
 
-      await db.execute(
-        `UPDATE pay_heads SET is_active = 0 WHERE pay_head_id = ?`,
-        [id]
-      );
+      await db
+        .update(payHeads)
+        .set({ isActive: 0 })
+        .where(eq(payHeads.payHeadId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -175,11 +160,12 @@ module.exports = {
 
   getSlabs: async (pay_head_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM pay_head_slab_lines WHERE pay_head_id = ? ORDER BY effective_from`,
-        [pay_head_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${payHeadSlabLines}
+            WHERE ${payHeadSlabLines.payHeadId} = ${pay_head_id}
+            ORDER BY ${payHeadSlabLines.effectiveFrom}`
       );
-      return { success: true, slabs: result.rows };
+      return { success: true, slabs: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -187,13 +173,22 @@ module.exports = {
 
   createSlab: async (data) => {
     try {
-      const result = await db.execute(
-        `INSERT INTO pay_head_slab_lines (pay_head_id, effective_from, amount_gt, amount_up_to, slab_type, value)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [data.pay_head_id, data.effective_from || null, data.amount_gt || 0, data.amount_up_to || 0, data.slab_type || null, data.value || 0]
+      const inserted = await db
+        .insert(payHeadSlabLines)
+        .values({
+          payHeadId: data.pay_head_id,
+          effectiveFrom: data.effective_from || null,
+          amountGt: data.amount_gt || 0,
+          amountUpTo: data.amount_up_to || 0,
+          slabType: data.slab_type || null,
+          value: data.value || 0,
+        })
+        .returning({ id: payHeadSlabLines.slabLineId });
+
+      const rows = await db.all(
+        sql`SELECT * FROM ${payHeadSlabLines} WHERE ${payHeadSlabLines.slabLineId} = ${inserted[0].id}`
       );
-      const slab = await db.execute(`SELECT * FROM pay_head_slab_lines WHERE slab_line_id = ?`, [result.lastInsertRowid]);
-      return { success: true, slab: slab.rows[0] };
+      return { success: true, slab: rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -201,7 +196,7 @@ module.exports = {
 
   deleteSlab: async (id) => {
     try {
-      await db.execute(`DELETE FROM pay_head_slab_lines WHERE slab_line_id = ?`, [id]);
+      await db.delete(payHeadSlabLines).where(eq(payHeadSlabLines.slabLineId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -210,13 +205,12 @@ module.exports = {
 
   getFormulas: async (pay_head_id) => {
     try {
-      const result = await db.execute(
-        `SELECT fl.*, ph.name as pay_head_name FROM pay_head_formula_lines fl
-         LEFT JOIN pay_heads ph ON fl.pay_head_id_ref = ph.pay_head_id
-         WHERE fl.pay_head_id = ? ORDER BY fl.sequence`,
-        [pay_head_id]
+      const rows = await db.all(
+        sql`SELECT fl.*, ph.name as pay_head_name FROM ${payHeadFormulaLines} fl
+            LEFT JOIN ${payHeads} ph ON fl.pay_head_id_ref = ph.pay_head_id
+            WHERE fl.pay_head_id = ${pay_head_id} ORDER BY fl.sequence`
       );
-      return { success: true, formulas: result.rows };
+      return { success: true, formulas: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -224,13 +218,21 @@ module.exports = {
 
   createFormula: async (data) => {
     try {
-      const result = await db.execute(
-        `INSERT INTO pay_head_formula_lines (pay_head_id, sequence, function, pay_head_id_ref, operator)
-         VALUES (?, ?, ?, ?, ?)`,
-        [data.pay_head_id, data.sequence || 0, data.function || null, data.pay_head_id_ref || null, data.operator || null]
+      const inserted = await db
+        .insert(payHeadFormulaLines)
+        .values({
+          payHeadId: data.pay_head_id,
+          sequence: data.sequence || 0,
+          function: data.function || null,
+          payHeadIdRef: data.pay_head_id_ref || null,
+          operator: data.operator || null,
+        })
+        .returning({ id: payHeadFormulaLines.formulaLineId });
+
+      const rows = await db.all(
+        sql`SELECT * FROM ${payHeadFormulaLines} WHERE ${payHeadFormulaLines.formulaLineId} = ${inserted[0].id}`
       );
-      const formula = await db.execute(`SELECT * FROM pay_head_formula_lines WHERE formula_line_id = ?`, [result.lastInsertRowid]);
-      return { success: true, formula: formula.rows[0] };
+      return { success: true, formula: rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -238,7 +240,7 @@ module.exports = {
 
   deleteFormula: async (id) => {
     try {
-      await db.execute(`DELETE FROM pay_head_formula_lines WHERE formula_line_id = ?`, [id]);
+      await db.delete(payHeadFormulaLines).where(eq(payHeadFormulaLines.formulaLineId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

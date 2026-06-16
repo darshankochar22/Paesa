@@ -1,4 +1,15 @@
 const { db } = require('../db/index');
+const { sql, eq, and, asc, desc } = require('drizzle-orm');
+const {
+  companies,
+  gstRegistrations,
+  vouchers,
+  ledgers,
+  voucherStockEntries,
+  voucherEntries,
+  gstVoucherTaxLines,
+  gstr1Exports,
+} = require('../db/schema');
 const { resolveStateCode, resolveTaxRate, computeVoucherTaxLines } = require('./gstTaxEngine');
 
 const formatGSTDate = (dateStr) => {
@@ -28,34 +39,32 @@ const generateGSTR1 = async (company_id, fy_id, return_period) => {
     const endDate = `${nextYear}-${nextMonthStr}-01`;
 
     // 1. Fetch Company details and active GST registration
-    const companyResult = await db.execute({
-      sql: `SELECT * FROM companies WHERE company_id = ?`,
-      args: [company_id]
-    });
-    const company = companyResult.rows[0];
+    const companyRows = await db.all(
+      sql`SELECT * FROM ${companies} WHERE ${companies.companyId} = ${company_id}`
+    );
+    const company = companyRows[0];
     if (!company) return { success: false, error: 'Company not found' };
 
-    const companyGstResult = await db.execute({
-      sql: `SELECT * FROM gst_registrations WHERE company_id = ? AND is_active = 1 LIMIT 1`,
-      args: [company_id]
-    });
-    const companyReg = companyGstResult.rows[0];
+    const companyGstRows = await db.all(
+      sql`SELECT * FROM ${gstRegistrations}
+          WHERE ${gstRegistrations.companyId} = ${company_id}
+            AND ${gstRegistrations.isActive} = 1
+          LIMIT 1`
+    );
+    const companyReg = companyGstRows[0];
     const companyGSTIN = companyReg ? companyReg.gstin : "";
     const companyState = companyReg ? companyReg.state_id : "";
     const companyStateCode = resolveStateCode(companyState, companyGSTIN);
 
     // 2. Fetch all vouchers in the date range
-    const vouchersResult = await db.execute({
-      sql: `SELECT v.*, l.name as party_name, l.gstin as party_gstin, l.state as party_state, l.registration_type as party_reg_type
-            FROM vouchers v
-            LEFT JOIN ledgers l ON l.ledger_id = v.party_ledger_id
-            WHERE v.company_id = ? AND v.fy_id = ? AND v.is_cancelled = 0
-            AND v.date >= ? AND v.date < ?
-            ORDER BY v.date ASC`,
-      args: [company_id, fy_id, startDate, endDate]
-    });
-
-    const rawVouchers = vouchersResult.rows;
+    const rawVouchers = await db.all(
+      sql`SELECT v.*, l.name as party_name, l.gstin as party_gstin, l.state as party_state, l.registration_type as party_reg_type
+          FROM ${vouchers} v
+          LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+          AND v.date >= ${startDate} AND v.date < ${endDate}
+          ORDER BY v.date ASC`
+    );
 
     const b2b = [];
     const b2cl = [];
@@ -79,20 +88,16 @@ const generateGSTR1 = async (company_id, fy_id, return_period) => {
       }
 
       // Fetch stock entries
-      const stockEntriesResult = await db.execute({
-        sql: `SELECT * FROM voucher_stock_entries WHERE voucher_id = ?`,
-        args: [voucher.voucher_id]
-      });
-      const stockEntries = stockEntriesResult.rows;
+      const stockEntries = await db.all(
+        sql`SELECT * FROM ${voucherStockEntries} WHERE ${voucherStockEntries.voucherId} = ${voucher.voucher_id}`
+      );
 
       if (stockEntries.length === 0) continue;
 
       // Fetch entries to calculate total invoice value
-      const entriesResult = await db.execute({
-        sql: `SELECT * FROM voucher_entries WHERE voucher_id = ?`,
-        args: [voucher.voucher_id]
-      });
-      const entries = entriesResult.rows;
+      const entries = await db.all(
+        sql`SELECT * FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${voucher.voucher_id}`
+      );
 
       // Sum invoice total (the party ledger amount)
       let invoiceValue = 0;
@@ -105,11 +110,9 @@ const generateGSTR1 = async (company_id, fy_id, return_period) => {
       }
 
       // Fetch tax lines (audit trail) or compute on-the-fly
-      let taxLinesResult = await db.execute({
-        sql: `SELECT * FROM gst_voucher_tax_lines WHERE voucher_id = ?`,
-        args: [voucher.voucher_id]
-      });
-      let taxLines = taxLinesResult.rows;
+      let taxLines = await db.all(
+        sql`SELECT * FROM ${gstVoucherTaxLines} WHERE ${gstVoucherTaxLines.voucherId} = ${voucher.voucher_id}`
+      );
 
       if (taxLines.length === 0) {
         // Compute on the fly
@@ -187,7 +190,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period) => {
         const rate = Number(line.rate);
         // If local CGST/SGST rate is X, the full GST rate is 2 * X
         const fullRate = (line.tax_type === 'CGST' || line.tax_type === 'SGST') ? rate * 2 : rate;
-        
+
         if (!itemsByRate[fullRate]) {
           itemsByRate[fullRate] = {
             txval: 0,
@@ -394,33 +397,37 @@ const generateGSTR1 = async (company_id, fy_id, return_period) => {
 
     // Save report snapshot to gstr1_exports table
     // Delete any existing draft for the same period
-    await db.execute({
-      sql: `DELETE FROM gstr1_exports WHERE company_id = ? AND fy_id = ? AND return_period = ? AND status = 'Draft'`,
-      args: [company_id, fy_id, return_period]
-    });
+    await db
+      .delete(gstr1Exports)
+      .where(
+        and(
+          eq(gstr1Exports.companyId, company_id),
+          eq(gstr1Exports.fyId, fy_id),
+          eq(gstr1Exports.returnPeriod, return_period),
+          eq(gstr1Exports.status, 'Draft')
+        )
+      );
 
-    const result = await db.execute({
-      sql: `INSERT INTO gstr1_exports (
-              company_id, fy_id, return_period, status,
-              b2b_json, b2cl_json, b2cs_json, cdnr_json, hsn_json, errors_json, full_payload_json
-            ) VALUES (?, ?, ?, 'Draft', ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        company_id,
-        fy_id,
-        return_period,
-        JSON.stringify(formattedB2b),
-        JSON.stringify(formattedB2cl),
-        JSON.stringify(b2cs),
-        JSON.stringify(formattedCdnr),
-        JSON.stringify(hsnList),
-        JSON.stringify(errors),
-        JSON.stringify(payload)
-      ]
-    });
+    const inserted = await db
+      .insert(gstr1Exports)
+      .values({
+        companyId: company_id,
+        fyId: fy_id,
+        returnPeriod: return_period,
+        status: 'Draft',
+        b2bJson: JSON.stringify(formattedB2b),
+        b2clJson: JSON.stringify(formattedB2cl),
+        b2csJson: JSON.stringify(b2cs),
+        cdnrJson: JSON.stringify(formattedCdnr),
+        hsnJson: JSON.stringify(hsnList),
+        errorsJson: JSON.stringify(errors),
+        fullPayloadJson: JSON.stringify(payload),
+      })
+      .returning({ id: gstr1Exports.exportId });
 
     return {
       success: true,
-      export_id: Number(result.lastInsertRowid),
+      export_id: Number(inserted[0].id),
       payload,
       errors
     };
@@ -432,17 +439,20 @@ const generateGSTR1 = async (company_id, fy_id, return_period) => {
 
 const getGSTR1 = async (company_id, fy_id, return_period) => {
   try {
-    const result = await db.execute({
-      sql: `SELECT * FROM gstr1_exports WHERE company_id = ? AND fy_id = ? AND return_period = ? ORDER BY export_id DESC LIMIT 1`,
-      args: [company_id, fy_id, return_period]
-    });
+    const rows = await db.all(
+      sql`SELECT * FROM ${gstr1Exports}
+          WHERE ${gstr1Exports.companyId} = ${company_id}
+            AND ${gstr1Exports.fyId} = ${fy_id}
+            AND ${gstr1Exports.returnPeriod} = ${return_period}
+          ORDER BY ${gstr1Exports.exportId} DESC LIMIT 1`
+    );
 
-    if (result.rows.length === 0) {
+    if (rows.length === 0) {
       // If not generated, automatically trigger generation
       return await generateGSTR1(company_id, fy_id, return_period);
     }
 
-    const row = result.rows[0];
+    const row = rows[0];
     return {
       success: true,
       export_id: row.export_id,

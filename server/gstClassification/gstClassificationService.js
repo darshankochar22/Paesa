@@ -1,4 +1,14 @@
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { gstClassifications } = require('../db/schema');
+
+// Fetch gst_classification rows in the legacy snake_case shape via db.all so the
+// returned object keys (gc_id, is_predefined, gst_rate_details, ...) and numeric
+// 0/1 flags match exactly what the controllers/tests assert against.
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${gstClassifications} WHERE ${whereSql}`);
+  return rows[0];
+};
 
 const parseSlabRows = (classification) => {
   if (!classification) return classification;
@@ -28,30 +38,30 @@ const seedDefaultGSTClassifications = async (company_id) => {
   ];
 
   for (const g of defaults) {
-    await db.execute(
-      `INSERT INTO gst_classifications (
-        company_id, name, description, hsn_sac_code,
-        is_non_gst_goods, nature_of_transaction, taxability,
-        is_reverse_charge, is_ineligible_for_itc,
-        rate_type,
-        igst_rate, igst_valuation_type,
-        cgst_rate, cgst_valuation_type,
-        sgst_rate, sgst_valuation_type,
-        cess_rate, cess_valuation_type,
-        is_predefined, is_active
-      ) VALUES (?, ?, null, null, ?, ?, ?, 0, 0, 'Fixed Rate', ?, 'Based on Value', ?, 'Based on Value', ?, 'Based on Value', ?, 'Based on Value', 1, 1)`,
-      [
-        company_id,
-        g.name,
-        g.is_non_gst_goods ?? 0,
-        g.nature_of_transaction,
-        g.taxability,
-        g.igst_rate,
-        g.cgst_rate,
-        g.sgst_rate,
-        g.cess_rate,
-      ]
-    );
+    await db
+      .insert(gstClassifications)
+      .values({
+        companyId: company_id,
+        name: g.name,
+        description: null,
+        hsnSacCode: null,
+        isNonGstGoods: g.is_non_gst_goods ?? 0,
+        natureOfTransaction: g.nature_of_transaction,
+        taxability: g.taxability,
+        isReverseCharge: 0,
+        isIneligibleForItc: 0,
+        rateType: 'Fixed Rate',
+        igstRate: g.igst_rate,
+        igstValuationType: 'Based on Value',
+        cgstRate: g.cgst_rate,
+        cgstValuationType: 'Based on Value',
+        sgstRate: g.sgst_rate,
+        sgstValuationType: 'Based on Value',
+        cessRate: g.cess_rate,
+        cessValuationType: 'Based on Value',
+        isPredefined: 1,
+        isActive: 1,
+      });
   }
 };
 
@@ -60,58 +70,47 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute(
-        `SELECT * FROM gst_classifications WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        [data.company_id, data.name]
+      const exists = await db.all(
+        sql`SELECT * FROM ${gstClassifications}
+            WHERE ${gstClassifications.companyId} = ${data.company_id}
+              AND LOWER(${gstClassifications.name}) = LOWER(${data.name})
+              AND ${gstClassifications.isActive} = 1`
       );
-      if (exists.rows.length > 0) return { success: false, error: 'GST Classification already exists' };
+      if (exists.length > 0) return { success: false, error: 'GST Classification already exists' };
       console.log("GST CREATE EXECUTING");
 
-      const result = await db.execute(
-        `INSERT INTO gst_classifications (
-          company_id, name, description, hsn_sac_code,
-          is_non_gst_goods, nature_of_transaction, taxability,
-          is_reverse_charge, is_ineligible_for_itc,
-          rate_type,
-          igst_rate, igst_valuation_type,
-          cgst_rate, cgst_valuation_type,
-          sgst_rate, sgst_valuation_type,
-          cess_rate, cess_valuation_type,
-          gst_rate_details,
-          is_predefined, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          data.company_id,
-          data.name,
-          data.description || null,
-          data.hsn_sac_code || null,
-          data.is_non_gst_goods ?? 0,
-          data.nature_of_transaction || 'Not Applicable',
-          data.taxability || 'Unknown',
-          data.is_reverse_charge ?? 0,
-          data.is_ineligible_for_itc ?? 0,
-          data.rate_type || 'Fixed Rate',
-          data.igst_rate ?? 0,
-          data.igst_valuation_type || 'Based on Value',
-          data.cgst_rate ?? 0,
-          data.cgst_valuation_type || 'Based on Value',
-          data.sgst_rate ?? 0,
-          data.sgst_valuation_type || 'Based on Value',
-          data.cess_rate ?? 0,
-          data.cess_valuation_type || 'Based on Value',
-          data.rate_type === 'Slab Based' && Array.isArray(data.slab_rows)
-            ? JSON.stringify(data.slab_rows)
-            : null,
-          0,
-          1,
-        ]
-      );
+      const inserted = await db
+        .insert(gstClassifications)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          description: data.description || null,
+          hsnSacCode: data.hsn_sac_code || null,
+          isNonGstGoods: data.is_non_gst_goods ?? 0,
+          natureOfTransaction: data.nature_of_transaction || 'Not Applicable',
+          taxability: data.taxability || 'Unknown',
+          isReverseCharge: data.is_reverse_charge ?? 0,
+          isIneligibleForItc: data.is_ineligible_for_itc ?? 0,
+          rateType: data.rate_type || 'Fixed Rate',
+          igstRate: data.igst_rate ?? 0,
+          igstValuationType: data.igst_valuation_type || 'Based on Value',
+          cgstRate: data.cgst_rate ?? 0,
+          cgstValuationType: data.cgst_valuation_type || 'Based on Value',
+          sgstRate: data.sgst_rate ?? 0,
+          sgstValuationType: data.sgst_valuation_type || 'Based on Value',
+          cessRate: data.cess_rate ?? 0,
+          cessValuationType: data.cess_valuation_type || 'Based on Value',
+          gstRateDetails:
+            data.rate_type === 'Slab Based' && Array.isArray(data.slab_rows)
+              ? JSON.stringify(data.slab_rows)
+              : null,
+          isPredefined: 0,
+          isActive: 1,
+        })
+        .returning({ id: gstClassifications.gcId });
 
-      const classification = await db.execute(
-        `SELECT * FROM gst_classifications WHERE gc_id = ?`,
-        [result.lastInsertRowid]
-      );
-      return { success: true, classification: parseSlabRows(classification.rows[0]) };
+      const classification = await findRow(sql`${gstClassifications.gcId} = ${inserted[0].id}`);
+      return { success: true, classification: parseSlabRows(classification) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -119,13 +118,14 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM gst_classifications WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${gstClassifications}
+            WHERE ${gstClassifications.companyId} = ${company_id}
+              AND ${gstClassifications.isActive} = 1`
       );
       return {
         success: true,
-        gstClassifications: result.rows.map(parseSlabRows),
+        gstClassifications: rows.map(parseSlabRows),
       };
     } catch (err) {
       return { success: false, error: err.message };
@@ -134,12 +134,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM gst_classifications WHERE gc_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'GST Classification not found' };
-      return { success: true, classification: parseSlabRows(result.rows[0]) };
+      const classification = await findRow(sql`${gstClassifications.gcId} = ${id}`);
+      if (!classification) return { success: false, error: 'GST Classification not found' };
+      return { success: true, classification: parseSlabRows(classification) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -147,66 +144,40 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM gst_classifications WHERE gc_id = ?`,
-        [data.gc_id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'GST Classification not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined GST classifications' };
+      const c = await findRow(sql`${gstClassifications.gcId} = ${data.gc_id}`);
+      if (!c) return { success: false, error: 'GST Classification not found' };
+      if (c.is_predefined) return { success: false, error: 'Cannot edit predefined GST classifications' };
 
-      const c = existing.rows[0];
-      await db.execute(
-        `UPDATE gst_classifications SET
-          name = ?,
-          description = ?,
-          hsn_sac_code = ?,
-          is_non_gst_goods = ?,
-          nature_of_transaction = ?,
-          taxability = ?,
-          is_reverse_charge = ?,
-          is_ineligible_for_itc = ?,
-          rate_type = ?,
-          igst_rate = ?,
-          igst_valuation_type = ?,
-          cgst_rate = ?,
-          cgst_valuation_type = ?,
-          sgst_rate = ?,
-          sgst_valuation_type = ?,
-          cess_rate = ?,
-          cess_valuation_type = ?,
-          gst_rate_details = ?,
-          updated_at = datetime('now')
-        WHERE gc_id = ?`,
-                [
-          data.name              ?? c.name,
-          data.description       ?? c.description,
-          data.hsn_sac_code      ?? c.hsn_sac_code,
-          data.is_non_gst_goods  ?? c.is_non_gst_goods,
-          data.nature_of_transaction ?? c.nature_of_transaction,
-          data.taxability        ?? c.taxability,
-          data.is_reverse_charge ?? c.is_reverse_charge,
-          data.is_ineligible_for_itc ?? c.is_ineligible_for_itc,
-          data.rate_type ?? c.rate_type,
-          data.igst_rate         ?? c.igst_rate,
-          data.igst_valuation_type ?? c.igst_valuation_type,
-          data.cgst_rate         ?? c.cgst_rate,
-          data.cgst_valuation_type ?? c.cgst_valuation_type,
-          data.sgst_rate         ?? c.sgst_rate,
-          data.sgst_valuation_type ?? c.sgst_valuation_type,
-          data.cess_rate         ?? c.cess_rate,
-          data.cess_valuation_type ?? c.cess_valuation_type,
-          data.rate_type === 'Slab Based' && Array.isArray(data.slab_rows)
-            ? JSON.stringify(data.slab_rows)
-            : c.gst_rate_details || null,
-          data.gc_id,
-        ]
-      );
+      await db
+        .update(gstClassifications)
+        .set({
+          name: data.name ?? c.name,
+          description: data.description ?? c.description,
+          hsnSacCode: data.hsn_sac_code ?? c.hsn_sac_code,
+          isNonGstGoods: data.is_non_gst_goods ?? c.is_non_gst_goods,
+          natureOfTransaction: data.nature_of_transaction ?? c.nature_of_transaction,
+          taxability: data.taxability ?? c.taxability,
+          isReverseCharge: data.is_reverse_charge ?? c.is_reverse_charge,
+          isIneligibleForItc: data.is_ineligible_for_itc ?? c.is_ineligible_for_itc,
+          rateType: data.rate_type ?? c.rate_type,
+          igstRate: data.igst_rate ?? c.igst_rate,
+          igstValuationType: data.igst_valuation_type ?? c.igst_valuation_type,
+          cgstRate: data.cgst_rate ?? c.cgst_rate,
+          cgstValuationType: data.cgst_valuation_type ?? c.cgst_valuation_type,
+          sgstRate: data.sgst_rate ?? c.sgst_rate,
+          sgstValuationType: data.sgst_valuation_type ?? c.sgst_valuation_type,
+          cessRate: data.cess_rate ?? c.cess_rate,
+          cessValuationType: data.cess_valuation_type ?? c.cess_valuation_type,
+          gstRateDetails:
+            data.rate_type === 'Slab Based' && Array.isArray(data.slab_rows)
+              ? JSON.stringify(data.slab_rows)
+              : c.gst_rate_details || null,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(gstClassifications.gcId, data.gc_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM gst_classifications WHERE gc_id = ?`,
-        [data.gc_id]
-      );
-      return { success: true, classification: parseSlabRows(updated.rows[0]) };
+      const updated = await findRow(sql`${gstClassifications.gcId} = ${data.gc_id}`);
+      return { success: true, classification: parseSlabRows(updated) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -214,17 +185,14 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM gst_classifications WHERE gc_id = ?`,
-        [id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'GST Classification not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete predefined GST classifications' };
+      const existing = await findRow(sql`${gstClassifications.gcId} = ${id}`);
+      if (!existing) return { success: false, error: 'GST Classification not found' };
+      if (existing.is_predefined) return { success: false, error: 'Cannot delete predefined GST classifications' };
 
-      await db.execute(
-        `UPDATE gst_classifications SET is_active = 0 WHERE gc_id = ?`,
-        [id]
-      );
+      await db
+        .update(gstClassifications)
+        .set({ isActive: 0 })
+        .where(eq(gstClassifications.gcId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

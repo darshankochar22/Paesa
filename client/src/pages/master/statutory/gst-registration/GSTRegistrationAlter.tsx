@@ -27,6 +27,8 @@ export default function GSTRegistrationAlter() {
   } = useGSTRegistrationForm({ mode: "alter" });
 
   const [showGstinWarning, setShowGstinWarning] = useState(false);
+  const [activeField, setActiveField] = useState<string>("registration_status");
+  const [showAccept, setShowAccept] = useState(false);
 
   const handleSave = async (bypassGstinCheck: boolean = false) => {
     setShowGstinWarning(false);
@@ -37,6 +39,22 @@ export default function GSTRegistrationAlter() {
   };
 
   useEffect(() => {
+    if (showAccept) {
+      const handler = (e: KeyboardEvent) => {
+        const key = e.key.toLowerCase();
+        if (key === "y" || e.key === "Enter") {
+          e.preventDefault();
+          setShowAccept(false);
+          handleSave(false);
+        } else if (key === "n" || e.key === "Escape") {
+          e.preventDefault();
+          setShowAccept(false);
+        }
+      };
+      window.addEventListener("keydown", handler);
+      return () => window.removeEventListener("keydown", handler);
+    }
+
     if (showGstinWarning) {
       const handler = (e: KeyboardEvent) => {
         const key = e.key.toLowerCase();
@@ -63,11 +81,11 @@ export default function GSTRegistrationAlter() {
       }
       if (e.altKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        handleSave(false);
+        setShowAccept(true);
       }
       if (e.ctrlKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        handleSave(false);
+        setShowAccept(true);
       }
       if (e.altKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
@@ -76,7 +94,7 @@ export default function GSTRegistrationAlter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSave, handleDelete, navigate, selectedReg, handleBack, showGstinWarning]);
+  }, [handleSave, handleDelete, navigate, selectedReg, handleBack, showGstinWarning, showAccept]);
 
   if (!selectedReg) {
     return (
@@ -90,13 +108,13 @@ export default function GSTRegistrationAlter() {
   }
 
   const alterActions = [
-    { key: "Alt+A", label: "Accept", onClick: () => handleSave(false) },
+    { key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) },
     { key: "Alt+D", label: "Delete", onClick: handleDelete },
     { key: "Esc", label: "Back", onClick: handleBack },
   ];
 
   return (
-    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none font-sans">
+    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none font-mono">
       <PageTitleBar
         title={`GST Registration Alteration: ${selectedReg.gstin}`}
         subtitle={selectedCompany?.name}
@@ -116,7 +134,13 @@ export default function GSTRegistrationAlter() {
       )}
 
       <div className="flex-1 flex min-h-0">
-        <GSTRegistrationFormFields form={form} setField={setField} />
+        <GSTRegistrationFormFields
+          form={form}
+          setField={setField}
+          activeField={activeField}
+          setActiveField={setActiveField}
+          onSubmitPrompt={() => setShowAccept(true)}
+        />
         <RightActionPanel actions={alterActions} />
       </div>
 
@@ -136,7 +160,7 @@ export default function GSTRegistrationAlter() {
             Back
           </button>
           <button
-            onClick={() => handleSave(false)}
+            onClick={() => setShowAccept(true)}
             disabled={loading}
             className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium font-sans"
           >
@@ -168,6 +192,30 @@ export default function GSTRegistrationAlter() {
                 <span className="text-zinc-500 font-extrabold mr-1">N:</span>No
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showAccept && (
+        <div className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in">
+          <h4 className="font-bold text-zinc-900 text-[11px] mb-3">Accept?</h4>
+          <div className="flex items-center gap-3 w-full justify-center">
+            <button
+              onClick={() => {
+                setShowAccept(false);
+                handleSave(false);
+              }}
+              disabled={loading}
+              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => setShowAccept(false)}
+              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center transition-colors cursor-pointer"
+            >
+              No
+            </button>
           </div>
         </div>
       )}

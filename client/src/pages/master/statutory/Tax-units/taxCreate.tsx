@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { INDIAN_STATES } from "@/constants/states";
@@ -6,10 +6,14 @@ import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import RightPanel from "@/components/RightPanel.tsx";
 import type { TaxUnitType } from "@/types/entities";
 
-const inputCls =
-  "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-400 transition-colors bg-[#fffbe6] rounded";
-
 const REGISTRATION_TYPES = ["Dealer", "Importer", "Manufacturer"];
+
+const activeClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs uppercase";
+const inactiveClass = "border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs uppercase";
+const getSelectCls = (isActive: boolean) =>
+  `${isActive ? activeClass : inactiveClass}`;
+const getInputCls = (isActive: boolean) =>
+  `${isActive ? activeClass : inactiveClass}`;
 
 function ExciseDetailsPopup({
   unitName,
@@ -34,102 +38,156 @@ function ExciseDetailsPopup({
   setSetAlterRule11: (v: boolean) => void;
   onClose: () => void;
 }) {
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [popupActiveField, setPopupActiveField] = useState("registrationType");
+  const POPUP_FIELDS = ["registrationType", "eccNumber", "setAlterTariff", "setAlterRule11"];
+  const regTypeRef = useRef<HTMLSelectElement>(null);
+  const eccRef = useRef<HTMLInputElement>(null);
+  const tariffRef = useRef<HTMLSelectElement>(null);
+  const rule11Ref = useRef<HTMLSelectElement>(null);
+
+  useEffect(() => {
+    const refMap: Record<string, React.RefObject<HTMLInputElement | HTMLSelectElement | null>> = {
+      registrationType: regTypeRef,
+      eccNumber: eccRef,
+      setAlterTariff: tariffRef,
+      setAlterRule11: rule11Ref,
+    };
+    refMap[popupActiveField]?.current?.focus();
+  }, [popupActiveField]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const idx = POPUP_FIELDS.indexOf(popupActiveField);
+      if (idx === -1) return;
+
+      if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+        e.preventDefault();
+        if (idx === POPUP_FIELDS.length - 1) {
+          onClose();
+        } else {
+          setPopupActiveField(POPUP_FIELDS[idx + 1]);
+        }
+        return;
+      }
+      if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+        e.preventDefault();
+        if (idx > 0) {
+          setPopupActiveField(POPUP_FIELDS[idx - 1]);
+        }
+        return;
+      }
+
+      if (popupActiveField === "setAlterTariff" || popupActiveField === "setAlterRule11") {
+        const key = e.key.toLowerCase();
+        if (key === "y" || key === "n") {
+          e.preventDefault();
+          const val = key === "y";
+          if (popupActiveField === "setAlterTariff") {
+            setSetAlterTariff(val);
+          } else {
+            setSetAlterRule11(val);
+          }
+          if (idx < POPUP_FIELDS.length - 1) {
+            setPopupActiveField(POPUP_FIELDS[idx + 1]);
+          } else {
+            onClose();
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [popupActiveField, onClose, setSetAlterTariff, setSetAlterRule11]);
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-      <div className="bg-white border border-zinc-300 shadow-lg w-[560px] font-mono text-sm">
-        <div className="text-center py-3 border-b border-zinc-200">
-          <div className="font-bold text-base">Excise Details</div>
-          <div className="text-zinc-500 text-xs italic">({registrationType} Unit)</div>
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 font-mono text-[11px]">
+      <div className="bg-white border-4 border-double border-zinc-400 shadow-2xl w-[560px] p-5">
+        <div className="text-center font-bold text-xs pb-3 border-b border-zinc-200 uppercase tracking-wide">
+          Excise Details
+          <span className="text-zinc-500 text-[10px] italic ml-1">({registrationType} Unit)</span>
         </div>
 
-        <div className="p-5 space-y-3 relative">
+        <div className="py-4 space-y-2 relative">
           <FormRow label="Unit name" labelWidth="w-56">
-            <span className="text-sm font-semibold px-1.5">{unitName || "KI"}</span>
+            <span className="font-bold text-zinc-950 uppercase px-2 py-0.5">{unitName || "KI"}</span>
           </FormRow>
 
           <FormRow label="Registration type" labelWidth="w-56">
-            <div className="relative flex-1">
-              <button
-                className="w-full text-left text-sm font-semibold px-1.5 py-0.5 bg-[#fffbe6] border border-zinc-300 rounded"
-                onClick={() => setShowDropdown((v) => !v)}
-              >
-                {registrationType}
-              </button>
-              {showDropdown && (
-                <div className="absolute left-full top-0 ml-1 w-44 bg-white border border-zinc-300 shadow-md z-10">
-                  <div className="bg-[#1a3a6a] text-white text-xs px-2 py-1 font-semibold">
-                    List of Registration Types
-                  </div>
-                  {REGISTRATION_TYPES.map((type) => (
-                    <div
-                      key={type}
-                      className={`px-3 py-1 text-sm cursor-pointer ${
-                        type === registrationType
-                          ? "bg-[#f5a623] text-white font-semibold"
-                          : "hover:bg-zinc-100"
-                      }`}
-                      onClick={() => {
-                        setRegistrationType(type);
-                        setShowDropdown(false);
-                      }}
-                    >
-                      {type}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <select
+              ref={regTypeRef}
+              className={getSelectCls(popupActiveField === "registrationType")}
+              value={registrationType}
+              onChange={(e) => setRegistrationType(e.target.value)}
+              onFocus={() => setPopupActiveField("registrationType")}
+            >
+              {REGISTRATION_TYPES.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
           </FormRow>
-
-          <div className="py-1" />
 
           <FormRow label="ECC number" labelWidth="w-56">
             <input
-              className={inputCls}
+              ref={eccRef}
+              className={getInputCls(popupActiveField === "eccNumber")}
               value={eccNumber}
               onChange={(e) => setEccNumber(e.target.value)}
+              onFocus={() => setPopupActiveField("eccNumber")}
             />
           </FormRow>
 
           <FormRow label="Set/alter excise tariff details" labelWidth="w-56">
-            <button
-              className="text-sm font-semibold px-1.5 py-0.5 bg-white border border-transparent hover:border-zinc-200 rounded min-w-[40px] text-left"
-              onClick={() => setSetAlterTariff(!setAlterTariff)}
+            <select
+              ref={tariffRef}
+              className={getSelectCls(popupActiveField === "setAlterTariff")}
+              value={setAlterTariff ? "Yes" : "No"}
+              onChange={(e) => setSetAlterTariff(e.target.value === "Yes")}
+              onFocus={() => setPopupActiveField("setAlterTariff")}
             >
-              {setAlterTariff ? "Yes" : "No"}
-            </button>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
           </FormRow>
 
           <FormRow label="Set/alter Rule 11 book details" labelWidth="w-56">
-            <button
-              className="text-sm font-semibold px-1.5 py-0.5 bg-white border border-transparent hover:border-zinc-200 rounded min-w-[40px] text-left"
-              onClick={() => setSetAlterRule11(!setAlterRule11)}
+            <select
+              ref={rule11Ref}
+              className={getSelectCls(popupActiveField === "setAlterRule11")}
+              value={setAlterRule11 ? "Yes" : "No"}
+              onChange={(e) => setSetAlterRule11(e.target.value === "Yes")}
+              onFocus={() => setPopupActiveField("setAlterRule11")}
             >
-              {setAlterRule11 ? "Yes" : "No"}
-            </button>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
           </FormRow>
         </div>
 
-        <div className="border-t border-zinc-200 flex text-xs">
+        <div className="border-t border-zinc-200 pt-3 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-2 text-center hover:bg-zinc-100 border-r border-zinc-200"
+            className="text-[11px] px-4 py-1 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none"
           >
-            <span className="text-[#2a4a7a] font-bold">Q</span>: Quit
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 py-2 text-center hover:bg-zinc-100"
-          >
-            <span className="text-[#2a4a7a] font-bold">A</span>: Accept
+            Ok
           </button>
         </div>
       </div>
     </div>
   );
 }
+
+const FIELDS = [
+  "name",
+  "alias",
+  "addressLine1",
+  "addressLine2",
+  "addressLine3",
+  "addressLine4",
+  "state",
+  "pincode",
+  "telephone",
+  "setAlterExciseDetails",
+];
 
 export default function TaxCreate() {
   const navigate = useNavigate();
@@ -159,14 +217,27 @@ export default function TaxCreate() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [activeField, setActiveField] = useState("name");
+  const [showAccept, setShowAccept] = useState(false);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const addressLine1Ref = useRef<HTMLInputElement>(null);
+  const addressLine2Ref = useRef<HTMLInputElement>(null);
+  const addressLine3Ref = useRef<HTMLInputElement>(null);
+  const addressLine4Ref = useRef<HTMLInputElement>(null);
+  const stateRef = useRef<HTMLSelectElement>(null);
+  const pincodeRef = useRef<HTMLInputElement>(null);
+  const telephoneRef = useRef<HTMLInputElement>(null);
+  const setAlterExciseDetailsRef = useRef<HTMLSelectElement>(null);
+
   const set = (field: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
-  const handleExciseToggle = () => {
-    const newVal = !form.setAlterExciseDetails;
-    setForm((prev) => ({ ...prev, setAlterExciseDetails: newVal }));
-    if (newVal) setShowExcisePopup(true);
+  const handleExciseToggle = (val: boolean) => {
+    setForm((prev) => ({ ...prev, setAlterExciseDetails: val }));
+    if (val) setShowExcisePopup(true);
   };
 
   const resetForm = () => {
@@ -186,6 +257,7 @@ export default function TaxCreate() {
     setEccNumber("");
     setSetAlterTariff(false);
     setSetAlterRule11(false);
+    setActiveField("name");
   };
 
   const handleSave = async () => {
@@ -240,33 +312,105 @@ export default function TaxCreate() {
   };
 
   useEffect(() => {
+    if (showExcisePopup) return;
+
+    if (showAccept) {
+      const handler = (e: KeyboardEvent) => {
+        const key = e.key.toLowerCase();
+        if (key === "y" || e.key === "Enter") {
+          e.preventDefault();
+          setShowAccept(false);
+          handleSave();
+        } else if (key === "n" || e.key === "Escape") {
+          e.preventDefault();
+          setShowAccept(false);
+        }
+      };
+      window.addEventListener("keydown", handler);
+      return () => window.removeEventListener("keydown", handler);
+    }
+
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         handleQuit();
+        return;
       }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        handleSave();
+        setShowAccept(true);
+        return;
       }
       if (e.altKey && e.key.toLowerCase() === "c") {
         e.preventDefault();
         navigate("/master/alter/tax-units");
+        return;
+      }
+
+      // Traversal
+      const idx = FIELDS.indexOf(activeField);
+      if (idx !== -1) {
+        if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+          e.preventDefault();
+          if (idx === FIELDS.length - 1) {
+            setShowAccept(true);
+          } else {
+            setActiveField(FIELDS[idx + 1]);
+          }
+          return;
+        }
+        if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+          e.preventDefault();
+          if (idx > 0) {
+            setActiveField(FIELDS[idx - 1]);
+          }
+          return;
+        }
+
+        // Y/N shortcut for yes/no field
+        if (activeField === "setAlterExciseDetails") {
+          const key = e.key.toLowerCase();
+          if (key === "y" || key === "n") {
+            e.preventDefault();
+            const val = key === "y";
+            handleExciseToggle(val);
+            if (!val) {
+              setShowAccept(true);
+            }
+          }
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSave, navigate, companyId]);
+  }, [handleSave, navigate, companyId, activeField, showExcisePopup, showAccept]);
+
+  useEffect(() => {
+    if (showExcisePopup) return;
+    const refMap: Record<string, React.RefObject<HTMLInputElement | HTMLSelectElement | null>> = {
+      name: nameRef,
+      alias: aliasRef,
+      addressLine1: addressLine1Ref,
+      addressLine2: addressLine2Ref,
+      addressLine3: addressLine3Ref,
+      addressLine4: addressLine4Ref,
+      state: stateRef,
+      pincode: pincodeRef,
+      telephone: telephoneRef,
+      setAlterExciseDetails: setAlterExciseDetailsRef,
+    };
+    refMap[activeField]?.current?.focus();
+  }, [activeField, showExcisePopup]);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-zinc-100 font-mono text-sm select-none">
+    <div className="flex flex-col h-screen w-screen bg-zinc-100 font-mono text-[11px] select-none text-zinc-950">
       {/* Title bar */}
       <PageTitleBar title="Tax Unit Creation" />
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 relative">
         {/* Left form panel */}
         <div className="flex-1 bg-white border-r border-zinc-300 flex flex-col overflow-y-auto">
-          <div className="p-4 space-y-1 flex-1">
+          <div className="p-6 space-y-1.5 flex-1 max-w-2xl">
 
             {error && (
               <div className="mb-2 px-2 py-1 text-xs text-red-700 bg-red-50 border border-red-200 rounded">
@@ -274,33 +418,71 @@ export default function TaxCreate() {
               </div>
             )}
 
-            <FormRow label="Name" labelWidth="w-40">
-              <input autoFocus className={inputCls} value={form.name} onChange={set("name")} />
+            <FormRow label="Name" labelWidth="w-56">
+              <input
+                ref={nameRef}
+                className={getInputCls(activeField === "name")}
+                value={form.name}
+                onChange={set("name")}
+                onFocus={() => setActiveField("name")}
+              />
             </FormRow>
 
-            <FormRow label="(alias)" labelWidth="w-40">
-              <input className={inputCls} value={form.alias} onChange={set("alias")} />
+            <FormRow label="(alias)" labelWidth="w-56">
+              <input
+                ref={aliasRef}
+                className={getInputCls(activeField === "alias")}
+                value={form.alias}
+                onChange={set("alias")}
+                onFocus={() => setActiveField("alias")}
+              />
             </FormRow>
 
             <div className="py-2" />
 
-            <FormRow label="Address" labelWidth="w-40" className="items-start">
-              <div className="flex flex-col gap-0.5 flex-1">
-                <input className={inputCls} value={form.addressLine1} onChange={set("addressLine1")} />
-                <input className={inputCls} value={form.addressLine2} onChange={set("addressLine2")} />
-                <input className={inputCls} value={form.addressLine3} onChange={set("addressLine3")} />
-                <input className={inputCls} value={form.addressLine4} onChange={set("addressLine4")} />
+            <FormRow label="Address" labelWidth="w-56" className="items-start">
+              <div className="flex flex-col gap-1 flex-1">
+                <input
+                  ref={addressLine1Ref}
+                  className={getInputCls(activeField === "addressLine1")}
+                  value={form.addressLine1}
+                  onChange={set("addressLine1")}
+                  onFocus={() => setActiveField("addressLine1")}
+                />
+                <input
+                  ref={addressLine2Ref}
+                  className={getInputCls(activeField === "addressLine2")}
+                  value={form.addressLine2}
+                  onChange={set("addressLine2")}
+                  onFocus={() => setActiveField("addressLine2")}
+                />
+                <input
+                  ref={addressLine3Ref}
+                  className={getInputCls(activeField === "addressLine3")}
+                  value={form.addressLine3}
+                  onChange={set("addressLine3")}
+                  onFocus={() => setActiveField("addressLine3")}
+                />
+                <input
+                  ref={addressLine4Ref}
+                  className={getInputCls(activeField === "addressLine4")}
+                  value={form.addressLine4}
+                  onChange={set("addressLine4")}
+                  onFocus={() => setActiveField("addressLine4")}
+                />
               </div>
             </FormRow>
 
-            <div className="py-3" />
+            <div className="py-2" />
 
             {/* State — fixed width, white bg, no overflow */}
-            <FormRow label="State" labelWidth="w-40">
+            <FormRow label="State" labelWidth="w-56">
               <select
-                className="w-40 bg-white text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-400 transition-colors rounded truncate"
+                ref={stateRef}
+                className={getSelectCls(activeField === "state")}
                 value={form.state}
                 onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value }))}
+                onFocus={() => setActiveField("state")}
               >
                 <option value="">Not Applicable</option>
                 {INDIAN_STATES.map((s) => (
@@ -309,68 +491,77 @@ export default function TaxCreate() {
               </select>
             </FormRow>
 
-            <FormRow label="Pincode" labelWidth="w-40">
-              <input className={inputCls} value={form.pincode} onChange={set("pincode")} />
+            <FormRow label="Pincode" labelWidth="w-56">
+              <input
+                ref={pincodeRef}
+                className={getInputCls(activeField === "pincode")}
+                value={form.pincode}
+                onChange={set("pincode")}
+                onFocus={() => setActiveField("pincode")}
+              />
             </FormRow>
 
-            <FormRow label="Telephone" labelWidth="w-40">
-              <input className={inputCls} value={form.telephone} onChange={set("telephone")} />
+            <FormRow label="Telephone" labelWidth="w-56">
+              <input
+                ref={telephoneRef}
+                className={getInputCls(activeField === "telephone")}
+                value={form.telephone}
+                onChange={set("telephone")}
+                onFocus={() => setActiveField("telephone")}
+              />
             </FormRow>
 
             <div className="py-2" />
 
-            <FormRow label="Registered for" labelWidth="w-40">
-              <span className="text-sm font-semibold px-1.5 py-0.5">Excise</span>
+            <FormRow label="Registered for" labelWidth="w-56">
+              <span className="font-bold text-zinc-950 px-2 py-0.5">Excise</span>
             </FormRow>
 
             <div className="py-2" />
 
-            <FormRow label="Set/alter excise details" labelWidth="w-48">
-              <button
-                className="text-sm font-semibold px-1.5 py-0.5 bg-white border border-transparent hover:border-zinc-200 rounded min-w-[40px] text-left"
-                onClick={handleExciseToggle}
+            <FormRow label="Set/alter excise details" labelWidth="w-56">
+              <select
+                ref={setAlterExciseDetailsRef}
+                className={getSelectCls(activeField === "setAlterExciseDetails")}
+                value={form.setAlterExciseDetails ? "Yes" : "No"}
+                onChange={(e) => handleExciseToggle(e.target.value === "Yes")}
+                onFocus={() => setActiveField("setAlterExciseDetails")}
               >
-                {form.setAlterExciseDetails ? "Yes" : "No"}
-              </button>
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
             </FormRow>
 
           </div>
 
           {/* Bottom action bar */}
-          <div className="border-t border-zinc-200 flex text-xs">
+          <div className="border-t border-zinc-200 flex text-xs shrink-0 font-sans">
             <button
               onClick={handleQuit}
               disabled={saving}
               className="flex-1 py-2 text-center hover:bg-zinc-100 border-r border-zinc-200 disabled:opacity-50"
             >
-              <span className="text-[#2a4a7a] font-bold">Q</span>: Quit
+              Quit (Esc)
             </button>
             <button
-              onClick={handleSave}
+              onClick={() => setShowAccept(true)}
               disabled={saving}
-              className="flex-1 py-2 text-center hover:bg-zinc-100 disabled:opacity-50"
+              className="flex-1 py-2 text-center hover:bg-zinc-100 disabled:opacity-50 font-bold"
             >
-              <span className="text-[#2a4a7a] font-bold">A</span>: {saving ? "Saving..." : "Accept"}
+              Accept (Alt+A)
             </button>
           </div>
         </div>
 
         {/* Right panel */}
-        <div className="w-64 flex-shrink-0 bg-zinc-50 border-l border-zinc-300 flex flex-col">
+        <div className="w-64 flex-shrink-0 bg-zinc-50 border-l border-zinc-300 flex flex-col font-sans">
           <RightPanel />
           <RightActionPanel
             actions={[
               {
-                key: "F12",
-                label: "Configure",
-                onClick: () => {
-                  // handle configure action
-                },
-              },
-              {
-                key: "Ctrl+A",
+                key: "Alt+A",
                 label: saving ? "Saving..." : "Accept",
-                onClick: handleSave,
+                onClick: () => setShowAccept(true),
               },
               {
                 key: "Esc",
@@ -395,6 +586,30 @@ export default function TaxCreate() {
           setSetAlterRule11={setSetAlterRule11}
           onClose={() => setShowExcisePopup(false)}
         />
+      )}
+
+      {showAccept && (
+        <div className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in text-zinc-950">
+          <h4 className="font-bold text-[11px] mb-3">Accept?</h4>
+          <div className="flex items-center gap-3 w-full justify-center">
+            <button
+              onClick={() => {
+                setShowAccept(false);
+                handleSave();
+              }}
+              disabled={saving}
+              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => setShowAccept(false)}
+              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center transition-colors cursor-pointer"
+            >
+              No
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

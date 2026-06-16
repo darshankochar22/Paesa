@@ -1,0 +1,504 @@
+openapi: 3.1.0
+info:
+  title: physicalStock module API
+  version: 1.0.0
+  description: >-
+    IPC contract for the "physicalStock" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle` channel in
+    server/index.js, invoked from the renderer through `window.api.physicalStock.*`.
+    Transport is Electron IPC (not HTTP); the POST + path modeling is a documentation
+    convention so the contract renders in OpenAPI tooling.
+
+    Physical stock entries record a stocktake voucher (a header) plus per-item count
+    lines (batch / lot / godown / quantity). The module never throws to the renderer:
+    services catch errors and return `{ success: false, error }`.
+
+tags:
+  - name: physicalStock
+    description: Physical stock (stocktake) vouchers and their item lines.
+
+paths:
+  /physicalStock/create:
+    post:
+      tags: [physicalStock]
+      operationId: physicalStock.create
+      summary: Create a physical stock voucher with its item lines.
+      x-ipc-channel: "physicalStock:create"
+      x-window-api: "window.api.physicalStock.create"
+      x-controller: "physicalStockController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhysicalStockCreateInput'
+      responses:
+        '200':
+          description: >-
+            On success the inserted header id and the (possibly auto-generated)
+            voucher number. On a caught error, `{ success: false, error }`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PhysicalStockCreateResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /physicalStock/getAll:
+    post:
+      tags: [physicalStock]
+      operationId: physicalStock.getAll
+      summary: List all physical stock voucher headers for a company.
+      description: >-
+        Headers only (no lines), ordered by voucher_date DESC then
+        physical_stock_entry_id DESC. The handler takes a bare company_id value
+        (not an object).
+      x-ipc-channel: "physicalStock:getAll"
+      x-window-api: "window.api.physicalStock.getAll"
+      x-controller: "physicalStockController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdScalar'
+      responses:
+        '200':
+          description: List of voucher headers, or a failure object.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PhysicalStockListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /physicalStock/getById:
+    post:
+      tags: [physicalStock]
+      operationId: physicalStock.getById
+      summary: Fetch one physical stock voucher with its lines.
+      description: >-
+        Returns the header plus a `lines` array; each line is left-joined to
+        stock item and godown names. The handler takes a bare id value (not an object).
+      x-ipc-channel: "physicalStock:getById"
+      x-window-api: "window.api.physicalStock.getById"
+      x-controller: "physicalStockController.getById"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntryIdScalar'
+      responses:
+        '200':
+          description: The voucher with nested lines, or a failure object (incl. "Entry not found").
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PhysicalStockGetByIdResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /physicalStock/delete:
+    post:
+      tags: [physicalStock]
+      operationId: physicalStock.delete
+      summary: Delete a physical stock voucher (lines cascade).
+      description: >-
+        Deletes the header row; child lines are removed via ON DELETE CASCADE.
+        The handler takes a bare id value (not an object).
+      x-ipc-channel: "physicalStock:delete"
+      x-window-api: "window.api.physicalStock.delete"
+      x-controller: "physicalStockController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntryIdScalar'
+      responses:
+        '200':
+          description: '`{ success: true }` on success, otherwise a failure object.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /physicalStock/getNextNumber:
+    post:
+      tags: [physicalStock]
+      operationId: physicalStock.getNextNumber
+      summary: Compute the next available voucher number for a company.
+      description: >-
+        Generates the next `PST-NNNNN` voucher number (max existing + 1, zero-padded
+        to 5 digits). Unlike getAll/getById/delete, this handler destructures
+        `{ company_id }` from an OBJECT payload.
+      x-ipc-channel: "physicalStock:getNextNumber"
+      x-window-api: "window.api.physicalStock.getNextNumber"
+      x-controller: "physicalStockController.getNextNumber"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetNextNumberInput'
+      responses:
+        '200':
+          description: The next voucher number, or a failure object.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/NextNumberResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  schemas:
+
+    Error:
+      type: object
+      description: Shared error envelope for 4xx/5xx transport-level failures.
+      properties:
+        error:
+          type: string
+          description: Short error code or label.
+        message:
+          type: string
+          description: Human-readable error detail.
+      required: [error, message]
+
+    SuccessResult:
+      type: object
+      description: Minimal success envelope returned by delete.
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]
+
+    FailureResult:
+      type: object
+      description: >-
+        Caught-error envelope. Every service wraps its body in try/catch and
+        returns this shape (with success=false) instead of throwing.
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: err.message from the caught exception, or a domain message like "Entry not found".
+      required: [success, error]
+
+    CompanyIdScalar:
+      type: object
+      description: >-
+        Bare-value handler. getAll receives company_id directly as IPC arg 2.
+        Modeled here as a single-property object for schema validity.
+      properties:
+        company_id:
+          type: integer
+          description: companies.company_id the vouchers belong to.
+      required: [company_id]
+
+    EntryIdScalar:
+      type: object
+      description: >-
+        Bare-value handler. getById and delete receive the entry id directly as IPC arg 2.
+        Modeled here as a single-property object for schema validity.
+      properties:
+        id:
+          type: integer
+          description: physical_stock_entries.physical_stock_entry_id.
+      required: [id]
+
+    GetNextNumberInput:
+      type: object
+      description: Object payload destructured as `{ company_id }` by the controller.
+      properties:
+        company_id:
+          type: integer
+          description: companies.company_id to scope the running voucher sequence.
+      required: [company_id]
+
+    PhysicalStockCreateInput:
+      type: object
+      description: >-
+        Payload for create. The controller passes the whole object to the service,
+        which reads company_id, voucher_no (optional; auto-generated if absent),
+        voucher_date, reference_no, narration, is_optional, is_post_dated, and lines[].
+      properties:
+        company_id:
+          type: integer
+          description: Owning company. Required (used for INSERT and voucher-number generation).
+        voucher_no:
+          type: string
+          description: >-
+            Optional. If falsy, the service auto-generates the next PST-NNNNN number.
+          nullable: true
+        voucher_date:
+          type: string
+          format: date
+          description: Voucher date (date-only ISO string). NOT NULL in storage.
+        reference_no:
+          type: string
+          nullable: true
+          description: Optional external reference; stored NULL if falsy.
+        narration:
+          type: string
+          nullable: true
+          description: Optional notes; stored NULL if falsy.
+        is_optional:
+          type: boolean
+          description: Optional-voucher flag. Stored as 0/1 (truthy -> 1).
+          default: false
+        is_post_dated:
+          type: boolean
+          description: Post-dated flag. Stored as 0/1 (truthy -> 1).
+          default: false
+        lines:
+          type: array
+          description: Item count lines. Optional; inserted in array order (line_order = index).
+          items:
+            $ref: '#/components/schemas/PhysicalStockLineInput'
+      required: [company_id, voucher_date]
+
+    PhysicalStockLineInput:
+      type: object
+      description: One stocktake line as sent by the renderer.
+      properties:
+        stock_item_id:
+          type: integer
+          nullable: true
+          description: References stock_items.item_id. Stored NULL if falsy.
+        godown_id:
+          type: integer
+          nullable: true
+          description: References godowns.godown_id. Stored NULL if falsy.
+        batch_no:
+          type: string
+          nullable: true
+        lot_no:
+          type: string
+          nullable: true
+        manufacturing_date:
+          type: string
+          nullable: true
+          description: Date-only ISO string.
+        expiry_date:
+          type: string
+          nullable: true
+          description: Date-only ISO string.
+        quantity:
+          type: number
+          description: Counted quantity. Coerced via Number() || 0.
+          default: 0
+        rate:
+          type: number
+          description: Unit rate. Coerced via Number() || 0.
+          default: 0
+      description_amount: >-
+        Note: `amount` is NOT taken from input. The service computes it server-side
+        as quantity * rate.
+
+    PhysicalStockCreateResult:
+      type: object
+      description: Success result of create.
+      properties:
+        success:
+          type: boolean
+          const: true
+        physical_stock_entry_id:
+          type: integer
+          description: lastInsertRowid of the new header.
+        voucher_no:
+          type: string
+          description: The stored voucher number (provided or auto-generated).
+      required: [success, physical_stock_entry_id, voucher_no]
+
+    PhysicalStockListResult:
+      type: object
+      description: Success result of getAll.
+      properties:
+        success:
+          type: boolean
+          const: true
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhysicalStockEntryRow'
+      required: [success, entries]
+
+    PhysicalStockGetByIdResult:
+      type: object
+      description: Success result of getById (header + nested lines).
+      properties:
+        success:
+          type: boolean
+          const: true
+        entry:
+          allOf:
+            - $ref: '#/components/schemas/PhysicalStockEntryRow'
+            - type: object
+              properties:
+                lines:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PhysicalStockLineRowJoined'
+              required: [lines]
+      required: [success, entry]
+
+    NextNumberResult:
+      type: object
+      description: Success result of getNextNumber.
+      properties:
+        success:
+          type: boolean
+          const: true
+        nextNumber:
+          type: string
+          description: Next voucher number, e.g. "PST-00001".
+        voucher_number:
+          type: string
+          description: Duplicate of nextNumber (both keys returned).
+      required: [success, nextNumber, voucher_number]
+
+    PhysicalStockEntryRow:
+      type: object
+      description: >-
+        A row of physical_stock_entries (SELECT *). Booleans are stored as 0/1
+        integers in SQLite and returned as-is.
+      properties:
+        physical_stock_entry_id:
+          type: integer
+        company_id:
+          type: integer
+        voucher_no:
+          type: string
+          nullable: true
+        voucher_date:
+          type: string
+        reference_no:
+          type: string
+          nullable: true
+        narration:
+          type: string
+          nullable: true
+        is_optional:
+          type: integer
+          description: 0 or 1.
+        is_post_dated:
+          type: integer
+          description: 0 or 1.
+        created_at:
+          type: string
+          description: ISO datetime string (datetime('now')).
+        updated_at:
+          type: string
+          description: ISO datetime string (datetime('now')).
+      required: [physical_stock_entry_id, company_id, voucher_date]
+
+    PhysicalStockLineRowJoined:
+      type: object
+      description: >-
+        A row of physical_stock_entry_lines (l.*) plus joined display names.
+        Returned by getById.
+      properties:
+        line_id:
+          type: integer
+        physical_stock_entry_id:
+          type: integer
+        stock_item_id:
+          type: integer
+          nullable: true
+        godown_id:
+          type: integer
+          nullable: true
+        batch_no:
+          type: string
+          nullable: true
+        lot_no:
+          type: string
+          nullable: true
+        manufacturing_date:
+          type: string
+          nullable: true
+        expiry_date:
+          type: string
+          nullable: true
+        quantity:
+          type: number
+        rate:
+          type: number
+        amount:
+          type: number
+        line_order:
+          type: integer
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        item_name:
+          type: string
+          nullable: true
+          description: >-
+            Joined stock_items.name. WARNING: the join condition in the source
+            (i.stock_item_id = l.stock_item_id) references a non-existent column on
+            stock_items (PK is item_id), so this is effectively always NULL until fixed.
+        godown_name:
+          type: string
+          nullable: true
+          description: Joined godowns.name.
+      required: [line_id, physical_stock_entry_id]

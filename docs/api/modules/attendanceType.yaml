@@ -1,0 +1,338 @@
+openapi: 3.1.0
+info:
+  title: attendanceType module API
+  version: 1.0.0
+  description: >
+    IPC contract for the "attendanceType" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('attendanceType:<action>', ...)`
+    channel in server/index.js and is exposed to the renderer via preload.js as
+    window.api.attendanceType.<method>. HTTP method/path are a documentation convention only
+    (there is no HTTP server); the real transport is Electron IPC.
+servers:
+  - url: ipc://local
+    description: Electron IPC (not HTTP). Path/method modeled for OpenAPI tooling only.
+tags:
+  - name: attendanceType
+    description: Manage company attendance types (Present/Absent/Leave/Overtime, etc.).
+paths:
+  /attendanceType/create:
+    post:
+      operationId: attendanceType.create
+      tags: [attendanceType]
+      summary: Create a new attendance type for a company (rejects duplicate active names, case-insensitive).
+      x-ipc-channel: "attendanceType:create"
+      x-window-api: "window.api.attendanceType.create"
+      x-controller: "attendanceTypeController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceTypeCreateInput'
+      responses:
+        '200':
+          description: Created attendance type, or a failure result if a duplicate active name exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceTypeMutationResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /attendanceType/getAll:
+    post:
+      operationId: attendanceType.getAll
+      tags: [attendanceType]
+      summary: List all active attendance types for a company.
+      x-ipc-channel: "attendanceType:getAll"
+      x-window-api: "window.api.attendanceType.getAll"
+      x-controller: "attendanceTypeController.getAll"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare scalar (company_id) as the second IPC argument,
+          modeled here as an object wrapper for tooling.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: Owning company id (companies.company_id).
+      responses:
+        '200':
+          description: List result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [success]
+                properties:
+                  success: { type: boolean }
+                  attendanceTypes:
+                    type: array
+                    items: { $ref: '#/components/schemas/AttendanceType' }
+                  error: { type: string }
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /attendanceType/getById:
+    post:
+      operationId: attendanceType.getById
+      tags: [attendanceType]
+      summary: Fetch a single attendance type by its id.
+      x-ipc-channel: "attendanceType:getById"
+      x-window-api: "window.api.attendanceType.getById"
+      x-controller: "attendanceTypeController.getById"
+      requestBody:
+        required: true
+        description: Handler receives a bare scalar id as the second IPC argument.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: attendance_types.attendance_type_id
+      responses:
+        '200':
+          description: Single attendance type, or failure if not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceTypeMutationResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /attendanceType/update:
+    post:
+      operationId: attendanceType.update
+      tags: [attendanceType]
+      summary: Update an existing attendance type (predefined rows are rejected).
+      x-ipc-channel: "attendanceType:update"
+      x-window-api: "window.api.attendanceType.update"
+      x-controller: "attendanceTypeController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceTypeUpdateInput'
+      responses:
+        '200':
+          description: Updated attendance type, or failure if not found / predefined.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceTypeMutationResult'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /attendanceType/delete:
+    post:
+      operationId: attendanceType.delete
+      tags: [attendanceType]
+      summary: Soft-delete an attendance type (sets is_active = 0); predefined rows are rejected.
+      x-ipc-channel: "attendanceType:delete"
+      x-window-api: "window.api.attendanceType.delete"
+      x-controller: "attendanceTypeController.delete"
+      requestBody:
+        required: true
+        description: Handler receives a bare scalar id as the second IPC argument.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: attendance_types.attendance_type_id
+      responses:
+        '200':
+          description: Success flag, or failure if not found / predefined.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [success]
+                properties:
+                  success: { type: boolean }
+                  error: { type: string }
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  schemas:
+    AttendanceType:
+      type: object
+      description: A row of the attendance_types table. Maps to Postgres table attendance_types.
+      properties:
+        attendance_type_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        type:
+          type: string
+          description: Category label, e.g. "Attendance / Leave with Pay", "Leave", "Production".
+          default: "Attendance / Leave with Pay"
+        unit_id:
+          type: [integer, "null"]
+          description: FK -> payroll_units.payroll_unit_id.
+        period:
+          type: string
+          default: "Per Day"
+        carry_forward:
+          type: [integer, boolean]
+          description: Stored as 0/1 integer in SQLite (boolean flag). 0 = false, 1 = true.
+          default: 0
+        encashment:
+          type: [integer, boolean]
+          description: Stored as 0/1 integer in SQLite (boolean flag). 0 = false, 1 = true.
+          default: 0
+        max_days:
+          type: number
+          description: Maximum days (quantity). Stored as REAL in SQLite.
+          default: 0
+        is_active:
+          type: [integer, boolean]
+          description: Soft-delete flag. 0/1 in SQLite. 0 = false, 1 = true.
+          default: 1
+        is_predefined:
+          type: [integer, boolean]
+          description: Seeded/system row that cannot be edited or deleted. 0/1 in SQLite.
+          default: 0
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required:
+        - attendance_type_id
+        - company_id
+        - name
+    AttendanceTypeCreateInput:
+      type: object
+      description: Payload for attendanceType:create (data object destructured by the service).
+      additionalProperties: false
+      required: [company_id, name]
+      properties:
+        company_id:
+          type: integer
+          description: Owning company id (required).
+        name:
+          type: string
+          description: Attendance type name (required, must be unique among active rows, case-insensitive).
+        alias:
+          type: string
+          description: Optional alias. Defaults to null.
+        type:
+          type: string
+          description: Category label. Defaults to "Attendance / Leave with Pay".
+        unit_id:
+          type: integer
+          description: Optional payroll unit id. Defaults to null.
+        period:
+          type: string
+          description: Defaults to "Per Day".
+        carry_forward:
+          type: [integer, boolean]
+          description: Defaults to 0.
+        encashment:
+          type: [integer, boolean]
+          description: Defaults to 0.
+        max_days:
+          type: number
+          description: Defaults to 0.
+    AttendanceTypeUpdateInput:
+      type: object
+      description: >
+        Payload for attendanceType:update. attendance_type_id is required to locate the row;
+        all other fields fall back to the current row value when omitted (?? coalescing).
+      additionalProperties: false
+      required: [attendance_type_id]
+      properties:
+        attendance_type_id:
+          type: integer
+        name: { type: string }
+        alias: { type: [string, "null"] }
+        type: { type: string }
+        unit_id: { type: [integer, "null"] }
+        period: { type: string }
+        carry_forward: { type: [integer, boolean] }
+        encashment: { type: [integer, boolean] }
+        max_days: { type: number }
+    AttendanceTypeMutationResult:
+      type: object
+      description: Common single-row result envelope returned by create/getById/update.
+      additionalProperties: false
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        attendanceType:
+          $ref: '#/components/schemas/AttendanceType'
+        error:
+          type: string
+          description: Present when success is false.
+    Error:
+      type: object
+      description: Shared error envelope.
+      additionalProperties: false
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string

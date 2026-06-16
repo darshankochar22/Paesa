@@ -1,0 +1,32 @@
+-- ============================================================================
+-- Module: report  (Postgres DDL)
+-- ============================================================================
+-- The "report" backend module is READ-ONLY and owns NO tables.
+-- server/report/ has no schema-init file (no report.js); it only reads from
+-- tables owned by other modules:
+--   * vouchers          (voucher module)
+--   * voucher_entries   (voucher module)
+--   * ledgers           (ledger / master module)
+--   * groups            (group / master module)
+--
+-- Therefore this file defines NO CREATE TABLE statements for the report module.
+-- The columns the report SQL actually touches are listed below for reference;
+-- the authoritative DDL for these tables lives in those owning modules'
+-- docs/db/modules/*.sql files. FK constraints are intentionally NOT emitted
+-- here to avoid duplicating / conflicting with the owning modules.
+--
+-- Columns referenced by reportService.js (for traceability):
+--   vouchers:        voucher_id, company_id, fy_id, date, voucher_type,
+--                    voucher_number, narration, is_cancelled
+--   voucher_entries: voucher_id, ledger_id, type ('Dr'|'Cr'), amount, narration
+--   ledgers:         ledger_id, company_id, group_id, name, opening_balance,
+--                    is_active, ledger_type
+--   groups:          group_id, nature ('Assets'|'Liabilities'|'Income'|'Expenses')
+--
+-- Money/quantity note: any amount/balance/opening_balance column referenced
+-- here MUST be modeled as NUMERIC(18,2) (currency) in the owning module's DDL —
+-- NEVER as REAL/DOUBLE PRECISION/floating point. Floating point silently loses
+-- cents and breaks debit=credit reconciliation in an accounting ledger.
+--
+-- No tables to create for this module.
+-- ============================================================================

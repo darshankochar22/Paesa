@@ -1,0 +1,342 @@
+openapi: 3.1.0
+info:
+  title: companyFeatureValues module API
+  version: 1.0.0
+  description: >
+    IPC contract for the companyFeatureValues backend module of the Electron + SQLite
+    accounting/ERP app. Each path models one ipcMain.handle channel. Transport is
+    Electron IPC (not HTTP); "post" + "/{namespace}/{action}" is a documentation
+    convention. The IPC namespace for this module is "companyFeatureValues" (same as
+    the module name). Renderer bindings are exposed via window.api.companyFeatureValues.*
+    (see preload.js).
+servers:
+  - url: ipc://local
+    description: Electron IPC bridge (contextBridge invoke)
+paths:
+  /companyFeatureValues/get:
+    post:
+      operationId: companyFeatureValues.get
+      tags: [companyFeatureValues]
+      summary: Get all feature values for a company (joined with feature_items metadata).
+      x-ipc-channel: "companyFeatureValues:get"
+      x-window-api: "window.api.companyFeatureValues.get"
+      x-controller: "companyFeatureValuesController.get"
+      description: >
+        Controller receives the company id as a bare scalar (arg 2), forwarded to
+        service.get(company_id). Returns rows from company_feature_values INNER JOIN
+        feature_items, exposing feature_key, feature_name and feature_group_id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id to fetch feature values for.
+      responses:
+        '200':
+          description: Feature values found, or a failure envelope when none exist.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FeatureValuesListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /companyFeatureValues/getByGroup:
+    post:
+      operationId: companyFeatureValues.getByGroup
+      tags: [companyFeatureValues]
+      summary: Get a company's feature values filtered by feature group.
+      x-ipc-channel: "companyFeatureValues:getByGroup"
+      x-window-api: "window.api.companyFeatureValues.getByGroup"
+      x-controller: "companyFeatureValuesController.getByGroup"
+      description: >
+        Controller destructures { company_id, group_id } from arg 2 and calls
+        service.getByGroup(company_id, group_id). Note: the service parameter is named
+        feature_group_id and the JOIN filters on fi.feature_group_id. Returns
+        company_feature_values joined with feature_items (feature_key, feature_name).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id, group_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id.
+                group_id:
+                  type: integer
+                  description: >
+                    feature_items.feature_group_id to filter by (the controller key is
+                    group_id; the service treats it as feature_group_id).
+      responses:
+        '200':
+          description: Feature values for the group (possibly empty array).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FeatureValuesListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /companyFeatureValues/update:
+    post:
+      operationId: companyFeatureValues.update
+      tags: [companyFeatureValues]
+      summary: Update a single feature value for a company (partial update with fallback to current).
+      x-ipc-channel: "companyFeatureValues:update"
+      x-window-api: "window.api.companyFeatureValues.update"
+      x-controller: "companyFeatureValuesController.update"
+      description: >
+        Controller passes arg 2 (data) straight to service.update(data). The row is
+        located by (company_id, feature_item_id). Each updatable column falls back to
+        its current value via the ?? operator when omitted/null. Sets updated_at.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id, feature_item_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id (row selector).
+                feature_item_id:
+                  type: integer
+                  description: feature_items.feature_item_id (row selector).
+                value_boolean:
+                  type: integer
+                  enum: [0, 1]
+                  description: 0/1 flag; stored as INTEGER in SQLite. Optional.
+                value_text:
+                  type: [string, "null"]
+                  description: Optional text value.
+                value_number:
+                  type: [number, "null"]
+                  description: Optional numeric value.
+                value_date:
+                  type: [string, "null"]
+                  description: Optional date value stored as TEXT.
+                is_enabled:
+                  type: integer
+                  enum: [0, 1]
+                  description: 0/1 enabled flag. Optional.
+      responses:
+        '200':
+          description: Updated row, or failure envelope if not found.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FeatureValueResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /companyFeatureValues/updateBulk:
+    post:
+      operationId: companyFeatureValues.updateBulk
+      tags: [companyFeatureValues]
+      summary: Update many feature values for a company in one call (skips rows that do not exist).
+      x-ipc-channel: "companyFeatureValues:updateBulk"
+      x-window-api: "window.api.companyFeatureValues.updateBulk"
+      x-controller: "companyFeatureValuesController.updateBulk"
+      description: >
+        Controller destructures { company_id, values } from arg 2 and calls
+        service.updateBulk(company_id, values). Iterates values; for each existing
+        (company_id, feature_item_id) row, applies the same per-column ?? fallback as
+        update. Missing rows are skipped (no error). Returns the array of updated rows.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id, values]
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id for all entries.
+                values:
+                  type: array
+                  description: Per-feature update payloads.
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [feature_item_id]
+                    properties:
+                      feature_item_id:
+                        type: integer
+                        description: feature_items.feature_item_id (row selector).
+                      value_boolean:
+                        type: integer
+                        enum: [0, 1]
+                      value_text:
+                        type: [string, "null"]
+                      value_number:
+                        type: [number, "null"]
+                      value_date:
+                        type: [string, "null"]
+                      is_enabled:
+                        type: integer
+                        enum: [0, 1]
+      responses:
+        '200':
+          description: Array of updated rows (only rows that existed).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FeatureValuesUpdatedResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  schemas:
+    CompanyFeatureValue:
+      type: object
+      description: A row of the company_feature_values table.
+      properties:
+        id:
+          type: integer
+          description: Surrogate primary key.
+        company_id:
+          type: integer
+          description: FK -> companies.company_id (ON DELETE CASCADE).
+        feature_item_id:
+          type: integer
+          description: FK -> feature_items.feature_item_id (ON DELETE CASCADE).
+        value_boolean:
+          type: [integer, "null"]
+          enum: [0, 1, null]
+          description: 0/1 flag (SQLite INTEGER, default 0).
+        value_text:
+          type: [string, "null"]
+        value_number:
+          type: [number, "null"]
+        value_date:
+          type: [string, "null"]
+        is_enabled:
+          type: [integer, "null"]
+          enum: [0, 1, null]
+          description: 0/1 enabled flag (SQLite INTEGER, default 0).
+        created_at:
+          type: string
+          description: ISO/SQLite datetime('now') string.
+        updated_at:
+          type: string
+          description: ISO/SQLite datetime('now') string.
+      required: [id, company_id, feature_item_id]
+    CompanyFeatureValueJoined:
+      description: >
+        A company_feature_values row augmented with feature_items metadata via INNER
+        JOIN. The get channel adds feature_group_id; getByGroup does not.
+      allOf:
+        - $ref: '#/components/schemas/CompanyFeatureValue'
+        - type: object
+          properties:
+            feature_key:
+              type: string
+              description: feature_items.feature_key.
+            feature_name:
+              type: string
+              description: feature_items.feature_name.
+            feature_group_id:
+              type: [integer, "null"]
+              description: feature_items.feature_group_id (present only on the get channel).
+    FeatureValuesListResult:
+      type: object
+      description: Success envelope returning a list of (joined) feature values.
+      required: [success, values]
+      properties:
+        success:
+          const: true
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyFeatureValueJoined'
+    FeatureValueResult:
+      type: object
+      description: Success envelope returning a single updated row.
+      required: [success, value]
+      properties:
+        success:
+          const: true
+        value:
+          $ref: '#/components/schemas/CompanyFeatureValue'
+    FeatureValuesUpdatedResult:
+      type: object
+      description: Success envelope from updateBulk returning updated rows.
+      required: [success, updated]
+      properties:
+        success:
+          const: true
+        updated:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyFeatureValue'
+    FailureResult:
+      type: object
+      description: >
+        In-band failure envelope returned by the service (the IPC call still resolves
+        successfully; check success === false).
+      required: [success, error]
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+          description: Human-readable error message (e.g. "No feature values found").
+    Error:
+      type: object
+      description: Shared transport/unexpected error shape.
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string

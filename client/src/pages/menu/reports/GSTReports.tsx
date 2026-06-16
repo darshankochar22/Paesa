@@ -23,6 +23,9 @@ export default function GSTReports() {
   ];
 
   const getRoute = (_section: string, item: string) => {
+    if (item === "Track GST Return Activities") {
+      return "/master/statutory/gst/track-activities";
+    }
     if (item === "GSTR-1") {
       return "/master/statutory/gstr1";
     }

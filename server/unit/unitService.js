@@ -1,4 +1,31 @@
 const { db } = require("../db/index");
+const { sql, eq } = require("drizzle-orm");
+const { units } = require("../db/schema");
+
+// Fetch a single units row (legacy snake_case shape) or undefined.
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${units} WHERE ${whereSql}`);
+  return rows[0];
+};
+
+// Fetch a units row joined with its first/second sub-unit symbols + formal names.
+// This self-join (units aliased f/s) does not map cleanly to the query builder,
+// so it uses Drizzle's typed `sql` operator. Returned keys stay snake_case
+// (u.*, first_unit_symbol, ...) to preserve the exact legacy public shape.
+const findJoinedRow = async (unitId) => {
+  const rows = await db.all(
+    sql`
+      SELECT u.*,
+        f.symbol AS first_unit_symbol, f.formal_name AS first_unit_formal_name,
+        s.symbol AS second_unit_symbol, s.formal_name AS second_unit_formal_name
+      FROM ${units} u
+      LEFT JOIN ${units} f ON u.first_unit_id = f.unit_id
+      LEFT JOIN ${units} s ON u.second_unit_id = s.unit_id
+      WHERE u.unit_id = ${unitId}
+    `
+  );
+  return rows;
+};
 
 const seedDefaultUnits = async (company_id) => {
   const defaults = [
@@ -12,10 +39,17 @@ const seedDefaultUnits = async (company_id) => {
   ];
 
   for (const u of defaults) {
-    await db.execute({
-      sql: `INSERT INTO units (company_id, name, symbol, formal_name, decimal_places, unit_quantity_code, unit_type, is_simple, is_active, is_predefined)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [company_id, u.name, u.symbol, u.name, u.decimal_places, null, u.unit_type, 1, 1, 1],
+    await db.insert(units).values({
+      companyId: company_id,
+      name: u.name,
+      symbol: u.symbol,
+      formalName: u.name,
+      decimalPlaces: u.decimal_places,
+      unitQuantityCode: null,
+      unitType: u.unit_type,
+      isSimple: 1,
+      isActive: 1,
+      isPredefined: 1,
     });
   }
 };
@@ -35,60 +69,63 @@ module.exports = {
         if (!data.conversion_factor || Number(data.conversion_factor) <= 0) return { success: false, error: "Conversion factor must be greater than 0." };
 
         // Verify first unit exists and is simple
-        const firstUnit = await db.execute({
-          sql: `SELECT * FROM units WHERE unit_id = ? AND company_id = ? AND is_active = 1`,
-          args: [data.first_unit_id, data.company_id],
-        });
-        if (firstUnit.rows.length === 0) return { success: false, error: "First unit not found." };
-        if (firstUnit.rows[0].unit_type === "Compound") return { success: false, error: "First unit is already a compound unit." };
+        const firstUnit = await findRow(
+          sql`${units.unitId} = ${data.first_unit_id} AND ${units.companyId} = ${data.company_id} AND ${units.isActive} = 1`
+        );
+        if (!firstUnit) return { success: false, error: "First unit not found." };
+        if (firstUnit.unit_type === "Compound") return { success: false, error: "First unit is already a compound unit." };
 
         // Verify second unit exists and is simple
-        const secondUnit = await db.execute({
-          sql: `SELECT * FROM units WHERE unit_id = ? AND company_id = ? AND is_active = 1`,
-          args: [data.second_unit_id, data.company_id],
-        });
-        if (secondUnit.rows.length === 0) return { success: false, error: "Second unit not found." };
-        if (secondUnit.rows[0].unit_type === "Compound") return { success: false, error: "Second unit cannot be a compound unit." };
+        const secondUnit = await findRow(
+          sql`${units.unitId} = ${data.second_unit_id} AND ${units.companyId} = ${data.company_id} AND ${units.isActive} = 1`
+        );
+        if (!secondUnit) return { success: false, error: "Second unit not found." };
+        if (secondUnit.unit_type === "Compound") return { success: false, error: "Second unit cannot be a compound unit." };
 
         // Update first unit to become compound
-        await db.execute({
-          sql: `UPDATE units SET unit_type = ?, is_simple = ?, first_unit_id = ?, second_unit_id = ?, conversion_factor = ?, updated_at = datetime('now') WHERE unit_id = ?`,
-          args: ["Compound", 0, data.first_unit_id, data.second_unit_id, Number(data.conversion_factor), data.first_unit_id],
-        });
+        await db
+          .update(units)
+          .set({
+            unitType: "Compound",
+            isSimple: 0,
+            firstUnitId: data.first_unit_id,
+            secondUnitId: data.second_unit_id,
+            conversionFactor: Number(data.conversion_factor),
+            updatedAt: sql`datetime('now')`,
+          })
+          .where(eq(units.unitId, data.first_unit_id));
 
-        const updated = await db.execute({
-          sql: `SELECT * FROM units WHERE unit_id = ?`,
-          args: [data.first_unit_id],
-        });
-        return { success: true, unit: updated.rows[0] };
+        const updated = await findRow(sql`${units.unitId} = ${data.first_unit_id}`);
+        return { success: true, unit: updated };
       }
 
       // Simple unit creation
-      const exists = await db.execute({
-        sql: `SELECT * FROM units WHERE company_id = ? AND LOWER(symbol) = LOWER(?) AND is_active = 1`,
-        args: [data.company_id, data.symbol],
-      });
-      if (exists.rows.length > 0) return { success: false, error: "Unit already exists" };
+      const exists = await db.all(
+        sql`SELECT * FROM ${units}
+            WHERE ${units.companyId} = ${data.company_id}
+              AND LOWER(${units.symbol}) = LOWER(${data.symbol})
+              AND ${units.isActive} = 1`
+      );
+      if (exists.length > 0) return { success: false, error: "Unit already exists" };
 
-      const result = await db.execute({
-        sql: `INSERT INTO units (company_id, name, symbol, formal_name, decimal_places, unit_quantity_code, unit_type, is_simple, is_active, is_predefined)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          data.company_id, data.name, data.symbol,
-          data.formal_name || data.name,
-          data.decimal_places || 0,
-          data.unit_quantity_code || null,
-          data.unit_type || "Simple",
-          data.unit_type === "Simple" ? 1 : 0,
-          1, 0,
-        ],
-      });
+      const inserted = await db
+        .insert(units)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          symbol: data.symbol,
+          formalName: data.formal_name || data.name,
+          decimalPlaces: data.decimal_places || 0,
+          unitQuantityCode: data.unit_quantity_code || null,
+          unitType: data.unit_type || "Simple",
+          isSimple: data.unit_type === "Simple" ? 1 : 0,
+          isActive: 1,
+          isPredefined: 0,
+        })
+        .returning({ id: units.unitId });
 
-      const unit = await db.execute({
-        sql: `SELECT * FROM units WHERE unit_id = ? ORDER BY name ASC`,
-        args: [Number(result.lastInsertRowid)],
-      });
-      return { success: true, unit: unit.rows[0] };
+      const unit = await findRow(sql`${units.unitId} = ${inserted[0].id}`);
+      return { success: true, unit };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -96,19 +133,18 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `
+      const rows = await db.all(
+        sql`
           SELECT u.*,
-            f.symbol as first_unit_symbol, f.formal_name as first_unit_formal_name,
-            s.symbol as second_unit_symbol, s.formal_name as second_unit_formal_name
-          FROM units u
-          LEFT JOIN units f ON u.first_unit_id = f.unit_id
-          LEFT JOIN units s ON u.second_unit_id = s.unit_id
-          WHERE u.company_id = ? AND u.is_active = 1
-        `,
-        args: [company_id],
-      });
-      return { success: true, units: result.rows };
+            f.symbol AS first_unit_symbol, f.formal_name AS first_unit_formal_name,
+            s.symbol AS second_unit_symbol, s.formal_name AS second_unit_formal_name
+          FROM ${units} u
+          LEFT JOIN ${units} f ON u.first_unit_id = f.unit_id
+          LEFT JOIN ${units} s ON u.second_unit_id = s.unit_id
+          WHERE u.company_id = ${company_id} AND u.is_active = 1
+        `
+      );
+      return { success: true, units: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -116,11 +152,14 @@ module.exports = {
 
   getSimpleUnits: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM units WHERE company_id = ? AND is_active = 1 AND unit_type = 'Simple' ORDER BY symbol ASC`,
-        args: [company_id],
-      });
-      return { success: true, units: result.rows };
+      const rows = await db.all(
+        sql`SELECT * FROM ${units}
+            WHERE ${units.companyId} = ${company_id}
+              AND ${units.isActive} = 1
+              AND ${units.unitType} = 'Simple'
+            ORDER BY ${units.symbol} ASC`
+      );
+      return { success: true, units: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -128,20 +167,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute({
-        sql: `
-          SELECT u.*,
-            f.symbol as first_unit_symbol, f.formal_name as first_unit_formal_name,
-            s.symbol as second_unit_symbol, s.formal_name as second_unit_formal_name
-          FROM units u
-          LEFT JOIN units f ON u.first_unit_id = f.unit_id
-          LEFT JOIN units s ON u.second_unit_id = s.unit_id
-          WHERE u.unit_id = ?
-        `,
-        args: [id],
-      });
-      if (result.rows.length === 0) return { success: false, error: "Unit not found" };
-      return { success: true, unit: result.rows[0] };
+      const rows = await findJoinedRow(id);
+      if (rows.length === 0) return { success: false, error: "Unit not found" };
+      return { success: true, unit: rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -149,12 +177,8 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM units WHERE unit_id = ?`,
-        args: [data.unit_id],
-      });
-      if (existing.rows.length === 0) return { success: false, error: "Unit not found" };
-      const unit = existing.rows[0];
+      const unit = await findRow(sql`${units.unitId} = ${data.unit_id}`);
+      if (!unit) return { success: false, error: "Unit not found" };
       if (unit.is_predefined) return { success: false, error: "Cannot edit predefined units" };
 
       const isCompound = data.unit_type === "Compound";
@@ -167,38 +191,27 @@ module.exports = {
         if (!data.conversion_factor || Number(data.conversion_factor) <= 0) return { success: false, error: "Conversion factor must be greater than 0." };
       }
 
-      await db.execute({
-        sql: `UPDATE units SET name = ?, symbol = ?, formal_name = ?, decimal_places = ?,
-              unit_quantity_code = ?, unit_type = ?, is_simple = ?, first_unit_id = ?, second_unit_id = ?, conversion_factor = ?, updated_at = datetime('now')
-              WHERE unit_id = ?`,
-        args: [
-          data.name ?? unit.name,
-          data.symbol ?? unit.symbol,
-          data.formal_name ?? unit.formal_name,
-          data.decimal_places ?? unit.decimal_places,
-          data.unit_quantity_code ?? unit.unit_quantity_code,
-          data.unit_type ?? unit.unit_type,
-          (data.unit_type ?? unit.unit_type) === "Simple" ? 1 : 0,
-          isCompound ? data.first_unit_id : null,
-          isCompound ? data.second_unit_id : null,
-          isCompound ? Number(data.conversion_factor) : null,
-          data.unit_id,
-        ],
-      });
+      const nextUnitType = data.unit_type ?? unit.unit_type;
 
-      const updated = await db.execute({
-        sql: `
-          SELECT u.*,
-            f.symbol as first_unit_symbol, f.formal_name as first_unit_formal_name,
-            s.symbol as second_unit_symbol, s.formal_name as second_unit_formal_name
-          FROM units u
-          LEFT JOIN units f ON u.first_unit_id = f.unit_id
-          LEFT JOIN units s ON u.second_unit_id = s.unit_id
-          WHERE u.unit_id = ?
-        `,
-        args: [data.unit_id],
-      });
-      return { success: true, unit: updated.rows[0] };
+      await db
+        .update(units)
+        .set({
+          name: data.name ?? unit.name,
+          symbol: data.symbol ?? unit.symbol,
+          formalName: data.formal_name ?? unit.formal_name,
+          decimalPlaces: data.decimal_places ?? unit.decimal_places,
+          unitQuantityCode: data.unit_quantity_code ?? unit.unit_quantity_code,
+          unitType: nextUnitType,
+          isSimple: nextUnitType === "Simple" ? 1 : 0,
+          firstUnitId: isCompound ? data.first_unit_id : null,
+          secondUnitId: isCompound ? data.second_unit_id : null,
+          conversionFactor: isCompound ? Number(data.conversion_factor) : null,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(units.unitId, data.unit_id));
+
+      const updated = await findJoinedRow(data.unit_id);
+      return { success: true, unit: updated[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -206,17 +219,14 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM units WHERE unit_id = ?`,
-        args: [id],
-      });
-      if (existing.rows.length === 0) return { success: false, error: "Unit not found" };
-      if (existing.rows[0].is_predefined) return { success: false, error: "Cannot delete predefined units" };
+      const existing = await findRow(sql`${units.unitId} = ${id}`);
+      if (!existing) return { success: false, error: "Unit not found" };
+      if (existing.is_predefined) return { success: false, error: "Cannot delete predefined units" };
 
-      await db.execute({
-        sql: `UPDATE units SET is_active = 0 WHERE unit_id = ?`,
-        args: [id],
-      });
+      await db
+        .update(units)
+        .set({ isActive: 0 })
+        .where(eq(units.unitId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

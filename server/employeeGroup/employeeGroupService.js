@@ -1,4 +1,6 @@
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { employeeGroups, employees } = require('../db/schema');
 
 const buildTree = (all, parentId = null) => {
   return all
@@ -6,14 +8,25 @@ const buildTree = (all, parentId = null) => {
     .map(g => ({ ...g, children: buildTree(all, g.employee_group_id) }));
 };
 
+// Fetch a single employee_groups row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${employeeGroups} WHERE ${whereSql}`);
+  return rows[0];
+};
+
 const seedDefaultEmployeeGroups = async (company_id) => {
   const defaults = ['Primary', 'Management', 'Staff', 'Workers'];
   for (const name of defaults) {
-    await db.execute(
-      `INSERT INTO employee_groups (company_id, name, alias, parent_group_id, is_active, is_predefined)
-       VALUES (?, ?, null, null, 1, 1)`,
-      [company_id, name]
-    );
+    await db
+      .insert(employeeGroups)
+      .values({
+        companyId: company_id,
+        name,
+        alias: null,
+        parentGroupId: null,
+        isActive: 1,
+        isPredefined: 1,
+      });
   }
 };
 
@@ -22,23 +35,28 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute(
-        `SELECT * FROM employee_groups WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        [data.company_id, data.name]
+      const exists = await db.all(
+        sql`SELECT * FROM ${employeeGroups}
+            WHERE ${employeeGroups.companyId} = ${data.company_id}
+              AND LOWER(${employeeGroups.name}) = LOWER(${data.name})
+              AND ${employeeGroups.isActive} = 1`
       );
-      if (exists.rows.length > 0) return { success: false, error: 'Employee Group already exists' };
+      if (exists.length > 0) return { success: false, error: 'Employee Group already exists' };
 
-      const result = await db.execute(
-        `INSERT INTO employee_groups (company_id, name, alias, parent_group_id, is_active, is_predefined)
-         VALUES (?, ?, ?, ?, 1, 0)`,
-        [data.company_id, data.name, data.alias || null, data.parent_group_id || null]
-      );
+      const inserted = await db
+        .insert(employeeGroups)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          alias: data.alias || null,
+          parentGroupId: data.parent_group_id || null,
+          isActive: 1,
+          isPredefined: 0,
+        })
+        .returning({ id: employeeGroups.employeeGroupId });
 
-      const group = await db.execute(
-        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
-        [result.lastInsertRowid]
-      );
-      return { success: true, group: group.rows[0] };
+      const group = await findRow(sql`${employeeGroups.employeeGroupId} = ${inserted[0].id}`);
+      return { success: true, group };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -46,11 +64,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM employee_groups WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${employeeGroups}
+            WHERE ${employeeGroups.companyId} = ${company_id}
+              AND ${employeeGroups.isActive} = 1`
       );
-      return { success: true, employeeGroups: result.rows };
+      return { success: true, employeeGroups: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -58,12 +77,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
-        [id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'Employee Group not found' };
-      return { success: true, group: result.rows[0] };
+      const group = await findRow(sql`${employeeGroups.employeeGroupId} = ${id}`);
+      if (!group) return { success: false, error: 'Employee Group not found' };
+      return { success: true, group };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -71,11 +87,12 @@ module.exports = {
 
   getTree: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM employee_groups WHERE company_id = ? AND is_active = 1`,
-        [company_id]
+      const rows = await db.all(
+        sql`SELECT * FROM ${employeeGroups}
+            WHERE ${employeeGroups.companyId} = ${company_id}
+              AND ${employeeGroups.isActive} = 1`
       );
-      const tree = buildTree(result.rows);
+      const tree = buildTree(rows);
       return { success: true, tree };
     } catch (err) {
       return { success: false, error: err.message };
@@ -84,32 +101,22 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
-        [data.employee_group_id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Employee Group not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined employee groups' };
+      const current = await findRow(sql`${employeeGroups.employeeGroupId} = ${data.employee_group_id}`);
+      if (!current) return { success: false, error: 'Employee Group not found' };
+      if (current.is_predefined) return { success: false, error: 'Cannot edit predefined employee groups' };
 
-      const current = existing.rows[0];
-      await db.execute(
-        `UPDATE employee_groups SET
-          name = ?, alias = ?, parent_group_id = ?,
-          updated_at = datetime('now')
-         WHERE employee_group_id = ?`,
-        [
-          data.name ?? current.name,
-          data.alias ?? current.alias,
-          data.parent_group_id ?? current.parent_group_id,
-          data.employee_group_id,
-        ]
-      );
+      await db
+        .update(employeeGroups)
+        .set({
+          name: data.name ?? current.name,
+          alias: data.alias ?? current.alias,
+          parentGroupId: data.parent_group_id ?? current.parent_group_id,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(employeeGroups.employeeGroupId, data.employee_group_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
-        [data.employee_group_id]
-      );
-      return { success: true, group: updated.rows[0] };
+      const updated = await findRow(sql`${employeeGroups.employeeGroupId} = ${data.employee_group_id}`);
+      return { success: true, group: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -117,29 +124,28 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM employee_groups WHERE employee_group_id = ?`,
-        [id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Employee Group not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete predefined employee groups' };
+      const existing = await findRow(sql`${employeeGroups.employeeGroupId} = ${id}`);
+      if (!existing) return { success: false, error: 'Employee Group not found' };
+      if (existing.is_predefined) return { success: false, error: 'Cannot delete predefined employee groups' };
 
-      const hasChildren = await db.execute(
-        `SELECT * FROM employee_groups WHERE parent_group_id = ? AND is_active = 1`,
-        [id]
+      const hasChildren = await db.all(
+        sql`SELECT * FROM ${employeeGroups}
+            WHERE ${employeeGroups.parentGroupId} = ${id}
+              AND ${employeeGroups.isActive} = 1`
       );
-      if (hasChildren.rows.length > 0) return { success: false, error: 'Cannot delete group with sub-groups' };
+      if (hasChildren.length > 0) return { success: false, error: 'Cannot delete group with sub-groups' };
 
-      const hasEmployees = await db.execute(
-        `SELECT * FROM employees WHERE employee_group_id = ? AND is_active = 1`,
-        [id]
+      const hasEmployees = await db.all(
+        sql`SELECT * FROM ${employees}
+            WHERE ${employees.employeeGroupId} = ${id}
+              AND ${employees.isActive} = 1`
       );
-      if (hasEmployees.rows.length > 0) return { success: false, error: 'Cannot delete group with employees' };
+      if (hasEmployees.length > 0) return { success: false, error: 'Cannot delete group with employees' };
 
-      await db.execute(
-        `UPDATE employee_groups SET is_active = 0 WHERE employee_group_id = ?`,
-        [id]
-      );
+      await db
+        .update(employeeGroups)
+        .set({ isActive: 0 })
+        .where(eq(employeeGroups.employeeGroupId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

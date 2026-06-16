@@ -1,0 +1,242 @@
+openapi: 3.1.0
+info:
+  title: priceLevels module API
+  version: 1.0.0
+  description: >
+    IPC API for the priceLevels backend module of an Electron + SQLite
+    accounting/ERP application. Each operation maps to an
+    `ipcMain.handle('priceLevels:<action>', ...)` channel, exposed to the
+    renderer as `window.api.priceLevels.<method>` via preload.js.
+
+    NOTE: This module stores price levels as one row per (company, level_index),
+    but the service layer translates these rows into a sparse array of strings
+    (indexed by level_index) for the renderer. So although the underlying table
+    has many columns, the API surface deals with arrays of price-level NAME
+    strings.
+
+paths:
+  /priceLevels/get:
+    post:
+      operationId: priceLevels.get
+      tags: [priceLevels]
+      summary: Get the price-level names for a company as an index-ordered array.
+      description: >
+        Returns all price levels for a company collapsed into a sparse string
+        array where the array position equals `level_index` and the value is the
+        level `name`. Missing indexes are filled with empty strings.
+      x-ipc-channel: "priceLevels:get"
+      x-window-api: "window.api.priceLevels.get"
+      x-controller: "priceLevelController.get"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                The handler takes a bare value (company_id) as its second IPC
+                argument, modeled here as a single property.
+              properties:
+                company_id:
+                  type: integer
+                  description: ID of the company whose price levels are requested.
+              required: [company_id]
+      responses:
+        '200':
+          description: Price-level names returned (sparse array indexed by level_index).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceLevelsArrayResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/database error (captured as { success:false, error }).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /priceLevels/save:
+    post:
+      operationId: priceLevels.save
+      tags: [priceLevels]
+      summary: Replace all price levels for a company with the supplied array.
+      description: >
+        Deletes all existing price-level rows for the company, then re-inserts
+        one row per array entry (index = level_index, value = trimmed name).
+        This delete-then-insert strategy cleanly handles the list shrinking.
+        At least one non-empty name is required.
+      x-ipc-channel: "priceLevels:save"
+      x-window-api: "window.api.priceLevels.save"
+      x-controller: "priceLevelController.save"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: ID of the company whose price levels are being saved.
+                levels:
+                  type: array
+                  description: >
+                    Ordered list of price-level names. Array position becomes
+                    `level_index`. Entries are trimmed; at least one entry must
+                    be a non-empty string after trimming.
+                  items:
+                    type: string
+              required: [company_id, levels]
+      responses:
+        '200':
+          description: Saved price-level names (re-read, sparse array indexed by level_index).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceLevelsArrayResult'
+        '4XX':
+          description: >
+            Validation error returned as { success:false, error } — e.g.
+            'company_id is required.', 'levels must be an array.',
+            'At least one price level name is required.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /priceLevels/delete:
+    post:
+      operationId: priceLevels.delete
+      tags: [priceLevels]
+      summary: Delete all price levels for a company.
+      description: >
+        Removes every price-level row for the given company. Returns an error
+        result if the company has no price levels.
+      x-ipc-channel: "priceLevels:delete"
+      x-window-api: "window.api.priceLevels.delete"
+      x-controller: "priceLevelController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                The handler takes a bare value (company_id) as its second IPC
+                argument, modeled here as a single property.
+              properties:
+                company_id:
+                  type: integer
+                  description: ID of the company whose price levels are deleted.
+              required: [company_id]
+      responses:
+        '200':
+          description: Deletion succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          description: >
+            No price levels found, returned as
+            { success:false, error:'No price levels found for this company.' }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    PriceLevel:
+      type: object
+      description: >
+        A single price_levels table row. NOTE: the service layer never returns
+        full rows to the renderer — it collapses rows into a name array (see
+        PriceLevelsArrayResult). This schema documents the underlying table.
+      properties:
+        price_level_id:
+          type: integer
+          description: Primary key (AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company. FK -> companies.company_id (ON DELETE CASCADE).
+        level_index:
+          type: integer
+          description: Zero-based ordinal position of this price level within the company.
+        name:
+          type: string
+          description: Display name of the price level (defaults to empty string).
+        is_active:
+          type: boolean
+          description: >
+            Active flag. Stored in SQLite as INTEGER 0/1 (default 1);
+            0 -> false, 1 -> true.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required: [price_level_id, company_id, level_index, name]
+
+    PriceLevelsArrayResult:
+      type: object
+      description: >
+        Standard envelope returned by get/save. `data` is a sparse array of
+        price-level name strings indexed by level_index (gaps filled with '').
+      properties:
+        success:
+          type: boolean
+          description: True when the operation succeeded.
+        data:
+          type: array
+          description: Price-level names indexed by level_index. Empty array when none exist.
+          items:
+            type: string
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    SuccessResult:
+      type: object
+      description: Minimal success envelope (returned by delete).
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          description: Present only when success is false.
+      required: [success]
+
+    Error:
+      type: object
+      description: >
+        Shared error shape. NOTE: this module's service actually returns errors
+        as { success:false, error:<string> } rather than { error, message }.
+        The canonical Error schema is documented here for cross-module
+        consistency; the `error` field carries the human-readable message.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]

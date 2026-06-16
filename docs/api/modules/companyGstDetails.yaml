@@ -1,0 +1,281 @@
+openapi: 3.1.0
+info:
+  title: companyGstDetails module API
+  version: 1.0.0
+  description: >
+    IPC contract for the companyGstDetails backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('companyGstDetails:<action>', ...)`
+    channel and is exposed to the renderer as `window.api.companyGstDetails.<method>`.
+    Operations are modeled as HTTP POST for documentation/merge purposes only; at runtime
+    they are Electron IPC invoke calls.
+
+paths:
+  /companyGstDetails/get:
+    post:
+      operationId: companyGstDetails.get
+      tags: [companyGstDetails]
+      summary: Fetch the GST configuration for a company, or return defaults if none exists.
+      x-ipc-channel: "companyGstDetails:get"
+      x-window-api: "window.api.companyGstDetails.get"
+      x-controller: "companyGstDetailsController.get"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: >
+                    Bare scalar passed as the 2nd IPC argument. PK of the companies table.
+              description: >
+                The controller receives the raw `company_id` value as the 2nd IPC arg
+                (not destructured from an object).
+      responses:
+        '200':
+          description: GST details wrapped in a result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyGstDetailsGetResult'
+        '4XX':
+          description: Client error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /companyGstDetails/save:
+    post:
+      operationId: companyGstDetails.save
+      tags: [companyGstDetails]
+      summary: Upsert (insert or update) the GST configuration for a company.
+      x-ipc-channel: "companyGstDetails:save"
+      x-window-api: "window.api.companyGstDetails.save"
+      x-controller: "companyGstDetailsController.save"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyGstDetailsSaveInput'
+      responses:
+        '200':
+          description: Result envelope indicating success or failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveResult'
+        '4XX':
+          description: Client error (e.g. missing company_id).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server/IPC error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared error shape.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    CompanyGstDetailsData:
+      type: object
+      description: >
+        Camel-cased GST settings as returned/accepted by the service. Maps to the
+        company_gst_details table (see DB docs). Boolean fields are stored as 0/1
+        INTEGER in SQLite; the service converts to JS booleans on read and back to
+        0/1 on write. `stateWiseLimits` is stored as a JSON-encoded TEXT column and
+        parsed to an array on read.
+      properties:
+        hsnSacType:
+          type: string
+          default: "Not Defined"
+          description: company_gst_details.hsn_sac_type
+        hsnSacCode:
+          type: string
+          default: ""
+          description: company_gst_details.hsn_sac_code (null in DB -> "" here)
+        description:
+          type: string
+          default: ""
+          description: company_gst_details.description (null in DB -> "" here)
+        taxabilityType:
+          type: string
+          default: "Not Defined"
+          description: company_gst_details.taxability_type
+        gstRate:
+          type: number
+          default: 0
+          description: company_gst_details.gst_rate (REAL -> NUMERIC(18,4))
+        interstateThresholdLimit:
+          type: number
+          default: 50000
+          description: company_gst_details.interstate_threshold_limit (money -> NUMERIC(18,2))
+        intrastateThresholdLimit:
+          type: number
+          default: 50000
+          description: company_gst_details.intrastate_threshold_limit (money -> NUMERIC(18,2))
+        thresholdLimitIncludes:
+          type: string
+          default: "Value of Invoice"
+          description: company_gst_details.threshold_limit_includes
+        createHSNSummaryFor:
+          type: string
+          default: "All Sections"
+          description: company_gst_details.create_hsn_summary_for
+        minimumHSNLength:
+          type: integer
+          default: 4
+          description: company_gst_details.minimum_hsn_length
+        showGSTAdvances:
+          type: boolean
+          default: false
+          description: company_gst_details.show_gst_advances (0/1 INTEGER -> boolean)
+        updateGSTStatus:
+          type: boolean
+          default: false
+          description: company_gst_details.update_gst_status (0/1 INTEGER -> boolean)
+        gstReturnsConfigured:
+          type: boolean
+          default: false
+          description: company_gst_details.gst_returns_configured (0/1 INTEGER -> boolean)
+        effectiveDate:
+          type: string
+          default: "1-Apr-26"
+          description: >
+            company_gst_details.effective_date. Stored as a free-form TEXT string
+            (e.g. "1-Apr-26"), NOT an ISO date.
+        downloadGSTRegistration:
+          type: string
+          default: ""
+          description: company_gst_details.download_gst_registration (null in DB -> "" here)
+        downloadReturnType:
+          type: string
+          default: "All Returns"
+          description: company_gst_details.download_return_type
+        setStateWiseThresholdLimit:
+          type: boolean
+          default: false
+          description: company_gst_details.set_state_wise_threshold_limit (0/1 INTEGER -> boolean)
+        stateWiseLimits:
+          type: array
+          items: {}
+          default: []
+          description: >
+            company_gst_details.state_wise_limits. Stored as JSON-encoded TEXT;
+            parsed to an array on read, JSON.stringify'd on write. [] when null.
+        gstAdvancesApplicableFrom:
+          type: string
+          default: ""
+          description: company_gst_details.gst_advances_applicable_from (null in DB -> "" here)
+
+    CompanyGstDetailsGetResult:
+      type: object
+      description: >
+        Envelope returned by companyGstDetailsService.get. On a missing row,
+        success=true, exists=false and data carries the default values. On error,
+        success=false with an error message (and no exists/data).
+      properties:
+        success:
+          type: boolean
+        exists:
+          type: boolean
+          description: false when no row exists for the company_id (defaults returned).
+        data:
+          $ref: '#/components/schemas/CompanyGstDetailsData'
+        error:
+          type: string
+          description: Present only when success=false.
+      required: [success]
+
+    CompanyGstDetailsSaveInput:
+      type: object
+      description: >
+        Payload accepted by companyGstDetailsService.save. company_id is required;
+        all other fields are the camel-cased GST settings. Numeric and boolean
+        coercion is applied by the service.
+      additionalProperties: true
+      required: [company_id]
+      properties:
+        company_id:
+          type: integer
+          description: FK to companies(company_id). Required; without it save fails.
+        hsnSacType:
+          type: string
+        hsnSacCode:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        taxabilityType:
+          type: string
+        gstRate:
+          type: number
+        interstateThresholdLimit:
+          type: number
+        intrastateThresholdLimit:
+          type: number
+        thresholdLimitIncludes:
+          type: string
+        createHSNSummaryFor:
+          type: string
+        minimumHSNLength:
+          type: integer
+        showGSTAdvances:
+          type: boolean
+        updateGSTStatus:
+          type: boolean
+        gstReturnsConfigured:
+          type: boolean
+        effectiveDate:
+          type: string
+        downloadGSTRegistration:
+          type: string
+          nullable: true
+        downloadReturnType:
+          type: string
+        setStateWiseThresholdLimit:
+          type: boolean
+        stateWiseLimits:
+          type: array
+          items: {}
+          nullable: true
+        gstAdvancesApplicableFrom:
+          type: string
+          nullable: true
+
+    SaveResult:
+      type: object
+      description: >
+        Result envelope from companyGstDetailsService.save. { success: true } on
+        success; { success: false, error } on failure (e.g. missing company_id).
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          description: Present only when success=false.
+      required: [success]

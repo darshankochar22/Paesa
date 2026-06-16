@@ -1,4 +1,35 @@
+// ---------------------------------------------------------------------------
+// Drizzle ORM conversion (pattern: currencyService.js golden exemplar).
+//
+//   * MUTATIONS use the query builder: db.insert().values(),
+//     db.update().set().where(), with eq() predicates.
+//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
+//     WHERE ...`) to preserve the EXACT legacy snake_case shape (vt_id,
+//     is_active, ...) and numeric 0/1 booleans the test oracle asserts against.
+//   * getAll / getById use typed `sql` LEFT JOINs (with table aliases vt / vtc /
+//     parent) to keep the exact selected/aliased columns (vt.*, the vtc config
+//     columns, and the COALESCE(parent.name, vt.name) AS parent_name) byte-for-
+//     byte identical to the legacy queries.
+//   * New-row id after INSERT comes from .returning({ id: table.pkCol }).
+// ---------------------------------------------------------------------------
 const { db } = require('../db/index');
+const { sql, eq } = require('drizzle-orm');
+const { voucherTypes, voucherTypeConfigs } = require('../db/schema');
+
+// Fetch a single voucher_types row in the legacy snake_case shape (or undefined).
+const findVoucherTypeRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${voucherTypes} WHERE ${whereSql}`);
+  return rows[0];
+};
+
+// Fetch a single voucher_type_configs row in the legacy snake_case shape.
+const findConfigRow = async (voucher_type_id) => {
+  const rows = await db.all(
+    sql`SELECT * FROM ${voucherTypeConfigs}
+        WHERE ${voucherTypeConfigs.voucherTypeId} = ${voucher_type_id}`
+  );
+  return rows[0];
+};
 
 const PREDEFINED_VOUCHER_TYPES = [
   { name: 'Contra',            short_name: 'Cont', category: 'Contra',            affects_inventory: 0, affects_accounting: 1, affects_gst: 0 },
@@ -30,27 +61,45 @@ const PREDEFINED_VOUCHER_TYPES = [
 
 const seedDefaultVoucherTypes = async (company_id) => {
   for (const vt of PREDEFINED_VOUCHER_TYPES) {
-    const result = await db.execute(
-      `INSERT INTO voucher_types (
-        company_id, name, short_name, category, default_voucher_class,
-        affects_inventory, affects_accounting, affects_gst,
-        numbering_method, numbering_prefix, numbering_suffix,
-        starts_with, is_predefined, is_active
-      ) VALUES (?, ?, ?, ?, null, ?, ?, ?, 'Automatic', '', '', 1, 1, 1)`,
-      [company_id, vt.name, vt.short_name, vt.category,
-       vt.affects_inventory, vt.affects_accounting, vt.affects_gst]
-    );
+    const inserted = await db
+      .insert(voucherTypes)
+      .values({
+        companyId: company_id,
+        name: vt.name,
+        shortName: vt.short_name,
+        category: vt.category,
+        defaultVoucherClass: null,
+        affectsInventory: vt.affects_inventory,
+        affectsAccounting: vt.affects_accounting,
+        affectsGst: vt.affects_gst,
+        numberingMethod: 'Automatic',
+        numberingPrefix: '',
+        numberingSuffix: '',
+        startsWith: 1,
+        isPredefined: 1,
+        isActive: 1,
+      })
+      .returning({ id: voucherTypes.vtId });
 
-    await db.execute(
-      `INSERT INTO voucher_type_configs (
-        voucher_type_id, use_effective_dates, allow_zero_value_transactions,
-        make_voucher_optional, allow_narration, allow_narration_per_ledger,
-        whatsapp_after_save, print_after_save, enable_default_accounting_allocation,
-        track_additional_cost_for_purchase, default_title_to_print,
-        use_for_pos_invoicing, default_bank_id, declaration, set_alter_declaration
-      ) VALUES (?, 0, 0, 0, 1, 0, 0, 0, 0, 0, ?, 0, null, null, 0)`,
-      [result.lastInsertRowid, vt.name]
-    );
+    await db
+      .insert(voucherTypeConfigs)
+      .values({
+        voucherTypeId: inserted[0].id,
+        useEffectiveDates: 0,
+        allowZeroValueTransactions: 0,
+        makeVoucherOptional: 0,
+        allowNarration: 1,
+        allowNarrationPerLedger: 0,
+        whatsappAfterSave: 0,
+        printAfterSave: 0,
+        enableDefaultAccountingAllocation: 0,
+        trackAdditionalCostForPurchase: 0,
+        defaultTitleToPrint: vt.name,
+        useForPosInvoicing: 0,
+        defaultBankId: null,
+        declaration: null,
+        setAlterDeclaration: 0,
+      });
   }
 };
 
@@ -59,66 +108,59 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute(
-        `SELECT vt_id FROM voucher_types WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        [data.company_id, data.name]
+      const exists = await db.all(
+        sql`SELECT ${voucherTypes.vtId} FROM ${voucherTypes}
+            WHERE ${voucherTypes.companyId} = ${data.company_id}
+              AND LOWER(${voucherTypes.name}) = LOWER(${data.name})
+              AND ${voucherTypes.isActive} = 1`
       );
-      if (exists.rows.length > 0) return { success: false, error: 'A voucher type with this name already exists.' };
+      if (exists.length > 0) return { success: false, error: 'A voucher type with this name already exists.' };
 
-      const result = await db.execute(
-        `INSERT INTO voucher_types (
-          company_id, name, short_name, category, default_voucher_class,
-          affects_inventory, affects_accounting, affects_gst,
-          numbering_method, numbering_prefix, numbering_suffix,
-          starts_with, is_predefined, is_active, parent_vt_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?)`,
-        [
-          data.company_id,
-          data.name.trim(),
-          data.short_name || data.name.slice(0, 4),
-          data.category,
-          data.default_voucher_class || null,
-          data.affects_inventory ? 1 : 0,
-          data.affects_accounting !== undefined ? (data.affects_accounting ? 1 : 0) : 1,
-          data.affects_gst ? 1 : 0,
-          data.numbering_method || 'Automatic',
-          data.numbering_prefix || '',
-          data.numbering_suffix || '',
-          data.starts_with || 1,
-          data.parent_vt_id || null,
-        ]
-      );
+      const inserted = await db
+        .insert(voucherTypes)
+        .values({
+          companyId: data.company_id,
+          name: data.name.trim(),
+          shortName: data.short_name || data.name.slice(0, 4),
+          category: data.category,
+          defaultVoucherClass: data.default_voucher_class || null,
+          affectsInventory: data.affects_inventory ? 1 : 0,
+          affectsAccounting: data.affects_accounting !== undefined ? (data.affects_accounting ? 1 : 0) : 1,
+          affectsGst: data.affects_gst ? 1 : 0,
+          numberingMethod: data.numbering_method || 'Automatic',
+          numberingPrefix: data.numbering_prefix || '',
+          numberingSuffix: data.numbering_suffix || '',
+          startsWith: data.starts_with || 1,
+          isPredefined: 0,
+          isActive: 1,
+          parentVtId: data.parent_vt_id || null,
+        })
+        .returning({ id: voucherTypes.vtId });
 
-      const vt_id = result.lastInsertRowid;
+      const vt_id = inserted[0].id;
 
-      await db.execute(
-        `INSERT INTO voucher_type_configs (
-          voucher_type_id, use_effective_dates, allow_zero_value_transactions,
-          make_voucher_optional, allow_narration, allow_narration_per_ledger,
-          whatsapp_after_save, print_after_save, enable_default_accounting_allocation,
-          track_additional_cost_for_purchase, default_title_to_print,
-          use_for_pos_invoicing, default_bank_id, declaration, set_alter_declaration
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, 0)`,
-        [
-          vt_id,
-          data.use_effective_dates ? 1 : 0,
-          data.allow_zero_value_transactions ? 1 : 0,
-          data.make_voucher_optional ? 1 : 0,
-          data.allow_narration !== undefined ? (data.allow_narration ? 1 : 0) : 1,
-          data.allow_narration_per_ledger ? 1 : 0,
-          data.whatsapp_after_save ? 1 : 0,
-          data.print_after_save ? 1 : 0,
-          data.enable_default_accounting_allocation ? 1 : 0,
-          data.track_additional_cost_for_purchase ? 1 : 0,
-          data.name.trim(),
-          data.use_for_pos_invoicing ? 1 : 0,
-        ]
-      );
+      await db
+        .insert(voucherTypeConfigs)
+        .values({
+          voucherTypeId: vt_id,
+          useEffectiveDates: data.use_effective_dates ? 1 : 0,
+          allowZeroValueTransactions: data.allow_zero_value_transactions ? 1 : 0,
+          makeVoucherOptional: data.make_voucher_optional ? 1 : 0,
+          allowNarration: data.allow_narration !== undefined ? (data.allow_narration ? 1 : 0) : 1,
+          allowNarrationPerLedger: data.allow_narration_per_ledger ? 1 : 0,
+          whatsappAfterSave: data.whatsapp_after_save ? 1 : 0,
+          printAfterSave: data.print_after_save ? 1 : 0,
+          enableDefaultAccountingAllocation: data.enable_default_accounting_allocation ? 1 : 0,
+          trackAdditionalCostForPurchase: data.track_additional_cost_for_purchase ? 1 : 0,
+          defaultTitleToPrint: data.name.trim(),
+          useForPosInvoicing: data.use_for_pos_invoicing ? 1 : 0,
+          defaultBankId: null,
+          declaration: null,
+          setAlterDeclaration: 0,
+        });
 
-      const voucherType = await db.execute(
-        `SELECT * FROM voucher_types WHERE vt_id = ?`, [vt_id]
-      );
-      return { success: true, voucherType: voucherType.rows[0] };
+      const voucherType = await findVoucherTypeRow(sql`${voucherTypes.vtId} = ${vt_id}`);
+      return { success: true, voucherType };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -126,19 +168,18 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute(
-        `SELECT vt.*, vtc.use_effective_dates, vtc.allow_zero_value_transactions,
+      const rows = await db.all(
+        sql`SELECT vt.*, vtc.use_effective_dates, vtc.allow_zero_value_transactions,
                 vtc.make_voucher_optional, vtc.allow_narration, vtc.allow_narration_per_ledger,
                 vtc.print_after_save, vtc.whatsapp_after_save, vtc.use_for_pos_invoicing,
                 COALESCE(parent.name, vt.name) AS parent_name
-         FROM voucher_types vt
-         LEFT JOIN voucher_type_configs vtc ON vt.vt_id = vtc.voucher_type_id
-         LEFT JOIN voucher_types parent ON vt.parent_vt_id = parent.vt_id
-         WHERE vt.company_id = ? AND vt.is_active = 1
-         ORDER BY vt.is_predefined DESC, vt.name ASC`,
-        [company_id]
+            FROM ${voucherTypes} vt
+            LEFT JOIN ${voucherTypeConfigs} vtc ON vt.vt_id = vtc.voucher_type_id
+            LEFT JOIN ${voucherTypes} parent ON vt.parent_vt_id = parent.vt_id
+            WHERE vt.company_id = ${company_id} AND vt.is_active = 1
+            ORDER BY vt.is_predefined DESC, vt.name ASC`
       );
-      return { success: true, voucherTypes: result.rows };
+      return { success: true, voucherTypes: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -146,19 +187,18 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute(
-        `SELECT vt.*, vtc.use_effective_dates, vtc.allow_zero_value_transactions,
+      const rows = await db.all(
+        sql`SELECT vt.*, vtc.use_effective_dates, vtc.allow_zero_value_transactions,
                 vtc.make_voucher_optional, vtc.allow_narration, vtc.allow_narration_per_ledger,
                 vtc.whatsapp_after_save, vtc.print_after_save, vtc.enable_default_accounting_allocation,
                 vtc.track_additional_cost_for_purchase, vtc.default_title_to_print,
                 vtc.use_for_pos_invoicing, vtc.default_bank_id, vtc.declaration, vtc.set_alter_declaration
-         FROM voucher_types vt
-         LEFT JOIN voucher_type_configs vtc ON vt.vt_id = vtc.voucher_type_id
-         WHERE vt.vt_id = ?`,
-        [id]
+            FROM ${voucherTypes} vt
+            LEFT JOIN ${voucherTypeConfigs} vtc ON vt.vt_id = vtc.voucher_type_id
+            WHERE vt.vt_id = ${id}`
       );
-      if (result.rows.length === 0) return { success: false, error: 'Voucher Type not found' };
-      return { success: true, voucherType: result.rows[0] };
+      if (rows.length === 0) return { success: false, error: 'Voucher Type not found' };
+      return { success: true, voucherType: rows[0] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -166,12 +206,9 @@ module.exports = {
 
   getConfig: async (voucher_type_id) => {
     try {
-      const result = await db.execute(
-        `SELECT * FROM voucher_type_configs WHERE voucher_type_id = ?`,
-        [voucher_type_id]
-      );
-      if (result.rows.length === 0) return { success: false, error: 'Config not found' };
-      return { success: true, config: result.rows[0] };
+      const config = await findConfigRow(voucher_type_id);
+      if (!config) return { success: false, error: 'Config not found' };
+      return { success: true, config };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -179,54 +216,31 @@ module.exports = {
 
   updateConfig: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM voucher_type_configs WHERE voucher_type_id = ?`,
-        [data.voucher_type_id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Config not found' };
-      const c = existing.rows[0];
+      const c = await findConfigRow(data.voucher_type_id);
+      if (!c) return { success: false, error: 'Config not found' };
 
-      await db.execute(
-        `UPDATE voucher_type_configs SET
-          use_effective_dates = ?,
-          allow_zero_value_transactions = ?,
-          make_voucher_optional = ?,
-          allow_narration = ?,
-          allow_narration_per_ledger = ?,
-          whatsapp_after_save = ?,
-          print_after_save = ?,
-          enable_default_accounting_allocation = ?,
-          track_additional_cost_for_purchase = ?,
-          default_title_to_print = ?,
-          use_for_pos_invoicing = ?,
-          default_bank_id = ?,
-          declaration = ?,
-          set_alter_declaration = ?
-        WHERE voucher_type_id = ?`,
-        [
-          data.use_effective_dates ?? c.use_effective_dates,
-          data.allow_zero_value_transactions ?? c.allow_zero_value_transactions,
-          data.make_voucher_optional ?? c.make_voucher_optional,
-          data.allow_narration ?? c.allow_narration,
-          data.allow_narration_per_ledger ?? c.allow_narration_per_ledger,
-          data.whatsapp_after_save ?? c.whatsapp_after_save,
-          data.print_after_save ?? c.print_after_save,
-          data.enable_default_accounting_allocation ?? c.enable_default_accounting_allocation,
-          data.track_additional_cost_for_purchase ?? c.track_additional_cost_for_purchase,
-          data.default_title_to_print ?? c.default_title_to_print,
-          data.use_for_pos_invoicing ?? c.use_for_pos_invoicing,
-          data.default_bank_id ?? c.default_bank_id,
-          data.declaration ?? c.declaration,
-          data.set_alter_declaration ?? c.set_alter_declaration,
-          data.voucher_type_id,
-        ]
-      );
+      await db
+        .update(voucherTypeConfigs)
+        .set({
+          useEffectiveDates: data.use_effective_dates ?? c.use_effective_dates,
+          allowZeroValueTransactions: data.allow_zero_value_transactions ?? c.allow_zero_value_transactions,
+          makeVoucherOptional: data.make_voucher_optional ?? c.make_voucher_optional,
+          allowNarration: data.allow_narration ?? c.allow_narration,
+          allowNarrationPerLedger: data.allow_narration_per_ledger ?? c.allow_narration_per_ledger,
+          whatsappAfterSave: data.whatsapp_after_save ?? c.whatsapp_after_save,
+          printAfterSave: data.print_after_save ?? c.print_after_save,
+          enableDefaultAccountingAllocation: data.enable_default_accounting_allocation ?? c.enable_default_accounting_allocation,
+          trackAdditionalCostForPurchase: data.track_additional_cost_for_purchase ?? c.track_additional_cost_for_purchase,
+          defaultTitleToPrint: data.default_title_to_print ?? c.default_title_to_print,
+          useForPosInvoicing: data.use_for_pos_invoicing ?? c.use_for_pos_invoicing,
+          defaultBankId: data.default_bank_id ?? c.default_bank_id,
+          declaration: data.declaration ?? c.declaration,
+          setAlterDeclaration: data.set_alter_declaration ?? c.set_alter_declaration,
+        })
+        .where(eq(voucherTypeConfigs.voucherTypeId, data.voucher_type_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM voucher_type_configs WHERE voucher_type_id = ?`,
-        [data.voucher_type_id]
-      );
-      return { success: true, config: updated.rows[0] };
+      const updated = await findConfigRow(data.voucher_type_id);
+      return { success: true, config: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -234,41 +248,31 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM voucher_types WHERE vt_id = ?`, [data.vt_id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Voucher Type not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined voucher types' };
+      const c = await findVoucherTypeRow(sql`${voucherTypes.vtId} = ${data.vt_id}`);
+      if (!c) return { success: false, error: 'Voucher Type not found' };
+      if (c.is_predefined) return { success: false, error: 'Cannot edit predefined voucher types' };
 
-      const c = existing.rows[0];
-      await db.execute(
-        `UPDATE voucher_types SET
-          name = ?, short_name = ?, category = ?, default_voucher_class = ?,
-          affects_inventory = ?, affects_accounting = ?, affects_gst = ?,
-          numbering_method = ?, numbering_prefix = ?, numbering_suffix = ?,
-          starts_with = ?, parent_vt_id = ?, updated_at = datetime('now')
-        WHERE vt_id = ?`,
-        [
-          data.name ?? c.name,
-          data.short_name ?? c.short_name,
-          data.category ?? c.category,
-          data.default_voucher_class ?? c.default_voucher_class,
-          data.affects_inventory ? 1 : 0,
-          data.affects_accounting ? 1 : 0,
-          data.affects_gst ? 1 : 0,
-          data.numbering_method ?? c.numbering_method,
-          data.numbering_prefix ?? c.numbering_prefix,
-          data.numbering_suffix ?? c.numbering_suffix,
-          data.starts_with ?? c.starts_with,
-          data.parent_vt_id !== undefined ? data.parent_vt_id : c.parent_vt_id,
-          data.vt_id,
-        ]
-      );
+      await db
+        .update(voucherTypes)
+        .set({
+          name: data.name ?? c.name,
+          shortName: data.short_name ?? c.short_name,
+          category: data.category ?? c.category,
+          defaultVoucherClass: data.default_voucher_class ?? c.default_voucher_class,
+          affectsInventory: data.affects_inventory ? 1 : 0,
+          affectsAccounting: data.affects_accounting ? 1 : 0,
+          affectsGst: data.affects_gst ? 1 : 0,
+          numberingMethod: data.numbering_method ?? c.numbering_method,
+          numberingPrefix: data.numbering_prefix ?? c.numbering_prefix,
+          numberingSuffix: data.numbering_suffix ?? c.numbering_suffix,
+          startsWith: data.starts_with ?? c.starts_with,
+          parentVtId: data.parent_vt_id !== undefined ? data.parent_vt_id : c.parent_vt_id,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(voucherTypes.vtId, data.vt_id));
 
-      const updated = await db.execute(
-        `SELECT * FROM voucher_types WHERE vt_id = ?`, [data.vt_id]
-      );
-      return { success: true, voucherType: updated.rows[0] };
+      const updated = await findVoucherTypeRow(sql`${voucherTypes.vtId} = ${data.vt_id}`);
+      return { success: true, voucherType: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -276,15 +280,14 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute(
-        `SELECT * FROM voucher_types WHERE vt_id = ?`, [id]
-      );
-      if (existing.rows.length === 0) return { success: false, error: 'Voucher Type not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete predefined voucher types' };
+      const existing = await findVoucherTypeRow(sql`${voucherTypes.vtId} = ${id}`);
+      if (!existing) return { success: false, error: 'Voucher Type not found' };
+      if (existing.is_predefined) return { success: false, error: 'Cannot delete predefined voucher types' };
 
-      await db.execute(
-        `UPDATE voucher_types SET is_active = 0, updated_at = datetime('now') WHERE vt_id = ?`, [id]
-      );
+      await db
+        .update(voucherTypes)
+        .set({ isActive: 0, updatedAt: sql`datetime('now')` })
+        .where(eq(voucherTypes.vtId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

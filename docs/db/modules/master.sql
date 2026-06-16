@@ -1,0 +1,27 @@
+-- =============================================================================
+-- Postgres DDL for backend module: master
+-- Source: server/master/  (masterController.js, masterService.js)
+-- =============================================================================
+--
+-- This module owns NO database tables.
+--
+-- There is no master.js schema-init file. masterService.getMenu() builds the
+-- "Masters" navigation menu purely in memory from hardcoded label lists, gated
+-- by Tally feature flags it reads from the tallyFeatures module via
+-- tallyFeaturesService.get(company_id).
+--
+-- Therefore there are no CREATE TABLE, no UNIQUE constraints, no indexes and no
+-- foreign keys to emit for this module.
+--
+-- The feature flags consulted by this module
+--   - enable_cost_centres
+--   - enable_payment_request_qr
+--   - maintain_inventory
+-- belong to the `tallyFeatures` module. See docs/db/modules/tallyFeatures.sql
+-- (when produced) for those table definitions and their FK to the company table.
+--
+-- -----------------------------------------------------------------------------
+-- FOREIGN KEY CONSTRAINTS (grouped at bottom by convention)
+-- -----------------------------------------------------------------------------
+-- None for this module.
+-- =============================================================================

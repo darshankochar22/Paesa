@@ -1,0 +1,488 @@
+openapi: 3.1.0
+info:
+  title: WhatsApp Module API
+  version: 1.0.0
+  description: >-
+    IPC contract for the "whatsapp" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation models one `ipcMain.handle('whatsapp:<action>', ...)`
+    channel registered in server/index.js and handled by whatsappController.
+
+    Transport note: these are Electron IPC channels (renderer -> main via
+    ipcRenderer.invoke), modeled here as HTTP POST operations for documentation
+    purposes only. There is no real HTTP server.
+
+    WARNING: As of this writing the whatsapp channels are registered in the main
+    process (server/index.js) but are NOT exposed in preload.js. There is no
+    `window.api.whatsapp.*` binding. The `x-window-api` values below are the
+    EXPECTED binding shape only; the renderer cannot currently call these
+    channels through the contextBridge.
+tags:
+  - name: whatsapp
+    description: WhatsApp Cloud API (Meta Graph) integration — config, messaging, logs.
+paths:
+  /whatsapp/saveConfig:
+    post:
+      tags: [whatsapp]
+      summary: Create or update the WhatsApp Cloud API config for a company (upsert by company_id).
+      operationId: whatsapp.saveConfig
+      x-ipc-channel: "whatsapp:saveConfig"
+      x-window-api: "window.api.whatsapp.saveConfig"
+      x-controller: "whatsappController.saveConfig"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatsappConfigInput'
+      responses:
+        '200':
+          description: Upsert result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+  /whatsapp/getConfig:
+    post:
+      tags: [whatsapp]
+      summary: Get the active WhatsApp config for a company.
+      operationId: whatsapp.getConfig
+      x-ipc-channel: "whatsapp:getConfig"
+      x-window-api: "window.api.whatsapp.getConfig"
+      x-controller: "whatsappController.getConfig"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: Company whose active config to fetch.
+      responses:
+        '200':
+          description: Config lookup result. `success:false` when not configured.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [success, config]
+                    properties:
+                      success:
+                        type: boolean
+                        const: true
+                      config:
+                        $ref: '#/components/schemas/WhatsappConfig'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+  /whatsapp/sendInvoice:
+    post:
+      tags: [whatsapp]
+      summary: Send an invoice via the 'invoice_share' WhatsApp template; logs the attempt.
+      operationId: whatsapp.sendInvoice
+      x-ipc-channel: "whatsapp:sendInvoice"
+      x-window-api: "window.api.whatsapp.sendInvoice"
+      x-controller: "whatsappController.sendInvoice"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, voucher_id, to_phone, invoice_data]
+              properties:
+                company_id:
+                  type: integer
+                voucher_id:
+                  type: integer
+                  description: Voucher this invoice belongs to (stored on the log row).
+                to_phone:
+                  type: string
+                  description: Recipient phone; normalized to E.164-ish (India default +91).
+                invoice_data:
+                  type: object
+                  description: Template body parameters.
+                  properties:
+                    party_name:
+                      type: string
+                      description: Defaults to "Customer" if absent.
+                    voucher_number:
+                      type: string
+                    date:
+                      type: string
+                    total_amount:
+                      type: [string, number]
+                      description: Rendered as "₹<total_amount>" in the template.
+      responses:
+        '200':
+          description: Send result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+  /whatsapp/sendPaymentReminder:
+    post:
+      tags: [whatsapp]
+      summary: Send a payment reminder via the 'payment_reminder' WhatsApp template; logs the attempt.
+      operationId: whatsapp.sendPaymentReminder
+      x-ipc-channel: "whatsapp:sendPaymentReminder"
+      x-window-api: "window.api.whatsapp.sendPaymentReminder"
+      x-controller: "whatsappController.sendPaymentReminder"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, to_phone, reminder_data]
+              properties:
+                company_id:
+                  type: integer
+                to_phone:
+                  type: string
+                reminder_data:
+                  type: object
+                  properties:
+                    party_name:
+                      type: string
+                    outstanding_amount:
+                      type: [string, number]
+                      description: Rendered as "₹<outstanding_amount>".
+                    due_date:
+                      type: string
+                      description: Defaults to "immediately" if absent.
+      responses:
+        '200':
+          description: Send result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+  /whatsapp/sendStatement:
+    post:
+      tags: [whatsapp]
+      summary: Send an account statement via the 'account_statement' WhatsApp template; logs the attempt.
+      operationId: whatsapp.sendStatement
+      x-ipc-channel: "whatsapp:sendStatement"
+      x-window-api: "window.api.whatsapp.sendStatement"
+      x-controller: "whatsappController.sendStatement"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, to_phone, statement_data]
+              properties:
+                company_id:
+                  type: integer
+                to_phone:
+                  type: string
+                statement_data:
+                  type: object
+                  properties:
+                    party_name:
+                      type: string
+                    from_date:
+                      type: string
+                    to_date:
+                      type: string
+                    closing_balance:
+                      type: [string, number]
+                      description: Rendered as "₹<closing_balance>".
+      responses:
+        '200':
+          description: Send result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+  /whatsapp/sendText:
+    post:
+      tags: [whatsapp]
+      summary: Send a free-form text WhatsApp message; logs the attempt.
+      operationId: whatsapp.sendText
+      x-ipc-channel: "whatsapp:sendText"
+      x-window-api: "window.api.whatsapp.sendText"
+      x-controller: "whatsappController.sendText"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, to_phone, message]
+              properties:
+                company_id:
+                  type: integer
+                to_phone:
+                  type: string
+                message:
+                  type: string
+                  description: Plain text body sent as a WhatsApp text message.
+      responses:
+        '200':
+          description: Send result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+  /whatsapp/getLogs:
+    post:
+      tags: [whatsapp]
+      summary: List recent WhatsApp send logs for a company (most recent first).
+      operationId: whatsapp.getLogs
+      x-ipc-channel: "whatsapp:getLogs"
+      x-window-api: "window.api.whatsapp.getLogs"
+      x-controller: "whatsappController.getLogs"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                limit:
+                  type: integer
+                  default: 50
+                  description: Max rows to return; service defaults to 50 when omitted.
+      responses:
+        '200':
+          description: Logs result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [success, logs]
+                    properties:
+                      success:
+                        type: boolean
+                        const: true
+                      logs:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WhatsappLog'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+  /whatsapp/verifyWebhook:
+    post:
+      tags: [whatsapp]
+      summary: Verify a Meta webhook subscription handshake (hub.mode/token/challenge).
+      operationId: whatsapp.verifyWebhook
+      x-ipc-channel: "whatsapp:verifyWebhook"
+      x-window-api: "window.api.whatsapp.verifyWebhook"
+      x-controller: "whatsappController.verifyWebhook"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode, token, challenge, verify_token]
+              properties:
+                mode:
+                  type: string
+                  description: Meta's hub.mode; must equal "subscribe" to pass.
+                token:
+                  type: string
+                  description: Meta's hub.verify_token presented in the request.
+                challenge:
+                  type: string
+                  description: Echoed back on success.
+                verify_token:
+                  type: string
+                  description: Expected token configured by the app to compare against `token`.
+      responses:
+        '200':
+          description: Verification result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [success, challenge]
+                    properties:
+                      success:
+                        type: boolean
+                        const: true
+                      challenge:
+                        type: string
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  responses:
+    ErrorResponse:
+      description: Error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+    SuccessResult:
+      type: object
+      description: Result of a write where only success matters.
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          description: Present only when success is false.
+    FailureResult:
+      type: object
+      description: Service-level failure (note - returned with 200 over IPC).
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: string
+    SendResult:
+      type: object
+      description: Result of an outbound WhatsApp send.
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        wamid:
+          type: string
+          description: WhatsApp message id; present on success.
+        error:
+          type: string
+          description: Present on failure.
+    WhatsappConfigInput:
+      type: object
+      description: Payload for saveConfig (upsert).
+      required: [company_id, phone_number_id, waba_id, access_token]
+      properties:
+        company_id:
+          type: integer
+        phone_number_id:
+          type: string
+          description: Meta phone number id used in the send endpoint path.
+        waba_id:
+          type: string
+          description: WhatsApp Business Account id.
+        access_token:
+          type: string
+          description: Meta Graph API bearer token (sensitive).
+    WhatsappConfig:
+      type: object
+      description: Row of whatsapp_config (maps to table whatsapp_config).
+      properties:
+        config_id:
+          type: integer
+        company_id:
+          type: integer
+        phone_number_id:
+          type: string
+        waba_id:
+          type: string
+        access_token:
+          type: string
+        is_active:
+          type: integer
+          description: 0/1 boolean flag (1 = active). Maps to BOOLEAN in Postgres.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string. Maps to TIMESTAMPTZ.
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string. Maps to TIMESTAMPTZ.
+    WhatsappTemplate:
+      type: object
+      description: >-
+        Row of whatsapp_templates (maps to table whatsapp_templates).
+        Table exists in schema but is not read or written by any channel in this module.
+      properties:
+        template_id:
+          type: integer
+        company_id:
+          type: integer
+        name:
+          type: string
+        language:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          description: ISO-8601 datetime string. Maps to TIMESTAMPTZ.
+    WhatsappLog:
+      type: object
+      description: Row of whatsapp_logs (maps to table whatsapp_logs).
+      properties:
+        log_id:
+          type: integer
+        company_id:
+          type: integer
+        voucher_id:
+          type: integer
+          nullable: true
+        to_number:
+          type: string
+        message_type:
+          type: string
+          description: e.g. INVOICE, PAYMENT_REMINDER, STATEMENT, TEXT.
+        template_name:
+          type: string
+          nullable: true
+        status:
+          type: string
+          description: PENDING | SENT | FAILED.
+        wamid:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+          description: JSON-stringified Meta error on failure.
+        sent_at:
+          type: string
+          description: ISO-8601 datetime string. Maps to TIMESTAMPTZ.

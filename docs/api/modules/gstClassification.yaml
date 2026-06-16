@@ -1,0 +1,498 @@
+openapi: 3.1.0
+info:
+  title: gstClassification module API
+  version: 1.0.0
+  description: >
+    IPC API for the gstClassification backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle` channel,
+    invoked from the renderer through the preload bridge as
+    `window.api.gstClassification.<method>`. HTTP method/path are a documentation
+    convention only; the real transport is Electron IPC (see x-ipc-channel /
+    x-window-api). GST classifications define tax rate profiles (IGST/CGST/SGST/
+    CESS, taxability, reverse charge, ITC eligibility) attached to a company.
+tags:
+  - name: gstClassification
+    description: GST tax classification / rate-profile management per company.
+paths:
+  /gstClassification/create:
+    post:
+      tags: [gstClassification]
+      summary: Create a new GST classification for a company.
+      description: >
+        Inserts a GST classification. Rejected with success=false if an active
+        classification with the same name (case-insensitive) already exists for
+        the company. When rate_type is 'Slab Based' and slab_rows is an array,
+        slab_rows is JSON-stringified into gst_rate_details; otherwise that
+        column is set null. is_predefined is forced to 0 and is_active to 1.
+      operationId: gstClassification.create
+      x-ipc-channel: "gstClassification:create"
+      x-window-api: "window.api.gstClassification.create"
+      x-controller: "gstClassificationController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GstClassificationCreateInput'
+      responses:
+        '200':
+          description: Result envelope with the created row, or a failure reason.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GstClassificationSingleResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server / database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /gstClassification/getAll:
+    post:
+      tags: [gstClassification]
+      summary: List all active GST classifications for a company.
+      description: >
+        Returns every classification where company_id matches and is_active = 1.
+        Each row has gst_rate_details parsed into a slab_rows field when it holds
+        valid JSON.
+      operationId: gstClassification.getAll
+      x-ipc-channel: "gstClassification:getAll"
+      x-window-api: "window.api.gstClassification.getAll"
+      x-controller: "gstClassificationController.getAll"
+      requestBody:
+        required: true
+        description: Bare company id (the handler receives the value directly, not an object).
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: companies.company_id whose classifications to list.
+      responses:
+        '200':
+          description: Result envelope with the list of classifications.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GstClassificationListResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server / database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /gstClassification/getById:
+    post:
+      tags: [gstClassification]
+      summary: Fetch a single GST classification by id.
+      description: >
+        Returns the classification with the given gc_id (active or not).
+        success=false with error 'GST Classification not found' if no row matches.
+      operationId: gstClassification.getById
+      x-ipc-channel: "gstClassification:getById"
+      x-window-api: "window.api.gstClassification.getById"
+      x-controller: "gstClassificationController.getById"
+      requestBody:
+        required: true
+        description: Bare gc_id (the handler receives the value directly, not an object).
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: gst_classifications.gc_id to fetch.
+      responses:
+        '200':
+          description: Result envelope with the matching classification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GstClassificationSingleResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server / database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /gstClassification/update:
+    post:
+      tags: [gstClassification]
+      summary: Update an existing (non-predefined) GST classification.
+      description: >
+        Updates the classification identified by gc_id. Fails if the row is not
+        found, or with 'Cannot edit predefined GST classifications' when
+        is_predefined is truthy. Any omitted field falls back to the existing
+        stored value. When rate_type is 'Slab Based' and slab_rows is an array,
+        gst_rate_details is re-serialized; otherwise the prior value is kept.
+        updated_at is set to datetime('now').
+      operationId: gstClassification.update
+      x-ipc-channel: "gstClassification:update"
+      x-window-api: "window.api.gstClassification.update"
+      x-controller: "gstClassificationController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GstClassificationUpdateInput'
+      responses:
+        '200':
+          description: Result envelope with the updated row.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GstClassificationSingleResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server / database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /gstClassification/delete:
+    post:
+      tags: [gstClassification]
+      summary: Soft-delete a GST classification.
+      description: >
+        Soft-deletes (sets is_active = 0) the classification with the given id.
+        Fails if not found, or with 'Cannot delete predefined GST classifications'
+        when is_predefined is truthy. No row is physically removed.
+      operationId: gstClassification.delete
+      x-ipc-channel: "gstClassification:delete"
+      x-window-api: "window.api.gstClassification.delete"
+      x-controller: "gstClassificationController.delete"
+      requestBody:
+        required: true
+        description: Bare gc_id (the handler receives the value directly, not an object).
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: gst_classifications.gc_id to soft-delete.
+      responses:
+        '200':
+          description: Result envelope indicating success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server / database error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    SlabRow:
+      type: object
+      description: >
+        Free-form slab definition stored inside gst_rate_details (JSON). Shape is
+        not enforced by the backend; documented as an open object.
+      additionalProperties: true
+    GstClassification:
+      type: object
+      description: >
+        A row of the gst_classifications table. Integer flag columns (is_*) are
+        stored as 0/1 in SQLite and map to BOOLEAN in Postgres. gst_rate_details
+        holds a JSON string; the service adds a derived slab_rows field on read.
+      properties:
+        gc_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        hsn_sac_code:
+          type: [string, "null"]
+        is_non_gst_goods:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 flag (Postgres BOOLEAN).
+        nature_of_transaction:
+          type: string
+          default: Not Applicable
+        taxability:
+          type: string
+          default: Unknown
+        is_reverse_charge:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 flag (Postgres BOOLEAN).
+        is_ineligible_for_itc:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 flag (Postgres BOOLEAN).
+        rate_type:
+          type: string
+          default: Fixed Rate
+          description: e.g. 'Fixed Rate' or 'Slab Based'.
+        igst_rate:
+          type: number
+          description: GST rate percentage.
+        igst_valuation_type:
+          type: string
+          default: Based on Value
+        cgst_rate:
+          type: number
+        cgst_valuation_type:
+          type: string
+          default: Based on Value
+        sgst_rate:
+          type: number
+        sgst_valuation_type:
+          type: string
+          default: Based on Value
+        cess_rate:
+          type: number
+        cess_valuation_type:
+          type: string
+          default: Based on Value
+        gst_rate:
+          type: number
+          description: Aggregate GST rate (column present but not written by create/update).
+        gst_rate_details:
+          type: [string, "null"]
+          description: JSON string of slab rows when rate_type is 'Slab Based'.
+        valuation_type:
+          type: string
+          default: Based on Value
+        is_predefined:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 flag (Postgres BOOLEAN). Predefined rows cannot be edited/deleted.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 flag (Postgres BOOLEAN). Soft-delete sets this to 0.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (Postgres TIMESTAMPTZ).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (Postgres TIMESTAMPTZ).
+        slab_rows:
+          description: >
+            Derived (not a column). Parsed from gst_rate_details on read; undefined
+            when absent or invalid JSON.
+          type: [array, "null"]
+          items:
+            $ref: '#/components/schemas/SlabRow'
+      required:
+        - gc_id
+        - company_id
+        - name
+    GstClassificationCreateInput:
+      type: object
+      description: >
+        Payload for create. company_id and name are required; all other fields are
+        optional and fall back to column defaults. is_predefined/is_active are not
+        accepted (forced server-side).
+      additionalProperties: false
+      required: [company_id, name]
+      properties:
+        company_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        hsn_sac_code:
+          type: [string, "null"]
+        is_non_gst_goods:
+          type: integer
+          enum: [0, 1]
+          default: 0
+        nature_of_transaction:
+          type: string
+          default: Not Applicable
+        taxability:
+          type: string
+          default: Unknown
+        is_reverse_charge:
+          type: integer
+          enum: [0, 1]
+          default: 0
+        is_ineligible_for_itc:
+          type: integer
+          enum: [0, 1]
+          default: 0
+        rate_type:
+          type: string
+          default: Fixed Rate
+        igst_rate:
+          type: number
+          default: 0
+        igst_valuation_type:
+          type: string
+          default: Based on Value
+        cgst_rate:
+          type: number
+          default: 0
+        cgst_valuation_type:
+          type: string
+          default: Based on Value
+        sgst_rate:
+          type: number
+          default: 0
+        sgst_valuation_type:
+          type: string
+          default: Based on Value
+        cess_rate:
+          type: number
+          default: 0
+        cess_valuation_type:
+          type: string
+          default: Based on Value
+        slab_rows:
+          type: array
+          description: Serialized into gst_rate_details only when rate_type is 'Slab Based'.
+          items:
+            $ref: '#/components/schemas/SlabRow'
+    GstClassificationUpdateInput:
+      type: object
+      description: >
+        Payload for update. gc_id is required; every other field is optional and,
+        if omitted (null/undefined), retains the existing stored value.
+      additionalProperties: false
+      required: [gc_id]
+      properties:
+        gc_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        hsn_sac_code:
+          type: [string, "null"]
+        is_non_gst_goods:
+          type: integer
+          enum: [0, 1]
+        nature_of_transaction:
+          type: string
+        taxability:
+          type: string
+        is_reverse_charge:
+          type: integer
+          enum: [0, 1]
+        is_ineligible_for_itc:
+          type: integer
+          enum: [0, 1]
+        rate_type:
+          type: string
+        igst_rate:
+          type: number
+        igst_valuation_type:
+          type: string
+        cgst_rate:
+          type: number
+        cgst_valuation_type:
+          type: string
+        sgst_rate:
+          type: number
+        sgst_valuation_type:
+          type: string
+        cess_rate:
+          type: number
+        cess_valuation_type:
+          type: string
+        slab_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlabRow'
+    GstClassificationSingleResult:
+      oneOf:
+        - type: object
+          required: [success, classification]
+          properties:
+            success:
+              const: true
+            classification:
+              $ref: '#/components/schemas/GstClassification'
+        - $ref: '#/components/schemas/FailureResult'
+      description: On success, classification holds the row; otherwise success=false with error.
+    GstClassificationListResult:
+      oneOf:
+        - type: object
+          required: [success, gstClassifications]
+          properties:
+            success:
+              const: true
+            gstClassifications:
+              type: array
+              items:
+                $ref: '#/components/schemas/GstClassification'
+        - $ref: '#/components/schemas/FailureResult'
+    SuccessResult:
+      oneOf:
+        - type: object
+          required: [success]
+          properties:
+            success:
+              const: true
+        - $ref: '#/components/schemas/FailureResult'
+    FailureResult:
+      type: object
+      description: Application-level failure envelope returned by the service (HTTP 200).
+      required: [success, error]
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+          description: Human-readable failure reason (e.g. 'GST Classification not found').
+    Error:
+      type: object
+      description: Shared transport/server error shape.
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string

@@ -1,0 +1,526 @@
+openapi: 3.1.0
+info:
+  title: balanceSheetReport module API
+  version: 1.0.0
+  description: >
+    IPC contract for the balanceSheetReport backend module of the Electron + SQLite
+    accounting/ERP app. Each operation models an `ipcMain.handle('balanceSheetReport:<action>', ...)`
+    channel as an HTTP POST for documentation/merge purposes.
+
+    WARNING (renderer binding): None of this module's channels are exposed in preload.js.
+    There is NO `window.api.balanceSheetReport.*` binding. The `window.api.report.balanceSheet`
+    binding in preload.js maps to a DIFFERENT channel (`report:balanceSheet`) and a different
+    backend module. As shipped, this module's IPC handlers are unreachable from the renderer
+    through the contextBridge API. The `x-window-api` fields below record the binding that
+    WOULD be expected by convention but does not currently exist.
+
+paths:
+  /balanceSheetReport/create:
+    post:
+      operationId: balanceSheetReport.create
+      tags: [balanceSheetReport]
+      summary: Create a balance sheet report (header + optional view rows) and return the saved header.
+      x-ipc-channel: "balanceSheetReport:create"
+      x-window-api: "window.api.balanceSheetReport.create (NOT exposed in preload.js)"
+      x-controller: "balanceSheetReportController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BalanceSheetReportCreateInput'
+      responses:
+        '200':
+          description: Created report header (without rows) on success, or error envelope on failure.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [success, report]
+                    properties:
+                      success:
+                        const: true
+                      report:
+                        $ref: '#/components/schemas/BalanceSheetReport'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /balanceSheetReport/getAll:
+    post:
+      operationId: balanceSheetReport.getAll
+      tags: [balanceSheetReport]
+      summary: List all balance sheet report headers for a company, newest first.
+      x-ipc-channel: "balanceSheetReport:getAll"
+      x-window-api: "window.api.balanceSheetReport.getAll (NOT exposed in preload.js)"
+      x-controller: "balanceSheetReportController.getAll"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare value as IPC arg 2 (company_id), not an object.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+                  description: Company whose reports to list. Passed as the bare second IPC argument.
+      responses:
+        '200':
+          description: Array of report headers on success, or error envelope on failure.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [success, reports]
+                    properties:
+                      success:
+                        const: true
+                      reports:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BalanceSheetReport'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /balanceSheetReport/getById:
+    post:
+      operationId: balanceSheetReport.getById
+      tags: [balanceSheetReport]
+      summary: Fetch a single report header plus its view rows split into assets and liabilities.
+      x-ipc-channel: "balanceSheetReport:getById"
+      x-window-api: "window.api.balanceSheetReport.getById (NOT exposed in preload.js)"
+      x-controller: "balanceSheetReportController.getById"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare value as IPC arg 2 (id = report_id), not an object.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: report_id of the report to fetch. Passed as the bare second IPC argument.
+      responses:
+        '200':
+          description: Report header with embedded assets/liabilities row arrays, or error envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [success, report]
+                    properties:
+                      success:
+                        const: true
+                      report:
+                        $ref: '#/components/schemas/BalanceSheetReportWithRows'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /balanceSheetReport/delete:
+    post:
+      operationId: balanceSheetReport.delete
+      tags: [balanceSheetReport]
+      summary: Delete a report by id (cascades to its balance_sheet_views rows).
+      x-ipc-channel: "balanceSheetReport:delete"
+      x-window-api: "window.api.balanceSheetReport.delete (NOT exposed in preload.js)"
+      x-controller: "balanceSheetReportController.delete"
+      requestBody:
+        required: true
+        description: >
+          The handler receives a bare value as IPC arg 2 (id = report_id), not an object.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: integer
+                  description: report_id of the report to delete. Passed as the bare second IPC argument.
+      responses:
+        '200':
+          description: Success envelope, or error envelope if not found.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [success]
+                    properties:
+                      success:
+                        const: true
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      description: Shared transport-level error.
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    ServiceError:
+      type: object
+      description: >
+        Service-level failure envelope returned by every method in this module on a caught
+        exception or not-found condition. The service never throws; it returns this shape.
+      required: [success, error]
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+          description: Error message (err.message, 'Report not found', etc.).
+
+    BalanceSheetReport:
+      type: object
+      description: A row of the balance_sheet_reports table (report header).
+      properties:
+        report_id:
+          type: integer
+        company_id:
+          type: integer
+        report_name:
+          type: string
+          default: Balance Sheet
+        report_date:
+          type: [string, "null"]
+          format: date
+          description: Date-only string (YYYY-MM-DD). Defaults to today's date on create.
+        comparison_period_start:
+          type: [string, "null"]
+          format: date
+        comparison_period_end:
+          type: [string, "null"]
+          format: date
+        format_type:
+          type: string
+          default: Vertical
+        method_of_showing:
+          type: string
+          default: Net Balance
+        show_vertical_balance_sheet:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 1
+        show_working_capital_figures:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        profit_or_loss_as_liability:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 1
+        show_detail_view:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        show_condensed_view:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        show_schedule_vi:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        include_closing_stock:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 1
+        compare_quarterly:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        basis_of_values:
+          type: string
+          default: Default
+        change_view:
+          type: [string, "null"]
+        exception_reports_enabled:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        filter_enabled:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        saved_view_name:
+          type: [string, "null"]
+        filter_details:
+          type: [string, "null"]
+          description: Free-form text (likely serialized JSON of filter criteria).
+        show_profit:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 1
+        show_columnar:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        show_optional:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        show_post_dated:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        show_stat_adjustment:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+
+    BalanceSheetView:
+      type: object
+      description: A row of the balance_sheet_views table (a single line in the balance sheet).
+      properties:
+        view_id:
+          type: integer
+        report_id:
+          type: integer
+        company_id:
+          type: integer
+        report_date:
+          type: [string, "null"]
+          format: date
+        group_name:
+          type: [string, "null"]
+        parent_group_name:
+          type: [string, "null"]
+        opening_balance:
+          type: number
+          description: Money amount. Stored REAL; treat as NUMERIC(18,2).
+          default: 0
+        side:
+          type: string
+          enum: [Assets, Liabilities]
+          default: Assets
+        current_period_debit:
+          type: number
+          description: Money amount. Stored REAL; treat as NUMERIC(18,2).
+          default: 0
+        current_period_credit:
+          type: number
+          description: Money amount. Stored REAL; treat as NUMERIC(18,2).
+          default: 0
+        closing_balance:
+          type: number
+          description: Money amount. Stored REAL; treat as NUMERIC(18,2).
+          default: 0
+        display_order:
+          type: integer
+          default: 0
+        is_total_row:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 0
+        is_drill_down_available:
+          type: integer
+          description: 0/1 boolean flag.
+          default: 1
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+
+    BalanceSheetReportWithRows:
+      description: >
+        Report header (BalanceSheetReport) enriched by getById with assets and liabilities
+        arrays. Rows are filtered from balance_sheet_views by `side`.
+      allOf:
+        - $ref: '#/components/schemas/BalanceSheetReport'
+        - type: object
+          properties:
+            assets:
+              type: array
+              items:
+                $ref: '#/components/schemas/BalanceSheetView'
+            liabilities:
+              type: array
+              items:
+                $ref: '#/components/schemas/BalanceSheetView'
+
+    BalanceSheetViewInput:
+      type: object
+      description: A single view row supplied in the create payload's `rows` array.
+      required: [group_name]
+      properties:
+        group_name:
+          type: string
+        parent_group_name:
+          type: [string, "null"]
+        opening_balance:
+          type: number
+          default: 0
+        side:
+          type: string
+          enum: [Assets, Liabilities]
+          default: Assets
+        current_period_debit:
+          type: number
+          default: 0
+        current_period_credit:
+          type: number
+          default: 0
+        closing_balance:
+          type: number
+          default: 0
+        display_order:
+          type: integer
+          description: Defaults to the row's 1-based index when omitted.
+        is_total_row:
+          type: boolean
+          default: false
+        is_drill_down_available:
+          type: boolean
+          default: true
+
+    BalanceSheetReportCreateInput:
+      type: object
+      description: >
+        Payload for create. Header columns mirror BalanceSheetReport. Booleans may be passed
+        as booleans and are coerced to 0/1. An optional `rows` array seeds balance_sheet_views.
+      required: [company_id]
+      properties:
+        company_id:
+          type: integer
+        report_name:
+          type: string
+          default: Balance Sheet
+        report_date:
+          type: string
+          format: date
+          description: Defaults to today (YYYY-MM-DD) when omitted.
+        comparison_period_start:
+          type: [string, "null"]
+          format: date
+        comparison_period_end:
+          type: [string, "null"]
+          format: date
+        format_type:
+          type: string
+          default: Vertical
+        method_of_showing:
+          type: string
+          default: Net Balance
+        show_vertical_balance_sheet:
+          type: [integer, boolean]
+          default: 1
+        show_working_capital_figures:
+          type: boolean
+          default: false
+        profit_or_loss_as_liability:
+          type: [integer, boolean]
+          default: 1
+        show_detail_view:
+          type: boolean
+          default: false
+        show_condensed_view:
+          type: boolean
+          default: false
+        show_schedule_vi:
+          type: boolean
+          default: false
+        include_closing_stock:
+          type: [integer, boolean]
+          default: 1
+        compare_quarterly:
+          type: boolean
+          default: false
+        basis_of_values:
+          type: string
+          default: Default
+        change_view:
+          type: [string, "null"]
+        exception_reports_enabled:
+          type: boolean
+          default: false
+        filter_enabled:
+          type: boolean
+          default: false
+        saved_view_name:
+          type: [string, "null"]
+        filter_details:
+          type: [string, "null"]
+        show_profit:
+          type: [integer, boolean]
+          default: 1
+        show_columnar:
+          type: boolean
+          default: false
+        show_optional:
+          type: boolean
+          default: false
+        show_post_dated:
+          type: boolean
+          default: false
+        show_stat_adjustment:
+          type: boolean
+          default: false
+        rows:
+          type: array
+          description: Optional view rows to insert into balance_sheet_views.
+          items:
+            $ref: '#/components/schemas/BalanceSheetViewInput'

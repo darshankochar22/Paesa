@@ -1,11 +1,36 @@
+// ---------------------------------------------------------------------------
+// Drizzle ORM conversion (pattern: currencyService.js golden exemplar).
+//
+//   * MUTATIONS use the query builder: db.insert().values(),
+//     db.update().set().where(), db.delete().where(), with eq()/and() predicates.
+//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
+//     WHERE ...`) to preserve the EXACT legacy snake_case shape (ledger_id,
+//     is_active, ...) and numeric 0/1 booleans the test oracle asserts against.
+//   * getAll uses a typed `sql` LEFT JOIN to keep the `group_name` alias column
+//     exactly as before (l.*, g.name as group_name).
+//   * New-row id after INSERT comes from .returning({ id: ledgers.ledgerId }).
+// ---------------------------------------------------------------------------
 const { db } = require("../db/index");
+const { sql, eq, and } = require("drizzle-orm");
+const {
+  ledgers,
+  ledgerBankDetails,
+  ledgerStatutoryDetails,
+  groups,
+} = require("../db/schema");
 
-const seedDefaultLedgers = async (company_id, groups) => {
-  const cashGroup = groups.find(
+// Fetch a single ledger row in the legacy snake_case shape (or undefined).
+const findLedgerRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${ledgers} WHERE ${whereSql}`);
+  return rows[0];
+};
+
+const seedDefaultLedgers = async (company_id, groups_arg) => {
+  const cashGroup = groups_arg.find(
     (g) => g.name === "Cash-in-hand" && g.company_id === company_id,
   );
 
-  const plGroup = groups.find(
+  const plGroup = groups_arg.find(
     (g) => g.name === "Capital Account" && g.company_id === company_id,
   );
 
@@ -25,56 +50,42 @@ const seedDefaultLedgers = async (company_id, groups) => {
   ];
 
   for (const l of defaults) {
-    await db.execute({
-      sql: `INSERT INTO ledgers (
-              company_id, group_id, name, alias, ledger_type, nature,
-              opening_balance, closing_balance, is_bill_wise, maintain_inventory_values,
-              mailing_name, address1, address2, city, state, country, pincode,
-              phone, email, gstin, pan, registration_type,
-              default_credit_period, check_credit_days,
-              allow_cost_centres, invoice_rounding, rounding_method, rounding_limit,
-              is_active, is_predefined,
-              additional_gst_details, service_tax_details, include_assessable_value, 
-              method_of_calculation, other_statutory_details
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        company_id,
-        l.group_id,
-        l.name,
-        null,
-        l.ledger_type,
-        l.nature,
-        0,
-        0,
-        0,
-        0,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        "Unregistered",
-        0,
-        0,
-        0,
-        0,
-        null,
-        0,
-        1,
-        1,
-        // 👇 Naye fields ke default values
-        0, 
-        0, 
-        "Not Applicable", 
-        "Based on Value", 
-        0
-      ],
+    await db.insert(ledgers).values({
+      companyId: company_id,
+      groupId: l.group_id,
+      name: l.name,
+      alias: null,
+      ledgerType: l.ledger_type,
+      nature: l.nature,
+      openingBalance: 0,
+      closingBalance: 0,
+      isBillWise: 0,
+      maintainInventoryValues: 0,
+      mailingName: null,
+      address1: null,
+      address2: null,
+      city: null,
+      state: null,
+      country: null,
+      pincode: null,
+      phone: null,
+      email: null,
+      gstin: null,
+      pan: null,
+      registrationType: "Unregistered",
+      defaultCreditPeriod: 0,
+      checkCreditDays: 0,
+      allowCostCentres: 0,
+      invoiceRounding: 0,
+      roundingMethod: null,
+      roundingLimit: 0,
+      isActive: 1,
+      isPredefined: 1,
+      additionalGstDetails: 0,
+      serviceTaxDetails: 0,
+      includeAssessableValue: "Not Applicable",
+      methodOfCalculation: "Based on Value",
+      otherStatutoryDetails: 0,
     });
   }
 };
@@ -84,161 +95,113 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute({
-        sql: `SELECT * FROM ledgers 
-              WHERE company_id = ? 
-              AND LOWER(name) = LOWER(?) 
-              AND is_active = 1`,
-        args: [data.company_id, data.name],
-      });
+      const exists = await db.all(
+        sql`SELECT * FROM ${ledgers}
+            WHERE ${ledgers.companyId} = ${data.company_id}
+              AND LOWER(${ledgers.name}) = LOWER(${data.name})
+              AND ${ledgers.isActive} = 1`,
+      );
 
-      if (exists.rows.length > 0) {
+      if (exists.length > 0) {
         return {
           success: false,
           error: "Ledger already exists",
         };
       }
 
-      const result = await db.execute({
-        sql: `INSERT INTO ledgers (
-                company_id, group_id, name, alias, ledger_type, nature,
-                opening_balance, closing_balance, is_bill_wise, maintain_inventory_values,
-                mailing_name, address1, address2, city, state, country, pincode,
-                phone, email, gstin, pan, registration_type,
-                default_credit_period, check_credit_days,
-                allow_cost_centres, invoice_rounding, rounding_method, rounding_limit,
-                is_active, is_predefined,
-                additional_gst_details, service_tax_details, include_assessable_value,
-                method_of_calculation, other_statutory_details
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          data.company_id,
-          data.group_id || null,
-          data.name,
-          data.alias || null,
-          data.ledger_type || "General",
-          data.nature || null,
-          data.opening_balance || 0,
-          data.closing_balance || 0,
-          data.is_bill_wise ? 1 : 0,
-          data.maintain_inventory_values ? 1 : 0,
-          data.mailing_name || null,
-          data.address1 || null,
-          data.address2 || null,
-          data.city || null,
-          data.state || null,
-          data.country || null,
-          data.pincode || null,
-          data.phone || null,
-          data.email || null,
-          data.gstin || null,
-          data.pan || null,
-          data.registration_type || "Unregistered",
-          data.default_credit_period || 0,
-          data.check_credit_days ? 1 : 0,
-          data.allow_cost_centres ? 1 : 0,
-          data.invoice_rounding ? 1 : 0,
-          data.rounding_method || null,
-          data.rounding_limit || 0,
-          1,
-          0,
-          // 👇 Naye fields handle kiye gaye hain
-          data.additional_gst_details ? 1 : 0,
-          data.service_tax_details ? 1 : 0,
-          data.include_assessable_value || "Not Applicable",
-          data.method_of_calculation || "Based on Value",
-          data.other_statutory_details ? 1 : 0
-        ],
-      });
+      const inserted = await db
+        .insert(ledgers)
+        .values({
+          companyId: data.company_id,
+          groupId: data.group_id || null,
+          name: data.name,
+          alias: data.alias || null,
+          ledgerType: data.ledger_type || "General",
+          nature: data.nature || null,
+          openingBalance: data.opening_balance || 0,
+          closingBalance: data.closing_balance || 0,
+          isBillWise: data.is_bill_wise ? 1 : 0,
+          maintainInventoryValues: data.maintain_inventory_values ? 1 : 0,
+          mailingName: data.mailing_name || null,
+          address1: data.address1 || null,
+          address2: data.address2 || null,
+          city: data.city || null,
+          state: data.state || null,
+          country: data.country || null,
+          pincode: data.pincode || null,
+          phone: data.phone || null,
+          email: data.email || null,
+          gstin: data.gstin || null,
+          pan: data.pan || null,
+          registrationType: data.registration_type || "Unregistered",
+          defaultCreditPeriod: data.default_credit_period || 0,
+          checkCreditDays: data.check_credit_days ? 1 : 0,
+          allowCostCentres: data.allow_cost_centres ? 1 : 0,
+          invoiceRounding: data.invoice_rounding ? 1 : 0,
+          roundingMethod: data.rounding_method || null,
+          roundingLimit: data.rounding_limit || 0,
+          isActive: 1,
+          isPredefined: 0,
+          additionalGstDetails: data.additional_gst_details ? 1 : 0,
+          serviceTaxDetails: data.service_tax_details ? 1 : 0,
+          includeAssessableValue: data.include_assessable_value || "Not Applicable",
+          methodOfCalculation: data.method_of_calculation || "Based on Value",
+          otherStatutoryDetails: data.other_statutory_details ? 1 : 0,
+        })
+        .returning({ id: ledgers.ledgerId });
 
-      const ledger_id = Number(result.lastInsertRowid);
+      const ledger_id = Number(inserted[0].id);
 
       if (data.bank_details) {
-        await db.execute({
-          sql: `INSERT INTO ledger_bank_details (
-                  ledger_id,
-                  account_holder_name,
-                  account_number,
-                  ifsc_code,
-                  swift_code,
-                  bank_name,
-                  branch_name,
-                  bank_configuration,
-                  cheque_book_start_no,
-                  cheque_book_end_no,
-                  enable_cheque_printing,
-                  cheque_printing_configuration,
-                  od_limit,
-                  transaction_type,
-                  cross_using,
-                  company_bank
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
-            ledger_id,
-            data.bank_details.account_holder_name || null,
-            data.bank_details.account_number || null,
-            data.bank_details.ifsc_code || null,
-            data.bank_details.swift_code || null,
-            data.bank_details.bank_name || null,
-            data.bank_details.branch_name || null,
-            data.bank_details.bank_configuration || null,
-            data.bank_details.cheque_book_start_no || null,
-            data.bank_details.cheque_book_end_no || null,
-            data.bank_details.enable_cheque_printing ? 1 : 0,
+        await db.insert(ledgerBankDetails).values({
+          ledgerId: ledger_id,
+          accountHolderName: data.bank_details.account_holder_name || null,
+          accountNumber: data.bank_details.account_number || null,
+          ifscCode: data.bank_details.ifsc_code || null,
+          swiftCode: data.bank_details.swift_code || null,
+          bankName: data.bank_details.bank_name || null,
+          branchName: data.bank_details.branch_name || null,
+          bankConfiguration: data.bank_details.bank_configuration || null,
+          chequeBookStartNo: data.bank_details.cheque_book_start_no || null,
+          chequeBookEndNo: data.bank_details.cheque_book_end_no || null,
+          enableChequePrinting: data.bank_details.enable_cheque_printing ? 1 : 0,
+          chequePrintingConfiguration:
             data.bank_details.cheque_printing_configuration || null,
-            data.bank_details.od_limit || 0,
-            data.bank_details.transaction_type || null,
-            data.bank_details.cross_using || null,
-            data.bank_details.company_bank || null,
-          ],
+          odLimit: data.bank_details.od_limit || 0,
+          transactionType: data.bank_details.transaction_type || null,
+          crossUsing: data.bank_details.cross_using || null,
+          companyBank: data.bank_details.company_bank || null,
         });
       }
 
       if (data.statutory_details) {
-        await db.execute({
-          sql: `INSERT INTO ledger_statutory_details (
-                  ledger_id,
-                  gst_applicability,
-                  hsn_sac_code,
-                  hsn_sac_description,
-                  gst_rate,
-                  cgst_rate,
-                  sgst_rate,
-                  igst_rate,
-                  type_of_duty_tax,
-                  percentage_of_calculation,
-                  statutory_details,
-                  include_in_assessable_value_calculation,
-                  appropriate_to,
-                  method_of_calculation
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
-            ledger_id,
-            data.statutory_details.gst_applicability || "Not Applicable",
-            data.statutory_details.hsn_sac_code || null,
-            data.statutory_details.hsn_sac_description || null,
-            data.statutory_details.gst_rate || 0,
-            data.statutory_details.cgst_rate || 0,
-            data.statutory_details.sgst_rate || 0,
-            data.statutory_details.igst_rate || 0,
-            data.statutory_details.type_of_duty_tax || null,
+        await db.insert(ledgerStatutoryDetails).values({
+          ledgerId: ledger_id,
+          gstApplicability: data.statutory_details.gst_applicability || "Not Applicable",
+          hsnSacCode: data.statutory_details.hsn_sac_code || null,
+          hsnSacDescription: data.statutory_details.hsn_sac_description || null,
+          gstRate: data.statutory_details.gst_rate || 0,
+          cgstRate: data.statutory_details.cgst_rate || 0,
+          sgstRate: data.statutory_details.sgst_rate || 0,
+          igstRate: data.statutory_details.igst_rate || 0,
+          typeOfDutyTax: data.statutory_details.type_of_duty_tax || null,
+          percentageOfCalculation:
             data.statutory_details.percentage_of_calculation || 0,
-            data.statutory_details.statutory_details || null,
-            data.statutory_details.include_in_assessable_value_calculation || "Not Applicable",
-            data.statutory_details.appropriate_to || "Goods",
+          statutoryDetails: data.statutory_details.statutory_details || null,
+          includeInAssessableValueCalculation:
+            data.statutory_details.include_in_assessable_value_calculation ||
+            "Not Applicable",
+          appropriateTo: data.statutory_details.appropriate_to || "Goods",
+          methodOfCalculation:
             data.statutory_details.method_of_calculation || "Based on Quantity",
-          ],
         });
       }
 
-      const ledger = await db.execute({
-        sql: `SELECT * FROM ledgers WHERE ledger_id = ?`,
-        args: [ledger_id],
-      });
+      const ledger = await findLedgerRow(sql`${ledgers.ledgerId} = ${ledger_id}`);
 
       return {
         success: true,
-        ledger: ledger.rows[0],
+        ledger,
       };
     } catch (err) {
       return {
@@ -250,18 +213,17 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT l.*, g.name as group_name 
-              FROM ledgers l
-              LEFT JOIN groups g ON g.group_id = l.group_id
-              WHERE l.company_id = ? 
-              AND l.is_active = 1`,
-        args: [company_id],
-      });
+      const rows = await db.all(
+        sql`SELECT ${ledgers}.*, ${groups.name} as group_name
+            FROM ${ledgers}
+            LEFT JOIN ${groups} ON ${groups.groupId} = ${ledgers.groupId}
+            WHERE ${ledgers.companyId} = ${company_id}
+              AND ${ledgers.isActive} = 1`,
+      );
 
       return {
         success: true,
-        ledgers: result.rows,
+        ledgers: rows,
       };
     } catch (err) {
       return {
@@ -273,34 +235,29 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM ledgers WHERE ledger_id = ?`,
-        args: [id],
-      });
+      const ledger = await findLedgerRow(sql`${ledgers.ledgerId} = ${id}`);
 
-      if (result.rows.length === 0) {
+      if (!ledger) {
         return {
           success: false,
           error: "Ledger not found",
         };
       }
 
-      const bank = await db.execute({
-        sql: `SELECT * FROM ledger_bank_details WHERE ledger_id = ?`,
-        args: [id],
-      });
+      const bank = await db.all(
+        sql`SELECT * FROM ${ledgerBankDetails} WHERE ${ledgerBankDetails.ledgerId} = ${id}`,
+      );
 
-      const statutory = await db.execute({
-        sql: `SELECT * FROM ledger_statutory_details WHERE ledger_id = ?`,
-        args: [id],
-      });
+      const statutory = await db.all(
+        sql`SELECT * FROM ${ledgerStatutoryDetails} WHERE ${ledgerStatutoryDetails.ledgerId} = ${id}`,
+      );
 
       return {
         success: true,
         ledger: {
-          ...result.rows[0],
-          bank_details: bank.rows[0] || null,
-          statutory_details: statutory.rows[0] || null,
+          ...ledger,
+          bank_details: bank[0] || null,
+          statutory_details: statutory[0] || null,
         },
       };
     } catch (err) {
@@ -313,17 +270,16 @@ module.exports = {
 
   getByGroup: async (company_id, group_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM ledgers 
-              WHERE company_id = ? 
-              AND group_id = ? 
-              AND is_active = 1`,
-        args: [company_id, group_id],
-      });
+      const rows = await db.all(
+        sql`SELECT * FROM ${ledgers}
+            WHERE ${ledgers.companyId} = ${company_id}
+              AND ${ledgers.groupId} = ${group_id}
+              AND ${ledgers.isActive} = 1`,
+      );
 
       return {
         success: true,
-        ledgers: result.rows,
+        ledgers: rows,
       };
     } catch (err) {
       return {
@@ -335,19 +291,14 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM ledgers WHERE ledger_id = ?`,
-        args: [data.ledger_id],
-      });
+      const ledger = await findLedgerRow(sql`${ledgers.ledgerId} = ${data.ledger_id}`);
 
-      if (existing.rows.length === 0) {
+      if (!ledger) {
         return {
           success: false,
           error: "Ledger not found",
         };
       }
-
-      const ledger = existing.rows[0];
 
       if (ledger.is_predefined) {
         return {
@@ -356,177 +307,113 @@ module.exports = {
         };
       }
 
-      await db.execute({
-        sql: `UPDATE ledgers SET
-                group_id = ?,
-                name = ?,
-                alias = ?,
-                ledger_type = ?,
-                nature = ?,
-                opening_balance = ?,
-                closing_balance = ?,
-                is_bill_wise = ?,
-                maintain_inventory_values = ?,
-                mailing_name = ?,
-                address1 = ?,
-                address2 = ?,
-                city = ?,
-                state = ?,
-                country = ?,
-                pincode = ?,
-                phone = ?,
-                email = ?,
-                gstin = ?,
-                pan = ?,
-                registration_type = ?,
-                default_credit_period = ?,
-                check_credit_days = ?,
-                allow_cost_centres = ?,
-                invoice_rounding = ?,
-                rounding_method = ?,
-                rounding_limit = ?,
-                additional_gst_details = ?,
-                service_tax_details = ?,
-                include_assessable_value = ?,
-                method_of_calculation = ?,
-                other_statutory_details = ?,
-                updated_at = datetime('now')
-              WHERE ledger_id = ?`,
-        args: [
-          data.group_id ?? ledger.group_id,
-          data.name ?? ledger.name,
-          data.alias ?? ledger.alias,
-          data.ledger_type ?? ledger.ledger_type,
-          data.nature ?? ledger.nature,
-          data.opening_balance ?? ledger.opening_balance,
-          data.closing_balance ?? ledger.closing_balance,
-          data.is_bill_wise ? 1 : 0,
-          data.maintain_inventory_values ? 1 : 0,
-          data.mailing_name ?? ledger.mailing_name,
-          data.address1 ?? ledger.address1,
-          data.address2 ?? ledger.address2,
-          data.city ?? ledger.city,
-          data.state ?? ledger.state,
-          data.country ?? ledger.country,
-          data.pincode ?? ledger.pincode,
-          data.phone ?? ledger.phone,
-          data.email ?? ledger.email,
-          data.gstin ?? ledger.gstin,
-          data.pan ?? ledger.pan,
-          data.registration_type ?? ledger.registration_type,
-          data.default_credit_period ?? ledger.default_credit_period ?? 0,
-          data.check_credit_days ? 1 : 0,
-          data.allow_cost_centres ? 1 : 0,
-          data.invoice_rounding ? 1 : 0,
-          data.rounding_method ?? ledger.rounding_method,
-          data.rounding_limit ?? ledger.rounding_limit ?? 0,
-          // 👇 Naye fields update ho rahe hain
-          data.additional_gst_details ?? ledger.additional_gst_details ?? 0,
-          data.service_tax_details ?? ledger.service_tax_details ?? 0,
-          data.include_assessable_value ?? ledger.include_assessable_value ?? "Not Applicable",
-          data.method_of_calculation ?? ledger.method_of_calculation ?? "Based on Value",
-          data.other_statutory_details ?? ledger.other_statutory_details ?? 0,
-          // Ledger ID last me
-          data.ledger_id,
-        ],
-      });
+      await db
+        .update(ledgers)
+        .set({
+          groupId: data.group_id ?? ledger.group_id,
+          name: data.name ?? ledger.name,
+          alias: data.alias ?? ledger.alias,
+          ledgerType: data.ledger_type ?? ledger.ledger_type,
+          nature: data.nature ?? ledger.nature,
+          openingBalance: data.opening_balance ?? ledger.opening_balance,
+          closingBalance: data.closing_balance ?? ledger.closing_balance,
+          isBillWise: data.is_bill_wise ? 1 : 0,
+          maintainInventoryValues: data.maintain_inventory_values ? 1 : 0,
+          mailingName: data.mailing_name ?? ledger.mailing_name,
+          address1: data.address1 ?? ledger.address1,
+          address2: data.address2 ?? ledger.address2,
+          city: data.city ?? ledger.city,
+          state: data.state ?? ledger.state,
+          country: data.country ?? ledger.country,
+          pincode: data.pincode ?? ledger.pincode,
+          phone: data.phone ?? ledger.phone,
+          email: data.email ?? ledger.email,
+          gstin: data.gstin ?? ledger.gstin,
+          pan: data.pan ?? ledger.pan,
+          registrationType: data.registration_type ?? ledger.registration_type,
+          defaultCreditPeriod:
+            data.default_credit_period ?? ledger.default_credit_period ?? 0,
+          checkCreditDays: data.check_credit_days ? 1 : 0,
+          allowCostCentres: data.allow_cost_centres ? 1 : 0,
+          invoiceRounding: data.invoice_rounding ? 1 : 0,
+          roundingMethod: data.rounding_method ?? ledger.rounding_method,
+          roundingLimit: data.rounding_limit ?? ledger.rounding_limit ?? 0,
+          additionalGstDetails:
+            data.additional_gst_details ?? ledger.additional_gst_details ?? 0,
+          serviceTaxDetails:
+            data.service_tax_details ?? ledger.service_tax_details ?? 0,
+          includeAssessableValue:
+            data.include_assessable_value ??
+            ledger.include_assessable_value ??
+            "Not Applicable",
+          methodOfCalculation:
+            data.method_of_calculation ??
+            ledger.method_of_calculation ??
+            "Based on Value",
+          otherStatutoryDetails:
+            data.other_statutory_details ?? ledger.other_statutory_details ?? 0,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(ledgers.ledgerId, data.ledger_id));
 
       if (data.bank_details) {
-        await db.execute({
-          sql: `DELETE FROM ledger_bank_details WHERE ledger_id = ?`,
-          args: [data.ledger_id],
-        });
+        await db
+          .delete(ledgerBankDetails)
+          .where(eq(ledgerBankDetails.ledgerId, data.ledger_id));
 
-        await db.execute({
-          sql: `INSERT INTO ledger_bank_details (
-                  ledger_id,
-                  account_holder_name,
-                  account_number,
-                  ifsc_code,
-                  swift_code,
-                  bank_name,
-                  branch_name,
-                  bank_configuration,
-                  cheque_book_start_no,
-                  cheque_book_end_no,
-                  enable_cheque_printing,
-                  cheque_printing_configuration,
-                  od_limit,
-                  transaction_type,
-                  cross_using,
-                  company_bank
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
-            data.ledger_id,
-            data.bank_details.account_holder_name || null,
-            data.bank_details.account_number || null,
-            data.bank_details.ifsc_code || null,
-            data.bank_details.swift_code || null,
-            data.bank_details.bank_name || null,
-            data.bank_details.branch_name || null,
-            data.bank_details.bank_configuration || null,
-            data.bank_details.cheque_book_start_no || null,
-            data.bank_details.cheque_book_end_no || null,
-            data.bank_details.enable_cheque_printing ? 1 : 0,
+        await db.insert(ledgerBankDetails).values({
+          ledgerId: data.ledger_id,
+          accountHolderName: data.bank_details.account_holder_name || null,
+          accountNumber: data.bank_details.account_number || null,
+          ifscCode: data.bank_details.ifsc_code || null,
+          swiftCode: data.bank_details.swift_code || null,
+          bankName: data.bank_details.bank_name || null,
+          branchName: data.bank_details.branch_name || null,
+          bankConfiguration: data.bank_details.bank_configuration || null,
+          chequeBookStartNo: data.bank_details.cheque_book_start_no || null,
+          chequeBookEndNo: data.bank_details.cheque_book_end_no || null,
+          enableChequePrinting: data.bank_details.enable_cheque_printing ? 1 : 0,
+          chequePrintingConfiguration:
             data.bank_details.cheque_printing_configuration || null,
-            data.bank_details.od_limit || 0,
-            data.bank_details.transaction_type || null,
-            data.bank_details.cross_using || null,
-            data.bank_details.company_bank || null,
-          ],
+          odLimit: data.bank_details.od_limit || 0,
+          transactionType: data.bank_details.transaction_type || null,
+          crossUsing: data.bank_details.cross_using || null,
+          companyBank: data.bank_details.company_bank || null,
         });
       }
 
       if (data.statutory_details) {
-        await db.execute({
-          sql: `DELETE FROM ledger_statutory_details WHERE ledger_id = ?`,
-          args: [data.ledger_id],
-        });
+        await db
+          .delete(ledgerStatutoryDetails)
+          .where(eq(ledgerStatutoryDetails.ledgerId, data.ledger_id));
 
-        await db.execute({
-          sql: `INSERT INTO ledger_statutory_details (
-                  ledger_id,
-                  gst_applicability,
-                  hsn_sac_code,
-                  hsn_sac_description,
-                  gst_rate,
-                  cgst_rate,
-                  sgst_rate,
-                  igst_rate,
-                  type_of_duty_tax,
-                  percentage_of_calculation,
-                  statutory_details,
-                  include_in_assessable_value_calculation,
-                  appropriate_to,
-                  method_of_calculation
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
-            data.ledger_id,
-            data.statutory_details.gst_applicability || "Not Applicable",
-            data.statutory_details.hsn_sac_code || null,
-            data.statutory_details.hsn_sac_description || null,
-            data.statutory_details.gst_rate || 0,
-            data.statutory_details.cgst_rate || 0,
-            data.statutory_details.sgst_rate || 0,
-            data.statutory_details.igst_rate || 0,
-            data.statutory_details.type_of_duty_tax || null,
+        await db.insert(ledgerStatutoryDetails).values({
+          ledgerId: data.ledger_id,
+          gstApplicability: data.statutory_details.gst_applicability || "Not Applicable",
+          hsnSacCode: data.statutory_details.hsn_sac_code || null,
+          hsnSacDescription: data.statutory_details.hsn_sac_description || null,
+          gstRate: data.statutory_details.gst_rate || 0,
+          cgstRate: data.statutory_details.cgst_rate || 0,
+          sgstRate: data.statutory_details.sgst_rate || 0,
+          igstRate: data.statutory_details.igst_rate || 0,
+          typeOfDutyTax: data.statutory_details.type_of_duty_tax || null,
+          percentageOfCalculation:
             data.statutory_details.percentage_of_calculation || 0,
-            data.statutory_details.statutory_details || null,
-            data.statutory_details.include_in_assessable_value_calculation || "Not Applicable",
-            data.statutory_details.appropriate_to || "Goods",
+          statutoryDetails: data.statutory_details.statutory_details || null,
+          includeInAssessableValueCalculation:
+            data.statutory_details.include_in_assessable_value_calculation ||
+            "Not Applicable",
+          appropriateTo: data.statutory_details.appropriate_to || "Goods",
+          methodOfCalculation:
             data.statutory_details.method_of_calculation || "Based on Quantity",
-          ],
         });
       }
 
-      const updated = await db.execute({
-        sql: `SELECT * FROM ledgers WHERE ledger_id = ?`,
-        args: [data.ledger_id],
-      });
+      const updated = await findLedgerRow(sql`${ledgers.ledgerId} = ${data.ledger_id}`);
 
       return {
         success: true,
-        ledger: updated.rows[0],
+        ledger: updated,
       };
     } catch (err) {
       return {
@@ -538,29 +425,26 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM ledgers WHERE ledger_id = ?`,
-        args: [id],
-      });
+      const existing = await findLedgerRow(sql`${ledgers.ledgerId} = ${id}`);
 
-      if (existing.rows.length === 0) {
+      if (!existing) {
         return {
           success: false,
           error: "Ledger not found",
         };
       }
 
-      if (existing.rows[0].is_predefined) {
+      if (existing.is_predefined) {
         return {
           success: false,
           error: "Cannot delete predefined ledgers",
         };
       }
 
-      await db.execute({
-        sql: `UPDATE ledgers SET is_active = 0 WHERE ledger_id = ?`,
-        args: [id],
-      });
+      await db
+        .update(ledgers)
+        .set({ isActive: 0 })
+        .where(eq(ledgers.ledgerId, id));
 
       return {
         success: true,

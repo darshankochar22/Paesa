@@ -1,0 +1,456 @@
+openapi: 3.1.0
+info:
+  title: Unit Module API
+  version: 1.0.0
+  description: >
+    IPC API for the "unit" backend module of the Electron + SQLite accounting/ERP app.
+    Each operation maps to an `ipcMain.handle('unit:<action>', ...)` channel registered
+    in server/index.js and exposed to the renderer via preload.js as
+    `window.api.unit.<method>`. Handlers live in server/unit/unitController.js and
+    delegate to server/unit/unitService.js. Units may be "Simple" or "Compound"
+    (a compound unit is an existing simple unit promoted to relate two simple units
+    via a conversion factor).
+
+paths:
+  /unit/create:
+    post:
+      operationId: unit.create
+      tags: [unit]
+      summary: Create a simple unit, or promote an existing simple unit into a compound unit.
+      x-ipc-channel: "unit:create"
+      x-window-api: "window.api.unit.create"
+      x-controller: "unitController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnitCreateInput'
+      responses:
+        '200':
+          description: >
+            On success returns { success: true, unit }. On validation/business failure
+            returns { success: false, error }. Note: for unit_type "Compound" the
+            returned unit is the (now-compound) first_unit row.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UnitMutateSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /unit/getAll:
+    post:
+      operationId: unit.getAll
+      tags: [unit]
+      summary: List all active units for a company (with joined first/second unit symbols and formal names).
+      x-ipc-channel: "unit:getAll"
+      x-window-api: "window.api.unit.getAll"
+      x-controller: "unitController.getAll"
+      requestBody:
+        required: true
+        description: The handler takes a bare company_id scalar as arg 2.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: '{ success: true, units: [...] } or { success: false, error }.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UnitListSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /unit/getSimpleUnits:
+    post:
+      operationId: unit.getSimpleUnits
+      tags: [unit]
+      summary: List active simple (unit_type = 'Simple') units for a company, ordered by symbol.
+      x-ipc-channel: "unit:getSimpleUnits"
+      x-window-api: "window.api.unit.getSimpleUnits"
+      x-controller: "unitController.getSimpleUnits"
+      requestBody:
+        required: true
+        description: The handler takes a bare company_id scalar as arg 2.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdInput'
+      responses:
+        '200':
+          description: '{ success: true, units: [...] } or { success: false, error }. Rows here have no joined unit columns.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SimpleUnitListSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /unit/getById:
+    post:
+      operationId: unit.getById
+      tags: [unit]
+      summary: Fetch a single unit by unit_id (with joined first/second unit symbols and formal names).
+      x-ipc-channel: "unit:getById"
+      x-window-api: "window.api.unit.getById"
+      x-controller: "unitController.getById"
+      requestBody:
+        required: true
+        description: The handler takes a bare unit_id scalar as arg 2.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnitIdInput'
+      responses:
+        '200':
+          description: '{ success: true, unit } or { success: false, error: "Unit not found" }.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UnitMutateSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /unit/update:
+    post:
+      operationId: unit.update
+      tags: [unit]
+      summary: Update an editable unit (predefined units are rejected); may switch a unit to/from Compound.
+      x-ipc-channel: "unit:update"
+      x-window-api: "window.api.unit.update"
+      x-controller: "unitController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnitUpdateInput'
+      responses:
+        '200':
+          description: '{ success: true, unit } or { success: false, error }.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UnitMutateSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /unit/delete:
+    post:
+      operationId: unit.delete
+      tags: [unit]
+      summary: Soft-delete a unit (sets is_active = 0); predefined units are rejected.
+      x-ipc-channel: "unit:delete"
+      x-window-api: "window.api.unit.delete"
+      x-controller: "unitController.delete"
+      requestBody:
+        required: true
+        description: The handler takes a bare unit_id scalar as arg 2.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnitIdInput'
+      responses:
+        '200':
+          description: '{ success: true } or { success: false, error }.'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessOnly'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          description: Client/validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Unit:
+      type: object
+      description: A row of the `units` table. Maps to docs/db/modules/unit.sql.
+      properties:
+        unit_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        name:
+          type: string
+        symbol:
+          type: string
+        formal_name:
+          type: [string, "null"]
+        decimal_places:
+          type: integer
+          default: 0
+        unit_quantity_code:
+          type: [string, "null"]
+        unit_type:
+          type: string
+          default: Simple
+          description: '"Simple" or "Compound".'
+        is_simple:
+          type: integer
+          enum: [0, 1]
+          default: 1
+          description: SQLite 0/1 boolean.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          default: 1
+          description: SQLite 0/1 boolean. Soft-delete flag.
+        is_predefined:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: SQLite 0/1 boolean. Seeded defaults are predefined and cannot be edited/deleted.
+        first_unit_id:
+          type: [integer, "null"]
+          description: Compound only. FK -> units.unit_id (self-reference).
+        second_unit_id:
+          type: [integer, "null"]
+          description: Compound only. FK -> units.unit_id (self-reference).
+        conversion_factor:
+          type: [number, "null"]
+          default: 1
+          description: Compound only. first_unit = conversion_factor x second_unit.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required:
+        - unit_id
+        - company_id
+        - name
+        - symbol
+
+    UnitWithJoins:
+      description: >
+        A `units` row augmented with columns joined from the referenced first/second
+        units. Returned by getAll, getById and update.
+      allOf:
+        - $ref: '#/components/schemas/Unit'
+        - type: object
+          properties:
+            first_unit_symbol:
+              type: [string, "null"]
+            first_unit_formal_name:
+              type: [string, "null"]
+            second_unit_symbol:
+              type: [string, "null"]
+            second_unit_formal_name:
+              type: [string, "null"]
+
+    UnitCreateInput:
+      type: object
+      description: >
+        Payload for unit:create. For Simple units, name/symbol are required by usage.
+        For Compound units, first_unit_id/second_unit_id/conversion_factor are required
+        and the existing first unit is promoted to compound.
+      properties:
+        company_id:
+          type: integer
+          description: Required. Service rejects with "Company ID is required." if missing.
+        name:
+          type: string
+        symbol:
+          type: string
+        formal_name:
+          type: [string, "null"]
+          description: Defaults to `name` when omitted.
+        decimal_places:
+          type: integer
+          default: 0
+        unit_quantity_code:
+          type: [string, "null"]
+        unit_type:
+          type: string
+          enum: [Simple, Compound]
+          default: Simple
+        first_unit_id:
+          type: integer
+          description: Required when unit_type = "Compound".
+        second_unit_id:
+          type: integer
+          description: Required when unit_type = "Compound".
+        conversion_factor:
+          type: number
+          description: Required (> 0) when unit_type = "Compound".
+      required:
+        - company_id
+
+    UnitUpdateInput:
+      type: object
+      description: >
+        Payload for unit:update. unit_id identifies the target. Other fields fall back
+        to existing values when omitted (?? coalescing). When unit_type = "Compound",
+        first_unit_id/second_unit_id/conversion_factor are required.
+      properties:
+        unit_id:
+          type: integer
+        name:
+          type: [string, "null"]
+        symbol:
+          type: [string, "null"]
+        formal_name:
+          type: [string, "null"]
+        decimal_places:
+          type: [integer, "null"]
+        unit_quantity_code:
+          type: [string, "null"]
+        unit_type:
+          type: [string, "null"]
+          enum: [Simple, Compound, null]
+        first_unit_id:
+          type: [integer, "null"]
+        second_unit_id:
+          type: [integer, "null"]
+        conversion_factor:
+          type: [number, "null"]
+      required:
+        - unit_id
+
+    CompanyIdInput:
+      type: integer
+      description: Bare company_id scalar (the handler receives this directly as arg 2).
+
+    UnitIdInput:
+      type: integer
+      description: Bare unit_id scalar (the handler receives this directly as arg 2).
+
+    UnitMutateSuccess:
+      type: object
+      properties:
+        success:
+          const: true
+        unit:
+          $ref: '#/components/schemas/UnitWithJoins'
+      required: [success, unit]
+
+    UnitListSuccess:
+      type: object
+      properties:
+        success:
+          const: true
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitWithJoins'
+      required: [success, units]
+
+    SimpleUnitListSuccess:
+      type: object
+      description: getSimpleUnits returns plain unit rows without joined columns.
+      properties:
+        success:
+          const: true
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/Unit'
+      required: [success, units]
+
+    SuccessOnly:
+      type: object
+      properties:
+        success:
+          const: true
+      required: [success]
+
+    ServiceError:
+      type: object
+      description: >
+        In-band failure result returned by the service (HTTP 200 over IPC). The error
+        string carries the human message (e.g. "Unit not found", "Unit already exists",
+        "Cannot edit predefined units").
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+      required: [success, error]
+
+    Error:
+      type: object
+      description: Shared transport-level error schema for 4xx/5xx.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]

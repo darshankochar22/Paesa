@@ -1,13 +1,41 @@
+// ---------------------------------------------------------------------------
+// Drizzle ORM conversion — follows the GOLDEN EXEMPLAR (currencyService.js).
+//
+//   * MUTATIONS use the query builder: db.insert(...).values(...),
+//     db.update(...).set(...).where(...), with eq()/and()/sql`` predicates.
+//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
+//     WHERE ...`) to preserve the EXACT legacy snake_case row shape that the
+//     controllers / test oracle assert against.
+//   * New-row id after INSERT comes from .returning({ id: table.pkCol }).
+// ---------------------------------------------------------------------------
 const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { godowns } = require('../db/schema');
+
+// Fetch a single godown row in the legacy snake_case shape (or undefined).
+const findRow = async (whereSql) => {
+  const rows = await db.all(sql`SELECT * FROM ${godowns} WHERE ${whereSql}`);
+  return rows[0];
+};
 
 const seedDefaultGodowns = async (company_id) => {
-  await db.execute({
-    sql: `INSERT INTO godowns (
-            company_id, name, alias, parent_godown_id, address, city, state, pincode,
-            is_primary, is_main_location, allow_storage_of_materials, is_active, is_predefined
-          ) VALUES (?, 'Main Location', null, null, null, null, null, null, 1, 1, 1, 1, 1)`,
-    args: [company_id],
-  });
+  await db
+    .insert(godowns)
+    .values({
+      companyId: company_id,
+      name: 'Main Location',
+      alias: null,
+      parentGodownId: null,
+      address: null,
+      city: null,
+      state: null,
+      pincode: null,
+      isPrimary: 1,
+      isMainLocation: 1,
+      allowStorageOfMaterials: 1,
+      isActive: 1,
+      isPredefined: 1,
+    });
 };
 
 const buildTree = (all, parentId = null) => {
@@ -21,36 +49,35 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const exists = await db.execute({
-        sql: `SELECT * FROM godowns WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
-        args: [data.company_id, data.name],
-      });
-      if (exists.rows.length > 0) return { success: false, error: 'Godown already exists' };
+      const exists = await db.all(
+        sql`SELECT * FROM ${godowns}
+            WHERE ${godowns.companyId} = ${data.company_id}
+              AND LOWER(${godowns.name}) = LOWER(${data.name})
+              AND ${godowns.isActive} = 1`
+      );
+      if (exists.length > 0) return { success: false, error: 'Godown already exists' };
 
-      const result = await db.execute({
-        sql: `INSERT INTO godowns (
-                company_id, name, alias, parent_godown_id, address, city, state, pincode,
-                is_primary, is_main_location, allow_storage_of_materials, is_active, is_predefined
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 1, 0)`,
-        args: [
-          data.company_id,
-          data.name,
-          data.alias || null,
-          data.parent_godown_id || null,
-          data.address || null,
-          data.city || null,
-          data.state || null,
-          data.pincode || null,
-          data.parent_godown_id ? 0 : 1,
-          data.allow_storage_of_materials ?? 1,
-        ],
-      });
+      const inserted = await db
+        .insert(godowns)
+        .values({
+          companyId: data.company_id,
+          name: data.name,
+          alias: data.alias || null,
+          parentGodownId: data.parent_godown_id || null,
+          address: data.address || null,
+          city: data.city || null,
+          state: data.state || null,
+          pincode: data.pincode || null,
+          isPrimary: data.parent_godown_id ? 0 : 1,
+          isMainLocation: 0,
+          allowStorageOfMaterials: data.allow_storage_of_materials ?? 1,
+          isActive: 1,
+          isPredefined: 0,
+        })
+        .returning({ id: godowns.godownId });
 
-      const godown = await db.execute({
-        sql: `SELECT * FROM godowns WHERE godown_id = ?`,
-        args: [Number(result.lastInsertRowid)],
-      });
-      return { success: true, godown: godown.rows[0] };
+      const godown = await findRow(sql`${godowns.godownId} = ${inserted[0].id}`);
+      return { success: true, godown };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -58,11 +85,12 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM godowns WHERE company_id = ? AND is_active = 1`,
-        args: [company_id],
-      });
-      return { success: true, godowns: result.rows };
+      const rows = await db.all(
+        sql`SELECT * FROM ${godowns}
+            WHERE ${godowns.companyId} = ${company_id}
+              AND ${godowns.isActive} = 1`
+      );
+      return { success: true, godowns: rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -70,12 +98,9 @@ module.exports = {
 
   getById: async (id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM godowns WHERE godown_id = ?`,
-        args: [id],
-      });
-      if (result.rows.length === 0) return { success: false, error: 'Godown not found' };
-      return { success: true, godown: result.rows[0] };
+      const godown = await findRow(sql`${godowns.godownId} = ${id}`);
+      if (!godown) return { success: false, error: 'Godown not found' };
+      return { success: true, godown };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -83,11 +108,12 @@ module.exports = {
 
   getTree: async (company_id) => {
     try {
-      const result = await db.execute({
-        sql: `SELECT * FROM godowns WHERE company_id = ? AND is_active = 1`,
-        args: [company_id],
-      });
-      const tree = buildTree(result.rows);
+      const rows = await db.all(
+        sql`SELECT * FROM ${godowns}
+            WHERE ${godowns.companyId} = ${company_id}
+              AND ${godowns.isActive} = 1`
+      );
+      const tree = buildTree(rows);
       return { success: true, tree };
     } catch (err) {
       return { success: false, error: err.message };
@@ -96,48 +122,40 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM godowns WHERE godown_id = ?`,
-        args: [data.godown_id],
-      });
-      if (existing.rows.length === 0) return { success: false, error: 'Godown not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit Main Location' };
-
-      const current = existing.rows[0];
+      const current = await findRow(sql`${godowns.godownId} = ${data.godown_id}`);
+      if (!current) return { success: false, error: 'Godown not found' };
+      if (current.is_predefined) return { success: false, error: 'Cannot edit Main Location' };
 
       // duplicate name check
       if (data.name && data.name.toLowerCase() !== current.name.toLowerCase()) {
-        const dupe = await db.execute({
-          sql: `SELECT * FROM godowns WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1 AND godown_id != ?`,
-          args: [current.company_id, data.name, data.godown_id],
-        });
-        if (dupe.rows.length > 0) return { success: false, error: 'Godown name already exists' };
+        const dupe = await db.all(
+          sql`SELECT * FROM ${godowns}
+              WHERE ${godowns.companyId} = ${current.company_id}
+                AND LOWER(${godowns.name}) = LOWER(${data.name})
+                AND ${godowns.isActive} = 1
+                AND ${godowns.godownId} != ${data.godown_id}`
+        );
+        if (dupe.length > 0) return { success: false, error: 'Godown name already exists' };
       }
 
-      await db.execute({
-        sql: `UPDATE godowns SET
-                name = ?, alias = ?, parent_godown_id = ?, address = ?,
-                city = ?, state = ?, pincode = ?,
-                allow_storage_of_materials = ?, updated_at = datetime('now')
-              WHERE godown_id = ?`,
-        args: [
-          data.name                       ?? current.name,
-          data.alias                      ?? current.alias,
-          data.parent_godown_id           ?? current.parent_godown_id,
-          data.address                    ?? current.address,
-          data.city                       ?? current.city,
-          data.state                      ?? current.state,
-          data.pincode                    ?? current.pincode,
-          data.allow_storage_of_materials ?? current.allow_storage_of_materials,
-          data.godown_id,
-        ],
-      });
+      await db
+        .update(godowns)
+        .set({
+          name: data.name ?? current.name,
+          alias: data.alias ?? current.alias,
+          parentGodownId: data.parent_godown_id ?? current.parent_godown_id,
+          address: data.address ?? current.address,
+          city: data.city ?? current.city,
+          state: data.state ?? current.state,
+          pincode: data.pincode ?? current.pincode,
+          allowStorageOfMaterials:
+            data.allow_storage_of_materials ?? current.allow_storage_of_materials,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(godowns.godownId, data.godown_id));
 
-      const updated = await db.execute({
-        sql: `SELECT * FROM godowns WHERE godown_id = ?`,
-        args: [data.godown_id],
-      });
-      return { success: true, godown: updated.rows[0] };
+      const updated = await findRow(sql`${godowns.godownId} = ${data.godown_id}`);
+      return { success: true, godown: updated };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -145,23 +163,21 @@ module.exports = {
 
   delete: async (id) => {
     try {
-      const existing = await db.execute({
-        sql: `SELECT * FROM godowns WHERE godown_id = ?`,
-        args: [id],
-      });
-      if (existing.rows.length === 0) return { success: false, error: 'Godown not found' };
-      if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot delete Main Location' };
+      const existing = await findRow(sql`${godowns.godownId} = ${id}`);
+      if (!existing) return { success: false, error: 'Godown not found' };
+      if (existing.is_predefined) return { success: false, error: 'Cannot delete Main Location' };
 
-      const hasChildren = await db.execute({
-        sql: `SELECT * FROM godowns WHERE parent_godown_id = ? AND is_active = 1`,
-        args: [id],
-      });
-      if (hasChildren.rows.length > 0) return { success: false, error: 'Cannot delete Godown with sub-godowns' };
+      const hasChildren = await db.all(
+        sql`SELECT * FROM ${godowns}
+            WHERE ${godowns.parentGodownId} = ${id}
+              AND ${godowns.isActive} = 1`
+      );
+      if (hasChildren.length > 0) return { success: false, error: 'Cannot delete Godown with sub-godowns' };
 
-      await db.execute({
-        sql: `UPDATE godowns SET is_active = 0 WHERE godown_id = ?`,
-        args: [id],
-      });
+      await db
+        .update(godowns)
+        .set({ isActive: 0 })
+        .where(eq(godowns.godownId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

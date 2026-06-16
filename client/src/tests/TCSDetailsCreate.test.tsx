@@ -112,6 +112,10 @@ describe('TCSDetailsCreate — person responsible sub-modal flow', () => {
     const acceptButtons = screen.getAllByRole('button', { name: /accept/i });
     await user.click(acceptButtons[0]);
 
+    // Confirm Accept dialog
+    const yesButton = screen.getByRole('button', { name: /yes/i });
+    await user.click(yesButton);
+
     await waitFor(() => {
       expect(window.api.companyTcsDetails.save).toHaveBeenCalledWith(
         expect.objectContaining({

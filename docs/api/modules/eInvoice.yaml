@@ -1,0 +1,630 @@
+openapi: 3.1.0
+info:
+  title: eInvoice Module API
+  version: 1.0.0
+  description: >
+    IPC API contract for the **eInvoice** backend module of the Electron + SQLite
+    accounting/ERP app. This module integrates with the GST e-Invoice (NIC IRP)
+    sandbox API to authenticate, fetch GSTIN master details, generate IRNs,
+    fetch/cancel IRNs, and to persist generated records and IRP credentials in
+    SQLite.
+
+    Each operation below maps to one `ipcMain.handle('<channel>', ...)` registration
+    in `server/index.js`. HTTP `post` + the `/{namespace}/{action}` path are a
+    documentation convention used to render the IPC channels as OpenAPI operations;
+    at runtime these are Electron IPC calls, not HTTP endpoints.
+
+    WARNING: As of this revision the eInvoice channels are registered in
+    `server/index.js` but are NOT exposed in `preload.js`. There is therefore no
+    `window.api.eInvoice.*` renderer binding. The `x-window-api` values below are
+    the *intended/conventional* bindings, not bindings that currently exist.
+    See components warnings and the accompanying eInvoice.md.
+
+servers:
+  - url: ipc://eInvoice
+    description: Electron IPC (not a network server; shown for tooling compatibility)
+
+tags:
+  - name: eInvoice
+    description: GST e-Invoice (IRP) integration and record/credential persistence.
+
+paths:
+  /eInvoice/authenticate:
+    post:
+      operationId: eInvoice.authenticate
+      tags: [eInvoice]
+      summary: Authenticate against the IRP sandbox using a company's stored credentials.
+      description: >
+        Loads the company's e-Invoice credentials from `einvoice_credentials`,
+        then calls the IRP `authenticate` endpoint. Caches the returned AuthToken
+        in process memory. Returns the company credentials lookup failure verbatim
+        if no credentials exist.
+      x-ipc-channel: "eInvoice:authenticate"
+      x-window-api: "window.api.eInvoice.authenticate"
+      x-controller: "eInvoiceController.authenticate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdPayload'
+      responses:
+        '200':
+          description: Authentication result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AuthSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /eInvoice/getGSTINDetails:
+    post:
+      operationId: eInvoice.getGSTINDetails
+      tags: [eInvoice]
+      summary: Fetch GSTIN master details from the IRP for a given GSTIN.
+      description: >
+        Ensures a valid auth token (re-authenticating if needed) using the
+        company's stored credentials, then queries the IRP GSTIN master endpoint.
+      x-ipc-channel: "eInvoice:getGSTINDetails"
+      x-window-api: "window.api.eInvoice.getGSTINDetails"
+      x-controller: "eInvoiceController.getGSTINDetails"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [gstin, company_id]
+              properties:
+                gstin:
+                  type: string
+                  description: GSTIN to look up on the IRP master endpoint.
+                company_id:
+                  type: integer
+                  description: Company whose stored IRP credentials are used.
+      responses:
+        '200':
+          description: GSTIN details result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IrpDataSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /eInvoice/generateIRN:
+    post:
+      operationId: eInvoice.generateIRN
+      tags: [eInvoice]
+      summary: Generate an IRN for an invoice payload and persist the record.
+      description: >
+        Ensures auth, POSTs `invoice_payload` to the IRP Invoice endpoint and, on
+        success, inserts a row into `einvoice_records` (status `GENERATED`) capturing
+        IRN, AckNo/AckDt, signed invoice/QR, EWB details and the raw IRP response.
+        Invoice number/date and buyer GSTIN are read from the payload's `DocDtls`
+        and `BuyerDtls`.
+      x-ipc-channel: "eInvoice:generateIRN"
+      x-window-api: "window.api.eInvoice.generateIRN"
+      x-controller: "eInvoiceController.generateIRN"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [company_id, invoice_payload]
+              properties:
+                company_id:
+                  type: integer
+                  description: Company that owns the generated record and credentials.
+                voucher_id:
+                  type: [integer, "null"]
+                  description: Optional source voucher id linking the record to a voucher.
+                invoice_payload:
+                  $ref: '#/components/schemas/IrpInvoicePayload'
+      responses:
+        '200':
+          description: IRN generation result. On success the persisted IRP Data block is returned.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IrpDataSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /eInvoice/getIRNDetails:
+    post:
+      operationId: eInvoice.getIRNDetails
+      tags: [eInvoice]
+      summary: Fetch details of an existing IRN from the IRP.
+      x-ipc-channel: "eInvoice:getIRNDetails"
+      x-window-api: "window.api.eInvoice.getIRNDetails"
+      x-controller: "eInvoiceController.getIRNDetails"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [irn, company_id]
+              properties:
+                irn:
+                  type: string
+                  description: Invoice Reference Number to look up.
+                company_id:
+                  type: integer
+                  description: Company whose stored IRP credentials are used.
+      responses:
+        '200':
+          description: IRN details result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IrpDataSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /eInvoice/cancelIRN:
+    post:
+      operationId: eInvoice.cancelIRN
+      tags: [eInvoice]
+      summary: Cancel an IRN and mark the local record cancelled.
+      description: >
+        Ensures auth and POSTs a cancel request to the IRP. On success updates the
+        matching `einvoice_records` row (by `irn`) to status `CANCELLED`, storing
+        the cancel reason/remarks and `cancelled_at`.
+      x-ipc-channel: "eInvoice:cancelIRN"
+      x-window-api: "window.api.eInvoice.cancelIRN"
+      x-controller: "eInvoiceController.cancelIRN"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [irn, cancel_reason, cancel_remarks, company_id]
+              properties:
+                irn:
+                  type: string
+                  description: IRN to cancel.
+                cancel_reason:
+                  type: [integer, string]
+                  description: >
+                    IRP cancellation reason code (CnlRsn). Stored in
+                    `einvoice_records.cancel_reason`.
+                cancel_remarks:
+                  type: string
+                  description: Free-text cancellation remarks (CnlRem).
+                company_id:
+                  type: integer
+                  description: Company whose stored IRP credentials are used.
+      responses:
+        '200':
+          description: Cancellation result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IrpDataSuccess'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /eInvoice/saveCredentials:
+    post:
+      operationId: eInvoice.saveCredentials
+      tags: [eInvoice]
+      summary: Insert or update a company's IRP credentials (upsert by company_id).
+      description: >
+        Upserts a row in `einvoice_credentials` keyed by `company_id`. If a row
+        exists it is updated, otherwise inserted. `is_sandbox` defaults to 1 when
+        not supplied.
+      x-ipc-channel: "eInvoice:saveCredentials"
+      x-window-api: "window.api.eInvoice.saveCredentials"
+      x-controller: "eInvoiceController.saveCredentials"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EInvoiceCredentialsInput'
+      responses:
+        '200':
+          description: Upsert result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessOnly'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /eInvoice/getCredentials:
+    post:
+      operationId: eInvoice.getCredentials
+      tags: [eInvoice]
+      summary: Get a company's stored IRP credentials row.
+      description: >
+        Returns the first `einvoice_credentials` row for the company, or a failure
+        with `error: 'No credentials found'` when none exist.
+      x-ipc-channel: "eInvoice:getCredentials"
+      x-window-api: "window.api.eInvoice.getCredentials"
+      x-controller: "eInvoiceController.getCredentials"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdPayload'
+      responses:
+        '200':
+          description: Credentials lookup result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required: [success, credentials]
+                    properties:
+                      success: { const: true }
+                      credentials:
+                        $ref: '#/components/schemas/EInvoiceCredentials'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /eInvoice/getRecords:
+    post:
+      operationId: eInvoice.getRecords
+      tags: [eInvoice]
+      summary: List all e-Invoice records for a company (newest first).
+      x-ipc-channel: "eInvoice:getRecords"
+      x-window-api: "window.api.eInvoice.getRecords"
+      x-controller: "eInvoiceController.getRecords"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyIdPayload'
+      responses:
+        '200':
+          description: Records list result, ordered by created_at DESC.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required: [success, records]
+                    properties:
+                      success: { const: true }
+                      records:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EInvoiceRecord'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+  /eInvoice/getRecordByIRN:
+    post:
+      operationId: eInvoice.getRecordByIRN
+      tags: [eInvoice]
+      summary: Fetch a single e-Invoice record by IRN.
+      description: >
+        Returns the `einvoice_records` row matching `irn`, or a failure with
+        `error: 'Record not found'` when none exist.
+      x-ipc-channel: "eInvoice:getRecordByIRN"
+      x-window-api: "window.api.eInvoice.getRecordByIRN"
+      x-controller: "eInvoiceController.getRecordByIRN"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [irn]
+              properties:
+                irn:
+                  type: string
+                  description: IRN of the record to fetch.
+      responses:
+        '200':
+          description: Record lookup result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required: [success, record]
+                    properties:
+                      success: { const: true }
+                      record:
+                        $ref: '#/components/schemas/EInvoiceRecord'
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX':
+          $ref: '#/components/responses/Error'
+        '5XX':
+          $ref: '#/components/responses/Error'
+
+components:
+  responses:
+    Error:
+      description: Transport/host-level error (IPC failure, unhandled exception).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Short error code or category.
+        message:
+          type: string
+          description: Human-readable error message.
+
+    ServiceError:
+      type: object
+      description: >
+        In-band failure shape returned by the service layer (resolves, does not throw).
+        Note this module uses `{ success: false, error }`, NOT the `{ error, message }`
+        transport Error shape.
+      additionalProperties: false
+      required: [success, error]
+      properties:
+        success: { const: false }
+        error:
+          type: string
+          description: Failure reason (e.g. 'No credentials found', IRP ErrorMessage).
+
+    SuccessOnly:
+      type: object
+      additionalProperties: false
+      required: [success]
+      properties:
+        success: { const: true }
+
+    AuthSuccess:
+      type: object
+      additionalProperties: false
+      required: [success, token]
+      properties:
+        success: { const: true }
+        token:
+          type: string
+          description: Cached IRP AuthToken.
+
+    IrpDataSuccess:
+      type: object
+      description: Generic success wrapper around the IRP `Data` block.
+      additionalProperties: false
+      required: [success, data]
+      properties:
+        success: { const: true }
+        data:
+          description: Opaque IRP `Data` object (shape varies per endpoint).
+          type: object
+          additionalProperties: true
+
+    CompanyIdPayload:
+      type: object
+      additionalProperties: false
+      required: [company_id]
+      properties:
+        company_id:
+          type: integer
+          description: Company identifier (FK -> companies.company_id).
+
+    IrpInvoicePayload:
+      type: object
+      description: >
+        NIC IRP invoice JSON forwarded verbatim to the IRP Invoice endpoint. Only
+        the fields the service reads for persistence are modelled; the full schema
+        is defined by the IRP. `additionalProperties` is true to allow the complete
+        IRP payload.
+      additionalProperties: true
+      properties:
+        DocDtls:
+          type: object
+          additionalProperties: true
+          properties:
+            No:
+              type: string
+              description: Document/invoice number (stored as invoice_number).
+            Dt:
+              type: string
+              description: Document/invoice date (stored as invoice_date).
+        BuyerDtls:
+          type: object
+          additionalProperties: true
+          properties:
+            Gstin:
+              type: string
+              description: Buyer GSTIN (stored as buyer_gstin).
+
+    EInvoiceCredentialsInput:
+      type: object
+      description: Payload for saveCredentials (upsert by company_id).
+      additionalProperties: false
+      required: [company_id, client_id, client_secret, username, password, app_key]
+      properties:
+        company_id:
+          type: integer
+          description: Company the credentials belong to (FK -> companies.company_id).
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        app_key:
+          type: string
+        is_sandbox:
+          type: [integer, boolean]
+          default: 1
+          description: >
+            Sandbox flag. Stored as INTEGER 0/1 in SQLite (defaults to 1). In Postgres
+            this is modelled as BOOLEAN (0->false, 1->true).
+
+    EInvoiceCredentials:
+      type: object
+      description: A row of the einvoice_credentials table as returned by the service.
+      additionalProperties: false
+      required:
+        - cred_id
+        - company_id
+        - client_id
+        - client_secret
+        - username
+        - password
+        - app_key
+      properties:
+        cred_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: FK -> companies.company_id (ON DELETE CASCADE).
+        client_id: { type: string }
+        client_secret: { type: string }
+        username: { type: string }
+        password: { type: string }
+        app_key: { type: string }
+        is_sandbox:
+          type: integer
+          description: 0/1 boolean flag (default 1).
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+
+    EInvoiceRecord:
+      type: object
+      description: A row of the einvoice_records table as returned by the service.
+      additionalProperties: false
+      required:
+        - irn_id
+        - company_id
+        - invoice_number
+        - invoice_date
+      properties:
+        irn_id:
+          type: integer
+          description: Primary key.
+        company_id:
+          type: integer
+          description: FK -> companies.company_id (ON DELETE CASCADE).
+        voucher_id:
+          type: [integer, "null"]
+          description: Optional source voucher id (inferred FK -> vouchers).
+        invoice_number:
+          type: string
+          description: From invoice_payload.DocDtls.No.
+        invoice_date:
+          type: string
+          description: From invoice_payload.DocDtls.Dt.
+        buyer_gstin:
+          type: [string, "null"]
+          description: From invoice_payload.BuyerDtls.Gstin.
+        irn:
+          type: [string, "null"]
+          description: IRP-assigned Invoice Reference Number.
+        ack_no:
+          type: [string, "null"]
+          description: IRP acknowledgement number.
+        ack_dt:
+          type: [string, "null"]
+          description: IRP acknowledgement datetime (ISO string).
+        signed_invoice:
+          type: [string, "null"]
+          description: IRP signed invoice (JWT).
+        signed_qr_code:
+          type: [string, "null"]
+          description: IRP signed QR code (JWT).
+        ewb_no:
+          type: [string, "null"]
+          description: E-way bill number (if generated).
+        ewb_dt:
+          type: [string, "null"]
+          description: E-way bill datetime (ISO string).
+        status:
+          type: string
+          description: "Lifecycle status: PENDING (default) | GENERATED | CANCELLED."
+          default: PENDING
+        cancel_reason:
+          type: [integer, "null"]
+          description: IRP cancellation reason code.
+        cancel_remarks:
+          type: [string, "null"]
+          description: Cancellation remarks.
+        cancelled_at:
+          type: [string, "null"]
+          description: Cancellation datetime (ISO string).
+        raw_response:
+          type: [string, "null"]
+          description: JSON string of the full IRP response captured at generation.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+
+    Warnings:
+      type: object
+      description: >
+        Documentation-only notes (not part of any response). Captured here so they
+        render alongside the contract.
+      properties:
+        preloadGap:
+          const: >
+            eInvoice channels are registered in server/index.js but NOT exposed in
+            preload.js; window.api.eInvoice.* does not exist at runtime.
+        errorShapeMismatch:
+          const: >
+            Service failures use { success:false, error } (ServiceError), which does
+            not match the documented transport Error shape { error, message }.

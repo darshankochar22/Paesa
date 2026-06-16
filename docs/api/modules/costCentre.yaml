@@ -1,0 +1,373 @@
+openapi: 3.1.0
+info:
+  title: costCentre module API
+  version: 1.0.0
+  description: >-
+    IPC API contract for the "costCentre" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation is an Electron `ipcMain.handle` channel,
+    modelled here as an HTTP POST for documentation/tooling purposes.
+
+    WARNINGS (source bugs documented verbatim):
+      1. The getTree channel is registered in server/index.js with a TYPO:
+         `ipcMain.handle('costCetre:getTree', ...)` (missing the "n" in "Centre").
+         The preload binding invokes `costCentre:getTree`, so the names DO NOT
+         match — window.api.costCentre.getTree() will reject with
+         "No handler registered for 'costCentre:getTree'". Channel documented
+         below as the namespace `costCetre` per the actual handler registration.
+      2. costCentreController.update is implemented as
+         `return await costCentreService.delete(id)` — it ignores `data`,
+         references an undefined `id`, and calls delete instead of
+         costCentreService.update. The contract below documents the INTENDED
+         update payload/return (service.update), but this handler is broken.
+servers:
+  - url: ipc://local
+    description: Electron IPC (not a real HTTP server)
+
+paths:
+  /costCentre/create:
+    post:
+      tags: [costCentre]
+      operationId: costCentre.create
+      summary: Create a cost centre (rejects duplicate active name in the same company).
+      x-ipc-channel: "costCentre:create"
+      x-window-api: "window.api.costCentre.create"
+      x-controller: "costCentreController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CostCentreCreateInput'
+      responses:
+        '200':
+          description: Created cost centre, or a duplicate/validation failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CostCentreItemResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '500':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /costCentre/getAll:
+    post:
+      tags: [costCentre]
+      operationId: costCentre.getAll
+      summary: List all active cost centres for a company.
+      x-ipc-channel: "costCentre:getAll"
+      x-window-api: "window.api.costCentre.getAll"
+      x-controller: "costCentreController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Bare scalar arg (handler's 2nd arg) — id of the company to scope the listing.
+              required: [company_id]
+      responses:
+        '200':
+          description: Active cost centres for the company.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CostCentreListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '500':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /costCentre/getById:
+    post:
+      tags: [costCentre]
+      operationId: costCentre.getById
+      summary: Fetch a single cost centre by its primary key (cc_id).
+      x-ipc-channel: "costCentre:getById"
+      x-window-api: "window.api.costCentre.getById"
+      x-controller: "costCentreController.getById"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: Bare scalar arg (handler's 2nd arg) — cost centre cc_id.
+              required: [id]
+      responses:
+        '200':
+          description: The cost centre, or a not-found failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CostCentreItemResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '500':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /costCentre/update:
+    post:
+      tags: [costCentre]
+      operationId: costCentre.update
+      summary: >-
+        Update a cost centre's editable fields. WARNING — the current controller
+        is broken (it calls service.delete with an undefined id). Contract reflects
+        the INTENDED behaviour of costCentreService.update.
+      x-ipc-channel: "costCentre:update"
+      x-window-api: "window.api.costCentre.update"
+      x-controller: "costCentreController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CostCentreUpdateInput'
+      responses:
+        '200':
+          description: Updated cost centre, or a not-found failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CostCentreItemResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '500':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /costCentre/delete:
+    post:
+      tags: [costCentre]
+      operationId: costCentre.delete
+      summary: >-
+        Soft-delete a cost centre (sets is_active = 0). Refuses if it still has
+        active sub-centres.
+      x-ipc-channel: "costCentre:delete"
+      x-window-api: "window.api.costCentre.delete"
+      x-controller: "costCentreController.delete"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: Bare scalar arg (handler's 2nd arg) — cost centre cc_id to soft-delete.
+              required: [id]
+      responses:
+        '200':
+          description: Success envelope, or a not-found / has-children failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '500':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /costCetre/getTree:
+    post:
+      tags: [costCentre]
+      operationId: costCetre.getTree
+      summary: >-
+        Return active cost centres for a company assembled into a parent/child
+        tree. WARNING — registered channel has a typo ("costCetre"), so the
+        preload binding window.api.costCentre.getTree cannot reach it.
+      x-ipc-channel: "costCetre:getTree"
+      x-window-api: "window.api.costCentre.getTree"
+      x-controller: "costCentreController.getTree"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Bare scalar arg (handler's 2nd arg) — company to scope the tree.
+              required: [company_id]
+      responses:
+        '200':
+          description: Nested tree of cost centres, or a failure envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CostCentreTreeResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '500':
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    CostCentre:
+      type: object
+      description: A row of the cost_centres table.
+      properties:
+        cc_id:
+          type: integer
+          description: Primary key (SQLite INTEGER PRIMARY KEY AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company (FK -> companies.company_id).
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_id:
+          type: [integer, "null"]
+          description: Self-referential parent cost centre (FK -> cost_centres.cc_id).
+        category:
+          type: string
+          description: "'Primary' (no parent) or 'Secondary' (has parent). Default 'Primary'."
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 boolean flag; soft-delete sets 0. Default 1.
+        is_predefined:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 boolean flag for seeded/system rows. Default 0.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required: [cc_id, company_id, name]
+
+    CostCentreNode:
+      allOf:
+        - $ref: '#/components/schemas/CostCentre'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/CostCentreNode'
+
+    CostCentreCreateInput:
+      type: object
+      description: >-
+        Payload destructured by costCentreService.create. category is derived
+        server-side ('Secondary' if parent_id present, else 'Primary');
+        is_active/is_predefined are forced to 1/0.
+      properties:
+        company_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_id:
+          type: [integer, "null"]
+      required: [company_id, name]
+
+    CostCentreUpdateInput:
+      type: object
+      description: >-
+        Payload for costCentreService.update. Missing fields fall back to the
+        current row values; category is re-derived from parent_id.
+      properties:
+        cc_id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: [string, "null"]
+        parent_id:
+          type: [integer, "null"]
+      required: [cc_id]
+
+    CostCentreItemResult:
+      type: object
+      properties:
+        success:
+          const: true
+        costCentre:
+          $ref: '#/components/schemas/CostCentre'
+      required: [success, costCentre]
+
+    CostCentreListResult:
+      type: object
+      properties:
+        success:
+          const: true
+        costCentres:
+          type: array
+          items:
+            $ref: '#/components/schemas/CostCentre'
+      required: [success, costCentres]
+
+    CostCentreTreeResult:
+      type: object
+      properties:
+        success:
+          const: true
+        tree:
+          type: array
+          items:
+            $ref: '#/components/schemas/CostCentreNode'
+      required: [success, tree]
+
+    SuccessResult:
+      type: object
+      properties:
+        success:
+          const: true
+      required: [success]
+
+    FailureResult:
+      type: object
+      description: >-
+        Returned on validation/duplicate/not-found/caught errors. Note this is a
+        resolved value (not a thrown error); the IPC call still succeeds.
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+      required: [success, error]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]

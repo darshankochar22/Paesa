@@ -1,0 +1,375 @@
+openapi: 3.1.0
+info:
+  title: Banking Module API
+  version: 1.0.0
+  description: >
+    IPC API contracts for the "banking" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('banking:<action>', ...)`
+    channel registered in server/index.js and exposed to the renderer via
+    contextBridge in preload.js as `window.api.banking.<method>`.
+
+    Bank reconciliation (BRS): a bank ledger's `voucher_entries` are matched against the
+    bank statement. An entry is "reconciled" when a row in the `reconciliations` table
+    references its `entry_id` (recording `bank_date` / `bank_reference`). Implemented in
+    server/banking/bankingService.js with Drizzle; covered by server/tests/banking.test.js.
+tags:
+  - name: banking
+    description: Bank reconciliation, bank statements, and balance summaries.
+
+paths:
+  /banking/getUnreconciled:
+    post:
+      tags: [banking]
+      operationId: banking.getUnreconciled
+      summary: List unreconciled voucher entries for a bank ledger.
+      x-ipc-channel: "banking:getUnreconciled"
+      x-window-api: "window.api.banking.getUnreconciled"
+      x-controller: "bankingController.getUnreconciled"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerScopeRequest'
+      responses:
+        '200':
+          description: Array of unreconciled voucher entry rows for the ledger.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UnreconciledEntry'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /banking/reconcile:
+    post:
+      tags: [banking]
+      operationId: banking.reconcile
+      summary: Mark a voucher entry as reconciled by inserting a reconciliation record.
+      x-ipc-channel: "banking:reconcile"
+      x-window-api: "window.api.banking.reconcile"
+      x-controller: "bankingController.reconcile"
+      requestBody:
+        required: true
+        description: >
+          The controller forwards arg 2 verbatim to the service (no destructuring),
+          and preload passes the bare `data` object through. Shape inferred from the
+          reconciliations table's writable columns.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconcileRequest'
+      responses:
+        '200':
+          description: The created reconciliation row (or its identifier).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reconciliation'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /banking/unreconcile:
+    post:
+      tags: [banking]
+      operationId: banking.unreconcile
+      summary: Remove a reconciliation record (undo reconciliation).
+      x-ipc-channel: "banking:unreconcile"
+      x-window-api: "window.api.banking.unreconcile"
+      x-controller: "bankingController.unreconcile"
+      requestBody:
+        required: true
+        description: >
+          MISMATCH (documented verbatim): the controller handler signature is
+          `unreconcile: async (event, id)` — it expects a bare scalar id and forwards
+          it to `bankingService.unreconcile(id)`. However preload.js binds it as
+          `unreconcile: (data) => invoke('banking:unreconcile', data)`, sending whatever
+          object the caller passes. To satisfy the controller, callers should pass the
+          reconciliation_id scalar. Modeled here as a scalar wrapped for transport.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnreconcileRequest'
+      responses:
+        '200':
+          description: Result of the delete (e.g. affected-row count or boolean).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /banking/getStatement:
+    post:
+      tags: [banking]
+      operationId: banking.getStatement
+      summary: Get a bank statement (entries between two dates) for a ledger.
+      x-ipc-channel: "banking:getStatement"
+      x-window-api: "window.api.banking.getStatement"
+      x-controller: "bankingController.getStatement"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatementRequest'
+      responses:
+        '200':
+          description: Array of statement line rows within the date range.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatementLine'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /banking/getSummary:
+    post:
+      tags: [banking]
+      operationId: banking.getSummary
+      summary: Get reconciliation/balance summary totals for a bank ledger.
+      x-ipc-channel: "banking:getSummary"
+      x-window-api: "window.api.banking.getSummary"
+      x-controller: "bankingController.getSummary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerScopeRequest'
+      responses:
+        '200':
+          description: Summary totals object for the ledger.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankingSummary'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  responses:
+    ErrorResponse:
+      description: Error returned by the IPC handler.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Short error code or class.
+        message:
+          type: string
+          description: Human-readable error message.
+
+    LedgerScopeRequest:
+      type: object
+      description: Scope a query to a company, financial year, and bank ledger.
+      required: [company_id, fy_id, ledger_id]
+      properties:
+        company_id:
+          type: integer
+          description: Owning company id.
+        fy_id:
+          type: integer
+          description: Financial year id.
+        ledger_id:
+          type: integer
+          description: Bank ledger id whose entries are being reconciled.
+
+    StatementRequest:
+      type: object
+      description: Date-bounded statement query for a bank ledger.
+      required: [company_id, fy_id, ledger_id, from_date, to_date]
+      properties:
+        company_id:
+          type: integer
+        fy_id:
+          type: integer
+        ledger_id:
+          type: integer
+        from_date:
+          type: string
+          format: date
+          description: Inclusive start date (ISO-8601 date string).
+        to_date:
+          type: string
+          format: date
+          description: Inclusive end date (ISO-8601 date string).
+
+    ReconcileRequest:
+      type: object
+      description: >
+        Payload to create a reconciliation. Forwarded as-is by the controller; shape
+        inferred from the writable columns of the reconciliations table.
+      required: [entry_id, voucher_id, ledger_id]
+      properties:
+        entry_id:
+          type: integer
+          description: Voucher entry being reconciled.
+        voucher_id:
+          type: integer
+          description: Parent voucher of the entry.
+        ledger_id:
+          type: integer
+          description: Bank ledger.
+        reconciled_date:
+          type: string
+          format: date
+          nullable: true
+          description: Date the entry was reconciled (ISO-8601 date).
+        bank_date:
+          type: string
+          format: date
+          nullable: true
+          description: Value date as shown on the bank statement.
+        bank_reference:
+          type: string
+          nullable: true
+          description: Bank-side reference / cheque / UTR number.
+
+    UnreconcileRequest:
+      type: object
+      description: >
+        Identifier of the reconciliation to delete. The controller expects a bare id
+        scalar; this wrapper documents the value that must reach the handler.
+      required: [reconciliation_id]
+      properties:
+        reconciliation_id:
+          type: integer
+          description: Primary key of the reconciliations row to remove.
+
+    Reconciliation:
+      type: object
+      description: A row of the reconciliations table.
+      properties:
+        reconciliation_id:
+          type: integer
+        entry_id:
+          type: integer
+        voucher_id:
+          type: integer
+        ledger_id:
+          type: integer
+        reconciled_date:
+          type: string
+          format: date
+          nullable: true
+        bank_date:
+          type: string
+          format: date
+          nullable: true
+        bank_reference:
+          type: string
+          nullable: true
+        reconciled_at:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp set by DEFAULT (datetime('now')).
+
+    UnreconciledEntry:
+      type: object
+      description: >
+        An unreconciled voucher entry for a bank ledger. Inferred join of voucher_entries
+        and vouchers (not reconciled in the reconciliations table). Field set is a
+        best-effort inference; confirm against the real service SQL.
+      properties:
+        entry_id:
+          type: integer
+        voucher_id:
+          type: integer
+        ledger_id:
+          type: integer
+        voucher_date:
+          type: string
+          format: date
+          nullable: true
+        debit:
+          type: number
+          nullable: true
+          description: Debit amount (currency).
+        credit:
+          type: number
+          nullable: true
+          description: Credit amount (currency).
+
+    StatementLine:
+      type: object
+      description: >
+        A single line of a bank statement view. Inferred shape; confirm against the
+        real service SQL once present.
+      properties:
+        entry_id:
+          type: integer
+        voucher_id:
+          type: integer
+        voucher_date:
+          type: string
+          format: date
+          nullable: true
+        debit:
+          type: number
+          nullable: true
+        credit:
+          type: number
+          nullable: true
+        balance:
+          type: number
+          nullable: true
+          description: Running balance (currency).
+        reconciled:
+          type: boolean
+          nullable: true
+          description: Whether this line has a reconciliation record.
+
+    MutationResult:
+      type: object
+      description: Generic result of a write/delete operation (shape inferred).
+      properties:
+        changes:
+          type: integer
+          description: Number of affected rows, if returned by the driver.
+        success:
+          type: boolean
+
+    BankingSummary:
+      type: object
+      description: >
+        Reconciliation/balance summary for a ledger. Inferred shape; confirm against
+        the real service SQL.
+      properties:
+        ledger_id:
+          type: integer
+        reconciled_balance:
+          type: number
+          nullable: true
+          description: Sum of reconciled entries (currency).
+        unreconciled_balance:
+          type: number
+          nullable: true
+          description: Sum of unreconciled entries (currency).
+        book_balance:
+          type: number
+          nullable: true
+          description: Total ledger balance per books (currency).

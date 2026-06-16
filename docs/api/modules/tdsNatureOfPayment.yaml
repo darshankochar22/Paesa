@@ -1,0 +1,360 @@
+openapi: 3.1.0
+info:
+  title: tdsNatureOfPayment Module API
+  version: 1.0.0
+  description: >
+    IPC contract for the tdsNatureOfPayment backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an ipcMain.handle channel exposed to
+    the renderer via window.api.tdsNatureOfPayment.<method>. Transport is Electron IPC
+    (ipcRenderer.invoke), modeled here as HTTP POST for documentation/tooling purposes.
+
+    Channel namespace: "tdsNatureOfPayment" (matches the module name exactly; no typos found).
+
+tags:
+  - name: tdsNatureOfPayment
+    description: TDS (Tax Deducted at Source) Nature of Payment master records, scoped per company.
+
+paths:
+  /tdsNatureOfPayment/create:
+    post:
+      tags: [tdsNatureOfPayment]
+      operationId: tdsNatureOfPayment.create
+      summary: Create a TDS Nature of Payment record for a company (rejects duplicate active names).
+      x-ipc-channel: "tdsNatureOfPayment:create"
+      x-window-api: "window.api.tdsNatureOfPayment.create"
+      x-controller: "tdsNatureOfPaymentController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TdsNatureOfPaymentCreateInput'
+      responses:
+        '200':
+          description: Success wrapper containing the created row, or a failure with an error message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TdsNatureOfPaymentSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /tdsNatureOfPayment/getAll:
+    post:
+      tags: [tdsNatureOfPayment]
+      operationId: tdsNatureOfPayment.getAll
+      summary: List all active TDS Nature of Payment records for a given company.
+      x-ipc-channel: "tdsNatureOfPayment:getAll"
+      x-window-api: "window.api.tdsNatureOfPayment.getAll"
+      x-controller: "tdsNatureOfPaymentController.getAll"
+      requestBody:
+        required: true
+        description: Bare company_id value (the handler receives it as arg 2 directly, not wrapped in an object).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: Company identifier to filter records by (FK to companies.company_id).
+              required: [company_id]
+      responses:
+        '200':
+          description: Success wrapper containing the list of active rows, or a failure with an error message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TdsNatureOfPaymentListResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /tdsNatureOfPayment/getById:
+    post:
+      tags: [tdsNatureOfPayment]
+      operationId: tdsNatureOfPayment.getById
+      summary: Fetch a single TDS Nature of Payment record by its primary key (tds_id).
+      x-ipc-channel: "tdsNatureOfPayment:getById"
+      x-window-api: "window.api.tdsNatureOfPayment.getById"
+      x-controller: "tdsNatureOfPaymentController.getById"
+      requestBody:
+        required: true
+        description: Bare tds_id value (the handler receives it as arg 2 directly, not wrapped in an object).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: Primary key (tds_id) of the record to fetch.
+              required: [id]
+      responses:
+        '200':
+          description: Success wrapper with the row, or a failure if not found.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TdsNatureOfPaymentSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /tdsNatureOfPayment/update:
+    post:
+      tags: [tdsNatureOfPayment]
+      operationId: tdsNatureOfPayment.update
+      summary: Update an existing TDS Nature of Payment record (identified by tds_id); unspecified fields keep their current values.
+      x-ipc-channel: "tdsNatureOfPayment:update"
+      x-window-api: "window.api.tdsNatureOfPayment.update"
+      x-controller: "tdsNatureOfPaymentController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TdsNatureOfPaymentUpdateInput'
+      responses:
+        '200':
+          description: Success wrapper with the updated row, or a failure if not found.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TdsNatureOfPaymentSingleResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /tdsNatureOfPayment/delete:
+    post:
+      tags: [tdsNatureOfPayment]
+      operationId: tdsNatureOfPayment.delete
+      summary: Soft-delete a TDS Nature of Payment record by setting is_active = 0 (no row is removed).
+      x-ipc-channel: "tdsNatureOfPayment:delete"
+      x-window-api: "window.api.tdsNatureOfPayment.delete"
+      x-controller: "tdsNatureOfPaymentController.delete"
+      requestBody:
+        required: true
+        description: Bare tds_id value (the handler receives it as arg 2 directly, not wrapped in an object).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: Primary key (tds_id) of the record to soft-delete.
+              required: [id]
+      responses:
+        '200':
+          description: Success boolean wrapper, or a failure if not found.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessOnlyResult'
+                  - $ref: '#/components/schemas/FailureResult'
+        '4XX':
+          $ref: '#/components/responses/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  responses:
+    ErrorResponse:
+      description: Unexpected transport or runtime error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      description: Shared error shape for transport/runtime failures.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    TdsNatureOfPayment:
+      type: object
+      description: >
+        A row of the tds_nature_of_payment table. Boolean-like columns are stored as INTEGER 0/1
+        in SQLite and returned as such over IPC. Rate/threshold columns are REAL.
+      properties:
+        tds_id:
+          type: integer
+          description: Primary key (AUTOINCREMENT).
+        company_id:
+          type: integer
+          description: Owning company (FK to companies.company_id).
+        name:
+          type: string
+        section:
+          type: [string, "null"]
+          description: TDS section reference (e.g. "194C").
+        payment_code:
+          type: [string, "null"]
+        remittance_code:
+          type: [string, "null"]
+        rate_individual_with_pan:
+          type: number
+          description: TDS rate for individuals holding a PAN. Stored as REAL; defaults to 0.
+        rate_other_with_pan:
+          type: number
+          description: TDS rate for non-individual deductees holding a PAN. Stored as REAL; defaults to 0.
+        is_zero_rated:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 flag indicating a zero-rated nature of payment.
+        threshold_limit:
+          type: number
+          description: Monetary threshold below which TDS is not deducted. Stored as REAL; defaults to 0.
+        is_predefined:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 flag; system-seeded records. create always inserts 0.
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: 0/1 soft-delete flag. 1 = active, 0 = deleted.
+        created_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+        updated_at:
+          type: string
+          description: ISO-8601 datetime string (SQLite datetime('now')).
+      required:
+        - tds_id
+        - company_id
+        - name
+
+    TdsNatureOfPaymentCreateInput:
+      type: object
+      description: >
+        Payload destructured by the service create() from data. company_id and name are required;
+        the rest are optional and default as noted. is_predefined and is_active are NOT accepted from
+        input — create() hardcodes is_predefined=0 and is_active=1.
+      properties:
+        company_id:
+          type: integer
+        name:
+          type: string
+        section:
+          type: [string, "null"]
+          description: Optional; defaults to null.
+        payment_code:
+          type: [string, "null"]
+          description: Optional; defaults to null.
+        remittance_code:
+          type: [string, "null"]
+          description: Optional; defaults to null.
+        rate_individual_with_pan:
+          type: number
+          description: Optional; defaults to 0.
+        rate_other_with_pan:
+          type: number
+          description: Optional; defaults to 0.
+        is_zero_rated:
+          type: integer
+          enum: [0, 1]
+          description: Optional; defaults to 0.
+        threshold_limit:
+          type: number
+          description: Optional; defaults to 0.
+      required:
+        - company_id
+        - name
+
+    TdsNatureOfPaymentUpdateInput:
+      type: object
+      description: >
+        Payload destructured by the service update() from data. tds_id is required to locate the row.
+        Any field left undefined falls back to the current persisted value (via ?? coalescing).
+        Note: company_id, is_predefined, is_active and created_at are NOT updatable through this channel.
+      properties:
+        tds_id:
+          type: integer
+        name:
+          type: string
+        section:
+          type: [string, "null"]
+        payment_code:
+          type: [string, "null"]
+        remittance_code:
+          type: [string, "null"]
+        rate_individual_with_pan:
+          type: number
+        rate_other_with_pan:
+          type: number
+        is_zero_rated:
+          type: integer
+          enum: [0, 1]
+        threshold_limit:
+          type: number
+      required:
+        - tds_id
+
+    TdsNatureOfPaymentSingleResult:
+      type: object
+      description: Success wrapper for create/getById/update.
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        tdsNatureOfPayment:
+          $ref: '#/components/schemas/TdsNatureOfPayment'
+      required: [success, tdsNatureOfPayment]
+
+    TdsNatureOfPaymentListResult:
+      type: object
+      description: Success wrapper for getAll.
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        tdsNatureOfPaymentList:
+          type: array
+          items:
+            $ref: '#/components/schemas/TdsNatureOfPayment'
+      required: [success, tdsNatureOfPaymentList]
+
+    SuccessOnlyResult:
+      type: object
+      description: Success wrapper for delete (no payload beyond the flag).
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+      required: [success]
+
+    FailureResult:
+      type: object
+      description: >
+        Application-level failure shape returned by the service (caught errors and validation failures).
+        This is returned with a normal (resolved) IPC response, not thrown.
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: string
+          description: Human-readable error message (e.g. "TDS Nature of Payment already exists", "TDS Nature of Payment not found", or a thrown err.message).
+      required: [success, error]

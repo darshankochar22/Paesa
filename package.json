@@ -13,6 +13,14 @@
     "dev": "cd client && npm run dev",
     "electron": "wait-on http://localhost:5173 && electron .",
     "start": "concurrently \"npm run dev\" \"npm run electron\"",
+    "docs:gen": "node server/docs/genStatic.js",
+    "docs:check": "node server/docs/checkDocs.js",
+    "docs:db": "node server/docs/dbDocsGenerator.js",
+    "db:parity": "node server/db/parityCheck.js",
+    "db:generate:sqlite": "drizzle-kit generate --config=drizzle.config.sqlite.js",
+    "db:generate:pg": "drizzle-kit generate --config=drizzle.config.pg.js",
+    "db:generate": "npm run db:generate:sqlite && npm run db:generate:pg",
+    "db:migrate": "node server/db/migrate.js",
     "build:client": "cd client && npm run build",
     "dist": "npm run build:client && electron-builder",
     "dist:win": "npm run build:client && electron-builder --win --publish never",
@@ -59,14 +67,19 @@
   "type": "commonjs",
   "devDependencies": {
     "concurrently": "^9.2.1",
+    "drizzle-kit": "^0.31.10",
     "electron": "^42.4.0",
     "electron-builder": "^26.8.1",
     "jest": "^30.4.2",
     "wait-on": "^9.0.10"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.5",
     "@libsql/client": "^0.17.3",
     "bcryptjs": "^3.0.3",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.25",
+    "pg": "^8.21.0",
+    "yaml": "^2.9.0"
   }
 }

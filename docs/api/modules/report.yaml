@@ -1,0 +1,510 @@
+openapi: 3.1.0
+info:
+  title: Report Module API
+  version: 1.0.0
+  description: >
+    IPC API for the "report" backend module of the Electron + SQLite
+    accounting/ERP app. This module is read-only: every operation computes a
+    financial report by aggregating rows from voucher / ledger / group tables
+    owned by OTHER modules. The report module defines NO tables of its own.
+
+    Transport note: these are Electron `ipcMain.handle` channels, not real HTTP
+    endpoints. They are modeled as POST operations purely so the contract can be
+    expressed in OpenAPI. The renderer invokes them via
+    `window.api.report.<method>(...)`.
+
+    All operations return a service envelope of the form
+    `{ success: true, ... }` on success or `{ success: false, error: string }`
+    on a caught error. The handlers do NOT throw across the IPC boundary, so the
+    4xx/5xx responses below describe the failure-envelope shape rather than HTTP
+    error frames.
+
+paths:
+  /report/trialBalance:
+    post:
+      tags: [report]
+      summary: Compute the trial balance (net debit/credit per active ledger) for a company + financial year.
+      operationId: report.trialBalance
+      x-ipc-channel: "report:trialBalance"
+      x-window-api: "window.api.report.trialBalance"
+      x-controller: "reportController.trialBalance"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyFyParams'
+      responses:
+        '200':
+          description: Trial balance computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrialBalanceResult'
+        '4XX':
+          description: Failure envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Failure envelope (caught service error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/balanceSheet:
+    post:
+      tags: [report]
+      summary: Compute the balance sheet (Assets vs Liabilities ledger balances) for a company + financial year.
+      operationId: report.balanceSheet
+      x-ipc-channel: "report:balanceSheet"
+      x-window-api: "window.api.report.balanceSheet"
+      x-controller: "reportController.balanceSheet"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyFyParams'
+      responses:
+        '200':
+          description: Balance sheet computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceSheetResult'
+        '4XX':
+          description: Failure envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Failure envelope (caught service error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/profitLoss:
+    post:
+      tags: [report]
+      summary: Compute the profit & loss statement (Income vs Expenses, net profit) for a company + financial year.
+      operationId: report.profitLoss
+      x-ipc-channel: "report:profitLoss"
+      x-window-api: "window.api.report.profitLoss"
+      x-controller: "reportController.profitLoss"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyFyParams'
+      responses:
+        '200':
+          description: Profit & loss computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfitLossResult'
+        '4XX':
+          description: Failure envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Failure envelope (caught service error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/ledgerReport:
+    post:
+      tags: [report]
+      summary: Compute a ledger statement with running balance over an optional date range.
+      operationId: report.ledgerReport
+      x-ipc-channel: "report:ledgerReport"
+      x-window-api: "window.api.report.ledgerReport"
+      x-controller: "reportController.ledgerReport"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerReportParams'
+      responses:
+        '200':
+          description: Ledger statement computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerReportResult'
+        '4XX':
+          description: Failure envelope (e.g. "Ledger not found").
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Failure envelope (caught service error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/cashBook:
+    post:
+      tags: [report]
+      summary: Compute the cash book — a ledger statement for the company's Cash-type ledger over an optional date range.
+      operationId: report.cashBook
+      x-ipc-channel: "report:cashBook"
+      x-window-api: "window.api.report.cashBook"
+      x-controller: "reportController.cashBook"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DateRangeParams'
+      responses:
+        '200':
+          description: Cash book computed (same shape as ledgerReport result).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerReportResult'
+        '4XX':
+          description: Failure envelope (e.g. "Cash ledger not found").
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Failure envelope (caught service error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/bankBook:
+    post:
+      tags: [report]
+      summary: Compute the bank book — a ledger statement for a specified bank ledger over an optional date range.
+      operationId: report.bankBook
+      x-ipc-channel: "report:bankBook"
+      x-window-api: "window.api.report.bankBook"
+      x-controller: "reportController.bankBook"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerReportParams'
+      responses:
+        '200':
+          description: Bank book computed (same shape as ledgerReport result).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerReportResult'
+        '4XX':
+          description: Failure envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Failure envelope (caught service error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/daybook:
+    post:
+      tags: [report]
+      summary: Compute the day book — all (non-cancelled) vouchers, fully expanded, for a company + financial year over an optional date range.
+      operationId: report.daybook
+      x-ipc-channel: "report:daybook"
+      x-window-api: "window.api.report.daybook"
+      x-controller: "reportController.daybook"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DateRangeParams'
+      responses:
+        '200':
+          description: Day book computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaybookResult'
+        '4XX':
+          description: Failure envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Failure envelope (caught service error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      description: >
+        Failure envelope. In this module errors are returned in-band as
+        `{ success: false, error }`. The `message` field is included to satisfy
+        the shared Error contract; the service populates `error`.
+      properties:
+        error:
+          type: string
+          description: Human-readable error reason (e.g. err.message, "Ledger not found").
+        message:
+          type: string
+          description: Alias of error for shared-contract compatibility.
+      required: [error]
+
+    CompanyFyParams:
+      type: object
+      description: Company + financial-year scope shared by trialBalance, balanceSheet and profitLoss.
+      properties:
+        company_id:
+          type: integer
+          description: Target company id (FK -> companies.company_id).
+        fy_id:
+          type: integer
+          description: Target financial year id (FK -> financial_years.fy_id).
+      required: [company_id, fy_id]
+
+    DateRangeParams:
+      type: object
+      description: Company + FY scope plus an optional inclusive date range. Used by cashBook and daybook.
+      properties:
+        company_id:
+          type: integer
+          description: Target company id (FK -> companies.company_id).
+        fy_id:
+          type: integer
+          description: Target financial year id (FK -> financial_years.fy_id).
+        from_date:
+          type: [string, "null"]
+          format: date
+          description: Optional inclusive lower bound on voucher date (ISO YYYY-MM-DD). Omitted/null => no lower bound.
+        to_date:
+          type: [string, "null"]
+          format: date
+          description: Optional inclusive upper bound on voucher date (ISO YYYY-MM-DD). Omitted/null => no upper bound.
+      required: [company_id, fy_id]
+
+    LedgerReportParams:
+      type: object
+      description: Company + FY scope, a target ledger, plus an optional inclusive date range. Used by ledgerReport and bankBook.
+      properties:
+        company_id:
+          type: integer
+          description: Target company id (FK -> companies.company_id).
+        fy_id:
+          type: integer
+          description: Target financial year id (FK -> financial_years.fy_id).
+        ledger_id:
+          type: integer
+          description: Target ledger id (FK -> ledgers.ledger_id).
+        from_date:
+          type: [string, "null"]
+          format: date
+          description: Optional inclusive lower bound on voucher date (ISO YYYY-MM-DD).
+        to_date:
+          type: [string, "null"]
+          format: date
+          description: Optional inclusive upper bound on voucher date (ISO YYYY-MM-DD).
+      required: [company_id, fy_id, ledger_id]
+
+    TrialBalanceRow:
+      type: object
+      description: One active ledger's net position. Derived (computed), not a stored row.
+      properties:
+        ledger_id:
+          type: integer
+          description: Ledger id (from ledgers.ledger_id).
+        ledger_name:
+          type: string
+          description: Ledger display name (from ledgers.name).
+        group_id:
+          type: integer
+          description: Owning group id (from ledgers.group_id).
+        debit:
+          type: number
+          description: Net debit balance if balance > 0, else 0 (currency).
+        credit:
+          type: number
+          description: Net credit balance (abs of negative balance) if balance < 0, else 0 (currency).
+      required: [ledger_id, ledger_name, group_id, debit, credit]
+
+    TrialBalanceResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrialBalanceRow'
+        totalDebit:
+          type: number
+          description: Sum of all row debits (currency).
+        totalCredit:
+          type: number
+          description: Sum of all row credits (currency).
+      required: [success, rows, totalDebit, totalCredit]
+
+    BalanceSheetLedger:
+      type: object
+      description: One ledger balance grouped under Assets or Liabilities. Derived, not stored.
+      properties:
+        ledger_id:
+          type: integer
+        ledger_name:
+          type: string
+        balance:
+          type: number
+          description: Net signed balance (currency).
+      required: [ledger_id, ledger_name, balance]
+
+    BalanceSheetResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/BalanceSheetLedger'
+        liabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/BalanceSheetLedger'
+        totalAssets:
+          type: number
+          description: Sum of abs(balance) over asset ledgers (currency).
+        totalLiabilities:
+          type: number
+          description: Sum of abs(balance) over liability ledgers (currency).
+      required: [success, assets, liabilities, totalAssets, totalLiabilities]
+
+    ProfitLossLedger:
+      type: object
+      description: One income or expense ledger (abs balance). Derived, not stored.
+      properties:
+        ledger_id:
+          type: integer
+        ledger_name:
+          type: string
+        balance:
+          type: number
+          description: Absolute net balance (currency).
+      required: [ledger_id, ledger_name, balance]
+
+    ProfitLossResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        income:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfitLossLedger'
+        expenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfitLossLedger'
+        totalIncome:
+          type: number
+          description: Sum of income balances (currency).
+        totalExpenses:
+          type: number
+          description: Sum of expense balances (currency).
+        netProfit:
+          type: number
+          description: totalIncome - totalExpenses (currency).
+        isProfit:
+          type: boolean
+          description: True when netProfit >= 0.
+      required: [success, income, expenses, totalIncome, totalExpenses, netProfit, isProfit]
+
+    LedgerReportRow:
+      type: object
+      description: One movement line in a ledger statement, carrying a running balance. Derived, not stored.
+      properties:
+        date:
+          type: string
+          format: date
+          description: Voucher date (from vouchers.date).
+        voucher_type:
+          type: string
+          description: Voucher type (from vouchers.voucher_type).
+        voucher_number:
+          type: [string, integer]
+          description: Voucher number (from vouchers.voucher_number).
+        debit:
+          type: number
+          description: Entry amount if type='Dr', else 0 (currency).
+        credit:
+          type: number
+          description: Entry amount if type='Cr', else 0 (currency).
+        balance:
+          type: number
+          description: Running balance after this line (currency).
+        narration:
+          type: [string, "null"]
+          description: Entry narration, falling back to the voucher narration.
+      required: [date, voucher_type, voucher_number, debit, credit, balance]
+
+    LedgerReportResult:
+      type: object
+      description: Result of ledgerReport (also returned by cashBook and bankBook).
+      properties:
+        success:
+          type: boolean
+        ledger_name:
+          type: string
+          description: Name of the reported ledger.
+        opening_balance:
+          type: number
+          description: Ledger opening balance used as the running-balance seed (currency).
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/LedgerReportRow'
+        closing_balance:
+          type: number
+          description: Final running balance after all rows (currency).
+      required: [success, ledger_name, opening_balance, rows, closing_balance]
+
+    DaybookResult:
+      type: object
+      description: >
+        Result of daybook. `vouchers` is an array of fully-expanded voucher
+        objects produced by voucherService.getById (each voucher with its
+        entries). The exact voucher shape is owned by the voucher module; it is
+        modeled here as an open object.
+      properties:
+        success:
+          type: boolean
+        vouchers:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: A full voucher object (shape owned by the voucher module).
+      required: [success, vouchers]

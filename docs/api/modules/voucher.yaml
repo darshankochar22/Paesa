@@ -1,0 +1,1052 @@
+openapi: 3.1.0
+info:
+  title: Voucher Module API
+  version: 1.0.0
+  description: >
+    IPC API contract for the "voucher" backend module of the Electron + SQLite
+    accounting/ERP app. Each operation maps to an `ipcMain.handle('voucher:<action>', ...)`
+    channel registered in server/index.js and exposed to the renderer via
+    `window.api.voucher.<method>` (preload.js). HTTP method/path are a documentation
+    convention only; the real transport is Electron IPC (see x-ipc-channel).
+    All handlers resolve with `{ success: boolean, ... }` and never reject — service
+    methods catch errors and return `{ success: false, error: string }`.
+tags:
+  - name: voucher
+    description: Accounting / inventory voucher entry, retrieval and helpers.
+
+paths:
+  /voucher/create:
+    post:
+      tags: [voucher]
+      operationId: voucher.create
+      summary: Create a voucher with its entries, stock, bills, payroll, bank & detail sub-records (in a transaction).
+      x-ipc-channel: "voucher:create"
+      x-window-api: "window.api.voucher.create"
+      x-controller: "voucherController.create"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoucherCreateInput'
+      responses:
+        '200':
+          description: Created voucher header row, or a validation/error result.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      voucher: { $ref: '#/components/schemas/Voucher' }
+                    required: [success, voucher]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/getAll:
+    post:
+      tags: [voucher]
+      operationId: voucher.getAll
+      summary: List all non-cancelled vouchers for a company & financial year with computed debit/credit/inwards/outwards totals.
+      x-ipc-channel: "voucher:getAll"
+      x-window-api: "window.api.voucher.getAll"
+      x-controller: "voucherController.getAll"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: integer }
+                fy_id: { type: integer }
+              required: [company_id, fy_id]
+      responses:
+        '200':
+          description: Voucher list with aggregate columns.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      vouchers:
+                        type: array
+                        items: { $ref: '#/components/schemas/VoucherListRow' }
+                    required: [success, vouchers]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/getById:
+    post:
+      tags: [voucher]
+      operationId: voucher.getById
+      summary: Fetch one voucher fully hydrated with entries, stock (incl. batches), bills, bank, cost centres, cash denominations, party/dispatch/receipt/credit-note/debit-note details and payroll entries.
+      x-ipc-channel: "voucher:getById"
+      x-window-api: "window.api.voucher.getById"
+      x-controller: "voucherController.getById"
+      requestBody:
+        required: true
+        description: Bare voucher id (the controller receives the scalar as arg 2).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: voucher_id (passed as a bare scalar over IPC).
+              required: [id]
+      responses:
+        '200':
+          description: Hydrated voucher or not-found error.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      voucher: { $ref: '#/components/schemas/VoucherDetail' }
+                    required: [success, voucher]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/update:
+    post:
+      tags: [voucher]
+      operationId: voucher.update
+      summary: Update a voucher header and (when supplied) replace its entries, bill references, receipt/party/dispatch details and payroll entries. Rejects cancelled vouchers and unbalanced Dr/Cr.
+      x-ipc-channel: "voucher:update"
+      x-window-api: "window.api.voucher.update"
+      x-controller: "voucherController.update"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoucherUpdateInput'
+      responses:
+        '200':
+          description: Updated voucher header row or error.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      voucher: { $ref: '#/components/schemas/Voucher' }
+                    required: [success, voucher]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/delete:
+    post:
+      tags: [voucher]
+      operationId: voucher.delete
+      summary: Hard-delete a voucher (cascades to all sub-tables) and recompute affected ledger closing balances.
+      x-ipc-channel: "voucher:delete"
+      x-window-api: "window.api.voucher.delete"
+      x-controller: "voucherController.delete"
+      requestBody:
+        required: true
+        description: Bare voucher id.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: integer, description: voucher_id (bare scalar over IPC). }
+              required: [id]
+      responses:
+        '200':
+          description: Success flag or error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/cancel:
+    post:
+      tags: [voucher]
+      operationId: voucher.cancel
+      summary: Soft-cancel a voucher (sets is_cancelled = 1) and recompute affected ledger balances.
+      x-ipc-channel: "voucher:cancel"
+      x-window-api: "window.api.voucher.cancel"
+      x-controller: "voucherController.cancel"
+      requestBody:
+        required: true
+        description: Bare voucher id.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: integer, description: voucher_id (bare scalar over IPC). }
+              required: [id]
+      responses:
+        '200':
+          description: Success flag or error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResult'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/getDaybook:
+    post:
+      tags: [voucher]
+      operationId: voucher.getDaybook
+      summary: List non-cancelled vouchers between two dates (inclusive) with computed totals, ordered ascending. Defaults from/to to today when omitted.
+      x-ipc-channel: "voucher:getDaybook"
+      x-window-api: "window.api.voucher.getDaybook"
+      x-controller: "voucherController.getDaybook"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: integer }
+                fy_id: { type: integer }
+                from_date:
+                  type: [string, "null"]
+                  format: date
+                  description: ISO date (YYYY-MM-DD). Defaults to today when null/omitted.
+                to_date:
+                  type: [string, "null"]
+                  format: date
+                  description: ISO date (YYYY-MM-DD). Defaults to today when null/omitted.
+              required: [company_id, fy_id]
+      responses:
+        '200':
+          description: Voucher list with aggregate columns.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      vouchers:
+                        type: array
+                        items: { $ref: '#/components/schemas/VoucherListRow' }
+                    required: [success, vouchers]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/getByType:
+    post:
+      tags: [voucher]
+      operationId: voucher.getByType
+      summary: List non-cancelled vouchers of a given voucher_type for a company & financial year with computed totals.
+      x-ipc-channel: "voucher:getByType"
+      x-window-api: "window.api.voucher.getByType"
+      x-controller: "voucherController.getByType"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: integer }
+                fy_id: { type: integer }
+                voucher_type:
+                  type: string
+                  description: >
+                    Renderer binding param is named `type` but is sent over IPC as
+                    `voucher_type` (preload maps it). Service reads `voucher_type`.
+              required: [company_id, fy_id, voucher_type]
+      responses:
+        '200':
+          description: Voucher list with aggregate columns.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      vouchers:
+                        type: array
+                        items: { $ref: '#/components/schemas/VoucherListRow' }
+                    required: [success, vouchers]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/getByLedger:
+    post:
+      tags: [voucher]
+      operationId: voucher.getByLedger
+      summary: List distinct non-cancelled vouchers that contain an entry for a given ledger, ordered by date descending.
+      x-ipc-channel: "voucher:getByLedger"
+      x-window-api: "window.api.voucher.getByLedger"
+      x-controller: "voucherController.getByLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: integer }
+                fy_id: { type: integer }
+                ledger_id:
+                  type: integer
+                  description: Renderer binding param is `ledgerId`, sent as `ledger_id`.
+              required: [company_id, fy_id, ledger_id]
+      responses:
+        '200':
+          description: Voucher header rows (no aggregate columns).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      vouchers:
+                        type: array
+                        items: { $ref: '#/components/schemas/Voucher' }
+                    required: [success, vouchers]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/getNextNumber:
+    post:
+      tags: [voucher]
+      operationId: voucher.getNextNumber
+      summary: Compute the next auto voucher number for a company/fy/type (e.g. SAL-00012), based on the max existing numeric suffix + 1.
+      x-ipc-channel: "voucher:getNextNumber"
+      x-window-api: "window.api.voucher.getNextNumber"
+      x-controller: "voucherController.getNextNumber"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: integer }
+                fy_id: { type: integer }
+                voucher_type:
+                  type: string
+                  description: Renderer binding param is `type`, sent as `voucher_type`.
+              required: [company_id, fy_id, voucher_type]
+      responses:
+        '200':
+          description: Next number info.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  nextNumber:
+                    type: integer
+                    description: Numeric component of the next voucher number.
+                  voucher_number:
+                    type: string
+                    description: Full formatted voucher number, e.g. "SAL-00012".
+                required: [success, nextNumber, voucher_number]
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/getLedgerBalance:
+    post:
+      tags: [voucher]
+      operationId: voucher.getLedgerBalance
+      summary: Compute a ledger's running balance (opening + posted Dr/Cr from non-cancelled vouchers in the fy), returning a Dr/Cr formatted label and the signed raw balance.
+      x-ipc-channel: "voucher:getLedgerBalance"
+      x-window-api: "window.api.voucher.getLedgerBalance"
+      x-controller: "voucherController.getLedgerBalance"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ledger_id: { type: integer }
+                company_id: { type: integer }
+                fy_id: { type: integer }
+              required: [ledger_id, company_id, fy_id]
+      responses:
+        '200':
+          description: Ledger balance result or not-found.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      balance:
+                        type: string
+                        description: Formatted label, e.g. "1500.00 Dr", "200.00 Cr" or "0.00".
+                      rawBalance:
+                        type: number
+                        description: Signed numeric balance (positive = Dr nature surplus).
+                    required: [success, balance, rawBalance]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/searchLedgers:
+    post:
+      tags: [voucher]
+      operationId: voucher.searchLedgers
+      summary: Search active ledgers of a company by name or alias (case-insensitive LIKE), max 50 rows, ordered by name.
+      x-ipc-channel: "voucher:searchLedgers"
+      x-window-api: "window.api.voucher.searchLedgers"
+      x-controller: "voucherController.searchLedgers"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: integer }
+                searchTerm:
+                  type: [string, "null"]
+                  description: Substring to match against ledger name/alias. Empty matches all.
+              required: [company_id]
+      responses:
+        '200':
+          description: Matching ledger rows. Ledger shape belongs to the ledger module.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { const: true }
+                  ledgers:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      description: Full ledger row (SELECT *). Schema owned by the ledger module.
+                required: [success, ledgers]
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+  /voucher/getPendingBills:
+    post:
+      tags: [voucher]
+      operationId: voucher.getPendingBills
+      summary: List pending bill references ('New Ref'/'Advance') for a ledger with positive aggregated balance, plus the ledger's default credit terms.
+      x-ipc-channel: "voucher:getPendingBills"
+      x-window-api: "window.api.voucher.getPendingBills"
+      x-controller: "voucherController.getPendingBills"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ledger_id: { type: integer }
+                company_id: { type: integer }
+                fy_id: { type: integer }
+              required: [ledger_id, company_id, fy_id]
+      responses:
+        '200':
+          description: Pending bills with credit-period metadata.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { const: true }
+                      pendingBills:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            bill_name: { type: [string, "null"] }
+                            bill_date: { type: [string, "null"], format: date }
+                            due_date: { type: [string, "null"], format: date }
+                            credit_period: { type: [string, "null"] }
+                            balance: { type: number, description: Aggregated outstanding amount (currency). }
+                            final_balance: { type: number }
+                      defaultCreditPeriod:
+                        description: Ledger default credit period (numeric days or 0).
+                      checkCreditDays:
+                        description: Ledger flag/value for credit-day checking (0/1 or numeric).
+                    required: [success, pendingBills]
+                  - $ref: '#/components/schemas/ServiceError'
+        '4XX': { $ref: '#/components/responses/Error' }
+        '5XX': { $ref: '#/components/responses/Error' }
+
+components:
+  responses:
+    Error:
+      description: Transport/handler error envelope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      description: Generic error envelope for transport-level failures.
+      properties:
+        error: { type: string }
+        message: { type: string }
+      required: [error, message]
+
+    ServiceError:
+      type: object
+      description: >
+        In-band failure returned by voucher service methods. Handlers resolve
+        (do not reject) with this shape on validation errors or caught exceptions.
+      properties:
+        success: { const: false }
+        error: { type: string }
+      required: [success, error]
+
+    SuccessResult:
+      oneOf:
+        - type: object
+          properties:
+            success: { const: true }
+          required: [success]
+        - $ref: '#/components/schemas/ServiceError'
+
+    Voucher:
+      type: object
+      description: A row of the `vouchers` table (header). Booleans are stored as 0/1 INTEGER in SQLite.
+      properties:
+        voucher_id: { type: integer }
+        company_id: { type: integer }
+        fy_id: { type: integer }
+        voucher_type: { type: string }
+        voucher_number: { type: [string, "null"] }
+        date: { type: string, format: date, description: Voucher date, stored as TEXT. }
+        status: { type: [string, "null"], default: Regular }
+        supplier_invoice_no: { type: [string, "null"] }
+        supplier_invoice_date: { type: [string, "null"], format: date }
+        reference_number: { type: [string, "null"] }
+        reference_date: { type: [string, "null"], format: date }
+        narration: { type: [string, "null"] }
+        party_ledger_id: { type: [integer, "null"] }
+        party_name: { type: [string, "null"] }
+        place_of_supply: { type: [string, "null"] }
+        is_invoice: { type: integer, enum: [0, 1], description: Boolean flag (0/1). }
+        is_accounting_voucher: { type: integer, enum: [0, 1] }
+        is_inventory_voucher: { type: integer, enum: [0, 1] }
+        is_order_voucher: { type: integer, enum: [0, 1] }
+        is_cancelled: { type: integer, enum: [0, 1] }
+        is_optional: { type: integer, enum: [0, 1] }
+        is_post_dated: { type: integer, enum: [0, 1] }
+        created_at: { type: string, description: ISO-8601 datetime string. }
+        updated_at: { type: string, description: ISO-8601 datetime string. }
+      required: [voucher_id, company_id, fy_id, voucher_type, date]
+
+    VoucherListRow:
+      description: A voucher header plus computed aggregate columns from list queries.
+      allOf:
+        - $ref: '#/components/schemas/Voucher'
+        - type: object
+          properties:
+            debit_amount: { type: number, description: SUM of Dr entry amounts (currency). }
+            credit_amount: { type: number, description: SUM of Cr entry amounts (currency). }
+            inwards_qty: { type: number, description: Stock inwards quantity for inward voucher types, else 0. }
+            outwards_qty: { type: number, description: Stock outwards quantity for outward voucher types, else 0. }
+
+    VoucherEntry:
+      type: object
+      description: A row of `voucher_entries`.
+      properties:
+        entry_id: { type: integer }
+        voucher_id: { type: integer }
+        ledger_id: { type: [integer, "null"] }
+        ledger_name: { type: [string, "null"] }
+        type: { type: string, enum: [Dr, Cr] }
+        amount: { type: number, description: Currency amount. }
+        amount_forex: { type: number }
+        currency: { type: [string, "null"], default: INR }
+        narration: { type: [string, "null"] }
+      required: [entry_id, voucher_id, type, amount]
+
+    VoucherStockEntry:
+      type: object
+      description: A row of `voucher_stock_entries`, optionally augmented with `batches` in getById.
+      properties:
+        stock_entry_id: { type: integer }
+        voucher_id: { type: integer }
+        stock_item_id: { type: [integer, "null"] }
+        item_name: { type: [string, "null"] }
+        godown_id: { type: [integer, "null"] }
+        unit_id: { type: [integer, "null"] }
+        quantity: { type: number }
+        rate: { type: number }
+        amount: { type: number, description: quantity * rate (currency). }
+        additional_amount: { type: number }
+        discount_amount: { type: number }
+        hsn_code: { type: [string, "null"] }
+        gst_rate: { type: number }
+        cgst_amount: { type: number }
+        sgst_amount: { type: number }
+        igst_amount: { type: number }
+        is_source: { type: integer, enum: [0, 1], description: Added via ALTER; boolean flag. }
+        batches:
+          type: array
+          description: Present only in getById hydration.
+          items: { $ref: '#/components/schemas/VoucherBatch' }
+      required: [stock_entry_id, voucher_id]
+
+    VoucherBatch:
+      type: object
+      description: A row of `voucher_batches`.
+      properties:
+        batch_id: { type: integer }
+        voucher_id: { type: integer }
+        stock_entry_id: { type: integer }
+        batch_number: { type: [string, "null"] }
+        expiry_date: { type: [string, "null"], format: date }
+        quantity: { type: number }
+        rate: { type: number }
+      required: [batch_id, voucher_id, stock_entry_id]
+
+    VoucherBillReference:
+      type: object
+      description: A row of `voucher_bill_references`.
+      properties:
+        bill_id: { type: integer }
+        voucher_id: { type: integer }
+        ledger_id: { type: [integer, "null"] }
+        bill_name: { type: [string, "null"] }
+        bill_type: { type: [string, "null"], description: "e.g. 'New Ref', 'Advance', 'Agst Ref'." }
+        amount: { type: number, description: Currency amount. }
+        credit_period: { type: [string, "null"] }
+        due_date: { type: [string, "null"], format: date }
+      required: [bill_id, voucher_id]
+
+    VoucherBankDetail:
+      type: object
+      description: A row of `voucher_bank_details`.
+      properties:
+        bank_detail_id: { type: integer }
+        voucher_id: { type: integer }
+        ledger_id: { type: [integer, "null"] }
+        transaction_type: { type: [string, "null"], default: Cheque }
+        cheque_range: { type: [string, "null"] }
+        instrument_number: { type: [string, "null"] }
+        instrument_date: { type: [string, "null"], format: date }
+        bank_name: { type: [string, "null"] }
+        branch: { type: [string, "null"] }
+        amount: { type: number, description: Currency amount. }
+      required: [bank_detail_id, voucher_id]
+
+    VoucherCostCentre:
+      type: object
+      description: A row of `voucher_cost_centres`.
+      properties:
+        cc_entry_id: { type: integer }
+        voucher_id: { type: integer }
+        entry_id: { type: [integer, "null"] }
+        cost_centre_id: { type: [integer, "null"] }
+        amount: { type: number, description: Currency amount. }
+      required: [cc_entry_id, voucher_id]
+
+    VoucherCashDenomination:
+      type: object
+      description: A row of `voucher_cash_denominations`.
+      properties:
+        id: { type: integer }
+        voucher_id: { type: integer }
+        ledger_id: { type: [integer, "null"] }
+        denomination: { type: [string, "null"] }
+        quantity: { type: integer }
+        amount: { type: number, description: Currency amount. }
+      required: [id, voucher_id]
+
+    VoucherReceiptDetail:
+      type: object
+      description: A row of `voucher_receipt_details`.
+      properties:
+        id: { type: integer }
+        voucher_id: { type: integer }
+        receipt_note_no: { type: [string, "null"] }
+        receipt_doc_no: { type: [string, "null"] }
+        dispatched_through: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        carrier_name: { type: [string, "null"] }
+        bill_of_lading_no: { type: [string, "null"] }
+        bill_of_lading_date: { type: [string, "null"], format: date }
+        motor_vehicle_no: { type: [string, "null"] }
+      required: [id, voucher_id]
+
+    VoucherPartyDetail:
+      type: object
+      description: A row of `voucher_party_details`.
+      properties:
+        id: { type: integer }
+        voucher_id: { type: integer }
+        supplier_name: { type: [string, "null"] }
+        mailing_name: { type: [string, "null"] }
+        address: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        country: { type: [string, "null"] }
+      required: [id, voucher_id]
+
+    VoucherDispatchDetail:
+      type: object
+      description: A row of `voucher_dispatch_details`.
+      properties:
+        id: { type: integer }
+        voucher_id: { type: integer }
+        delivery_note_nos: { type: [string, "null"] }
+        dispatch_doc_no: { type: [string, "null"] }
+        dispatched_through: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        carrier_name: { type: [string, "null"] }
+        bill_of_lading_no: { type: [string, "null"] }
+        bill_of_lading_date: { type: [string, "null"], format: date }
+        motor_vehicle_no: { type: [string, "null"] }
+      required: [id, voucher_id]
+
+    VoucherCreditNoteDetail:
+      type: object
+      description: A row of `voucher_credit_note_details`.
+      properties:
+        id: { type: integer }
+        voucher_id: { type: integer }
+        tracking_no: { type: [string, "null"] }
+        dispatch_doc_no: { type: [string, "null"] }
+        dispatched_through: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        carrier_name: { type: [string, "null"] }
+        bill_of_lading_no: { type: [string, "null"] }
+        bill_of_lading_date: { type: [string, "null"], format: date }
+        motor_vehicle_no: { type: [string, "null"] }
+        original_invoice_no: { type: [string, "null"] }
+        original_invoice_date: { type: [string, "null"], format: date }
+      required: [id, voucher_id]
+
+    VoucherDebitNoteDetail:
+      type: object
+      description: A row of `voucher_debit_note_details`.
+      properties:
+        id: { type: integer }
+        voucher_id: { type: integer }
+        tracking_no: { type: [string, "null"] }
+        dispatch_doc_no: { type: [string, "null"] }
+        dispatched_through: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        carrier_name: { type: [string, "null"] }
+        bill_of_lading_no: { type: [string, "null"] }
+        bill_of_lading_date: { type: [string, "null"], format: date }
+        motor_vehicle_no: { type: [string, "null"] }
+        original_invoice_no: { type: [string, "null"] }
+        original_invoice_date: { type: [string, "null"], format: date }
+      required: [id, voucher_id]
+
+    VoucherPayrollEntry:
+      type: object
+      description: A row of `voucher_payroll_entries` (getById joins employee/pay-head names).
+      properties:
+        payroll_entry_id: { type: integer }
+        voucher_id: { type: integer }
+        employee_id: { type: [integer, "null"] }
+        pay_head_id: { type: [integer, "null"] }
+        amount: { type: number, description: Currency amount. }
+        employee_name: { type: [string, "null"], description: Joined from employees (getById only). }
+        employee_number: { type: [string, "null"], description: Joined employee_code (getById only). }
+        pay_head_name: { type: [string, "null"], description: Joined from pay_heads (getById only). }
+      required: [payroll_entry_id, voucher_id]
+
+    VoucherDetail:
+      description: Fully hydrated voucher returned by getById.
+      allOf:
+        - $ref: '#/components/schemas/Voucher'
+        - type: object
+          properties:
+            entries:
+              type: array
+              items: { $ref: '#/components/schemas/VoucherEntry' }
+            stock_entries:
+              type: array
+              items: { $ref: '#/components/schemas/VoucherStockEntry' }
+            bill_references:
+              type: array
+              items: { $ref: '#/components/schemas/VoucherBillReference' }
+            bank_details:
+              oneOf:
+                - $ref: '#/components/schemas/VoucherBankDetail'
+                - type: "null"
+            cost_centres:
+              type: array
+              items: { $ref: '#/components/schemas/VoucherCostCentre' }
+            cash_denominations:
+              type: array
+              items: { $ref: '#/components/schemas/VoucherCashDenomination' }
+            receipt_details:
+              oneOf:
+                - $ref: '#/components/schemas/VoucherReceiptDetail'
+                - type: "null"
+            party_details:
+              oneOf:
+                - $ref: '#/components/schemas/VoucherPartyDetail'
+                - type: "null"
+            dispatch_details:
+              oneOf:
+                - $ref: '#/components/schemas/VoucherDispatchDetail'
+                - type: "null"
+            credit_note_details:
+              oneOf:
+                - $ref: '#/components/schemas/VoucherCreditNoteDetail'
+                - type: "null"
+            debit_note_details:
+              oneOf:
+                - $ref: '#/components/schemas/VoucherDebitNoteDetail'
+                - type: "null"
+            payroll_entries:
+              type: array
+              items: { $ref: '#/components/schemas/VoucherPayrollEntry' }
+
+    VoucherCreateInput:
+      type: object
+      description: >
+        Payload for voucher:create. The controller forwards the whole object to
+        voucherService.create(data). Most fields mirror the `vouchers` columns;
+        nested arrays/objects populate the sub-tables. For Sales/Purchase/Credit
+        Note/Debit Note accounting vouchers, the GST tax engine recomputes
+        `entries`/`stock_entries` server-side. Dr/Cr entries must net to zero.
+      properties:
+        company_id: { type: integer }
+        fy_id: { type: integer }
+        voucher_type: { type: string }
+        voucher_number: { type: [string, "null"], description: Auto-generated when omitted. }
+        date: { type: string, format: date }
+        status: { type: [string, "null"], default: Regular }
+        supplier_invoice_no: { type: [string, "null"] }
+        supplier_invoice_date: { type: [string, "null"], format: date }
+        reference_number: { type: [string, "null"] }
+        reference_date: { type: [string, "null"], format: date }
+        narration: { type: [string, "null"] }
+        party_ledger_id: { type: [integer, "null"] }
+        party_name: { type: [string, "null"] }
+        place_of_supply: { type: [string, "null"] }
+        is_invoice: { type: [boolean, integer, "null"] }
+        is_accounting_voucher: { type: [boolean, integer, "null"], default: true }
+        is_inventory_voucher: { type: [boolean, integer, "null"] }
+        is_order_voucher: { type: [boolean, integer, "null"] }
+        is_optional: { type: [boolean, integer, "null"] }
+        is_post_dated: { type: [boolean, integer, "null"] }
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              ledger_id: { type: [integer, "null"] }
+              ledger_name: { type: [string, "null"] }
+              type: { type: string, enum: [Dr, Cr] }
+              amount: { type: number }
+              amount_forex: { type: [number, "null"] }
+              currency: { type: [string, "null"], default: INR }
+              narration: { type: [string, "null"] }
+              cost_centres:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    cost_centre_id: { type: integer }
+                    amount: { type: number }
+            required: [type, amount]
+        stock_entries:
+          type: array
+          items:
+            type: object
+            properties:
+              stock_item_id: { type: [integer, "null"] }
+              item_name: { type: [string, "null"] }
+              godown_id: { type: [integer, "null"] }
+              unit_id: { type: [integer, "null"] }
+              quantity: { type: number }
+              rate: { type: number }
+              additional_amount: { type: [number, "null"] }
+              discount_amount: { type: [number, "null"] }
+              hsn_code: { type: [string, "null"] }
+              gst_rate: { type: [number, "null"] }
+              cgst_amount: { type: [number, "null"] }
+              sgst_amount: { type: [number, "null"] }
+              igst_amount: { type: [number, "null"] }
+              is_source: { type: [boolean, integer, "null"] }
+              batch:
+                type: object
+                properties:
+                  batch_number: { type: string }
+                  expiry_date: { type: [string, "null"], format: date }
+                  quantity: { type: [number, "null"] }
+                  rate: { type: [number, "null"] }
+            required: [quantity, rate]
+        payroll_entries:
+          type: array
+          items:
+            type: object
+            properties:
+              employee_id: { type: [integer, "null"] }
+              pay_head_id: { type: [integer, "null"] }
+              amount: { type: number }
+        bill_references:
+          type: array
+          items:
+            type: object
+            properties:
+              ledger_id: { type: [integer, "null"] }
+              bill_name: { type: [string, "null"] }
+              bill_type: { type: [string, "null"] }
+              amount: { type: number }
+              credit_period: { type: [string, "null"] }
+              due_date: { type: [string, "null"], format: date }
+        bank_details:
+          type: object
+          properties:
+            ledger_id: { type: [integer, "null"] }
+            transaction_type: { type: [string, "null"], default: Cheque }
+            cheque_range: { type: [string, "null"] }
+            instrument_number: { type: [string, "null"] }
+            instrument_date: { type: [string, "null"], format: date }
+            bank_name: { type: [string, "null"] }
+            branch: { type: [string, "null"] }
+            amount: { type: [number, "null"] }
+        cash_denominations:
+          type: object
+          properties:
+            ledger_id: { type: [integer, "null"] }
+            entries:
+              type: array
+              items:
+                type: object
+                properties:
+                  ledger_id: { type: [integer, "null"] }
+                  denomination: {}
+                  quantity: { type: [integer, "null"] }
+                  amount: { type: [number, "null"] }
+            others: { type: [number, "null"] }
+        receipt_details: { $ref: '#/components/schemas/VoucherReceiptDetailInput' }
+        party_details: { $ref: '#/components/schemas/VoucherPartyDetailInput' }
+        dispatch_details: { $ref: '#/components/schemas/VoucherDispatchDetailInput' }
+        credit_note_details: { $ref: '#/components/schemas/VoucherCreditNoteDetailInput' }
+        debit_note_details: { $ref: '#/components/schemas/VoucherDebitNoteDetailInput' }
+      required: [company_id, fy_id, voucher_type, date]
+
+    VoucherReceiptDetailInput:
+      type: object
+      properties:
+        receipt_note_no: { type: [string, "null"] }
+        receipt_doc_no: { type: [string, "null"] }
+        dispatched_through: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        carrier_name: { type: [string, "null"] }
+        bill_of_lading_no: { type: [string, "null"] }
+        bill_of_lading_date: { type: [string, "null"], format: date }
+        motor_vehicle_no: { type: [string, "null"] }
+
+    VoucherPartyDetailInput:
+      type: object
+      properties:
+        supplier_name: { type: [string, "null"] }
+        mailing_name: { type: [string, "null"] }
+        address: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        country: { type: [string, "null"] }
+
+    VoucherDispatchDetailInput:
+      type: object
+      properties:
+        delivery_note_nos: { type: [string, "null"] }
+        dispatch_doc_no: { type: [string, "null"] }
+        dispatched_through: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        carrier_name: { type: [string, "null"] }
+        bill_of_lading_no: { type: [string, "null"] }
+        bill_of_lading_date: { type: [string, "null"], format: date }
+        motor_vehicle_no: { type: [string, "null"] }
+
+    VoucherCreditNoteDetailInput:
+      type: object
+      properties:
+        tracking_no: { type: [string, "null"] }
+        dispatch_doc_no: { type: [string, "null"] }
+        dispatched_through: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        carrier_name: { type: [string, "null"] }
+        bill_of_lading_no: { type: [string, "null"] }
+        bill_of_lading_date: { type: [string, "null"], format: date }
+        motor_vehicle_no: { type: [string, "null"] }
+        original_invoice_no: { type: [string, "null"] }
+        original_invoice_date: { type: [string, "null"], format: date }
+
+    VoucherDebitNoteDetailInput:
+      type: object
+      properties:
+        tracking_no: { type: [string, "null"] }
+        dispatch_doc_no: { type: [string, "null"] }
+        dispatched_through: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        carrier_name: { type: [string, "null"] }
+        bill_of_lading_no: { type: [string, "null"] }
+        bill_of_lading_date: { type: [string, "null"], format: date }
+        motor_vehicle_no: { type: [string, "null"] }
+        original_invoice_no: { type: [string, "null"] }
+        original_invoice_date: { type: [string, "null"], format: date }
+
+    VoucherUpdateInput:
+      type: object
+      description: >
+        Payload for voucher:update. Requires voucher_id. The header fields date,
+        reference_number, reference_date, narration, party_ledger_id, party_name,
+        place_of_supply are updatable; other fields fall back to current values.
+        When `entries` is present it fully replaces existing entries (and must
+        balance). bill_references/receipt_details/party_details/dispatch_details/
+        payroll_entries are replaced only when the key is present (=== undefined check).
+      properties:
+        voucher_id: { type: integer }
+        company_id: { type: [integer, "null"] }
+        voucher_type: { type: [string, "null"] }
+        date: { type: [string, "null"], format: date }
+        reference_number: { type: [string, "null"] }
+        reference_date: { type: [string, "null"], format: date }
+        narration: { type: [string, "null"] }
+        party_ledger_id: { type: [integer, "null"] }
+        party_name: { type: [string, "null"] }
+        place_of_supply: { type: [string, "null"] }
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/VoucherEntry' }
+        bill_references:
+          type: array
+          items: { $ref: '#/components/schemas/VoucherBillReference' }
+        receipt_details: { $ref: '#/components/schemas/VoucherReceiptDetailInput' }
+        party_details: { $ref: '#/components/schemas/VoucherPartyDetailInput' }
+        dispatch_details: { $ref: '#/components/schemas/VoucherDispatchDetailInput' }
+        payroll_entries:
+          type: array
+          items:
+            type: object
+            properties:
+              employee_id: { type: [integer, "null"] }
+              pay_head_id: { type: [integer, "null"] }
+              amount: { type: number }
+      required: [voucher_id]
