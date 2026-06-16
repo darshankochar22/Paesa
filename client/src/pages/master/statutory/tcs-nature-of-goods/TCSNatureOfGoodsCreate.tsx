@@ -79,7 +79,7 @@ export default function TCSNatureOfGoodsCreate() {
 
       <div className="flex-1 flex min-h-0 relative">
         
-        {/* Mock Gateway of Tally background */}
+        {/* Mock Gateways of Tally background */}
         <div className="absolute inset-0 flex p-8 opacity-20 select-none pointer-events-none text-zinc-500">
           <div className="w-80 border-r border-zinc-300 pr-6 space-y-4">
             <div className="text-sm font-bold border-b border-zinc-300 pb-1">Gateway of Tally</div>
