@@ -10,6 +10,11 @@
 // pass them (fewer args = fewer wrong calls = fewer loops).
 
 const reportService = require('../report/reportService');
+const outstandingReportService = require('../report/outstandingReportService');
+const cashFlowReportService = require('../report/cashFlowReportService');
+const fundsFlowReportService = require('../report/fundsFlowReportService');
+const stockSummaryReportService = require('../report/stockSummaryReportService');
+const ratioAnalysisReportService = require('../report/ratioAnalysisReportService');
 const voucherService = require('../voucher/voucherService');
 const bankingService = require('../banking/bankingService');
 const ledgerService = require('../ledger/ledgerService');
@@ -22,6 +27,12 @@ const QUERY_RESOURCES = {
   cash_book:        (c, a) => reportService.cashBook(c.company_id, c.fy_id, a.from_date, a.to_date),
   bank_book:        (c, a) => reportService.bankBook(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
   ledger_statement: (c, a) => reportService.ledgerReport(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
+  bills_receivable: (c) => outstandingReportService.billsReceivable(c.company_id, c.fy_id),
+  bills_payable:    (c) => outstandingReportService.billsPayable(c.company_id, c.fy_id),
+  cash_flow:        (c, a) => cashFlowReportService.cashFlow(c.company_id, c.fy_id, a.from_date, a.to_date),
+  funds_flow:       (c, a) => fundsFlowReportService.fundsFlow(c.company_id, c.fy_id, a.from_date, a.to_date),
+  stock_summary:    (c, a) => stockSummaryReportService.stockSummary(c.company_id, c.fy_id, a.as_on_date || a.to_date),
+  ratio_analysis:   (c) => ratioAnalysisReportService.ratioAnalysis(c.company_id, c.fy_id),
   ledger_balance:   (c, a) => voucherService.getLedgerBalance(a.ledger_id, c.company_id, c.fy_id),
   pending_bills:    (c, a) => voucherService.getPendingBills(a.ledger_id, c.company_id, c.fy_id),
   vouchers:         (c) => voucherService.getAll(c.company_id, c.fy_id),

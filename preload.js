@@ -128,6 +128,12 @@ contextBridge.exposeInMainWorld('api', {
         cashBook:     (company_id, fy_id, from_date, to_date)                    => invoke('report:cashBook', { company_id, fy_id, from_date, to_date }),
         bankBook:     (company_id, fy_id, ledger_id, from_date, to_date)         => invoke('report:bankBook', { company_id, fy_id, ledger_id, from_date, to_date }),
         daybook:      (company_id, fy_id, from_date, to_date)                    => invoke('report:daybook', { company_id, fy_id, from_date, to_date }),
+        billsReceivable: (company_id, fy_id)                                     => invoke('report:billsReceivable', { company_id, fy_id }),
+        billsPayable:    (company_id, fy_id)                                     => invoke('report:billsPayable', { company_id, fy_id }),
+        cashFlow:        (company_id, fy_id, from_date, to_date)                 => invoke('report:cashFlow', { company_id, fy_id, from_date, to_date }),
+        fundsFlow:       (company_id, fy_id, from_date, to_date)                 => invoke('report:fundsFlow', { company_id, fy_id, from_date, to_date }),
+        stockSummary:    (company_id, fy_id, as_on_date)                         => invoke('report:stockSummary', { company_id, fy_id, as_on_date }),
+        ratioAnalysis:   (company_id, fy_id)                                     => invoke('report:ratioAnalysis', { company_id, fy_id }),
     },
     banking: {
         getUnreconciled: (company_id, fy_id, ledger_id)                          => invoke('banking:getUnreconciled', { company_id, fy_id, ledger_id }),

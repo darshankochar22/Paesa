@@ -159,6 +159,12 @@ ipcMain.handle('report:ledgerReport', reportController.ledgerReport);
 ipcMain.handle('report:cashBook', reportController.cashBook);
 ipcMain.handle('report:bankBook', reportController.bankBook);
 ipcMain.handle('report:daybook', reportController.daybook);
+ipcMain.handle('report:billsReceivable', reportController.billsReceivable);
+ipcMain.handle('report:billsPayable', reportController.billsPayable);
+ipcMain.handle('report:cashFlow', reportController.cashFlow);
+ipcMain.handle('report:fundsFlow', reportController.fundsFlow);
+ipcMain.handle('report:stockSummary', reportController.stockSummary);
+ipcMain.handle('report:ratioAnalysis', reportController.ratioAnalysis);
 
 ipcMain.handle('banking:getUnreconciled', bankingController.getUnreconciled);
 ipcMain.handle('banking:reconcile', bankingController.reconcile);
