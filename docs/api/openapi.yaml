@@ -10546,8 +10546,18 @@ components:
           type:
             - string
             - "null"
+        provider:
+          type:
+            - string
+            - "null"
+          enum:
+            - anthropic
+            - gemini
+            - null
         model:
-          type: string
+          type:
+            - string
+            - "null"
     Ai_Proposal:
       type: object
       description: A reviewable write action the user must approve; the renderer calls

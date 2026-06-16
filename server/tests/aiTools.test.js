@@ -1,5 +1,6 @@
 const { setupTestDB, createTestCompany, db } = require("./helpers");
 const { TOOL_DEFS, callTool } = require("../ai/tools");
+const { providerFor, modelFor } = require("../ai/agent");
 
 describe("AI copilot tool layer (consolidated, anti-loop)", () => {
   let ctx;
@@ -16,6 +17,14 @@ describe("AI copilot tool layer (consolidated, anti-loop)", () => {
 
   it("exposes exactly 3 tools (not one per channel)", () => {
     expect(TOOL_DEFS.map((t) => t.name).sort()).toEqual(["lookup", "propose", "query"]);
+  });
+
+  it("auto-detects the provider from the key", () => {
+    expect(providerFor("sk-ant-abc123")).toBe("anthropic");
+    expect(providerFor("AQ.Ab8RN6abc")).toBe("gemini");
+    expect(providerFor("AIzaSyABC")).toBe("gemini");
+    expect(modelFor("anthropic")).toMatch(/claude/);
+    expect(modelFor("gemini")).toMatch(/gemini/);
   });
 
   it("query routes to reports by resource enum", async () => {

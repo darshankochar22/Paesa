@@ -16003,8 +16003,22 @@
               "null"
             ]
           },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "anthropic",
+              "gemini",
+              null
+            ]
+          },
           "model": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

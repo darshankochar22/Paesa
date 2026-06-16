@@ -8,8 +8,8 @@ export interface AiProposal {
 
 export interface AiAPI {
   ai: {
-    getKeyStatus: () => Promise<{ hasKey: boolean; masked: string | null; model: string }>;
-    setKey: (apiKey: string) => Promise<{ success: boolean; masked?: string; error?: string }>;
+    getKeyStatus: () => Promise<{ hasKey: boolean; masked: string | null; model: string | null; provider: "anthropic" | "gemini" | null }>;
+    setKey: (apiKey: string) => Promise<{ success: boolean; masked?: string; provider?: string; error?: string }>;
     clearKey: () => Promise<{ success: boolean }>;
     testKey: (apiKey?: string) => Promise<{ success: boolean; error?: string }>;
     ask: (payload: {

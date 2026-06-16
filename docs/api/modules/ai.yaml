@@ -8,9 +8,10 @@ info:
     window.api.ai.<method>. The Anthropic API key is stored encrypted (Electron safeStorage)
     in the main process and is NEVER returned to the renderer (only a masked status).
 
-    The copilot drives Claude with three consolidated, loop-resistant tools (query / lookup /
-    propose) over the existing accounting services. Writes are returned as proposals the user
-    must approve in the app; the agent never commits changes itself.
+    The copilot is provider-pluggable (auto-detected from the key: sk-ant-… -> Anthropic Claude,
+    otherwise Google Gemini) and drives the LLM with three consolidated, loop-resistant tools
+    (query / lookup / propose) over the existing accounting services. Writes are returned as
+    proposals the user must approve in the app; the agent never commits changes itself.
 tags:
   - name: ai
     description: AI copilot and BYOK key management.
@@ -142,7 +143,8 @@ components:
       properties:
         hasKey: { type: boolean }
         masked: { type: [string, "null"] }
-        model: { type: string }
+        provider: { type: [string, "null"], enum: [anthropic, gemini, null] }
+        model: { type: [string, "null"] }
     Proposal:
       type: object
       description: "A reviewable write action the user must approve; the renderer calls `channel` with `args` on approval."

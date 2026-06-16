@@ -6,17 +6,25 @@ const agent = require('./agent');
 
 module.exports = {
   // BYOK key management
-  getKeyStatus: async () => ({
-    hasKey: keyStore.hasKey(),
-    masked: keyStore.maskedKey(),
-    model: agent.DEFAULT_MODEL,
-  }),
+  getKeyStatus: async () => {
+    const key = keyStore.getKey();
+    const provider = key ? agent.providerFor(key) : null;
+    return {
+      hasKey: !!key,
+      masked: keyStore.maskedKey(),
+      provider,
+      model: provider ? agent.modelFor(provider) : null,
+    };
+  },
   setKey: async (event, { apiKey } = {}) => {
-    if (!apiKey || typeof apiKey !== 'string' || !apiKey.startsWith('sk-')) {
-      return { success: false, error: 'Enter a valid Anthropic API key (starts with sk-).' };
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 20) {
+      return { success: false, error: 'Enter a valid API key (Anthropic sk-ant-… or a Google Gemini key).' };
     }
-    const ok = keyStore.setKey(apiKey.trim());
-    return ok ? { success: true, masked: keyStore.maskedKey() } : { success: false, error: 'Failed to store key.' };
+    const key = apiKey.trim();
+    const ok = keyStore.setKey(key);
+    return ok
+      ? { success: true, masked: keyStore.maskedKey(), provider: agent.providerFor(key) }
+      : { success: false, error: 'Failed to store key.' };
   },
   clearKey: async () => ({ success: keyStore.clearKey() }),
   testKey: async (event, { apiKey } = {}) => agent.testKey(apiKey ? apiKey.trim() : keyStore.getKey()),

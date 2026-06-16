@@ -14,7 +14,7 @@ export default function Copilot() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
 
-  const [status, setStatus] = useState<{ hasKey: boolean; masked: string | null; model: string } | null>(null);
+  const [status, setStatus] = useState<{ hasKey: boolean; masked: string | null; model: string | null; provider: string | null } | null>(null);
   const [keyInput, setKeyInput] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
   const [keyMsg, setKeyMsg] = useState<string | null>(null);
@@ -89,15 +89,15 @@ export default function Copilot() {
         {status?.hasKey ? (
           <>
             <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{status.masked}</Badge>
-            <span className="text-[10px] text-zinc-400">model: {status.model}</span>
+            <span className="text-[10px] text-zinc-400">{status.provider} · {status.model}</span>
             <Button size="xs" variant="ghost" className="text-zinc-500" onClick={() => window.api.ai.testKey().then((t) => setKeyMsg(t.success ? "Key verified ✓" : `Test failed: ${t.error}`))}>Test</Button>
             <Button size="xs" variant="ghost" className="text-red-600" onClick={removeKey}>Remove</Button>
           </>
         ) : (
           <>
-            <Input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="sk-ant-…" className="h-7 text-[11px] max-w-xs" />
+            <Input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="sk-ant-… or Gemini key" className="h-7 text-[11px] max-w-xs" />
             <Button size="xs" disabled={keyBusy || !keyInput.trim()} onClick={saveKey}>{keyBusy ? "Saving…" : "Save & verify"}</Button>
-            <span className="text-[10px] text-zinc-400">stored encrypted on this device, never sent to the renderer</span>
+            <span className="text-[10px] text-zinc-400">Anthropic or Gemini · stored encrypted on this device, never sent to the renderer</span>
           </>
         )}
         {keyMsg && <span className="text-[10px] text-zinc-600">{keyMsg}</span>}
