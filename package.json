@@ -74,6 +74,7 @@
     "wait-on": "^9.0.10"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.2.9",
     "@hono/node-server": "^2.0.5",
     "@libsql/client": "^0.17.3",
     "bcryptjs": "^3.0.3",
