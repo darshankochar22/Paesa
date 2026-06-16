@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-300 transition-colors";
+const inputCls = "w-full bg-transparent text-[13px] outline-none py-1 px-1 placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-400 transition-colors";
 
 interface ServiceCategoryDetailsModalProps {
   isOpen: boolean;
@@ -41,19 +41,25 @@ export default function ServiceCategoryDetailsModal({ isOpen, onClose }: Service
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
-      <div className="bg-white border border-zinc-200 rounded shadow-xl w-[480px] flex flex-col">
-        <div className="px-4 py-3 border-b border-zinc-200 bg-zinc-50 text-center">
-          <span className="text-sm font-semibold text-zinc-800">
-            Service Category Details (Secondary)
-          </span>
+      <div className="bg-white border border-zinc-300 shadow-2xl w-[500px] flex flex-col">
+        {/* Tally-style title bar */}
+        <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 flex items-center justify-between">
+          <span className="text-[13px] font-semibold text-zinc-900">Service Category Details (Secondary)</span>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 text-lg font-bold leading-none"
+            aria-label="Close"
+          >
+            &times;
+          </button>
         </div>
 
-        <div className="p-5">
-          <div className="mb-4">
-            <div className="text-sm font-medium text-zinc-800 mb-2">Service Tax Details</div>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-zinc-600 w-40">Name</span>
+        {/* Body */}
+        <div className="px-5 py-4 bg-white">
+          <div className="text-center text-[13px] font-semibold text-zinc-800 mb-3">Service Tax Details</div>
+
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-[13px] text-zinc-700 w-40 shrink-0">Name</span>
             <span className="text-zinc-400 mr-2">:</span>
             <input
               autoFocus
@@ -63,49 +69,82 @@ export default function ServiceCategoryDetailsModal({ isOpen, onClose }: Service
               placeholder=""
             />
           </div>
-          <div className="text-center text-sm font-semibold text-zinc-800 mb-2">Rate Details</div>
+
+          <div className="text-center text-[13px] font-semibold text-zinc-800 mb-3">Rate Details</div>
+
           <div className="flex items-center gap-2 mb-3 ml-8">
-            <span className="text-sm text-zinc-600 w-36">Service tax</span>
+            <span className="text-[13px] text-zinc-700 w-40 shrink-0">Service tax</span>
             <span className="text-zinc-400 mr-2">:</span>
-            <input className={inputCls} type="number" value={serviceTax} onChange={(e) => setServiceTax(e.target.value)} />
-            <span className="text-sm text-zinc-500">%</span>
+            <input
+              className={inputCls}
+              type="number"
+              value={serviceTax}
+              onChange={(e) => setServiceTax(e.target.value)}
+              placeholder="0"
+            />
+            <span className="text-[13px] text-zinc-500">%</span>
           </div>
           <div className="flex items-center gap-2 mb-3 ml-8">
-            <span className="text-sm text-zinc-600 w-36">Education cess</span>
+            <span className="text-[13px] text-zinc-700 w-40 shrink-0">Education cess</span>
             <span className="text-zinc-400 mr-2">:</span>
-            <input className={inputCls} type="number" value={educationCess} onChange={(e) => setEducationCess(e.target.value)} />
-            <span className="text-sm text-zinc-500">%</span>
+            <input
+              className={inputCls}
+              type="number"
+              value={educationCess}
+              onChange={(e) => setEducationCess(e.target.value)}
+              placeholder="0"
+            />
+            <span className="text-[13px] text-zinc-500">%</span>
           </div>
           <div className="flex items-center gap-2 mb-3 ml-8">
-            <span className="text-sm text-zinc-600 w-36">Secondary education cess</span>
+            <span className="text-[13px] text-zinc-700 w-40 shrink-0">Secondary education cess</span>
             <span className="text-zinc-400 mr-2">:</span>
-            <input className={inputCls} type="number" value={secondaryEducationCess} onChange={(e) => setSecondaryEducationCess(e.target.value)} />
-            <span className="text-sm text-zinc-500">%</span>
+            <input
+              className={inputCls}
+              type="number"
+              value={secondaryEducationCess}
+              onChange={(e) => setSecondaryEducationCess(e.target.value)}
+              placeholder="0"
+            />
+            <span className="text-[13px] text-zinc-500">%</span>
           </div>
           <div className="flex items-center gap-2 mb-3 ml-8">
-            <span className="text-sm text-zinc-600 w-36">Swachh Bharat cess</span>
+            <span className="text-[13px] text-zinc-700 w-40 shrink-0">Swachh Bharat cess</span>
             <span className="text-zinc-400 mr-2">:</span>
-            <input className={inputCls} type="number" value={swachhBharatCess} onChange={(e) => setSwachhBharatCess(e.target.value)} />
-            <span className="text-sm text-zinc-500">%</span>
+            <input
+              className={inputCls}
+              type="number"
+              value={swachhBharatCess}
+              onChange={(e) => setSwachhBharatCess(e.target.value)}
+              placeholder="0"
+            />
+            <span className="text-[13px] text-zinc-500">%</span>
           </div>
           <div className="flex items-center gap-2 mb-3 ml-8">
-            <span className="text-sm text-zinc-600 w-36">Krishi Kalyan cess</span>
+            <span className="text-[13px] text-zinc-700 w-40 shrink-0">Krishi Kalyan cess</span>
             <span className="text-zinc-400 mr-2">:</span>
-            <input className={inputCls} type="number" value={krishiKalyanCess} onChange={(e) => setKrishiKalyanCess(e.target.value)} />
-            <span className="text-sm text-zinc-500">%</span>
+            <input
+              className={inputCls}
+              type="number"
+              value={krishiKalyanCess}
+              onChange={(e) => setKrishiKalyanCess(e.target.value)}
+              placeholder="0"
+            />
+            <span className="text-[13px] text-zinc-500">%</span>
           </div>
         </div>
 
-        <div className="px-4 py-3 border-t border-zinc-200 flex justify-end gap-3 bg-zinc-50 shrink-0">
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
           <button
             onClick={onClose}
-            className="text-xs px-5 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
+            className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
           >
             Cancel
           </button>
           <button
             onClick={onClose}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 transition-colors font-medium"
+            className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
           >
             Accept
           </button>

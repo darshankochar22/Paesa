@@ -10,6 +10,8 @@ import OtherStatutoryDetailsModal, { type StatutoryField } from "./OtherStatutor
 import ServiceCategoryDetailsModal from "./ServiceCategoryDetailsModal";
 import VATDetailsModal from "./VATDetailsModal";
 import ExciseTariffDetailsModal from "./ExciseTariffDetailsModal";
+import TDSNatureOfPaymentCreation from "./TDSNatureOfPaymentCreation";
+import TCSNatureOfGoodsCreation from "./TCSNatureOfGoodsCreation";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -68,6 +70,8 @@ export default function GroupAlterEdit() {
   const [showOtherStatutoryModal, setShowOtherStatutoryModal] = useState(false);
   const [showServiceTaxModal, setShowServiceTaxModal] = useState(false);
   const [showStatutoryTdsModal, setShowStatutoryTdsModal] = useState(false);
+  const [showStatutoryTdsCreate, setShowStatutoryTdsCreate] = useState(false);
+  const [showStatutoryTcsCreate, setShowStatutoryTcsCreate] = useState(false);
   const [showVatModal, setShowVatModal] = useState(false);
   const [showExciseModal, setShowExciseModal] = useState(false);
 
@@ -132,6 +136,17 @@ export default function GroupAlterEdit() {
     }
     return null;
   }, [parentGroup, flatGroups]);
+
+  const showStatutoryDetails = useMemo(() => {
+    return primaryGroupName === "Fixed Assets" ||
+      primaryGroupName === "Investments" ||
+      primaryGroupName === "Loans(Liability)" ||
+      primaryGroupName === "Misc.Expenses(Asset)";
+  }, [primaryGroupName]);
+
+  const showTcsDetails = useMemo(() => {
+    return primaryGroupName === "Branch/Divisions";
+  }, [primaryGroupName]);
 
   const statutoryFields = useMemo<StatutoryField[] | undefined>(() => {
     if (primaryGroupName === "Investments" || primaryGroupName === "Loans(Liability)" || primaryGroupName === "Misc.Expenses(Asset)") {
@@ -323,16 +338,23 @@ export default function GroupAlterEdit() {
                 {ALLOC_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </Row>
-            <Row label="Set/Alter TDS details" onClick={toggleField("set_alter_tds_details")}>
-              <span className="text-sm py-1">{form.set_alter_tds_details ? "Yes" : "No"}</span>
-            </Row>
-            <Row label="Set/Alter TCS details" onClick={toggleField("set_alter_tcs_details")}>
-              <span className="text-sm py-1">{form.set_alter_tcs_details ? "Yes" : "No"}</span>
-            </Row>
+            {!showStatutoryDetails && (
+              <>
+                <Row label="Set/Alter TDS details" onClick={toggleField("set_alter_tds_details")}>
+                  <span className="text-sm py-1">{form.set_alter_tds_details ? "Yes" : "No"}</span>
+                </Row>
+                {showTcsDetails && (
+                  <Row label="Set/Alter TCS details" onClick={toggleField("set_alter_tcs_details")}>
+                    <span className="text-sm py-1">{form.set_alter_tcs_details ? "Yes" : "No"}</span>
+                  </Row>
+                )}
+              </>
+            )}
           </div>
 
-          <div>
-            <div className="text-sm font-semibold text-zinc-800 mb-2">Statutory Details</div>
+          {showStatutoryDetails && (
+            <div>
+              <div className="text-sm font-semibold text-zinc-800 mb-2">Statutory Details</div>
             <div className="border rounded overflow-hidden">
               <div className="px-3 py-2 bg-zinc-50 border-b">
                 <span className="text-xs font-semibold text-zinc-700 underline">HSN/SAC & Related Details</span>
@@ -405,7 +427,8 @@ export default function GroupAlterEdit() {
             <Row label="Set/Alter other Statutory details" onClick={toggleField("set_alter_other_statutory_details")}>
               <span className="text-sm py-1">{form.set_alter_other_statutory_details ? "Yes" : "No"}</span>
             </Row>
-          </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
@@ -450,12 +473,14 @@ export default function GroupAlterEdit() {
         isOpen={showTdsModal}
         onClose={() => setShowTdsModal(false)}
         companyId={companyId}
+        onOpenCreateForm={() => setShowStatutoryTdsCreate(true)}
       />
 
       <NatureOfGoodsDetailsModal
         isOpen={showTcsModal}
         onClose={() => setShowTcsModal(false)}
         companyId={companyId}
+        onOpenCreateForm={() => setShowStatutoryTcsCreate(true)}
       />
 
       <OtherStatutoryDetailsModal
@@ -478,6 +503,25 @@ export default function GroupAlterEdit() {
         isOpen={showStatutoryTdsModal}
         onClose={() => setShowStatutoryTdsModal(false)}
         companyId={companyId}
+        onOpenCreateForm={() => setShowStatutoryTdsCreate(true)}
+      />
+
+      <TDSNatureOfPaymentCreation
+        isOpen={showStatutoryTdsCreate}
+        onClose={() => setShowStatutoryTdsCreate(false)}
+        companyId={companyId}
+        onCreated={() => {
+          window.dispatchEvent(new CustomEvent("tds-nature-of-payment-created"));
+        }}
+      />
+
+      <TCSNatureOfGoodsCreation
+        isOpen={showStatutoryTcsCreate}
+        onClose={() => setShowStatutoryTcsCreate(false)}
+        companyId={companyId}
+        onCreated={() => {
+          window.dispatchEvent(new CustomEvent("tcs-nature-of-goods-created"));
+        }}
       />
 
       <VATDetailsModal

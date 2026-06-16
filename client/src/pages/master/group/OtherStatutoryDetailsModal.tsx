@@ -13,7 +13,11 @@ interface OtherStatutoryDetailsModalProps {
   openExciseModal: () => void;
 }
 
-const ALL_FIELDS: { key: StatutoryField; label: string; open: keyof Omit<OtherStatutoryDetailsModalProps, "isOpen" | "onClose" | "groupName" | "showFields"> }[] = [
+const ALL_FIELDS: {
+  key: StatutoryField;
+  label: string;
+  open: keyof Omit<OtherStatutoryDetailsModalProps, "isOpen" | "onClose" | "groupName" | "showFields">;
+}[] = [
   { key: "serviceTax", label: "Set/Alter service tax details", open: "openServiceTaxModal" },
   { key: "tds", label: "Set/Alter TDS details", open: "openTdsModal" },
   { key: "vat", label: "Set/Alter VAT Details", open: "openVatModal" },
@@ -67,43 +71,55 @@ export default function OtherStatutoryDetailsModal({
     openExciseModal,
   };
 
+  const handleToggle = (key: StatutoryField, opener: () => void) => {
+    const newVal = !values[key];
+    setValues((prev) => ({ ...prev, [key]: newVal }));
+    if (newVal) {
+      setTimeout(() => opener(), 0);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white border border-zinc-200 rounded shadow-xl w-[460px] flex flex-col">
-        <div className="px-4 py-3 border-b border-zinc-200 bg-zinc-50 text-center">
-          <span className="text-sm font-semibold text-zinc-800">
-            Tax Details for {groupName || "Group"}
+      <div className="bg-white border border-zinc-300 shadow-2xl w-[480px] flex flex-col">
+        {/* Tally-style title bar */}
+        <div className="px-4 py-2 border-b border-zinc-300 text-center">
+          <span className="text-[13px] font-semibold text-zinc-900">
+            Statutory Details for {groupName || "Group"} Creation (Secondary)
           </span>
         </div>
 
-        <div className="p-5">
-          {visibleFields.map((f) => {
-            const current = values[f.key];
-            return (
-              <div key={f.key} className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-zinc-600 w-56">{f.label}</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <button
-                  onClick={() => {
-                    const newVal = !current;
-                    setValues((prev) => ({ ...prev, [f.key]: newVal }));
-                    if (newVal) {
-                      setTimeout(() => openers[f.open]?.(), 0);
-                    }
-                  }}
-                  className={`text-sm py-0.5 px-2 rounded font-medium ${current ? "bg-zinc-800 text-white" : "text-zinc-800"}`}
-                >
-                  {current ? "Yes" : "No"}
-                </button>
-              </div>
-            );
-          })}
+        {/* Body */}
+        <div className="px-6 py-5 bg-white">
+          {visibleFields.length === 0 ? (
+            <div className="text-sm text-zinc-500 text-center py-4">
+              No statutory fields available
+            </div>
+          ) : (
+            visibleFields.map((f) => {
+              const current = values[f.key];
+              return (
+                <div key={f.key} className="flex items-center gap-2 mb-3 last:mb-0">
+                  <span className="text-[13px] text-zinc-700 w-60 shrink-0">{f.label}</span>
+                  <span className="text-zinc-400 mr-3">:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(f.key, openers[f.open]!)}
+                    className="text-[13px] py-0.5 px-2 min-w-[28px] text-center font-medium hover:bg-zinc-100"
+                  >
+                    {current ? "Yes" : "No"}
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
 
-        <div className="px-4 py-3 border-t border-zinc-200 flex justify-end bg-zinc-50 shrink-0">
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
           <button
             onClick={onClose}
-            className="text-xs px-5 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
+            className="text-xs px-5 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
           >
             Close
           </button>

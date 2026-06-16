@@ -1,20 +1,26 @@
 import { useState, useEffect } from "react";
 import type { TDSNatureOfPaymentType } from "@/types/entities/TDSNatureOfPayment";
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-300 transition-colors";
-const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer border-b border-transparent focus:border-zinc-300 transition-colors";
+const selectCls = "w-full bg-transparent text-[13px] outline-none py-1 px-1 cursor-pointer border-b border-transparent focus:border-zinc-400 transition-colors";
 
 interface NatureOfPaymentDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   companyId?: number;
+  onOpenCreateForm: () => void;
+  onCreated?: (name: string) => void;
 }
 
-export default function NatureOfPaymentDetailsModal({ isOpen, onClose, companyId }: NatureOfPaymentDetailsModalProps) {
+export default function NatureOfPaymentDetailsModal({
+  isOpen,
+  onClose,
+  companyId,
+  onOpenCreateForm,
+  onCreated,
+}: NatureOfPaymentDetailsModalProps) {
   const [natureList, setNatureList] = useState<TDSNatureOfPaymentType[]>([]);
   const [selectedNature, setSelectedNature] = useState<string>("Undefined");
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newNatureName, setNewNatureName] = useState("");
+  const [listHighlight, setListHighlight] = useState<string>("Undefined");
 
   useEffect(() => {
     if (!isOpen || !companyId) return;
@@ -35,8 +41,7 @@ export default function NatureOfPaymentDetailsModal({ isOpen, onClose, companyId
   useEffect(() => {
     if (!isOpen) {
       setSelectedNature("Undefined");
-      setShowCreateForm(false);
-      setNewNatureName("");
+      setListHighlight("Undefined");
     }
   }, [isOpen]);
 
@@ -51,141 +56,139 @@ export default function NatureOfPaymentDetailsModal({ isOpen, onClose, companyId
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
-  const handleCreateNature = async () => {
-    if (!newNatureName.trim() || !companyId) return;
-    try {
-      const res = await window.api.tdsNatureOfPayment.create({
-        company_id: companyId,
-        name: newNatureName.trim(),
-      });
-      if (res.success && res.tdsNatureOfPayment) {
-        setNatureList((prev) => [...prev, res.tdsNatureOfPayment]);
-        setSelectedNature(res.tdsNatureOfPayment.name || newNatureName.trim());
-        setShowCreateForm(false);
-        setNewNatureName("");
-      }
-    } catch {
-      // ignore
-    }
+  const handleListClick = (name: string) => {
+    setListHighlight(name);
+    setSelectedNature(name);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white border border-zinc-200 rounded shadow-xl w-[520px] max-h-[80vh] flex flex-col">
-        <div className="px-4 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
-          <span className="text-sm font-semibold text-zinc-800">Nature of Payment Details</span>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 text-lg font-bold">&times;</button>
-        </div>
+  const handleCreate = () => {
+    onOpenCreateForm();
+  };
 
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-zinc-600 w-40">Nature of Payment</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <select
-              className={selectCls}
-              value={selectedNature}
-              onChange={(e) => setSelectedNature(e.target.value)}
+  const handleAccept = () => {
+    onCreated?.(selectedNature);
+    onClose();
+  };
+
+  useEffect(() => {
+    const handler = () => {
+      if (companyId) {
+        window.api.tdsNatureOfPayment.getAll(companyId).then((res) => {
+          if (res.success && res.tdsNatureOfPaymentList) {
+            setNatureList(res.tdsNatureOfPaymentList);
+          }
+        });
+      }
+    };
+    window.addEventListener("tds-nature-of-payment-created", handler);
+    return () => window.removeEventListener("tds-nature-of-payment-created", handler);
+  }, [companyId]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/30">
+      {/* Main modal - centered horizontally, with right padding to leave room for the panel */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pr-72">
+        <div className="bg-white border border-zinc-300 shadow-2xl w-[460px] flex flex-col">
+          {/* Tally-style title bar */}
+          <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-zinc-900">Select Nature of Payment</span>
+            <button
+              onClick={onClose}
+              className="text-zinc-400 hover:text-zinc-700 text-lg font-bold leading-none"
+              aria-label="Close"
             >
-              <option value="Undefined">Undefined</option>
-              <option value="Any">Any</option>
-              {natureList.map((n) => (
-                <option key={n.tds_id} value={n.name}>{n.name}</option>
-              ))}
-            </select>
+              &times;
+            </button>
           </div>
 
-          {showCreateForm && (
-            <div className="border rounded p-4 mt-2 bg-zinc-50">
-              <div className="text-sm font-semibold text-zinc-800 mb-3">Create Nature of Payment</div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-zinc-600 w-32">Name</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <input
-                  autoFocus
-                  className={inputCls}
-                  value={newNatureName}
-                  onChange={(e) => setNewNatureName(e.target.value)}
-                  placeholder="Enter name"
-                />
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-zinc-600 w-32">Section</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <input className={inputCls} placeholder="" />
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-zinc-600 w-32">Payment code</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <input className={inputCls} placeholder="" />
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-zinc-600 w-32">Remittance code</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <input className={inputCls} placeholder="" />
-              </div>
-              <div className="text-xs font-semibold text-zinc-700 mb-2">Rate for individuals/HUF</div>
-              <div className="flex items-center gap-2 mb-3 ml-4">
-                <span className="text-sm text-zinc-600 w-28">With PAN</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <input className={inputCls} type="number" defaultValue="0" placeholder="0 %" />
-                <span className="text-sm text-zinc-500">%</span>
-              </div>
-              <div className="text-xs font-semibold text-zinc-700 mb-2">Rate for other deductee types</div>
-              <div className="flex items-center gap-2 mb-3 ml-4">
-                <span className="text-sm text-zinc-600 w-28">With PAN</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <input className={inputCls} type="number" defaultValue="0" placeholder="0 %" />
-                <span className="text-sm text-zinc-500">%</span>
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-zinc-600 w-32">Is zero rated</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <input className={inputCls} placeholder="" />
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-zinc-600 w-32">Threshold/exemption limit</span>
-                <span className="text-zinc-400 mr-2">:</span>
-                <input className={inputCls} type="number" placeholder="" />
-              </div>
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  onClick={() => { setShowCreateForm(false); setNewNatureName(""); }}
-                  className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateNature}
-                  className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 transition-colors font-medium"
-                >
-                  Create
-                </button>
-              </div>
+          {/* Body */}
+          <div className="px-5 py-4 bg-white">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] text-zinc-700 w-36 shrink-0">Nature of Payment</span>
+              <span className="text-zinc-400 mr-2">:</span>
+              <select
+                className={selectCls}
+                value={selectedNature}
+                onChange={(e) => { setSelectedNature(e.target.value); setListHighlight(e.target.value); }}
+              >
+                <option value="Undefined">Undefined</option>
+                <option value="Any">Any</option>
+                {natureList.map((n) => (
+                  <option key={n.tds_id} value={n.name}>{n.name}</option>
+                ))}
+              </select>
             </div>
-          )}
-        </div>
+          </div>
 
-        <div className="px-4 py-3 border-t border-zinc-200 flex justify-end gap-3 bg-zinc-50 shrink-0">
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
+            <button
+              onClick={handleCreate}
+              className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
+            >
+              Create
+            </button>
+            <button
+              onClick={onClose}
+              className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAccept}
+              className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
+            >
+              Ok
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel: sticks to extreme right edge */}
+      <div className="absolute top-0 right-0 bottom-0 w-72 bg-white border-l border-zinc-300 flex flex-col shadow-2xl">
+        <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50 flex items-center justify-between">
+          <span className="text-[13px] font-semibold text-zinc-900">List of Nature of Payments</span>
           <button
-            onClick={() => setShowCreateForm(true)}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
+            onClick={handleCreate}
+            className="text-xs px-3 py-0.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
           >
             Create
           </button>
-          <button
-            onClick={onClose}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* Any option */}
+          <div
+            className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
+              listHighlight === "Any" ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+            }`}
+            onClick={() => handleListClick("Any")}
           >
-            Cancel
-          </button>
-          <button
-            onClick={onClose}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 transition-colors font-medium"
+            ◆ Any
+          </div>
+          {/* Undefined option */}
+          <div
+            className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
+              listHighlight === "Undefined" ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+            }`}
+            onClick={() => handleListClick("Undefined")}
           >
-            Ok
-          </button>
+            ◆ Undefined
+          </div>
+          {/* Dynamic list */}
+          {natureList.map((n) => (
+            <div
+              key={n.tds_id}
+              className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
+                listHighlight === n.name ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+              }`}
+              onClick={() => handleListClick(n.name || "")}
+            >
+              {n.name}
+            </div>
+          ))}
         </div>
       </div>
     </div>

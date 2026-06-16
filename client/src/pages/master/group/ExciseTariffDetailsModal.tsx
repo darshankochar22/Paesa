@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-300 transition-colors";
+const inputCls = "w-full bg-transparent text-[13px] outline-none py-1 px-1 placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-400 transition-colors";
 
 const EXCISE_UOMS = [
   { code: "10GMS", desc: "10 Grams" },
@@ -36,9 +36,7 @@ export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTari
   const [tariffName, setTariffName] = useState("");
   const [hsnCode, setHsnCode] = useState("");
   const [reportingUom, setReportingUom] = useState("Undefined");
-  const [showUomList, setShowUomList] = useState(false);
   const [valuationType, setValuationType] = useState("Ad Valorem");
-  const [showValuationList, setShowValuationList] = useState(false);
   const [rate, setRate] = useState("0");
 
   useEffect(() => {
@@ -65,111 +63,134 @@ export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTari
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
-      <div className="bg-white border border-zinc-200 rounded shadow-xl w-[520px] flex flex-col">
-        <div className="px-4 py-3 border-b border-zinc-200 bg-zinc-50 text-center">
-          <span className="text-sm font-semibold text-zinc-800">Excise Tariff Details</span>
-        </div>
+    <div className="fixed inset-0 z-[60] bg-black/30">
+      {/* Main modal - centered horizontally, with right padding to leave room for the panel */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pr-72">
+        <div className="bg-white border border-zinc-300 shadow-2xl w-[480px] flex flex-col">
+          {/* Tally-style title bar */}
+          <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 text-center">
+            <span className="text-[13px] font-semibold text-zinc-900">Excise Tariff Details</span>
+          </div>
 
-        <div className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-zinc-600 w-44">Tariff name</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <input
-              autoFocus
-              className={inputCls}
-              value={tariffName}
-              onChange={(e) => setTariffName(e.target.value)}
-              placeholder=""
-            />
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 bg-white">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[13px] text-zinc-700 w-44 shrink-0">Tariff name</span>
+              <span className="text-zinc-400 mr-2">:</span>
+              <input
+                autoFocus
+                className={inputCls}
+                value={tariffName}
+                onChange={(e) => setTariffName(e.target.value)}
+                placeholder=""
+              />
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[13px] text-zinc-700 w-44 shrink-0">HSN code</span>
+              <span className="text-zinc-400 mr-2">:</span>
+              <input
+                className={inputCls}
+                value={hsnCode}
+                onChange={(e) => setHsnCode(e.target.value)}
+                placeholder=""
+              />
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[13px] text-zinc-700 w-44 shrink-0">Reporting unit of measure</span>
+              <span className="text-zinc-400 mr-2">:</span>
+              <span className="text-[13px] text-zinc-900 font-medium">{reportingUom}</span>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[13px] text-zinc-700 w-44 shrink-0">Valuation type</span>
+              <span className="text-zinc-400 mr-2">:</span>
+              <span className="text-[13px] text-zinc-900 font-medium">{valuationType}</span>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[13px] text-zinc-700 w-44 shrink-0">Rate</span>
+              <span className="text-zinc-400 mr-2">:</span>
+              <input
+                className={inputCls}
+                type="number"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                placeholder="0"
+              />
+              <span className="text-[13px] text-zinc-500">%</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-zinc-600 w-44">HSN code</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <input className={inputCls} value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} placeholder="" />
-          </div>
-          <div className="flex items-center gap-2 mb-3 relative">
-            <span className="text-sm text-zinc-600 w-44">Reporting unit of measure</span>
-            <span className="text-zinc-400 mr-2">:</span>
+
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
             <button
-              onClick={() => { setShowUomList(!showUomList); setShowValuationList(false); }}
-              className="text-sm py-1 px-1 text-left flex-1 border-b border-transparent hover:border-zinc-300"
+              onClick={onClose}
+              className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
             >
-              {reportingUom}
+              Cancel
             </button>
-            {showUomList && (
-              <div className="absolute top-full right-0 mt-1 bg-white border border-zinc-300 rounded shadow-lg w-64 max-h-60 overflow-y-auto z-10">
-                <div className="px-2 py-1 bg-zinc-100 border-b border-zinc-200 flex">
-                  <span className="text-xs font-semibold text-zinc-600 w-16">Excise UoM</span>
-                  <span className="text-xs font-semibold text-zinc-600">Description</span>
-                </div>
+            <button
+              onClick={onClose}
+              className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
+            >
+              Accept
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel: sticks to extreme right edge */}
+      <div className="absolute top-0 right-0 bottom-0 w-72 bg-white border-l border-zinc-300 flex flex-col shadow-2xl">
+        {valuationType !== "Ad Valorem" && valuationType !== "Ad Quantum" && valuationType !== "Valorem + Quantum" ? (
+          // Show UoM list
+          <>
+            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50">
+              <span className="text-[13px] font-semibold text-zinc-900">List of Excise Reporting UoMs</span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div
+                className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
+                  reportingUom === "Undefined" ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+                }`}
+                onClick={() => setReportingUom("Undefined")}
+              >
+                ◆ Undefined
+              </div>
+              {EXCISE_UOMS.map((u) => (
                 <div
-                  className={`px-2 py-1 cursor-pointer text-[13px] ${reportingUom === "Undefined" ? "bg-amber-300" : "hover:bg-zinc-50"}`}
-                  onClick={() => { setReportingUom("Undefined"); setShowUomList(false); }}
+                  key={u.code}
+                  className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
+                    reportingUom === u.code ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                  onClick={() => setReportingUom(u.code)}
                 >
-                  ◆ Undefined
-                </div>
-                {EXCISE_UOMS.map((u) => (
-                  <div
-                    key={u.code}
-                    className="px-2 py-1 cursor-pointer text-[13px] hover:bg-zinc-50 flex"
-                    onClick={() => { setReportingUom(u.code); setShowUomList(false); }}
-                  >
-                    <span className="w-16">{u.code}</span>
+                  <div className="flex">
+                    <span className="w-16 shrink-0">{u.code}</span>
                     <span className="italic">{u.desc}</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mb-3 relative">
-            <span className="text-sm text-zinc-600 w-44">Valuation type</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <button
-              onClick={() => { setShowValuationList(!showValuationList); setShowUomList(false); }}
-              className="text-sm py-1 px-1 text-left flex-1 border-b border-transparent hover:border-zinc-300"
-            >
-              {valuationType}
-            </button>
-            {showValuationList && (
-              <div className="absolute top-full right-0 mt-1 bg-white border border-zinc-300 rounded shadow-lg w-48 z-10">
-                <div className="px-2 py-1 bg-zinc-100 border-b border-zinc-200 text-xs font-semibold text-zinc-600">
-                  List of Valuation Types
                 </div>
-                {["Undefined", ...VALUATION_TYPES].map((t) => (
-                  <div
-                    key={t}
-                    className={`px-2 py-1 cursor-pointer text-[13px] ${valuationType === t ? "bg-amber-300" : "hover:bg-zinc-50"}`}
-                    onClick={() => { setValuationType(t); setShowValuationList(false); }}
-                  >
-                    {t === "Undefined" ? "◆ " : ""}{t}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-zinc-600 w-44">Rate</span>
-            <span className="text-zinc-400 mr-2">:</span>
-            <input className={inputCls} type="number" value={rate} onChange={(e) => setRate(e.target.value)} />
-            <span className="text-sm text-zinc-500">%</span>
-          </div>
-        </div>
-
-        <div className="px-4 py-3 border-t border-zinc-200 flex justify-end gap-3 bg-zinc-50 shrink-0">
-          <button
-            onClick={onClose}
-            className="text-xs px-5 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onClose}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 transition-colors font-medium"
-          >
-            Accept
-          </button>
-        </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          // Show Valuation Types list
+          <>
+            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50">
+              <span className="text-[13px] font-semibold text-zinc-900">List of Valuation Types</span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {["Undefined", ...VALUATION_TYPES].map((t) => (
+                <div
+                  key={t}
+                  className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
+                    valuationType === t ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                  onClick={() => setValuationType(t)}
+                >
+                  {t === "Undefined" ? "◆ " : ""}{t}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
