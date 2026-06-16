@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { AlertBanner } from "../../components/ui";
+import { Button } from "@/components/shadcn/button";
+import { Badge } from "@/components/shadcn/badge";
+import { cn } from "@/lib/utils";
 
 interface VoucherEntry {
   entry_id: number;
@@ -177,7 +180,11 @@ const formatQty = (n: number | null | undefined) => {
 
 function DrCrBadge({ type }: { type: "Dr" | "Cr" }) {
   const cls = type === "Dr" ? "bg-black text-white" : "bg-zinc-600 text-white";
-  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cls}`}>{type}</span>;
+  return (
+    <Badge className={cn("h-auto text-[10px] font-bold px-1.5 py-0.5 rounded", cls)}>
+      {type}
+    </Badge>
+  );
 }
 
 function ReadOnlyFieldRow({ label, value }: { label: string; value: string }) {
@@ -416,7 +423,14 @@ export default function VoucherView() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
         <span className="text-red-600">{error}</span>
-        <button onClick={() => navigate(-1)} className="underline hover:text-zinc-900">← Go Back</button>
+        <Button
+          onClick={() => navigate(-1)}
+          variant="link"
+          size="xs"
+          className="h-auto p-0 text-xs text-zinc-500 underline hover:text-zinc-900"
+        >
+          ← Go Back
+        </Button>
       </div>
     );
   }
@@ -473,7 +487,14 @@ export default function VoucherView() {
           {voucher.is_cancelled ? " · CANCELLED" : ""}
           {voucher.is_post_dated ? " · POST-DATED" : ""}
         </span>
-        <button onClick={() => navigate(-1)} className="text-black text-sm font-bold hover:opacity-60 leading-none">✕</button>
+        <Button
+          onClick={() => navigate(-1)}
+          variant="ghost"
+          size="xs"
+          className="h-auto p-0 text-black text-sm font-bold hover:opacity-60 hover:bg-transparent leading-none"
+        >
+          ✕
+        </Button>
       </div>
 
       {/* Voucher type / number / date bar — matches create page */}
@@ -539,7 +560,12 @@ export default function VoucherView() {
               {additionalEntries.map((row, idx) => (
                 <div key={idx} className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
                   <div className="w-10 text-center">
-                    <span className="text-xs font-semibold text-black">{row.type}</span>
+                    <Badge
+                      variant="outline"
+                      className="h-auto rounded border-0 bg-transparent px-0 py-0 text-xs font-semibold text-black"
+                    >
+                      {row.type}
+                    </Badge>
                   </div>
                   <div className="flex-1 text-sm text-black pl-2">{row.ledger_name || "—"}</div>
                   <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(row.amount)}</div>
@@ -728,16 +754,22 @@ export default function VoucherView() {
 
           {/* Quit / Cancel / Delete — matches create page layout */}
           <div className="flex items-center justify-between border-t border-black shrink-0 px-3 py-1.5 bg-white">
-            <button onClick={() => navigate(-1)} className="text-sm text-black hover:underline">
+            <Button
+              onClick={() => navigate(-1)}
+              variant="ghost"
+              size="xs"
+              className="h-auto p-0 text-sm text-black hover:underline hover:bg-transparent"
+            >
               <span className="underline">Q</span>: Quit
-            </button>
+            </Button>
             <div className="flex items-center gap-3">
-              <button
+              <Button
                 onClick={handleDelete}
-                className="text-sm px-3 py-0.5 bg-red-700 text-white hover:bg-red-800"
+                size="xs"
+                className="h-auto rounded-none text-sm px-3 py-0.5 bg-red-700 text-white hover:bg-red-800"
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
 

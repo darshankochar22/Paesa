@@ -2,6 +2,21 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel } from "@/components/ui";
+import { Button } from "@/components/shadcn/button";
+import { Badge } from "@/components/shadcn/badge";
+import { TableRow, TableCell } from "@/components/shadcn/table";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/shadcn/select";
+import { cn } from "@/lib/utils";
+import { PageToolbar } from "@/components/blocks/PageToolbar";
+import { StatGrid } from "@/components/blocks/StatGrid";
+import { DataTableCard } from "@/components/blocks/DataTableCard";
+import { EmptyState } from "@/components/blocks/EmptyState";
 
 const inr = (n: number) =>
   `₹${(n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -205,108 +220,134 @@ function BrsPanel({ companyId, fyId }: { companyId?: number; fyId?: number }) {
     return <div className="text-[11px] text-zinc-500 p-4">Select a company and financial year to begin reconciliation.</div>;
   }
 
-  const stat = (label: string, value: string, detail?: string) => (
-    <div className="grid grid-cols-12 items-center px-4 py-3">
-      <span className="col-span-5 font-semibold text-zinc-400">{label}</span>
-      <span className="col-span-1 text-zinc-300">:</span>
-      <div className="col-span-6 flex flex-col">
-        <span className="font-bold text-zinc-900 text-xs">{value}</span>
-        {detail && <span className="text-[10px] text-zinc-500 font-sans mt-0.5">{detail}</span>}
-      </div>
-    </div>
-  );
-
   return (
     <div className="max-w-2xl w-full mx-auto space-y-6">
       {/* Header + ledger picker */}
-      <div className="border border-zinc-200 bg-white rounded-lg p-5 shadow-sm space-y-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-900">Bank Reconciliation Statement (BRS)</h2>
-        <p className="text-[11px] text-zinc-500 font-sans leading-relaxed">
-          Reconcile bank ledger entries against your bank statement.
-        </p>
+      <PageToolbar
+        title="Bank Reconciliation Statement (BRS)"
+        description="Reconcile bank ledger entries against your bank statement."
+      >
         <div className="flex items-center gap-2 pt-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Bank Ledger</span>
           {ledgers.length === 0 ? (
             <span className="text-[11px] text-amber-600">No bank ledgers found (create a ledger under a Bank group).</span>
           ) : (
-            <select
-              value={ledgerId ?? ""}
-              onChange={(e) => setLedgerId(Number(e.target.value))}
-              className="text-[11px] border border-zinc-300 rounded px-2 py-1 bg-white"
+            <Select
+              value={ledgerId != null ? String(ledgerId) : ""}
+              onValueChange={(v) => setLedgerId(Number(v))}
             >
-              {ledgers.map((l) => (
-                <option key={l.ledger_id} value={l.ledger_id}>{l.name}</option>
-              ))}
-            </select>
+              <SelectTrigger size="sm" className="text-[11px] h-7 rounded px-2 py-1">
+                <SelectValue placeholder="Select ledger" />
+              </SelectTrigger>
+              <SelectContent>
+                {ledgers.map((l) => (
+                  <SelectItem key={l.ledger_id} value={String(l.ledger_id)} className="text-[11px]">
+                    {l.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          <button onClick={reload} className="ml-auto text-[10px] px-2 py-1 font-bold border border-zinc-300 rounded hover:bg-zinc-50">
+          <Button
+            onClick={reload}
+            variant="outline"
+            size="xs"
+            className="ml-auto text-[10px] px-2 py-1 font-bold rounded"
+          >
             Refresh
-          </button>
+          </Button>
         </div>
-      </div>
+      </PageToolbar>
 
       {error && <div className="text-[11px] text-red-600 border border-red-200 bg-red-50 rounded p-2">{error}</div>}
 
       {/* Summary */}
-      <div className="border border-zinc-200 bg-white rounded-lg overflow-hidden shadow-sm">
-        <div className="bg-zinc-50 border-b border-zinc-200 px-4 py-2 flex justify-between items-center">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">BRS Summary{summary?.ledger_name ? ` — ${summary.ledger_name}` : ""}</span>
-          <span className={`w-2.5 h-2.5 rounded-full ${loading ? "bg-amber-400 animate-pulse" : "bg-emerald-500"}`} />
-        </div>
-        <div className="divide-y divide-zinc-100">
-          {stat("Book Balance", summary ? inr(summary.book_balance) : "—", "Bank ledger balance in books")}
-          {stat("Reconciled", summary ? inr(summary.reconciled_amount) : "—", summary ? `${summary.total_reconciled_count} entries matched` : undefined)}
-          {stat("Unreconciled", summary ? inr(summary.unreconciled_amount) : "—", "Difference still to match")}
-        </div>
-      </div>
+      <StatGrid
+        title={`BRS Summary${summary?.ledger_name ? ` — ${summary.ledger_name}` : ""}`}
+        headerRight={
+          <span className={cn("w-2.5 h-2.5 rounded-full", loading ? "bg-amber-400 animate-pulse" : "bg-emerald-500")} />
+        }
+        stats={[
+          {
+            label: "Book Balance",
+            value: summary ? inr(summary.book_balance) : "—",
+            detail: "Bank ledger balance in books",
+          },
+          {
+            label: "Reconciled",
+            value: summary ? inr(summary.reconciled_amount) : "—",
+            detail: summary ? `${summary.total_reconciled_count} entries matched` : undefined,
+          },
+          {
+            label: "Unreconciled",
+            value: summary ? inr(summary.unreconciled_amount) : "—",
+            detail: "Difference still to match",
+          },
+        ]}
+      />
 
       {/* Statement / entries */}
-      <div className="border border-zinc-200 bg-white rounded-lg overflow-hidden shadow-sm">
-        <div className="bg-zinc-50 border-b border-zinc-200 px-4 py-2">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Ledger Entries</span>
-        </div>
-        <div className="max-h-[320px] overflow-y-auto">
-          <table className="w-full text-[11px]">
-            <thead className="bg-zinc-50/80 text-zinc-400 sticky top-0">
-              <tr className="text-left">
-                <th className="px-3 py-1.5 font-bold">Date</th>
-                <th className="px-3 py-1.5 font-bold">Vch No.</th>
-                <th className="px-3 py-1.5 font-bold text-right">Amount</th>
-                <th className="px-3 py-1.5 font-bold text-right">Balance</th>
-                <th className="px-3 py-1.5 font-bold text-center">Status</th>
-                <th className="px-3 py-1.5 font-bold text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {rows.length === 0 && (
-                <tr><td colSpan={6} className="px-3 py-6 text-center text-zinc-400">{loading ? "Loading…" : "No entries for this ledger."}</td></tr>
+      <DataTableCard
+        title="Ledger Entries"
+        columns={[
+          { header: "Date" },
+          { header: "Vch No." },
+          { header: "Amount", className: "text-right" },
+          { header: "Balance", className: "text-right" },
+          { header: "Status", className: "text-center" },
+          { header: "Action", className: "text-right" },
+        ]}
+      >
+        {rows.length === 0 && (
+          <TableRow className="hover:bg-transparent">
+            <TableCell colSpan={6} className="p-0">
+              <EmptyState message={loading ? "Loading…" : "No entries for this ledger."} />
+            </TableCell>
+          </TableRow>
+        )}
+        {rows.map((r) => (
+          <TableRow key={r.entry_id} className="hover:bg-zinc-50/40">
+            <TableCell className="px-3 py-1.5 text-zinc-600">{r.date}</TableCell>
+            <TableCell className="px-3 py-1.5 text-zinc-600">{r.voucher_number || `#${r.voucher_id}`}</TableCell>
+            <TableCell className="px-3 py-1.5 text-right font-semibold text-zinc-900">
+              {r.type === "Dr" ? "" : "-"}{inr(r.amount)}
+            </TableCell>
+            <TableCell className="px-3 py-1.5 text-right text-zinc-500">{inr(r.balance)}</TableCell>
+            <TableCell className="px-3 py-1.5 text-center">
+              <Badge
+                variant={r.is_reconciled ? "secondary" : "outline"}
+                className={cn(
+                  "text-[9px] font-bold px-1.5 py-0.5 rounded h-auto",
+                  r.is_reconciled ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                )}
+              >
+                {r.is_reconciled ? `Reconciled${r.bank_reference ? ` · ${r.bank_reference}` : ""}` : "Pending"}
+              </Badge>
+            </TableCell>
+            <TableCell className="px-3 py-1.5 text-right">
+              {r.is_reconciled ? (
+                <Button
+                  onClick={() => unreconcile(r)}
+                  variant="ghost"
+                  size="xs"
+                  className="h-auto p-0 text-[10px] font-bold text-zinc-500 hover:text-red-600 hover:bg-transparent"
+                >
+                  Unreconcile
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => reconcile(r)}
+                  variant="ghost"
+                  size="xs"
+                  className="h-auto p-0 text-[10px] font-bold text-zinc-900 hover:text-emerald-700 hover:bg-transparent"
+                >
+                  Reconcile
+                </Button>
               )}
-              {rows.map((r) => (
-                <tr key={r.entry_id} className="hover:bg-zinc-50/40">
-                  <td className="px-3 py-1.5 text-zinc-600">{r.date}</td>
-                  <td className="px-3 py-1.5 text-zinc-600">{r.voucher_number || `#${r.voucher_id}`}</td>
-                  <td className="px-3 py-1.5 text-right font-semibold text-zinc-900">
-                    {r.type === "Dr" ? "" : "-"}{inr(r.amount)}
-                  </td>
-                  <td className="px-3 py-1.5 text-right text-zinc-500">{inr(r.balance)}</td>
-                  <td className="px-3 py-1.5 text-center">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${r.is_reconciled ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                      {r.is_reconciled ? `Reconciled${r.bank_reference ? ` · ${r.bank_reference}` : ""}` : "Pending"}
-                    </span>
-                  </td>
-                  <td className="px-3 py-1.5 text-right">
-                    {r.is_reconciled ? (
-                      <button onClick={() => unreconcile(r)} className="text-[10px] font-bold text-zinc-500 hover:text-red-600">Unreconcile</button>
-                    ) : (
-                      <button onClick={() => reconcile(r)} className="text-[10px] font-bold text-zinc-900 hover:text-emerald-700">Reconcile</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </DataTableCard>
     </div>
   );
 }
@@ -371,13 +412,13 @@ export default function Banking() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50 text-xs select-none relative overflow-hidden">
-      
+
       {/* Title Bar */}
       <PageTitleBar title="Banking Utilities" subtitle={selectedCompany?.name} />
 
       {/* Main Body Layout */}
       <div className="flex-1 flex min-h-0">
-        
+
         {/* Left Side: Option Selection Panels */}
         <div className="w-[340px] border-r border-zinc-200 flex flex-col shrink-0 bg-white p-4 overflow-y-auto">
           <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-4">
@@ -436,45 +477,28 @@ export default function Banking() {
           ) : (
           <div className="max-w-xl w-full mx-auto space-y-6">
 
-            <div className="border border-zinc-200 bg-white rounded-lg p-5 shadow-sm space-y-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-900">
-                {currentDetails.title}
-              </h2>
-              <p className="text-[11px] text-zinc-500 font-sans leading-relaxed">
-                {currentDetails.description}
-              </p>
-            </div>
+            <PageToolbar title={currentDetails.title} description={currentDetails.description} />
 
-            <div className="border border-zinc-200 bg-white rounded-lg overflow-hidden shadow-sm">
-              <div className="bg-zinc-50 border-b border-zinc-200 px-4 py-2 flex justify-between items-center">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Live Ledger & Process Monitor</span>
+            <StatGrid
+              title="Live Ledger & Process Monitor"
+              headerRight={
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System feeds operational" />
-              </div>
-              
-              <div className="divide-y divide-zinc-100">
-                {currentDetails.stats.map((stat, idx) => (
-                  <div key={idx} className="grid grid-cols-12 items-center px-4 py-3 hover:bg-zinc-50/30">
-                    <span className="col-span-4 font-semibold text-zinc-400">{stat.label}</span>
-                    <span className="col-span-1 text-zinc-300">:</span>
-                    <div className="col-span-7 flex flex-col">
-                      <span className="font-bold text-zinc-900 text-xs">{stat.value}</span>
-                      {stat.detail && (
-                        <span className="text-[10px] text-zinc-500 font-sans mt-0.5">{stat.detail}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+              }
+              stats={currentDetails.stats.map((stat) => ({
+                label: stat.label,
+                value: stat.value,
+                detail: stat.detail,
+              }))}
+            />
 
 
             <div className="flex gap-3 justify-end">
-              <button
+              <Button
                 onClick={() => alert(`${currentDetails.title} action triggered.`)}
-                className="text-xs px-5 py-2 font-bold bg-zinc-950 text-white hover:bg-zinc-800 rounded transition-all shadow-sm active:scale-95 duration-100 uppercase tracking-wide"
+                className="text-xs px-5 py-2 h-auto font-bold bg-zinc-950 text-white hover:bg-zinc-800 rounded shadow-sm active:scale-95 duration-100 uppercase tracking-wide"
               >
                 {currentDetails.actionLabel}
-              </button>
+              </Button>
             </div>
 
           </div>
