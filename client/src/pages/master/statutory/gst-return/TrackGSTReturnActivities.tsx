@@ -111,7 +111,10 @@ export default function TrackGSTReturnActivities() {
                   <TableCell className="w-24 text-center py-0.5">No</TableCell>
                   <TableCell className="w-24 text-center py-0.5"></TableCell>
                 </TableRow>
-                <TableRow className="hover:bg-[#e6f2ff] cursor-pointer text-gray-600">
+                <TableRow
+                  className="hover:bg-[#e6f2ff] cursor-pointer"
+                  onClick={() => navigate("/master/statutory/gstr3b", { state: { registration: reg } })}
+                >
                   <TableCell className="px-8 py-0.5">GSTR-3B</TableCell>
                   <TableCell className="w-24 text-center py-0.5">No</TableCell>
                   <TableCell className="w-24 text-center py-0.5"></TableCell>
