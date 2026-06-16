@@ -9,6 +9,9 @@ const schema = require("./schema");
 let dbPath;
 if (process.env.NODE_ENV === "test") {
   dbPath = "file::memory:";
+} else if (process.env.STARTUP_DB_PATH) {
+  // Standalone (non-Electron) access — e.g. the MCP server. Point at the real DB file.
+  dbPath = `file:${process.env.STARTUP_DB_PATH}`;
 } else {
   const { app } = require("electron");
   dbPath = `file:${path.join(app.getPath("userData"), "startup.db")}`;
@@ -113,6 +116,7 @@ const initDB = async () => {
   await require("../voucherEntryActions/voucherEntryActions").init(rawDb);
   await require("../eInvoice/eInvoice").init(rawDb);
   await require("../whatsapp/whatsapp").init(rawDb);
+  await require("../auditTrail/auditTrail").init(rawDb);
 };
 
 module.exports = { rawDb, db, initDB };

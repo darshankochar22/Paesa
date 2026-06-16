@@ -31,6 +31,7 @@
 //     updated_at = datetime('now') via sql`datetime('now')`.
 // ---------------------------------------------------------------------------
 const { db } = require('../db/index');
+const auditTrailService = require('../auditTrail/auditTrailService');
 const { sql, eq, and } = require('drizzle-orm');
 const {
   vouchers,
@@ -107,6 +108,7 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
          FROM ${ledgers} l
          LEFT JOIN ${voucherEntries} e ON e.ledger_id = l.ledger_id
          LEFT JOIN ${vouchers} v ON v.voucher_id = e.voucher_id AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+           AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0
          WHERE l.ledger_id = ${ledger_id} AND l.company_id = ${company_id}
          GROUP BY l.ledger_id`
   );
@@ -154,6 +156,7 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
         FROM ${voucherBillReferences} vbr
         JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
         WHERE vbr.ledger_id = ${ledger_id} AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+          AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0
           AND vbr.bill_type IN ('New Ref', 'Advance')
         GROUP BY vbr.bill_name
         HAVING total_amount > 0.01
@@ -606,6 +609,26 @@ module.exports = {
           await gstTaxEngine.saveVoucherTaxLines(db, voucher_id, data.computedGST);
         }
 
+        // Transactional audit (MCA Rule 11(g)): inserted on the same connection INSIDE this
+        // transaction, so it commits or rolls back atomically with the voucher.
+        await auditTrailService.recordInTx({
+          company_id: data.company_id,
+          entity_type: 'voucher',
+          entity_id: voucher_id,
+          action: 'create',
+          after: {
+            voucher_id,
+            company_id: data.company_id,
+            fy_id: data.fy_id,
+            voucher_type: data.voucher_type,
+            date: data.date,
+            voucher_number: data.voucher_number ?? null,
+            narration: data.narration ?? null,
+            party_name: data.party_name ?? null,
+            entries: data.entries || [],
+          },
+        });
+
         await db.execute({ sql: 'COMMIT', args: [] });
 
 // ── E-Invoice auto-trigger ────────────────────────────────────────────────────
@@ -1049,6 +1072,9 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         return { success: false, error: 'Debit and Credit amounts must be equal' };
       }
 
+      // All edits below are atomic with the audit row (single shared connection).
+      await db.execute({ sql: 'BEGIN TRANSACTION', args: [] });
+
       await db
         .update(vouchers)
         .set({
@@ -1164,8 +1190,18 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       const updated = await db.all(
         sql`SELECT * FROM ${vouchers} WHERE ${vouchers.voucherId} = ${data.voucher_id}`
       );
+      await auditTrailService.recordInTx({
+        company_id: current.company_id,
+        entity_type: 'voucher',
+        entity_id: data.voucher_id,
+        action: 'update',
+        before: current,
+        after: updated[0],
+      });
+      await db.execute({ sql: 'COMMIT', args: [] });
       return { success: true, voucher: updated[0] };
     } catch (err) {
+      try { await db.execute({ sql: 'ROLLBACK', args: [] }); } catch (_) { /* no open txn */ }
       return { success: false, error: err.message };
     }
   },
@@ -1178,13 +1214,24 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       if (existing.length === 0) return { success: false, error: 'Voucher not found' };
 
       const voucher = existing[0];
+      await db.execute({ sql: 'BEGIN TRANSACTION', args: [] });
       await db
         .update(vouchers)
         .set({ isCancelled: 1, updatedAt: sql`datetime('now')` })
         .where(eq(vouchers.voucherId, id));
       await recalculateLedgerBalances(id, voucher.company_id, voucher.fy_id);
+      await auditTrailService.recordInTx({
+        company_id: voucher.company_id,
+        entity_type: 'voucher',
+        entity_id: id,
+        action: 'cancel',
+        before: voucher,
+        after: { ...voucher, is_cancelled: 1 },
+      });
+      await db.execute({ sql: 'COMMIT', args: [] });
       return { success: true };
     } catch (err) {
+      try { await db.execute({ sql: 'ROLLBACK', args: [] }); } catch (_) { /* no open txn */ }
       return { success: false, error: err.message };
     }
   },
@@ -1201,6 +1248,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       const affected = await db.all(
         sql`SELECT DISTINCT ledger_id FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${id} AND ${voucherEntries.ledgerId} IS NOT NULL`
       );
+      await db.execute({ sql: 'BEGIN TRANSACTION', args: [] });
       await db.delete(vouchers).where(eq(vouchers.voucherId, id));
 
       // Recalculate balances for all affected ledgers
@@ -1215,8 +1263,17 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           }
         } catch (_e) { /* ignore individual errors */ }
       }
+      await auditTrailService.recordInTx({
+        company_id: voucher.company_id,
+        entity_type: 'voucher',
+        entity_id: id,
+        action: 'delete',
+        before: voucher,
+      });
+      await db.execute({ sql: 'COMMIT', args: [] });
       return { success: true };
     } catch (err) {
+      try { await db.execute({ sql: 'ROLLBACK', args: [] }); } catch (_) { /* no open txn */ }
       return { success: false, error: err.message };
     }
   },

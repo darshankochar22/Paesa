@@ -128,6 +128,12 @@ contextBridge.exposeInMainWorld('api', {
         cashBook:     (company_id, fy_id, from_date, to_date)                    => invoke('report:cashBook', { company_id, fy_id, from_date, to_date }),
         bankBook:     (company_id, fy_id, ledger_id, from_date, to_date)         => invoke('report:bankBook', { company_id, fy_id, ledger_id, from_date, to_date }),
         daybook:      (company_id, fy_id, from_date, to_date)                    => invoke('report:daybook', { company_id, fy_id, from_date, to_date }),
+        billsReceivable: (company_id, fy_id)                                     => invoke('report:billsReceivable', { company_id, fy_id }),
+        billsPayable:    (company_id, fy_id)                                     => invoke('report:billsPayable', { company_id, fy_id }),
+        cashFlow:        (company_id, fy_id, from_date, to_date)                 => invoke('report:cashFlow', { company_id, fy_id, from_date, to_date }),
+        fundsFlow:       (company_id, fy_id, from_date, to_date)                 => invoke('report:fundsFlow', { company_id, fy_id, from_date, to_date }),
+        stockSummary:    (company_id, fy_id, as_on_date)                         => invoke('report:stockSummary', { company_id, fy_id, as_on_date }),
+        ratioAnalysis:   (company_id, fy_id)                                     => invoke('report:ratioAnalysis', { company_id, fy_id }),
     },
     banking: {
         getUnreconciled: (company_id, fy_id, ledger_id)                          => invoke('banking:getUnreconciled', { company_id, fy_id, ledger_id }),
@@ -135,6 +141,11 @@ contextBridge.exposeInMainWorld('api', {
         unreconcile:     (data)                                                   => invoke('banking:unreconcile', data),
         getStatement:    (company_id, fy_id, ledger_id, from_date, to_date)      => invoke('banking:getStatement', { company_id, fy_id, ledger_id, from_date, to_date }),
         getSummary:      (company_id, fy_id, ledger_id)                          => invoke('banking:getSummary', { company_id, fy_id, ledger_id }),
+    },
+    auditTrail: {
+        getAll:      (company_id, limit)                                         => invoke('auditTrail:getAll', { company_id, limit }),
+        getByEntity: (company_id, entity_type, entity_id)                       => invoke('auditTrail:getByEntity', { company_id, entity_type, entity_id }),
+        verifyChain: (company_id)                                               => invoke('auditTrail:verifyChain', { company_id }),
     },
     currency: {
         create:     (data)               => invoke('currency:create', data),
@@ -304,5 +315,18 @@ contextBridge.exposeInMainWorld('api', {
     companyPanCinDetails: {
         get:  (company_id) => invoke('companyPanCinDetails:get', company_id),
         save: (data)       => invoke('companyPanCinDetails:save', data),
+    },
+    ai: {
+        getKeyStatus: ()        => invoke('ai:getKeyStatus'),
+        setKey:       (config)  => invoke('ai:setKey', config),
+        clearKey:     ()        => invoke('ai:clearKey'),
+        testKey:      (config)  => invoke('ai:testKey', config || {}),
+        ask:          (payload) => invoke('ai:ask', payload),
+    },
+    tally: {
+        testConnection: (params)  => invoke('tally:testConnection', params),
+        preview:        (params)  => invoke('tally:preview', params),
+        importMasters:  (params)  => invoke('tally:importMasters', params),
+        importVouchers: (params)  => invoke('tally:importVouchers', params),
     },
 });

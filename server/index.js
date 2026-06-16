@@ -13,6 +13,7 @@ const godownController = require('./godown/godownController');
 const voucherController = require('./voucher/voucherController');
 const reportController = require('./report/reportController');
 const bankingController = require('./banking/bankingController');
+const auditTrailController = require('./auditTrail/auditTrailController');
 const currencyController = require('./currency/currencyController');
 const voucherTypeController = require('./voucherType/voucherTypeController');
 const gstRegistrationController = require('./gstRegistration/gstRegistrationController');
@@ -49,6 +50,8 @@ const companyPanCinDetailsController = require('./companyPanCinDetails/companyPa
 const taxUnitController=require('./taxUnits/taxUnitController');
 const priceLevelController = require('./priceLevels/priceLevelController');
 const priceListController = require('./priceList/priceListController');
+const aiController = require('./ai/aiController');
+const tallyController = require('./integrations/tally/tallyController');
 
 ipcMain.handle('taxUnits:create',  taxUnitController.create);
 ipcMain.handle('taxUnits:getAll',  taxUnitController.getAll);
@@ -157,12 +160,22 @@ ipcMain.handle('report:ledgerReport', reportController.ledgerReport);
 ipcMain.handle('report:cashBook', reportController.cashBook);
 ipcMain.handle('report:bankBook', reportController.bankBook);
 ipcMain.handle('report:daybook', reportController.daybook);
+ipcMain.handle('report:billsReceivable', reportController.billsReceivable);
+ipcMain.handle('report:billsPayable', reportController.billsPayable);
+ipcMain.handle('report:cashFlow', reportController.cashFlow);
+ipcMain.handle('report:fundsFlow', reportController.fundsFlow);
+ipcMain.handle('report:stockSummary', reportController.stockSummary);
+ipcMain.handle('report:ratioAnalysis', reportController.ratioAnalysis);
 
 ipcMain.handle('banking:getUnreconciled', bankingController.getUnreconciled);
 ipcMain.handle('banking:reconcile', bankingController.reconcile);
 ipcMain.handle('banking:unreconcile', bankingController.unreconcile);
 ipcMain.handle('banking:getStatement', bankingController.getStatement);
 ipcMain.handle('banking:getSummary', bankingController.getSummary);
+
+ipcMain.handle('auditTrail:getAll', auditTrailController.getAll);
+ipcMain.handle('auditTrail:getByEntity', auditTrailController.getByEntity);
+ipcMain.handle('auditTrail:verifyChain', auditTrailController.verifyChain);
 
 ipcMain.handle('currency:create', currencyController.create);
 ipcMain.handle('currency:getAll', currencyController.getAll);
@@ -349,3 +362,15 @@ ipcMain.handle('companyTcsDetails:save', companyTcsDetailsController.save);
 
 ipcMain.handle('companyPanCinDetails:get', companyPanCinDetailsController.get);
 ipcMain.handle('companyPanCinDetails:save', companyPanCinDetailsController.save);
+
+// AI copilot + BYOK (key stays in main process)
+ipcMain.handle('ai:getKeyStatus', aiController.getKeyStatus);
+ipcMain.handle('ai:setKey',       aiController.setKey);
+ipcMain.handle('ai:clearKey',     aiController.clearKey);
+ipcMain.handle('ai:testKey',      aiController.testKey);
+ipcMain.handle('ai:ask',          aiController.ask);
+
+ipcMain.handle('tally:testConnection', tallyController.testConnection);
+ipcMain.handle('tally:preview',        tallyController.preview);
+ipcMain.handle('tally:importMasters',  tallyController.importMasters);
+ipcMain.handle('tally:importVouchers', tallyController.importVouchers);

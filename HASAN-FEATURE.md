@@ -1,107 +1,116 @@
-# `hasan-feature` — backend modernization (major change)
+# `hasan-feature` — branch guide & onboarding
 
-This branch is a **major backend change**. The app's behavior is preserved (the Electron app, the
-IPC channels, and the SQLite runtime all work as before), but the backend now has: auto-generated
-API docs, a Drizzle ORM data layer with dual SQLite/Postgres schemas + migrations, and a fixed
-banking-reconciliation feature.
+This branch turns the app from a Tally-style accounting ERP into an **AI-native, API-first, compliance-ready** one — a "Cursor for Tally." This doc is the map of *what changed* and *how to work with it*. Deep how-to rules live in **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)**; the parity plan lives in **[`docs/ROADMAP-tally-parity.md`](docs/ROADMAP-tally-parity.md)**.
 
-> Nothing in `client/**` changed. The runtime database is still local SQLite (`startup.db`).
-> Postgres is set up as a **target contract** (schemas + migrations), not yet the live DB.
+> Status: backend **166/166 tests**, client **build green** + **108 vitest**, **270/270** API channels documented, schema **parity 80 tables**. Runtime DB is still local **SQLite**; Postgres is a ready (parity-checked) target, not yet the live DB.
 
 ---
 
-## What changed (3 things)
+## What's on this branch (high level)
 
-### 1. Auto-generated API docs ("openhono")
-Every IPC channel (`ipcMain.handle('ns:action', …)`) is documented as an OpenAPI 3.1 operation with
-`x-ipc-channel` / `x-window-api` / `x-controller` extensions that bind the doc to the real channel
-and renderer call site.
+| Area | What it is |
+|---|---|
+| **Backend modernization** | Drizzle ORM (dual SQLite + Postgres schema), auto-generated OpenAPI ("openhono") docs, MCP server. |
+| **AI Copilot** | "Cursor for Tally" — BYO model (Anthropic **or** any OpenAI-compatible endpoint incl. DeepSeek), 3-tool anti-loop agent, propose→approve. |
+| **Banking** | Bank reconciliation (BRS) — service + live UI. |
+| **Tally import** | Import ledgers/vouchers from a real Tally over its XML/TDL interface. |
+| **Reports** | 5 new Tally-parity reports (outstanding/ageing, cash flow, funds flow, stock summary, ratios), copilot-callable. |
+| **Compliance** | Tamper-evident, transactional audit trail (MCA Rule 11(g)); optional/post-dated voucher fix. |
+| **UI** | shadcn/ui foundation + reusable components; 10 interactive pages refactored. |
 
-- **Source of truth:** per-module fragments in `docs/api/modules/<module>.yaml` + the live channel list
-  in `server/index.js`. Assembled at runtime by `server/docs/openapiGenerator.js`.
-- **Live UI (dev only):** `npm start` serves a Scalar UI at **http://localhost:5180/docs** (Hono server,
-  `server/docs/server.js`). Never ships to production (`!app.isPackaged` gate in `main.js`).
-- **CI gate:** `npm run docs:check` fails if any channel is undocumented or a fragment is broken.
-- Coverage today: **252 operations = 252 channels, 0 gaps.**
-
-### 2. Drizzle ORM — dual SQLite + Postgres schema
-The schema is now defined in Drizzle and is the single source of truth, dual-dialect:
-
-- `server/db/schema/sqlite/<module>.js` — `sqliteTable` (runtime DB)
-- `server/db/schema/pg/<module>.js` — `pgTable` (Postgres target)
-- `server/db/schema/index.js` — switches on `DB_DIALECT` (default sqlite); services import tables here.
-- All 49 modules' service queries were rewritten from raw SQL to Drizzle (query builder for CRUD,
-  Drizzle's typed `` sql`` `` operator for complex accounting/report/GST aggregations).
-- Migrations are auto-generated for **both** dialects (`server/db/migrations/{sqlite,pg}`).
-- A **parity gate** (`npm run db:parity`) asserts the two dialects never drift on tables/columns.
-
-**Boot strategy = `init-kept` (important):** the app does **not** auto-apply Drizzle migrations on
-boot. `initDB()` still runs each module's existing `init(db)` (DDL + seed) at startup — this guarantees
-the exact schema/seed the test oracle was written against. The Drizzle migrations are provisioning
-tooling (and the Postgres path). Use `npm run db:migrate` to apply migrations to a fresh DB explicitly.
-
-### 3. Banking reconciliation fix
-`server/banking/bankingService.js` was a dead duplicate of the schema-init file — its 5 methods never
-existed (pre-existing bug on `main`). Now fully implemented (Drizzle) and covered by
-`server/tests/banking.test.js`.
+Commit arc: `backend modernization → banking UI → shadcn (10 pages) → AI copilot → Tally import → parity reports → audit trail → transactional audit → model-agnostic`.
 
 ---
+
+## 1. Backend: Drizzle + auto API docs
+
+- **Schema is Drizzle, dual-dialect:** `server/db/schema/{sqlite,pg}/<module>.js`. `DB_DIALECT=pg` switches dialect (default sqlite). Services import tables from `server/db/schema`.
+- **Boot strategy = `init-kept`:** `initDB()` still runs each module's `init(db)` (DDL + seed). Drizzle migrations (`server/db/migrations/{sqlite,pg}`) are kept in parity as provisioning tooling + the Postgres path.
+- **Auto API docs ("openhono"):** every IPC channel is an OpenAPI 3.1 operation with `x-ipc-channel` / `x-window-api` extensions, generated from `docs/api/modules/*.yaml` + the live `server/index.js` channel list. **`npm run docs:check` is a CI gate** — an undocumented channel fails the build.
+- Dev-only live docs UI: **http://localhost:5180/docs** (Scalar) when you `npm start`.
+
+## 2. AI Copilot (`server/ai/`, `server/mcp/`)
+
+- **Model-agnostic / BYOK.** Settings → Gateway → Utilities → **AI Copilot**. Two providers:
+  - `anthropic` — native Claude (SDK).
+  - `openai` — **any OpenAI-compatible `/chat/completions` endpoint** (OpenAI, **DeepSeek**, Groq, OpenRouter, local) via base URL + model. There's a **DeepSeek preset** button.
+  - The API **key is encrypted at rest** (Electron `safeStorage`) in the **main process** — never sent to the renderer.
+- **Anti-loop design:** the agent gets **3 consolidated tools** (`query` enum-routed reads, `lookup` name→id, `propose` reviewable write) instead of 252 — the model fills one enum field, so it doesn't thrash. Hard cap on tool rounds.
+- **Safety:** the agent never writes — it returns **proposals** the user approves in the app (the "accept the diff" model).
+- **MCP server** (`npm run mcp`) exposes the same 3 tools over MCP for Claude Desktop / Cursor (`STARTUP_DB_PATH=/path/to/startup.db`).
+
+## 3. Banking (`server/banking/`)
+Bank reconciliation: unreconciled list, reconcile/unreconcile, statement with running balance, BRS summary. Live UI at **Utilities → Banking**.
+
+## 4. Tally import (`server/integrations/tally/`)
+Imports masters + vouchers from a running Tally via its official XML/TDL server (`localhost:9000`). Channels `tally:testConnection/preview/importMasters/importVouchers`. Accepts a live `{host,port}` **or** raw `{xml}` (so it's usable/testable without Tally). *No UI screen yet — backend + IPC only.*
+
+## 5. Reports (`server/report/*ReportService.js`)
+New: **Bills Receivable/Payable + ageing, Cash Flow, Funds Flow, Stock Summary, Ratio Analysis.** Read-only, wired to IPC **and** the copilot's `query` tool — ask *"show overdue receivables"* / *"what's my current ratio"*.
+
+## 6. Compliance: audit trail (`server/auditTrail/`)
+- **Tamper-evident edit log** (MCA Rule 11(g)): per-company **hash chain** (`row_hash = sha256(prev_hash + content)`); `verifyChain()` detects any tampered row.
+- **Transactional for vouchers:** the audit row is written inside the voucher's `BEGIN/COMMIT`, so it's **atomic** — no write without its audit row, and vice-versa (a failed voucher leaves zero audit rows). Ledger/group master edits are controller-level best-effort (documented follow-up).
+- Channels `auditTrail:getAll/getByEntity/verifyChain`; copilot resource `audit_trail`.
+- **Correctness fix:** `is_optional` / `is_post_dated` vouchers are now excluded from all balances/reports.
+
+## 7. UI (shadcn)
+- Primitives in `client/src/components/shadcn/` (kept separate from the existing custom `components/ui/*` to avoid case-collisions). Reusable composites in `client/src/components/blocks/` (StatCard, StatGrid, DataTableCard, PageToolbar, EmptyState).
+- **10 interactive pages** refactored to shadcn (Banking, Vouchers/VoucherList/VoucherView, Daybook, the report menus, GST return views, Copilot). The other ~190 pages still use hand-rolled Tailwind.
+
+---
+
+## Setup & run (for everyone)
+
+```bash
+npm i                  # root (Electron + backend deps)
+npm i --prefix client  # client deps (REQUIRED — easy to forget)
+npm start              # Vite dev server + Electron; live API docs at :5180/docs
+```
 
 ## Commands
 
-| Command | Purpose |
+| Command | What it does |
 |---|---|
-| `npm start` | run the app; live API docs at http://localhost:5180/docs (dev only) |
 | `npm test` | backend Jest suite (the correctness oracle) |
-| `npm run docs:gen` | regenerate `docs/api/openapi.{json,yaml}` |
-| `npm run docs:check` | **CI gate** — every channel must be documented |
-| `npm run db:generate` | regenerate sqlite + pg migrations from the Drizzle schema |
-| `npm run db:parity` | **CI gate** — sqlite/pg schemas must match on tables/columns |
-| `npm run db:migrate` | apply migrations to a fresh DB (sqlite; pg when `DB_DIALECT=pg` + `DATABASE_URL`) |
+| `npm run docs:gen` / `docs:check` | regenerate / **CI-gate** the OpenAPI spec (every channel must be documented) |
+| `npm run db:generate` / `db:parity` | regenerate migrations / **CI-gate** that pg+sqlite schemas match |
+| `npm run db:migrate` | apply migrations to a fresh DB |
 | `npm run docs:db` | regenerate DB docs from the Drizzle schema |
-
-Setup unchanged: `npm i` (root) **and** `npm i --prefix client`.
-
----
-
-## Verification status
-
-- **Backend tests: 135/135 pass (17/17 suites)** — was 126/16 on `main` (+9 new banking tests).
-- **Schema parity:** PASS (79 tables, identical columns across pg + sqlite).
-- **API docs:** `docs:check` PASS (252/252 channels).
-- **Runtime smoke (headless):** 64 read paths + ~17 seeded insert paths across 46 modules execute with
-  0 SQL errors.
-
-### Coverage boundaries (read before relying on it)
-- ✅ Test-covered (accounting core): voucher, ledger, gst, inventory, payroll, company, financial year,
-  tax/tcs/tds, currency, cost centre, **banking**.
-- ⚠️ **33 modules have no automated test** — converted mechanically + self-reviewed + read-path smoke,
-  but their **write** paths (create/update/delete) were not round-tripped: e.g. `physicalStock`,
-  `attendance`, `priceList`, `priceLevels.save`, `whatsapp.saveConfig`, `eInvoice.*`,
-  `voucherEntryActions.create`. Verify these before depending on them.
+| `npm run mcp` | run the MCP server (set `STARTUP_DB_PATH`) |
+| `cd client && npm run build` | type-check + build the renderer |
 
 ---
 
-## Future work (TODO)
+## How to contribute (read `docs/CONTRIBUTING.md` for the full rules)
 
-1. **Wire the Banking UI.** Backend is complete + tested, but `client/src/pages/utilities/Banking.tsx`
-   is still a static placeholder — it doesn't call `window.api.banking.*` yet.
-2. **Smoke the untested write paths** (the ⚠️ list above) by driving each module's create/update/delete,
-   then add Jest suites so they get a permanent oracle.
-3. **Consider migrate-on-boot.** Flip `initDB()` from `init-kept` to applying Drizzle migrations once the
-   seed logic is moved out of `init()` and the full suite is re-verified green.
-4. **Postgres cut-over (when ready).** Swap the driver in `server/db/index.js`
-   (`@libsql/client` → `drizzle-orm/node-postgres` + `pg`), apply `server/db/migrations/pg`, set
-   `DB_DIALECT=pg` + `DATABASE_URL`. The contract + migrations are already generated and parity-checked.
-5. **Add `db:parity` + `docs:check` to CI** (`.github/workflows/build-win.yml`) before the build step.
+**Adding/altering an IPC channel** — keep the 3-point contract in sync, then document it:
+1. `server/<module>/<module>Service.js` (logic) + `<module>Controller.js` (thin wrapper)
+2. register `ipcMain.handle('ns:action', ...)` in `server/index.js`
+3. expose under `window.api.<ns>` in `preload.js` (+ a type in `client/src/types/api/`)
+4. **add an OpenAPI operation** to `docs/api/modules/<module>.yaml`, then `npm run docs:gen && npm run docs:check`
+
+**Changing the schema** — edit **both** Drizzle dialect files (`server/db/schema/{sqlite,pg}/<module>.js`; column **names** identical, types differ), update the runtime `init()`, then `npm run db:generate && npm run db:parity && npm run docs:db`.
+
+**UI** — use shadcn primitives from `@/components/shadcn/*` and composites from `@/components/blocks/*`; keep the dense Tally look (compact sizing). Strict TS: no unused imports (the build fails on them).
+
+**Audit-logged writes** — voucher create/update/cancel/delete log transactionally via `auditTrailService.recordInTx` inside the service transaction. New transactional write paths should follow that pattern; masters use best-effort `record`.
+
+**Before pushing:** `npm test` + `cd client && npm run build` + `npm run docs:check` + `npm run db:parity` must all be green.
 
 ---
 
-## Where to look
+## Known gaps / next steps (see `docs/ROADMAP-tally-parity.md`)
 
-- `docs/CONTRIBUTING.md` — the rules for adding channels and changing the schema (openhono + Drizzle).
-- `docs/README.md` — documentation index.
-- `docs/api/openapi.yaml` — the full API spec.
-- `docs/db/schema.postgres.sql` / `docs/db/SCHEMA.md` — DB contract + reference.
-- `AGENTS.md` — repo conventions (note: its claim that `.gitignore` ignores `package.json` is stale —
-  both `package.json` and `package-lock.json` are tracked).
+- **Next big features:** stock valuation/costing engine (FIFO/LIFO/Avg → exact inventory value + Balance Sheet), Budgets + variance, Sales/Purchase order processing.
+- **Hardening:** make master (ledger/group) audit transactional too; the client `.tsx` tests fail under the backend Jest config (separate `jest`/`vitest` projects — pre-existing, run `cd client && npm test` for client tests).
+- **UI debt:** screens for the new reports, an audit-trail viewer, and a Tally-import wizard; ~190 pages still un-migrated to shadcn.
+- **Postgres cutover:** schema + migrations are parity-checked and ready; swap the driver in `server/db/index.js` when needed.
+- **Not GUI-verified:** most of this is verified by tests/build, not yet clicked through in the packaged app — do a manual smoke before release.
+
+---
+
+## Notes for maintainers
+
+- `AGENTS.md`'s claim that `.gitignore` ignores `package.json`/`package-lock.json` is **stale** — both are tracked.
+- New deps added on this branch: `hono`, `@hono/node-server`, `yaml`, `drizzle-kit`, `pg`, `@anthropic-ai/sdk`, `fastmcp`, `zod`, `fast-xml-parser`.

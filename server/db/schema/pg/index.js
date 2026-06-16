@@ -5,6 +5,7 @@
 module.exports = {
   ...require('./attendance'),
   ...require('./attendanceType'),
+  ...require('./auditTrail'),
   ...require('./balanceSheetReport'),
   ...require('./banking'),
   ...require('./company'),

@@ -1,5 +1,9 @@
 const voucherService = require('../voucher/voucherService');
 
+// NOTE: voucher audit logging is done TRANSACTIONALLY inside voucherService
+// (create/update/cancel/delete) via auditTrailService.recordInTx — atomic with the
+// write — so the controller stays thin and does NOT log here (avoids double rows).
+
 module.exports = {
   create: async (event, data) => {
     return await voucherService.create(data);

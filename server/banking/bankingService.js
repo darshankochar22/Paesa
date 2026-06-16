@@ -34,6 +34,8 @@ module.exports = {
           AND v.fy_id = ${fy_id}
           AND e.ledger_id = ${ledger_id}
           AND COALESCE(v.is_cancelled, 0) = 0
+          AND COALESCE(v.is_optional, 0) = 0
+          AND COALESCE(v.is_post_dated, 0) = 0
           AND e.entry_id NOT IN (SELECT entry_id FROM ${reconciliations})
         ORDER BY v.date ASC, e.entry_id ASC
       `);
@@ -111,6 +113,8 @@ module.exports = {
         sql`v.fy_id = ${fy_id}`,
         sql`e.ledger_id = ${ledger_id}`,
         sql`COALESCE(v.is_cancelled, 0) = 0`,
+        sql`COALESCE(v.is_optional, 0) = 0`,
+        sql`COALESCE(v.is_post_dated, 0) = 0`,
       ];
       if (from_date) conds.push(sql`v.date >= ${from_date}`);
       if (to_date) conds.push(sql`v.date <= ${to_date}`);
@@ -172,6 +176,8 @@ module.exports = {
           AND v.fy_id = ${fy_id}
           AND e.ledger_id = ${ledger_id}
           AND COALESCE(v.is_cancelled, 0) = 0
+          AND COALESCE(v.is_optional, 0) = 0
+          AND COALESCE(v.is_post_dated, 0) = 0
       `);
       const s = rows[0] || {};
       return {

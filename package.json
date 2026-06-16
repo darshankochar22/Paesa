@@ -13,6 +13,7 @@
     "dev": "cd client && npm run dev",
     "electron": "wait-on http://localhost:5173 && electron .",
     "start": "concurrently \"npm run dev\" \"npm run electron\"",
+    "mcp": "node server/mcp/run.js",
     "docs:gen": "node server/docs/genStatic.js",
     "docs:check": "node server/docs/checkDocs.js",
     "docs:db": "node server/docs/dbDocsGenerator.js",
@@ -74,13 +75,16 @@
     "wait-on": "^9.0.10"
   },
   "dependencies": {
-    "@fontsource-variable/geist": "^5.2.9",
+    "@anthropic-ai/sdk": "^0.104.2",
     "@hono/node-server": "^2.0.5",
     "@libsql/client": "^0.17.3",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
+    "fast-xml-parser": "^5.9.0",
+    "fastmcp": "^4.3.0",
     "hono": "^4.12.25",
     "pg": "^8.21.0",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   }
 }

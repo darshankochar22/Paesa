@@ -10,13 +10,17 @@
       "docs/api/modules/*.yaml",
       "server/index.js"
     ],
-    "modules": 49,
-    "operations": 252,
-    "registeredChannels": 252,
+    "modules": 53,
+    "operations": 270,
+    "registeredChannels": 270,
     "undocumentedChannels": [],
     "warnings": []
   },
   "tags": [
+    {
+      "name": "ai",
+      "description": "AI Copilot Module API"
+    },
     {
       "name": "attendance",
       "description": "Attendance Module API"
@@ -24,6 +28,10 @@
     {
       "name": "attendanceType",
       "description": "attendanceType module API"
+    },
+    {
+      "name": "auditTrail",
+      "description": "Audit Trail Module API"
     },
     {
       "name": "balanceSheetReport",
@@ -158,6 +166,10 @@
       "description": "Report Module API"
     },
     {
+      "name": "reportExtras",
+      "description": "Report Extras Module API"
+    },
+    {
       "name": "salaryStructure",
       "description": "salaryStructure module API"
     },
@@ -172,6 +184,10 @@
     {
       "name": "stockItem",
       "description": "stockItem module API"
+    },
+    {
+      "name": "tally",
+      "description": "Tally Integration Module API"
     },
     {
       "name": "tallyFeatures",
@@ -215,6 +231,258 @@
     }
   ],
   "paths": {
+    "/ai/getKeyStatus": {
+      "post": {
+        "operationId": "ai.getKeyStatus",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Get whether an Anthropic key is configured, its masked form, and the active model.",
+        "x-ipc-channel": "ai:getKeyStatus",
+        "x-window-api": "window.api.ai.getKeyStatus",
+        "x-controller": "aiController.getKeyStatus",
+        "responses": {
+          "200": {
+            "description": "Key status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ai_KeyStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/setKey": {
+      "post": {
+        "operationId": "ai.setKey",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Store the model config (provider + API key + base URL + model); key encrypted at rest in the main process.",
+        "x-ipc-channel": "ai:setKey",
+        "x-window-api": "window.api.ai.setKey",
+        "x-controller": "aiController.setKey",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "anthropic",
+                      "openai"
+                    ]
+                  },
+                  "apiKey": {
+                    "type": "string"
+                  },
+                  "baseUrl": {
+                    "type": "string",
+                    "description": "Required for openai-compatible (e.g. https://api.openai.com/v1 or https://api.deepseek.com/v1)."
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "Model name (e.g. gpt-4o-mini, deepseek-chat); optional for anthropic."
+                  }
+                },
+                "required": [
+                  "apiKey"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result with masked key on success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "masked": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/clearKey": {
+      "post": {
+        "operationId": "ai.clearKey",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Remove the stored Anthropic API key.",
+        "x-ipc-channel": "ai:clearKey",
+        "x-window-api": "window.api.ai.clearKey",
+        "x-controller": "aiController.clearKey",
+        "responses": {
+          "200": {
+            "description": "Result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/testKey": {
+      "post": {
+        "operationId": "ai.testKey",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Validate a config with a tiny ping (uses the stored config if none passed).",
+        "x-ipc-channel": "ai:testKey",
+        "x-window-api": "window.api.ai.testKey",
+        "x-controller": "aiController.testKey",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "anthropic",
+                      "openai"
+                    ]
+                  },
+                  "apiKey": {
+                    "type": "string"
+                  },
+                  "baseUrl": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validation result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/ask": {
+      "post": {
+        "operationId": "ai.ask",
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ask the copilot. Runs a capped tool-use loop and returns the answer plus any write proposals to approve.",
+        "x-ipc-channel": "ai:ask",
+        "x-window-api": "window.api.ai.ask",
+        "x-controller": "aiController.ask",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "context": {
+                    "type": "object",
+                    "properties": {
+                      "company_id": {
+                        "type": "number"
+                      },
+                      "fy_id": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "history": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "prompt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Copilot answer with optional action proposals.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ai_AskResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/attendance/create": {
       "post": {
         "tags": [
@@ -783,6 +1051,132 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/auditTrail/getAll": {
+      "post": {
+        "tags": [
+          "auditTrail"
+        ],
+        "operationId": "auditTrail.getAll",
+        "summary": "List audit-trail rows for a company, newest first (log_id DESC).",
+        "x-ipc-channel": "auditTrail:getAll",
+        "x-window-api": "window.api.auditTrail.getAll",
+        "x-controller": "auditTrailController.getAll",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditTrail_GetAllRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Array of audit-trail rows for the company (newest first).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditTrailEntry"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "5XX": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/auditTrail/getByEntity": {
+      "post": {
+        "tags": [
+          "auditTrail"
+        ],
+        "operationId": "auditTrail.getByEntity",
+        "summary": "Audit history for a single entity, oldest first (log_id ASC).",
+        "x-ipc-channel": "auditTrail:getByEntity",
+        "x-window-api": "window.api.auditTrail.getByEntity",
+        "x-controller": "auditTrailController.getByEntity",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditTrail_GetByEntityRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chronological audit history for the entity (oldest first).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditTrailEntry"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "5XX": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/auditTrail/verifyChain": {
+      "post": {
+        "tags": [
+          "auditTrail"
+        ],
+        "operationId": "auditTrail.verifyChain",
+        "summary": "Recompute the per-company hash chain and report whether it is intact.",
+        "x-ipc-channel": "auditTrail:verifyChain",
+        "x-window-api": "window.api.auditTrail.verifyChain",
+        "x-controller": "auditTrailController.verifyChain",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditTrail_VerifyChainRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chain integrity result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditTrail_VerifyChainResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "5XX": {
+            "$ref": "#/components/responses/ErrorResponse"
           }
         }
       }
@@ -10086,6 +10480,223 @@
         }
       }
     },
+    "/report/billsReceivable": {
+      "post": {
+        "operationId": "report.billsReceivable",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Bills Receivable (Sundry Debtors) outstanding with 0-30 / 31-60 / 61-90 / 90+ ageing buckets.",
+        "x-ipc-channel": "report:billsReceivable",
+        "x-window-api": "window.api.report.billsReceivable",
+        "x-controller": "reportController.billsReceivable",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Outstanding receivable bills with ageing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExtras_OutstandingResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/billsPayable": {
+      "post": {
+        "operationId": "report.billsPayable",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Bills Payable (Sundry Creditors) outstanding with 0-30 / 31-60 / 61-90 / 90+ ageing buckets.",
+        "x-ipc-channel": "report:billsPayable",
+        "x-window-api": "window.api.report.billsPayable",
+        "x-controller": "reportController.billsPayable",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Outstanding payable bills with ageing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExtras_OutstandingResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/cashFlow": {
+      "post": {
+        "operationId": "report.cashFlow",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Cash Flow statement — inflow/outflow through Cash & Bank ledgers, by counter-ledger and voucher type.",
+        "x-ipc-channel": "report:cashFlow",
+        "x-window-api": "window.api.report.cashFlow",
+        "x-controller": "reportController.cashFlow",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyDateRangeParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cash flow inflows/outflows for the period.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExtras_CashFlowResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/fundsFlow": {
+      "post": {
+        "operationId": "report.fundsFlow",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Funds Flow statement — sources & applications of funds and working-capital reconciliation.",
+        "x-ipc-channel": "report:fundsFlow",
+        "x-window-api": "window.api.report.fundsFlow",
+        "x-controller": "reportController.fundsFlow",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyDateRangeParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Funds flow sources/applications for the period.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExtras_FundsFlowResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/stockSummary": {
+      "post": {
+        "operationId": "report.stockSummary",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Stock Summary — closing quantity & value per item (with group rollup) from opening + movements.",
+        "x-ipc-channel": "report:stockSummary",
+        "x-window-api": "window.api.report.stockSummary",
+        "x-controller": "reportController.stockSummary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "as_on_date": {
+                        "type": "string",
+                        "description": "Optional movement ceiling (YYYY-MM-DD)."
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-item and per-group closing stock.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExtras_StockSummaryResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/ratioAnalysis": {
+      "post": {
+        "operationId": "report.ratioAnalysis",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Ratio Analysis — current/quick/debt-equity ratios, profitability %, working capital and turnover.",
+        "x-ipc-channel": "report:ratioAnalysis",
+        "x-window-api": "window.api.report.ratioAnalysis",
+        "x-controller": "reportController.ratioAnalysis",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Computed financial ratios plus the components they were derived from.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExtras_RatioAnalysisResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/salaryStructure/create": {
       "post": {
         "operationId": "salaryStructure.create",
@@ -11734,6 +12345,256 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StockItem_Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tally/testConnection": {
+      "post": {
+        "operationId": "tally.testConnection",
+        "tags": [
+          "tally"
+        ],
+        "summary": "Probe a live Tally endpoint and report reachability + the open company name.",
+        "x-ipc-channel": "tally:testConnection",
+        "x-window-api": "window.api.tally.testConnection",
+        "x-controller": "tallyController.testConnection",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "description": "Tally host (default 127.0.0.1)."
+                  },
+                  "port": {
+                    "type": "number",
+                    "description": "Tally port (default 9000)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reachability result with the open company name when reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tally_TestConnectionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tally/preview": {
+      "post": {
+        "operationId": "tally.preview",
+        "tags": [
+          "tally"
+        ],
+        "summary": "Dry-run — count what would be imported (no DB writes). Accepts raw xml or a live endpoint.",
+        "x-ipc-channel": "tally:preview",
+        "x-window-api": "window.api.tally.preview",
+        "x-controller": "tallyController.preview",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Tally_XmlParams"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Tally_DateRangeParams"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preview counts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "preview": {
+                      "$ref": "#/components/schemas/Tally_Preview"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tally/importMasters": {
+      "post": {
+        "operationId": "tally.importMasters",
+        "tags": [
+          "tally"
+        ],
+        "summary": "Import groups, units, ledgers and stock items into the active company.",
+        "x-ipc-channel": "tally:importMasters",
+        "x-window-api": "window.api.tally.importMasters",
+        "x-controller": "tallyController.importMasters",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "company_id": {
+                        "type": "number",
+                        "description": "Active company id (injected into every payload)."
+                      },
+                      "fy_id": {
+                        "type": "number",
+                        "description": "Active financial year id (optional for masters)."
+                      }
+                    },
+                    "required": [
+                      "company_id"
+                    ]
+                  },
+                  {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/Tally_XmlParams"
+                      },
+                      {
+                        "$ref": "#/components/schemas/Tally_EndpointParams"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-entity import summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "groups": {
+                      "$ref": "#/components/schemas/Tally_ImportSummary"
+                    },
+                    "units": {
+                      "$ref": "#/components/schemas/Tally_ImportSummary"
+                    },
+                    "ledgers": {
+                      "$ref": "#/components/schemas/Tally_ImportSummary"
+                    },
+                    "stockItems": {
+                      "$ref": "#/components/schemas/Tally_ImportSummary"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tally/importVouchers": {
+      "post": {
+        "operationId": "tally.importVouchers",
+        "tags": [
+          "tally"
+        ],
+        "summary": "Import Day Book vouchers into the active company + financial year (Dr=Cr balance checked).",
+        "x-ipc-channel": "tally:importVouchers",
+        "x-window-api": "window.api.tally.importVouchers",
+        "x-controller": "tallyController.importVouchers",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "company_id": {
+                        "type": "number",
+                        "description": "Active company id."
+                      },
+                      "fy_id": {
+                        "type": "number",
+                        "description": "Active financial year id (required for vouchers)."
+                      }
+                    },
+                    "required": [
+                      "company_id",
+                      "fy_id"
+                    ]
+                  },
+                  {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/Tally_XmlParams"
+                      },
+                      {
+                        "$ref": "#/components/schemas/Tally_DateRangeParams"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Voucher import summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "vouchers": {
+                      "$ref": "#/components/schemas/Tally_ImportSummary"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
@@ -15762,6 +16623,91 @@
   },
   "components": {
     "schemas": {
+      "Ai_KeyStatus": {
+        "type": "object",
+        "properties": {
+          "hasKey": {
+            "type": "boolean"
+          },
+          "masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "anthropic",
+              "openai",
+              null
+            ]
+          },
+          "baseUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Ai_Proposal": {
+        "type": "object",
+        "description": "A reviewable write action the user must approve; the renderer calls `channel` with `args` on approval.",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "args": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "summary": {
+            "type": "string"
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Ai_AskResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "rounds": {
+            "type": "number"
+          },
+          "capped": {
+            "type": "boolean"
+          },
+          "proposals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ai_Proposal"
+            }
+          }
+        }
+      },
       "Attendance_Error": {
         "type": "object",
         "additionalProperties": false,
@@ -16321,6 +17267,150 @@
           },
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "AuditTrail_Error": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Short error code or class."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message."
+          }
+        }
+      },
+      "AuditTrail_GetAllRequest": {
+        "type": "object",
+        "description": "Scope an audit-log read to a company, with an optional row cap.",
+        "required": [
+          "company_id"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "integer",
+            "description": "Owning company id."
+          },
+          "limit": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Optional max rows to return (newest first). Omit for all."
+          }
+        }
+      },
+      "AuditTrail_GetByEntityRequest": {
+        "type": "object",
+        "description": "Scope an audit-history read to one entity within a company.",
+        "required": [
+          "company_id",
+          "entity_type",
+          "entity_id"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "integer",
+            "description": "Owning company id."
+          },
+          "entity_type": {
+            "type": "string",
+            "description": "Entity kind (e.g. \"voucher\", \"ledger\", \"group\")."
+          },
+          "entity_id": {
+            "type": "integer",
+            "description": "Primary key of the entity whose history is requested."
+          }
+        }
+      },
+      "AuditTrail_VerifyChainRequest": {
+        "type": "object",
+        "description": "Scope a chain-integrity check to a company.",
+        "required": [
+          "company_id"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "integer",
+            "description": "Owning company id."
+          }
+        }
+      },
+      "AuditTrailEntry": {
+        "type": "object",
+        "description": "A single audit_trail row.",
+        "properties": {
+          "log_id": {
+            "type": "integer",
+            "description": "Autoincrement primary key (chain order within a company)."
+          },
+          "company_id": {
+            "type": "integer"
+          },
+          "entity_type": {
+            "type": "string",
+            "description": "Entity kind (e.g. \"voucher\", \"ledger\", \"group\")."
+          },
+          "entity_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "action": {
+            "type": "string",
+            "description": "Mutation kind (e.g. \"create\", \"update\", \"delete\", \"cancel\")."
+          },
+          "user": {
+            "type": "string",
+            "nullable": true,
+            "description": "Acting user (defaults to \"system\")."
+          },
+          "before_snapshot": {
+            "type": "string",
+            "nullable": true,
+            "description": "JSON TEXT of the entity before the change (null on create)."
+          },
+          "after_snapshot": {
+            "type": "string",
+            "nullable": true,
+            "description": "JSON TEXT of the entity after the change (null on delete)."
+          },
+          "prev_hash": {
+            "type": "string",
+            "nullable": true,
+            "description": "row_hash of the previous row for this company ('' for the first)."
+          },
+          "row_hash": {
+            "type": "string",
+            "nullable": true,
+            "description": "SHA-256 chaining prev_hash + canonical payload of this row."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 timestamp recorded by record()."
+          }
+        }
+      },
+      "AuditTrail_VerifyChainResult": {
+        "type": "object",
+        "description": "Result of recomputing the per-company hash chain.",
+        "required": [
+          "intact"
+        ],
+        "properties": {
+          "intact": {
+            "type": "boolean",
+            "description": "True when every row's prev_hash linkage and row_hash recompute."
+          },
+          "brokenAt": {
+            "type": "integer",
+            "nullable": true,
+            "description": "log_id of the first row whose hash/linkage failed (absent when intact)."
           }
         }
       },
@@ -28116,6 +29206,430 @@
           "vouchers"
         ]
       },
+      "ReportExtras_CompanyFyParams": {
+        "type": "object",
+        "description": "Active company + financial year context.",
+        "properties": {
+          "company_id": {
+            "type": "number"
+          },
+          "fy_id": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "company_id",
+          "fy_id"
+        ]
+      },
+      "ReportExtras_CompanyFyDateRangeParams": {
+        "type": "object",
+        "description": "Active company + financial year context with an optional date range (YYYY-MM-DD).",
+        "properties": {
+          "company_id": {
+            "type": "number"
+          },
+          "fy_id": {
+            "type": "number"
+          },
+          "from_date": {
+            "type": "string"
+          },
+          "to_date": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "company_id",
+          "fy_id"
+        ]
+      },
+      "ReportExtras_OutstandingRow": {
+        "type": "object",
+        "properties": {
+          "ledger_id": {
+            "type": "number"
+          },
+          "party": {
+            "type": "string"
+          },
+          "bill": {
+            "type": "string"
+          },
+          "bill_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "due_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credit_period": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "overdue_days": {
+            "type": "number"
+          },
+          "balance": {
+            "type": "number"
+          },
+          "ageing": {
+            "type": "string",
+            "enum": [
+              "0-30",
+              "31-60",
+              "61-90",
+              "90+"
+            ]
+          }
+        }
+      },
+      "ReportExtras_OutstandingResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "as_on": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportExtras_OutstandingRow"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "bucketTotals": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "ReportExtras_CashFlowLedger": {
+        "type": "object",
+        "properties": {
+          "ledger_id": {
+            "type": "number"
+          },
+          "ledger_name": {
+            "type": "string"
+          },
+          "inflow": {
+            "type": "number"
+          },
+          "outflow": {
+            "type": "number"
+          },
+          "net": {
+            "type": "number"
+          }
+        }
+      },
+      "ReportExtras_CashFlowVoucherType": {
+        "type": "object",
+        "properties": {
+          "voucher_type": {
+            "type": "string"
+          },
+          "inflow": {
+            "type": "number"
+          },
+          "outflow": {
+            "type": "number"
+          },
+          "net": {
+            "type": "number"
+          }
+        }
+      },
+      "ReportExtras_CashFlowResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "from_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cashBankLedgers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ledger_id": {
+                  "type": "number"
+                },
+                "ledger_name": {
+                  "type": "string"
+                },
+                "ledger_type": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "byCounterLedger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportExtras_CashFlowLedger"
+            }
+          },
+          "byVoucherType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportExtras_CashFlowVoucherType"
+            }
+          },
+          "totalInflow": {
+            "type": "number"
+          },
+          "totalOutflow": {
+            "type": "number"
+          },
+          "netCashFlow": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "ReportExtras_FundsFlowLine": {
+        "type": "object",
+        "properties": {
+          "particulars": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        }
+      },
+      "ReportExtras_FundsFlowResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "from_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fundsFromOperations": {
+            "type": "number"
+          },
+          "periodIncome": {
+            "type": "number"
+          },
+          "periodExpenses": {
+            "type": "number"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportExtras_FundsFlowLine"
+            }
+          },
+          "applications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportExtras_FundsFlowLine"
+            }
+          },
+          "totalSources": {
+            "type": "number"
+          },
+          "totalApplications": {
+            "type": "number"
+          },
+          "netWorkingCapitalChange": {
+            "type": "number"
+          },
+          "isNetIncrease": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "ReportExtras_StockSummaryItem": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "number"
+          },
+          "item_name": {
+            "type": "string"
+          },
+          "group_id": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "opening_qty": {
+            "type": "number"
+          },
+          "opening_value": {
+            "type": "number"
+          },
+          "inwards_qty": {
+            "type": "number"
+          },
+          "inwards_value": {
+            "type": "number"
+          },
+          "outwards_qty": {
+            "type": "number"
+          },
+          "outwards_value": {
+            "type": "number"
+          },
+          "closing_qty": {
+            "type": "number"
+          },
+          "closing_value": {
+            "type": "number"
+          }
+        }
+      },
+      "ReportExtras_StockSummaryGroup": {
+        "type": "object",
+        "properties": {
+          "group_id": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "closing_qty": {
+            "type": "number"
+          },
+          "closing_value": {
+            "type": "number"
+          },
+          "item_count": {
+            "type": "number"
+          }
+        }
+      },
+      "ReportExtras_StockSummaryResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "as_on_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportExtras_StockSummaryItem"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportExtras_StockSummaryGroup"
+            }
+          },
+          "totalClosingQty": {
+            "type": "number"
+          },
+          "totalClosingValue": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "ReportExtras_RatioRow": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      },
+      "ReportExtras_RatioAnalysisResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "ratios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportExtras_RatioRow"
+            }
+          },
+          "components": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
       "SalaryStructure": {
         "type": "object",
         "description": "One row of the salary_structures table (one pay head amount for an employee, effective from a date). Maps to the documented `salary_structures` Postgres table.",
@@ -29780,6 +31294,145 @@
             ]
           }
         ]
+      },
+      "Tally_EndpointParams": {
+        "type": "object",
+        "description": "A live Tally endpoint (Tally's HTTP/XML server).",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "type": "number"
+          }
+        }
+      },
+      "Tally_XmlParams": {
+        "type": "object",
+        "description": "Raw Tally <ENVELOPE> XML response (parse-only; no live Tally needed).",
+        "properties": {
+          "xml": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "xml"
+        ]
+      },
+      "Tally_DateRangeParams": {
+        "type": "object",
+        "description": "A live endpoint plus an optional Day Book date range (YYYY-MM-DD).",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "type": "number"
+          },
+          "from_date": {
+            "type": "string"
+          },
+          "to_date": {
+            "type": "string"
+          }
+        }
+      },
+      "Tally_TestConnectionResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "reachable": {
+            "type": "boolean"
+          },
+          "company": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "number"
+          }
+        }
+      },
+      "Tally_ImportSummary": {
+        "type": "object",
+        "description": "Per-entity outcome from the importer.",
+        "properties": {
+          "created": {
+            "type": "number"
+          },
+          "skipped": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Tally_Preview": {
+        "type": "object",
+        "description": "Dry-run counts of what would be imported.",
+        "properties": {
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "requestType": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "collectionType": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "groups": {
+            "type": "number"
+          },
+          "units": {
+            "type": "number"
+          },
+          "ledgers": {
+            "type": "number"
+          },
+          "stockItems": {
+            "type": "number"
+          },
+          "vouchers": {
+            "type": "number"
+          },
+          "balancedVouchers": {
+            "type": "number"
+          },
+          "unbalancedVouchers": {
+            "type": "number"
+          }
+        }
       },
       "TallyFeatures_Error": {
         "type": "object",
