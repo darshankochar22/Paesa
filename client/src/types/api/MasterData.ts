@@ -98,6 +98,8 @@ export interface MasterDataAPI {
     }>;
     generateGSTR1: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; export_id: number; payload: any; errors: any[]; error?: string }>;
     getGSTR1: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; export_id: number; status: string; filed_date?: string; payload: any; errors: any[]; error?: string }>;
+    generateGSTR3B: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; payload: any; error?: string }>;
+    getGSTR3B: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; payload: any; error?: string }>;
     getHSNRates: (company_id: number) => Promise<{ success: boolean; hsnRates: any[]; error?: string }>;
     upsertHSNRate: (data: any) => Promise<{ success: boolean; error?: string }>;
     deleteHSNRate: (data: { rate_id: number; company_id: number }) => Promise<{ success: boolean; error?: string }>;

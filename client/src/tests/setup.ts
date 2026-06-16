@@ -117,6 +117,21 @@ window.api = {
     create:  vi.fn().mockResolvedValue({ success: true, classification: {} }),
     delete:  vi.fn().mockResolvedValue({ success: true }),
   },
+  gst: {
+    computeTax:    vi.fn().mockResolvedValue({ success: true }),
+    generateGSTR1: vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getGSTR1:      vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    generateGSTR3B: vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getGSTR3B:      vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getHSNRates:   vi.fn().mockResolvedValue({ success: true, hsnRates: [] }),
+    upsertHSNRate: vi.fn().mockResolvedValue({ success: true }),
+    deleteHSNRate: vi.fn().mockResolvedValue({ success: true }),
+  },
+  gstRegistration: {
+    getAll:  vi.fn().mockResolvedValue({ success: true, gstRegistrations: [] }),
+    create:  vi.fn().mockResolvedValue({ success: true, gstRegistration: {} }),
+    delete:  vi.fn().mockResolvedValue({ success: true }),
+  },
 
   // ── Payroll ───────────────────────────────────────────────────────────────
   employee: {

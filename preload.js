@@ -196,6 +196,8 @@ contextBridge.exposeInMainWorld('api', {
         computeTax:    (payload) => invoke('gst:computeTax', payload),
         generateGSTR1: (data)    => invoke('gst:generateGSTR1', data),
         getGSTR1:      (data)    => invoke('gst:getGSTR1', data),
+        generateGSTR3B: (data)   => invoke('gst:generateGSTR3B', data),
+        getGSTR3B:      (data)   => invoke('gst:getGSTR3B', data),
         getHSNRates:   (cid)     => invoke('gst:getHSNRates', cid),
         upsertHSNRate: (data)    => invoke('gst:upsertHSNRate', data),
         deleteHSNRate: (data)    => invoke('gst:deleteHSNRate', data),

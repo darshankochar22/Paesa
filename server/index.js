@@ -219,6 +219,8 @@ ipcMain.handle('tdsNatureOfPayment:delete', tdsNatureOfPaymentController.delete)
 ipcMain.handle('gst:computeTax', gstController.computeTax);
 ipcMain.handle('gst:generateGSTR1', gstController.generateGSTR1);
 ipcMain.handle('gst:getGSTR1', gstController.getGSTR1);
+ipcMain.handle('gst:generateGSTR3B', gstController.generateGSTR3B);
+ipcMain.handle('gst:getGSTR3B', gstController.getGSTR3B);
 ipcMain.handle('gst:getHSNRates', gstController.getHSNRates);
 ipcMain.handle('gst:upsertHSNRate', gstController.upsertHSNRate);
 ipcMain.handle('gst:deleteHSNRate', gstController.deleteHSNRate);
