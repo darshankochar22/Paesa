@@ -1,0 +1,165 @@
+openapi: 3.1.0
+info:
+  title: AI Copilot Module API
+  version: 1.0.0
+  description: >
+    IPC API for the AI copilot ("Cursor for Tally") and BYOK key management. Channels are
+    registered in server/index.js and exposed to the renderer via preload.js as
+    window.api.ai.<method>. The Anthropic API key is stored encrypted (Electron safeStorage)
+    in the main process and is NEVER returned to the renderer (only a masked status).
+
+    The copilot drives Claude with three consolidated, loop-resistant tools (query / lookup /
+    propose) over the existing accounting services. Writes are returned as proposals the user
+    must approve in the app; the agent never commits changes itself.
+tags:
+  - name: ai
+    description: AI copilot and BYOK key management.
+paths:
+  /ai/getKeyStatus:
+    post:
+      operationId: ai.getKeyStatus
+      tags: [ai]
+      summary: Get whether an Anthropic key is configured, its masked form, and the active model.
+      x-ipc-channel: "ai:getKeyStatus"
+      x-window-api: "window.api.ai.getKeyStatus"
+      x-controller: "aiController.getKeyStatus"
+      responses:
+        '200':
+          description: Key status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KeyStatus' }
+  /ai/setKey:
+    post:
+      operationId: ai.setKey
+      tags: [ai]
+      summary: Store the user's Anthropic API key (encrypted at rest in the main process).
+      x-ipc-channel: "ai:setKey"
+      x-window-api: "window.api.ai.setKey"
+      x-controller: "aiController.setKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                apiKey: { type: string, description: "Anthropic key (starts with sk-)." }
+              required: [apiKey]
+      responses:
+        '200':
+          description: "Result with masked key on success."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  masked: { type: string }
+                  error: { type: string }
+  /ai/clearKey:
+    post:
+      operationId: ai.clearKey
+      tags: [ai]
+      summary: Remove the stored Anthropic API key.
+      x-ipc-channel: "ai:clearKey"
+      x-window-api: "window.api.ai.clearKey"
+      x-controller: "aiController.clearKey"
+      responses:
+        '200':
+          description: "Result."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+  /ai/testKey:
+    post:
+      operationId: ai.testKey
+      tags: [ai]
+      summary: Validate a key with a tiny Anthropic ping (uses the stored key if none passed).
+      x-ipc-channel: "ai:testKey"
+      x-window-api: "window.api.ai.testKey"
+      x-controller: "aiController.testKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                apiKey: { type: string }
+      responses:
+        '200':
+          description: "Validation result."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  error: { type: string }
+  /ai/ask:
+    post:
+      operationId: ai.ask
+      tags: [ai]
+      summary: Ask the copilot. Runs a capped tool-use loop and returns the answer plus any write proposals to approve.
+      x-ipc-channel: "ai:ask"
+      x-window-api: "window.api.ai.ask"
+      x-controller: "aiController.ask"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt: { type: string }
+                context:
+                  type: object
+                  properties:
+                    company_id: { type: number }
+                    fy_id: { type: number }
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      text: { type: string }
+              required: [prompt]
+      responses:
+        '200':
+          description: "Copilot answer with optional action proposals."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AskResult' }
+components:
+  schemas:
+    KeyStatus:
+      type: object
+      properties:
+        hasKey: { type: boolean }
+        masked: { type: [string, "null"] }
+        model: { type: string }
+    Proposal:
+      type: object
+      description: "A reviewable write action the user must approve; the renderer calls `channel` with `args` on approval."
+      properties:
+        action: { type: string }
+        channel: { type: string }
+        args: { type: object, additionalProperties: true }
+        summary: { type: string }
+        requiresApproval: { type: boolean }
+    AskResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        text: { type: string }
+        error: { type: string }
+        rounds: { type: number }
+        capped: { type: boolean }
+        proposals:
+          type: array
+          items: { $ref: '#/components/schemas/Proposal' }

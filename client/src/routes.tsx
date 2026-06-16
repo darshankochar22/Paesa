@@ -50,6 +50,7 @@ import VoucherList from "./pages/transactions/VoucherList.tsx";
 import VoucherView from "./pages/transactions/VoucherView.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
 import Banking from './pages/utilities/Banking';
+import Copilot from './pages/utilities/Copilot';
 import UnitCreate from "./pages/master/inventory/unit/UnitCreate.tsx";
 import UnitAlter from "./pages/master/inventory/unit/UnitAlter.tsx";
 import StockGroupCreate from "./pages/master/inventory/stock-group/StockGroupCreate.tsx";
@@ -227,6 +228,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/transactions/voucher/:id", element: <VoucherView /> },
   { path: "/transactions/daybook", element: <Daybook /> },
   { path: "/utilities/banking", element: <Banking /> },
+  { path: "/utilities/copilot", element: <Copilot /> },
   { path: "/data/:controller", element: <GenericDataView /> },
 
   { path: "/master/coa/stock-group", element: <StockGroupCOA /> },

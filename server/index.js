@@ -49,6 +49,7 @@ const companyPanCinDetailsController = require('./companyPanCinDetails/companyPa
 const taxUnitController=require('./taxUnits/taxUnitController');
 const priceLevelController = require('./priceLevels/priceLevelController');
 const priceListController = require('./priceList/priceListController');
+const aiController = require('./ai/aiController');
 
 ipcMain.handle('taxUnits:create',  taxUnitController.create);
 ipcMain.handle('taxUnits:getAll',  taxUnitController.getAll);
@@ -349,3 +350,10 @@ ipcMain.handle('companyTcsDetails:save', companyTcsDetailsController.save);
 
 ipcMain.handle('companyPanCinDetails:get', companyPanCinDetailsController.get);
 ipcMain.handle('companyPanCinDetails:save', companyPanCinDetailsController.save);
+
+// AI copilot + BYOK (key stays in main process)
+ipcMain.handle('ai:getKeyStatus', aiController.getKeyStatus);
+ipcMain.handle('ai:setKey',       aiController.setKey);
+ipcMain.handle('ai:clearKey',     aiController.clearKey);
+ipcMain.handle('ai:testKey',      aiController.testKey);
+ipcMain.handle('ai:ask',          aiController.ask);

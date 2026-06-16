@@ -13,7 +13,7 @@ export default function Gateway() {
     },
     {
       title: "Utilities",
-      items: ["Banking"],
+      items: ["Banking", "AI Copilot"],
     },
     {
       title: "Reports",
@@ -45,6 +45,7 @@ export default function Gateway() {
       if (item == "Voucher Register") return "/transactions/voucher-list";
       if (item == "Day Book") return "/transactions/daybook";
       if (item == "Banking") return "/utilities/banking";
+      if (item == "AI Copilot") return "/utilities/copilot";
     }
     if (section === "Reports") {
       if (item === "Display More Reports") return "/reports/display-more";
