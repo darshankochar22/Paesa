@@ -6,12 +6,29 @@ export interface AiProposal {
   requiresApproval: boolean;
 }
 
+export type AiProvider = "anthropic" | "openai";
+
+export interface AiConfig {
+  provider: AiProvider;
+  apiKey: string;
+  baseUrl?: string | null;
+  model?: string | null;
+}
+
+export interface AiStatus {
+  hasKey: boolean;
+  provider: AiProvider | null;
+  baseUrl: string | null;
+  model: string | null;
+  masked: string | null;
+}
+
 export interface AiAPI {
   ai: {
-    getKeyStatus: () => Promise<{ hasKey: boolean; masked: string | null; model: string | null; provider: "anthropic" | "gemini" | null }>;
-    setKey: (apiKey: string) => Promise<{ success: boolean; masked?: string; provider?: string; error?: string }>;
+    getKeyStatus: () => Promise<AiStatus>;
+    setKey: (config: AiConfig) => Promise<{ success: boolean; error?: string } & Partial<AiStatus>>;
     clearKey: () => Promise<{ success: boolean }>;
-    testKey: (apiKey?: string) => Promise<{ success: boolean; error?: string }>;
+    testKey: (config?: Partial<AiConfig>) => Promise<{ success: boolean; provider?: string; model?: string; error?: string }>;
     ask: (payload: {
       prompt: string;
       context?: { company_id?: number; fy_id?: number };

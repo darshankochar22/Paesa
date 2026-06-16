@@ -261,7 +261,7 @@
         "tags": [
           "ai"
         ],
-        "summary": "Store the user's Anthropic API key (encrypted at rest in the main process).",
+        "summary": "Store the model config (provider + API key + base URL + model); key encrypted at rest in the main process.",
         "x-ipc-channel": "ai:setKey",
         "x-window-api": "window.api.ai.setKey",
         "x-controller": "aiController.setKey",
@@ -272,9 +272,23 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "apiKey": {
+                  "provider": {
                     "type": "string",
-                    "description": "Anthropic key (starts with sk-)."
+                    "enum": [
+                      "anthropic",
+                      "openai"
+                    ]
+                  },
+                  "apiKey": {
+                    "type": "string"
+                  },
+                  "baseUrl": {
+                    "type": "string",
+                    "description": "Required for openai-compatible (e.g. https://api.openai.com/v1 or https://api.deepseek.com/v1)."
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "Model name (e.g. gpt-4o-mini, deepseek-chat); optional for anthropic."
                   }
                 },
                 "required": [
@@ -344,7 +358,7 @@
         "tags": [
           "ai"
         ],
-        "summary": "Validate a key with a tiny Anthropic ping (uses the stored key if none passed).",
+        "summary": "Validate a config with a tiny ping (uses the stored config if none passed).",
         "x-ipc-channel": "ai:testKey",
         "x-window-api": "window.api.ai.testKey",
         "x-controller": "aiController.testKey",
@@ -355,7 +369,20 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "anthropic",
+                      "openai"
+                    ]
+                  },
                   "apiKey": {
+                    "type": "string"
+                  },
+                  "baseUrl": {
+                    "type": "string"
+                  },
+                  "model": {
                     "type": "string"
                   }
                 }
@@ -16615,8 +16642,14 @@
             ],
             "enum": [
               "anthropic",
-              "gemini",
+              "openai",
               null
+            ]
+          },
+          "baseUrl": {
+            "type": [
+              "string",
+              "null"
             ]
           },
           "model": {

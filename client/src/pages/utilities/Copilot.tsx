@@ -6,7 +6,7 @@ import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
 import { Badge } from "@/components/shadcn/badge";
 import { cn } from "@/lib/utils";
-import type { AiProposal } from "@/types/api/Ai";
+import type { AiProposal, AiStatus, AiProvider } from "@/types/api/Ai";
 
 type Msg = { role: "user" | "assistant"; text: string; proposals?: AiProposal[] };
 
@@ -14,8 +14,11 @@ export default function Copilot() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
 
-  const [status, setStatus] = useState<{ hasKey: boolean; masked: string | null; model: string | null; provider: string | null } | null>(null);
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [provider, setProvider] = useState<AiProvider>("anthropic");
   const [keyInput, setKeyInput] = useState("");
+  const [baseUrl, setBaseUrl] = useState("https://api.openai.com/v1");
+  const [model, setModel] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
   const [keyMsg, setKeyMsg] = useState<string | null>(null);
 
@@ -38,11 +41,21 @@ export default function Copilot() {
 
   const saveKey = async () => {
     setKeyBusy(true); setKeyMsg(null);
-    const res = await window.api.ai.setKey(keyInput.trim());
+    const res = await window.api.ai.setKey({
+      provider,
+      apiKey: keyInput.trim(),
+      baseUrl: provider === "openai" ? baseUrl.trim() : null,
+      model: model.trim() || null,
+    });
     setKeyBusy(false);
-    if (res.success) { setKeyInput(""); setKeyMsg("Saved. Verifying…"); const t = await window.api.ai.testKey(); setKeyMsg(t.success ? "Key verified ✓" : `Saved, but test failed: ${t.error}`); refreshStatus(); }
-    else setKeyMsg(res.error || "Failed to save key");
+    if (res.success) {
+      setKeyInput(""); setKeyMsg("Saved. Verifying…");
+      const t = await window.api.ai.testKey();
+      setKeyMsg(t.success ? `Verified ✓ (${t.provider} · ${t.model})` : `Saved, but test failed: ${t.error}`);
+      refreshStatus();
+    } else setKeyMsg(res.error || "Failed to save");
   };
+  const useDeepSeek = () => { setProvider("openai"); setBaseUrl("https://api.deepseek.com/v1"); setModel("deepseek-chat"); };
   const removeKey = async () => { await window.api.ai.clearKey(); setKeyMsg(null); refreshStatus(); };
 
   const send = async () => {
@@ -85,19 +98,36 @@ export default function Copilot() {
 
       {/* BYOK setup */}
       <div className="border-b border-zinc-200 bg-white px-4 py-2.5 flex items-center gap-2 flex-wrap">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Anthropic Key</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">AI Model</span>
         {status?.hasKey ? (
           <>
             <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{status.masked}</Badge>
-            <span className="text-[10px] text-zinc-400">{status.provider} · {status.model}</span>
+            <span className="text-[10px] text-zinc-400">
+              {status.provider} · {status.model || "default"}{status.baseUrl ? ` · ${status.baseUrl}` : ""}
+            </span>
             <Button size="xs" variant="ghost" className="text-zinc-500" onClick={() => window.api.ai.testKey().then((t) => setKeyMsg(t.success ? "Key verified ✓" : `Test failed: ${t.error}`))}>Test</Button>
             <Button size="xs" variant="ghost" className="text-red-600" onClick={removeKey}>Remove</Button>
           </>
         ) : (
           <>
-            <Input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="sk-ant-… or Gemini key" className="h-7 text-[11px] max-w-xs" />
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as AiProvider)}
+              className="h-7 text-[11px] border border-zinc-300 rounded px-1 bg-white"
+            >
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI-compatible</option>
+            </select>
+            <Input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="API key" className="h-7 text-[11px] max-w-[180px]" />
+            {provider === "openai" && (
+              <>
+                <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" className="h-7 text-[11px] max-w-[220px]" />
+                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="model (e.g. gpt-4o-mini)" className="h-7 text-[11px] max-w-[180px]" />
+                <Button size="xs" variant="ghost" className="text-zinc-500" onClick={useDeepSeek}>DeepSeek preset</Button>
+              </>
+            )}
             <Button size="xs" disabled={keyBusy || !keyInput.trim()} onClick={saveKey}>{keyBusy ? "Saving…" : "Save & verify"}</Button>
-            <span className="text-[10px] text-zinc-400">Anthropic or Gemini · stored encrypted on this device, never sent to the renderer</span>
+            <span className="text-[10px] text-zinc-400">stored encrypted on this device, never sent to the renderer</span>
           </>
         )}
         {keyMsg && <span className="text-[10px] text-zinc-600">{keyMsg}</span>}

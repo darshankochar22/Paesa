@@ -1,6 +1,6 @@
 const { setupTestDB, createTestCompany, db } = require("./helpers");
 const { TOOL_DEFS, callTool } = require("../ai/tools");
-const { providerFor, modelFor } = require("../ai/agent");
+const { detectProvider, defaultModel } = require("../ai/agent");
 
 describe("AI copilot tool layer (consolidated, anti-loop)", () => {
   let ctx;
@@ -19,12 +19,12 @@ describe("AI copilot tool layer (consolidated, anti-loop)", () => {
     expect(TOOL_DEFS.map((t) => t.name).sort()).toEqual(["lookup", "propose", "query"]);
   });
 
-  it("auto-detects the provider from the key", () => {
-    expect(providerFor("sk-ant-abc123")).toBe("anthropic");
-    expect(providerFor("AQ.Ab8RN6abc")).toBe("gemini");
-    expect(providerFor("AIzaSyABC")).toBe("gemini");
-    expect(modelFor("anthropic")).toMatch(/claude/);
-    expect(modelFor("gemini")).toMatch(/gemini/);
+  it("auto-detects the default provider from the key (anthropic vs openai-compatible)", () => {
+    expect(detectProvider("sk-ant-abc123")).toBe("anthropic");
+    expect(detectProvider("sk-proj-openaikey")).toBe("openai");
+    expect(detectProvider("sk-deepseekkey")).toBe("openai");
+    expect(defaultModel("anthropic")).toMatch(/claude/);
+    expect(defaultModel("openai")).toMatch(/gpt/);
   });
 
   it("query routes to reports by resource enum", async () => {
