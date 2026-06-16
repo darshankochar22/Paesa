@@ -1,0 +1,303 @@
+openapi: 3.1.0
+info:
+  title: Report Extras Module API
+  version: 1.0.0
+  description: >
+    Additional READ-ONLY financial & inventory reports layered on top of the core
+    report module. Each channel is registered in server/index.js, exposed to the
+    renderer via preload.js as window.api.report.<method>, and dispatched through
+    server/report/reportController.js to a dedicated report service
+    (outstandingReportService, cashFlowReportService, fundsFlowReportService,
+    stockSummaryReportService, ratioAnalysisReportService).
+
+    These reports never write: they derive every figure live from posted (non-
+    cancelled) voucher entries / bill references / stock movements for the active
+    company + financial year, reusing the same query conventions as
+    server/report/reportService.js. They are also surfaced to the AI copilot as
+    the query resources bills_receivable, bills_payable, cash_flow, funds_flow,
+    stock_summary and ratio_analysis.
+tags:
+  - name: reportExtras
+    description: Outstanding (receivable/payable), cash flow, funds flow, stock summary and ratio analysis reports.
+paths:
+  /report/billsReceivable:
+    post:
+      operationId: report.billsReceivable
+      tags: [reportExtras]
+      summary: Bills Receivable (Sundry Debtors) outstanding with 0-30 / 31-60 / 61-90 / 90+ ageing buckets.
+      x-ipc-channel: "report:billsReceivable"
+      x-window-api: "window.api.report.billsReceivable"
+      x-controller: "reportController.billsReceivable"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Outstanding receivable bills with ageing.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OutstandingResult' }
+  /report/billsPayable:
+    post:
+      operationId: report.billsPayable
+      tags: [reportExtras]
+      summary: Bills Payable (Sundry Creditors) outstanding with 0-30 / 31-60 / 61-90 / 90+ ageing buckets.
+      x-ipc-channel: "report:billsPayable"
+      x-window-api: "window.api.report.billsPayable"
+      x-controller: "reportController.billsPayable"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Outstanding payable bills with ageing.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OutstandingResult' }
+  /report/cashFlow:
+    post:
+      operationId: report.cashFlow
+      tags: [reportExtras]
+      summary: Cash Flow statement — inflow/outflow through Cash & Bank ledgers, by counter-ledger and voucher type.
+      x-ipc-channel: "report:cashFlow"
+      x-window-api: "window.api.report.cashFlow"
+      x-controller: "reportController.cashFlow"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyDateRangeParams' }
+      responses:
+        '200':
+          description: Cash flow inflows/outflows for the period.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashFlowResult' }
+  /report/fundsFlow:
+    post:
+      operationId: report.fundsFlow
+      tags: [reportExtras]
+      summary: Funds Flow statement — sources & applications of funds and working-capital reconciliation.
+      x-ipc-channel: "report:fundsFlow"
+      x-window-api: "window.api.report.fundsFlow"
+      x-controller: "reportController.fundsFlow"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyDateRangeParams' }
+      responses:
+        '200':
+          description: Funds flow sources/applications for the period.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FundsFlowResult' }
+  /report/stockSummary:
+    post:
+      operationId: report.stockSummary
+      tags: [reportExtras]
+      summary: Stock Summary — closing quantity & value per item (with group rollup) from opening + movements.
+      x-ipc-channel: "report:stockSummary"
+      x-window-api: "window.api.report.stockSummary"
+      x-controller: "reportController.stockSummary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CompanyFyParams'
+                - type: object
+                  properties:
+                    as_on_date: { type: string, description: "Optional movement ceiling (YYYY-MM-DD)." }
+      responses:
+        '200':
+          description: Per-item and per-group closing stock.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockSummaryResult' }
+  /report/ratioAnalysis:
+    post:
+      operationId: report.ratioAnalysis
+      tags: [reportExtras]
+      summary: Ratio Analysis — current/quick/debt-equity ratios, profitability %, working capital and turnover.
+      x-ipc-channel: "report:ratioAnalysis"
+      x-window-api: "window.api.report.ratioAnalysis"
+      x-controller: "reportController.ratioAnalysis"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Computed financial ratios plus the components they were derived from.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RatioAnalysisResult' }
+components:
+  schemas:
+    CompanyFyParams:
+      type: object
+      description: "Active company + financial year context."
+      properties:
+        company_id: { type: number }
+        fy_id: { type: number }
+      required: [company_id, fy_id]
+    CompanyFyDateRangeParams:
+      type: object
+      description: "Active company + financial year context with an optional date range (YYYY-MM-DD)."
+      properties:
+        company_id: { type: number }
+        fy_id: { type: number }
+        from_date: { type: string }
+        to_date: { type: string }
+      required: [company_id, fy_id]
+    OutstandingRow:
+      type: object
+      properties:
+        ledger_id: { type: number }
+        party: { type: string }
+        bill: { type: string }
+        bill_date: { type: [string, "null"] }
+        due_date: { type: [string, "null"] }
+        credit_period: { type: [number, "null"] }
+        overdue_days: { type: number }
+        balance: { type: number }
+        ageing: { type: string, enum: ['0-30', '31-60', '61-90', '90+'] }
+    OutstandingResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        as_on: { type: string }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/OutstandingRow' }
+        total: { type: number }
+        bucketTotals:
+          type: object
+          additionalProperties: { type: number }
+        error: { type: string }
+    CashFlowLedger:
+      type: object
+      properties:
+        ledger_id: { type: number }
+        ledger_name: { type: string }
+        inflow: { type: number }
+        outflow: { type: number }
+        net: { type: number }
+    CashFlowVoucherType:
+      type: object
+      properties:
+        voucher_type: { type: string }
+        inflow: { type: number }
+        outflow: { type: number }
+        net: { type: number }
+    CashFlowResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        from_date: { type: [string, "null"] }
+        to_date: { type: [string, "null"] }
+        cashBankLedgers:
+          type: array
+          items:
+            type: object
+            properties:
+              ledger_id: { type: number }
+              ledger_name: { type: string }
+              ledger_type: { type: string }
+        byCounterLedger:
+          type: array
+          items: { $ref: '#/components/schemas/CashFlowLedger' }
+        byVoucherType:
+          type: array
+          items: { $ref: '#/components/schemas/CashFlowVoucherType' }
+        totalInflow: { type: number }
+        totalOutflow: { type: number }
+        netCashFlow: { type: number }
+        error: { type: string }
+    FundsFlowLine:
+      type: object
+      properties:
+        particulars: { type: string }
+        amount: { type: number }
+    FundsFlowResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        from_date: { type: [string, "null"] }
+        to_date: { type: [string, "null"] }
+        fundsFromOperations: { type: number }
+        periodIncome: { type: number }
+        periodExpenses: { type: number }
+        sources:
+          type: array
+          items: { $ref: '#/components/schemas/FundsFlowLine' }
+        applications:
+          type: array
+          items: { $ref: '#/components/schemas/FundsFlowLine' }
+        totalSources: { type: number }
+        totalApplications: { type: number }
+        netWorkingCapitalChange: { type: number }
+        isNetIncrease: { type: boolean }
+        error: { type: string }
+    StockSummaryItem:
+      type: object
+      properties:
+        item_id: { type: number }
+        item_name: { type: string }
+        group_id: { type: [number, "null"] }
+        group_name: { type: string }
+        opening_qty: { type: number }
+        opening_value: { type: number }
+        inwards_qty: { type: number }
+        inwards_value: { type: number }
+        outwards_qty: { type: number }
+        outwards_value: { type: number }
+        closing_qty: { type: number }
+        closing_value: { type: number }
+    StockSummaryGroup:
+      type: object
+      properties:
+        group_id: { type: [number, "null"] }
+        group_name: { type: string }
+        closing_qty: { type: number }
+        closing_value: { type: number }
+        item_count: { type: number }
+    StockSummaryResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        as_on_date: { type: [string, "null"] }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/StockSummaryItem' }
+        groups:
+          type: array
+          items: { $ref: '#/components/schemas/StockSummaryGroup' }
+        totalClosingQty: { type: number }
+        totalClosingValue: { type: number }
+        error: { type: string }
+    RatioRow:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        unit: { type: string }
+        value: { type: [number, "null"] }
+    RatioAnalysisResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        ratios:
+          type: array
+          items: { $ref: '#/components/schemas/RatioRow' }
+        components:
+          type: object
+          additionalProperties: { type: number }
+        error: { type: string }
