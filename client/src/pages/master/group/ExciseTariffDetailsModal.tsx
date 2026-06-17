@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 
+const selectCls = "bg-transparent text-[13px] outline-none py-1 px-1 rounded-sm cursor-pointer border-b border-transparent focus:border-zinc-400 transition-colors";
 const inputCls = "w-full bg-transparent text-[13px] outline-none py-1 px-1 placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-400 transition-colors";
 
 const EXCISE_UOMS = [
+  { code: "Undefined", desc: "Undefined" },
   { code: "10GMS", desc: "10 Grams" },
   { code: "1KKWH", desc: "1000 Kilowatt Hours" },
   { code: "C/K", desc: "Carats" },
@@ -25,11 +27,21 @@ const EXCISE_UOMS = [
   { code: "U", desc: "Numbers" },
 ];
 
-const VALUATION_TYPES = ["Ad Quantum", "Ad Valorem", "Valorem + Quantum"];
+const VALUATION_TYPES = ["Undefined", "Ad Quantum", "Ad Valorem", "Valorem + Quantum"];
 
 interface ExciseTariffDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-3 last:mb-0">
+      <span className="text-[13px] text-zinc-700 w-44 shrink-0">{label}</span>
+      <span className="text-zinc-400 mr-2">:</span>
+      <div className="flex-1 flex items-center gap-1">{children}</div>
+    </div>
+  );
 }
 
 export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTariffDetailsModalProps) {
@@ -38,6 +50,7 @@ export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTari
   const [reportingUom, setReportingUom] = useState("Undefined");
   const [valuationType, setValuationType] = useState("Ad Valorem");
   const [rate, setRate] = useState("0");
+  const [ratePerUnit, setRatePerUnit] = useState("0");
 
   useEffect(() => {
     if (!isOpen) {
@@ -46,6 +59,7 @@ export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTari
       setReportingUom("Undefined");
       setValuationType("Ad Valorem");
       setRate("0");
+      setRatePerUnit("0");
     }
   }, [isOpen]);
 
@@ -62,135 +76,98 @@ export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTari
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[60] bg-black/30">
-      {/* Main modal - centered horizontally, with right padding to leave room for the panel */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pr-72">
-        <div className="bg-white border border-zinc-300 shadow-2xl w-[480px] flex flex-col">
-          {/* Tally-style title bar */}
-          <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 text-center">
-            <span className="text-[13px] font-semibold text-zinc-900">Excise Tariff Details</span>
-          </div>
+  const showRate = valuationType === "Ad Valorem" || valuationType === "Valorem + Quantum";
+  const showRatePerUnit = valuationType === "Ad Quantum" || valuationType === "Valorem + Quantum";
 
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 bg-white">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[13px] text-zinc-700 w-44 shrink-0">Tariff name</span>
-              <span className="text-zinc-400 mr-2">:</span>
-              <input
-                autoFocus
-                className={inputCls}
-                value={tariffName}
-                onChange={(e) => setTariffName(e.target.value)}
-                placeholder=""
-              />
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[13px] text-zinc-700 w-44 shrink-0">HSN code</span>
-              <span className="text-zinc-400 mr-2">:</span>
-              <input
-                className={inputCls}
-                value={hsnCode}
-                onChange={(e) => setHsnCode(e.target.value)}
-                placeholder=""
-              />
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[13px] text-zinc-700 w-44 shrink-0">Reporting unit of measure</span>
-              <span className="text-zinc-400 mr-2">:</span>
-              <span className="text-[13px] text-zinc-900 font-medium">{reportingUom}</span>
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[13px] text-zinc-700 w-44 shrink-0">Valuation type</span>
-              <span className="text-zinc-400 mr-2">:</span>
-              <span className="text-[13px] text-zinc-900 font-medium">{valuationType}</span>
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[13px] text-zinc-700 w-44 shrink-0">Rate</span>
-              <span className="text-zinc-400 mr-2">:</span>
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
+      <div className="bg-white border border-zinc-300 shadow-2xl w-[480px] flex flex-col">
+        <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 text-center">
+          <span className="text-[13px] font-semibold text-zinc-900">Excise Tariff Details</span>
+        </div>
+
+        <div className="px-5 py-4 bg-white">
+          <Row label="Tariff name">
+            <input
+              autoFocus
+              className={inputCls}
+              value={tariffName}
+              onChange={(e) => setTariffName(e.target.value)}
+            />
+          </Row>
+          <Row label="HSN code">
+            <input
+              className={inputCls}
+              value={hsnCode}
+              onChange={(e) => setHsnCode(e.target.value)}
+            />
+          </Row>
+          <Row label="Reporting unit of measure">
+            <select
+              className={selectCls}
+              value={reportingUom}
+              onChange={(e) => setReportingUom(e.target.value)}
+            >
+              {EXCISE_UOMS.map((u) => (
+                <option key={u.code} value={u.code}>
+                  {u.code === "Undefined" ? "Undefined" : `${u.code} - ${u.desc}`}
+                </option>
+              ))}
+            </select>
+          </Row>
+          <Row label="Valuation type">
+            <select
+              className={selectCls}
+              value={valuationType}
+              onChange={(e) => setValuationType(e.target.value)}
+            >
+              {VALUATION_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </Row>
+          {showRate && (
+            <Row label="Rate">
               <input
                 className={inputCls}
                 type="number"
+                min="0"
+                max="100"
+                step="0.01"
                 value={rate}
                 onChange={(e) => setRate(e.target.value)}
-                placeholder="0"
               />
               <span className="text-[13px] text-zinc-500">%</span>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
-            <button
-              onClick={onClose}
-              className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onClose}
-              className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
-            >
-              Accept
-            </button>
-          </div>
+            </Row>
+          )}
+          {showRatePerUnit && (
+            <Row label="Rate per Unit">
+              <input
+                className={inputCls}
+                type="number"
+                min="0"
+                step="0.01"
+                value={ratePerUnit}
+                onChange={(e) => setRatePerUnit(e.target.value)}
+              />
+            </Row>
+          )}
         </div>
-      </div>
 
-      {/* Right panel: sticks to extreme right edge */}
-      <div className="absolute top-0 right-0 bottom-0 w-72 bg-white border-l border-zinc-300 flex flex-col shadow-2xl">
-        {valuationType !== "Ad Valorem" && valuationType !== "Ad Quantum" && valuationType !== "Valorem + Quantum" ? (
-          // Show UoM list
-          <>
-            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50">
-              <span className="text-[13px] font-semibold text-zinc-900">List of Excise Reporting UoMs</span>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <div
-                className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
-                  reportingUom === "Undefined" ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
-                }`}
-                onClick={() => setReportingUom("Undefined")}
-              >
-                ◆ Undefined
-              </div>
-              {EXCISE_UOMS.map((u) => (
-                <div
-                  key={u.code}
-                  className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
-                    reportingUom === u.code ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
-                  }`}
-                  onClick={() => setReportingUom(u.code)}
-                >
-                  <div className="flex">
-                    <span className="w-16 shrink-0">{u.code}</span>
-                    <span className="italic">{u.desc}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          // Show Valuation Types list
-          <>
-            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50">
-              <span className="text-[13px] font-semibold text-zinc-900">List of Valuation Types</span>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {["Undefined", ...VALUATION_TYPES].map((t) => (
-                <div
-                  key={t}
-                  className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
-                    valuationType === t ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
-                  }`}
-                  onClick={() => setValuationType(t)}
-                >
-                  {t === "Undefined" ? "◆ " : ""}{t}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
+          <button
+            onClick={onClose}
+            className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onClose}
+            className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
+          >
+            Accept
+          </button>
+        </div>
       </div>
     </div>
   );
