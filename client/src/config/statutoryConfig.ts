@@ -75,6 +75,16 @@ export const PRIMARY_GROUP_STATUTORY_CONFIG: Record<string, PrimaryGroupStatutor
     featureToggles: [],
     statutoryModalToggles: ["serviceTax", "tds", "vat", "excise"],
   },
+  "Direct Incomes": {
+    showStatutorySections: true,
+    featureToggles: [],
+    statutoryModalToggles: ["serviceTax", "tds", "tcs", "vat", "excise"],
+  },
+  "Indirect Incomes": {
+    showStatutorySections: true,
+    featureToggles: [],
+    statutoryModalToggles: ["serviceTax", "tds", "tcs", "vat", "excise"],
+  },
   "Branch/Divisions": {
     showStatutorySections: false,
     featureToggles: ["tds", "tcs"],
