@@ -7,18 +7,6 @@ info:
     accounting/ERP app. Each operation is an Electron `ipcMain.handle` channel,
     modelled here as an HTTP POST for documentation/tooling purposes.
 
-    WARNINGS (source bugs documented verbatim):
-      1. The getTree channel is registered in server/index.js with a TYPO:
-         `ipcMain.handle('costCetre:getTree', ...)` (missing the "n" in "Centre").
-         The preload binding invokes `costCentre:getTree`, so the names DO NOT
-         match — window.api.costCentre.getTree() will reject with
-         "No handler registered for 'costCentre:getTree'". Channel documented
-         below as the namespace `costCetre` per the actual handler registration.
-      2. costCentreController.update is implemented as
-         `return await costCentreService.delete(id)` — it ignores `data`,
-         references an undefined `id`, and calls delete instead of
-         costCentreService.update. The contract below documents the INTENDED
-         update payload/return (service.update), but this handler is broken.
 servers:
   - url: ipc://local
     description: Electron IPC (not a real HTTP server)
@@ -194,15 +182,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /costCetre/getTree:
+  /costCentre/getTree:
     post:
       tags: [costCentre]
-      operationId: costCetre.getTree
+      operationId: costCentre.getTree
       summary: >-
-        Return active cost centres for a company assembled into a parent/child
-        tree. WARNING — registered channel has a typo ("costCetre"), so the
-        preload binding window.api.costCentre.getTree cannot reach it.
-      x-ipc-channel: "costCetre:getTree"
+        Return active cost centres for a company assembled into a parent/child tree.
+      x-ipc-channel: "costCentre:getTree"
       x-window-api: "window.api.costCentre.getTree"
       x-controller: "costCentreController.getTree"
       requestBody:

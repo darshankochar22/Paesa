@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const isDev = !app.isPacakaged;
+const isDev = !app.isPackaged;
 
 ipcMain.handle("app:getDataPath", () => app.getPath("userData"));
 
@@ -20,7 +20,6 @@ function createWindow() {
         win.webContents.openDevTools();
     } else {
         win.loadFile(path.join(app.getAppPath(), 'client', 'dist', 'index.html'));
-        win.webContents.openDevTools();
     }
 }
 

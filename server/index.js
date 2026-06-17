@@ -101,7 +101,7 @@ ipcMain.handle('costCentre:getAll', costCentreController.getAll);
 ipcMain.handle('costCentre:getById', costCentreController.getById);
 ipcMain.handle('costCentre:update', costCentreController.update);
 ipcMain.handle('costCentre:delete', costCentreController.delete);
-ipcMain.handle('costCetre:getTree', costCentreController.getTree);
+ipcMain.handle('costCentre:getTree', costCentreController.getTree);
 
 ipcMain.handle('unit:create', unitController.create);
 ipcMain.handle('unit:getAll', unitController.getAll);

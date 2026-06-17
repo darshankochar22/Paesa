@@ -3364,14 +3364,14 @@
         }
       }
     },
-    "/costCetre/getTree": {
+    "/costCentre/getTree": {
       "post": {
         "tags": [
           "costCentre"
         ],
-        "operationId": "costCetre.getTree",
-        "summary": "Return active cost centres for a company assembled into a parent/child tree. WARNING — registered channel has a typo (\"costCetre\"), so the preload binding window.api.costCentre.getTree cannot reach it.",
-        "x-ipc-channel": "costCetre:getTree",
+        "operationId": "costCentre.getTree",
+        "summary": "Return active cost centres for a company assembled into a parent/child tree.",
+        "x-ipc-channel": "costCentre:getTree",
         "x-window-api": "window.api.costCentre.getTree",
         "x-controller": "costCentreController.getTree",
         "requestBody": {

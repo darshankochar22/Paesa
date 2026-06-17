@@ -14,7 +14,7 @@ module.exports = {
     },
 
     update: async (event, data) => {
-        return await costCentreService.delete(id);
+        return await costCentreService.update(data);
     },
 
     delete: async (event, id) => {
