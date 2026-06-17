@@ -31,6 +31,8 @@ const groups = sqliteTable('groups', {
   hsnSacCode: text('hsn_sac_code'),
   statutoryDetails: text('statutory_details'),
   setAlterServiceTaxDetails: integer('set_alter_service_tax_details').default(0),
+  setAlterVatDetails: integer('set_alter_vat_details').default(0),
+  setAlterExciseDetails: integer('set_alter_excise_details').default(0),
   hsnSacClassificationId: integer('hsn_sac_classification_id'),
   gstClassificationId: integer('gst_classification_id'),
   slabBasedRates: text('slab_based_rates'),

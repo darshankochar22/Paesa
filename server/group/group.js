@@ -12,6 +12,9 @@ const init = async (db) => {
       set_alter_tds_details    INTEGER DEFAULT 0,
       set_alter_tcs_details    INTEGER DEFAULT 0,
       set_alter_other_statutory_details INTEGER DEFAULT 0,
+      set_alter_service_tax_details    INTEGER DEFAULT 0,
+      set_alter_vat_details           INTEGER DEFAULT 0,
+      set_alter_excise_details        INTEGER DEFAULT 0,
       hsn_sac_source           TEXT,
       hsn_sac_description      TEXT,
       gst_rate_source          TEXT,
@@ -37,18 +40,16 @@ const init = async (db) => {
 
   // Migrations for additional statutory-detail fields used by group creation
   // for Current Assets / Current Liabilities (and the other statutory groups).
-  const pragmaResult = await db.execute("PRAGMA table_info('groups')");
-  const colNames = new Set(
-    Array.isArray(pragmaResult.rows)
-      ? pragmaResult.rows.map((row) => row.name)
-      : []
-  );
   const addCol = async (name, def) => {
-    if (!colNames.has(name)) {
+    try {
       await db.execute(`ALTER TABLE groups ADD COLUMN ${name} ${def}`);
+    } catch (_) {
+      // column already exists — ignore
     }
   };
   await addCol("set_alter_service_tax_details", "INTEGER DEFAULT 0");
+  await addCol("set_alter_vat_details", "INTEGER DEFAULT 0");
+  await addCol("set_alter_excise_details", "INTEGER DEFAULT 0");
   await addCol("hsn_sac_classification_id", "INTEGER");
   await addCol("gst_classification_id", "INTEGER");
   await addCol("slab_based_rates", "TEXT");

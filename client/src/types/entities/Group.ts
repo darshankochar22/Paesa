@@ -18,6 +18,8 @@ export interface GroupType {
   set_alter_tcs_details?: number;
   set_alter_other_statutory_details?: number;
   set_alter_service_tax_details?: number;
+  set_alter_vat_details?: number;
+  set_alter_excise_details?: number;
   hsn_sac_source?: string;
   hsn_sac_description?: string;
   gst_rate_source?: string;
