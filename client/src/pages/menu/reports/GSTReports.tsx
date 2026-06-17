@@ -34,6 +34,9 @@ export default function GSTReports() {
     if (item === "GSTR-3B") {
       return "/master/statutory/gstr3b";
     }
+    if (item === "Annual Computation") {
+      return "/master/statutory/annual-computation";
+    }
     return null;
   };
 

@@ -123,6 +123,7 @@ window.api = {
     getGSTR1:      vi.fn().mockResolvedValue({ success: true, payload: {} }),
     generateGSTR3B: vi.fn().mockResolvedValue({ success: true, payload: {} }),
     getGSTR3B:      vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getAnnualComputation: vi.fn().mockResolvedValue({ success: true, payload: {} }),
     getHSNRates:   vi.fn().mockResolvedValue({ success: true, hsnRates: [] }),
     upsertHSNRate: vi.fn().mockResolvedValue({ success: true }),
     deleteHSNRate: vi.fn().mockResolvedValue({ success: true }),

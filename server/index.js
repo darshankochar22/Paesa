@@ -224,6 +224,7 @@ ipcMain.handle('gst:getGSTR3B', gstController.getGSTR3B);
 ipcMain.handle('gst:getHSNRates', gstController.getHSNRates);
 ipcMain.handle('gst:upsertHSNRate', gstController.upsertHSNRate);
 ipcMain.handle('gst:deleteHSNRate', gstController.deleteHSNRate);
+ipcMain.handle('gst:getAnnualComputation', gstController.getAnnualComputation);
 
 ipcMain.handle('employeeCategory:create', employeeCategoryController.create);
 ipcMain.handle('employeeCategory:getAll', employeeCategoryController.getAll);

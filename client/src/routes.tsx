@@ -86,6 +86,7 @@ import TDSNatureOfPaymentCOA from "./pages/master/statutory/tds-nature-of-paymen
 import TrackGSTReturnActivities from "./pages/master/statutory/gst-return/TrackGSTReturnActivities.tsx";
 import GSTR1View from "./pages/master/statutory/gst-return/GSTR1View.tsx";
 import GSTR3BView from "./pages/master/statutory/gst-return/GSTR-3B.tsx";
+import AnnualComputation from "./pages/master/statutory/gst-return/AnnualComputation.tsx";
 import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
 import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
 import PayrollUnitCreate from "./pages/master/payroll/payroll-unit/PayrollUnitCreate.tsx";
@@ -202,6 +203,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/statutory/gst/track-activities", element: <TrackGSTReturnActivities /> },
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
   { path: "/master/statutory/gstr3b", element: <GSTR3BView /> },
+  { path: "/master/statutory/annual-computation", element: <AnnualComputation /> },
 
   { path: "/master/create/tax-units", element: <TaxCreate /> },
   { path: "/master/alter/tax-units", element: <TaxAlter /> },
