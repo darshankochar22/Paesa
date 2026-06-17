@@ -38,7 +38,7 @@ export const PRIMARY_GROUP_STATUTORY_CONFIG: Record<string, PrimaryGroupStatutor
   "Fixed Assets": {
     showStatutorySections: true,
     featureToggles: [],
-    statutoryModalToggles: ["serviceTax", "tds"],
+    statutoryModalToggles: ["serviceTax", "tds", "vat", "excise"],
   },
   "Investments": {
     showStatutorySections: true,
