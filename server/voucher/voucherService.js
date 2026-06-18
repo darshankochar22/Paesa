@@ -1090,18 +1090,39 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         .where(eq(vouchers.voucherId, data.voucher_id));
 
       if (data.entries) {
+        // Cost-centre splits FK-reference voucher_entries(entry_id), so they must be
+        // removed BEFORE the parent entries are deleted, otherwise the entry delete
+        // violates the FK (a voucher created WITH cost centres could never be edited).
+        await db.delete(voucherCostCentres).where(eq(voucherCostCentres.voucherId, data.voucher_id));
         await db.delete(voucherEntries).where(eq(voucherEntries.voucherId, data.voucher_id));
         for (const entry of data.entries) {
-          await db.insert(voucherEntries).values({
-            voucherId: data.voucher_id,
-            ledgerId: nullify(entry.ledger_id),
-            ledgerName: nullify(entry.ledger_name) || null,
-            type: entry.type,
-            amount: entry.amount,
-            amountForex: nullify(entry.amount_forex) || entry.amount,
-            currency: nullify(entry.currency) || 'INR',
-            narration: nullify(entry.narration) || null,
-          });
+          const insertedEntry = await db
+            .insert(voucherEntries)
+            .values({
+              voucherId: data.voucher_id,
+              ledgerId: nullify(entry.ledger_id),
+              ledgerName: nullify(entry.ledger_name) || null,
+              type: entry.type,
+              amount: entry.amount,
+              amountForex: nullify(entry.amount_forex) || entry.amount,
+              currency: nullify(entry.currency) || 'INR',
+              narration: nullify(entry.narration) || null,
+            })
+            .returning({ id: voucherEntries.entryId });
+
+          // Re-insert the entry's cost-centre splits (the form re-sends them on edit,
+          // mirroring create()).
+          if (entry.cost_centres && entry.cost_centres.length > 0) {
+            const entry_id = Number(insertedEntry[0].id);
+            for (const cc of entry.cost_centres) {
+              await db.insert(voucherCostCentres).values({
+                voucherId: data.voucher_id,
+                entryId: entry_id,
+                costCentreId: cc.cost_centre_id,
+                amount: cc.amount,
+              });
+            }
+          }
         }
       }
 

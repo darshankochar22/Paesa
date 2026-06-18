@@ -124,6 +124,9 @@ module.exports = {
       await db
         .update(salaryStructures)
         .set({
+          employeeId: data.employee_id ?? current.employee_id,
+          effectiveFrom: data.effective_from ?? current.effective_from,
+          payHeadId: data.pay_head_id ?? current.pay_head_id,
           amount: data.amount ?? current.amount,
           calculationMode: data.calculation_mode ?? current.calculation_mode,
           updatedAt: sql`datetime('now')`,

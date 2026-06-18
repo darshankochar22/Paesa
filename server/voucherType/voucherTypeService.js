@@ -266,6 +266,7 @@ module.exports = {
           numberingPrefix: data.numbering_prefix ?? c.numbering_prefix,
           numberingSuffix: data.numbering_suffix ?? c.numbering_suffix,
           startsWith: data.starts_with ?? c.starts_with,
+          isActive: data.is_active !== undefined ? (data.is_active ? 1 : 0) : c.is_active,
           parentVtId: data.parent_vt_id !== undefined ? data.parent_vt_id : c.parent_vt_id,
           updatedAt: sql`datetime('now')`,
         })

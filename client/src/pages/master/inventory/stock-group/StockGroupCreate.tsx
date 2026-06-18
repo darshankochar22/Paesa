@@ -170,7 +170,8 @@ export default function StockGroupCreate() {
         gst_rate:                   gst.gst_rate,
         cgst_rate:                  gst.cgst_rate,
         sgst_rate:                  gst.sgst_rate,
-        statutory_details:          gst.taxability_type,
+        taxability_type:            gst.taxability_type,
+        statutory_details:          null,
       });
 
       if (result.success) {
