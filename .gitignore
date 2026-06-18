@@ -49,4 +49,5 @@ coverage/
 *.tmp
 *.orig
 *.rej
-*.patch
+*.patchtest-results/
+playwright-report/
