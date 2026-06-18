@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function LedgerReport() {
-  return <ReportStub title="Ledger" description="Displays the complete ledger account with opening balance, all transactions, and closing balance for each account." />;
+  return <ReportRunner />;
 }

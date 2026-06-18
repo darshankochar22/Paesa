@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function GodownReport() {
-  return <ReportStub title="Godown" description="Displays stock position warehouse (godown) wise, showing quantity and value of each item in each location." />;
+  return <ReportRunner />;
 }

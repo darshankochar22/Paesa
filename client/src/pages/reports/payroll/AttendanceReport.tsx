@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function AttendanceReport() {
-  return <ReportStub title="Attendance Register" description="Displays employee attendance records (present, absent, leave) for the selected period, used for payroll computation." />;
+  return <ReportRunner />;
 }

@@ -1,6 +1,7 @@
 const { db } = require('../db/index');
 const { sql, eq } = require('drizzle-orm');
 const { tallyFeatures } = require('../db/schema');
+const auditTrailService = require('../auditTrail/auditTrailService');
 
 // Fetch a single tally_features row in the legacy snake_case shape (or undefined).
 const findRow = async (company_id) => {
@@ -90,6 +91,15 @@ module.exports = {
         .where(eq(tallyFeatures.companyId, data.company_id));
 
       const updated = await findRow(data.company_id);
+      await auditTrailService.record({
+        company_id: data.company_id,
+        entity_type: 'tally_features',
+        entity_id: data.company_id,
+        action: 'update',
+        before: current,
+        after: updated,
+      });
+
       return { success: true, features: updated };
     } catch (err) {
       return { success: false, error: err.message };
@@ -128,6 +138,15 @@ module.exports = {
         .where(eq(tallyFeatures.companyId, company_id));
 
       const updated = await findRow(company_id);
+      await auditTrailService.record({
+        company_id,
+        entity_type: 'tally_features',
+        entity_id: company_id,
+        action: 'reset',
+        before: current,
+        after: updated,
+      });
+
       return { success: true, features: updated };
     } catch (err) {
       return { success: false, error: err.message };

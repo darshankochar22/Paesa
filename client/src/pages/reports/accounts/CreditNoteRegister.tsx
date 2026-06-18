@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function CreditNoteRegister() {
-  return <ReportStub title="Credit Note Register" description="Displays all credit note vouchers (sales returns / credit memos) in sequence for the selected period." />;
+  return <ReportRunner />;
 }

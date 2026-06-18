@@ -105,6 +105,20 @@ export default function GSTR3BView() {
     loadData(false);
   }, [companyId, fyId, selectedMonth, selectedYear]);
 
+  const handleExportJson = () => {
+    if (!gstr3bData) return;
+    const jsonStr = JSON.stringify(gstr3bData, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `GSTR3B_${activeRegistration?.gstin || "Export"}_${returnPeriod}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // ── Section data derived from payload ──────────────────────────────────────
 
   // 3.1 Tax on Outward and Reverse Charge Inward Supplies
@@ -217,14 +231,24 @@ export default function GSTR3BView() {
         </>
       }
       footerControls={
-        <Button
-          onClick={() => loadData(true)}
-          variant="ghost"
-          size="xs"
-          className="h-auto p-0 ml-4 font-bold text-black-900 hover:underline hover:bg-transparent"
-        >
-          F5: Refresh
-        </Button>
+        <div className="flex items-center gap-4 ml-4">
+          <Button
+            onClick={() => loadData(true)}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            F5: Refresh
+          </Button>
+          <Button
+            onClick={handleExportJson}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            Alt+E: Export JSON
+          </Button>
+        </div>
       }
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">

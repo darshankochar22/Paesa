@@ -48,6 +48,10 @@ export default function Gateway() {
       if (item == "AI Copilot") return "/utilities/copilot";
     }
     if (section === "Reports") {
+      if (item === "Balance Sheet") return "/reports/accounts/balance-sheet";
+      if (item === "Profit & Loss A/c") return "/reports/accounts/profit-loss";
+      if (item === "Stock Summary") return "/reports/inventory/stock-summary";
+      if (item === "Ratio Analysis") return "/reports/accounts/ratio-analysis";
       if (item === "Display More Reports") return "/reports/display-more";
     }
     return null;

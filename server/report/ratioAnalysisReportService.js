@@ -1,6 +1,7 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups, stockItems } = require('../db/schema');
+const stockSummaryReportService = require('./stockSummaryReportService');
 
 // READ-ONLY ratio-analysis report.
 //
@@ -84,16 +85,10 @@ module.exports = {
             WHERE l.company_id = ${company_id} AND l.is_active = 1`
       );
 
-      // Closing-stock value. The only persisted, read-only inventory valuation
-      // available is the stock item opening value; treat it as the inventory
-      // figure used in current/quick ratios and inventory turnover.
-      const stockRows = await db.all(
-        sql`SELECT ${stockItems.openingValue} AS opening_value
-            FROM ${stockItems}
-            WHERE ${stockItems.companyId} = ${company_id}
-              AND ${stockItems.isActive} = 1`
-      );
-      const inventory = stockRows.reduce((s, r) => s + (r.opening_value || 0), 0);
+      // Closing-stock value. Call the stock summary report service to calculate the
+      // closing value from the stock valuation engine.
+      const stockSummaryRes = await stockSummaryReportService.stockSummary(company_id, fy_id);
+      const inventory = stockSummaryRes.success ? (stockSummaryRes.totalClosingValue || 0) : 0;
 
       // Accumulate signed balances bucketed by primary group + nature.
       let currentAssets = 0;       // |bal| of ledgers under "Current Assets"

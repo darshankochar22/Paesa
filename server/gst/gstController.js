@@ -128,6 +128,10 @@ module.exports = {
     return await reconciliationService.getGSTR2BReconciliation(company_id, fy_id);
   },
 
+  importGSTR2B: async (event, { company_id, fy_id, return_period, payload }) => {
+    return await reconciliationService.importGSTR2B(company_id, fy_id, return_period, payload);
+  },
+
   getIMSInwardSupplies: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getIMSInwardSupplies(company_id, fy_id);
   },

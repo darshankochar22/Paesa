@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function StockItemReport() {
-  return <ReportStub title="Stock Item" description="Displays closing stock quantity and value for each stock item, with drill-down to individual transactions." />;
+  return <ReportRunner />;
 }

@@ -1,6 +1,7 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const { stockItems, stockGroups, voucherStockEntries, vouchers } = require('../db/schema');
+const { calculateClosingStock } = require('./stockValuationEngine');
 
 // Inwards / outwards voucher-type conventions, mirroring voucherService.getDaybook
 // and getById (CASE WHEN v.voucher_type IN (...)) so inventory movement direction
@@ -16,8 +17,10 @@ module.exports = {
   //   closing_qty   = opening_quantity + SUM(inwards qty) - SUM(outwards qty)
   //   closing_value = opening_value    + SUM(inwards amt) - SUM(outwards amt)
   //
+  //
   // as_on_date (optional, 'YYYY-MM-DD') caps movements at v.date <= as_on_date.
-  stockSummary: async (company_id, fy_id, as_on_date) => {
+  // method (optional, default 'FIFO') uses the valuation engine to compute true closing value.
+  stockSummary: async (company_id, fy_id, as_on_date, method = 'FIFO') => {
     try {
       // Optional date ceiling on the movement sub-aggregate.
       const dateCond = as_on_date ? sql` AND v.date <= ${as_on_date}` : sql``;
@@ -80,9 +83,28 @@ module.exports = {
           outwards_qty,
           outwards_value,
           closing_qty: opening_qty + inwards_qty - outwards_qty,
-          closing_value: opening_value + inwards_value - outwards_value,
+          closing_value: 0, // Will be overridden by valuation engine
         };
       });
+
+      // Run valuation engine for true closing stock valuation
+      const valuationData = await calculateClosingStock(company_id, fy_id, as_on_date, method);
+      if (valuationData.success) {
+        const valMap = new Map();
+        for (const v of valuationData.items) {
+          valMap.set(v.item_id, v.closing_value);
+        }
+        for (const it of items) {
+          if (valMap.has(it.item_id)) {
+            it.closing_value = valMap.get(it.item_id);
+          }
+        }
+      } else {
+        // Fallback to simple arithmetic if valuation fails
+        for (const it of items) {
+          it.closing_value = it.opening_value + it.inwards_value - it.outwards_value;
+        }
+      }
 
       // Group-level rollup of closing quantity + value.
       const groupMap = new Map();

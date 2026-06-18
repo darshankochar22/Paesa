@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function BankBookReport() {
-  return <ReportStub title="Bank Book" description="Displays all banking transactions (receipts, payments, contra) through bank ledgers for the selected period." />;
+  return <ReportRunner />;
 }

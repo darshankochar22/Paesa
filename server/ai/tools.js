@@ -19,6 +19,8 @@ const voucherService = require('../voucher/voucherService');
 const bankingService = require('../banking/bankingService');
 const ledgerService = require('../ledger/ledgerService');
 const auditTrailService = require('../auditTrail/auditTrailService');
+const advancedInventoryReportService = require('../report/advancedInventoryReportService');
+const advancedAccountingReportService = require('../report/advancedAccountingReportService');
 
 const QUERY_RESOURCES = {
   trial_balance:    (c) => reportService.trialBalance(c.company_id, c.fy_id),
@@ -41,6 +43,16 @@ const QUERY_RESOURCES = {
   bank_summary:     (c, a) => bankingService.getSummary(c.company_id, c.fy_id, a.ledger_id),
   ledgers:          (c) => ledgerService.getAll(c.company_id),
   audit_trail:      (c, a) => auditTrailService.getAll(c.company_id, { limit: a.limit || 50 }),
+  
+  // Phase 4 additions
+  godown_summary:    (c, a) => advancedInventoryReportService.godownSummary(c.company_id, c.fy_id, a.as_on_date || a.to_date),
+  stock_ageing:      (c, a) => advancedInventoryReportService.stockAgeing(c.company_id, c.fy_id, a.as_on_date || a.to_date),
+  movement_analysis: (c, a) => advancedInventoryReportService.movementAnalysis(c.company_id, c.fy_id, a.as_on_date || a.to_date),
+  reorder_status:    (c) => advancedInventoryReportService.reorderStatus(c.company_id, c.fy_id),
+  sales_outstanding: (c) => advancedInventoryReportService.orderOutstanding(c.company_id, c.fy_id, 'sales'),
+  purchase_outstanding:(c) => advancedInventoryReportService.orderOutstanding(c.company_id, c.fy_id, 'purchase'),
+  cost_centre:       (c, a) => advancedAccountingReportService.costCentreReport(c.company_id, c.fy_id, a.as_on_date || a.to_date),
+  budget_variance:   (c) => advancedAccountingReportService.budgetVsActual(c.company_id, c.fy_id),
 };
 
 const PROPOSABLE = {
