@@ -142,6 +142,36 @@ const PARENT_GROUP_OVERRIDES: Record<string, PrimaryGroupStatutoryConfig> = {
     featureToggles: ["tds"],
     statutoryModalToggles: [],
   },
+  "Bank Accounts": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
+  "Bank OD A/c": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
+  "Cash-in-hand": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
+  "Sundry Debtors": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
+  "Sundry Creditors": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
+  "Stock-in-hand": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
   "Secured Loans": {
     showStatutorySections: true,
     featureToggles: [],

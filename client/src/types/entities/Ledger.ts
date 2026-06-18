@@ -43,6 +43,32 @@ export interface LedgerType {
   interest_rate?: number;
   interest_style?: string;
   interest_balances?: string;
+  // ── Other statutory details (TDS / TCS / Service Tax / Excise / VAT) ──────
+  set_alter_tds_details?: number;
+  set_alter_tcs_details?: number;
+  set_alter_service_tax_details?: number;
+  set_alter_excise_details?: number;
+  set_alter_vat_details?: number;
+  is_tds_deductable?: number;
+  treat_as_tds_expenses?: number;
+  deductee_type?: string;
+  deduct_tds_in_same_voucher?: number;
+  nature_of_payment?: string;
+  tds_pan_it_no?: string;
+  tds_pan_status?: string;
+  tds_pan_effective_date?: string;
+  tds_name_on_pan?: string;
+  is_tcs_applicable?: number;
+  tcs_buyer_lessee_type?: string;
+  tcs_pan_it_no?: string;
+  tcs_pan_status?: string;
+  tcs_name_on_pan?: string;
+  is_service_tax_applicable?: string;
+  is_tds_applicable?: string;
+  is_excise_applicable?: string;
+  is_vat_cst_applicable?: string;
+  deductee_ref?: string;
+  tax_unique_id_no?: string;
   bank_details?: {
   account_holder_name?: string;
   account_number?: string;

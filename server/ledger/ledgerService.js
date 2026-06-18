@@ -150,10 +150,35 @@ module.exports = {
           isPredefined: 0,
           additionalGstDetails: data.additional_gst_details ? 1 : 0,
           serviceTaxDetails: data.service_tax_details ? 1 : 0,
-          includeAssessableValue: data.include_assessable_value || "Not Applicable",
-          methodOfCalculation: data.method_of_calculation || "Based on Value",
-          otherStatutoryDetails: data.other_statutory_details ? 1 : 0,
-          activateInterest: data.activate_interest ? 1 : 0,
+      includeAssessableValue: data.include_assessable_value || "Not Applicable",
+      methodOfCalculation: data.method_of_calculation || "Based on Value",
+      otherStatutoryDetails: data.other_statutory_details ? 1 : 0,
+      setAlterTdsDetails: data.set_alter_tds_details ? 1 : 0,
+      setAlterTcsDetails: data.set_alter_tcs_details ? 1 : 0,
+      setAlterServiceTaxDetails: data.set_alter_service_tax_details ? 1 : 0,
+      setAlterExciseDetails: data.set_alter_excise_details ? 1 : 0,
+      setAlterVatDetails: data.set_alter_vat_details ? 1 : 0,
+      isTdsDeductable: data.is_tds_deductable ? 1 : 0,
+      treatAsTdsExpenses: data.treat_as_tds_expenses ? 1 : 0,
+      deducteeType: data.deductee_type || null,
+      deductTdsInSameVoucher: data.deduct_tds_in_same_voucher ? 1 : 0,
+      natureOfPayment: data.nature_of_payment || null,
+      tdsPanItNo: data.tds_pan_it_no || null,
+      tdsPanStatus: data.tds_pan_status || null,
+      tdsPanEffectiveDate: data.tds_pan_effective_date || null,
+      tdsNameOnPan: data.tds_name_on_pan || null,
+      isTcsApplicable: data.is_tcs_applicable ? 1 : 0,
+      tcsBuyerLesseeType: data.tcs_buyer_lessee_type || null,
+      tcsPanItNo: data.tcs_pan_it_no || null,
+      tcsPanStatus: data.tcs_pan_status || null,
+      tcsNameOnPan: data.tcs_name_on_pan || null,
+      isServiceTaxApplicable: data.is_service_tax_applicable || null,
+      isTdsApplicable: data.is_tds_applicable || null,
+      isExciseApplicable: data.is_excise_applicable || null,
+      isVatCstApplicable: data.is_vat_cst_applicable || null,
+      deducteeRef: data.deductee_ref || null,
+      taxUniqueIdNo: data.tax_unique_id_no || null,
+      activateInterest: data.activate_interest ? 1 : 0,
           interestIncludeAdded: data.interest_include_added ? 1 : 0,
           interestIncludeDeducted: data.interest_include_deducted ? 1 : 0,
           interestRate: Number(data.interest_rate) || 0,
@@ -364,6 +389,61 @@ module.exports = {
             "Based on Value",
           otherStatutoryDetails:
             data.other_statutory_details ?? ledger.other_statutory_details ?? 0,
+          setAlterTdsDetails:
+            data.set_alter_tds_details !== undefined
+              ? (data.set_alter_tds_details ? 1 : 0)
+              : (ledger.set_alter_tds_details ?? 0),
+          setAlterTcsDetails:
+            data.set_alter_tcs_details !== undefined
+              ? (data.set_alter_tcs_details ? 1 : 0)
+              : (ledger.set_alter_tcs_details ?? 0),
+          setAlterServiceTaxDetails:
+            data.set_alter_service_tax_details !== undefined
+              ? (data.set_alter_service_tax_details ? 1 : 0)
+              : (ledger.set_alter_service_tax_details ?? 0),
+          setAlterExciseDetails:
+            data.set_alter_excise_details !== undefined
+              ? (data.set_alter_excise_details ? 1 : 0)
+              : (ledger.set_alter_excise_details ?? 0),
+          setAlterVatDetails:
+            data.set_alter_vat_details !== undefined
+              ? (data.set_alter_vat_details ? 1 : 0)
+              : (ledger.set_alter_vat_details ?? 0),
+          isTdsDeductable:
+            data.is_tds_deductable !== undefined
+              ? (data.is_tds_deductable ? 1 : 0)
+              : (ledger.is_tds_deductable ?? 0),
+          treatAsTdsExpenses:
+            data.treat_as_tds_expenses !== undefined
+              ? (data.treat_as_tds_expenses ? 1 : 0)
+              : (ledger.treat_as_tds_expenses ?? 0),
+          deducteeType: data.deductee_type ?? ledger.deductee_type ?? null,
+          deductTdsInSameVoucher:
+            data.deduct_tds_in_same_voucher !== undefined
+              ? (data.deduct_tds_in_same_voucher ? 1 : 0)
+              : (ledger.deduct_tds_in_same_voucher ?? 0),
+          natureOfPayment: data.nature_of_payment ?? ledger.nature_of_payment ?? null,
+          tdsPanItNo: data.tds_pan_it_no ?? ledger.tds_pan_it_no ?? null,
+          tdsPanStatus: data.tds_pan_status ?? ledger.tds_pan_status ?? null,
+          tdsPanEffectiveDate:
+            data.tds_pan_effective_date ?? ledger.tds_pan_effective_date ?? null,
+          tdsNameOnPan: data.tds_name_on_pan ?? ledger.tds_name_on_pan ?? null,
+          isTcsApplicable:
+            data.is_tcs_applicable !== undefined
+              ? (data.is_tcs_applicable ? 1 : 0)
+              : (ledger.is_tcs_applicable ?? 0),
+          tcsBuyerLesseeType:
+            data.tcs_buyer_lessee_type ?? ledger.tcs_buyer_lessee_type ?? null,
+          tcsPanItNo: data.tcs_pan_it_no ?? ledger.tcs_pan_it_no ?? null,
+          tcsPanStatus: data.tcs_pan_status ?? ledger.tcs_pan_status ?? null,
+          tcsNameOnPan: data.tcs_name_on_pan ?? ledger.tcs_name_on_pan ?? null,
+          isServiceTaxApplicable:
+            data.is_service_tax_applicable ?? ledger.is_service_tax_applicable ?? null,
+          isTdsApplicable: data.is_tds_applicable ?? ledger.is_tds_applicable ?? null,
+          isExciseApplicable: data.is_excise_applicable ?? ledger.is_excise_applicable ?? null,
+          isVatCstApplicable: data.is_vat_cst_applicable ?? ledger.is_vat_cst_applicable ?? null,
+          deducteeRef: data.deductee_ref ?? ledger.deductee_ref ?? null,
+          taxUniqueIdNo: data.tax_unique_id_no ?? ledger.tax_unique_id_no ?? null,
           activateInterest:
             data.activate_interest !== undefined
               ? data.activate_interest

@@ -102,6 +102,15 @@ export default function SlabBasedRatesTable({ rows, onChange }: SlabBasedRatesTa
           ))}
         </tbody>
       </table>
+      <div className="px-2 py-1.5 border-t border-zinc-200">
+        <button
+          type="button"
+          onClick={() => onChange([...rows, { greater_than: 0, up_to: null, taxability_type: "Taxable", gst_rate: 0 }])}
+          className="text-xs text-zinc-500 hover:text-black underline underline-offset-1"
+        >
+          + Add Row
+        </button>
+      </div>
     </div>
   );
 }

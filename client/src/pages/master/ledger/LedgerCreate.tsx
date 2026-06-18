@@ -5,7 +5,14 @@ import GroupFlatList from "@/components/GroupFlatList";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import BankDetailsPopup from "./components/BankDetailsPopup";
 import type { GroupType } from "@/types/api";
-import { useLedgerForm } from "./hooks/useLedgerForm";
+import {
+  useLedgerForm,
+  EMPTY_TDS,
+  EMPTY_TCS,
+  EMPTY_SERVICE_TAX,
+  EMPTY_EXCISE,
+  EMPTY_VAT,
+} from "./hooks/useLedgerForm";
 import LedgerMailingPanel from "./components/LedgerMailingPanel";
 import LedgerTaxPanel from "./components/LedgerTaxPanel";
 import LedgerRoundingPanel from "./components/LedgerRoundingPanel";
@@ -13,6 +20,9 @@ import LedgerBillwisePanel from "./components/LedgerBillwisePanel";
 import LedgerBankingPanel from "./components/LedgerBankingPanel";
 import LedgerBankDetailsForm from "./components/LedgerBankDetailsForm";
 import InterestParametersModal from "./components/InterestParametersModal";
+import OtherStatutoryTriggerPanel from "./components/OtherStatutoryTriggerPanel";
+import OtherStatutoryModal from "./components/statutory/OtherStatutoryModal";
+import { getOtherStatutoryConfig } from "@/config/ledgerStatutoryConfig";
 import { getLedgerConfig } from "./config/LedgerConfig";
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
@@ -29,10 +39,14 @@ export default function LedgerCreate() {
     setStatutoryForm,
     interestForm,
     setInterestForm,
+    otherStatutory,
+    setOtherStatutory,
     provideBank,
     showBankPopup,
     setShowBankPopup,
     showInterestPopup,
+    showOtherStatutoryModal,
+    setShowOtherStatutoryModal,
     showGroupPanel,
     setShowGroupPanel,
     flatGroups,
@@ -112,6 +126,20 @@ const currentConfig = getLedgerConfig(groupName);
         />
       )}
 
+      {showOtherStatutoryModal && (
+        <OtherStatutoryModal
+          isOpen={showOtherStatutoryModal}
+          ledgerName={form.name || ""}
+          visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName).sections}
+          value={otherStatutory}
+          onClose={() => setShowOtherStatutoryModal(false)}
+          onAccept={(state) => {
+            setOtherStatutory(state);
+            setShowOtherStatutoryModal(false);
+          }}
+        />
+      )}
+
       <PageTitleBar title="Ledger Creation" subtitle={selectedCompany?.name} />
 
       {error && (
@@ -160,6 +188,26 @@ const currentConfig = getLedgerConfig(groupName);
             setBankField={setBankField}
             setBankNumber={setBankNumber}
             groupLineage={groupLineage}
+          />
+
+          <OtherStatutoryTriggerPanel
+            form={otherStatutory}
+            onOpen={() => setShowOtherStatutoryModal(true)}
+            onEnable={() =>
+              setOtherStatutory((prev) => ({
+                ...prev,
+                tds: { ...prev.tds, is_tds_deductable: 1 },
+              }))
+            }
+            onDisable={() =>
+              setOtherStatutory({
+                tds: { ...EMPTY_TDS },
+                tcs: { ...EMPTY_TCS },
+                serviceTax: { ...EMPTY_SERVICE_TAX },
+                excise: { ...EMPTY_EXCISE },
+                vat: { ...EMPTY_VAT },
+              })
+            }
           />
 
           <div className="flex-1" />

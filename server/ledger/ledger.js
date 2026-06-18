@@ -161,6 +161,33 @@ const init = async (db) => {
     await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN method_of_calculation TEXT DEFAULT 'Based on Quantity'`);
   } catch (err) {}
 
+  // Other statutory details (TDS / TCS / Service Tax / Excise / VAT)
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN set_alter_tds_details INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN set_alter_tcs_details INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN set_alter_service_tax_details INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN set_alter_excise_details INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN set_alter_vat_details INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_tds_deductable INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN treat_as_tds_expenses INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN deductee_type TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN deduct_tds_in_same_voucher INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN nature_of_payment TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tds_pan_it_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tds_pan_status TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tds_pan_effective_date TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tds_name_on_pan TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_tcs_applicable INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tcs_buyer_lessee_type TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tcs_pan_it_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tcs_pan_status TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tcs_name_on_pan TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_service_tax_applicable TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_tds_applicable TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_excise_applicable TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_vat_cst_applicable TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN deductee_ref TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tax_unique_id_no TEXT`); } catch (err) {}
+
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN activate_interest INTEGER DEFAULT 0`);
   } catch (err) {}

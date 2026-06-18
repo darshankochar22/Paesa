@@ -40,6 +40,100 @@ export const EMPTY_INTEREST: InterestDetails = {
   interest_balances: "All Balances",
 };
 
+/* ── Other Statutory Details (TDS / TCS / Service Tax / Excise / VAT) ────── */
+
+export interface TdsDetails {
+  is_tds_deductable: 0 | 1;
+  is_tds_applicable: string;
+  treat_as_tds_expenses: 0 | 1;
+  deductee_type: string;
+  deduct_tds_in_same_voucher: 0 | 1;
+  nature_of_payment: string;
+  tds_pan_it_no: string;
+  tds_pan_status: string;
+  tds_pan_effective_date: string;
+  tds_name_on_pan: string;
+}
+
+export interface TcsDetails {
+  is_tcs_applicable: 0 | 1;
+  tcs_buyer_lessee_type: string;
+  tcs_pan_it_no: string;
+  tcs_pan_status: string;
+  tcs_name_on_pan: string;
+  deductee_ref: string;
+  tax_unique_id_no: string;
+}
+
+export interface ServiceTaxDetails {
+  is_service_tax_applicable: string;
+  set_alter_service_tax_details: 0 | 1;
+}
+
+export interface ExciseDetails {
+  is_excise_applicable: string;
+  set_alter_excise_details: 0 | 1;
+}
+
+export interface VatDetails {
+  is_vat_cst_applicable: string;
+  set_alter_vat_details: 0 | 1;
+}
+
+export interface OtherStatutoryForm {
+  tds: TdsDetails;
+  tcs: TcsDetails;
+  serviceTax: ServiceTaxDetails;
+  excise: ExciseDetails;
+  vat: VatDetails;
+}
+
+export const EMPTY_TDS: TdsDetails = {
+  is_tds_deductable: 0,
+  is_tds_applicable: "Undefined",
+  treat_as_tds_expenses: 0,
+  deductee_type: "Unknown",
+  deduct_tds_in_same_voucher: 0,
+  nature_of_payment: "Undefined",
+  tds_pan_it_no: "",
+  tds_pan_status: "Unknown",
+  tds_pan_effective_date: "",
+  tds_name_on_pan: "",
+};
+
+export const EMPTY_TCS: TcsDetails = {
+  is_tcs_applicable: 0,
+  tcs_buyer_lessee_type: "Unknown",
+  tcs_pan_it_no: "",
+  tcs_pan_status: "Unknown",
+  tcs_name_on_pan: "",
+  deductee_ref: "",
+  tax_unique_id_no: "",
+};
+
+export const EMPTY_SERVICE_TAX: ServiceTaxDetails = {
+  is_service_tax_applicable: "Undefined",
+  set_alter_service_tax_details: 0,
+};
+
+export const EMPTY_EXCISE: ExciseDetails = {
+  is_excise_applicable: "Not Applicable",
+  set_alter_excise_details: 0,
+};
+
+export const EMPTY_VAT: VatDetails = {
+  is_vat_cst_applicable: "Applicable",
+  set_alter_vat_details: 0,
+};
+
+export const EMPTY_OTHER_STATUTORY: OtherStatutoryForm = {
+  tds: { ...EMPTY_TDS },
+  tcs: { ...EMPTY_TCS },
+  serviceTax: { ...EMPTY_SERVICE_TAX },
+  excise: { ...EMPTY_EXCISE },
+  vat: { ...EMPTY_VAT },
+};
+
 export const EMPTY_STATUTORY: StatutoryDetails = {
   gst_applicability: "Not Applicable",
   hsn_sac_code: "",
@@ -92,6 +186,32 @@ export const INITIAL_FORM: Partial<LedgerType> = {
   interest_rate: 0,
   interest_style: "30-Day Month",
   interest_balances: "All Balances",
+  // Other statutory details
+  set_alter_tds_details: 0,
+  set_alter_tcs_details: 0,
+  set_alter_service_tax_details: 0,
+  set_alter_excise_details: 0,
+  set_alter_vat_details: 0,
+  is_tds_deductable: 0,
+  treat_as_tds_expenses: 0,
+  deductee_type: "Unknown",
+  deduct_tds_in_same_voucher: 0,
+  nature_of_payment: "Undefined",
+  tds_pan_it_no: "",
+  tds_pan_status: "Unknown",
+  tds_pan_effective_date: "",
+  tds_name_on_pan: "",
+  is_tcs_applicable: 0,
+  tcs_buyer_lessee_type: "Unknown",
+  tcs_pan_it_no: "",
+  tcs_pan_status: "Unknown",
+  tcs_name_on_pan: "",
+  is_service_tax_applicable: "Undefined",
+  is_tds_applicable: "Not Applicable",
+  is_excise_applicable: "Not Applicable",
+  is_vat_cst_applicable: "Applicable",
+  deductee_ref: "",
+  tax_unique_id_no: "",
 };
 
 interface UseLedgerFormOptions {
@@ -117,6 +237,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   const [showLedgerPanel, setShowLedgerPanel] = useState(false);
   const [showBankPopup, setShowBankPopup] = useState(false);
   const [showInterestPopup, setShowInterestPopup] = useState(false);
+  const [showOtherStatutoryModal, setShowOtherStatutoryModal] = useState(false);
 
   const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
 
@@ -126,6 +247,16 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   const [interestForm, setInterestForm] = useState<InterestDetails>({
     ...EMPTY_INTEREST,
   });
+  const [otherStatutory, setOtherStatutory] = useState<OtherStatutoryForm>(
+    () => ({
+      ...EMPTY_OTHER_STATUTORY,
+      tds: { ...EMPTY_TDS },
+      tcs: { ...EMPTY_TCS },
+      serviceTax: { ...EMPTY_SERVICE_TAX },
+      excise: { ...EMPTY_EXCISE },
+      vat: { ...EMPTY_VAT },
+    }),
+  );
 
   const selectedGroup = useMemo(() => {
     return flatGroups.find((g) => g.group_id === form.group_id) || null;
@@ -230,6 +361,13 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       }
       setForm((f) => ({ ...f, activate_interest: 0 }));
       setInterestForm(EMPTY_INTEREST);
+      setOtherStatutory({
+        tds: { ...EMPTY_TDS },
+        tcs: { ...EMPTY_TCS },
+        serviceTax: { ...EMPTY_SERVICE_TAX },
+        excise: { ...EMPTY_EXCISE },
+        vat: { ...EMPTY_VAT },
+      });
     } else {
       if (groupLineage.isBank) {
         setProvideBank("Yes");
@@ -299,6 +437,42 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         interest_rate: l.interest_rate ?? 0,
         interest_style: l.interest_style || "30-Day Month",
         interest_balances: l.interest_balances || "All Balances",
+      });
+
+      setOtherStatutory({
+        tds: {
+          is_tds_deductable: l.is_tds_deductable ? 1 : 0,
+          is_tds_applicable: l.is_tds_applicable || "Undefined",
+          treat_as_tds_expenses: l.treat_as_tds_expenses ? 1 : 0,
+          deductee_type: l.deductee_type || "Unknown",
+          deduct_tds_in_same_voucher: l.deduct_tds_in_same_voucher ? 1 : 0,
+          nature_of_payment: l.nature_of_payment || "Undefined",
+          tds_pan_it_no: l.tds_pan_it_no || "",
+          tds_pan_status: l.tds_pan_status || "Unknown",
+          tds_pan_effective_date: l.tds_pan_effective_date || "",
+          tds_name_on_pan: l.tds_name_on_pan || "",
+        },
+        tcs: {
+          is_tcs_applicable: l.is_tcs_applicable ? 1 : 0,
+          tcs_buyer_lessee_type: l.tcs_buyer_lessee_type || "Unknown",
+          tcs_pan_it_no: l.tcs_pan_it_no || "",
+          tcs_pan_status: l.tcs_pan_status || "Unknown",
+          tcs_name_on_pan: l.tcs_name_on_pan || "",
+          deductee_ref: l.deductee_ref || "",
+          tax_unique_id_no: l.tax_unique_id_no || "",
+        },
+        serviceTax: {
+          is_service_tax_applicable: l.is_service_tax_applicable || "Undefined",
+          set_alter_service_tax_details: l.set_alter_service_tax_details ? 1 : 0,
+        },
+        excise: {
+          is_excise_applicable: l.is_excise_applicable || "Not Applicable",
+          set_alter_excise_details: l.set_alter_excise_details ? 1 : 0,
+        },
+        vat: {
+          is_vat_cst_applicable: l.is_vat_cst_applicable || "Applicable",
+          set_alter_vat_details: l.set_alter_vat_details ? 1 : 0,
+        },
       });
 
       setShowGroupPanel(false);
@@ -455,6 +629,39 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         interest_rate: Number(interestForm.interest_rate) || 0,
         interest_style: interestForm.interest_style || "30-Day Month",
         interest_balances: interestForm.interest_balances || "All Balances",
+        // Other statutory details
+        set_alter_tds_details: otherStatutory.tds.is_tds_deductable
+          ? 1
+          : otherStatutory.tds.is_tds_deductable,
+        set_alter_tcs_details: otherStatutory.tcs.is_tcs_applicable
+          ? 1
+          : otherStatutory.tcs.is_tcs_applicable,
+        set_alter_service_tax_details:
+          otherStatutory.serviceTax.set_alter_service_tax_details,
+        set_alter_excise_details: otherStatutory.excise.set_alter_excise_details,
+        set_alter_vat_details: otherStatutory.vat.set_alter_vat_details,
+        is_tds_deductable: otherStatutory.tds.is_tds_deductable,
+        treat_as_tds_expenses: otherStatutory.tds.treat_as_tds_expenses,
+        deductee_type: otherStatutory.tds.deductee_type,
+        deduct_tds_in_same_voucher:
+          otherStatutory.tds.deduct_tds_in_same_voucher,
+        nature_of_payment: otherStatutory.tds.nature_of_payment,
+        tds_pan_it_no: otherStatutory.tds.tds_pan_it_no,
+        tds_pan_status: otherStatutory.tds.tds_pan_status,
+        tds_pan_effective_date: otherStatutory.tds.tds_pan_effective_date,
+        tds_name_on_pan: otherStatutory.tds.tds_name_on_pan,
+        is_tds_applicable: otherStatutory.tds.is_tds_applicable,
+        is_tcs_applicable: otherStatutory.tcs.is_tcs_applicable,
+        tcs_buyer_lessee_type: otherStatutory.tcs.tcs_buyer_lessee_type,
+        tcs_pan_it_no: otherStatutory.tcs.tcs_pan_it_no,
+        tcs_pan_status: otherStatutory.tcs.tcs_pan_status,
+        tcs_name_on_pan: otherStatutory.tcs.tcs_name_on_pan,
+        is_service_tax_applicable:
+          otherStatutory.serviceTax.is_service_tax_applicable,
+        is_excise_applicable: otherStatutory.excise.is_excise_applicable,
+        is_vat_cst_applicable: otherStatutory.vat.is_vat_cst_applicable,
+        deductee_ref: otherStatutory.tcs.deductee_ref,
+        tax_unique_id_no: otherStatutory.tcs.tax_unique_id_no,
       };
 
       if (mode === "alter") {
@@ -520,6 +727,13 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           setBankForm(EMPTY_BANK_DETAILS);
           setStatutoryForm(EMPTY_STATUTORY);
           setInterestForm(EMPTY_INTEREST);
+          setOtherStatutory({
+            tds: { ...EMPTY_TDS },
+            tcs: { ...EMPTY_TCS },
+            serviceTax: { ...EMPTY_SERVICE_TAX },
+            excise: { ...EMPTY_EXCISE },
+            vat: { ...EMPTY_VAT },
+          });
         } else {
           setLoadedGroupId(form.group_id || null);
           await loadInitial();
@@ -532,7 +746,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     } finally {
       setSaving(false);
     }
-  }, [companyId, form, provideBank, groupLineage, bankForm, statutoryForm, interestForm, validate, mode, loadInitial]);
+  }, [companyId, form, provideBank, groupLineage, bankForm, statutoryForm, interestForm, otherStatutory, validate, mode, loadInitial]);
 
   return {
     form,
@@ -543,12 +757,16 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setStatutoryForm,
     interestForm,
     setInterestForm,
+    otherStatutory,
+    setOtherStatutory,
     provideBank,
     setProvideBank,
     showBankPopup,
     setShowBankPopup,
     showInterestPopup,
     setShowInterestPopup,
+    showOtherStatutoryModal,
+    setShowOtherStatutoryModal,
     showGroupPanel,
     setShowGroupPanel,
     showLedgerPanel,
