@@ -22,6 +22,7 @@
     "db:generate:pg": "drizzle-kit generate --config=drizzle.config.pg.js",
     "db:generate": "npm run db:generate:sqlite && npm run db:generate:pg",
     "db:migrate": "node server/db/migrate.js",
+    "db:repair": "node server/db/repair.js",
     "build:client": "cd client && npm run build",
     "dist": "npm run build:client && electron-builder",
     "dist:win": "npm run build:client && electron-builder --win --publish never",
