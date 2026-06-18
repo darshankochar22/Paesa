@@ -11,8 +11,8 @@
       "server/index.js"
     ],
     "modules": 53,
-    "operations": 270,
-    "registeredChannels": 270,
+    "operations": 277,
+    "registeredChannels": 277,
     "undocumentedChannels": [],
     "warnings": []
   },
@@ -7072,6 +7072,343 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Gst_Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gst/generateGSTR3B": {
+      "post": {
+        "operationId": "gst.generateGSTR3B",
+        "tags": [
+          "gst"
+        ],
+        "summary": "Generate the GSTR-3B return for a company/financial year and return period.",
+        "x-ipc-channel": "gst:generateGSTR3B",
+        "x-window-api": "window.api.gst.generateGSTR3B",
+        "x-controller": "gstController.generateGSTR3B",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "number"
+                  },
+                  "fy_id": {
+                    "type": "number"
+                  },
+                  "return_period": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "fy_id",
+                  "return_period"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "GSTR-3B payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gst/getGSTR3B": {
+      "post": {
+        "operationId": "gst.getGSTR3B",
+        "tags": [
+          "gst"
+        ],
+        "summary": "Fetch a previously generated GSTR-3B for a return period.",
+        "x-ipc-channel": "gst:getGSTR3B",
+        "x-window-api": "window.api.gst.getGSTR3B",
+        "x-controller": "gstController.getGSTR3B",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "number"
+                  },
+                  "fy_id": {
+                    "type": "number"
+                  },
+                  "return_period": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "fy_id",
+                  "return_period"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "GSTR-3B payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gst/getAnnualComputation": {
+      "post": {
+        "operationId": "gst.getAnnualComputation",
+        "tags": [
+          "gst"
+        ],
+        "summary": "Annual GST computation summary for a company/financial year.",
+        "x-ipc-channel": "gst:getAnnualComputation",
+        "x-window-api": "window.api.gst.getAnnualComputation",
+        "x-controller": "gstController.getAnnualComputation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "number"
+                  },
+                  "fy_id": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "fy_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Annual computation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gst/getGSTR1Reconciliation": {
+      "post": {
+        "operationId": "gst.getGSTR1Reconciliation",
+        "tags": [
+          "gst"
+        ],
+        "summary": "Reconcile books vs filed GSTR-1 for a company/financial year.",
+        "x-ipc-channel": "gst:getGSTR1Reconciliation",
+        "x-window-api": "window.api.gst.getGSTR1Reconciliation",
+        "x-controller": "gstController.getGSTR1Reconciliation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "number"
+                  },
+                  "fy_id": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "fy_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reconciliation result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gst/getGSTR2BReconciliation": {
+      "post": {
+        "operationId": "gst.getGSTR2BReconciliation",
+        "tags": [
+          "gst"
+        ],
+        "summary": "Reconcile purchases vs GSTR-2B for a company/financial year.",
+        "x-ipc-channel": "gst:getGSTR2BReconciliation",
+        "x-window-api": "window.api.gst.getGSTR2BReconciliation",
+        "x-controller": "gstController.getGSTR2BReconciliation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "number"
+                  },
+                  "fy_id": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "fy_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reconciliation result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gst/getIMSInwardSupplies": {
+      "post": {
+        "operationId": "gst.getIMSInwardSupplies",
+        "tags": [
+          "gst"
+        ],
+        "summary": "Invoice Management System (IMS) inward supplies for a company/financial year.",
+        "x-ipc-channel": "gst:getIMSInwardSupplies",
+        "x-window-api": "window.api.gst.getIMSInwardSupplies",
+        "x-controller": "gstController.getIMSInwardSupplies",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "number"
+                  },
+                  "fy_id": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "fy_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "IMS inward supplies.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gst/getChallanReconciliation": {
+      "post": {
+        "operationId": "gst.getChallanReconciliation",
+        "tags": [
+          "gst"
+        ],
+        "summary": "Reconcile GST challans/payments for a company/financial year.",
+        "x-ipc-channel": "gst:getChallanReconciliation",
+        "x-window-api": "window.api.gst.getChallanReconciliation",
+        "x-controller": "gstController.getChallanReconciliation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "number"
+                  },
+                  "fy_id": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "fy_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challan reconciliation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }

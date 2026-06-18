@@ -31,6 +31,8 @@ const groups = pgTable('groups', {
   hsnSacCode: text('hsn_sac_code'),
   statutoryDetails: text('statutory_details'),
   setAlterServiceTaxDetails: boolean('set_alter_service_tax_details').notNull().default(false),
+  setAlterVatDetails: boolean('set_alter_vat_details').notNull().default(false),
+  setAlterExciseDetails: boolean('set_alter_excise_details').notNull().default(false),
   hsnSacClassificationId: bigint('hsn_sac_classification_id', { mode: 'number' }),
   gstClassificationId: bigint('gst_classification_id', { mode: 'number' }),
   slabBasedRates: text('slab_based_rates'),
