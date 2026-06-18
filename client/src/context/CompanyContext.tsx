@@ -20,6 +20,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   const loadFYs = useCallback(async (company_id: number) => {
     try {
+      if (!window.api?.fy) return;
       const result = await window.api.fy.getAll(company_id);
       if (result.success) {
         setAvailableFYs(result.financialYears);
@@ -70,6 +71,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
+        // window.api is injected by preload; on first mount in dev it can be a tick late.
+        for (let i = 0; i < 20 && !window.api?.company && !cancelled; i++) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        if (cancelled || !window.api?.company) return;
         const result = await window.api.company.getAll();
         const companies: CompanyType[] = Array.isArray(result?.companies)
           ? result.companies
