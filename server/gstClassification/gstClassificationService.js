@@ -77,7 +77,6 @@ module.exports = {
               AND ${gstClassifications.isActive} = 1`
       );
       if (exists.length > 0) return { success: false, error: 'GST Classification already exists' };
-      console.log("GST CREATE EXECUTING");
 
       const inserted = await db
         .insert(gstClassifications)

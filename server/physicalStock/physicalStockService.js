@@ -87,8 +87,14 @@ const create = async (data) => {
             expiryDate: line.expiry_date || null,
             quantity: Number(line.quantity) || 0,
             rate: Number(line.rate) || 0,
-            amount: (Number(line.quantity) || 0) * (Number(line.rate) || 0),
-            lineOrder: i,
+            // Honor the amount the form submitted (it may carry rounding/manual
+            // edits); fall back to quantity * rate only when none was sent.
+            amount:
+              line.amount != null && line.amount !== ''
+                ? Number(line.amount) || 0
+                : (Number(line.quantity) || 0) * (Number(line.rate) || 0),
+            // Honor the submitted line ordering; fall back to the loop index.
+            lineOrder: line.line_order != null ? Number(line.line_order) : i,
           });
         }
       }
@@ -126,22 +132,17 @@ const getById = async (id) => {
     if (entryRows.length === 0) return { success: false, error: 'Entry not found' };
     const entry = entryRows[0];
 
-    // Legacy LEFT JOIN preserved VERBATIM via a typed `sql` query (table aliases
-    // l/i/g kept exactly as the original raw SQL), with only the bound ${id}
-    // value parameterized. The schema table objects are interpolated for the
-    // FROM/JOIN targets so the identifiers still come from the schema.
-    //
-    // IMPORTANT — pre-existing behavior: the original join condition is
-    // `i.stock_item_id = l.stock_item_id`, but stock_items has NO stock_item_id
-    // column (its PK is item_id). So this query has ALWAYS failed at runtime
-    // with `SQLITE_ERROR: no such column: i.stock_item_id`, making getById
-    // return { success: false, error: 'SQLITE_ERROR: no such column:
-    // i.stock_item_id' }. We keep that exact failure. Drizzle wraps the driver
-    // error, so we surface err.cause.message to reproduce the legacy error
-    // string the callers would have seen.
+    // LEFT JOIN the line's stock item + godown so getById returns the
+    // item_name / godown_name alias columns the detail view needs. The join
+    // target for stock_items is its real PK column item_id (the line stores
+    // stock_item_id as the FK). A previous revision joined on the non-existent
+    // i.stock_item_id, which made this query crash at runtime with
+    // `SQLITE_ERROR: no such column: i.stock_item_id`, so getById ALWAYS failed.
+    // Joining on i.item_id resolves item_name correctly and lets getById return
+    // the entry with its lines.
     const lines = await db.all(
       sql`SELECT l.*, i.name as item_name, g.name as godown_name FROM ${physicalStockEntryLines} l
-          LEFT JOIN ${stockItems} i ON i.stock_item_id = l.stock_item_id
+          LEFT JOIN ${stockItems} i ON i.item_id = l.stock_item_id
           LEFT JOIN ${godowns} g ON g.godown_id = l.godown_id
           WHERE l.physical_stock_entry_id = ${id} ORDER BY l.line_order ASC`
     );

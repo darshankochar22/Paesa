@@ -70,14 +70,12 @@ module.exports = {
   },
 
   getAll: async (company_id) => {
-    console.log(' getAll called with:', company_id, typeof company_id);
     try {
       const rows = await db.all(
         sql`SELECT * FROM ${financialYears} WHERE ${financialYears.companyId} = ${company_id}`
       );
       return { success: true, financialYears: rows };
     } catch (err) {
-      console.log('getAll error:', err.message);
       return { success: false, error: err.message };
     }
   },

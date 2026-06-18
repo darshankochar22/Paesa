@@ -33,7 +33,7 @@ module.exports = {
           isOwnStatus: data.is_own_status ?? 0,
           taxOnReceiptOrRealization:
             data.tax_on_receipt_or_realization || 'Tax Calculated on Receipt',
-          thresholdLevel: data.threshold_level ?? 0,
+          thresholdLevel: data.threshold_level ?? data.threshold_limit ?? 0,
           isZeroRated: data.is_zero_rated ?? 0,
           isPredefined: 0,
           isActive: 1,
@@ -92,7 +92,7 @@ module.exports = {
           isOwnStatus: data.is_own_status ?? c.is_own_status,
           taxOnReceiptOrRealization:
             data.tax_on_receipt_or_realization ?? c.tax_on_receipt_or_realization,
-          thresholdLevel: data.threshold_level ?? c.threshold_level,
+          thresholdLevel: data.threshold_level ?? data.threshold_limit ?? c.threshold_level,
           isZeroRated: data.is_zero_rated ?? c.is_zero_rated,
           updatedAt: sql`datetime('now')`,
         })

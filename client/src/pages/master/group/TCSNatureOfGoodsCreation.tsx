@@ -80,7 +80,7 @@ export default function TCSNatureOfGoodsCreation({
         rate_other_without_pan: Number(rateOtherWithoutPan) || 0,
         is_zero_rated: isZeroRated === "Yes" ? 1 : 0,
         tax_on_receipt_or_realization: taxOnReceiptOrRealization,
-        threshold_limit: Number(thresholdLimit) || 0,
+        threshold_level: Number(thresholdLimit) || 0,
       });
       if (res.success && res.tcsNatureOfGoods) {
         const createdName = res.tcsNatureOfGoods.name || name.trim();
