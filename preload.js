@@ -202,6 +202,10 @@ contextBridge.exposeInMainWorld('api', {
         upsertHSNRate:        (data)    => invoke('gst:upsertHSNRate', data),
         deleteHSNRate:        (data)    => invoke('gst:deleteHSNRate', data),
         getAnnualComputation: (data)    => invoke('gst:getAnnualComputation', data),
+        getGSTR1Reconciliation: (data)   => invoke('gst:getGSTR1Reconciliation', data),
+        getGSTR2BReconciliation: (data)   => invoke('gst:getGSTR2BReconciliation', data),
+        getIMSInwardSupplies: (data)      => invoke('gst:getIMSInwardSupplies', data),
+        getChallanReconciliation: (data)  => invoke('gst:getChallanReconciliation', data),
     },
     master: {
         getMenu: (company_id) => invoke('master:getMenu', company_id),

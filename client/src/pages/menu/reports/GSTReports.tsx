@@ -43,6 +43,15 @@ export default function GSTReports() {
     if (item === "GSTR-2A Reconciliation") {
       return "/master/statutory/gstr2a/reconciliation";
     }
+    if (item === "GSTR-2B Reconciliation") {
+      return "/master/statutory/gstr2b/reconciliation";
+    }
+    if (item === "Challan Reconciliation") {
+      return "/master/statutory/challan/reconciliation";
+    }
+    if (item === "Invoice Management System (IMS)") {
+      return "/master/statutory/ims";
+    }
     return null;
   };
 

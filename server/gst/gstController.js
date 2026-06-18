@@ -5,6 +5,7 @@ const gstTaxEngine = require('./gstTaxEngine');
 const gstr1Service = require('./gstr1Service');
 const gstr3bService = require('./gstr3bService');
 const annualComputationService = require('./annualComputationService');
+const reconciliationService = require('./reconciliationService');
 
 module.exports = {
   computeTax: async (event, data) => {
@@ -117,5 +118,21 @@ module.exports = {
     } catch (err) {
       return { success: false, error: err.message };
     }
+  },
+
+  getGSTR1Reconciliation: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getGSTR1Reconciliation(company_id, fy_id);
+  },
+
+  getGSTR2BReconciliation: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getGSTR2BReconciliation(company_id, fy_id);
+  },
+
+  getIMSInwardSupplies: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getIMSInwardSupplies(company_id, fy_id);
+  },
+
+  getChallanReconciliation: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getChallanReconciliation(company_id, fy_id);
   }
 };

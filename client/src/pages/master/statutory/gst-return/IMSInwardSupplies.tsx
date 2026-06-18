@@ -24,7 +24,6 @@ interface ReconciliationRow {
   cess:           number;
   tax_amount:     number;
   invoice_amount: number;
-  status?:        "Reconciled" | "Unreconciled" | "Uncertain" | "";
 }
 
 const ZERO_ROW: ReconciliationRow = {
@@ -54,34 +53,23 @@ function addRow(a: ReconciliationRow, b: ReconciliationRow): ReconciliationRow {
 }
 
 type RowDef =
-  | { type: "section";  label: string }
-  | { type: "subhead";  label: string }
-  | { type: "data";     label: string; row: ReconciliationRow; indent?: 1 | 2 }
-  | { type: "total";    label: string; row: ReconciliationRow }
+  | { type: "section"; label: string }
+  | { type: "data";    label: string; row: ReconciliationRow; indent?: 1 | 2 }
   | { type: "divider" };
 
-const NUM = "px-2 py-0.5 text-right text-xs tabular-nums";
+const NUM  = "px-2 py-0.5 text-right text-xs tabular-nums";
 const HEAD = "h-auto px-2 py-1 text-right align-bottom font-bold text-black text-xs whitespace-nowrap";
 
-function StatusBadge({ status }: { status?: string }) {
-  if (!status) return null;
-  const cls =
-    status === "Reconciled"   ? "text-green-700" :
-    status === "Unreconciled" ? "text-red-600"   :
-    status === "Uncertain"    ? "text-orange-600" : "text-gray-400";
-  return <span className={cn("text-xs font-medium", cls)}>{status}</span>;
-}
-
-export default function GSTR1Reconciliation() {
+export default function IMSInwardSupplies() {
   const { selectedCompany, activeFY } = useCompany();
   const location = useLocation();
 
   const companyId = selectedCompany?.company_id;
   const fyId      = activeFY?.fy_id;
 
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
-  const [data, setData]         = useState<any>(null);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+  const [data, setData]               = useState<any>(null);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
 
@@ -107,11 +95,12 @@ export default function GSTR1Reconciliation() {
     try {
       setLoading(true);
       setError(null);
-
-      const result = await window.api.gst.getGSTR1Reconciliation({ company_id: companyId, fy_id: fyId });
-      if (result.success) setData(result.payload);
-      else setError(result.error || "Failed to load GSTR-1 reconciliation data.");
-
+      const result = await window.api.gst.getIMSInwardSupplies({ company_id: companyId, fy_id: fyId });
+      if (result.success) {
+        setData(result.payload);
+      } else {
+        setError(result.error || "Failed to load IMS inward supplies data.");
+      }
     } catch (e: any) {
       setError(e.message || "Unknown error");
     } finally {
@@ -124,67 +113,45 @@ export default function GSTR1Reconciliation() {
   const d = data?.return_view ?? {};
 
   const b2b:             ReconciliationRow = d.b2b             ?? ZERO_ROW;
-  const b2c_large:       ReconciliationRow = d.b2c_large       ?? ZERO_ROW;
-  const exports:         ReconciliationRow = d.exports         ?? ZERO_ROW;
-  const cdn_reg:         ReconciliationRow = d.cdn_registered  ?? ZERO_ROW;
-  const cdn_unreg:       ReconciliationRow = d.cdn_unreg       ?? ZERO_ROW;
   const amend_b2b:       ReconciliationRow = d.amend_b2b       ?? ZERO_ROW;
-  const amend_b2c:       ReconciliationRow = d.amend_b2c       ?? ZERO_ROW;
-  const amend_exports:   ReconciliationRow = d.amend_exports   ?? ZERO_ROW;
-  const amend_cdn_reg:   ReconciliationRow = d.amend_cdn_reg   ?? ZERO_ROW;
-  const amend_cdn_unreg: ReconciliationRow = d.amend_cdn_unreg ?? ZERO_ROW;
-  const b2c_small:       ReconciliationRow = d.b2c_small       ?? ZERO_ROW;
-  const nil_rated:       ReconciliationRow = d.nil_rated       ?? ZERO_ROW;
-  const amend_b2c_small: ReconciliationRow = d.amend_b2c_small ?? ZERO_ROW;
-  const tax_liability_advances: ReconciliationRow = d.tax_liability_advances ?? ZERO_ROW;
-  const adjustment_advances:    ReconciliationRow = d.adjustment_advances    ?? ZERO_ROW;
-  const amend_tax_liability:    ReconciliationRow = d.amend_tax_liability    ?? ZERO_ROW;
-  const amend_adjustment:       ReconciliationRow = d.amend_adjustment       ?? ZERO_ROW;
-  const hsn_summary:            ReconciliationRow = d.hsn_summary            ?? ZERO_ROW;
-  const doc_summary:            ReconciliationRow = d.doc_summary            ?? ZERO_ROW;
+  const cdn:             ReconciliationRow = d.cdn             ?? ZERO_ROW;
+  const amend_cdn:       ReconciliationRow = d.amend_cdn       ?? ZERO_ROW;
+  const debit_note:      ReconciliationRow = d.debit_note      ?? ZERO_ROW;
+  const amend_debit_note:ReconciliationRow = d.amend_debit_note?? ZERO_ROW;
+  const impg:            ReconciliationRow = d.impg            ?? ZERO_ROW;
+  const amend_impg:      ReconciliationRow = d.amend_impg      ?? ZERO_ROW;
+  const impgsez:         ReconciliationRow = d.impgsez         ?? ZERO_ROW;
+  const amend_impgsez:   ReconciliationRow = d.amend_impgsez   ?? ZERO_ROW;
 
-  const reconciled   = data?.voucher_status?.reconciled   ?? 0;
-  const unreconciled = data?.voucher_status?.unreconciled ?? 0;
-  const uncertain    = data?.voucher_status?.uncertain    ?? 0;
+  const totalVouchers   = data?.voucher_status?.total_vouchers ?? 0;
+  const filed           = data?.voucher_status?.filed          ?? { total: 0, action_required: 0, ready_for_upload: 0, uploaded: 0 };
+  const yet_filed       = data?.voucher_status?.yet_filed      ?? { total: 0, action_required: 0, ready_for_upload: 0, uploaded: 0 };
 
   const periodLabel  = data?.period_label
     ?? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "");
   const lastActivity = data?.last_gst_activity ?? "No Activity Found";
 
   const grandTotal = [
-    b2b, b2c_large, exports, cdn_reg, cdn_unreg,
-    amend_b2b, amend_b2c, amend_exports, amend_cdn_reg, amend_cdn_unreg,
-    b2c_small, nil_rated, amend_b2c_small,
-    tax_liability_advances, adjustment_advances,
-    amend_tax_liability, amend_adjustment,
+    b2b, amend_b2b, cdn, amend_cdn, debit_note, amend_debit_note, impg, amend_impg, impgsez, amend_impgsez
   ].reduce(addRow, ZERO_ROW);
 
   const rows: RowDef[] = [
-    { type: "subhead", label: "Return View (Comparison of Books & Portal Values)" },
-    { type: "data", label: "B2B Invoices - 4A, 4B, 4C, 6B, 6C",                              row: b2b,                    indent: 1 },
-    { type: "data", label: "B2C (Large) Invoices - 5A, 5B",                                   row: b2c_large,              indent: 1 },
-    { type: "data", label: "Exports Invoices - 6A",                                            row: exports,                indent: 1 },
-    { type: "data", label: "Credit or Debit Notes (Registered) - 9B",                         row: cdn_reg,                indent: 1 },
-    { type: "data", label: "Credit or Debit Notes (Unregistered) - 9B",                       row: cdn_unreg,              indent: 1 },
-    { type: "data", label: "Amended B2B Invoices - 9A",                                       row: amend_b2b,              indent: 1 },
-    { type: "data", label: "Amended B2C (Large) Invoices - 9A",                               row: amend_b2c,              indent: 1 },
-    { type: "data", label: "Amended Exports Invoices - 9A",                                   row: amend_exports,          indent: 1 },
-    { type: "data", label: "Amended Credit or Debit Notes (Registered) - 9C",                 row: amend_cdn_reg,          indent: 1 },
-    { type: "data", label: "Amended Credit or Debit Notes (Unregistered) - 9C",               row: amend_cdn_unreg,        indent: 1 },
-    { type: "data", label: "B2C (Small) Invoices - 7",                                        row: b2c_small,              indent: 1 },
-    { type: "data", label: "Nil Rated Invoices - 8A, 8B, 8C, 8D",                            row: nil_rated,              indent: 1 },
-    { type: "data", label: "Amendment B2C (Small) Invoices - 10",                             row: amend_b2c_small,        indent: 1 },
-    { type: "data", label: "Tax Liability (Advances Received) - 11A(1), 11A(2)",              row: tax_liability_advances, indent: 1 },
-    { type: "data", label: "Adjustment of Advances - 11B(1), 11B(2)",                         row: adjustment_advances,    indent: 1 },
-    { type: "data", label: "Amended Tax Liability (Advances Received) - 11A",                 row: amend_tax_liability,    indent: 1 },
-    { type: "data", label: "Amendment of Adjusted Advances - 11B",                            row: amend_adjustment,       indent: 1 },
-    { type: "data", label: "HSN Summary - 12 (B2B - B2C Supplies)",                           row: hsn_summary,            indent: 1 },
-    { type: "data", label: "Document Summary - 13",                                            row: doc_summary,            indent: 1 },
+    { type: "section", label: "Return View (Comparison of Books & Portal Values)" },
+    { type: "data", label: "B2B Invoices",                                       row: b2b,              indent: 1 },
+    { type: "data", label: "B2B Invoice Amendments",                             row: amend_b2b,        indent: 1 },
+    { type: "data", label: "B2B Credit Notes",                                   row: cdn,              indent: 1 },
+    { type: "data", label: "B2B Credit Note Amendments",                         row: amend_cdn,        indent: 1 },
+    { type: "data", label: "B2B Debit Notes",                                    row: debit_note,       indent: 1 },
+    { type: "data", label: "B2B Debit Note Amendments",                          row: amend_debit_note, indent: 1 },
+    { type: "data", label: "IMPG Invoices",                                      row: impg,             indent: 1 },
+    { type: "data", label: "IMPG Invoice Amendments",                            row: amend_impg,       indent: 1 },
+    { type: "data", label: "IMPGSEZ Invoices",                                   row: impgsez,          indent: 1 },
+    { type: "data", label: "IMPGSEZ Invoice Amendments",                         row: amend_impgsez,    indent: 1 },
   ];
 
   return (
     <TallyReportLayout
-      title="GSTR-1 Reconciliation"
+      title="IMS Inward Supplies"
       companyName={selectedCompany?.name || "Company"}
       leftSubtitle={
         <>
@@ -193,8 +160,8 @@ export default function GSTR1Reconciliation() {
             <span className="font-bold">: {registrationName}</span>
           </div>
           <div className="flex gap-4">
-            <span className="w-36">Status</span>
-            <span className="font-bold">: Unreconciled</span>
+            <span className="w-36">Current View</span>
+            <span className="font-bold">: Default IMS View</span>
           </div>
         </>
       }
@@ -217,13 +184,11 @@ export default function GSTR1Reconciliation() {
       }
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
-
-        {loading && <EmptyState message="Loading GSTR-1 reconciliation data…" className="italic" />}
+        {loading && <EmptyState message="Loading IMS inward supplies data…" className="italic" />}
         {error   && <div className="p-2 text-center text-red-600 font-bold">{error}</div>}
 
         {!loading && (
           <>
-            {/* ── Voucher Status Summary ────────────────────────────────── */}
             <div className="flex flex-col border-b border-gray-300">
               <div className="flex font-bold px-2 py-1 border-b border-gray-200">
                 <div className="flex-1">P a r t i c u l a r s</div>
@@ -231,31 +196,58 @@ export default function GSTR1Reconciliation() {
               </div>
 
               <div className="flex px-2 py-0.5 font-bold bg-[#ffcc00]">
-                <div className="flex-1">Reconciled</div>
-                <div className="w-32 text-right text-green-700">{fmtCount(reconciled)}</div>
+                <div className="flex-1">Total Vouchers</div>
+                <div className="w-32 text-right">{fmtCount(totalVouchers)}</div>
               </div>
 
-              <div className="flex px-4 py-0.5 text-red-600">
-                <div className="flex-1">Unreconciled</div>
-                <div className="w-32 text-right font-semibold">{fmtCount(unreconciled)}</div>
+              <div className="flex px-4 py-0.5 font-semibold">
+                <div className="flex-1">Invoices Filed by Supplier</div>
+                <div className="w-32 text-right">{fmtCount(filed.total)}</div>
               </div>
 
-              {uncertain > 0 && (
-                <div className="flex px-4 py-0.5 pb-2 text-orange-600 font-semibold">
-                  <div className="flex-1">Uncertain Transactions (Corrections needed)</div>
-                  <div className="w-32 text-right">{fmtCount(uncertain)}</div>
-                </div>
-              )}
+              <div className="flex px-8 py-0.5 text-orange-600">
+                <div className="flex-1">Action Required</div>
+                <div className="w-32 text-right">{fmtCount(filed.action_required)}</div>
+              </div>
+
+              <div className="flex px-8 py-0.5 text-blue-600">
+                <div className="flex-1">Action Taken - Ready for Upload</div>
+                <div className="w-32 text-right">{fmtCount(filed.ready_for_upload)}</div>
+              </div>
+
+              <div className="flex px-8 py-0.5 text-green-700">
+                <div className="flex-1">Action Taken - Uploaded</div>
+                <div className="w-32 text-right">{fmtCount(filed.uploaded)}</div>
+              </div>
+
+              <div className="flex px-4 py-0.5 font-semibold">
+                <div className="flex-1">Invoices Yet to Be Filed by Supplier</div>
+                <div className="w-32 text-right">{fmtCount(yet_filed.total)}</div>
+              </div>
+
+              <div className="flex px-8 py-0.5 text-orange-600">
+                <div className="flex-1">Action Required</div>
+                <div className="w-32 text-right">{fmtCount(yet_filed.action_required)}</div>
+              </div>
+
+              <div className="flex px-8 py-0.5 text-blue-600">
+                <div className="flex-1">Action Taken - Ready for Upload</div>
+                <div className="w-32 text-right">{fmtCount(yet_filed.ready_for_upload)}</div>
+              </div>
+
+              <div className="flex px-8 py-0.5 text-green-700">
+                <div className="flex-1">Action Taken - Uploaded</div>
+                <div className="w-32 text-right">{fmtCount(yet_filed.uploaded)}</div>
+              </div>
             </div>
 
-            {/* ── Main Reconciliation Table ─────────────────────────────── */}
             <Table className="text-xs table-fixed">
               <TableHeader>
                 <TableRow className="border-b border-gray-300 hover:bg-transparent">
                   <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black">
                     P a r t i c u l a r s
                   </TableHead>
-                  <TableHead className={cn(HEAD, "w-20")}>Vch Count<br />(Summary)</TableHead>
+                  <TableHead className={cn(HEAD, "w-24")}>Voucher Count</TableHead>
                   <TableHead className={cn(HEAD, "w-28")}>Taxable<br />Amount</TableHead>
                   <TableHead className={cn(HEAD, "w-24")}>IGST</TableHead>
                   <TableHead className={cn(HEAD, "w-24")}>CGST</TableHead>
@@ -263,17 +255,15 @@ export default function GSTR1Reconciliation() {
                   <TableHead className={cn(HEAD, "w-20")}>Cess</TableHead>
                   <TableHead className={cn(HEAD, "w-24")}>Tax<br />Amount</TableHead>
                   <TableHead className={cn(HEAD, "w-28")}>Invoice<br />Amount</TableHead>
-                  <TableHead className={cn(HEAD, "w-24")}>Status</TableHead>
                 </TableRow>
               </TableHeader>
 
               <TableBody>
                 {rows.map((row, idx) => {
-
                   if (row.type === "divider") {
                     return (
                       <TableRow key={idx} className="border-0 h-2 hover:bg-transparent">
-                        <TableCell colSpan={10} className="p-0 border-t border-gray-200" />
+                        <TableCell colSpan={9} className="p-0 border-t border-gray-200" />
                       </TableRow>
                     );
                   }
@@ -281,44 +271,16 @@ export default function GSTR1Reconciliation() {
                   if (row.type === "section") {
                     return (
                       <TableRow key={idx} className="border-0 hover:bg-transparent">
-                        <TableCell colSpan={10} className="px-2 pt-2 pb-0.5 font-bold text-black underline">
+                        <TableCell colSpan={9} className="px-2 pt-2 pb-0.5 font-bold text-black underline">
                           {row.label}
                         </TableCell>
                       </TableRow>
                     );
                   }
 
-                  if (row.type === "subhead") {
-                    return (
-                      <TableRow key={idx} className="border-0 hover:bg-transparent">
-                        <TableCell colSpan={10} className="px-2 py-1 font-bold text-black">
-                          {row.label}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }
-
-                  if (row.type === "total") {
-                    return (
-                      <TableRow key={idx} className="border-t border-b border-gray-300 bg-gray-100 hover:bg-gray-100 font-semibold">
-                        <TableCell className="px-2 py-0.5 font-semibold">{row.label}</TableCell>
-                        <TableCell className={NUM}>{fmtCount(row.row.vch_count)}</TableCell>
-                        <TableCell className={NUM}>{fmt(row.row.taxable_amount)}</TableCell>
-                        <TableCell className={NUM}>{fmt(row.row.igst)}</TableCell>
-                        <TableCell className={NUM}>{fmt(row.row.cgst)}</TableCell>
-                        <TableCell className={NUM}>{fmt(row.row.sgst)}</TableCell>
-                        <TableCell className={NUM}>{fmt(row.row.cess)}</TableCell>
-                        <TableCell className={NUM}>{fmt(row.row.tax_amount)}</TableCell>
-                        <TableCell className={NUM}>{fmt(row.row.invoice_amount)}</TableCell>
-                        <TableCell className={NUM} />
-                      </TableRow>
-                    );
-                  }
-
-                  // data row
                   const isSelected = selectedRow === idx;
                   const hasData    = row.row.vch_count > 0 || row.row.taxable_amount !== 0;
-                  const indentCls  = row.indent === 2 ? "pl-10" : "pl-6";
+                  const indentCls  = "pl-6";
 
                   return (
                     <TableRow
@@ -342,9 +304,6 @@ export default function GSTR1Reconciliation() {
                       <TableCell className={NUM}>{fmt(row.row.cess)}</TableCell>
                       <TableCell className={NUM}>{fmt(row.row.tax_amount)}</TableCell>
                       <TableCell className={NUM}>{fmt(row.row.invoice_amount)}</TableCell>
-                      <TableCell className="px-2 py-0.5 text-xs">
-                        <StatusBadge status={row.row.status} />
-                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -361,7 +320,6 @@ export default function GSTR1Reconciliation() {
                   <TableCell className={cn(NUM, "font-bold")}>{fmt(grandTotal.cess)}</TableCell>
                   <TableCell className={cn(NUM, "font-bold")}>{fmt(grandTotal.tax_amount)}</TableCell>
                   <TableCell className={cn(NUM, "font-bold")}>{fmt(grandTotal.invoice_amount)}</TableCell>
-                  <TableCell className={NUM} />
                 </TableRow>
               </TableFooter>
             </Table>

@@ -3,46 +3,32 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/ca
 import { Button } from "@/components/shadcn/button";
 import { Separator } from "@/components/shadcn/separator";
 
-export default function DisplayMoreReports() {
+export default function InventoryBooks() {
   const navigate = useNavigate();
 
   const sections = [
     {
-      title: "ACCOUNTING",
+      title: "STOCK REGISTERS",
       items: [
-        { label: "Trial Balance",           route: "/reports/accounts/trial-balance" },
-        { label: "Day Book",                route: "/transactions/daybook" },
-        { label: "Cash Flow Statement",     route: "/reports/accounts/cash-flow" },
-        { label: "Funds Flow Statement",    route: "/reports/accounts/funds-flow" },
-        { label: "Account Books",           route: "/reports/account-books" },
-        { label: "Statements of Accounts",  route: "/reports/statements-of-accounts" },
+        { label: "Stock Item",            route: "/reports/inventory/stock-item" },
+        { label: "Stock Group",           route: "/reports/inventory/stock-group" },
+        { label: "Stock Category",        route: "/reports/inventory/stock-category" },
+        { label: "Godown",                route: "/reports/inventory/godown" },
       ],
     },
     {
-      title: "INVENTORY",
+      title: "VOUCHERS",
       items: [
-        { label: "Inventory Books",         route: "/reports/inventory-books" },
-        { label: "Statements of Inventory", route: "/reports/statements-of-inventory" },
-        { label: "Job Work Reports",        route: "/reports/inventory/job-work" },
+        { label: "Batch Vouchers",        route: "/reports/inventory/batch-vouchers" },
+        { label: "Movement Analysis",     route: "/reports/inventory/movement-analysis" },
       ],
     },
     {
-      title: "STATUTORY",
+      title: "ANALYSIS",
       items: [
-        { label: "Statutory Reports",       route: "/reports/statutory" },
-      ],
-    },
-    {
-      title: "PAYROLL",
-      items: [
-        { label: "Payroll Reports",         route: "/reports/payroll" },
-      ],
-    },
-    {
-      title: "EXCEPTION",
-      items: [
-        { label: "Exception Reports",       route: "/reports/exception" },
-        { label: "Analysis & Verification", route: "/reports/exception/analysis-verification" },
+        { label: "Sales Order Book",      route: "/reports/inventory/sales-order-book" },
+        { label: "Purchase Order Book",   route: "/reports/inventory/purchase-order-book" },
+        { label: "Ageing Analysis",       route: "/reports/inventory/ageing-analysis" },
       ],
     },
   ];
@@ -51,16 +37,16 @@ export default function DisplayMoreReports() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">
-            Gateway of Tally
-          </Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <span>&gt;</span>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
         </div>
-        <CardTitle className="text-base font-semibold">Display More Reports</CardTitle>
+        <CardTitle className="text-base font-semibold">Inventory Books</CardTitle>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">
-        {sections.map((section) => (
-          <div key={section.title} className="flex flex-col gap-1.5">
+        {sections.map((section, si) => (
+          <div key={si} className="flex flex-col gap-1.5">
             <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
               {section.title}
             </div>

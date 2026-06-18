@@ -38,6 +38,67 @@ import COA from "./pages/menu/coa.tsx";
 import DisplayMoreReports from "./pages/menu/reports/DisplayMoreReports.tsx";
 import StatutoryReports from "./pages/menu/reports/StatutoryReports.tsx";
 import GSTReports from "./pages/menu/reports/GSTReports.tsx";
+import AccountBooks from "./pages/menu/reports/AccountBooks.tsx";
+import StatementsOfAccounts from "./pages/menu/reports/StatementsOfAccounts.tsx";
+import InventoryBooks from "./pages/menu/reports/InventoryBooks.tsx";
+import StatementsOfInventory from "./pages/menu/reports/StatementsOfInventory.tsx";
+import ExceptionReports from "./pages/menu/reports/ExceptionReports.tsx";
+import PayrollReports from "./pages/menu/reports/PayrollReports.tsx";
+// Account report pages
+import CashBookReport from "./pages/reports/accounts/CashBookReport.tsx";
+import BankBookReport from "./pages/reports/accounts/BankBookReport.tsx";
+import LedgerReport from "./pages/reports/accounts/LedgerReport.tsx";
+import GroupSummary from "./pages/reports/accounts/GroupSummary.tsx";
+import SalesRegister from "./pages/reports/accounts/SalesRegister.tsx";
+import PurchaseRegister from "./pages/reports/accounts/PurchaseRegister.tsx";
+import JournalRegister from "./pages/reports/accounts/JournalRegister.tsx";
+import DebitNoteRegister from "./pages/reports/accounts/DebitNoteRegister.tsx";
+import CreditNoteRegister from "./pages/reports/accounts/CreditNoteRegister.tsx";
+import TrialBalance from "./pages/reports/accounts/TrialBalance.tsx";
+import ProfitLoss from "./pages/reports/accounts/ProfitLoss.tsx";
+import BalanceSheet from "./pages/reports/accounts/BalanceSheet.tsx";
+import CashFlowStatement from "./pages/reports/accounts/CashFlowStatement.tsx";
+import FundsFlowStatement from "./pages/reports/accounts/FundsFlowStatement.tsx";
+import OutstandingsReceivable from "./pages/reports/accounts/OutstandingsReceivable.tsx";
+import OutstandingsPayable from "./pages/reports/accounts/OutstandingsPayable.tsx";
+import InterestCalculations from "./pages/reports/accounts/InterestCalculations.tsx";
+import CostCentreSummary from "./pages/reports/accounts/CostCentreSummary.tsx";
+import CostCategorySummary from "./pages/reports/accounts/CostCategorySummary.tsx";
+import Statistics from "./pages/reports/accounts/Statistics.tsx";
+// Inventory report pages
+import StockItemReport from "./pages/reports/inventory/StockItemReport.tsx";
+import StockGroupReport from "./pages/reports/inventory/StockGroupReport.tsx";
+import StockCategoryReport from "./pages/reports/inventory/StockCategoryReport.tsx";
+import GodownReport from "./pages/reports/inventory/GodownReport.tsx";
+import BatchVouchers from "./pages/reports/inventory/BatchVouchers.tsx";
+import MovementAnalysis from "./pages/reports/inventory/MovementAnalysis.tsx";
+import SalesOrderBook from "./pages/reports/inventory/SalesOrderBook.tsx";
+import PurchaseOrderBook from "./pages/reports/inventory/PurchaseOrderBook.tsx";
+import AgeingAnalysis from "./pages/reports/inventory/AgeingAnalysis.tsx";
+import SalesOrderOutstanding from "./pages/reports/inventory/SalesOrderOutstanding.tsx";
+import PurchaseOrderOutstanding from "./pages/reports/inventory/PurchaseOrderOutstanding.tsx";
+import WorkOrderOutstanding from "./pages/reports/inventory/WorkOrderOutstanding.tsx";
+import StockQuery from "./pages/reports/inventory/StockQuery.tsx";
+import ReorderStatus from "./pages/reports/inventory/ReorderStatus.tsx";
+import JobWorkReports from "./pages/reports/inventory/JobWorkReports.tsx";
+// Exception report pages
+import OverdueReceivables from "./pages/reports/exception/OverdueReceivables.tsx";
+import OverduePayables from "./pages/reports/exception/OverduePayables.tsx";
+import PendingDocuments from "./pages/reports/exception/PendingDocuments.tsx";
+import NegativeStock from "./pages/reports/exception/NegativeStock.tsx";
+import NegativeLedger from "./pages/reports/exception/NegativeLedger.tsx";
+import AnalysisVerification from "./pages/reports/exception/AnalysisVerification.tsx";
+import EditLogSummary from "./pages/reports/exception/EditLogSummary.tsx";
+// Payroll report pages
+import PayslipReport from "./pages/reports/payroll/PayslipReport.tsx";
+import SalaryStatement from "./pages/reports/payroll/SalaryStatement.tsx";
+import SalaryRegister from "./pages/reports/payroll/SalaryRegister.tsx";
+import AttendanceReport from "./pages/reports/payroll/AttendanceReport.tsx";
+import PayHeadBreakup from "./pages/reports/payroll/PayHeadBreakup.tsx";
+import PFReports from "./pages/reports/payroll/PFReports.tsx";
+import ESIReports from "./pages/reports/payroll/ESIReports.tsx";
+import ProfessionalTax from "./pages/reports/payroll/ProfessionalTax.tsx";
+import Gratuity from "./pages/reports/payroll/Gratuity.tsx";
 import LedgerCreate from "./pages/master/ledger/LedgerCreate.tsx";
 import LedgerAlter from "./pages/master/ledger/LedgerAlter.tsx";
 import LedgerCOA from "./pages/master/ledger/LedgerCOA.tsx";
@@ -116,6 +177,9 @@ import TaxCreate from "./pages/master/statutory/Tax-units/taxCreate.tsx";
 import TaxCOA from "./pages/master/statutory/Tax-units/taxCOA.tsx";
 import TaxAlter from "./pages/master/statutory/Tax-units/taxAlter.tsx";
 import GSTR2AReconciliation from "./pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx";
+import IMSInwardSupplies from "./pages/master/statutory/gst-return/IMSInwardSupplies.tsx";
+import GSTR2BReconciliation from "./pages/master/statutory/gst-return/GSTR2BReconciliation.tsx";
+import ChallanReconciliation from "./pages/master/statutory/gst-return/ChallanReconciliation.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -130,9 +194,71 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter", element: <Alter /> },
   { path: "/master/financial-years", element: <FinancialYears /> },
   { path: "/master/coa", element: <COA /> },
-  { path: "/reports/display-more", element: <DisplayMoreReports /> },
-  { path: "/reports/statutory", element: <StatutoryReports /> },
-  { path: "/reports/statutory/gst", element: <GSTReports /> },
+  { path: "/reports/display-more",           element: <DisplayMoreReports /> },
+  { path: "/reports/statutory",               element: <StatutoryReports /> },
+  { path: "/reports/statutory/gst",           element: <GSTReports /> },
+  // Sub-menu pages
+  { path: "/reports/account-books",           element: <AccountBooks /> },
+  { path: "/reports/statements-of-accounts",  element: <StatementsOfAccounts /> },
+  { path: "/reports/inventory-books",         element: <InventoryBooks /> },
+  { path: "/reports/statements-of-inventory", element: <StatementsOfInventory /> },
+  { path: "/reports/exception",               element: <ExceptionReports /> },
+  { path: "/reports/payroll",                 element: <PayrollReports /> },
+  // Account reports
+  { path: "/reports/accounts/cash-book",              element: <CashBookReport /> },
+  { path: "/reports/accounts/bank-book",              element: <BankBookReport /> },
+  { path: "/reports/accounts/ledger",                 element: <LedgerReport /> },
+  { path: "/reports/accounts/group-summary",          element: <GroupSummary /> },
+  { path: "/reports/accounts/sales-register",         element: <SalesRegister /> },
+  { path: "/reports/accounts/purchase-register",      element: <PurchaseRegister /> },
+  { path: "/reports/accounts/journal-register",       element: <JournalRegister /> },
+  { path: "/reports/accounts/debit-note-register",    element: <DebitNoteRegister /> },
+  { path: "/reports/accounts/credit-note-register",   element: <CreditNoteRegister /> },
+  { path: "/reports/accounts/trial-balance",          element: <TrialBalance /> },
+  { path: "/reports/accounts/profit-loss",            element: <ProfitLoss /> },
+  { path: "/reports/accounts/balance-sheet",          element: <BalanceSheet /> },
+  { path: "/reports/accounts/cash-flow",              element: <CashFlowStatement /> },
+  { path: "/reports/accounts/funds-flow",             element: <FundsFlowStatement /> },
+  { path: "/reports/accounts/outstandings-receivable",element: <OutstandingsReceivable /> },
+  { path: "/reports/accounts/outstandings-payable",   element: <OutstandingsPayable /> },
+  { path: "/reports/accounts/interest-calculations",  element: <InterestCalculations /> },
+  { path: "/reports/accounts/cost-centre-summary",    element: <CostCentreSummary /> },
+  { path: "/reports/accounts/cost-category-summary",  element: <CostCategorySummary /> },
+  { path: "/reports/accounts/statistics",             element: <Statistics /> },
+  // Inventory reports
+  { path: "/reports/inventory/stock-item",               element: <StockItemReport /> },
+  { path: "/reports/inventory/stock-group",              element: <StockGroupReport /> },
+  { path: "/reports/inventory/stock-category",           element: <StockCategoryReport /> },
+  { path: "/reports/inventory/godown",                   element: <GodownReport /> },
+  { path: "/reports/inventory/batch-vouchers",           element: <BatchVouchers /> },
+  { path: "/reports/inventory/movement-analysis",        element: <MovementAnalysis /> },
+  { path: "/reports/inventory/sales-order-book",         element: <SalesOrderBook /> },
+  { path: "/reports/inventory/purchase-order-book",      element: <PurchaseOrderBook /> },
+  { path: "/reports/inventory/ageing-analysis",          element: <AgeingAnalysis /> },
+  { path: "/reports/inventory/sales-order-outstanding",  element: <SalesOrderOutstanding /> },
+  { path: "/reports/inventory/purchase-order-outstanding",element: <PurchaseOrderOutstanding /> },
+  { path: "/reports/inventory/work-order-outstanding",   element: <WorkOrderOutstanding /> },
+  { path: "/reports/inventory/stock-query",              element: <StockQuery /> },
+  { path: "/reports/inventory/reorder-status",           element: <ReorderStatus /> },
+  { path: "/reports/inventory/job-work",                 element: <JobWorkReports /> },
+  // Exception reports
+  { path: "/reports/exception/overdue-receivables",      element: <OverdueReceivables /> },
+  { path: "/reports/exception/overdue-payables",         element: <OverduePayables /> },
+  { path: "/reports/exception/pending-documents",        element: <PendingDocuments /> },
+  { path: "/reports/exception/negative-stock",           element: <NegativeStock /> },
+  { path: "/reports/exception/negative-ledger",          element: <NegativeLedger /> },
+  { path: "/reports/exception/analysis-verification",    element: <AnalysisVerification /> },
+  { path: "/reports/exception/edit-log",                 element: <EditLogSummary /> },
+  // Payroll reports
+  { path: "/reports/payroll/payslip",           element: <PayslipReport /> },
+  { path: "/reports/payroll/salary-statement",  element: <SalaryStatement /> },
+  { path: "/reports/payroll/salary-register",   element: <SalaryRegister /> },
+  { path: "/reports/payroll/attendance-register",element: <AttendanceReport /> },
+  { path: "/reports/payroll/pay-head-breakup",  element: <PayHeadBreakup /> },
+  { path: "/reports/payroll/pf",                element: <PFReports /> },
+  { path: "/reports/payroll/esi",               element: <ESIReports /> },
+  { path: "/reports/payroll/professional-tax",  element: <ProfessionalTax /> },
+  { path: "/reports/payroll/gratuity",          element: <Gratuity /> },
 
   { path: "/master/create/tds-details", element: <TDSDetailsCreate /> },
   { path: "/master/alter/tds-details", element: <TDSDetailsAlter /> },
@@ -208,6 +334,9 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/statutory/gstr3b", element: <GSTR3BView /> },
   { path: "/master/statutory/annual-computation", element: <AnnualComputation /> },
   { path: "/master/statutory/gstr2a/reconciliation", element: <GSTR2AReconciliation />},
+  { path: "/master/statutory/gstr2b/reconciliation", element: <GSTR2BReconciliation /> },
+  { path: "/master/statutory/challan/reconciliation", element: <ChallanReconciliation /> },
+  { path: "/master/statutory/ims", element: <IMSInwardSupplies /> },
 
   { path: "/master/create/tax-units", element: <TaxCreate /> },
   { path: "/master/alter/tax-units", element: <TaxAlter /> },

@@ -225,6 +225,10 @@ ipcMain.handle('gst:getHSNRates', gstController.getHSNRates);
 ipcMain.handle('gst:upsertHSNRate', gstController.upsertHSNRate);
 ipcMain.handle('gst:deleteHSNRate', gstController.deleteHSNRate);
 ipcMain.handle('gst:getAnnualComputation', gstController.getAnnualComputation);
+ipcMain.handle('gst:getGSTR1Reconciliation', gstController.getGSTR1Reconciliation);
+ipcMain.handle('gst:getGSTR2BReconciliation', gstController.getGSTR2BReconciliation);
+ipcMain.handle('gst:getIMSInwardSupplies', gstController.getIMSInwardSupplies);
+ipcMain.handle('gst:getChallanReconciliation', gstController.getChallanReconciliation);
 
 ipcMain.handle('employeeCategory:create', employeeCategoryController.create);
 ipcMain.handle('employeeCategory:getAll', employeeCategoryController.getAll);

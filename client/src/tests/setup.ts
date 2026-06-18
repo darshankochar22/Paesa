@@ -127,6 +127,10 @@ window.api = {
     getHSNRates:   vi.fn().mockResolvedValue({ success: true, hsnRates: [] }),
     upsertHSNRate: vi.fn().mockResolvedValue({ success: true }),
     deleteHSNRate: vi.fn().mockResolvedValue({ success: true }),
+    getGSTR1Reconciliation: vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getGSTR2BReconciliation: vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getIMSInwardSupplies: vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getChallanReconciliation: vi.fn().mockResolvedValue({ success: true, payload: {} }),
   },
   gstRegistration: {
     getAll:  vi.fn().mockResolvedValue({ success: true, gstRegistrations: [] }),
