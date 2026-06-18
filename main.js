@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const isDev = !app.isPackaged;
+// E2E_PROD makes `electron .` load the built client/dist (like a packaged app) so Playwright
+// can drive the real renderer without a Vite dev server.
+const isDev = !app.isPackaged && !process.env.E2E_PROD;
 
 ipcMain.handle("app:getDataPath", () => app.getPath("userData"));
 
@@ -33,7 +35,7 @@ app.whenReady().then(async () => {
 
         // Dev-only: serve auto-generated API docs at http://localhost:5180/docs
         // (uses the correctly-spelled app.isPackaged so it never ships in production builds).
-        if (!app.isPackaged) {
+        if (!app.isPackaged && !process.env.E2E_PROD) {
             require('./server/docs/server')
                 .startDocsServer({ port: 5180 })
                 .then(() => console.log('API docs: http://localhost:5180/docs'))

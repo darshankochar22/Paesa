@@ -1184,13 +1184,17 @@ export default function Vouchers() {
         const childrenMap: Record<string, string[]> = {};
         const parentMap: Record<string, string> = {};
         for (const vt of res.voucherTypes) {
-          if (vt.parent_vt_id && vt.vt_id) {
-            const parent = res.voucherTypes.find((p) => p.vt_id === vt.parent_vt_id);
-            if (parent) {
-              if (!childrenMap[parent.name]) childrenMap[parent.name] = [];
-              if (!childrenMap[parent.name].includes(vt.name)) childrenMap[parent.name].push(vt.name);
-              parentMap[vt.name] = parent.name;
-            }
+          // Predefined types ARE the base buttons (Contra/Payment/Receipt/...). Skip them.
+          if (vt.is_predefined) continue;
+          // Nest a custom voucher type under its explicit parent, else under its
+          // "Select type of voucher" category — so parent-less custom types aren't ignored.
+          const parentName = vt.parent_vt_id
+            ? res.voucherTypes.find((p) => p.vt_id === vt.parent_vt_id)?.name
+            : vt.category;
+          if (parentName && vt.name && parentName !== vt.name) {
+            if (!childrenMap[parentName]) childrenMap[parentName] = [];
+            if (!childrenMap[parentName].includes(vt.name)) childrenMap[parentName].push(vt.name);
+            parentMap[vt.name] = parentName;
           }
         }
         setVoucherTypeChildren(childrenMap);
