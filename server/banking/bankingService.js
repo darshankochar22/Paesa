@@ -12,6 +12,7 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const { reconciliations, voucherEntries, vouchers, ledgers } = require('../db/schema');
+const auditTrailService = require('../auditTrail/auditTrailService');
 
 // Signed amount for a bank ledger: Dr increases the bank balance, Cr decreases it.
 const SIGNED_AMOUNT = sql`CASE WHEN e.type = 'Dr' THEN e.amount ELSE -e.amount END`;
@@ -62,6 +63,13 @@ module.exports = {
         return { success: false, error: 'entry_id, voucher_id and ledger_id are required' };
       }
 
+      const ledgerRows = await db.all(sql`SELECT company_id FROM ${ledgers} WHERE ledger_id = ${ledger_id} LIMIT 1`);
+      const company_id = ledgerRows[0]?.company_id;
+
+      let before = null;
+      const prior = await db.all(sql`SELECT * FROM ${reconciliations} WHERE entry_id = ${entry_id} LIMIT 1`);
+      if (prior.length > 0) before = prior[0];
+
       // Re-reconciling an entry replaces the prior record (no UNIQUE on entry_id).
       await db.run(sql`DELETE FROM ${reconciliations} WHERE entry_id = ${entry_id}`);
       const rows = await db.all(sql`
@@ -70,6 +78,18 @@ module.exports = {
         VALUES (${entry_id}, ${voucher_id}, ${ledger_id}, ${reconciled_date}, ${bank_date}, ${bank_reference})
         RETURNING *
       `);
+
+      if (company_id) {
+        await auditTrailService.record({
+          company_id,
+          entity_type: 'bank_reconciliation',
+          entity_id: entry_id,
+          action: before ? 'update' : 'create',
+          before,
+          after: rows[0],
+        });
+      }
+
       return { success: true, reconciliation: rows[0] };
     } catch (err) {
       console.error('Error in banking.reconcile:', err);
@@ -93,11 +113,35 @@ module.exports = {
         return { success: false, error: 'entry_id or reconciliation_id is required' };
       }
 
+      let prior = [];
+      if (reconciliationId != null) {
+        prior = await db.all(sql`SELECT * FROM ${reconciliations} WHERE reconciliation_id = ${reconciliationId} LIMIT 1`);
+      } else if (entryId != null) {
+        prior = await db.all(sql`SELECT * FROM ${reconciliations} WHERE entry_id = ${entryId} LIMIT 1`);
+      }
+      const before = prior[0] || null;
+
       const res = reconciliationId != null
         ? await db.run(sql`DELETE FROM ${reconciliations} WHERE reconciliation_id = ${reconciliationId}`)
         : await db.run(sql`DELETE FROM ${reconciliations} WHERE entry_id = ${entryId}`);
 
       const removed = (res && (res.rowsAffected ?? res.changes)) || 0;
+
+      if (removed && before) {
+        const ledgerRows = await db.all(sql`SELECT company_id FROM ${ledgers} WHERE ledger_id = ${before.ledger_id} LIMIT 1`);
+        const company_id = ledgerRows[0]?.company_id;
+        if (company_id) {
+          await auditTrailService.record({
+            company_id,
+            entity_type: 'bank_reconciliation',
+            entity_id: before.entry_id,
+            action: 'delete',
+            before,
+            after: null,
+          });
+        }
+      }
+
       return { success: true, removed };
     } catch (err) {
       console.error('Error in banking.unreconcile:', err);

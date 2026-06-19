@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function StockCategoryReport() {
-  return <ReportStub title="Stock Category" description="Displays stock summary grouped by stock categories for multi-dimensional inventory analysis." />;
+  return <ReportRunner />;
 }

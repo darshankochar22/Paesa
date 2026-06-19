@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function EditLogSummary() {
-  return <ReportStub title="Edit Log Summary" description="Displays a chronological audit trail of all edits made to vouchers and masters, including who made changes and what was changed." />;
+  return <ReportRunner />;
 }

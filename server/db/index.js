@@ -118,15 +118,39 @@ const initDB = async () => {
   await require("../whatsapp/whatsapp").init(rawDb);
   await require("../auditTrail/auditTrail").init(rawDb);
 
-  // Heal schema drift in pre-existing databases: add any columns the Drizzle schema
-  // expects but an older startup.db is missing (CREATE TABLE IF NOT EXISTS won't).
+  // ── Auto-migration for users upgrading from an earlier version ──────────────
+  // init() above (CREATE TABLE IF NOT EXISTS) creates any tables a new release added.
+  // reconcileSchema() then adds any columns an older startup.db is missing. Together they
+  // bring ANY earlier-version database up to the current schema on launch, without data loss.
   if (DIALECT !== "pg") {
     try {
-      await require("./reconcile").reconcileSchema(rawDb);
+      const added = await require("./reconcile").reconcileSchema(rawDb);
+      await stampSchemaVersion(added.length);
     } catch (err) {
-      console.error("Schema reconcile failed:", err);
+      console.error("Schema migration failed:", err);
     }
   }
 };
+
+// Record the app/schema version + last migration so upgrades are observable and future
+// targeted migrations can be applied idempotently. app_meta is an internal key/value table
+// (not a Drizzle/parity-tracked entity).
+async function stampSchemaVersion(columnsAdded) {
+  let version = "unknown";
+  try { version = require("../../package.json").version; } catch {}
+  const now = new Date().toISOString();
+  await rawDb.execute(
+    "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)"
+  );
+  const prev = await rawDb.execute({ sql: "SELECT value FROM app_meta WHERE key = 'schema_version'", args: [] });
+  const from = prev.rows[0] ? prev.rows[0].value : "fresh";
+  await rawDb.execute({
+    sql: "INSERT INTO app_meta (key, value, updated_at) VALUES ('schema_version', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+    args: [version, now],
+  });
+  if (from !== version || columnsAdded > 0) {
+    console.log(`[db] migrated ${from} -> ${version}` + (columnsAdded ? ` (+${columnsAdded} column(s))` : "") + " — schema up to date.");
+  }
+}
 
 module.exports = { rawDb, db, initDB };

@@ -59,6 +59,7 @@ import ProfitLoss from "./pages/reports/accounts/ProfitLoss.tsx";
 import BalanceSheet from "./pages/reports/accounts/BalanceSheet.tsx";
 import CashFlowStatement from "./pages/reports/accounts/CashFlowStatement.tsx";
 import FundsFlowStatement from "./pages/reports/accounts/FundsFlowStatement.tsx";
+import RatioAnalysis from "./pages/reports/accounts/RatioAnalysis.tsx";
 import OutstandingsReceivable from "./pages/reports/accounts/OutstandingsReceivable.tsx";
 import OutstandingsPayable from "./pages/reports/accounts/OutstandingsPayable.tsx";
 import InterestCalculations from "./pages/reports/accounts/InterestCalculations.tsx";
@@ -66,6 +67,7 @@ import CostCentreSummary from "./pages/reports/accounts/CostCentreSummary.tsx";
 import CostCategorySummary from "./pages/reports/accounts/CostCategorySummary.tsx";
 import Statistics from "./pages/reports/accounts/Statistics.tsx";
 // Inventory report pages
+import StockSummary from "./pages/reports/inventory/StockSummary.tsx";
 import StockItemReport from "./pages/reports/inventory/StockItemReport.tsx";
 import StockGroupReport from "./pages/reports/inventory/StockGroupReport.tsx";
 import StockCategoryReport from "./pages/reports/inventory/StockCategoryReport.tsx";
@@ -219,6 +221,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/balance-sheet",          element: <BalanceSheet /> },
   { path: "/reports/accounts/cash-flow",              element: <CashFlowStatement /> },
   { path: "/reports/accounts/funds-flow",             element: <FundsFlowStatement /> },
+  { path: "/reports/accounts/ratio-analysis",          element: <RatioAnalysis /> },
   { path: "/reports/accounts/outstandings-receivable",element: <OutstandingsReceivable /> },
   { path: "/reports/accounts/outstandings-payable",   element: <OutstandingsPayable /> },
   { path: "/reports/accounts/interest-calculations",  element: <InterestCalculations /> },
@@ -226,6 +229,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/cost-category-summary",  element: <CostCategorySummary /> },
   { path: "/reports/accounts/statistics",             element: <Statistics /> },
   // Inventory reports
+  { path: "/reports/inventory/stock-summary",           element: <StockSummary /> },
   { path: "/reports/inventory/stock-item",               element: <StockItemReport /> },
   { path: "/reports/inventory/stock-group",              element: <StockGroupReport /> },
   { path: "/reports/inventory/stock-category",           element: <StockCategoryReport /> },

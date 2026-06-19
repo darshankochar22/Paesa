@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
 import { Button } from "@/components/shadcn/button";
@@ -74,9 +74,15 @@ function StatusBadge({ status }: { status?: string }) {
 export default function GSTR2BReconciliation() {
   const { selectedCompany, activeFY } = useCompany();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const companyId = selectedCompany?.company_id;
   const fyId      = activeFY?.fy_id;
+
+  const today = new Date();
+  const [selectedMonth] = useState(String(today.getMonth() + 1).padStart(2, "0"));
+  const [selectedYear] = useState(String(today.getFullYear()));
+  const returnPeriod = `${selectedMonth}${selectedYear}`;
 
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState<string | null>(null);
@@ -120,6 +126,56 @@ export default function GSTR2BReconciliation() {
   };
 
   useEffect(() => { loadData(); }, [companyId, fyId]);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "a" && e.altKey) {
+        e.preventDefault();
+        navigate("/utilities/copilot", {
+          state: {
+            initialPrompt: "Analyze my GSTR-2B reconciliation status. Please highlight any mismatches and provide GST correction suggestions."
+          }
+        });
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [navigate]);
+
+  const handleImportJson = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        setLoading(true);
+        const text = await file.text();
+        const payload = JSON.parse(text);
+        const period = payload.fp || returnPeriod; // try to get period from payload, fallback to current
+        
+        const res = await window.api.gst.importGSTR2B({
+          company_id: companyId,
+          fy_id: fyId,
+          return_period: period,
+          payload
+        });
+        
+        if (res.success) {
+          await loadData();
+          alert("GSTR-2B JSON Imported successfully! Reconciliation updated.");
+        } else {
+          setError(res.error || "Failed to import JSON");
+        }
+      } catch (err: any) {
+        setError("Invalid JSON file: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    input.click();
+  };
 
   const d = data?.return_view ?? {};
 
@@ -190,15 +246,26 @@ export default function GSTR2BReconciliation() {
         </>
       }
       footerControls={
-        <Button
-          onClick={loadData}
-          variant="ghost"
-          size="xs"
-          disabled={loading}
-          className="h-auto p-0 ml-4 font-bold text-black hover:underline hover:bg-transparent"
-        >
-          F5: Refresh
-        </Button>
+        <div className="flex items-center gap-4 ml-4">
+          <Button
+            onClick={loadData}
+            variant="ghost"
+            size="xs"
+            disabled={loading}
+            className="h-auto p-0 font-bold text-black hover:underline hover:bg-transparent"
+          >
+            F5: Refresh
+          </Button>
+          <Button
+            onClick={handleImportJson}
+            variant="ghost"
+            size="xs"
+            disabled={loading}
+            className="h-auto p-0 font-bold text-black hover:underline hover:bg-transparent"
+          >
+            Alt+I: Import JSON
+          </Button>
+        </div>
       }
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">

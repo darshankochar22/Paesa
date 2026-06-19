@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function Gratuity() {
-  return <ReportStub title="Gratuity" description="Calculates gratuity entitlement for each employee based on years of service and last drawn salary as per the Payment of Gratuity Act." />;
+  return <ReportRunner />;
 }

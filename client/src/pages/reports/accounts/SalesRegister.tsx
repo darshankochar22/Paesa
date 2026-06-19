@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function SalesRegister() {
-  return <ReportStub title="Sales Register" description="Displays all sales vouchers (invoices) in sequence for the selected period with party, amount, and tax details." />;
+  return <ReportRunner />;
 }

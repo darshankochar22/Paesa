@@ -1,4 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
+
 export default function ReorderStatus() {
-  return <ReportStub title="Reorder Status" description="Displays items whose stock has fallen below the configured reorder level, helping trigger timely purchase orders." />;
+  return <ReportRunner />;
 }

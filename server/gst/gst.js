@@ -60,6 +60,18 @@ const init = async (db) => {
     )
   `);
 
+  // 4. Create gstr2b_imports table for reconciliation
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS gstr2b_imports (
+      import_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
+      fy_id INTEGER NOT NULL REFERENCES financial_years(fy_id) ON DELETE CASCADE,
+      return_period TEXT NOT NULL,
+      payload_json TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   // Migrations: Alter stock_groups to add igst_rate and cess_rate
   try {
     await db.execute(`

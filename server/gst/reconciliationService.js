@@ -154,6 +154,29 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
     let reconciledCount = 0;
     let unreconciledCount = 0;
 
+    let totalImportedTax = 0;
+
+    // Real reconciliation logic against imported GSTR-2B data
+    const importedRows = await db.all(
+      sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`
+    );
+
+    // Parse portal invoices
+    const portalInvoices = new Map();
+    for (const row of importedRows) {
+      try {
+        const payload = JSON.parse(row.payload_json);
+        // Standard JSON structure for 2B: { b2b: [ { inv: [ { inum: "INV-1", val: 100 } ] } ] }
+        if (payload.b2b) {
+          for (const p of payload.b2b) {
+            for (const inv of p.inv) {
+              portalInvoices.set(`${p.ctin}-${inv.inum}`.toUpperCase(), inv);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
     for (const v of rawVouchers) {
       // Direct everything to itc_available_other for standard purchases
       const row = return_view["itc_available_other"];
@@ -166,12 +189,14 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
       row.tax_amount += (v.igst_amount || 0) + (v.cgst_amount || 0) + (v.sgst_amount || 0) + (v.cess_amount || 0);
       row.invoice_amount += v.effective_amount || v.amount || 0;
 
-      if (v.voucher_id % 5 === 0) {
-        row.status = "Unreconciled";
-        unreconciledCount++;
-      } else {
+      // Reconciliation: match GSTIN and Invoice Number
+      const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
+      if (portalInvoices.has(key)) {
         row.status = "Reconciled";
         reconciledCount++;
+      } else {
+        row.status = "Unreconciled";
+        unreconciledCount++;
       }
     }
 
@@ -184,9 +209,28 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
           unreconciled: unreconciledCount,
           uncertain: 0
         },
-        period_label: fyLabel
+        period_label: fyLabel,
+        last_gst_activity: importedRows.length > 0 ? importedRows[importedRows.length - 1].created_at : "No Activity Found"
       }
     };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+const importGSTR2B = async (company_id, fy_id, return_period, payload) => {
+  try {
+    // Upsert
+    await db.execute(sql`
+      DELETE FROM gstr2b_imports 
+      WHERE company_id = ${company_id} AND return_period = ${return_period}
+    `);
+    
+    await db.execute(sql`
+      INSERT INTO gstr2b_imports (company_id, fy_id, return_period, payload_json)
+      VALUES (${company_id}, ${fy_id}, ${return_period}, ${JSON.stringify(payload)})
+    `);
+    return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -330,6 +374,7 @@ const getChallanReconciliation = async (company_id, fy_id) => {
 module.exports = {
   getGSTR1Reconciliation,
   getGSTR2BReconciliation,
+  importGSTR2B,
   getIMSInwardSupplies,
   getChallanReconciliation
 };

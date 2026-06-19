@@ -8,6 +8,7 @@
   },
   "main": "main.js",
   "scripts": {
+    "postinstall": "npm --prefix client install",
     "test": "NODE_ENV=test jest --runInBand --detectOpenHandles --forceExit",
     "dev:client": "cd client && npm run dev",
     "dev": "cd client && npm run dev",

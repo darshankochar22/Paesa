@@ -166,6 +166,42 @@ ipcMain.handle('report:cashFlow', reportController.cashFlow);
 ipcMain.handle('report:fundsFlow', reportController.fundsFlow);
 ipcMain.handle('report:stockSummary', reportController.stockSummary);
 ipcMain.handle('report:ratioAnalysis', reportController.ratioAnalysis);
+ipcMain.handle('report:run', reportController.run);
+ipcMain.handle('report:getSavedViews', reportController.getSavedViews);
+ipcMain.handle('report:saveView', reportController.saveView);
+ipcMain.handle('report:deleteSavedView', reportController.deleteSavedView);
+
+// Advanced Inventory Reports (Phase 4)
+ipcMain.handle('report:godownSummary', reportController.godownSummary);
+ipcMain.handle('report:stockAgeing', reportController.stockAgeing);
+ipcMain.handle('report:movementAnalysis', reportController.movementAnalysis);
+ipcMain.handle('report:reorderStatus', reportController.reorderStatus);
+ipcMain.handle('report:orderOutstanding', reportController.orderOutstanding);
+
+// Advanced Accounting Reports (Phase 4)
+ipcMain.handle('report:costCentreReport', reportController.costCentreReport);
+ipcMain.handle('report:budgetVsActual', reportController.budgetVsActual);
+
+// Accounting summaries
+ipcMain.handle('report:groupSummary',        reportController.groupSummary);
+ipcMain.handle('report:statistics',          reportController.statistics);
+ipcMain.handle('report:costCategorySummary', reportController.costCategorySummary);
+
+// Inventory summaries
+ipcMain.handle('report:stockItemSummary',     reportController.stockItemSummary);
+ipcMain.handle('report:stockGroupSummary',    reportController.stockGroupSummary);
+ipcMain.handle('report:stockCategorySummary', reportController.stockCategorySummary);
+
+// Payroll Reports
+ipcMain.handle('report:payslipReport',    reportController.payslipReport);
+ipcMain.handle('report:salaryStatement',  reportController.salaryStatement);
+ipcMain.handle('report:salaryRegister',   reportController.salaryRegister);
+ipcMain.handle('report:attendanceReport', reportController.attendanceReport);
+ipcMain.handle('report:payHeadBreakup',   reportController.payHeadBreakup);
+ipcMain.handle('report:pfReport',         reportController.pfReport);
+ipcMain.handle('report:esiReport',        reportController.esiReport);
+ipcMain.handle('report:professionalTax',  reportController.professionalTax);
+ipcMain.handle('report:gratuity',         reportController.gratuity);
 
 ipcMain.handle('banking:getUnreconciled', bankingController.getUnreconciled);
 ipcMain.handle('banking:reconcile', bankingController.reconcile);
@@ -227,6 +263,7 @@ ipcMain.handle('gst:deleteHSNRate', gstController.deleteHSNRate);
 ipcMain.handle('gst:getAnnualComputation', gstController.getAnnualComputation);
 ipcMain.handle('gst:getGSTR1Reconciliation', gstController.getGSTR1Reconciliation);
 ipcMain.handle('gst:getGSTR2BReconciliation', gstController.getGSTR2BReconciliation);
+ipcMain.handle('gst:importGSTR2B', gstController.importGSTR2B);
 ipcMain.handle('gst:getIMSInwardSupplies', gstController.getIMSInwardSupplies);
 ipcMain.handle('gst:getChallanReconciliation', gstController.getChallanReconciliation);
 

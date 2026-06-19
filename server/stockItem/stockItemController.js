@@ -1,8 +1,26 @@
 const stockItemService = require('../stockItem/stockItemService');
+const auditTrailService = require('../auditTrail/auditTrailService');
+
+const ENTITY_TYPE = 'stock_item';
 
 module.exports = {
   create: async (event, data) => {
-    return await stockItemService.create(data);
+    const result = await stockItemService.create(data);
+    if (result && result.success && result.item) {
+      try {
+        await auditTrailService.record({
+          company_id: result.item.company_id,
+          entity_type: ENTITY_TYPE,
+          entity_id: result.item.item_id,
+          action: 'create',
+          before: null,
+          after: result.item,
+        });
+      } catch (err) {
+        console.error('Error recording stock item create audit:', err);
+      }
+    }
+    return result;
   },
   getAll: async (event, company_id) => {
     return await stockItemService.getAll(company_id);
@@ -11,10 +29,54 @@ module.exports = {
     return await stockItemService.getById(id);
   },
   update: async (event, data) => {
-    return await stockItemService.update(data);
+    let before = null;
+    try {
+      const snap = await stockItemService.getById(data.item_id);
+      if (snap && snap.success) before = snap.item;
+    } catch (err) {
+      console.error('Error fetching stock item update snapshot:', err);
+    }
+    const result = await stockItemService.update(data);
+    if (result && result.success && result.item) {
+      try {
+        await auditTrailService.record({
+          company_id: result.item.company_id,
+          entity_type: ENTITY_TYPE,
+          entity_id: result.item.item_id,
+          action: 'update',
+          before,
+          after: result.item,
+        });
+      } catch (err) {
+        console.error('Error recording stock item update audit:', err);
+      }
+    }
+    return result;
   },
   delete: async (event, id) => {
-    return await stockItemService.delete(id);
+    let before = null;
+    try {
+      const snap = await stockItemService.getById(id);
+      if (snap && snap.success) before = snap.item;
+    } catch (err) {
+      console.error('Error fetching stock item delete snapshot:', err);
+    }
+    const result = await stockItemService.delete(id);
+    if (result && result.success && before) {
+      try {
+        await auditTrailService.record({
+          company_id: before.company_id,
+          entity_type: ENTITY_TYPE,
+          entity_id: before.item_id,
+          action: 'delete',
+          before,
+          after: null,
+        });
+      } catch (err) {
+        console.error('Error recording stock item delete audit:', err);
+      }
+    }
+    return result;
   },
   getByGroup: async (event, { company_id, group_id }) => {
     return await stockItemService.getByGroup(company_id, group_id);

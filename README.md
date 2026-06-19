@@ -9,9 +9,25 @@ A Tally-style desktop accounting/ERP (Electron + React + SQLite) with an **AI co
 ## Quick start
 
 ```bash
-npm i                  # root: Electron + backend deps
-npm i --prefix client  # client deps (REQUIRED)
-npm start              # Vite dev server + Electron; live API docs at http://localhost:5180/docs
+npm i        # installs root + client deps (a postinstall runs `npm --prefix client install`)
+npm start    # Vite dev server + Electron; live API docs at http://localhost:5180/docs
+```
+
+## Upgrading from an earlier version
+
+The database **auto-migrates on launch** — no manual steps, no data loss. On every boot, `initDB()`:
+1. creates any **tables** a newer release added (`CREATE TABLE IF NOT EXISTS`), and
+2. adds any **columns** an older `startup.db` is missing (the schema reconciler).
+
+So a database from any earlier version is brought up to the current schema the first time you open
+the new build. You'll see a one-time log: `[db] migrated <from> -> <version> (+N column(s))`. The DB's
+schema version is recorded in an internal `app_meta` table.
+
+If the app was already running from before you upgraded (so it never re-ran `initDB`), either fully quit
+and reopen, or heal the live DB in place without launching the app:
+
+```bash
+npm run db:repair    # auto-detects the userData startup.db (or pass STARTUP_DB_PATH=/path/to/startup.db)
 ```
 
 ## Architecture

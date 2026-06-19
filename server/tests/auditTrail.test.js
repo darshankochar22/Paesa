@@ -2,6 +2,7 @@ const { setupTestDB, createTestCompany, db } = require("./helpers");
 const voucherController = require("../voucher/voucherController");
 const voucherService = require("../voucher/voucherService");
 const auditTrailService = require("../auditTrail/auditTrailService");
+const bankingService = require("../banking/bankingService");
 
 describe("Audit Trail Tests", () => {
   let companyId;
@@ -103,6 +104,113 @@ describe("Audit Trail Tests", () => {
       const res = await auditTrailService.verifyChain(companyId);
       expect(res.intact).toBe(false);
       expect(res.brokenAt).toBe(target.log_id);
+    });
+  });
+
+  describe("AUDIT: write path coverage for bank reconciliation and tally features", () => {
+    let writeCompanyId;
+    let writeFyId;
+    let writeCashLedgerId;
+    let writePlLedgerId;
+    let entryId, voucherId;
+
+    beforeAll(async () => {
+      const company = await createTestCompany("Audit Write Path Test Co");
+      writeCompanyId = company.company_id;
+
+      const fyResult = await db.execute(
+        `SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`,
+        [writeCompanyId]
+      );
+      writeFyId = fyResult.rows[0].fy_id;
+
+      const ledgersResult = await db.execute(
+        `SELECT ledger_id, name FROM ledgers WHERE company_id = ?`,
+        [writeCompanyId]
+      );
+      writeCashLedgerId = ledgersResult.rows.find((l) => l.name === "Cash").ledger_id;
+      writePlLedgerId = ledgersResult.rows.find((l) => l.name === "Profit & Loss A/c").ledger_id;
+    });
+
+    it("records audit trail on bank reconciliation and unreconciliation", async () => {
+      // create a bank receipt
+      const receipt = await voucherService.create({
+        company_id: writeCompanyId,
+        fy_id: writeFyId,
+        voucher_type: "Receipt",
+        date: "2026-04-15",
+        is_accounting_voucher: 1,
+        narration: "BRS test receipt",
+        entries: [
+          { ledger_id: writeCashLedgerId, type: "Dr", amount: 2000 },
+          { ledger_id: writePlLedgerId, type: "Cr", amount: 2000 },
+        ],
+      });
+      expect(receipt.success).toBe(true);
+
+      const unreconciled = await bankingService.getUnreconciled(writeCompanyId, writeFyId, writeCashLedgerId);
+      expect(unreconciled.success).toBe(true);
+      const bankEntry = unreconciled.transactions.find(t => t.voucher_id === receipt.voucher.voucher_id);
+      expect(bankEntry).toBeDefined();
+      entryId = bankEntry.entry_id;
+      voucherId = bankEntry.voucher_id;
+
+      // Reconcile
+      const recResult = await bankingService.reconcile({
+        entry_id: entryId,
+        voucher_id: voucherId,
+        ledger_id: writeCashLedgerId,
+        bank_date: "2026-04-16",
+        bank_reference: "TXN100",
+        reconciled_date: "2026-04-16",
+      });
+      expect(recResult.success).toBe(true);
+
+      // Verify audit row exists for bank_reconciliation
+      let rows = await auditTrailService.getByEntity(writeCompanyId, "bank_reconciliation", entryId);
+      expect(rows.length).toBe(1);
+      expect(rows[0].action).toBe("create");
+      expect(rows[0].after_snapshot).not.toBeNull();
+
+      // Unreconcile
+      const unrecResult = await bankingService.unreconcile(entryId);
+      expect(unrecResult.success).toBe(true);
+
+      rows = await auditTrailService.getByEntity(writeCompanyId, "bank_reconciliation", entryId);
+      expect(rows.length).toBe(2);
+      expect(rows[1].action).toBe("delete");
+
+      // Verify chain is still intact
+      const chainVal = await auditTrailService.verifyChain(writeCompanyId);
+      expect(chainVal.intact).toBe(true);
+    });
+
+    it("records audit trail on tally features update and reset", async () => {
+      const tallyFeaturesService = require("../tallyFeatures/tallyFeaturesService");
+
+      // Update features
+      const updateResult = await tallyFeaturesService.update({
+        company_id: writeCompanyId,
+        enable_bill_wise_entry: 1,
+        enable_gst: 1,
+      });
+      expect(updateResult.success).toBe(true);
+
+      let rows = await auditTrailService.getByEntity(writeCompanyId, "tally_features", writeCompanyId);
+      expect(rows.length).toBe(1);
+      expect(rows[0].action).toBe("update");
+
+      // Reset features
+      const resetResult = await tallyFeaturesService.reset(writeCompanyId);
+      expect(resetResult.success).toBe(true);
+
+      rows = await auditTrailService.getByEntity(writeCompanyId, "tally_features", writeCompanyId);
+      expect(rows.length).toBe(2);
+      expect(rows[1].action).toBe("reset");
+
+      // Verify chain remains intact
+      const chainVal = await auditTrailService.verifyChain(writeCompanyId);
+      expect(chainVal.intact).toBe(true);
     });
   });
 

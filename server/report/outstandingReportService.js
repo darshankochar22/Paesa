@@ -48,10 +48,10 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
         l.ledger_id              AS ledger_id,
         l.name                   AS party_name,
         vbr.bill_name            AS bill_name,
-        MAX(v.date)              AS bill_date,
-        MAX(vbr.due_date)        AS due_date,
-        MAX(vbr.credit_period)   AS credit_period,
-        SUM(vbr.amount)          AS total_amount
+        COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
+        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
+        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
+        SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS total_amount
       FROM ${voucherBillReferences} vbr
       JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
@@ -61,7 +61,7 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
         AND v.is_cancelled = 0
         AND COALESCE(v.is_optional, 0) = 0
         AND COALESCE(v.is_post_dated, 0) = 0
-        AND vbr.bill_type IN ('New Ref', 'Advance')
+        AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
         AND g.company_id = ${company_id}
         AND g.name = ${groupName}
       GROUP BY l.ledger_id, l.name, vbr.bill_name

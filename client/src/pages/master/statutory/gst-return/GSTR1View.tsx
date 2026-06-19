@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
 import { Button } from "@/components/shadcn/button";
@@ -12,12 +12,14 @@ import {
   TableRow,
   TableCell,
 } from "@/components/shadcn/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/shadcn/dialog";
 import { EmptyState } from "@/components/blocks/EmptyState";
 import { cn } from "@/lib/utils";
 
 export default function GSTR1View() {
   const { selectedCompany, activeFY } = useCompany();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -30,6 +32,8 @@ export default function GSTR1View() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gstr1Data, setGstr1Data] = useState<any>(null);
+  const [gstr1Errors, setGstr1Errors] = useState<any[]>([]);
+  const [showErrorsDialog, setShowErrorsDialog] = useState(false);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
 
   const activeRegistration = location.state?.registration || fetchedRegistration;
@@ -71,6 +75,7 @@ export default function GSTR1View() {
 
       if (result.success) {
         setGstr1Data(result.payload);
+        setGstr1Errors(result.errors || []);
       } else {
         setError(result.error || "Failed to load GSTR-1 data.");
       }
@@ -84,6 +89,35 @@ export default function GSTR1View() {
   useEffect(() => {
     loadData(false);
   }, [companyId, fyId, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "a" && e.altKey) {
+        e.preventDefault();
+        navigate("/utilities/copilot", {
+          state: {
+            initialPrompt: "Analyze my GSTR-1 return data. Please highlight any anomalies and provide GST correction suggestions."
+          }
+        });
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [navigate]);
+
+  const handleExportJson = () => {
+    if (!gstr1Data) return;
+    const jsonStr = JSON.stringify(gstr1Data, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `GSTR1_${activeRegistration?.gstin || "Export"}_${returnPeriod}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Summaries calculation
   const b2bData = useMemo(() => {
@@ -209,14 +243,24 @@ export default function GSTR1View() {
         </>
       }
       footerControls={
-        <Button
-          onClick={() => loadData(true)}
-          variant="ghost"
-          size="xs"
-          className="h-auto p-0 ml-4 font-bold text-black-900 hover:underline hover:bg-transparent"
-        >
-          F5: Refresh
-        </Button>
+        <div className="flex items-center gap-4 ml-4">
+          <Button
+            onClick={() => loadData(true)}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            F5: Refresh
+          </Button>
+          <Button
+            onClick={handleExportJson}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            Alt+E: Export JSON
+          </Button>
+        </div>
       }
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
@@ -239,11 +283,11 @@ export default function GSTR1View() {
           </div>
           <div className="flex px-4 py-0.5 text-gray-600">
             <div className="flex-1">Not Relevant for This Return</div>
-            <div className="w-32 text-right"></div>
+            <div className="w-32 text-right">0</div>
           </div>
-          <div className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2">
+          <div className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2 cursor-pointer hover:underline" onClick={() => { if(gstr1Errors.length > 0) setShowErrorsDialog(true); }}>
             <div className="flex-1">Uncertain Transactions (Corrections needed)</div>
-            <div className="w-32 text-right"></div>
+            <div className="w-32 text-right">{gstr1Errors.length || ""}</div>
           </div>
         </div>
 
@@ -311,8 +355,36 @@ export default function GSTR1View() {
             </TableRow>
           </TableFooter>
         </Table>
-
       </div>
+
+      <Dialog open={showErrorsDialog} onOpenChange={setShowErrorsDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-900 font-bold">Uncertain Transactions (GST Exceptions)</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <Table className="text-xs">
+              <TableHeader className="bg-zinc-100">
+                <TableRow>
+                  <TableHead className="font-bold">Voucher No</TableHead>
+                  <TableHead className="font-bold">Error Description</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {gstr1Errors.map((err, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-medium text-blue-600 cursor-pointer">{err.voucher_number || "N/A"}</TableCell>
+                    <TableCell className="text-red-600">{err.error}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowErrorsDialog(false)} size="sm">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TallyReportLayout>
   );
 }

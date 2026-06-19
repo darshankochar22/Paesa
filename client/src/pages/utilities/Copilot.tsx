@@ -1,17 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar } from "@/components/ui";
 import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
 import { Badge } from "@/components/shadcn/badge";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { AiProposal, AiStatus, AiProvider } from "@/types/api/Ai";
 
 type Msg = { role: "user" | "assistant"; text: string; proposals?: AiProposal[] };
 
 export default function Copilot() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { selectedCompany, activeFY } = useCompany();
 
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -39,6 +42,36 @@ export default function Copilot() {
     return () => window.removeEventListener("keydown", onKey);
   }, [navigate]);
 
+  const send = useCallback(async (overridePrompt?: string) => {
+    const prompt = (overridePrompt || input).trim();
+    if (!prompt || thinking) return;
+    const history = messages.map((m) => ({ role: m.role, text: m.text }));
+    setMessages((m) => [...m, { role: "user", text: prompt }]);
+    setInput(""); setThinking(true);
+    const res = await window.api.ai.ask({
+      prompt,
+      context: { company_id: selectedCompany?.company_id, fy_id: activeFY?.fy_id },
+      history,
+    });
+    setThinking(false);
+    setMessages((m) => [
+      ...m,
+      res.success
+        ? { role: "assistant", text: res.text || "(no answer)", proposals: res.proposals }
+        : { role: "assistant", text: `⚠ ${res.error}` },
+    ]);
+  }, [input, thinking, messages, selectedCompany, activeFY]);
+
+  useEffect(() => {
+    if (location.state?.initialPrompt && messages.length === 0 && !thinking) {
+      const p = location.state.initialPrompt;
+      setTimeout(() => {
+        navigate(".", { replace: true, state: {} });
+        send(p);
+      }, 50);
+    }
+  }, [location.state, messages.length, thinking, navigate, send]);
+
   const saveKey = async () => {
     setKeyBusy(true); setKeyMsg(null);
     const res = await window.api.ai.setKey({
@@ -58,25 +91,7 @@ export default function Copilot() {
   const useDeepSeek = () => { setProvider("openai"); setBaseUrl("https://api.deepseek.com/v1"); setModel("deepseek-chat"); };
   const removeKey = async () => { await window.api.ai.clearKey(); setKeyMsg(null); refreshStatus(); };
 
-  const send = async () => {
-    const prompt = input.trim();
-    if (!prompt || thinking) return;
-    const history = messages.map((m) => ({ role: m.role, text: m.text }));
-    setMessages((m) => [...m, { role: "user", text: prompt }]);
-    setInput(""); setThinking(true);
-    const res = await window.api.ai.ask({
-      prompt,
-      context: { company_id: selectedCompany?.company_id, fy_id: activeFY?.fy_id },
-      history,
-    });
-    setThinking(false);
-    setMessages((m) => [
-      ...m,
-      res.success
-        ? { role: "assistant", text: res.text || "(no answer)", proposals: res.proposals }
-        : { role: "assistant", text: `⚠ ${res.error}` },
-    ]);
-  };
+
 
   const approve = async (p: AiProposal, idx: number, mi: number) => {
     const [ns, action] = p.channel.split(":");
@@ -146,9 +161,37 @@ export default function Copilot() {
           </div>
         )}
         {messages.map((m, mi) => (
-          <div key={mi} className={cn("max-w-2xl", m.role === "user" ? "ml-auto" : "mr-auto")}>
-            <div className={cn("rounded-lg px-3 py-2 whitespace-pre-wrap leading-relaxed", m.role === "user" ? "bg-zinc-900 text-white" : "bg-white border border-zinc-200 text-zinc-800")}>
-              {m.text}
+          <div key={mi} className={cn("max-w-2xl overflow-hidden", m.role === "user" ? "ml-auto" : "mr-auto")}>
+            <div className={cn("rounded-lg px-3 py-2 leading-relaxed text-[11px]", m.role === "user" ? "bg-zinc-900 text-white whitespace-pre-wrap" : "bg-white border border-zinc-200 text-zinc-800 prose prose-sm prose-zinc max-w-none")}>
+              {m.role === "user" ? m.text : (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({ node, href, children, ...props }) => {
+                      return (
+                        <a
+                          href={href}
+                          {...props}
+                          onClick={(e) => {
+                            if (href?.startsWith("/")) {
+                              e.preventDefault();
+                              navigate(href);
+                            }
+                          }}
+                          className="text-[#003366] font-semibold underline hover:text-[#002244] cursor-pointer"
+                        >
+                          {children}
+                        </a>
+                      );
+                    },
+                    table: ({ node, ...props }) => <div className="overflow-x-auto my-2"><table className="min-w-full divide-y divide-zinc-200 border border-zinc-200" {...props} /></div>,
+                    th: ({ node, ...props }) => <th className="px-2 py-1 bg-zinc-50 font-bold text-left text-zinc-700 border-b" {...props} />,
+                    td: ({ node, ...props }) => <td className="px-2 py-1 border-t border-zinc-100" {...props} />,
+                  }}
+                >
+                  {m.text}
+                </ReactMarkdown>
+              )}
             </div>
             {m.proposals?.map((p, idx) => (
               <div key={idx} className="mt-2 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2 flex items-center gap-2">
@@ -174,7 +217,7 @@ export default function Copilot() {
           disabled={!status?.hasKey || thinking}
           className="h-9 text-xs"
         />
-        <Button onClick={send} disabled={!status?.hasKey || thinking || !input.trim()}>Send</Button>
+        <Button onClick={() => send()} disabled={!status?.hasKey || thinking || !input.trim()}>Send</Button>
       </div>
     </div>
   );
