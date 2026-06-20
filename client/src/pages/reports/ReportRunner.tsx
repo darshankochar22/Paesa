@@ -4,7 +4,6 @@ import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
 import { ReportTable, type ComparisonColumn } from "@/components/reports/ReportTable";
 import { ReportRightPanel } from "@/components/reports/ReportRightPanel";
-import { ReportBottomBar } from "@/components/reports/ReportBottomBar";
 import { ReportContextDialog, type ReportContextConfig } from "@/components/reports/ReportContextDialog";
 import { SaveViewDialog } from "@/components/reports/SaveViewDialog";
 import { CompareColumnDialog } from "@/components/reports/CompareColumnDialog";
@@ -19,7 +18,6 @@ export function ReportRunner() {
   const location = useLocation();
   const { selectedCompany, activeFY } = useCompany();
 
-  // Deduce the report type from the pathname, e.g. /reports/accounts/cash-book -> cash-book
   const reportType = React.useMemo(() => {
     const parts = location.pathname.split("/");
     return parts[parts.length - 1];
@@ -1022,22 +1020,6 @@ export function ReportRunner() {
           }}
         />
       </div>
-
-      <ReportBottomBar
-        statusText={error ? "SIMULATED DATA" : "READY"}
-        totalText={totalText}
-        shortcuts={[
-          { key: "F2", label: "Period" },
-          { key: "F3", label: "Company" },
-          { key: "F4", label: "Config" },
-          { key: "Ctrl+B", label: "Basis" },
-          { key: "Ctrl+H", label: "GoTo" },
-          { key: "Ctrl+L", label: "Save View" },
-          { key: "Alt+U", label: "Restore" },
-          { key: "Alt+E", label: "Export" },
-          { key: "Alt+P", label: "Print" },
-        ]}
-      />
 
       {/* F2 Period Modal */}
       <Dialog open={isPeriodOpen} onOpenChange={(open) => !open && setIsPeriodOpen(false)}>

@@ -45,13 +45,13 @@ export function TallyReportLayout({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-      {/* Tally Prime Header - Dark Blue */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-[#1a237e] to-[#283593] text-white border-b-2 border-[#0d47a1]">
+      {/* Tally Prime Header */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900 text-zinc-900">
         <div className="flex items-center gap-2 flex-1">
           <span className="font-bold text-sm tracking-wide">{title}</span>
         </div>
         <div className="flex items-center gap-2 flex-1 justify-center">
-          <span className="font-bold text-sm text-yellow-100">{companyName}</span>
+          <span className="font-bold text-sm text-zinc-900">{companyName}</span>
         </div>
         <div className="flex items-center gap-3 flex-1 justify-end">
           {footerControls}
@@ -60,12 +60,12 @@ export function TallyReportLayout({
 
       {/* Breadcrumb Navigation */}
       {breadcrumb && breadcrumb.length > 0 && (
-        <div className="flex items-center gap-1 px-3 py-1 bg-[#e8eaf6] border-b border-[#9fa8da] text-[10px]">
+        <div className="flex items-center gap-1 px-3 py-1 bg-white border-b border-zinc-300 text-[10px]">
           {breadcrumb.map((crumb, idx) => (
             <React.Fragment key={idx}>
               {idx > 0 && <span className="text-zinc-400 mx-1">›</span>}
               {crumb.to ? (
-                <Link to={crumb.to} className="text-[#1a237e] hover:underline font-medium">
+                <Link to={crumb.to} className="text-zinc-700 hover:underline font-medium">
                   {crumb.label}
                 </Link>
               ) : (
@@ -77,11 +77,11 @@ export function TallyReportLayout({
       )}
 
       {/* Subtitle Info Area - Period and Context */}
-      <div className="flex justify-between items-center px-3 py-1 bg-[#f5f5f5] border-b border-zinc-300">
+      <div className="flex justify-between items-center px-3 py-1 bg-white border-b border-zinc-300">
         <div className="flex items-center gap-3 text-[10px] text-zinc-700">
           {leftSubtitle}
         </div>
-        <div className="flex items-center gap-3 text-[10px] font-bold text-[#1a237e]">
+        <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-900">
           {rightSubtitle}
         </div>
       </div>
