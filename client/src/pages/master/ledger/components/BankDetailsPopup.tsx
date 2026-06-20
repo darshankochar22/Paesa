@@ -1,43 +1,23 @@
 import { useState, useEffect, useMemo } from "react";
-import FormRow from "@/components/ui/FormRow";
-
-const TXN_TYPES_DEFAULT = ["End of List", "Cheque", "e-Fund Transfer", "Others"];
-const TXN_TYPES_EXTRA = ["End of List", "ATM", "Card", "Cheque", "ECS", "e-Fund Transfer", "Electronic Cheque", "Electronic DD/PO", "Others"];
 
 export interface BankDetails {
-  account_holder_name?: string;
   account_number?: string;
   ifsc_code?: string;
-  swift_code?: string;
   bank_name?: string;
-  branch_name?: string;
-  bank_configuration?: string;
-  cheque_book_start_no?: string;
-  cheque_book_end_no?: string;
-  enable_cheque_printing?: number;
-  cheque_printing_configuration?: string;
-  od_limit?: number;
   transaction_type?: string;
   cross_using?: string;
   company_bank?: string;
+  beneficiary_code?: string;
 }
 
 export const EMPTY_BANK_DETAILS: BankDetails = {
-  account_holder_name: "",
   account_number: "",
   ifsc_code: "",
-  swift_code: "",
   bank_name: "",
-  branch_name: "",
-  bank_configuration: "",
-  cheque_book_start_no: "",
-  cheque_book_end_no: "",
-  enable_cheque_printing: 0,
-  cheque_printing_configuration: "",
-  od_limit: 0,
   transaction_type: "",
   cross_using: "A/c Payee",
   company_bank: "",
+  beneficiary_code: "",
 };
 
 interface BankDetailsPopupProps {
@@ -49,392 +29,371 @@ interface BankDetailsPopupProps {
   isOD?: boolean;
 }
 
+const TXN_TYPES_DEFAULT = ["End of List", "Cheque", "e-Fund Transfer", "Others"];
+const TXN_TYPES_MORE = [
+  "End of List", "ATM", "Card", "Cheque", "ECS",
+  "e-Fund Transfer", "Electronic Cheque", "Electronic DD/PO", "Others",
+];
+
+const INSTANT_CLOSE = new Set(["ATM", "Card", "ECS", "Electronic Cheque", "Electronic DD/PO", "Others"]);
+const BANK_LIST = ["All Items", "End of List", "SBI", "HDFC", "ICICI", "Axis", "PNB", "BOB"];
+
 export default function BankDetailsPopup({
   ledgerName,
+  isOD = false,
   bankForm,
   setBankForm,
   onClose,
   onAccept,
-  isOD = false,
 }: BankDetailsPopupProps) {
   const [showMore, setShowMore] = useState(false);
-  const [txnSearch, setTxnSearch] = useState("");
-  const [activeTxnIndex, setActiveTxnIndex] = useState(0);
-  const [showTxnSearch, setShowTxnSearch] = useState(false);
+  const [showBankList, setShowBankList] = useState(false);
+  const [bankSearch, setBankSearch] = useState("");
+  const [activeBankIdx, setActiveBankIdx] = useState(0);
 
-  const selectedTxn = bankForm.transaction_type || "";
+  const txnList = showMore ? TXN_TYPES_MORE : TXN_TYPES_DEFAULT;
+  const selectedTxn = bankForm.transaction_type ?? "";
 
-  const setBankField = (key: keyof BankDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (key: keyof BankDetails) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
       setBankForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const setBankNumber = (key: keyof BankDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setBankForm((f) => ({ ...f, [key]: e.target.value === "" ? undefined : Number(e.target.value) }));
-
-  const setBankToggle = (key: keyof BankDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setBankForm((f) => ({ ...f, [key]: e.target.checked ? 1 : 0 }));
-
-  const SIMPLE_TXN_TYPES = ["ATM", "Card", "ECS", "Electronic Cheque", "Electronic DD/PO", "Others", "End of List"];
-
-  const handleTxnSelect = (txn: string) => {
+  const selectTxn = (txn: string) => {
     if (txn === "End of List") {
       setBankForm((f) => ({ ...f, transaction_type: "" }));
       onAccept();
       return;
     }
-    if (SIMPLE_TXN_TYPES.includes(txn)) {
+    if (INSTANT_CLOSE.has(txn)) {
       setBankForm((f) => ({ ...f, transaction_type: txn }));
       onAccept();
       return;
     }
-    setBankForm((f) => ({ ...f, transaction_type: txn }));
+
+    setBankForm((f) => ({
+      ...f,
+      transaction_type: txn,
+      cross_using: txn === "Cheque" ? (f.cross_using || "A/c Payee") : f.cross_using,
+      company_bank: txn === "e-Fund Transfer" ? (f.company_bank || "") : f.company_bank,
+      beneficiary_code: txn === "e-Fund Transfer" ? (f.beneficiary_code || "") : f.beneficiary_code,
+    }));
   };
 
-  const txnList = useMemo(() => {
-    return showMore ? TXN_TYPES_EXTRA : TXN_TYPES_DEFAULT;
-  }, [showMore]);
+  // ── bank list filter ──
+  const filteredBanks = useMemo(() => {
+    if (!bankSearch) return BANK_LIST;
+    return BANK_LIST.filter((b) => b.toLowerCase().includes(bankSearch.toLowerCase()));
+  }, [bankSearch]);
 
-  const filteredTxns = useMemo(() => {
-    if (!txnSearch) return txnList;
-    return txnList.filter((t) => t.toLowerCase().includes(txnSearch.toLowerCase()));
-  }, [txnList, txnSearch]);
+  useEffect(() => { setActiveBankIdx(0); }, [bankSearch]);
 
-  useEffect(() => {
-    setActiveTxnIndex(0);
-  }, [txnSearch]);
+  // ── bank select ──
+  const selectBank = (bank: string) => {
+    if (bank === "End of List") {
+      setBankForm((f) => ({ ...f, company_bank: "", beneficiary_code: "" }));
+      setShowBankList(false);
+      setBankSearch("");
+      return;
+    }
+    setBankForm((f) => ({ ...f, company_bank: bank, beneficiary_code: "" }));
+    setShowBankList(false);
+    setBankSearch("");
+  };
 
-  const handleSearchKeydown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (filteredTxns.length === 0) return;
+  // ── bank list keyboard ──
+  const bankKeydown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveTxnIndex((prev) => (prev + 1) % filteredTxns.length);
+      setActiveBankIdx((p) => (p + 1) % filteredBanks.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveTxnIndex((prev) => (prev - 1 + filteredTxns.length) % filteredTxns.length);
+      setActiveBankIdx((p) => (p - 1 + filteredBanks.length) % filteredBanks.length);
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (filteredTxns[activeTxnIndex]) {
-        handleTxnSelect(filteredTxns[activeTxnIndex]);
-      }
+      if (filteredBanks[activeBankIdx]) selectBank(filteredBanks[activeBankIdx]);
     } else if (e.key === "Escape") {
       e.preventDefault();
-      setTxnSearch("");
-      setShowTxnSearch(false);
+      setShowBankList(false);
+      setBankSearch("");
     }
   };
 
+  // ── global keyboard ──
   useEffect(() => {
-    const handlePopupKeys = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (showTxnSearch) {
-          e.preventDefault();
-          setTxnSearch("");
-          setShowTxnSearch(false);
-          return;
-        }
         e.preventDefault();
+        if (showBankList) { setShowBankList(false); setBankSearch(""); return; }
         onClose();
       }
-
       if (e.altKey && (e.key === "a" || e.key === "A")) {
         e.preventDefault();
         onAccept();
       }
-
-      if (e.altKey && (e.key === "s" || e.key === "S")) {
-        e.preventDefault();
-        setShowTxnSearch(true);
-        setTimeout(() => {
-          const searchInput = document.getElementById("txn-search-input");
-          if (searchInput) searchInput.focus();
-        }, 0);
-      }
-
-      if (e.key === "Enter" || e.key === "ArrowDown" || e.key === "ArrowUp") {
-        const active = document.activeElement;
-        if (!active) return;
-
-        if (active.id === "txn-search-input" || active.classList.contains("txn-item")) {
-          return;
-        }
-
-        const focusableSelectors = "input:not([disabled]), select:not([disabled]), button:not([disabled])";
-        const focusables = Array.from(document.querySelectorAll(`#bank-details-form ${focusableSelectors}`)) as HTMLElement[];
-        const index = focusables.indexOf(active as HTMLElement);
-
-        if (index !== -1) {
-          if (e.key === "Enter" || e.key === "ArrowDown") {
-            e.preventDefault();
-            const next = focusables[index + 1] || focusables[0];
-            next?.focus();
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            const prev = focusables[index - 1] || focusables[focusables.length - 1];
-            prev?.focus();
-          }
-        }
-      }
     };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, onAccept, showBankList]);
 
-    window.addEventListener("keydown", handlePopupKeys);
-    return () => window.removeEventListener("keydown", handlePopupKeys);
-  }, [onClose, onAccept, showTxnSearch]);
+  // ── derived display values ──
+  const companyBankDisplay = bankForm.company_bank
+    ? bankForm.company_bank === "All Items"
+      ? "• All Items"
+      : bankForm.company_bank
+    : "• End of List";
 
-  const inputCls =
-    "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-zinc-200 rounded focus:border-zinc-800 transition-colors bg-white/50";
+  const hasBankSelected =
+    !!bankForm.company_bank &&
+    bankForm.company_bank !== "" &&
+    bankForm.company_bank !== "End of List";
 
-  const txnInputCls =
-    "bg-zinc-50 border border-zinc-300 px-3 py-1.5 text-sm outline-none focus:border-zinc-500 transition-colors";
-
-  const eftInputCls =
-    "bg-zinc-50 border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-zinc-500 transition-colors";
-
-  const plainInputCls =
-    "bg-white border border-zinc-200 px-2 py-1 text-sm outline-none focus:border-zinc-400 transition-colors";
-
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/10">
-      <div
-        id="bank-details-form"
-        className="bg-white border border-zinc-300 shadow-xl w-[780px] h-[520px] flex flex-col rounded-sm overflow-hidden"
-      >
-        {/* Simple centered title */}
-        <div className="text-center py-3 border-b border-zinc-200 select-none">
-          <span className="text-sm text-zinc-700">Bank Details for: </span>
-          <span className="text-sm font-bold text-zinc-900">{ledgerName || "—"}</span>
-        </div>
+    // Full-screen dimmed backdrop
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/10 pt-20">
+      <div className="flex items-start gap-0">
 
-        {/* Body Container */}
-        <div className="flex flex-1 min-h-0">
-          
-          {/* Main Form Area */}
-          <div className="flex-1 p-5 overflow-y-auto bg-white">
-            {/* Transaction Type Section */}
-            <div className="mb-6">
-              <div className="text-sm font-bold text-zinc-900 mb-1">Transaction Type</div>
-              <div className="border-b border-zinc-300 mb-3" />
-
-              {/* Transaction Type Display / Input */}
-              <div className="mb-2">
-                {selectedTxn ? (
-                  <div className={`${txnInputCls} font-bold inline-block min-w-[220px] cursor-pointer`}
-                    onClick={() => { setShowTxnSearch(true); setTimeout(() => document.getElementById("txn-search-input")?.focus(), 0); }}
-                  >
-                    {selectedTxn}
-                  </div>
-                ) : (
-                  <input
-                    className={`${txnInputCls} w-64 cursor-pointer`}
-                    readOnly
-                    placeholder=""
-                    onClick={() => { setShowTxnSearch(true); setTimeout(() => document.getElementById("txn-search-input")?.focus(), 0); }}
-                  />
-                )}
-              </div>
-
-              {/* Conditional Fields for Cheque */}
-              {selectedTxn === "Cheque" && (
-                <div className="ml-6 mt-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-zinc-700">Cross using</span>
-                    <span className="text-sm text-zinc-500">:</span>
-                    <input
-                      className="bg-transparent text-sm font-bold text-zinc-900 outline-none border-b border-transparent focus:border-zinc-400 px-1 py-0.5 min-w-[120px]"
-                      value={bankForm.cross_using || "A/c Payee"}
-                      onChange={setBankField("cross_using")}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Conditional Fields for e-Fund Transfer */}
-              {selectedTxn === "e-Fund Transfer" && (
-                <div className="mt-3">
-                  <div className="text-sm font-bold text-zinc-900 mb-2">e-Fund Transfer</div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2 flex-1 max-w-[280px]">
-                        <span className="text-sm text-zinc-700 whitespace-nowrap">A/c No.</span>
-                        <span className="text-sm text-zinc-500">:</span>
-                        <input
-                          className={`${eftInputCls} flex-1`}
-                          value={bankForm.account_number || ""}
-                          onChange={setBankField("account_number")}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 flex-1 max-w-[280px]">
-                        <span className="text-sm text-zinc-700 whitespace-nowrap">IFS Code</span>
-                        <span className="text-sm text-zinc-500">:</span>
-                        <input
-                          className={`${eftInputCls} flex-1`}
-                          value={bankForm.ifsc_code || ""}
-                          onChange={setBankField("ifsc_code")}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 max-w-[280px]">
-                      <span className="text-sm text-zinc-700 whitespace-nowrap">Bank Name</span>
-                      <span className="text-sm text-zinc-500">:</span>
-                      <input
-                        className={`${plainInputCls} flex-1`}
-                        value={bankForm.bank_name || ""}
-                        onChange={setBankField("bank_name")}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-zinc-700 whitespace-nowrap">Company Bank</span>
-                      <span className="text-sm text-zinc-500">:</span>
-                      <span className="text-sm text-zinc-700">♦ End of List</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Existing Basic Bank Details Fields */}
-            <div className="space-y-1">
-              <FormRow label="A/c Holder's Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} />
-              </FormRow>
-              <FormRow label="A/c No." labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} />
-              </FormRow>
-              <FormRow label="IFS Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} />
-              </FormRow>
-              <FormRow label="SWIFT Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.swift_code || ""} onChange={setBankField("swift_code")} />
-              </FormRow>
-              <FormRow label="Bank Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} />
-              </FormRow>
-              <FormRow label="Branch" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} />
-              </FormRow>
-
-              {isOD && (
-                <FormRow label="OD Limit" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <input
-                    className={`${inputCls} text-right font-medium max-w-[120px]`}
-                    type="number"
-                    step="0.01"
-                    value={bankForm.od_limit ?? 0}
-                    onChange={setBankNumber("od_limit")}
-                  />
-                </FormRow>
-              )}
-
-              <div className="pt-2 border-t border-zinc-200/60 my-2" />
-
-              <FormRow label="Set/Alter range for Cheque Books" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <select
-                  className={inputCls}
-                  value={bankForm.bank_configuration === "Yes" ? "Yes" : "No"}
-                  onChange={(e) => setBankForm((f) => ({ ...f, bank_configuration: e.target.value === "Yes" ? "Yes" : "No" }))}
-                >
-                  <option>No</option>
-                  <option>Yes</option>
-                </select>
-              </FormRow>
-
-              {bankForm.bank_configuration === "Yes" && (
-                <div className="pl-4 border-l border-zinc-300 space-y-1 py-1">
-                  <FormRow label="Cheque Book Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
-                  </FormRow>
-                  <FormRow label="Cheque Book End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
-                  </FormRow>
-                </div>
-              )}
-
-              <div className="flex items-center min-h-[26px] mb-1">
-                <span className="w-44 text-sm text-zinc-500 shrink-0">Enable Cheque Printing</span>
-                <span className="text-zinc-400 mr-2 shrink-0">:</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={!!bankForm.enable_cheque_printing}
-                    onChange={setBankToggle("enable_cheque_printing")}
-                    className="sr-only peer"
-                  />
-                  <div className="w-8 h-4.5 bg-zinc-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-zinc-800"></div>
-                </label>
-              </div>
-
-              {!!bankForm.enable_cheque_printing && (
-                <div className="pl-4 border-l border-zinc-300 space-y-1 py-1">
-                  <FormRow label="Cheque Print Config" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} />
-                  </FormRow>
-                </div>
-              )}
-            </div>
+        {/* ════════════════════════════════════════
+            MAIN MODAL
+        ════════════════════════════════════════ */}
+        <div
+          className="bg-white border border-zinc-400 shadow-lg flex flex-col"
+          style={{ width: 560, minHeight: 440 }}
+        >
+          {/* Title */}
+          <div className="border-b border-zinc-300 text-center py-1 select-none bg-white">
+            <span className="text-[11px] text-zinc-700">Bank Details for:  </span>
+            <span className="text-[11px] font-semibold text-zinc-900">{ledgerName || "—"}</span>
           </div>
 
-          {/* Right Panel - Transaction Types List */}
-          <div className="w-56 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
-            {/* Transaction Types Header */}
-            <div className="bg-blue-700 text-white text-xs px-3 py-1.5 font-bold select-none">
-              Transaction Types
+          {/* ── Body ── */}
+          <div className="flex-1 px-0 pt-1">
+
+            {/* "Transaction Type" label row */}
+            <div className="flex items-center px-3 py-0.5">
+              <span className="text-[11px] font-semibold text-zinc-800">Transaction Type</span>
             </div>
 
-            {/* Show More / Show Less Button */}
-            <div className="flex justify-end border-b border-zinc-200">
-              <button
-                onClick={() => setShowMore((v) => !v)}
-                className="bg-zinc-200 text-xs px-3 py-1 font-medium hover:bg-zinc-300 transition-colors text-zinc-900"
+            {/* Thin separator under label */}
+            <div className="border-b border-zinc-300 mx-0" />
+
+            {/* The active yellow input row — shows the selected txn type */}
+            <div className="flex items-center bg-[#fffde7] border-b border-zinc-200 px-3 py-[3px]">
+              <input
+                readOnly
+                value={selectedTxn}
+                className="text-[11px] text-zinc-900 bg-transparent outline-none w-48 font-normal cursor-default"
+                tabIndex={-1}
+              />
+            </div>
+
+            {/* ── Cheque sub-fields ── */}
+            {selectedTxn === "Cheque" && (
+              <div
+                className="flex items-center bg-[#fffde7] border-b border-zinc-200 px-3 py-[3px]"
               >
-                {showMore ? "Show Less" : "Show More"}
-              </button>
-            </div>
-
-            {/* Transaction Search (hidden by default, shown via Alt+S) */}
-            {showTxnSearch && (
-              <div className="border-b border-zinc-200 p-1">
+                <span className="text-[11px] text-zinc-700 w-24 shrink-0">Cross using</span>
+                <span className="text-[11px] text-zinc-500 mr-2 shrink-0">:</span>
                 <input
-                  id="txn-search-input"
-                  className="w-full text-xs bg-zinc-50 border border-zinc-300 rounded px-2 py-0.5 outline-none focus:border-zinc-500 transition-colors"
-                  placeholder="Search types..."
-                  value={txnSearch}
-                  onChange={(e) => setTxnSearch(e.target.value)}
-                  onKeyDown={handleSearchKeydown}
-                  onBlur={() => { if (!txnSearch) setShowTxnSearch(false); }}
+                  autoFocus
+                  className="text-[11px] text-zinc-900 bg-transparent outline-none flex-1 border-b border-transparent focus:border-zinc-400"
+                  value={bankForm.cross_using ?? "A/c Payee"}
+                  onChange={set("cross_using")}
                 />
               </div>
             )}
-            
-            {/* Transaction Types List */}
-            <div className="flex-1 overflow-y-auto py-1">
-              {filteredTxns.length === 0 ? (
-                <div className="text-[11px] text-zinc-400 px-3 py-1.5 italic select-none">No types matched</div>
+
+            {/* ── e-Fund Transfer sub-fields ── */}
+            {selectedTxn === "e-Fund Transfer" && (
+              <>
+                {/* "e-Fund Transfer" sub-section label */}
+                <div className="flex items-center px-3 py-0.5">
+                  <span className="text-[11px] font-semibold text-zinc-800">e-Fund Transfer</span>
+                </div>
+
+                {/* A/c No. + IFS Code — same row, yellow, with column divider */}
+                <div className="flex items-center bg-[#fffde7] border-b border-zinc-200">
+                  {/* Left half: A/c No. */}
+                  <div className="flex items-center px-3 py-[3px] flex-1">
+                    <span className="text-[11px] text-zinc-700 w-12 shrink-0">A/c No.</span>
+                    <span className="text-[11px] text-zinc-500 mr-1 shrink-0">:</span>
+                    <input
+                      autoFocus
+                      className="text-[11px] text-zinc-900 bg-transparent outline-none flex-1 border-b border-transparent focus:border-zinc-400"
+                      value={bankForm.account_number ?? ""}
+                      onChange={set("account_number")}
+                    />
+                  </div>
+
+                  <div className="w-px bg-zinc-300 self-stretch" />
+                  <div className="flex items-center px-3 py-[3px] flex-1">
+                    <span className="text-[11px] text-zinc-700 w-14 shrink-0">IFS Code</span>
+                    <span className="text-[11px] text-zinc-500 mr-1 shrink-0">:</span>
+                    <input
+                      className="text-[11px] text-zinc-900 bg-transparent outline-none flex-1 border-b border-transparent focus:border-zinc-400"
+                      value={bankForm.ifsc_code ?? ""}
+                      onChange={set("ifsc_code")}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center px-3 py-[3px] border-b border-zinc-200 bg-white">
+                  <span className="text-[11px] text-zinc-700 w-24 shrink-0">Bank Name</span>
+                  <span className="text-[11px] text-zinc-500 mr-2 shrink-0">:</span>
+                  <span className="text-[11px] text-zinc-700">
+                    {bankForm.bank_name ? bankForm.bank_name : "• Not Applicable"}
+                  </span>
+                </div>
+
+                <div
+                  className={[
+                    "flex items-center px-3 py-[3px] border-b border-zinc-200 cursor-pointer",
+                    !hasBankSelected ? "bg-[#fffde7]" : "bg-white",
+                  ].join(" ")}
+                  onClick={() => setShowBankList(true)}
+                >
+                  <span className="text-[11px] text-zinc-700 w-24 shrink-0">Company Bank</span>
+                  <span className="text-[11px] text-zinc-500 mr-2 shrink-0">:</span>
+                  <span className="text-[11px] text-zinc-900">{companyBankDisplay}</span>
+                </div>
+
+                {/* Beneficiary Code — appears ONLY after a real bank is chosen, yellow active */}
+                {hasBankSelected && (
+                  <div className="flex items-center bg-[#fffde7] border-b border-zinc-200 px-3 py-[3px]">
+                    <span className="text-[11px] text-zinc-700 w-24 shrink-0">Beneficiary Code</span>
+                    <span className="text-[11px] text-zinc-500 mr-2 shrink-0">:</span>
+                    <input
+                      autoFocus
+                      className="text-[11px] text-zinc-900 bg-transparent outline-none flex-1 border-b border-transparent focus:border-zinc-400"
+                      value={bankForm.beneficiary_code ?? ""}
+                      onChange={set("beneficiary_code")}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Bottom bar */}
+          <div className="border-t border-zinc-300 flex select-none">
+            <button
+              onClick={onClose}
+              className="px-4 py-1 text-[11px] text-zinc-600 hover:bg-zinc-100 transition-colors"
+            >
+              <span className="underline">Q</span>: Quit
+            </button>
+            <button
+              onClick={onAccept}
+              className="px-4 py-1 text-[11px] text-zinc-600 hover:bg-zinc-100 transition-colors"
+            >
+              <span className="underline">A</span>: Accept
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="bg-white border border-zinc-400 shadow-lg flex flex-col ml-0"
+          style={{ width: 170 }}
+        >
+          <div className="bg-[#1a56db] text-white flex items-center justify-between px-2 py-[3px] select-none">
+            <span className="text-[11px] font-semibold">Transaction Types</span>
+            <button
+              onClick={onClose}
+              className="text-white text-xs leading-none hover:opacity-70 ml-2"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="flex justify-end border-b border-zinc-200">
+            <button
+              onClick={() => setShowMore((v) => !v)}
+              className="text-[10px] px-2 py-[2px] bg-zinc-100 hover:bg-zinc-200 transition-colors text-zinc-700 font-medium border-l border-zinc-200"
+            >
+              {showMore ? "Show Less" : "Show More"}
+            </button>
+          </div>
+
+          <div className="py-0.5">
+            {txnList.map((txn) => {
+              const isSelected =
+                selectedTxn === txn ||
+                (!selectedTxn && txn === "End of List");
+              return (
+                <div
+                  key={txn}
+                  onClick={() => selectTxn(txn)}
+                  className={[
+                    "text-[11px] px-3 py-[2px] cursor-pointer select-none transition-colors",
+                    isSelected
+                      ? "bg-zinc-700 text-white"
+                      : "text-zinc-800 hover:bg-zinc-100",
+                  ].join(" ")}
+                >
+                  {txn === "End of List" ? `• ${txn}` : txn}
+                  {txn === "e-Fund Transfer" && selectedTxn === "e-Fund Transfer" ? "" : ""}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ════════════════════════════════════════
+            LIST OF BANKS SUB-PANEL
+            (appears to the right when Company Bank is clicked)
+        ════════════════════════════════════════ */}
+        {showBankList && (
+          <div
+            className="bg-white border border-zinc-400 shadow-lg flex flex-col ml-0"
+            style={{ width: 160 }}
+          >
+            {/* Header */}
+            <div className="bg-[#1a56db] text-white px-2 py-[3px] select-none">
+              <span className="text-[11px] font-semibold">List of Banks</span>
+            </div>
+
+            {/* Search */}
+            <div className="border-b border-zinc-200 px-1 py-0.5">
+              <input
+                autoFocus
+                className="w-full text-[11px] bg-zinc-50 border border-zinc-300 px-1.5 py-[2px] outline-none focus:border-zinc-500"
+                placeholder="Search..."
+                value={bankSearch}
+                onChange={(e) => setBankSearch(e.target.value)}
+                onKeyDown={bankKeydown}
+              />
+            </div>
+
+            {/* Options */}
+            <div className="py-0.5">
+              {filteredBanks.length === 0 ? (
+                <div className="text-[10px] text-zinc-400 px-3 py-1 italic">No match</div>
               ) : (
-                filteredTxns.map((txn, index) => {
-                  const isSelected = selectedTxn === txn || (!selectedTxn && txn === "End of List");
-                  const isActive = index === activeTxnIndex;
+                filteredBanks.map((bank, idx) => {
+                  const isActive = idx === activeBankIdx;
+                  const isCurrent = bankForm.company_bank === bank;
                   return (
                     <div
-                      key={txn}
-                      onClick={() => handleTxnSelect(txn)}
+                      key={bank}
+                      onClick={() => selectBank(bank)}
                       className={[
-                        "txn-item text-xs px-3 py-1 select-none cursor-pointer transition-colors",
-                        isSelected ? "bg-zinc-200 font-medium text-zinc-900" : "text-zinc-700 hover:bg-zinc-100",
-                        isActive && !isSelected ? "bg-zinc-100" : "",
+                        "text-[11px] px-3 py-[2px] cursor-pointer select-none transition-colors",
+                        isCurrent || isActive
+                          ? "bg-zinc-700 text-white"
+                          : "text-zinc-800 hover:bg-zinc-100",
                       ].join(" ")}
                     >
-                      {txn === "End of List" ? `♦ ${txn}` : txn}
+                      {bank === "End of List" || bank === "All Items"
+                        ? `• ${bank}`
+                        : bank}
                     </div>
                   );
                 })
               )}
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 }
-
-

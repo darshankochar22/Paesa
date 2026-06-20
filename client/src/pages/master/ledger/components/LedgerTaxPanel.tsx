@@ -20,6 +20,9 @@ interface LedgerTaxPanelProps {
   config: LedgerConfigOptions;
   otherStatutory: OtherStatutoryForm;
   setOtherStatutory: React.Dispatch<React.SetStateAction<OtherStatutoryForm>>;
+  onGSTDetailsChange: (val: "Yes" | "No") => void;
+  onServiceTaxDetailsChange: (val: "Yes" | "No") => void;
+  onVATDetailsChange: (val: "Yes" | "No") => void;
 }
 
 export default function LedgerTaxPanel({
@@ -33,12 +36,15 @@ export default function LedgerTaxPanel({
   setOtherStatutory,
   groupLineage,
   config,
+  onGSTDetailsChange,
+  onServiceTaxDetailsChange,
+  onVATDetailsChange,
 }: LedgerTaxPanelProps) {
 
   const showDutyTaxSection = config.dutyTaxDetails || groupLineage.isTax;
   const showAssessableValueCalc = config.assessableValueCalc;
   const assessableGstSelected = showAssessableValueCalc && statutoryForm.include_in_assessable_value_calculation === "GST";
-  
+
   const showTaxRegistration = config.taxRegistration !== "none";
   const showFullTaxDetails = config.taxRegistration === "full";
   const showPanOnly = config.taxRegistration === "panOnly" || showFullTaxDetails;
@@ -54,9 +60,6 @@ export default function LedgerTaxPanel({
 
   return (
     <>
-      {/* ==============================================
-          1. DUTIES & TAXES SECTION
-      ============================================== */}
       {showDutyTaxSection && (
         <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Statutory / Duty Details</div>
@@ -228,11 +231,7 @@ export default function LedgerTaxPanel({
                 <select
                   className={selectCls}
                   value={form.additional_gst_details ? "Yes" : "No"}
-                  onChange={(e) =>
-                    setField("additional_gst_details")({
-                      target: { value: e.target.value === "Yes" ? 1 : 0 },
-                    } as any)
-                  }
+                  onChange={(e) => onGSTDetailsChange(e.target.value as "Yes" | "No")}
                 >
                   <option value="No">No</option>
                   <option value="Yes">Yes</option>
@@ -257,11 +256,7 @@ export default function LedgerTaxPanel({
               <select
                 className={selectCls}
                 value={form.service_tax_details ? "Yes" : "No"}
-                onChange={(e) =>
-                  setField("service_tax_details")({
-                    target: { value: e.target.value === "Yes" ? 1 : 0 },
-                  } as any)
-                }
+                onChange={(e) => onServiceTaxDetailsChange(e.target.value as "Yes" | "No")}
               >
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>
@@ -269,21 +264,16 @@ export default function LedgerTaxPanel({
             </FormRow>
           )}
 
-
           {(showFullTaxDetails || showBankTaxDetails) && (
             <FormRow label="Set/Alter VAT Details" labelWidth="w-44" className="flex items-center min-h-[26px]">
-               <select className={selectCls}
-               value={otherStatutory.vat.set_alter_vat_details ? "Yes":"No"}
-               onChange = {(e) =>
-                setOtherStatutory((prev) => ({
-                  ...prev,
-                  vat: { ...prev.vat, set_alter_vat_details: e.target.value === "Yes" ? 1 : 0 },
-                }))
-               }
-               >
+              <select
+                className={selectCls}
+                value={otherStatutory.vat.set_alter_vat_details ? "Yes" : "No"}
+                onChange={(e) => onVATDetailsChange(e.target.value as "Yes" | "No")}
+              >
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>
-               </select>
+              </select>
             </FormRow>
           )}
         </div>

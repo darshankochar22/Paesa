@@ -3,6 +3,12 @@ import { useCompany } from "@/context/CompanyContext";
 import type { LedgerType, GroupType } from "@/types/api";
 import { EMPTY_BANK_DETAILS } from "../components/BankDetailsPopup";
 import type { BankDetails } from "../components/BankDetailsPopup";
+import type { GSTDetails } from "../components/AdditionalGSTDetails";
+import { EMPTY_GST_DETAILS } from "../components/AdditionalGSTDetails";
+import { EMPTY_SERVICE_TAX_DETAILS } from "../components/ServiceTaxModal";
+import type { ServiceTaxDetails as ServiceTaxRegnDetails } from "../components/ServiceTaxModal";
+import { EMPTY_VAT_DETAILS } from "../components/VATDetailsModal";
+import type { VATDetails } from "../components/VATDetailsModal";
 
 export interface StatutoryDetails {
   gst_applicability?: string;
@@ -186,7 +192,6 @@ export const INITIAL_FORM: Partial<LedgerType> = {
   interest_rate: 0,
   interest_style: "30-Day Month",
   interest_balances: "All Balances",
-  // Other statutory details
   set_alter_tds_details: 0,
   set_alter_tcs_details: 0,
   set_alter_service_tax_details: 0,
@@ -238,30 +243,30 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   const [showBankPopup, setShowBankPopup] = useState(false);
   const [showInterestPopup, setShowInterestPopup] = useState(false);
   const [showOtherStatutoryModal, setShowOtherStatutoryModal] = useState(false);
-
+  const [showGSTDetailsModal, setShowGSTDetailsModal] = useState(false);
+  const [serviceTaxDetails, setServiceTaxDetails] = useState<ServiceTaxRegnDetails>(EMPTY_SERVICE_TAX_DETAILS);
+  const [showServiceTaxModal, setShowServiceTaxModal] = useState(false);
+  // ── VAT Details ─────────────────────────────────────────────────────────────
+  const [vatDetails, setVatDetails] = useState<VATDetails>({ ...EMPTY_VAT_DETAILS });
+  const [showVATDetailsModal, setShowVATDetailsModal] = useState(false);
   const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
 
   const [form, setForm] = useState<Partial<LedgerType>>(INITIAL_FORM);
   const [bankForm, setBankForm] = useState<BankDetails>(EMPTY_BANK_DETAILS);
   const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>(EMPTY_STATUTORY);
-  const [interestForm, setInterestForm] = useState<InterestDetails>({
-    ...EMPTY_INTEREST,
-  });
-  const [otherStatutory, setOtherStatutory] = useState<OtherStatutoryForm>(
-    () => ({
-      ...EMPTY_OTHER_STATUTORY,
-      tds: { ...EMPTY_TDS },
-      tcs: { ...EMPTY_TCS },
-      serviceTax: { ...EMPTY_SERVICE_TAX },
-      excise: { ...EMPTY_EXCISE },
-      vat: { ...EMPTY_VAT },
-    }),
-  );
+  const [interestForm, setInterestForm] = useState<InterestDetails>({ ...EMPTY_INTEREST });
+  const [gstDetails, setGstDetails] = useState<GSTDetails>({ ...EMPTY_GST_DETAILS });
+  const [otherStatutory, setOtherStatutory] = useState<OtherStatutoryForm>(() => ({
+    tds: { ...EMPTY_TDS },
+    tcs: { ...EMPTY_TCS },
+    serviceTax: { ...EMPTY_SERVICE_TAX },
+    excise: { ...EMPTY_EXCISE },
+    vat: { ...EMPTY_VAT },
+  }));
 
   const selectedGroup = useMemo(() => {
     return flatGroups.find((g) => g.group_id === form.group_id) || null;
   }, [form.group_id, flatGroups]);
-
 
   const groupLineage = useMemo(() => {
     const lineage = {
@@ -276,18 +281,21 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     };
     if (!selectedGroup || flatGroups.length === 0) return lineage;
 
-    const findGroup = (id?: number): GroupType | undefined => {
-      return flatGroups.find((g) => g.group_id === id);
-    };
+    const findGroup = (id?: number): GroupType | undefined =>
+      flatGroups.find((g) => g.group_id === id);
 
     const checkLineage = (current: GroupType) => {
       const name = current.name.toLowerCase().trim();
       if (name === "bank accounts") lineage.isBank = true;
-      if (name === "bank od a/c" || name === "bank od accounts" || name === "bank od account" || name === "bank occ a/c") {
+      if (
+        name === "bank od a/c" ||
+        name === "bank od accounts" ||
+        name === "bank od account" ||
+        name === "bank occ a/c"
+      ) {
         lineage.isBank = true;
         lineage.isOD = true;
       }
-
       if (name === "duties & taxes" || name === "current assets") lineage.isTax = true;
       if (name === "sundry debtors" || name === "sundry creditors") lineage.isDebtorCreditor = true;
       if (
@@ -312,7 +320,6 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       ) {
         lineage.isIncomeExpense = true;
       }
-
       if (
         [
           "cash-in-hand",
@@ -332,16 +339,12 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       ) {
         lineage.hideMailingExtras = true;
       }
-
       if (!current.parent_group_id) {
         lineage.primaryGroupName = current.name;
         return;
       }
-
       const parent = findGroup(current.parent_group_id);
-      if (parent) {
-        checkLineage(parent);
-      }
+      if (parent) checkLineage(parent);
     };
 
     checkLineage(selectedGroup);
@@ -359,8 +362,11 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       if (!groupLineage.isInventory) {
         setForm((f) => ({ ...f, invoice_rounding: 0, rounding_method: "", rounding_limit: 0 }));
       }
-      setForm((f) => ({ ...f, activate_interest: 0 }));
+      setForm((f) => ({ ...f, activate_interest: 0, additional_gst_details: 0, service_tax_details: 0 }));
       setInterestForm(EMPTY_INTEREST);
+      setGstDetails({ ...EMPTY_GST_DETAILS });
+      setServiceTaxDetails({ ...EMPTY_SERVICE_TAX_DETAILS });
+      setVatDetails({ ...EMPTY_VAT_DETAILS });
       setOtherStatutory({
         tds: { ...EMPTY_TDS },
         tcs: { ...EMPTY_TCS },
@@ -369,9 +375,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         vat: { ...EMPTY_VAT },
       });
     } else {
-      if (groupLineage.isBank) {
-        setProvideBank("Yes");
-      }
+      if (groupLineage.isBank) setProvideBank("Yes");
     }
   }, [selectedGroup, groupLineage.isBank, groupLineage.isInventory, form.group_id, loadedGroupId, mode]);
 
@@ -439,6 +443,32 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         interest_balances: l.interest_balances || "All Balances",
       });
 
+      setGstDetails({
+        place_of_supply: (l as any).place_of_supply || "",
+        is_party_a_transporter: (l as any).is_party_a_transporter === "Yes" ? "Yes" : "No",
+        transporter_id: (l as any).transporter_id || "",
+      });
+
+      setServiceTaxDetails({
+        service_tax_registration_number: (l as any).service_tax_registration_number || "",
+        type_of_service: (l as any).type_of_service || "Undefined",
+        notification_number: (l as any).notification_number || "",
+        notification_serial_number: (l as any).notification_serial_number || "",
+        is_party_an_associated_enterprise:
+          (l as any).is_party_an_associated_enterprise === "Yes" ? "Yes" : "No",
+        does_party_belong_to_non_taxable_territory:
+          (l as any).does_party_belong_to_non_taxable_territory === "Yes" ? "Yes" : "No",
+      });
+
+      // Load VAT details
+      setVatDetails({
+        type_of_dealer: (l as any).vat_type_of_dealer || "Unknown",
+        vat_tin_no: (l as any).vat_tin_no || "",
+        cst_no: (l as any).cst_no || "",
+        sales_purchases_against_form_c:
+          (l as any).sales_purchases_against_form_c === "Yes" ? "Yes" : "No",
+      });
+
       setOtherStatutory({
         tds: {
           is_tds_deductable: l.is_tds_deductable ? 1 : 0,
@@ -496,6 +526,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         pan: l.pan || "",
         gstin: l.gstin || "",
         registration_type: l.registration_type || "Unregistered",
+        additional_gst_details: (l as any).additional_gst_details ?? 0,
+        service_tax_details: (l as any).service_tax_details ?? 0,
         is_bill_wise: l.is_bill_wise || 0,
         maintain_inventory_values: l.maintain_inventory_values || 0,
         default_credit_period: l.default_credit_period || 0,
@@ -520,6 +552,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     }
     return "1-Apr-24";
   }, [activeFY]);
+
+  // ── Field setters ──────────────────────────────────────────────────────────
 
   const setField = (key: keyof LedgerType) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -548,13 +582,13 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   const setInterestField = <K extends keyof InterestDetails>(key: K, value: InterestDetails[K]) =>
     setInterestForm((f) => ({ ...f, [key]: value }));
 
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
   const handleActivateInterestChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value as "No" | "Yes";
     setForm((f) => ({ ...f, activate_interest: val === "Yes" ? 1 : 0 }));
     if (val === "Yes") setShowInterestPopup(true);
-    else {
-      setInterestForm({ ...EMPTY_INTEREST });
-    }
+    else setInterestForm({ ...EMPTY_INTEREST });
   };
 
   const handleInterestClose = () => {
@@ -576,6 +610,64 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   const handleBankAccept = () => {
     setShowBankPopup(false);
   };
+
+  const handleGSTDetailsOpen = () => {
+    setForm((f) => ({ ...f, additional_gst_details: 1 }));
+    setShowGSTDetailsModal(true);
+  };
+
+  const handleGSTDetailsClose = () => {
+    setForm((f) => ({ ...f, additional_gst_details: 0 }));
+    setGstDetails({ ...EMPTY_GST_DETAILS });
+    setShowGSTDetailsModal(false);
+  };
+
+  const handleGSTDetailsAccept = (state: GSTDetails) => {
+    setGstDetails(state);
+    setShowGSTDetailsModal(false);
+  };
+
+  const handleServiceTaxOpen = () => {
+    setForm((f) => ({ ...f, service_tax_details: 1 }));
+    setShowServiceTaxModal(true);
+  };
+
+  const handleServiceTaxClose = () => {
+    setForm((f) => ({ ...f, service_tax_details: 0 }));
+    setServiceTaxDetails({ ...EMPTY_SERVICE_TAX_DETAILS });
+    setShowServiceTaxModal(false);
+  };
+
+  const handleServiceTaxAccept = (state: ServiceTaxRegnDetails) => {
+    setServiceTaxDetails(state);
+    setShowServiceTaxModal(false);
+  };
+
+  // ── VAT Details handlers ───────────────────────────────────────────────────
+
+  const handleVATDetailsOpen = () => {
+    setOtherStatutory((prev) => ({
+      ...prev,
+      vat: { ...prev.vat, set_alter_vat_details: 1 },
+    }));
+    setShowVATDetailsModal(true);
+  };
+
+  const handleVATDetailsClose = () => {
+    setOtherStatutory((prev) => ({
+      ...prev,
+      vat: { ...prev.vat, set_alter_vat_details: 0 },
+    }));
+    setVatDetails({ ...EMPTY_VAT_DETAILS });
+    setShowVATDetailsModal(false);
+  };
+
+  const handleVATDetailsAccept = (state: VATDetails) => {
+    setVatDetails(state);
+    setShowVATDetailsModal(false);
+  };
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
 
   const validate = useCallback((): string | null => {
     if (!form.name?.trim()) return "Name is required.";
@@ -623,28 +715,40 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         rounding_limit: form.rounding_limit || 0,
         additional_gst_details: form.additional_gst_details ?? 0,
         service_tax_details: form.service_tax_details ?? 0,
+        // GST details
+        place_of_supply: gstDetails.place_of_supply || undefined,
+        is_party_a_transporter: gstDetails.is_party_a_transporter || "No",
+        transporter_id: gstDetails.transporter_id?.trim() || undefined,
+        // Service tax registration details
+        service_tax_registration_number: serviceTaxDetails.service_tax_registration_number?.trim() || undefined,
+        type_of_service: serviceTaxDetails.type_of_service || "Undefined",
+        notification_number: serviceTaxDetails.notification_number?.trim() || undefined,
+        notification_serial_number: serviceTaxDetails.notification_serial_number?.trim() || undefined,
+        is_party_an_associated_enterprise: serviceTaxDetails.is_party_an_associated_enterprise || "No",
+        does_party_belong_to_non_taxable_territory:
+          serviceTaxDetails.does_party_belong_to_non_taxable_territory || "No",
+        // VAT details
+        vat_type_of_dealer: vatDetails.type_of_dealer || "Unknown",
+        vat_tin_no: vatDetails.vat_tin_no?.trim() || undefined,
+        cst_no: vatDetails.cst_no?.trim() || undefined,
+        sales_purchases_against_form_c: vatDetails.sales_purchases_against_form_c || "No",
+        // Interest
         activate_interest: form.activate_interest ?? 0,
         interest_include_added: interestForm.interest_include_added ?? 0,
         interest_include_deducted: interestForm.interest_include_deducted ?? 0,
         interest_rate: Number(interestForm.interest_rate) || 0,
         interest_style: interestForm.interest_style || "30-Day Month",
         interest_balances: interestForm.interest_balances || "All Balances",
-        // Other statutory details
-        set_alter_tds_details: otherStatutory.tds.is_tds_deductable
-          ? 1
-          : otherStatutory.tds.is_tds_deductable,
-        set_alter_tcs_details: otherStatutory.tcs.is_tcs_applicable
-          ? 1
-          : otherStatutory.tcs.is_tcs_applicable,
-        set_alter_service_tax_details:
-          otherStatutory.serviceTax.set_alter_service_tax_details,
+        // Other statutory
+        set_alter_tds_details: otherStatutory.tds.is_tds_deductable ? 1 : 0,
+        set_alter_tcs_details: otherStatutory.tcs.is_tcs_applicable ? 1 : 0,
+        set_alter_service_tax_details: otherStatutory.serviceTax.set_alter_service_tax_details,
         set_alter_excise_details: otherStatutory.excise.set_alter_excise_details,
         set_alter_vat_details: otherStatutory.vat.set_alter_vat_details,
         is_tds_deductable: otherStatutory.tds.is_tds_deductable,
         treat_as_tds_expenses: otherStatutory.tds.treat_as_tds_expenses,
         deductee_type: otherStatutory.tds.deductee_type,
-        deduct_tds_in_same_voucher:
-          otherStatutory.tds.deduct_tds_in_same_voucher,
+        deduct_tds_in_same_voucher: otherStatutory.tds.deduct_tds_in_same_voucher,
         nature_of_payment: otherStatutory.tds.nature_of_payment,
         tds_pan_it_no: otherStatutory.tds.tds_pan_it_no,
         tds_pan_status: otherStatutory.tds.tds_pan_status,
@@ -656,8 +760,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         tcs_pan_it_no: otherStatutory.tcs.tcs_pan_it_no,
         tcs_pan_status: otherStatutory.tcs.tcs_pan_status,
         tcs_name_on_pan: otherStatutory.tcs.tcs_name_on_pan,
-        is_service_tax_applicable:
-          otherStatutory.serviceTax.is_service_tax_applicable,
+        is_service_tax_applicable: otherStatutory.serviceTax.is_service_tax_applicable,
         is_excise_applicable: otherStatutory.excise.is_excise_applicable,
         is_vat_cst_applicable: otherStatutory.vat.is_vat_cst_applicable,
         deductee_ref: otherStatutory.tcs.deductee_ref,
@@ -671,21 +774,13 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       const hasBankData = provideBank === "Yes" || groupLineage.isBank;
       if (hasBankData) {
         payload.bank_details = {
-          account_holder_name: bankForm.account_holder_name?.trim() || undefined,
           account_number: bankForm.account_number?.trim() || undefined,
           ifsc_code: bankForm.ifsc_code?.trim() || undefined,
-          swift_code: bankForm.swift_code?.trim() || undefined,
           bank_name: bankForm.bank_name?.trim() || undefined,
-          branch_name: bankForm.branch_name?.trim() || undefined,
-          bank_configuration: bankForm.bank_configuration?.trim() || undefined,
-          cheque_book_start_no: bankForm.cheque_book_start_no?.trim() || undefined,
-          cheque_book_end_no: bankForm.cheque_book_end_no?.trim() || undefined,
-          enable_cheque_printing: bankForm.enable_cheque_printing ? 1 : 0,
-          cheque_printing_configuration: bankForm.cheque_printing_configuration?.trim() || undefined,
-          od_limit: Number(bankForm.od_limit) || 0,
           transaction_type: bankForm.transaction_type?.trim() || undefined,
           cross_using: bankForm.cross_using?.trim() || undefined,
           company_bank: bankForm.company_bank?.trim() || undefined,
+          beneficiary_code: bankForm.beneficiary_code?.trim() || undefined,
         };
       } else if (mode === "alter") {
         payload.bank_details = null;
@@ -694,7 +789,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       if (
         groupLineage.isTax ||
         (statutoryForm.gst_applicability && statutoryForm.gst_applicability !== "Not Applicable") ||
-        (statutoryForm.include_in_assessable_value_calculation && statutoryForm.include_in_assessable_value_calculation !== "Not Applicable")
+        (statutoryForm.include_in_assessable_value_calculation &&
+          statutoryForm.include_in_assessable_value_calculation !== "Not Applicable")
       ) {
         payload.statutory_details = {
           gst_applicability: statutoryForm.gst_applicability || "Not Applicable",
@@ -707,7 +803,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           type_of_duty_tax: statutoryForm.type_of_duty_tax || undefined,
           percentage_of_calculation: Number(statutoryForm.percentage_of_calculation) || 0,
           statutory_details: statutoryForm.statutory_details || undefined,
-          include_in_assessable_value_calculation: statutoryForm.include_in_assessable_value_calculation || "Not Applicable",
+          include_in_assessable_value_calculation:
+            statutoryForm.include_in_assessable_value_calculation || "Not Applicable",
           appropriate_to: statutoryForm.appropriate_to || "Goods",
           method_of_calculation: statutoryForm.method_of_calculation || "Based on Quantity",
         };
@@ -727,6 +824,9 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           setBankForm(EMPTY_BANK_DETAILS);
           setStatutoryForm(EMPTY_STATUTORY);
           setInterestForm(EMPTY_INTEREST);
+          setGstDetails({ ...EMPTY_GST_DETAILS });
+          setServiceTaxDetails({ ...EMPTY_SERVICE_TAX_DETAILS });
+          setVatDetails({ ...EMPTY_VAT_DETAILS });
           setOtherStatutory({
             tds: { ...EMPTY_TDS },
             tcs: { ...EMPTY_TCS },
@@ -746,7 +846,22 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     } finally {
       setSaving(false);
     }
-  }, [companyId, form, provideBank, groupLineage, bankForm, statutoryForm, interestForm, otherStatutory, validate, mode, loadInitial]);
+  }, [
+    companyId,
+    form,
+    provideBank,
+    groupLineage,
+    bankForm,
+    statutoryForm,
+    interestForm,
+    gstDetails,
+    serviceTaxDetails,
+    vatDetails,
+    otherStatutory,
+    validate,
+    mode,
+    loadInitial,
+  ]);
 
   return {
     form,
@@ -757,6 +872,12 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setStatutoryForm,
     interestForm,
     setInterestForm,
+    gstDetails,
+    setGstDetails,
+    serviceTaxDetails,
+    setServiceTaxDetails,
+    vatDetails,
+    setVatDetails,
     otherStatutory,
     setOtherStatutory,
     provideBank,
@@ -767,6 +888,12 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setShowInterestPopup,
     showOtherStatutoryModal,
     setShowOtherStatutoryModal,
+    showGSTDetailsModal,
+    setShowGSTDetailsModal,
+    showServiceTaxModal,
+    setShowServiceTaxModal,
+    showVATDetailsModal,
+    setShowVATDetailsModal,
     showGroupPanel,
     setShowGroupPanel,
     showLedgerPanel,
@@ -797,6 +924,15 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     handleProvideBankChange,
     handleBankClose,
     handleBankAccept,
+    handleGSTDetailsOpen,
+    handleGSTDetailsClose,
+    handleGSTDetailsAccept,
+    handleServiceTaxOpen,
+    handleServiceTaxClose,
+    handleServiceTaxAccept,
+    handleVATDetailsOpen,
+    handleVATDetailsClose,
+    handleVATDetailsAccept,
     handleSubmit,
     loadLedger,
   };

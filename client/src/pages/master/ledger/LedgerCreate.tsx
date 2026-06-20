@@ -24,6 +24,11 @@ import OtherStatutoryTriggerPanel from "./components/OtherStatutoryTriggerPanel"
 import OtherStatutoryModal from "./components/statutory/OtherStatutoryModal";
 import { getOtherStatutoryConfig } from "@/config/ledgerStatutoryConfig";
 import { getLedgerConfig } from "./config/LedgerConfig";
+import AdditionalGSTDetailsModal from "./components/AdditionalGSTDetails";
+import ServiceTaxModal from "./components/ServiceTaxModal";
+import VATDetailsModal from "./components/VATDetailsModal";
+import { EMPTY_VAT_DETAILS } from "./components/VATDetailsModal";
+
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
 export default function LedgerCreate() {
@@ -41,6 +46,8 @@ export default function LedgerCreate() {
     setInterestForm,
     otherStatutory,
     setOtherStatutory,
+    vatDetails,
+    setVatDetails,
     provideBank,
     showBankPopup,
     setShowBankPopup,
@@ -70,12 +77,28 @@ export default function LedgerCreate() {
     handleBankClose,
     handleBankAccept,
     handleSubmit,
+    gstDetails,
+    showGSTDetailsModal,
+    handleGSTDetailsOpen,
+    handleGSTDetailsClose,
+    handleGSTDetailsAccept,
+    serviceTaxDetails,
+    showServiceTaxModal,
+    handleServiceTaxOpen,
+    handleServiceTaxClose,
+    handleServiceTaxAccept,
+    showVATDetailsModal,
+    handleVATDetailsOpen,
+    handleVATDetailsClose,
+    handleVATDetailsAccept,
   } = useLedgerForm({ mode: "create" });
-const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
-const currentConfig = getLedgerConfig(groupName);
+
+  const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
+  const currentConfig = getLedgerConfig(groupName);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !showBankPopup && !showGroupPanel) {
+      if (e.key === "Escape" && !showBankPopup && !showGroupPanel && !showServiceTaxModal && !showVATDetailsModal) {
         e.preventDefault();
         navigate("/master/create");
       }
@@ -94,7 +117,7 @@ const currentConfig = getLedgerConfig(groupName);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSubmit, showBankPopup, showGroupPanel, navigate, setShowGroupPanel]);
+  }, [handleSubmit, showBankPopup, showGroupPanel, showServiceTaxModal, showVATDetailsModal, navigate, setShowGroupPanel]);
 
   const ledgerActions = [
     { key: "Alt+G", label: "Select Group", onClick: () => setShowGroupPanel((prev) => !prev) },
@@ -123,6 +146,36 @@ const currentConfig = getLedgerConfig(groupName);
           interestForm={interestForm}
           setInterestForm={setInterestForm}
           onClose={handleInterestClose}
+        />
+      )}
+
+      {showGSTDetailsModal && (
+        <AdditionalGSTDetailsModal
+          isOpen={showGSTDetailsModal}
+          ledgerName={form.name || ""}
+          value={gstDetails}
+          onClose={handleGSTDetailsClose}
+          onAccept={handleGSTDetailsAccept}
+        />
+      )}
+
+      {showServiceTaxModal && (
+        <ServiceTaxModal
+          isOpen={showServiceTaxModal}
+          ledgerName={form.name || ""}
+          value={serviceTaxDetails}
+          onClose={handleServiceTaxClose}
+          onAccept={handleServiceTaxAccept}
+        />
+      )}
+
+      {showVATDetailsModal && (
+        <VATDetailsModal
+          isOpen={showVATDetailsModal}
+          ledgerName={form.name || ""}
+          value={vatDetails}
+          onClose={handleVATDetailsClose}
+          onAccept={handleVATDetailsAccept}
         />
       )}
 
@@ -203,26 +256,26 @@ const currentConfig = getLedgerConfig(groupName);
             groupLineage={groupLineage}
           />
 
-<OtherStatutoryTriggerPanel
-  form={otherStatutory}
-  onOpen={() => setShowOtherStatutoryModal(true)}
-  onEnable={() => {
-    setOtherStatutory((prev) => ({
-      ...prev,
-      tds: { ...prev.tds, is_tds_deductable: 1 },
-    }));
-    setShowOtherStatutoryModal(true);
-  }}
-  onDisable={() =>
-    setOtherStatutory({
-      tds: { ...EMPTY_TDS },
-      tcs: { ...EMPTY_TCS },
-      serviceTax: { ...EMPTY_SERVICE_TAX },
-      excise: { ...EMPTY_EXCISE },
-      vat: { ...EMPTY_VAT },
-    })
-  }
-/>
+          <OtherStatutoryTriggerPanel
+            form={otherStatutory}
+            onOpen={() => setShowOtherStatutoryModal(true)}
+            onEnable={() => {
+              setOtherStatutory((prev) => ({
+                ...prev,
+                tds: { ...prev.tds, is_tds_deductable: 1 },
+              }));
+              setShowOtherStatutoryModal(true);
+            }}
+            onDisable={() =>
+              setOtherStatutory({
+                tds: { ...EMPTY_TDS },
+                tcs: { ...EMPTY_TCS },
+                serviceTax: { ...EMPTY_SERVICE_TAX },
+                excise: { ...EMPTY_EXCISE },
+                vat: { ...EMPTY_VAT },
+              })
+            }
+          />
 
           <div className="flex-1" />
 
@@ -282,6 +335,18 @@ const currentConfig = getLedgerConfig(groupName);
             setOtherStatutory={setOtherStatutory}
             groupLineage={groupLineage}
             config={currentConfig}
+            onGSTDetailsChange={(val) => {
+              if (val === "Yes") handleGSTDetailsOpen();
+              else handleGSTDetailsClose();
+            }}
+            onServiceTaxDetailsChange={(val) => {
+              if (val === "Yes") handleServiceTaxOpen();
+              else handleServiceTaxClose();
+            }}
+            onVATDetailsChange={(val) => {
+              if (val === "Yes") handleVATDetailsOpen();
+              else handleVATDetailsClose();
+            }}
           />
 
           <LedgerBillwisePanel
@@ -290,8 +355,7 @@ const currentConfig = getLedgerConfig(groupName);
             setNumber={setNumber}
             groupLineage={groupLineage}
           />
-
-        </div>  
+        </div>
 
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">

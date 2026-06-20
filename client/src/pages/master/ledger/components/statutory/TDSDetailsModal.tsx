@@ -14,13 +14,6 @@ import NatureOfPaymentFlatList from "./Natureofpaymentflatlist";
 import { useNavigate } from "react-router-dom";
 import { useTdsNatureOfPayments } from "../../hooks/usetdsnatureofpayments";
 
-/* ── Static option lists (Tally-aligned) ───────────────────────────────────── */
-/* NOTE: TDS_NATURE_OF_PAYMENT_SUGGESTIONS removed — Nature of Payment is now
-   sourced live from window.api.tdsNatureOfPayment.getAll(companyId) via
-   useTdsNatureOfPayments, with "Any"/"Undefined" pinned in the popup
-   (see NatureOfPaymentFlatList). Deductee types & PAN statuses are left as
-   static lists below since they weren't part of this change. */
-
 export const TDS_DEDUCTEE_TYPES = [
   "Unknown",
   "AOP (Companies as Members) - Non Resident",
@@ -61,7 +54,6 @@ export const TDS_PAN_STATUSES = [
   "Not Required",
 ];
 
-/* ── Form shape ───────────────────────────────────────────────────────────── */
 
 export interface TdsFormState {
   is_tds_applicable: string;
@@ -95,11 +87,9 @@ interface TDSDetailsModalProps {
   onAccept: (state: TdsFormState) => void;
   ledgerName?: string;
   value: TdsFormState;
-  /** Needed to fetch/create company-scoped Nature of Payment records. */
   companyId: number;
 }
 
-/* ── Component ────────────────────────────────────────────────────────────── */
 
 export default function TDSDetailsModal({
   isOpen,
@@ -134,9 +124,6 @@ export default function TDSDetailsModal({
   };
 
   const handleCreateNop = () => {
-    // Full create page already exists for this entity (with its own
-    // validation, alter-mode, accept/quit shortcuts) — navigate there
-    // instead of duplicating that logic in a second, smaller form.
     setNopPopupOpen(false);
     navigate("/master/create/tds-nature-of-payment");
   };
@@ -212,8 +199,6 @@ export default function TDSDetailsModal({
               </select>
             </ModalFormRow>
 
-            {/* ── Nature of Payment: now a click-to-open popup backed by
-                real data, replacing the old static <select>. ── */}
             <ModalFormRow label="Nature of Payment" labelWidth="w-56">
               <div className="relative" ref={nopFieldRef}>
                 <button

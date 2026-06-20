@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import GroupTree from "@/components/GroupTree";
+import { useCompany } from "@/context/CompanyContext";
+import GroupFlatList from "@/components/GroupFlatList";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import BankDetailsPopup from "./components/BankDetailsPopup";
 import type { GroupType } from "@/types/api";
-import { useCompany } from "@/context/CompanyContext";
 import {
   useLedgerForm,
   EMPTY_TDS,
@@ -25,6 +25,9 @@ import OtherStatutoryModal from "./components/statutory/OtherStatutoryModal";
 import { getOtherStatutoryConfig } from "@/config/ledgerStatutoryConfig";
 import LedgerListPanel from "./components/LedgerListPanel";
 import { getLedgerConfig } from "./config/LedgerConfig";
+import AdditionalGSTDetailsModal from "./components/AdditionalGSTDetails";
+import ServiceTaxModal from "./components/ServiceTaxModal";
+import VATDetailsModal from "./components/VATDetailsModal";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
@@ -44,6 +47,7 @@ export default function LedgerAlter() {
     setInterestForm,
     otherStatutory,
     setOtherStatutory,
+    vatDetails,
     provideBank,
     showBankPopup,
     setShowBankPopup,
@@ -54,7 +58,7 @@ export default function LedgerAlter() {
     setShowGroupPanel,
     showLedgerPanel,
     setShowLedgerPanel,
-    groupTree,
+    flatGroups,
     ledgers,
     loading,
     saving,
@@ -79,6 +83,20 @@ export default function LedgerAlter() {
     handleBankAccept,
     handleSubmit,
     loadLedger,
+    gstDetails,
+    showGSTDetailsModal,
+    handleGSTDetailsOpen,
+    handleGSTDetailsClose,
+    handleGSTDetailsAccept,
+    serviceTaxDetails,
+    showServiceTaxModal,
+    handleServiceTaxOpen,
+    handleServiceTaxClose,
+    handleServiceTaxAccept,
+    showVATDetailsModal,
+    handleVATDetailsOpen,
+    handleVATDetailsClose,
+    handleVATDetailsAccept,
   } = useLedgerForm({ mode: "alter" });
 
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
@@ -95,6 +113,8 @@ export default function LedgerAlter() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (showBankPopup) return;
+        if (showServiceTaxModal) return;
+        if (showVATDetailsModal) return;
         if (showLedgerPanel) { e.preventDefault(); setShowLedgerPanel(false); return; }
         if (showGroupPanel) { e.preventDefault(); setShowGroupPanel(false); return; }
         e.preventDefault();
@@ -121,7 +141,7 @@ export default function LedgerAlter() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSubmit, showBankPopup, showGroupPanel, showLedgerPanel, navigate, selectedLedgerId, setShowLedgerPanel, setShowGroupPanel]);
+  }, [handleSubmit, showBankPopup, showServiceTaxModal, showVATDetailsModal, showGroupPanel, showLedgerPanel, navigate, selectedLedgerId, setShowLedgerPanel, setShowGroupPanel]);
 
   const ledgerAlterActions = [
     { key: "Alt+L", label: "Select Ledger", onClick: () => { setShowLedgerPanel((prev) => !prev); setShowGroupPanel(false); } },
@@ -151,6 +171,36 @@ export default function LedgerAlter() {
           interestForm={interestForm}
           setInterestForm={setInterestForm}
           onClose={handleInterestClose}
+        />
+      )}
+
+      {showGSTDetailsModal && (
+        <AdditionalGSTDetailsModal
+          isOpen={showGSTDetailsModal}
+          ledgerName={form.name || ""}
+          value={gstDetails}
+          onClose={handleGSTDetailsClose}
+          onAccept={handleGSTDetailsAccept}
+        />
+      )}
+
+      {showServiceTaxModal && (
+        <ServiceTaxModal
+          isOpen={showServiceTaxModal}
+          ledgerName={form.name || ""}
+          value={serviceTaxDetails}
+          onClose={handleServiceTaxClose}
+          onAccept={handleServiceTaxAccept}
+        />
+      )}
+
+      {showVATDetailsModal && (
+        <VATDetailsModal
+          isOpen={showVATDetailsModal}
+          ledgerName={form.name || ""}
+          value={vatDetails}
+          onClose={handleVATDetailsClose}
+          onAccept={handleVATDetailsAccept}
         />
       )}
 
@@ -234,6 +284,20 @@ export default function LedgerAlter() {
             </div>
           )}
 
+          {selectedLedgerId && (
+            <div className="p-3 border-t border-zinc-100 bg-white">
+              <FormRow label="Activate interest calculation" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <select
+                  className="bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded"
+                  value={form.activate_interest ? "Yes" : "No"}
+                  onChange={handleActivateInterestChange}
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </FormRow>
+            </div>
+          )}
 
           {selectedLedgerId && (
             <LedgerBankDetailsForm
@@ -249,12 +313,13 @@ export default function LedgerAlter() {
             <OtherStatutoryTriggerPanel
               form={otherStatutory}
               onOpen={() => setShowOtherStatutoryModal(true)}
-              onEnable={() =>
+              onEnable={() => {
                 setOtherStatutory((prev) => ({
                   ...prev,
                   tds: { ...prev.tds, is_tds_deductable: 1 },
-                }))
-              }
+                }));
+                setShowOtherStatutoryModal(true);
+              }}
               onDisable={() =>
                 setOtherStatutory({
                   tds: { ...EMPTY_TDS },
@@ -308,48 +373,11 @@ export default function LedgerAlter() {
                 groupLineage={groupLineage}
               />
 
-
-              <LedgerTaxPanel
-                form={form}
-                setField={setField}
-                statutoryForm={statutoryForm}
-                setStatutoryField={setStatutoryField}
-                setStatutoryNumber={setStatutoryNumber}
-                setStatutoryForm={setStatutoryForm}
-                groupLineage={groupLineage}
-                config={currentConfig}
-                handleActivateInterestChange={handleActivateInterestChange}
-              />
-
-
-              <LedgerBillwisePanel
-                form={form}
-                setForm={setForm}
-                setNumber={setNumber}
-                groupLineage={groupLineage}
-              />
-
-              <div className="p-3 border-t border-zinc-100 bg-white">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cost Centre Details</div>
-                <FormRow label="Cost Centres are applicable" labelWidth="w-52" className="flex items-center min-h-[26px]">
-                  <select
-                    className="bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded"
-                    value={form.allow_cost_centres ? "Yes" : "No"}
-                    onChange={(e) => setForm((f: any) => ({ ...f, allow_cost_centres: e.target.value === "Yes" ? 1 : 0 }))}
-                  >
-                    <option>No</option>
-                    <option>Yes</option>
-                  </select>
-                </FormRow>
-              </div>
-
-        
               <LedgerMailingPanel
                 form={form}
                 setField={setField}
                 groupLineage={groupLineage}
               />
-
 
               <LedgerBankingPanel
                 provideBank={provideBank}
@@ -359,6 +387,38 @@ export default function LedgerAlter() {
                 setShowBankPopup={setShowBankPopup}
                 groupLineage={groupLineage}
               />
+
+              <LedgerTaxPanel
+                form={form}
+                setField={setField}
+                statutoryForm={statutoryForm}
+                setStatutoryField={setStatutoryField}
+                setStatutoryNumber={setStatutoryNumber}
+                setStatutoryForm={setStatutoryForm}
+                otherStatutory={otherStatutory}
+                setOtherStatutory={setOtherStatutory}
+                groupLineage={groupLineage}
+                config={currentConfig}
+                onGSTDetailsChange={(val) => {
+                  if (val === "Yes") handleGSTDetailsOpen();
+                  else handleGSTDetailsClose();
+                }}
+                onServiceTaxDetailsChange={(val) => {
+                  if (val === "Yes") handleServiceTaxOpen();
+                  else handleServiceTaxClose();
+                }}
+                onVATDetailsChange={(val) => {
+                  if (val === "Yes") handleVATDetailsOpen();
+                  else handleVATDetailsClose();
+                }}
+              />
+
+              <LedgerBillwisePanel
+                form={form}
+                setForm={setForm}
+                setNumber={setNumber}
+                groupLineage={groupLineage}
+              />
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-zinc-300 text-sm select-none italic">
@@ -366,7 +426,7 @@ export default function LedgerAlter() {
             </div>
           )}
         </div>
-        
+
         {showLedgerPanel && (
           <LedgerListPanel
             ledgers={ledgers}
@@ -378,35 +438,21 @@ export default function LedgerAlter() {
 
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
-            <div className="px-3 py-2 border-b border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider flex justify-between items-center select-none">
-              <span>List of Groups</span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => { setShowGroupPanel(false); navigate("/master/create/group"); }}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-800 font-medium transition-colors"
-                >
-                  + Create
-                </button>
-                <button onClick={() => setShowGroupPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <GroupTree
-                tree={groupTree}
-                selectedId={form.group_id as number}
-                onSelect={(group: GroupType) => {
-                  setForm((prev: any) => ({ ...prev, group_id: group.group_id }));
-                  setShowGroupPanel(false);
-                }}
-              />
-            </div>
+            <GroupFlatList
+              groups={flatGroups}
+              selectedId={form.group_id as number}
+              onSelect={(group: GroupType) => {
+                setForm((f: any) => ({ ...f, group_id: group.group_id }));
+                setShowGroupPanel(false);
+              }}
+              onCreate={() => { setShowGroupPanel(false); navigate("/master/create/group"); }}
+              onClose={() => setShowGroupPanel(false)}
+            />
           </div>
         )}
 
-
         <RightActionPanel actions={ledgerAlterActions} />
       </div>
-
 
       <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
         <Link to="/master/alter" className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
