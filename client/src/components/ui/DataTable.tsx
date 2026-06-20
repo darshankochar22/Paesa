@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 export interface TableColumn {
   key: string;
   label: string;
-  /** Tailwind col-span class e.g. "col-span-3" */
   span: string;
   align?: "left" | "right" | "center";
   render?: (row: any, idx: number) => ReactNode;
@@ -16,7 +15,6 @@ interface Props {
   loading?: boolean;
   emptyMessage?: string;
   rowKey: (row: any) => string | number;
-  /** Extra className for each data row */
   rowClassName?: (row: any, idx: number) => string;
 }
 
@@ -33,7 +31,6 @@ export default function DataTable({
 }: Props) {
   return (
     <div className="flex-1 overflow-y-auto min-h-0">
-      {/* Sticky Header */}
       <div className="grid sticky top-0 z-10 px-3 py-2 bg-zinc-100 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-600 select-none" style={{ gridTemplateColumns: `repeat(12, minmax(0, 1fr))` }}>
         {columns.map(col => (
           <div key={col.key} className={`${col.span} ${ALIGN_CLASS[col.align ?? "left"]}`}>

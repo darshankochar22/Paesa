@@ -2,7 +2,6 @@ const { db } = require('../db/index');
 const { sql, eq } = require('drizzle-orm');
 const { tdsNatureOfPayment } = require('../db/schema');
 
-// Fetch a single tds_nature_of_payment row in the legacy snake_case shape (or undefined).
 const findRow = async (whereSql) => {
   const rows = await db.all(sql`SELECT * FROM ${tdsNatureOfPayment} WHERE ${whereSql}`);
   return rows[0];

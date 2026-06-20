@@ -203,25 +203,26 @@ const currentConfig = getLedgerConfig(groupName);
             groupLineage={groupLineage}
           />
 
-          <OtherStatutoryTriggerPanel
-            form={otherStatutory}
-            onOpen={() => setShowOtherStatutoryModal(true)}
-            onEnable={() =>
-              setOtherStatutory((prev) => ({
-                ...prev,
-                tds: { ...prev.tds, is_tds_deductable: 1 },
-              }))
-            }
-            onDisable={() =>
-              setOtherStatutory({
-                tds: { ...EMPTY_TDS },
-                tcs: { ...EMPTY_TCS },
-                serviceTax: { ...EMPTY_SERVICE_TAX },
-                excise: { ...EMPTY_EXCISE },
-                vat: { ...EMPTY_VAT },
-              })
-            }
-          />
+<OtherStatutoryTriggerPanel
+  form={otherStatutory}
+  onOpen={() => setShowOtherStatutoryModal(true)}
+  onEnable={() => {
+    setOtherStatutory((prev) => ({
+      ...prev,
+      tds: { ...prev.tds, is_tds_deductable: 1 },
+    }));
+    setShowOtherStatutoryModal(true);
+  }}
+  onDisable={() =>
+    setOtherStatutory({
+      tds: { ...EMPTY_TDS },
+      tcs: { ...EMPTY_TCS },
+      serviceTax: { ...EMPTY_SERVICE_TAX },
+      excise: { ...EMPTY_EXCISE },
+      vat: { ...EMPTY_VAT },
+    })
+  }
+/>
 
           <div className="flex-1" />
 

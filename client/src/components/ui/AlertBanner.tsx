@@ -4,7 +4,6 @@ interface Props {
   type: "error" | "success";
   message: string;
   onDismiss?: () => void;
-  /** Extra buttons / links to render next to dismiss */
   actions?: ReactNode;
 }
 

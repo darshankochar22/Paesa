@@ -32,10 +32,6 @@ import {
 import TDSDetailsModal from "./TDSDetailsModal";
 import TCSDetailsModal from "./TCSDetailsModal";
 
-/**
- * Aggregated form shape covering all five sub-sections.
- * Held by the ledger form hook; passed into `OtherStatutoryModal` for editing.
- */
 export interface OtherStatutoryForm {
   tds: TdsFormState;
   tcs: TcsFormState;
@@ -60,7 +56,6 @@ interface OtherStatutoryModalProps {
   onClose: () => void;
   onAccept: (state: OtherStatutoryForm) => void;
   ledgerName?: string;
-  /** Which sub-sections are visible (driven by the group config). */
   visibleSections: OtherStatutorySectionKey[];
   value: OtherStatutoryForm;
 }
@@ -73,16 +68,6 @@ type Tier2 =
   | { kind: "vat" }
   | null;
 
-/**
- * Tier-1 "Set/Alter other Statutory details" modal.
- *
- * Renders one row per visible sub-section with a "Yes/No" toggle. When the
- * user flips a row to "Yes", the corresponding Tier-2 detail modal opens
- * immediately (setTimeout(0) lets the toggle state commit first).
- *
- * Modal chrome / Yes-No pattern mirrors the existing
- * `StatutoryModal` in `client/src/pages/master/group/StatutoryModal.tsx`.
- */
 export default function OtherStatutoryModal({
   isOpen,
   onClose,

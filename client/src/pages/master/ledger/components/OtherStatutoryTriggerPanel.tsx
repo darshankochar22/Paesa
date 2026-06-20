@@ -32,7 +32,7 @@ export default function OtherStatutoryTriggerPanel({
       <FormRow
         label="Set/Alter other Statutory details"
         labelWidth="w-60"
-        className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50"
+        className="flex items-center min-h-[26px]"
       >
         <select
           className={selectCls + " max-w-[80px]"}
@@ -42,8 +42,6 @@ export default function OtherStatutoryTriggerPanel({
               onEnable();
             } else if (isActive && e.target.value === "No") {
               onDisable();
-            } else if (isActive) {
-              onOpen();
             }
           }}
         >
