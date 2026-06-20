@@ -2,6 +2,7 @@ import { FormRow } from "@/components/ui";
 import type { LedgerType } from "@/types/api";
 import type { StatutoryDetails } from "../hooks/useLedgerForm";
 import type { LedgerConfigOptions } from "../config/LedgerConfig";
+import type { OtherStatutoryForm } from "../hooks/useLedgerForm";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -17,6 +18,8 @@ interface LedgerTaxPanelProps {
     isTax: boolean;
   };
   config: LedgerConfigOptions;
+  otherStatutory: OtherStatutoryForm;
+  setOtherStatutory: React.Dispatch<React.SetStateAction<OtherStatutoryForm>>;
 }
 
 export default function LedgerTaxPanel({
@@ -26,6 +29,8 @@ export default function LedgerTaxPanel({
   setStatutoryField,
   setStatutoryNumber,
   setStatutoryForm,
+  otherStatutory,
+  setOtherStatutory,
   groupLineage,
   config,
 }: LedgerTaxPanelProps) {
@@ -261,6 +266,24 @@ export default function LedgerTaxPanel({
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>
               </select>
+            </FormRow>
+          )}
+
+
+          {(showFullTaxDetails || showBankTaxDetails) && (
+            <FormRow label="Set/Alter VAT Details" labelWidth="w-44" className="flex items-center min-h-[26px]">
+               <select className={selectCls}
+               value={otherStatutory.vat.set_alter_vat_details ? "Yes":"No"}
+               onChange = {(e) =>
+                setOtherStatutory((prev) => ({
+                  ...prev,
+                  vat: { ...prev.vat, set_alter_vat_details: e.target.value === "Yes" ? 1 : 0 },
+                }))
+               }
+               >
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+               </select>
             </FormRow>
           )}
         </div>

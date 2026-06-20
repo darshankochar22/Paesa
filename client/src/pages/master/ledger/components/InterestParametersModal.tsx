@@ -44,6 +44,10 @@ export default function InterestParametersModal({
         e.preventDefault();
         onClose();
       }
+      if (e.key === "Enter" || (e.ctrlKey && (e.key === "a" || e.key === "A"))) {
+        e.preventDefault();
+        onClose();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -61,6 +65,7 @@ export default function InterestParametersModal({
     key: K,
     value: InterestDetails[K],
   ) => setInterestForm((f) => ({ ...f, [key]: value }));
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -157,6 +162,20 @@ export default function InterestParametersModal({
               ))}
             </select>
           </div>
+        </div>
+       <div className="px-4 py-2 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
+          <button
+            onClick={onClose}
+            className="text-xs px-4 py-1.5 rounded border border-zinc-300 text-zinc-600 hover:bg-zinc-100 transition-colors font-medium"
+          >
+            Quit (Esc)
+          </button>
+          <button
+            onClick={onClose}
+            className="text-xs px-4 py-1.5 rounded bg-zinc-900 text-white hover:bg-zinc-800 transition-colors font-medium"
+          >
+            Accept (Ctrl+A)
+          </button>
         </div>
       </div>
     </div>

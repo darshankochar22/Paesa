@@ -277,6 +277,8 @@ const currentConfig = getLedgerConfig(groupName);
             setStatutoryField={setStatutoryField}
             setStatutoryNumber={setStatutoryNumber}
             setStatutoryForm={setStatutoryForm}
+            otherStatutory={otherStatutory}
+            setOtherStatutory={setOtherStatutory}
             groupLineage={groupLineage}
             config={currentConfig}
           />
