@@ -127,36 +127,51 @@ export function ReportTable({
     if (type === "currency") {
       const num = Number(val);
       if (isNaN(num)) return val;
-      return new Intl.NumberFormat("en-IN", {
+      // Indian number format with ₹ symbol
+      const formatted = new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }).format(num);
+      return formatted;
     }
     if (type === "number") {
       const num = Number(val);
       if (isNaN(num)) return val;
       return num.toLocaleString("en-IN");
     }
+    if (type === "date") {
+      try {
+        return new Date(val).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      } catch {
+        return String(val);
+      }
+    }
     return String(val);
   };
 
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col h-full overflow-auto bg-white border-b border-zinc-200">
-      <table className="w-full border-collapse font-mono text-[11px] select-none text-zinc-800">
-        <thead className="sticky top-0 bg-[#004433] text-white z-10">
+    <div ref={containerRef} className="flex-1 flex flex-col h-full overflow-auto bg-white border-b border-zinc-300">
+      <table className="w-full border-collapse font-mono text-[10px] select-none text-zinc-900">
+        <thead className="sticky top-0 bg-[#2e7d32] text-white z-10 shadow-sm">
           {comparisonColumns.length > 0 && (
             <tr>
-              <th className="border-b border-r border-[#005544] px-2 py-1.5 text-left font-bold" colSpan={columns.length - (columns.length > 1 ? 1 : 0)}>
+              <th className="border-b border-r border-[#1b5e20] px-2 py-1 text-left font-bold" colSpan={columns.length - (columns.length > 1 ? 1 : 0)}>
                 Particulars
               </th>
               {comparisonColumns.map((col) => (
                 <th
                   key={col.id}
-                  className="border-b border-r border-[#005544] px-2 py-1 text-center font-bold"
+                  className="border-b border-r border-[#1b5e20] px-2 py-1 text-center font-bold"
                   colSpan={1}
                 >
-                  <div className="text-[10px] truncate max-w-[150px]">{col.companyName}</div>
-                  <div className="text-[8px] text-emerald-200 font-normal">
+                  <div className="text-[9px] truncate max-w-[150px]">{col.companyName}</div>
+                  <div className="text-[8px] text-green-100 font-normal">
                     {col.fromDate} to {col.toDate}
                   </div>
                 </th>
@@ -167,7 +182,7 @@ export function ReportTable({
             {columns.map((col, idx) => (
               <th
                 key={idx}
-                className="border-b border-r border-[#005544] px-2 py-1.5 font-bold uppercase text-left last:border-r-0"
+                className="border-b-2 border-r border-[#1b5e20] px-2 py-1 font-bold uppercase text-left last:border-r-0 tracking-wide"
                 style={{ width: col.width, textAlign: col.align || "left" }}
               >
                 {col.header}
@@ -178,8 +193,8 @@ export function ReportTable({
         <tbody>
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="text-center py-8 text-zinc-400 italic">
-                No records found.
+              <td colSpan={columns.length} className="text-center py-12 text-zinc-400 italic bg-zinc-50">
+                No records found for the selected period.
               </td>
             </tr>
           ) : (
@@ -188,6 +203,8 @@ export function ReportTable({
               const isFocused = rowIndex === focusedIndex;
               const isSelected = selectedRowIds.has(rowId);
               const isExpanded = expandedRows[rowId] || detailedFormat;
+              const isTotal = row.isTotal || row.label?.toLowerCase().includes("total");
+              const isHeader = row.isHeader;
 
               return (
                 <React.Fragment key={rowId}>
@@ -195,9 +212,11 @@ export function ReportTable({
                     data-row-index={rowIndex}
                     onClick={() => setFocusedIndex(rowIndex)}
                     onDoubleClick={() => onRowDrillDown?.(row)}
-                    className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer ${
-                      isFocused ? "bg-cyan-100 text-cyan-950 font-bold" : ""
-                    } ${isSelected ? "bg-amber-100 font-semibold text-amber-950" : ""}`}
+                    className={`border-b border-zinc-200 hover:bg-blue-50 transition-colors cursor-pointer ${
+                      isFocused ? "bg-[#fff59d] border-l-4 border-l-[#f57c00]" : ""
+                    } ${isSelected ? "bg-[#ffe0b2] font-semibold" : ""} ${
+                      isTotal ? "bg-[#e3f2fd] font-bold border-t-2 border-[#1565c0]" : ""
+                    } ${isHeader ? "bg-[#f5f5f5] font-bold text-[#1a237e] border-t border-zinc-400" : ""}`}
                   >
                     {columns.map((col, colIdx) => {
                       const alignClass =
@@ -205,14 +224,18 @@ export function ReportTable({
                       return (
                         <td
                           key={colIdx}
-                          className={`px-2 py-1.5 border-r border-zinc-100 last:border-r-0 ${alignClass}`}
+                          className={`px-2 py-1 border-r border-zinc-100 last:border-r-0 ${alignClass} ${
+                            isTotal ? "font-bold" : ""
+                          }`}
                         >
                           {colIdx === 0 && row.subItems && row.subItems.length > 0 && (
-                            <span className="mr-1 text-zinc-400 font-bold">
+                            <span className="mr-1 text-[#1565c0] font-bold">
                               {isExpanded ? "▼" : "▶"}
                             </span>
                           )}
-                          {formatValue(row[col.field], col.type)}
+                          <span className={col.type === "currency" ? "tabular-nums" : ""}>
+                            {formatValue(row[col.field], col.type)}
+                          </span>
                         </td>
                       );
                     })}
@@ -222,7 +245,7 @@ export function ReportTable({
                   {isExpanded && row.subItems && row.subItems.map((sub: any, subIdx: number) => (
                     <tr
                       key={`${rowId}-sub-${subIdx}`}
-                      className="bg-zinc-50/50 border-b border-zinc-100 text-zinc-500 font-mono text-[10px]"
+                      className="bg-[#fafafa] border-b border-zinc-100 text-zinc-600 font-mono text-[9px]"
                     >
                       {columns.map((col, colIdx) => {
                         const alignClass =
@@ -230,7 +253,7 @@ export function ReportTable({
                         return (
                           <td
                             key={colIdx}
-                            className={`px-6 py-1 border-r border-zinc-100 last:border-r-0 ${alignClass}`}
+                            className={`px-6 py-0.5 border-r border-zinc-100 last:border-r-0 ${alignClass}`}
                           >
                             {formatValue(sub[col.field], col.type)}
                           </td>

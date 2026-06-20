@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 interface TallyReportLayoutProps {
   title: string;
@@ -9,6 +9,7 @@ interface TallyReportLayoutProps {
   children: React.ReactNode;
   onQuit?: () => void;
   footerControls?: React.ReactNode;
+  breadcrumb?: Array<{ label: string; to?: string }>;
 }
 
 export function TallyReportLayout({
@@ -19,6 +20,7 @@ export function TallyReportLayout({
   children,
   onQuit,
   footerControls,
+  breadcrumb,
 }: TallyReportLayoutProps) {
   const navigate = useNavigate();
 
@@ -42,30 +44,50 @@ export function TallyReportLayout({
   }, [handleQuit]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-xs">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-zinc-50">
-        <div className="font-bold text-lg">{title}</div>
-        <div className="font-bold text-lg text-center text-zinc-500">{companyName}</div>
-        <div className="flex gap-4">
-          <button onClick={handleQuit} className="px-3 py-1 bg-white border border-zinc-300 rounded hover:bg-zinc-100 font-semibold shadow-sm">
-            Quit
-          </button>
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+      {/* Tally Prime Header - Dark Blue */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-[#1a237e] to-[#283593] text-white border-b-2 border-[#0d47a1]">
+        <div className="flex items-center gap-2 flex-1">
+          <span className="font-bold text-sm tracking-wide">{title}</span>
+        </div>
+        <div className="flex items-center gap-2 flex-1 justify-center">
+          <span className="font-bold text-sm text-yellow-100">{companyName}</span>
+        </div>
+        <div className="flex items-center gap-3 flex-1 justify-end">
           {footerControls}
         </div>
       </div>
 
-      {/* Subtitle Info Area */}
-      <div className="flex justify-between items-start px-2 py-1.5 bg-zinc-50 border-b border-zinc-200">
-        <div className="flex flex-col gap-0.5 text-[11px]">
+      {/* Breadcrumb Navigation */}
+      {breadcrumb && breadcrumb.length > 0 && (
+        <div className="flex items-center gap-1 px-3 py-1 bg-[#e8eaf6] border-b border-[#9fa8da] text-[10px]">
+          {breadcrumb.map((crumb, idx) => (
+            <React.Fragment key={idx}>
+              {idx > 0 && <span className="text-zinc-400 mx-1">›</span>}
+              {crumb.to ? (
+                <Link to={crumb.to} className="text-[#1a237e] hover:underline font-medium">
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span className="text-zinc-600 font-medium">{crumb.label}</span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
+      {/* Subtitle Info Area - Period and Context */}
+      <div className="flex justify-between items-center px-3 py-1 bg-[#f5f5f5] border-b border-zinc-300">
+        <div className="flex items-center gap-3 text-[10px] text-zinc-700">
           {leftSubtitle}
         </div>
-        <div className="flex flex-col gap-0.5 text-[11px] items-end font-bold text-zinc-800">
+        <div className="flex items-center gap-3 text-[10px] font-bold text-[#1a237e]">
           {rightSubtitle}
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-auto bg-white border-t border-zinc-200">
+      <div className="flex-1 overflow-auto bg-white">
         {children}
       </div>
     </div>

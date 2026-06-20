@@ -62,7 +62,8 @@ module.exports = {
     try {
       // Ledgers joined to their group nature, exactly like balanceSheet/profitLoss.
       const ledgerRows = await db.all(
-        sql`SELECT l.*, g.nature, g.name AS group_name
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id,
+                   g.nature, g.name AS group_name
             FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1`

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const r = require\\('./server/report/reportRegistry'\\); console.log\\('Registry entries:', Object.keys\\(r.registry\\).length\\); console.log\\('getReport works:', !!r.getReport\\('trial_balance'\\)\\); console.log\\('getReport universal:', !!r.getReport\\('gateway_of_business'\\)\\);\" 2>&1)"
+    ]
+  }
+}

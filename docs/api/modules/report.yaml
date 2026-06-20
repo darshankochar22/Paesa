@@ -1,12 +1,18 @@
 openapi: 3.1.0
 info:
   title: Report Module API
-  version: 1.0.0
+  version: 2.0.0
   description: >
     IPC API for the "report" backend module of the Electron + SQLite
     accounting/ERP app. This module is read-only: every operation computes a
     financial report by aggregating rows from voucher / ledger / group tables
     owned by OTHER modules. The report module defines NO tables of its own.
+
+    The module includes a **dynamic report engine** (`report:run`) that serves
+    **586 registered reports** across 15 Tally Prime-compatible categories,
+    plus 7 dedicated core report channels (trialBalance, balanceSheet,
+    profitLoss, ledgerReport, cashBook, bankBook, daybook) and saved views
+    management (getSavedViews, saveView, deleteSavedView).
 
     Transport note: these are Electron `ipcMain.handle` channels, not real HTTP
     endpoints. They are modeled as POST operations purely so the contract can be
@@ -258,6 +264,150 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /report/run:
+    post:
+      tags: [report]
+      summary: >
+        Dynamic report engine — execute any of the 586 registered reports by reportId.
+        The report registry (server/report/reportRegistry.js) maps each reportId to a
+        definition file that calls the appropriate service method. Returns report-specific
+        data in the success envelope.
+      operationId: report.run
+      x-ipc-channel: "report:run"
+      x-window-api: "window.api.report.run"
+      x-controller: "reportController.run"
+      x-report-count: 586
+      x-report-categories:
+        - "Gateway, Navigation & Global Report Shells (20)"
+        - "Core Financial Statements (35)"
+        - "Account Books & Voucher Registers (45)"
+        - "Receivables, Payables & Bill-wise Reports (35)"
+        - "Cash, Bank, Finance & Banking (30)"
+        - "Sales, Purchase & Party Analysis (55)"
+        - "Inventory, Stock & Godown Reports (65)"
+        - "Manufacturing, Job Work & Costing (30)"
+        - "GST Reports (60)"
+        - "e-Invoice, e-Way Bill & Exchange (30)"
+        - "TDS Reports (30)"
+        - "TCS Reports (25)"
+        - "Payroll & HR Reports (55)"
+        - "VAT, Excise, Service Tax, MSME & Legacy Statutory (35)"
+        - "Audit, Edit Log, Security & Admin (35)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunReportParams'
+      responses:
+        '200':
+          description: Report executed successfully. Response shape varies by report type.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunReportResult'
+        '4XX':
+          description: Failure envelope (e.g. "Report definition not found").
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '5XX':
+          description: Failure envelope (caught service error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /report/getSavedViews:
+    post:
+      tags: [report]
+      summary: Retrieve saved report views/configurations for a company.
+      operationId: report.getSavedViews
+      x-ipc-channel: "report:getSavedViews"
+      x-window-api: "window.api.report.getSavedViews"
+      x-controller: "reportController.getSavedViews"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+              required: [company_id]
+      responses:
+        '200':
+          description: Saved views retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  views:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+
+  /report/saveView:
+    post:
+      tags: [report]
+      summary: Save a report view/configuration.
+      operationId: report.saveView
+      x-ipc-channel: "report:saveView"
+      x-window-api: "window.api.report.saveView"
+      x-controller: "reportController.saveView"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: View saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  view:
+                    type: object
+                    additionalProperties: true
+
+  /report/deleteSavedView:
+    post:
+      tags: [report]
+      summary: Delete a saved report view by ID.
+      operationId: report.deleteSavedView
+      x-ipc-channel: "report:deleteSavedView"
+      x-window-api: "window.api.report.deleteSavedView"
+      x-controller: "reportController.deleteSavedView"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+              required: [id]
+      responses:
+        '200':
+          description: View deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+
 components:
   schemas:
     Error:
@@ -508,3 +658,61 @@ components:
             additionalProperties: true
             description: A full voucher object (shape owned by the voucher module).
       required: [success, vouchers]
+
+    RunReportParams:
+      type: object
+      description: >
+        Parameters for the dynamic report engine. The `reportId` is a snake_case
+        identifier matching one of the 586 registered reports in
+        server/report/reportRegistry.js. The `params` object is passed through
+        to the report definition's run function.
+      properties:
+        reportId:
+          type: string
+          description: >
+            Snake_case report identifier (e.g. 'balance_sheet', 'gstr_1_b2b',
+            'stock_summary', 'payslip_report'). Must match a key in
+            server/report/reportRegistry.js.
+        params:
+          type: object
+          description: >
+            Report-specific parameters. Common fields: company_id (required),
+            fy_id (required), from_date, to_date, as_on_date, ledger_id,
+            stock_valuation_method.
+          properties:
+            company_id:
+              type: integer
+              description: Target company id (FK -> companies.company_id).
+            fy_id:
+              type: integer
+              description: Target financial year id (FK -> financial_years.fy_id).
+            from_date:
+              type: [string, "null"]
+              format: date
+              description: Optional inclusive lower bound on date range.
+            to_date:
+              type: [string, "null"]
+              format: date
+              description: Optional inclusive upper bound on date range.
+            as_on_date:
+              type: [string, "null"]
+              format: date
+              description: Optional as-on date for point-in-time reports.
+      required: [reportId, params]
+
+    RunReportResult:
+      type: object
+      description: >
+        Result of a dynamic report execution. The shape varies by report type.
+        All reports return { success: true } with report-specific data fields.
+        Common data shapes include: rows[] (tabular data), assets[]/liabilities[]
+        (balance sheet), income[]/expenses[] (P&L), vouchers[] (daybook),
+        sources[]/applications[] (funds flow), items[]/groups[] (stock summary),
+        ratios[] (ratio analysis), etc.
+      properties:
+        success:
+          type: boolean
+        error:
+          type: [string, "null"]
+          description: Error message if success is false.
+      additionalProperties: true

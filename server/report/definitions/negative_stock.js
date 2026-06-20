@@ -66,14 +66,12 @@ module.exports = {
           }
         }
 
-        if (negativeInstances.length > 0) {
-          result.push({
-            item_id: itemId,
-            item_name: item.name,
-            current_quantity: runningQty,
-            negative_instances: negativeInstances
-          });
-        }
+        result.push({
+          item_id: itemId,
+          item_name: item.name,
+          current_quantity: runningQty,
+          negative_instances: negativeInstances
+        });
       }
 
       return { success: true, items: result };

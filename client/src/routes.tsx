@@ -182,6 +182,8 @@ import GSTR2AReconciliation from "./pages/master/statutory/gst-return/GSTR2A-Rec
 import IMSInwardSupplies from "./pages/master/statutory/gst-return/IMSInwardSupplies.tsx";
 import GSTR2BReconciliation from "./pages/master/statutory/gst-return/GSTR2BReconciliation.tsx";
 import ChallanReconciliation from "./pages/master/statutory/gst-return/ChallanReconciliation.tsx";
+import { ReportRunner } from "./pages/reports/ReportRunner.tsx";
+import CategoryMenuPage from "./pages/reports/CategoryMenuPage.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -398,6 +400,26 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter/salary-structure", element: <SalaryStructureAlter /> },
   { path: "/master/alter/employee-category", element: <EmployeeCategoryAlter /> },
   { path: "/company/create", element: <CompanyCreatePage /> },
+
+  // ── 585-report category menu pages ─────────────────────────────────────────
+  { path: "/reports/gateway", element: <CategoryMenuPage title="Gateway of Business" categorySlug="gateway" description="Central navigation hub for all 585 reports across every category." /> },
+  { path: "/reports/financial-statements", element: <CategoryMenuPage title="Financial Statements" categorySlug="financial-statements" description="Profit & Loss, Balance Sheet, Cash Flow, Funds Flow, Ratio Analysis and related financial reports." /> },
+  // /reports/account-books is already registered above in the Sub-menu pages section
+  { path: "/reports/receivables-payables", element: <CategoryMenuPage title="Receivables & Payables" categorySlug="receivables-payables" description="Bills receivable, bills payable, outstanding reports, ageing analysis and party-wise summaries." /> },
+  { path: "/reports/cash-bank-finance", element: <CategoryMenuPage title="Cash, Bank & Finance" categorySlug="cash-bank-finance" description="Cash book, bank book, day book, bank reconciliation, cheque management and financial analytics." /> },
+  { path: "/reports/sales-purchase-party", element: <CategoryMenuPage title="Sales, Purchase & Party" categorySlug="sales-purchase-party" description="Sales register, purchase register, sales/purchase order books, party outstandings and day books." /> },
+  { path: "/reports/inventory-stock", element: <CategoryMenuPage title="Inventory & Stock" categorySlug="inventory-stock" description="Stock summary, stock query, movement analysis, godown reports, batch tracking and reorder status." /> },
+  { path: "/reports/manufacturing-costing", element: <CategoryMenuPage title="Manufacturing & Costing" categorySlug="manufacturing-costing" description="Manufacturing journal, production analysis, cost centre summary, budget variance and costing reports." /> },
+  { path: "/reports/gst", element: <CategoryMenuPage title="GST Reports" categorySlug="gst" description="GSTR-1, GSTR-2A/2B, GSTR-3B, annual computation, reconciliation, e-invoice status and GST analytics." /> },
+  { path: "/reports/e-invoice-eway-bill", element: <CategoryMenuPage title="E-Invoice & E-Way Bill" categorySlug="e-invoice-eway-bill" description="E-invoice status, IRN generation, e-way bill tracking and compliance reports." /> },
+  { path: "/reports/tds", element: <CategoryMenuPage title="TDS Reports" categorySlug="tds" description="TDS computation, TDS payable, Form 26Q/24Q, TDS analysis and deduction registers." /> },
+  { path: "/reports/tcs", element: <CategoryMenuPage title="TCS Reports" categorySlug="tcs" description="TCS computation, TCS payable, Form 27EQ, TCS analysis and collection registers." /> },
+  { path: "/reports/payroll-hr", element: <CategoryMenuPage title="Payroll & HR" categorySlug="payroll-hr" description="Payslips, salary register, attendance, PF, ESI, professional tax, gratuity and payroll analytics." /> },
+  { path: "/reports/legacy-statutory", element: <CategoryMenuPage title="Legacy & Statutory" categorySlug="legacy-statutory" description="VAT, excise, service tax, sales tax and other legacy statutory compliance reports." /> },
+  { path: "/reports/audit-security", element: <CategoryMenuPage title="Audit & Security" categorySlug="audit-security" description="Edit log, audit trail, verification, TallyMarks, user access logs and data integrity reports." /> },
+
+  // Dynamic catch-all: handles all 585 reports via URL-driven ReportRunner
+  { path: "/reports/:category/:reportSlug", element: <ReportRunner /> },
 ];
 
 function CompanyCreatePage() {

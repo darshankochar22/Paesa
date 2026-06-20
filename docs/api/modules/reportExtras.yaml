@@ -1,24 +1,29 @@
 openapi: 3.1.0
 info:
   title: Report Extras Module API
-  version: 1.0.0
+  version: 2.0.0
   description: >
     Additional READ-ONLY financial & inventory reports layered on top of the core
     report module. Each channel is registered in server/index.js, exposed to the
     renderer via preload.js as window.api.report.<method>, and dispatched through
-    server/report/reportController.js to a dedicated report service
-    (outstandingReportService, cashFlowReportService, fundsFlowReportService,
-    stockSummaryReportService, ratioAnalysisReportService).
+    server/report/reportController.js to a dedicated report service.
+
+    Services include: outstandingReportService (bills receivable/payable with
+    ageing), cashFlowReportService (cash flow statement),
+    fundsFlowReportService (funds flow statement), stockSummaryReportService
+    (stock summary with FIFO/Avg valuation), ratioAnalysisReportService
+    (financial ratios), advancedInventoryReportService (godown summary, stock
+    ageing, movement analysis, reorder status, order outstanding),
+    advancedAccountingReportService (cost centre, budget vs actual),
+    payrollReportService (payslips, salary, PF, ESI, PT, gratuity, attendance).
 
     These reports never write: they derive every figure live from posted (non-
     cancelled) voucher entries / bill references / stock movements for the active
-    company + financial year, reusing the same query conventions as
-    server/report/reportService.js. They are also surfaced to the AI copilot as
-    the query resources bills_receivable, bills_payable, cash_flow, funds_flow,
-    stock_summary and ratio_analysis.
+    company + financial year. All 586 reports are also accessible via the dynamic
+    report engine (report:run).
 tags:
   - name: reportExtras
-    description: Outstanding (receivable/payable), cash flow, funds flow, stock summary and ratio analysis reports.
+    description: Outstanding, cash flow, funds flow, stock summary, ratio analysis, advanced inventory, advanced accounting, and payroll reports.
 paths:
   /report/billsReceivable:
     post:
@@ -139,6 +144,564 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/RatioAnalysisResult' }
+
+  # ── Advanced Inventory Reports ──────────────────────────────────────────────
+  /report/godownSummary:
+    post:
+      operationId: report.godownSummary
+      tags: [reportExtras]
+      summary: Godown-wise stock summary — closing quantity & value per godown location.
+      x-ipc-channel: "report:godownSummary"
+      x-window-api: "window.api.report.godownSummary"
+      x-controller: "reportController.godownSummary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CompanyFyParams'
+                - type: object
+                  properties:
+                    as_on_date: { type: string, description: "Optional as-on date (YYYY-MM-DD)." }
+      responses:
+        '200':
+          description: Godown-wise stock summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/stockAgeing:
+    post:
+      operationId: report.stockAgeing
+      tags: [reportExtras]
+      summary: Stock ageing analysis — age brackets for stock items based on purchase dates.
+      x-ipc-channel: "report:stockAgeing"
+      x-window-api: "window.api.report.stockAgeing"
+      x-controller: "reportController.stockAgeing"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CompanyFyParams'
+                - type: object
+                  properties:
+                    as_on_date: { type: string }
+      responses:
+        '200':
+          description: Stock ageing analysis.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/movementAnalysis:
+    post:
+      operationId: report.movementAnalysis
+      tags: [reportExtras]
+      summary: Stock movement analysis — inwards/outwards quantity & value per item.
+      x-ipc-channel: "report:movementAnalysis"
+      x-window-api: "window.api.report.movementAnalysis"
+      x-controller: "reportController.movementAnalysis"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CompanyFyParams'
+                - type: object
+                  properties:
+                    as_on_date: { type: string }
+      responses:
+        '200':
+          description: Movement analysis.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/reorderStatus:
+    post:
+      operationId: report.reorderStatus
+      tags: [reportExtras]
+      summary: Reorder status — stock items below reorder level with shortfall quantities.
+      x-ipc-channel: "report:reorderStatus"
+      x-window-api: "window.api.report.reorderStatus"
+      x-controller: "reportController.reorderStatus"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Reorder status report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/orderOutstanding:
+    post:
+      operationId: report.orderOutstanding
+      tags: [reportExtras]
+      summary: Order outstanding — pending sales/purchase orders with quantities and amounts.
+      x-ipc-channel: "report:orderOutstanding"
+      x-window-api: "window.api.report.orderOutstanding"
+      x-controller: "reportController.orderOutstanding"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CompanyFyParams'
+                - type: object
+                  properties:
+                    type: { type: string, enum: ['sales', 'purchase'] }
+      responses:
+        '200':
+          description: Order outstanding report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  # ── Advanced Accounting Reports ─────────────────────────────────────────────
+  /report/costCentreReport:
+    post:
+      operationId: report.costCentreReport
+      tags: [reportExtras]
+      summary: Cost Centre report — allocation-wise summary with voucher breakdown.
+      x-ipc-channel: "report:costCentreReport"
+      x-window-api: "window.api.report.costCentreReport"
+      x-controller: "reportController.costCentreReport"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CompanyFyParams'
+                - type: object
+                  properties:
+                    as_on_date: { type: string }
+      responses:
+        '200':
+          description: Cost centre report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/budgetVsActual:
+    post:
+      operationId: report.budgetVsActual
+      tags: [reportExtras]
+      summary: Budget vs Actual — variance analysis of budgeted vs actual amounts per ledger.
+      x-ipc-channel: "report:budgetVsActual"
+      x-window-api: "window.api.report.budgetVsActual"
+      x-controller: "reportController.budgetVsActual"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Budget vs actual variance report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  # ── Accounting Summary Reports ──────────────────────────────────────────────
+  /report/groupSummary:
+    post:
+      operationId: report.groupSummary
+      tags: [reportExtras]
+      summary: Group Summary — group-wise ledger balances with subtotals.
+      x-ipc-channel: "report:groupSummary"
+      x-window-api: "window.api.report.groupSummary"
+      x-controller: "reportController.groupSummary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Group summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/statistics:
+    post:
+      operationId: report.statistics
+      tags: [reportExtras]
+      summary: Statistics — count of vouchers, ledgers, groups, stock items, etc.
+      x-ipc-channel: "report:statistics"
+      x-window-api: "window.api.report.statistics"
+      x-controller: "reportController.statistics"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Statistics report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  # ── Payroll Reports ─────────────────────────────────────────────────────────
+  /report/payslipReport:
+    post:
+      operationId: report.payslipReport
+      tags: [reportExtras]
+      summary: Payslip Report — employee-wise payslips with pay head breakup.
+      x-ipc-channel: "report:payslipReport"
+      x-window-api: "window.api.report.payslipReport"
+      x-controller: "reportController.payslipReport"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Payslip report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/salaryStatement:
+    post:
+      operationId: report.salaryStatement
+      tags: [reportExtras]
+      summary: Salary Statement — employee-wise salary details for the period.
+      x-ipc-channel: "report:salaryStatement"
+      x-window-api: "window.api.report.salaryStatement"
+      x-controller: "reportController.salaryStatement"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Salary statement.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/salaryRegister:
+    post:
+      operationId: report.salaryRegister
+      tags: [reportExtras]
+      summary: Salary Register — monthly salary register with totals.
+      x-ipc-channel: "report:salaryRegister"
+      x-window-api: "window.api.report.salaryRegister"
+      x-controller: "reportController.salaryRegister"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Salary register.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/attendanceReport:
+    post:
+      operationId: report.attendanceReport
+      tags: [reportExtras]
+      summary: Attendance Report — employee attendance with present/absent/leave days.
+      x-ipc-channel: "report:attendanceReport"
+      x-window-api: "window.api.report.attendanceReport"
+      x-controller: "reportController.attendanceReport"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Attendance report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/payHeadBreakup:
+    post:
+      operationId: report.payHeadBreakup
+      tags: [reportExtras]
+      summary: Pay Head Breakup — employee-wise pay head amounts.
+      x-ipc-channel: "report:payHeadBreakup"
+      x-window-api: "window.api.report.payHeadBreakup"
+      x-controller: "reportController.payHeadBreakup"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Pay head breakup.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/pfReport:
+    post:
+      operationId: report.pfReport
+      tags: [reportExtras]
+      summary: PF Report — Provident Fund contributions (employee + employer).
+      x-ipc-channel: "report:pfReport"
+      x-window-api: "window.api.report.pfReport"
+      x-controller: "reportController.pfReport"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: PF report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/esiReport:
+    post:
+      operationId: report.esiReport
+      tags: [reportExtras]
+      summary: ESI Report — Employee State Insurance contributions.
+      x-ipc-channel: "report:esiReport"
+      x-window-api: "window.api.report.esiReport"
+      x-controller: "reportController.esiReport"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: ESI report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/professionalTax:
+    post:
+      operationId: report.professionalTax
+      tags: [reportExtras]
+      summary: Professional Tax — state-wise professional tax deductions.
+      x-ipc-channel: "report:professionalTax"
+      x-window-api: "window.api.report.professionalTax"
+      x-controller: "reportController.professionalTax"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Professional tax report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/gratuity:
+    post:
+      operationId: report.gratuity
+      tags: [reportExtras]
+      summary: Gratuity — gratuity liability computation per employee.
+      x-ipc-channel: "report:gratuity"
+      x-window-api: "window.api.report.gratuity"
+      x-controller: "reportController.gratuity"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Gratuity report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/costCategorySummary:
+    post:
+      operationId: report.costCategorySummary
+      tags: [reportExtras]
+      summary: Cost Category Summary — category-wise cost centre aggregation.
+      x-ipc-channel: "report:costCategorySummary"
+      x-window-api: "window.api.report.costCategorySummary"
+      x-controller: "reportController.costCategorySummary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Cost category summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/stockItemSummary:
+    post:
+      operationId: report.stockItemSummary
+      tags: [reportExtras]
+      summary: Stock Item Summary — item-wise closing quantity and value.
+      x-ipc-channel: "report:stockItemSummary"
+      x-window-api: "window.api.report.stockItemSummary"
+      x-controller: "reportController.stockItemSummary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Stock item summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/stockGroupSummary:
+    post:
+      operationId: report.stockGroupSummary
+      tags: [reportExtras]
+      summary: Stock Group Summary — group-wise stock aggregation.
+      x-ipc-channel: "report:stockGroupSummary"
+      x-window-api: "window.api.report.stockGroupSummary"
+      x-controller: "reportController.stockGroupSummary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Stock group summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
+  /report/stockCategorySummary:
+    post:
+      operationId: report.stockCategorySummary
+      tags: [reportExtras]
+      summary: Stock Category Summary — category-wise stock aggregation.
+      x-ipc-channel: "report:stockCategorySummary"
+      x-window-api: "window.api.report.stockCategorySummary"
+      x-controller: "reportController.stockCategorySummary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyFyParams' }
+      responses:
+        '200':
+          description: Stock category summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  rows: { type: array, items: { type: object } }
+
 components:
   schemas:
     CompanyFyParams:

@@ -58,7 +58,9 @@ module.exports = {
       const entries = await getEntries(company_id, fy_id);
 
       const ledgerRows = await db.all(
-        sql`SELECT l.*, g.nature FROM ${ledgers} l
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id,
+                   g.nature
+            FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1`
       );
@@ -89,7 +91,9 @@ module.exports = {
       const entries = await getEntries(company_id, fy_id);
 
       const ledgerRows = await db.all(
-        sql`SELECT l.*, g.nature FROM ${ledgers} l
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id,
+                   g.nature
+            FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1`
       );
@@ -123,6 +127,15 @@ module.exports = {
 
   ledgerReport: async (company_id, fy_id, ledger_id, from_date, to_date) => {
     try {
+      if (!ledger_id) {
+        const firstLedger = await db.all(
+          sql`SELECT ${ledgers.ledgerId} AS ledger_id FROM ${ledgers}
+              WHERE ${ledgers.companyId} = ${company_id} AND ${ledgers.isActive} = 1
+              LIMIT 1`
+        );
+        if (firstLedger.length === 0) return { success: true, rows: [] };
+        ledger_id = firstLedger[0].ledger_id;
+      }
       const ledgerRows = await db.all(
         sql`SELECT * FROM ${ledgers} WHERE ${ledgers.ledgerId} = ${ledger_id}`
       );
@@ -178,14 +191,34 @@ module.exports = {
 
   cashBook: async (company_id, fy_id, from_date, to_date) => {
     try {
-      const cashLedger = await db.all(
+      let cashLedger = await db.all(
         sql`SELECT * FROM ${ledgers}
             WHERE ${ledgers.companyId} = ${company_id}
               AND ${ledgers.ledgerType} = 'Cash'
               AND ${ledgers.isActive} = 1
             LIMIT 1`
       );
-      if (cashLedger.length === 0) return { success: false, error: 'Cash ledger not found' };
+      if (cashLedger.length === 0) {
+        cashLedger = await db.all(
+          sql`SELECT l.* FROM ${ledgers} l
+              INNER JOIN ${groups} g ON g.group_id = l.group_id
+              WHERE l.company_id = ${company_id}
+                AND g.name = 'Cash-in-Hand'
+                AND l.is_active = 1
+              LIMIT 1`
+        );
+      }
+      if (cashLedger.length === 0) {
+        cashLedger = await db.all(
+          sql`SELECT l.* FROM ${ledgers} l
+              INNER JOIN ${groups} g ON g.group_id = l.group_id
+              WHERE l.company_id = ${company_id}
+                AND (g.nature = 'Assets' AND l.name LIKE '%Cash%')
+                AND l.is_active = 1
+              LIMIT 1`
+        );
+      }
+      if (cashLedger.length === 0) return { success: true, rows: [], vouchers: [] };
 
       return await module.exports.ledgerReport(
         company_id, fy_id, cashLedger[0].ledger_id, from_date, to_date
@@ -197,6 +230,18 @@ module.exports = {
 
   bankBook: async (company_id, fy_id, ledger_id, from_date, to_date) => {
     try {
+      if (!ledger_id) {
+        const bankLedger = await db.all(
+          sql`SELECT l.ledger_id FROM ${ledgers} l
+              INNER JOIN ${groups} g ON g.group_id = l.group_id
+              WHERE l.company_id = ${company_id}
+                AND (g.name = 'Bank Accounts' OR l.ledger_type = 'Bank' OR l.name LIKE '%Bank%')
+                AND l.is_active = 1
+              LIMIT 1`
+        );
+        if (bankLedger.length === 0) return { success: true, rows: [], vouchers: [] };
+        ledger_id = bankLedger[0].ledger_id;
+      }
       return await module.exports.ledgerReport(company_id, fy_id, ledger_id, from_date, to_date);
     } catch (err) {
       return { success: false, error: err.message };

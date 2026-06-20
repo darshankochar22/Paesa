@@ -1,6 +1,6 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { voucherEntries, vouchers, ledgers } = require('../db/schema');
+const { voucherEntries, vouchers, ledgers, groups } = require('../db/schema');
 
 // ---------------------------------------------------------------------------
 // Cash Flow statement
@@ -23,8 +23,8 @@ const { voucherEntries, vouchers, ledgers } = require('../db/schema');
 
 const cashFlow = async (company_id, fy_id, from_date, to_date) => {
   try {
-    // 1. Cash & Bank ledgers for this company.
-    const cashBankLedgers = await db.all(
+    // 1. Cash & Bank ledgers for this company — try ledgerType first, then group nature
+    let cashBankLedgers = await db.all(
       sql`SELECT ${ledgers.ledgerId} AS ledger_id, ${ledgers.name} AS name,
                  ${ledgers.ledgerType} AS ledger_type
           FROM ${ledgers}
@@ -34,7 +34,19 @@ const cashFlow = async (company_id, fy_id, from_date, to_date) => {
     );
 
     if (cashBankLedgers.length === 0) {
-      return { success: false, error: 'No Cash or Bank ledgers found' };
+      cashBankLedgers = await db.all(
+        sql`SELECT l.ledger_id, l.name, l.ledger_type
+            FROM ${ledgers} l
+            INNER JOIN ${groups} g ON g.group_id = l.group_id
+            WHERE l.company_id = ${company_id}
+              AND l.is_active = 1
+              AND (g.name IN ('Cash-in-Hand', 'Bank Accounts')
+                   OR l.name LIKE '%Cash%' OR l.name LIKE '%Bank%')`
+      );
+    }
+
+    if (cashBankLedgers.length === 0) {
+      return { success: true, rows: [], byCounterLedger: [], totalInflow: 0, totalOutflow: 0 };
     }
 
     const cashBankIds = cashBankLedgers.map(l => l.ledger_id);

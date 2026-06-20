@@ -11,22 +11,22 @@ export function ReportBottomBar({
   shortcuts = [],
 }: ReportBottomBarProps) {
   return (
-    <div className="flex items-center justify-between px-3 py-1.5 bg-[#006655] text-white font-mono text-[10px] select-none border-t border-[#005544] h-7 shrink-0">
+    <div className="flex items-center justify-between px-2 py-1 bg-gradient-to-r from-[#1b5e20] to-[#2e7d32] text-white font-mono text-[10px] select-none border-t-2 border-[#0d47a1] h-8 shrink-0 shadow-inner">
       <div className="flex items-center gap-3">
-        <span className="font-semibold text-emerald-200 uppercase">{statusText}</span>
+        <span className="font-bold text-yellow-200 uppercase tracking-wide text-[11px]">{statusText}</span>
         {totalText && (
-          <span className="border-l border-emerald-700 pl-3 text-zinc-100 font-bold">
+          <span className="border-l-2 border-green-400 pl-3 text-white font-bold text-[11px]">
             {totalText}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-4 overflow-hidden">
+      <div className="flex items-center gap-2 overflow-hidden">
         {shortcuts.map((shortcut) => (
-          <div key={shortcut.key} className="flex items-center gap-1.5 whitespace-nowrap">
-            <kbd className="bg-emerald-800 text-emerald-100 px-1 py-0.5 rounded font-bold border border-emerald-700 text-[9px] shadow-sm">
+          <div key={shortcut.key} className="flex items-center gap-1 whitespace-nowrap group">
+            <kbd className="bg-[#ffeb3b] text-[#1b5e20] px-1.5 py-0.5 rounded font-black border border-[#f9a825] text-[9px] shadow-sm group-hover:bg-[#fdd835] transition-colors">
               {shortcut.key}
             </kbd>
-            <span className="text-zinc-200">{shortcut.label}</span>
+            <span className="text-green-100 font-medium text-[9px]">{shortcut.label}</span>
           </div>
         ))}
       </div>

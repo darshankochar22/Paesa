@@ -7,11 +7,11 @@ const schema = require("./schema");
 //   otherwise            -> Electron userData/startup.db
 // ---------------------------------------------------------------------------
 let dbPath;
-if (process.env.NODE_ENV === "test") {
-  dbPath = "file::memory:";
-} else if (process.env.STARTUP_DB_PATH) {
-  // Standalone (non-Electron) access — e.g. the MCP server. Point at the real DB file.
+if (process.env.STARTUP_DB_PATH) {
+  // Standalone (non-Electron) access — e.g. the MCP server, seed scripts. Point at the real DB file.
   dbPath = `file:${process.env.STARTUP_DB_PATH}`;
+} else if (process.env.NODE_ENV === "test") {
+  dbPath = "file::memory:";
 } else {
   const { app } = require("electron");
   dbPath = `file:${path.join(app.getPath("userData"), "startup.db")}`;

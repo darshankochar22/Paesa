@@ -10,7 +10,7 @@ module.exports = {
             FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1
-              AND (g.name = 'Cash-in-hand' OR l.name LIKE '%Cash%')`
+              AND (g.name = 'Cash-in-Hand' OR g.name = 'Cash-in-hand' OR l.name LIKE '%Cash%')`
       );
 
       const result = [];
@@ -42,14 +42,12 @@ module.exports = {
           }
         }
 
-        if (negativeDates.length > 0) {
-          result.push({
-            ledger_id: ledger.ledger_id,
-            ledger_name: ledger.name,
-            current_balance: running,
-            negative_instances: negativeDates
-          });
-        }
+        result.push({
+          ledger_id: ledger.ledger_id,
+          ledger_name: ledger.name,
+          current_balance: running,
+          negative_instances: negativeDates
+        });
       }
 
       return { success: true, ledgers: result };

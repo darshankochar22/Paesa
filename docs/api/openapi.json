@@ -11,8 +11,8 @@
       "server/index.js"
     ],
     "modules": 53,
-    "operations": 277,
-    "registeredChannels": 277,
+    "operations": 304,
+    "registeredChannels": 304,
     "undocumentedChannels": [],
     "warnings": []
   },
@@ -7322,6 +7322,64 @@
         }
       }
     },
+    "/gst/importGSTR2B": {
+      "post": {
+        "operationId": "gst.importGSTR2B",
+        "tags": [
+          "gst"
+        ],
+        "summary": "Import GSTR-2B data from the GST portal for a specific return period.",
+        "x-ipc-channel": "gst:importGSTR2B",
+        "x-window-api": "window.api.gst.importGSTR2B",
+        "x-controller": "gstController.importGSTR2B",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "number"
+                  },
+                  "fy_id": {
+                    "type": "number"
+                  },
+                  "return_period": {
+                    "type": "string",
+                    "description": "Return period (e.g. '082025')."
+                  },
+                  "payload": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "GSTR-2B JSON payload from GST portal."
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "fy_id",
+                  "return_period",
+                  "payload"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Import result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gst/getIMSInwardSupplies": {
       "post": {
         "operationId": "gst.getIMSInwardSupplies",
@@ -10817,6 +10875,223 @@
         }
       }
     },
+    "/report/run": {
+      "post": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Dynamic report engine — execute any of the 586 registered reports by reportId. The report registry (server/report/reportRegistry.js) maps each reportId to a definition file that calls the appropriate service method. Returns report-specific data in the success envelope.\n",
+        "operationId": "report.run",
+        "x-ipc-channel": "report:run",
+        "x-window-api": "window.api.report.run",
+        "x-controller": "reportController.run",
+        "x-report-count": 586,
+        "x-report-categories": [
+          "Gateway, Navigation & Global Report Shells (20)",
+          "Core Financial Statements (35)",
+          "Account Books & Voucher Registers (45)",
+          "Receivables, Payables & Bill-wise Reports (35)",
+          "Cash, Bank, Finance & Banking (30)",
+          "Sales, Purchase & Party Analysis (55)",
+          "Inventory, Stock & Godown Reports (65)",
+          "Manufacturing, Job Work & Costing (30)",
+          "GST Reports (60)",
+          "e-Invoice, e-Way Bill & Exchange (30)",
+          "TDS Reports (30)",
+          "TCS Reports (25)",
+          "Payroll & HR Reports (55)",
+          "VAT, Excise, Service Tax, MSME & Legacy Statutory (35)",
+          "Audit, Edit Log, Security & Admin (35)"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Report_RunReportParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Report executed successfully. Response shape varies by report type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report_RunReportResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Failure envelope (e.g. \"Report definition not found\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report_Error"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Failure envelope (caught service error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report_Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/getSavedViews": {
+      "post": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Retrieve saved report views/configurations for a company.",
+        "operationId": "report.getSavedViews",
+        "x-ipc-channel": "report:getSavedViews",
+        "x-window-api": "window.api.report.getSavedViews",
+        "x-controller": "reportController.getSavedViews",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "company_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved views retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "views": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/saveView": {
+      "post": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Save a report view/configuration.",
+        "operationId": "report.saveView",
+        "x-ipc-channel": "report:saveView",
+        "x-window-api": "window.api.report.saveView",
+        "x-controller": "reportController.saveView",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "View saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "view": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/deleteSavedView": {
+      "post": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Delete a saved report view by ID.",
+        "operationId": "report.deleteSavedView",
+        "x-ipc-channel": "report:deleteSavedView",
+        "x-window-api": "window.api.report.deleteSavedView",
+        "x-controller": "reportController.deleteSavedView",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "View deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/report/billsReceivable": {
       "post": {
         "operationId": "report.billsReceivable",
@@ -11027,6 +11302,1061 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReportExtras_RatioAnalysisResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/godownSummary": {
+      "post": {
+        "operationId": "report.godownSummary",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Godown-wise stock summary — closing quantity & value per godown location.",
+        "x-ipc-channel": "report:godownSummary",
+        "x-window-api": "window.api.report.godownSummary",
+        "x-controller": "reportController.godownSummary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "as_on_date": {
+                        "type": "string",
+                        "description": "Optional as-on date (YYYY-MM-DD)."
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Godown-wise stock summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/stockAgeing": {
+      "post": {
+        "operationId": "report.stockAgeing",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Stock ageing analysis — age brackets for stock items based on purchase dates.",
+        "x-ipc-channel": "report:stockAgeing",
+        "x-window-api": "window.api.report.stockAgeing",
+        "x-controller": "reportController.stockAgeing",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "as_on_date": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stock ageing analysis.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/movementAnalysis": {
+      "post": {
+        "operationId": "report.movementAnalysis",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Stock movement analysis — inwards/outwards quantity & value per item.",
+        "x-ipc-channel": "report:movementAnalysis",
+        "x-window-api": "window.api.report.movementAnalysis",
+        "x-controller": "reportController.movementAnalysis",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "as_on_date": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Movement analysis.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/reorderStatus": {
+      "post": {
+        "operationId": "report.reorderStatus",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Reorder status — stock items below reorder level with shortfall quantities.",
+        "x-ipc-channel": "report:reorderStatus",
+        "x-window-api": "window.api.report.reorderStatus",
+        "x-controller": "reportController.reorderStatus",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reorder status report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/orderOutstanding": {
+      "post": {
+        "operationId": "report.orderOutstanding",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Order outstanding — pending sales/purchase orders with quantities and amounts.",
+        "x-ipc-channel": "report:orderOutstanding",
+        "x-window-api": "window.api.report.orderOutstanding",
+        "x-controller": "reportController.orderOutstanding",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "sales",
+                          "purchase"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order outstanding report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/costCentreReport": {
+      "post": {
+        "operationId": "report.costCentreReport",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Cost Centre report — allocation-wise summary with voucher breakdown.",
+        "x-ipc-channel": "report:costCentreReport",
+        "x-window-api": "window.api.report.costCentreReport",
+        "x-controller": "reportController.costCentreReport",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "as_on_date": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cost centre report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/budgetVsActual": {
+      "post": {
+        "operationId": "report.budgetVsActual",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Budget vs Actual — variance analysis of budgeted vs actual amounts per ledger.",
+        "x-ipc-channel": "report:budgetVsActual",
+        "x-window-api": "window.api.report.budgetVsActual",
+        "x-controller": "reportController.budgetVsActual",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Budget vs actual variance report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/groupSummary": {
+      "post": {
+        "operationId": "report.groupSummary",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Group Summary — group-wise ledger balances with subtotals.",
+        "x-ipc-channel": "report:groupSummary",
+        "x-window-api": "window.api.report.groupSummary",
+        "x-controller": "reportController.groupSummary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/statistics": {
+      "post": {
+        "operationId": "report.statistics",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Statistics — count of vouchers, ledgers, groups, stock items, etc.",
+        "x-ipc-channel": "report:statistics",
+        "x-window-api": "window.api.report.statistics",
+        "x-controller": "reportController.statistics",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Statistics report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/payslipReport": {
+      "post": {
+        "operationId": "report.payslipReport",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Payslip Report — employee-wise payslips with pay head breakup.",
+        "x-ipc-channel": "report:payslipReport",
+        "x-window-api": "window.api.report.payslipReport",
+        "x-controller": "reportController.payslipReport",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payslip report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/salaryStatement": {
+      "post": {
+        "operationId": "report.salaryStatement",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Salary Statement — employee-wise salary details for the period.",
+        "x-ipc-channel": "report:salaryStatement",
+        "x-window-api": "window.api.report.salaryStatement",
+        "x-controller": "reportController.salaryStatement",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Salary statement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/salaryRegister": {
+      "post": {
+        "operationId": "report.salaryRegister",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Salary Register — monthly salary register with totals.",
+        "x-ipc-channel": "report:salaryRegister",
+        "x-window-api": "window.api.report.salaryRegister",
+        "x-controller": "reportController.salaryRegister",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Salary register.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/attendanceReport": {
+      "post": {
+        "operationId": "report.attendanceReport",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Attendance Report — employee attendance with present/absent/leave days.",
+        "x-ipc-channel": "report:attendanceReport",
+        "x-window-api": "window.api.report.attendanceReport",
+        "x-controller": "reportController.attendanceReport",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Attendance report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/payHeadBreakup": {
+      "post": {
+        "operationId": "report.payHeadBreakup",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Pay Head Breakup — employee-wise pay head amounts.",
+        "x-ipc-channel": "report:payHeadBreakup",
+        "x-window-api": "window.api.report.payHeadBreakup",
+        "x-controller": "reportController.payHeadBreakup",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pay head breakup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/pfReport": {
+      "post": {
+        "operationId": "report.pfReport",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "PF Report — Provident Fund contributions (employee + employer).",
+        "x-ipc-channel": "report:pfReport",
+        "x-window-api": "window.api.report.pfReport",
+        "x-controller": "reportController.pfReport",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "PF report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/esiReport": {
+      "post": {
+        "operationId": "report.esiReport",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "ESI Report — Employee State Insurance contributions.",
+        "x-ipc-channel": "report:esiReport",
+        "x-window-api": "window.api.report.esiReport",
+        "x-controller": "reportController.esiReport",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ESI report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/professionalTax": {
+      "post": {
+        "operationId": "report.professionalTax",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Professional Tax — state-wise professional tax deductions.",
+        "x-ipc-channel": "report:professionalTax",
+        "x-window-api": "window.api.report.professionalTax",
+        "x-controller": "reportController.professionalTax",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Professional tax report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/gratuity": {
+      "post": {
+        "operationId": "report.gratuity",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Gratuity — gratuity liability computation per employee.",
+        "x-ipc-channel": "report:gratuity",
+        "x-window-api": "window.api.report.gratuity",
+        "x-controller": "reportController.gratuity",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gratuity report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/costCategorySummary": {
+      "post": {
+        "operationId": "report.costCategorySummary",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Cost Category Summary — category-wise cost centre aggregation.",
+        "x-ipc-channel": "report:costCategorySummary",
+        "x-window-api": "window.api.report.costCategorySummary",
+        "x-controller": "reportController.costCategorySummary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cost category summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/stockItemSummary": {
+      "post": {
+        "operationId": "report.stockItemSummary",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Stock Item Summary — item-wise closing quantity and value.",
+        "x-ipc-channel": "report:stockItemSummary",
+        "x-window-api": "window.api.report.stockItemSummary",
+        "x-controller": "reportController.stockItemSummary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stock item summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/stockGroupSummary": {
+      "post": {
+        "operationId": "report.stockGroupSummary",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Stock Group Summary — group-wise stock aggregation.",
+        "x-ipc-channel": "report:stockGroupSummary",
+        "x-window-api": "window.api.report.stockGroupSummary",
+        "x-controller": "reportController.stockGroupSummary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stock group summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/stockCategorySummary": {
+      "post": {
+        "operationId": "report.stockCategorySummary",
+        "tags": [
+          "reportExtras"
+        ],
+        "summary": "Stock Category Summary — category-wise stock aggregation.",
+        "x-ipc-channel": "report:stockCategorySummary",
+        "x-window-api": "window.api.report.stockCategorySummary",
+        "x-controller": "reportController.stockCategorySummary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportExtras_CompanyFyParams"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stock category summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -29542,6 +30872,75 @@
           "success",
           "vouchers"
         ]
+      },
+      "Report_RunReportParams": {
+        "type": "object",
+        "description": "Parameters for the dynamic report engine. The `reportId` is a snake_case identifier matching one of the 586 registered reports in server/report/reportRegistry.js. The `params` object is passed through to the report definition's run function.\n",
+        "properties": {
+          "reportId": {
+            "type": "string",
+            "description": "Snake_case report identifier (e.g. 'balance_sheet', 'gstr_1_b2b', 'stock_summary', 'payslip_report'). Must match a key in server/report/reportRegistry.js.\n"
+          },
+          "params": {
+            "type": "object",
+            "description": "Report-specific parameters. Common fields: company_id (required), fy_id (required), from_date, to_date, as_on_date, ledger_id, stock_valuation_method.\n",
+            "properties": {
+              "company_id": {
+                "type": "integer",
+                "description": "Target company id (FK -> companies.company_id)."
+              },
+              "fy_id": {
+                "type": "integer",
+                "description": "Target financial year id (FK -> financial_years.fy_id)."
+              },
+              "from_date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date",
+                "description": "Optional inclusive lower bound on date range."
+              },
+              "to_date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date",
+                "description": "Optional inclusive upper bound on date range."
+              },
+              "as_on_date": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date",
+                "description": "Optional as-on date for point-in-time reports."
+              }
+            }
+          }
+        },
+        "required": [
+          "reportId",
+          "params"
+        ]
+      },
+      "Report_RunReportResult": {
+        "type": "object",
+        "description": "Result of a dynamic report execution. The shape varies by report type. All reports return { success: true } with report-specific data fields. Common data shapes include: rows[] (tabular data), assets[]/liabilities[] (balance sheet), income[]/expenses[] (P&L), vouchers[] (daybook), sources[]/applications[] (funds flow), items[]/groups[] (stock summary), ratios[] (ratio analysis), etc.\n",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Error message if success is false."
+          }
+        },
+        "additionalProperties": true
       },
       "ReportExtras_CompanyFyParams": {
         "type": "object",

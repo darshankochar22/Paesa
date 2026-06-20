@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
-import { ReportTable, type ReportColumn, type ComparisonColumn } from "@/components/reports/ReportTable";
+import { ReportTable, type ComparisonColumn } from "@/components/reports/ReportTable";
 import { ReportRightPanel } from "@/components/reports/ReportRightPanel";
 import { ReportBottomBar } from "@/components/reports/ReportBottomBar";
 import { ReportContextDialog, type ReportContextConfig } from "@/components/reports/ReportContextDialog";
@@ -12,619 +12,7 @@ import { ReportCommandPalette } from "@/components/reports/ReportCommandPalette"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/shadcn/dialog";
 import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
-
-interface ReportConfig {
-  title: string;
-  apiMethod?: string;
-  reportId?: string;
-  columns: ReportColumn[];
-}
-
-const REPORT_DEFINITIONS: Record<string, ReportConfig> = {
-  "cash-book": {
-    title: "Cash Book",
-    apiMethod: "cashBook",
-    columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Voucher Type", field: "voucher_type" },
-      { header: "Voucher No", field: "voucher_number" },
-      { header: "Particulars / Narration", field: "narration" },
-      { header: "Debit (Dr)", field: "debit", type: "currency", align: "right" },
-      { header: "Credit (Cr)", field: "credit", type: "currency", align: "right" },
-      { header: "Balance", field: "balance", type: "currency", align: "right" },
-    ],
-    
-  },
-  "bank-book": {
-    title: "Bank Book",
-    apiMethod: "bankBook",
-    columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Voucher Type", field: "voucher_type" },
-      { header: "Voucher No", field: "voucher_number" },
-      { header: "Particulars / Narration", field: "narration" },
-      { header: "Debit (Dr)", field: "debit", type: "currency", align: "right" },
-      { header: "Credit (Cr)", field: "credit", type: "currency", align: "right" },
-      { header: "Balance", field: "balance", type: "currency", align: "right" },
-    ],
-    
-  },
-  "ledger": {
-    title: "Ledger Vouchers",
-    apiMethod: "ledgerReport",
-    columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Voucher Type", field: "voucher_type" },
-      { header: "Voucher No", field: "voucher_number" },
-      { header: "Debit (Dr)", field: "debit", type: "currency", align: "right" },
-      { header: "Credit (Cr)", field: "credit", type: "currency", align: "right" },
-      { header: "Balance", field: "balance", type: "currency", align: "right" },
-    ],
-    
-  },
-  "group-summary": {
-    title: "Group Summary",
-    apiMethod: "groupSummary",
-    columns: [
-      { header: "Particulars", field: "group_name" },
-      { header: "Debit (Dr)", field: "debit", type: "currency", align: "right" },
-      { header: "Credit (Cr)", field: "credit", type: "currency", align: "right" },
-    ],
-    
-  },
-  "sales-register": {
-    title: "Sales Register",
-    apiMethod: "salesRegister",
-    columns: [
-      { header: "Particulars", field: "month" },
-      { header: "Debit", field: "debit", type: "currency", align: "right" },
-      { header: "Credit", field: "credit", type: "currency", align: "right" },
-      { header: "Closing Balance", field: "closing_balance", type: "currency", align: "right" },
-    ],
-  },
-  "purchase-register": {
-    title: "Purchase Register",
-    apiMethod: "purchaseRegister",
-    columns: [
-      { header: "Particulars", field: "month" },
-      { header: "Debit", field: "debit", type: "currency", align: "right" },
-      { header: "Credit", field: "credit", type: "currency", align: "right" },
-      { header: "Closing Balance", field: "closing_balance", type: "currency", align: "right" },
-    ],
-  },
-  "journal-register": {
-    title: "Journal Register",
-    apiMethod: "journalRegister",
-    columns: [
-      { header: "Particulars", field: "month" },
-      { header: "Total Vouchers", field: "total_vouchers", type: "number", align: "right" },
-      { header: "(cancelled)", field: "cancelled", type: "number", align: "right" },
-    ],
-  },
-  "debit-note-register": {
-    title: "Debit Note Register",
-    apiMethod: "debitNoteRegister",
-    columns: [
-      { header: "Particulars", field: "month" },
-      { header: "Total Vouchers", field: "total_vouchers", type: "number", align: "right" },
-      { header: "(cancelled)", field: "cancelled", type: "number", align: "right" },
-    ],
-  },
-  "credit-note-register": {
-    title: "Credit Note Register",
-    apiMethod: "creditNoteRegister",
-    columns: [
-      { header: "Particulars", field: "month" },
-      { header: "Total Vouchers", field: "total_vouchers", type: "number", align: "right" },
-      { header: "(cancelled)", field: "cancelled", type: "number", align: "right" },
-    ],
-  },
-  "trial-balance": {
-    title: "Trial Balance",
-    apiMethod: "trialBalance",
-    columns: [
-      { header: "Particulars", field: "ledger_name" },
-      { header: "Debit (Dr)", field: "debit", type: "currency", align: "right" },
-      { header: "Credit (Cr)", field: "credit", type: "currency", align: "right" },
-    ],
-    
-  },
-  "profit-loss": {
-    title: "Profit & Loss A/c",
-    apiMethod: "profitLoss",
-    columns: [
-      { header: "Particulars", field: "ledger_name" },
-      { header: "Amount", field: "balance", type: "currency", align: "right" },
-    ],
-    
-  },
-  "balance-sheet": {
-    title: "Balance Sheet",
-    apiMethod: "balanceSheet",
-    columns: [
-      { header: "Particulars", field: "ledger_name" },
-      { header: "Amount", field: "balance", type: "currency", align: "right" },
-    ],
-    
-  },
-  "cash-flow": {
-    title: "Cash Flow Statement",
-    apiMethod: "cashFlow",
-    columns: [
-      { header: "Particulars", field: "ledger_name" },
-      { header: "Inflow (Receipts)", field: "inflow", type: "currency", align: "right" },
-      { header: "Outflow (Payments)", field: "outflow", type: "currency", align: "right" },
-      { header: "Net Flow", field: "net", type: "currency", align: "right" },
-    ],
-    
-  },
-  "funds-flow": {
-    title: "Funds Flow Statement",
-    apiMethod: "fundsFlow",
-    columns: [
-      { header: "Particulars", field: "particulars" },
-      { header: "Amount", field: "amount", type: "currency", align: "right" },
-    ],
-    
-  },
-  "ratio-analysis": {
-    title: "Ratio Analysis",
-    apiMethod: "ratioAnalysis",
-    columns: [
-      { header: "Ratio / Metric", field: "label" },
-      { header: "Value", field: "displayValue", align: "right" },
-    ],
-    
-  },
-  "stock-summary": {
-    title: "Stock Summary",
-    apiMethod: "stockSummary",
-    columns: [
-      { header: "Stock Item", field: "item_name" },
-      { header: "Opening Qty", field: "opening_qty", align: "center" },
-      { header: "Opening Value", field: "opening_value", type: "currency", align: "right" },
-      { header: "Inward Qty", field: "inwards_qty", align: "center" },
-      { header: "Inward Value", field: "inwards_value", type: "currency", align: "right" },
-      { header: "Outward Qty", field: "outwards_qty", align: "center" },
-      { header: "Outward Value", field: "outwards_value", type: "currency", align: "right" },
-      { header: "Closing Qty", field: "closing_qty", align: "center" },
-      { header: "Closing Value", field: "closing_value", type: "currency", align: "right" },
-    ],
-    
-  },
-  "outstandings-receivable": {
-    title: "Bills Receivable",
-    apiMethod: "billsReceivable",
-    columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Ref No", field: "ref_no" },
-      { header: "Party Name", field: "party_name" },
-      { header: "Pending Amount", field: "pending_amount", type: "currency", align: "right" },
-      { header: "Overdue Days", field: "overdue_days", type: "number", align: "center" },
-    ],
-    
-  },
-  "outstandings-payable": {
-    title: "Bills Payable",
-    apiMethod: "billsPayable",
-    columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Ref No", field: "ref_no" },
-      { header: "Party Name", field: "party_name" },
-      { header: "Pending Amount", field: "pending_amount", type: "currency", align: "right" },
-      { header: "Overdue Days", field: "overdue_days", type: "number", align: "center" },
-    ],
-    
-  },
-  "interest-calculations": {
-    title: "Interest Calculations",
-    columns: [
-      { header: "Particulars", field: "party_name" },
-      { header: "Principal Amount", field: "principal", type: "currency", align: "right" },
-      { header: "Rate", field: "rate" },
-      { header: "Interest Amount", field: "interest", type: "currency", align: "right" },
-    ],
-    
-  },
-  "cost-centre-summary": {
-    title: "Cost Centre Summary",
-    apiMethod: "costCentreReport",
-    columns: [
-      { header: "Cost Centre Name", field: "centre_name" },
-      { header: "Debit", field: "debit", type: "currency", align: "right" },
-      { header: "Credit", field: "credit", type: "currency", align: "right" },
-    ],
-    
-  },
-  "cost-category-summary": {
-    title: "Cost Category Summary",
-    apiMethod: "costCategorySummary",
-    columns: [
-      { header: "Cost Category / Centre", field: "category_name" },
-      { header: "Debit", field: "debit", type: "currency", align: "right" },
-      { header: "Credit", field: "credit", type: "currency", align: "right" },
-    ],
-    
-  },
-  "statistics": {
-    title: "Statistics",
-    apiMethod: "statistics",
-    columns: [
-      { header: "Type of Register / Vouchers", field: "vch_type" },
-      { header: "Total Count", field: "count", type: "number", align: "center" },
-    ],
-    
-  },
-  // Inventory
-  "stock-item": {
-    title: "Stock Item Summary",
-    apiMethod: "stockItemSummary",
-    columns: [
-      { header: "Stock Item", field: "item_name" },
-      { header: "Group", field: "group_name" },
-      { header: "Inward Qty", field: "in_qty", type: "number", align: "center" },
-      { header: "Outward Qty", field: "out_qty", type: "number", align: "center" },
-      { header: "Closing Balance", field: "closing_balance", align: "right" },
-    ],
-    
-  },
-  "stock-group": {
-    title: "Stock Group Summary",
-    apiMethod: "stockGroupSummary",
-    columns: [
-      { header: "Group Name", field: "group_name" },
-      { header: "Closing Value", field: "value", type: "currency", align: "right" },
-    ],
-    
-  },
-  "stock-category": {
-    title: "Stock Category Summary",
-    apiMethod: "stockCategorySummary",
-    columns: [
-      { header: "Category", field: "category_name" },
-      { header: "Quantity", field: "qty", align: "center" },
-      { header: "Value", field: "value", type: "currency", align: "right" },
-    ],
-    
-  },
-  "godown": {
-    title: "Godown / Location Report",
-    apiMethod: "godownSummary",
-    columns: [
-      { header: "Location Name", field: "godown_name" },
-      { header: "Item Stored", field: "item_count", type: "number", align: "center" },
-      { header: "Value", field: "value", type: "currency", align: "right" },
-    ],
-  },
-  "batch-vouchers": {
-    title: "Batch Vouchers Report",
-    columns: [
-      { header: "Batch Name", field: "batch_name" },
-      { header: "Expiry Date", field: "expiry", type: "date" },
-      { header: "Qty Inward", field: "in_qty", type: "number", align: "center" },
-      { header: "Qty Outward", field: "out_qty", type: "number", align: "center" },
-    ],
-    
-  },
-  "movement-analysis": {
-    title: "Movement Analysis",
-    apiMethod: "movementAnalysis",
-    columns: [
-      { header: "Stock Item / Group", field: "name" },
-      { header: "Inward Qty", field: "in_qty", type: "number", align: "center" },
-      { header: "Outward Qty", field: "out_qty", type: "number", align: "center" },
-    ],
-  },
-  "sales-order-book": {
-    title: "Sales Order Book",
-    columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Order Ref No", field: "ref_no" },
-      { header: "Customer", field: "party_name" },
-      { header: "Order Value", field: "value", type: "currency", align: "right" },
-    ],
-    
-  },
-  "purchase-order-book": {
-    title: "Purchase Order Book",
-    columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Order Ref No", field: "ref_no" },
-      { header: "Supplier", field: "party_name" },
-      { header: "Order Value", field: "value", type: "currency", align: "right" },
-    ],
-    
-  },
-  "ageing-analysis": {
-    title: "Stock Ageing Analysis",
-    apiMethod: "stockAgeing",
-    columns: [
-      { header: "Stock Item", field: "item_name" },
-      { header: "Value", field: "value", type: "currency", align: "right" },
-      { header: "0-30 Days", field: "days30", type: "currency", align: "right" },
-      { header: "31-60 Days", field: "days60", type: "currency", align: "right" },
-      { header: ">60 Days", field: "daysOver", type: "currency", align: "right" },
-    ],
-  },
-  "sales-order-outstanding": {
-    title: "Sales Order Outstandings",
-    apiMethod: "orderOutstandingSales",
-    columns: [
-      { header: "Order Date", field: "date", type: "date" },
-      { header: "Ref No", field: "ref_no" },
-      { header: "Customer Name", field: "party_name" },
-      { header: "Outstanding Qty", field: "qty", align: "center" },
-      { header: "Amount Outstanding", field: "amount", type: "currency", align: "right" },
-    ],
-  },
-  "purchase-order-outstanding": {
-    title: "Purchase Order Outstandings",
-    apiMethod: "orderOutstandingPurchase",
-    columns: [
-      { header: "Order Date", field: "date", type: "date" },
-      { header: "Ref No", field: "ref_no" },
-      { header: "Supplier Name", field: "party_name" },
-      { header: "Outstanding Qty", field: "qty", align: "center" },
-      { header: "Amount Outstanding", field: "amount", type: "currency", align: "right" },
-    ],
-  },
-  "work-order-outstanding": {
-    title: "Work Order Outstandings",
-    columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Job Work Order", field: "ref_no" },
-      { header: "Client Name", field: "party_name" },
-      { header: "Status", field: "status" },
-    ],
-    
-  },
-  "stock-query": {
-    title: "Stock Query",
-    columns: [
-      { header: "Item Detail", field: "field" },
-      { header: "Value / Status", field: "value" },
-    ],
-    
-  },
-  "reorder-status": {
-    title: "Reorder Status",
-    apiMethod: "reorderStatus",
-    columns: [
-      { header: "Stock Item", field: "item_name" },
-      { header: "Closing Stock", field: "closing", align: "center" },
-      { header: "Reorder Level", field: "level", align: "center" },
-      { header: "Shortage", field: "shortage", align: "center" },
-    ],
-  },
-  "job-work": {
-    title: "Job Work Reports",
-    columns: [
-      { header: "Job / Order", field: "job_name" },
-      { header: "Raw Material Issued", field: "issued" },
-      { header: "Finished Goods Received", field: "received" },
-    ],
-    
-  },
-  "cost-centre": {
-    title: "Cost Centre Breakup",
-    apiMethod: "costCentreReport",
-    columns: [
-      { header: "Cost Centre", field: "cost_centre" },
-      { header: "Income", field: "income", type: "currency", align: "right" },
-      { header: "Expense", field: "expense", type: "currency", align: "right" },
-      { header: "Net Variance", field: "variance", type: "currency", align: "right" },
-    ],
-  },
-  "budget-variance": {
-    title: "Budget Variance Analysis",
-    apiMethod: "budgetVsActual",
-    columns: [
-      { header: "Ledger", field: "ledger_name" },
-      { header: "Budgeted", field: "budget", type: "currency", align: "right" },
-      { header: "Actual", field: "actual", type: "currency", align: "right" },
-      { header: "Variance", field: "variance", type: "currency", align: "right" },
-    ],
-  },
-  // Exception
-  "overdue-receivables": {
-    apiMethod: "billsReceivable",
-    title: "Overdue Receivables",
-    columns: [
-      { header: "Party Name", field: "party_name" },
-      { header: "Ref No", field: "ref_no" },
-      { header: "Overdue Amount", field: "amount", type: "currency", align: "right" },
-      { header: "Due Date", field: "due_date", type: "date" },
-    ],
-    
-  },
-  "overdue-payables": {
-    apiMethod: "billsPayable",
-    title: "Overdue Payables",
-    columns: [
-      { header: "Party Name", field: "party_name" },
-      { header: "Ref No", field: "ref_no" },
-      { header: "Overdue Amount", field: "amount", type: "currency", align: "right" },
-      { header: "Due Date", field: "due_date", type: "date" },
-    ],
-    
-  },
-  "pending-documents": {
-    title: "Pending Documents",
-    columns: [
-      { header: "Document Type", field: "doc_type" },
-      { header: "Pending Ref", field: "ref_no" },
-      { header: "Particulars", field: "particulars" },
-    ],
-    
-  },
-  "negative-stock": {
-    apiMethod: "run",
-    reportId: "negative_stock",
-    title: "Negative Stock Items",
-    columns: [
-      { header: "Stock Item", field: "item_name" },
-      { header: "Group", field: "group" },
-      { header: "Negative Quantity", field: "qty", align: "center" },
-    ],
-    
-  },
-  "negative-ledger": {
-    apiMethod: "run",
-    reportId: "negative_ledger",
-    title: "Negative Ledger Balances",
-    columns: [
-      { header: "Ledger Name", field: "ledger_name" },
-      { header: "Group", field: "group" },
-      { header: "Balance", field: "balance", type: "currency", align: "right" },
-    ],
-    
-  },
-  "analysis-verification": {
-    title: "Analysis & Verification exception",
-    columns: [
-      { header: "Entity", field: "entity" },
-      { header: "Observation / Exception", field: "observation" },
-    ],
-    
-  },
-  "edit-log": {
-    apiMethod: "run",
-    reportId: "audit_trail_verification",
-    title: "Audit Trail / Edit Log Summary",
-    columns: [
-      { header: "Timestamp", field: "timestamp" },
-      { header: "Voucher / Master", field: "entity" },
-      { header: "Action", field: "action" },
-      { header: "User", field: "user" },
-    ],
-    
-  },
-  "e-invoice-status": {
-    title: "E-Invoice Status Report",
-    columns: [
-      { header: "Voucher No", field: "voucher_no" },
-      { header: "Party Name", field: "party_name" },
-      { header: "Amount", field: "amount", type: "currency", align: "right" },
-      { header: "IRN Status", field: "irn_status" },
-      { header: "E-Way Bill", field: "eway_bill" },
-    ],
-    
-  },
-  "filing-calendar": {
-    title: "GST Filing Calendar",
-    columns: [
-      { header: "Return Type", field: "return_type" },
-      { header: "Period", field: "period" },
-      { header: "Due Date", field: "due_date", type: "date" },
-      { header: "Status", field: "status" },
-    ],
-    
-  },
-  "confirmation-of-accounts": {
-    title: "Confirmation of Accounts",
-    columns: [
-      { header: "Party Ledger", field: "party_name" },
-      { header: "Closing Balance", field: "closing_balance", type: "currency", align: "right" },
-      { header: "Confirmation Status", field: "status" },
-      { header: "Last Sent On", field: "last_sent" },
-    ],
-    
-  },
-  // Payroll
-  "payslip": {
-    title: "Payslip Report",
-    apiMethod: "payslipReport",
-    columns: [
-      { header: "Employee Name", field: "emp_name" },
-      { header: "Gross Salary", field: "gross", type: "currency", align: "right" },
-      { header: "Deductions", field: "deductions", type: "currency", align: "right" },
-      { header: "Net Paid", field: "net", type: "currency", align: "right" },
-    ],
-    
-  },
-  "salary-statement": {
-    title: "Salary Statement",
-    apiMethod: "salaryStatement",
-    columns: [
-      { header: "Employee Code / Name", field: "emp_name" },
-      { header: "Basic Pay", field: "basic", type: "currency", align: "right" },
-      { header: "HRA", field: "hra", type: "currency", align: "right" },
-      { header: "Net Salary", field: "net", type: "currency", align: "right" },
-    ],
-    
-  },
-  "salary-register": {
-    title: "Salary Register",
-    apiMethod: "salaryRegister",
-    columns: [
-      { header: "Month", field: "month" },
-      { header: "Total Paid Employees", field: "employees_count", type: "number", align: "center" },
-      { header: "Total Payout", field: "total_payout", type: "currency", align: "right" },
-    ],
-    
-  },
-  "attendance-register": {
-    title: "Attendance Register",
-    apiMethod: "attendanceReport",
-    columns: [
-      { header: "Employee Name", field: "emp_name" },
-      { header: "Total Present Days", field: "present", type: "number", align: "center" },
-      { header: "Absent Days", field: "absent", type: "number", align: "center" },
-      { header: "Paid Leave", field: "leave", type: "number", align: "center" },
-    ],
-    
-  },
-  "pay-head-breakup": {
-    title: "Pay Head Employee Breakup",
-    apiMethod: "payHeadBreakup",
-    columns: [
-      { header: "Employee Name", field: "emp_name" },
-      { header: "Basic Pay Amount", field: "amount", type: "currency", align: "right" },
-    ],
-    
-  },
-  "pf": {
-    title: "Provident Fund (PF) Report",
-    apiMethod: "pfReport",
-    columns: [
-      { header: "Employee Name", field: "emp_name" },
-      { header: "PF Number", field: "pf_no" },
-      { header: "Employee Contribution", field: "emp_contrib", type: "currency", align: "right" },
-      { header: "Employer Contribution", field: "employer_contrib", type: "currency", align: "right" },
-    ],
-    
-  },
-  "esi": {
-    title: "Employee State Insurance (ESI) Report",
-    apiMethod: "esiReport",
-    columns: [
-      { header: "Employee Name", field: "emp_name" },
-      { header: "ESI Number", field: "esi_no" },
-      { header: "Employee Contribution", field: "emp_contrib", type: "currency", align: "right" },
-      { header: "Employer Contribution", field: "employer_contrib", type: "currency", align: "right" },
-    ],
-    
-  },
-  "professional-tax": {
-    title: "Professional Tax (PT) Summary",
-    apiMethod: "professionalTax",
-    columns: [
-      { header: "Employee Name", field: "emp_name" },
-      { header: "PT Amount Ded.", field: "amount", type: "currency", align: "right" },
-    ],
-    
-  },
-  "gratuity": {
-    title: "Gratuity Liability Report",
-    apiMethod: "gratuity",
-    columns: [
-      { header: "Employee Name", field: "emp_name" },
-      { header: "Years of Service", field: "years", type: "number", align: "center" },
-      { header: "Estimated Gratuity Accrued", field: "gratuity", type: "currency", align: "right" },
-    ],
-    
-  },
-};
+import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from "./reportDefinitions";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -1153,14 +541,61 @@ export function ReportRunner() {
           } else if (Array.isArray(res.rows)) {
             finalRows = res.rows.map((r: any, idx: number) => ({ id: idx + 1, ...r }));
           } else if (res.assets || res.liabilities) {
-            const list = [];
-            if (res.liabilities) list.push(...res.liabilities.map((l: any, idx: number) => ({ id: `L-${idx}`, ledger_name: l.ledger_name, balance: -Math.abs(l.balance) })));
-            if (res.assets) list.push(...res.assets.map((a: any, idx: number) => ({ id: `A-${idx}`, ledger_name: a.ledger_name, balance: Math.abs(a.balance) })));
+            const list: any[] = [];
+            if (res.liabilities && res.liabilities.length > 0) {
+              list.push({ id: 'L-header', particulars: 'LIABILITIES', current_period: null, previous_period: null, variance: null, drill: '', isHeader: true });
+              list.push(...res.liabilities.map((l: any, idx: number) => ({
+                id: `L-${idx}`,
+                particulars: l.ledger_name,
+                current_period: Math.abs(l.balance),
+                previous_period: 0,
+                variance: Math.abs(l.balance),
+                drill: '→',
+              })));
+              list.push({ id: 'L-total', particulars: 'Total Liabilities', current_period: res.totalLiabilities, previous_period: 0, variance: res.totalLiabilities, drill: '', isTotal: true });
+            }
+            if (res.assets && res.assets.length > 0) {
+              list.push({ id: 'A-header', particulars: 'ASSETS', current_period: null, previous_period: null, variance: null, drill: '', isHeader: true });
+              list.push(...res.assets.map((a: any, idx: number) => ({
+                id: `A-${idx}`,
+                particulars: a.ledger_name,
+                current_period: Math.abs(a.balance),
+                previous_period: 0,
+                variance: Math.abs(a.balance),
+                drill: '→',
+              })));
+              list.push({ id: 'A-total', particulars: 'Total Assets', current_period: res.totalAssets, previous_period: 0, variance: res.totalAssets, drill: '', isTotal: true });
+            }
             finalRows = list;
           } else if (res.income || res.expenses) {
-            const list = [];
-            if (res.income) list.push(...res.income.map((i: any, idx: number) => ({ id: `I-${idx}`, ledger_name: i.ledger_name, balance: i.balance })));
-            if (res.expenses) list.push(...res.expenses.map((e: any, idx: number) => ({ id: `E-${idx}`, ledger_name: e.ledger_name, balance: -e.balance })));
+            const list: any[] = [];
+            if (res.income && res.income.length > 0) {
+              list.push({ id: 'I-header', particulars: 'INCOME', current_period: null, previous_period: null, variance: null, drill: '', isHeader: true });
+              list.push(...res.income.map((i: any, idx: number) => ({
+                id: `I-${idx}`,
+                particulars: i.ledger_name,
+                current_period: i.balance,
+                previous_period: 0,
+                variance: i.balance,
+                drill: '→',
+              })));
+              list.push({ id: 'I-total', particulars: 'Total Income', current_period: res.totalIncome, previous_period: 0, variance: res.totalIncome, drill: '', isTotal: true });
+            }
+            if (res.expenses && res.expenses.length > 0) {
+              list.push({ id: 'E-header', particulars: 'EXPENSES', current_period: null, previous_period: null, variance: null, drill: '', isHeader: true });
+              list.push(...res.expenses.map((e: any, idx: number) => ({
+                id: `E-${idx}`,
+                particulars: e.ledger_name,
+                current_period: e.balance,
+                previous_period: 0,
+                variance: e.balance,
+                drill: '→',
+              })));
+              list.push({ id: 'E-total', particulars: 'Total Expenses', current_period: res.totalExpenses, previous_period: 0, variance: res.totalExpenses, drill: '', isTotal: true });
+            }
+            if (res.netProfit !== undefined) {
+              list.push({ id: 'NP', particulars: res.isProfit ? 'Net Profit' : 'Net Loss', current_period: Math.abs(res.netProfit), previous_period: 0, variance: Math.abs(res.netProfit), drill: '', isTotal: true });
+            }
             finalRows = list;
           } else if (Array.isArray(res.vouchers)) {
             finalRows = res.vouchers.map((v: any) => ({
@@ -1247,7 +682,7 @@ export function ReportRunner() {
     const headerRow = columns.map(c => `"${c.header}"`).join(",");
     const dataRows = rows.filter(r => !hiddenRowIds.has(r.id)).map(row => {
       return columns.map(c => {
-        let val = row[c.field] ?? "";
+        const val = row[c.field] ?? "";
         return `"${String(val).replace(/"/g, '""')}"`;
       }).join(",");
     });
@@ -1266,6 +701,66 @@ export function ReportRunner() {
   const handlePrint = React.useCallback(() => {
     window.print();
   }, []);
+
+  // Removing/Hiding lines — moved above the keyboard-shortcuts effect since
+  // handleRestoreLastLine is referenced inside it.
+  const handleHideRow = (rowId: string | number) => {
+    setHiddenRowIds((prev) => {
+      const copy = new Set(prev);
+      copy.add(rowId);
+      return copy;
+    });
+    setRemovedLinesHistory((prev) => [...prev, rowId]);
+  };
+
+  const handleRestoreLastLine = React.useCallback(() => {
+    if (removedLinesHistory.length === 0) return;
+    const historyCopy = [...removedLinesHistory];
+    const restoredId = historyCopy.pop();
+    setRemovedLinesHistory(historyCopy);
+    if (restoredId !== undefined) {
+      setHiddenRowIds((prev) => {
+        const copy = new Set(prev);
+        copy.delete(restoredId);
+        return copy;
+      });
+    }
+  }, [removedLinesHistory]);
+
+  const handleToggleSelectRow = (rowId: string | number) => {
+    setSelectedRowIds((prev) => {
+      const copy = new Set(prev);
+      if (copy.has(rowId)) {
+        copy.delete(rowId);
+      } else {
+        copy.add(rowId);
+      }
+      return copy;
+    });
+  };
+
+  const handleToggleExpand = (rowId: string | number) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [rowId]: !prev[rowId],
+    }));
+  };
+
+  const handleAddComparisonColumn = (colConfig: {
+    companyId: number;
+    companyName: string;
+    fromDate: string;
+    toDate: string;
+  }) => {
+    const newCol: ComparisonColumn = {
+      id: `${colConfig.companyId}-${colConfig.fromDate}-${colConfig.toDate}`,
+      companyId: colConfig.companyId,
+      companyName: colConfig.companyName,
+      fromDate: colConfig.fromDate,
+      toDate: colConfig.toDate,
+    };
+    setComparisonColumns((prev) => [...prev, newCol]);
+  };
 
   // Keyboard shortcut handlers (Tally-parity)
   React.useEffect(() => {
@@ -1370,75 +865,21 @@ export function ReportRunner() {
 
     window.addEventListener("keydown", handleGlobalShortcuts);
     return () => window.removeEventListener("keydown", handleGlobalShortcuts);
-  }, [comparisonColumns, navigate, handleExportCSV, handlePrint]);
-
-  // Removing/Hiding lines
-  const handleHideRow = (rowId: string | number) => {
-    setHiddenRowIds((prev) => {
-      const copy = new Set(prev);
-      copy.add(rowId);
-      return copy;
-    });
-    setRemovedLinesHistory((prev) => [...prev, rowId]);
-  };
-
-  const handleRestoreLastLine = () => {
-    if (removedLinesHistory.length === 0) return;
-    const historyCopy = [...removedLinesHistory];
-    const restoredId = historyCopy.pop();
-    setRemovedLinesHistory(historyCopy);
-    if (restoredId !== undefined) {
-      setHiddenRowIds((prev) => {
-        const copy = new Set(prev);
-        copy.delete(restoredId);
-        return copy;
-      });
-    }
-  };
-
-  const handleToggleSelectRow = (rowId: string | number) => {
-    setSelectedRowIds((prev) => {
-      const copy = new Set(prev);
-      if (copy.has(rowId)) {
-        copy.delete(rowId);
-      } else {
-        copy.add(rowId);
-      }
-      return copy;
-    });
-  };
-
-  const handleToggleExpand = (rowId: string | number) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [rowId]: !prev[rowId],
-    }));
-  };
-
-  const handleAddComparisonColumn = (colConfig: {
-    companyId: number;
-    companyName: string;
-    fromDate: string;
-    toDate: string;
-  }) => {
-    const newCol: ComparisonColumn = {
-      id: `${colConfig.companyId}-${colConfig.fromDate}-${colConfig.toDate}`,
-      companyId: colConfig.companyId,
-      companyName: colConfig.companyName,
-      fromDate: colConfig.fromDate,
-      toDate: colConfig.toDate,
-    };
-    setComparisonColumns((prev) => [...prev, newCol]);
-  };
-
-
+  }, [comparisonColumns, navigate, handleExportCSV, handlePrint, handleRestoreLastLine, definition, fromDate, toDate, reportType]);
 
   // List of all reports for Go To search
   const commandPaletteItems = React.useMemo(() => {
+    // Build a reverse lookup: slug -> category name
+    const slugToCategory: Record<string, string> = {};
+    for (const [cat, reports] of Object.entries(REPORT_CATEGORIES)) {
+      for (const r of reports) {
+        slugToCategory[r.slug] = cat;
+      }
+    }
     return Object.entries(REPORT_DEFINITIONS).map(([key, value]) => ({
       title: value.title,
-      path: `/reports/accounts/${key}`, // standard mapping logic
-      category: "Reports",
+      path: `/reports/accounts/${key}`,
+      category: slugToCategory[key] || "Reports",
       description: `Run and analyze ${value.title}`,
     }));
   }, []);
@@ -1457,6 +898,37 @@ export function ReportRunner() {
     });
     return totals.join(" | ");
   }, [rows, definition, hiddenRowIds]);
+
+  // Hoisted out of the ternary below — this hook must run unconditionally,
+  // on every render, in the same position, regardless of which branch
+  // (loading / register / generic table) ends up being shown.
+  const tableColumns = React.useMemo(() => {
+    // If we have no rows, use defined columns
+    if (!rows.length) return definition.columns;
+    // Check if defined columns match actual data fields
+    const firstRow = rows.find((r: any) => !r.isHeader && !r.isTotal) || rows[0];
+    const dataFields = Object.keys(firstRow).filter(k => k !== 'id' && k !== 'isHeader' && k !== 'isTotal');
+    const definedFields = definition.columns.map(c => c.field);
+    const matchCount = definedFields.filter(f => dataFields.includes(f)).length;
+    // If at least half the defined columns match, use them
+    if (matchCount >= Math.max(1, Math.floor(definedFields.length / 2))) return definition.columns;
+    // Auto-generate columns from data fields
+    const CURRENCY_FIELDS = new Set(['balance','debit','credit','amount','total','value','opening_balance','closing_balance','opening_value','closing_value','inwards_value','outwards_value','taxable_value','invoice_value','gross','deductions','net','current_period','previous_period','variance','total_debit','total_credit','net_balance','total_amount','total_debt','equity','working_capital','total_allocated','actual','budget','inflow','outflow','in_value','out_value','net_value','emp_contrib','employer_contrib','gratuity','total_payout','totalAssets','totalLiabilities','totalIncome','totalExpenses','netProfit','totalSources','totalApplications','totalInflow','totalOutflow','netCashFlow','closing_qty','opening_qty','inwards_qty','outwards_qty','reorder_level','reorder_qty','shortage','fifo_value','avg_rate','closing_rate']);
+    const DATE_FIELDS = new Set(['date','bill_date','due_date','from_date','to_date','as_on_date','voucher_date','reconciled_date','bank_date','last_inward_date','first_bill_date','last_bill_date','created_at','updated_at','timestamp']);
+    const NUMBER_FIELDS = new Set(['count','voucher_count','employees_count','item_count','ledger_count','cost_centre_count','transaction_count','bill_count','present','absent','leave','overdue_days','days30','days60','daysOver','days_since_inward','years','invoice_count','totalClosingQty','totalClosingValue','total_debit','total_credit','net','in_qty','out_qty','closing_qty','opening_qty','inwards_qty','outwards_qty','quantity','total_qty']);
+    const SKIP_FIELDS = new Set(['id','isHeader','isTotal','is_header','is_total','group_id','ledger_id','item_id','cc_id','sg_id','godown_id','employee_id','entry_id','voucher_id','bill_id','structure_id','pay_head_id','batch_id','reconciliation_id','irn_id','log_id','tds_id','tcs_id','gst_id','fy_id','company_id']);
+    return dataFields
+      .filter(f => !SKIP_FIELDS.has(f))
+      .map(f => {
+        const header = f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const isCurrency = CURRENCY_FIELDS.has(f) || f.includes('amount') || f.includes('value') || f.includes('balance') || f.includes('debit') || f.includes('credit') || f.includes('total') || f.includes('variance') || f.includes('price') || f.includes('cost') || f.includes('profit') || f.includes('payout') || f.includes('contrib') || f.includes('gratuity') || f.includes('inflow') || f.includes('outflow') || f.includes('rate') || f.includes('capital') || f.includes('equity') || f.includes('debt');
+        const isDate = DATE_FIELDS.has(f);
+        const isNumber = NUMBER_FIELDS.has(f) || f.includes('count') || f.includes('qty') || f.includes('quantity') || f.includes('days') || f.includes('years') || f.includes('present') || f.includes('absent') || f.includes('leave');
+        const align = (isCurrency || isNumber) ? 'right' as const : 'left' as const;
+        const type = isDate ? 'date' as const : isCurrency ? 'currency' as const : isNumber ? 'number' as const : undefined;
+        return { header, field: f, type, align };
+      });
+  }, [rows, definition.columns]);
 
   return (
     <TallyReportLayout
@@ -1488,7 +960,7 @@ export function ReportRunner() {
           renderRegisterTable()
         ) : (
           <ReportTable
-            columns={definition.columns}
+            columns={tableColumns}
             rows={rows}
             comparisonColumns={comparisonColumns}
             expandedRows={expandedRows}
