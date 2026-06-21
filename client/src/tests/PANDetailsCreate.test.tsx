@@ -109,3 +109,77 @@ describe('PANDetailsCreate — save flow', () => {
     });
   });
 });
+
+describe('PANDetailsCreate — keyboard navigation', () => {
+  it('navigates between fields using Enter and Arrow keys', async () => {
+    const user = userEvent.setup();
+    renderPANDetailsCreate();
+
+    await waitFor(() =>
+      expect(getFormRowField('PAN/Income tax no.')).toBeInTheDocument()
+    );
+
+    const panInput = getFormRowField('PAN/Income tax no.');
+    const cinInput = getFormRowField('Corporate Identity No. (CIN)');
+
+    // By default, first field should be active
+    await user.click(panInput);
+    expect(panInput).toHaveFocus();
+
+    // Enter moves to next
+    await user.keyboard('{Enter}');
+    expect(cinInput).toHaveFocus();
+
+    // ArrowUp moves back
+    await user.keyboard('{ArrowUp}');
+    expect(panInput).toHaveFocus();
+
+    // ArrowDown moves forward
+    await user.keyboard('{ArrowDown}');
+    expect(cinInput).toHaveFocus();
+
+    // Enter on the last field shows Accept prompt
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.getByText('Accept?')).toBeInTheDocument());
+
+    // Escape closes the prompt
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByText('Accept?')).not.toBeInTheDocument());
+  });
+
+  it('shows accept prompt on Alt+A', async () => {
+    const user = userEvent.setup();
+    renderPANDetailsCreate();
+
+    await waitFor(() =>
+      expect(getFormRowField('PAN/Income tax no.')).toBeInTheDocument()
+    );
+
+    await user.keyboard('{Alt>}a{/Alt}');
+    await waitFor(() => expect(screen.getByText('Accept?')).toBeInTheDocument());
+  });
+});
+
+describe('PANDetailsCreate — edit flow', () => {
+  it('pre-fills existing details if they exist', async () => {
+    // Override the mock for this specific test
+    window.api.companyPanCinDetails.get = vi.fn().mockResolvedValue({
+      success: true,
+      exists: true,
+      data: {
+        pan: 'EXISTINGPA',
+        cin: 'EXISTINGCIN1234567890',
+      },
+    });
+
+    renderPANDetailsCreate();
+
+    await waitFor(() => {
+      const panInput = getFormRowField('PAN/Income tax no.') as HTMLInputElement;
+      expect(panInput.value).toBe('EXISTINGPA');
+    });
+
+    const cinInput = getFormRowField('Corporate Identity No. (CIN)') as HTMLInputElement;
+    expect(cinInput.value).toBe('EXISTINGCIN1234567890');
+  });
+});
