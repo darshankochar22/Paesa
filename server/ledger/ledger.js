@@ -197,6 +197,11 @@ const init = async (db) => {
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_party_a_transporter TEXT DEFAULT 'No'`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN transporter_id TEXT`); } catch (err) {}
 
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN hsn_sac_source TEXT DEFAULT 'As per Company/Group'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN gst_rate_source TEXT DEFAULT 'As per Company/Group'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN taxability_type TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN type_of_supply TEXT DEFAULT 'Services'`); } catch (err) {}
+
   // Service Tax registration details
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN service_tax_registration_number TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN type_of_service TEXT DEFAULT 'Undefined'`); } catch (err) {}

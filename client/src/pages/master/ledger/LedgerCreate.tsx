@@ -289,11 +289,6 @@ export default function LedgerCreate() {
             </FormRow>
           </div>
 
-          {/* ── Statutory Details (LEFT panel, matches Tally) ─────────────────
-               Only show when NOT a payment gateway ledger.
-               "Include in Assessable Value" only for groups with assessableValueCalc.
-               "Set/Alter other Statutory details" always shown.
-          ──────────────────────────────────────────────────────────────────── */}
           {showLeftStatutorySection && (
             <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
               <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
@@ -344,6 +339,115 @@ export default function LedgerCreate() {
                   )}
                 </>
               )}
+
+              {currentConfig.gstApplicabilitySection && (
+  <>
+    <FormRow label="GST applicability" labelWidth="w-60" className="flex items-center min-h-[26px]">
+      <select
+        className={selectCls}
+        value={statutoryForm.gst_applicability || "Applicable"}
+        onChange={setStatutoryField("gst_applicability")}
+      >
+        <option value="Applicable">Applicable</option>
+        <option value="Not Applicable">Not Applicable</option>
+        <option value="Undefined">Undefined</option>
+      </select>
+    </FormRow>
+
+    {(statutoryForm.gst_applicability || "Applicable") === "Applicable" && (
+      <>
+        <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-2 mb-1">
+          HSN/SAC & Related Details
+        </div>
+        <FormRow label="HSN/SAC Details" labelWidth="w-60" className="flex items-center min-h-[26px]">
+          <select
+            className={selectCls}
+            value={statutoryForm.hsn_sac_source || "As per Company/Group"}
+            onChange={setStatutoryField("hsn_sac_source")}
+          >
+            <option value="As per Company/Group">As per Company/Group</option>
+            <option value="As per Stock Item">As per Stock Item</option>
+            <option value="Specify Details Here">Specify Details Here</option>
+          </select>
+        </FormRow>
+
+        {statutoryForm.hsn_sac_source === "Specify Details Here" ? (
+          <>
+            <FormRow label="HSN/SAC" labelWidth="w-60" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={statutoryForm.hsn_sac_code || ""} onChange={setStatutoryField("hsn_sac_code")} />
+            </FormRow>
+            <FormRow label="Description" labelWidth="w-60" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={statutoryForm.hsn_sac_description || ""} onChange={setStatutoryField("hsn_sac_description")} />
+            </FormRow>
+          </>
+        ) : (
+          <FormRow label="Source of details" labelWidth="w-60" className="flex items-center min-h-[26px]">
+            <span className="text-sm text-zinc-400 italic px-1.5">Not Available</span>
+          </FormRow>
+        )}
+
+        <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-2 mb-1">
+          GST Rate & Related Details
+        </div>
+        <FormRow label="GST Rate Details" labelWidth="w-60" className="flex items-center min-h-[26px]">
+          <select
+            className={selectCls}
+            value={statutoryForm.gst_rate_source || "As per Company/Group"}
+            onChange={setStatutoryField("gst_rate_source")}
+          >
+            <option value="As per Company/Group">As per Company/Group</option>
+            <option value="As per Stock Item">As per Stock Item</option>
+            <option value="Specify Details Here">Specify Details Here</option>
+          </select>
+        </FormRow>
+
+        {statutoryForm.gst_rate_source === "Specify Details Here" ? (
+          <>
+            <FormRow label="Taxability Type" labelWidth="w-60" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={statutoryForm.taxability_type || "Taxable"}
+                onChange={setStatutoryField("taxability_type")}
+              >
+                <option value="Taxable">Taxable</option>
+                <option value="Exempt">Exempt</option>
+                <option value="Nil Rated">Nil Rated</option>
+              </select>
+            </FormRow>
+            <FormRow label="GST Rate" labelWidth="w-60" className="flex items-center min-h-[26px]">
+              <input
+                type="number"
+                step="0.01"
+                className={`${inputCls} text-right max-w-[100px]`}
+                value={statutoryForm.gst_rate ?? 0}
+                onChange={setStatutoryNumber("gst_rate")}
+              />
+              <span className="text-xs text-zinc-400 ml-1">%</span>
+            </FormRow>
+          </>
+        ) : (
+          <FormRow label="Source of details" labelWidth="w-60" className="flex items-center min-h-[26px]">
+            <span className="text-sm text-zinc-400 italic px-1.5">Not Available</span>
+          </FormRow>
+        )}
+
+        <FormRow label="Type of Supply" labelWidth="w-60" className="flex items-center min-h-[26px]">
+          <select
+            className={selectCls}
+            value={statutoryForm.type_of_supply || "Services"}
+            onChange={setStatutoryField("type_of_supply")}
+          >
+            <option value="Goods">Goods</option>
+            <option value="Services">Services</option>
+          </select>
+        </FormRow>
+      </>
+    )}
+  </>
+)}
+
+
+
 
               <FormRow label="Set/Alter other Statutory details" labelWidth="w-60" className="flex items-center min-h-[26px]">
                 <select
@@ -453,7 +557,6 @@ export default function LedgerCreate() {
           <LedgerBillwisePanel form={form} setForm={setForm} setNumber={setNumber} groupLineage={groupLineage} />
         </div>
 
-        {/* Group selector panel */}
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
             <GroupFlatList

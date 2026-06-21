@@ -1,15 +1,4 @@
-// ---------------------------------------------------------------------------
-// Drizzle ORM conversion (pattern: currencyService.js golden exemplar).
-//
-//   * MUTATIONS use the query builder: db.insert().values(),
-//     db.update().set().where(), db.delete().where(), with eq()/and() predicates.
-//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
-//     WHERE ...`) to preserve the EXACT legacy snake_case shape (ledger_id,
-//     is_active, ...) and numeric 0/1 booleans the test oracle asserts against.
-//   * getAll uses a typed `sql` LEFT JOIN to keep the `group_name` alias column
-//     exactly as before (l.*, g.name as group_name).
-//   * New-row id after INSERT comes from .returning({ id: ledgers.ledgerId }).
-// ---------------------------------------------------------------------------
+
 const { db } = require("../db/index");
 const { sql, eq, and } = require("drizzle-orm");
 const {
@@ -234,7 +223,11 @@ module.exports = {
           gstApplicability: data.statutory_details.gst_applicability || "Not Applicable",
           hsnSacCode: data.statutory_details.hsn_sac_code || null,
           hsnSacDescription: data.statutory_details.hsn_sac_description || null,
+          hsnSacSource: data.statutory_details.hsn_sac_source || "As per Company/Group",
           gstRate: data.statutory_details.gst_rate || 0,
+          gstRateSource: data.statutory_details.gst_rate_source || "As per Company/Group",
+          taxabilityType: data.statutory_details.taxability_type || null,
+          typeOfSupply: data.statutory_details.type_of_supply || "Services",
           cgstRate: data.statutory_details.cgst_rate || 0,
           sgstRate: data.statutory_details.sgst_rate || 0,
           igstRate: data.statutory_details.igst_rate || 0,
@@ -553,7 +546,11 @@ module.exports = {
           gstApplicability: data.statutory_details.gst_applicability || "Not Applicable",
           hsnSacCode: data.statutory_details.hsn_sac_code || null,
           hsnSacDescription: data.statutory_details.hsn_sac_description || null,
+          hsnSacSource: data.statutory_details.hsn_sac_source || "As per Company/Group",
           gstRate: data.statutory_details.gst_rate || 0,
+          gstRateSource: data.statutory_details.gst_rate_source || "As per Company/Group",
+          taxabilityType: data.statutory_details.taxability_type || null,
+          typeOfSupply: data.statutory_details.type_of_supply || "Services",
           cgstRate: data.statutory_details.cgst_rate || 0,
           sgstRate: data.statutory_details.sgst_rate || 0,
           igstRate: data.statutory_details.igst_rate || 0,

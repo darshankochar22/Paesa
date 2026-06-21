@@ -11,6 +11,7 @@ export interface LedgerConfigOptions {
   serviceTaxDetails?: boolean;
   vatDetails?: boolean;     
   paymentGateway?: boolean; 
+  gstApplicabilitySection?: boolean;
 }
 
 // Default fallback configuration
@@ -34,7 +35,7 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
 
   // Assets & Liabilities
 "Current Assets": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false, paymentGateway: true },
-"Current Liabilities": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false, paymentGateway: true },
+"Current Liabilities": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false },
   "Fixed Assets": { taxRegistration: "full", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
   "Capital Account": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
   "Loans (Liability)": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
@@ -48,9 +49,8 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
   // Duties & Taxes
   "Duties & Taxes": { taxRegistration: "panOnly", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: true, assessableValueCalc: false },
 
-  // Incomes & Expenses
-  "Direct Expenses": { taxRegistration: "none", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: false },
-  "Indirect Expenses": { taxRegistration: "none", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: false },
+"Direct Expenses": { taxRegistration: "panOnly", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: true, gstApplicabilitySection: true },
+"Indirect Expenses": { taxRegistration: "panOnly", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: true, gstApplicabilitySection: true },
   "Direct Incomes": { taxRegistration: "none", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: false },
   "Indirect Incomes": { taxRegistration: "none", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: false },
   

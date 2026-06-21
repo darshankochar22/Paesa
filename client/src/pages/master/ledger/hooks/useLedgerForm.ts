@@ -14,7 +14,11 @@ export interface StatutoryDetails {
   gst_applicability?: string;
   hsn_sac_code?: string;
   hsn_sac_description?: string;
+  hsn_sac_source?: string;
   gst_rate?: number;
+   gst_rate_source?: string;
+  taxability_type?: string;
+  type_of_supply?: string;
   cgst_rate?: number;
   sgst_rate?: number;
   igst_rate?: number;
@@ -148,7 +152,11 @@ export const EMPTY_STATUTORY: StatutoryDetails = {
   gst_applicability: "Not Applicable",
   hsn_sac_code: "",
   hsn_sac_description: "",
+  hsn_sac_source: "As per Company/Group",
   gst_rate: 0,
+  gst_rate_source: "As per Company/Group",
+  taxability_type: "Taxable",
+  type_of_supply: "Services",
   cgst_rate: 0,
   sgst_rate: 0,
   igst_rate: 0,
@@ -829,7 +837,11 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           gst_applicability: statutoryForm.gst_applicability || "Not Applicable",
           hsn_sac_code: statutoryForm.hsn_sac_code?.trim() || undefined,
           hsn_sac_description: statutoryForm.hsn_sac_description?.trim() || undefined,
+          hsn_sac_source: statutoryForm.hsn_sac_source || "As per Company/Group",
           gst_rate: Number(statutoryForm.gst_rate) || 0,
+          gst_rate_source: statutoryForm.gst_rate_source || "As per Company/Group",
+          taxability_type: statutoryForm.taxability_type || undefined,
+          type_of_supply: statutoryForm.type_of_supply || "Services",
           cgst_rate: Number(statutoryForm.cgst_rate) || 0,
           sgst_rate: Number(statutoryForm.sgst_rate) || 0,
           igst_rate: Number(statutoryForm.igst_rate) || 0,

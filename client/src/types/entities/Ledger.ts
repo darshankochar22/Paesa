@@ -16,6 +16,7 @@ export interface LedgerType {
   city?: string;
   state?: string;
   country?: string;
+  is_discount?: number;
   pincode?: string;
   phone?: string;
   email?: string;

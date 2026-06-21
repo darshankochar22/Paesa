@@ -14,6 +14,14 @@ interface LedgerRoundingPanelProps {
   };
 }
 
+type LedgerTypeOption = "Not Applicable" | "Invoice Rounding" | "Discount";
+
+function getLedgerTypeOption(form: Partial<LedgerType>): LedgerTypeOption {
+  if (form.invoice_rounding) return "Invoice Rounding";
+  if (form.is_discount) return "Discount";
+  return "Not Applicable";
+}
+
 export default function LedgerRoundingPanel({
   form,
   setForm,
@@ -23,28 +31,32 @@ export default function LedgerRoundingPanel({
 }: LedgerRoundingPanelProps) {
   if (!groupLineage.isInventory) return null;
 
+  const ledgerTypeOption = getLedgerTypeOption(form);
+
   return (
     <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
       <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
       <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">
         <select
           className={selectCls}
-          value={form.invoice_rounding ? "Invoice Rounding" : "Not Applicable"}
+          value={ledgerTypeOption}
           onChange={(e) => {
-            const val = e.target.value === "Invoice Rounding" ? 1 : 0;
+            const val = e.target.value as LedgerTypeOption;
             setForm((f) => ({
               ...f,
-              invoice_rounding: val,
-              rounding_method: val ? "Normal Rounding" : "",
-              rounding_limit: val ? 1 : 0,
+              invoice_rounding: val === "Invoice Rounding" ? 1 : 0,
+              is_discount: val === "Discount" ? 1 : 0,
+              rounding_method: val === "Invoice Rounding" ? "Normal Rounding" : "",
+              rounding_limit: val === "Invoice Rounding" ? 1 : 0,
             }));
           }}
         >
           <option value="Not Applicable">Not Applicable</option>
           <option value="Invoice Rounding">Invoice Rounding</option>
+          <option value="Discount">Discount</option>
         </select>
       </FormRow>
-      {!!form.invoice_rounding && (
+      {ledgerTypeOption === "Invoice Rounding" && (
         <>
           <FormRow label="Rounding method" labelWidth="w-52" className="flex items-center min-h-[26px]">
             <select

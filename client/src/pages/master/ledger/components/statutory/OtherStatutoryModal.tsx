@@ -108,58 +108,70 @@ export default function OtherStatutoryModal({
     }
   };
 
-  const onRowClick = (key: OtherStatutorySectionKey) => {
-    const isActive = sectionActive(key);
-    // Set/Alter Service Tax / Excise / VAT: just toggle the row, no Tier-2 modal.
-    if (!SECTION_META[key].showYesNoInTier1) {
-      if (key === "serviceTax") {
-        setForm((f) => ({
-          ...f,
-          serviceTax: {
-            ...f.serviceTax,
-            set_alter_service_tax_details:
-              (f.serviceTax.set_alter_service_tax_details ? 0 : 1) as 0 | 1,
-          },
-        }));
-      } else if (key === "excise") {
-        setForm((f) => ({
-          ...f,
-          excise: {
-            ...f.excise,
-            set_alter_excise_details: (f.excise.set_alter_excise_details ? 0 : 1) as 0 | 1,
-          },
-        }));
-      } else if (key === "vat") {
-        setForm((f) => ({
-          ...f,
-          vat: {
-            ...f.vat,
-            set_alter_vat_details: (f.vat.set_alter_vat_details ? 0 : 1) as 0 | 1,
-          },
-        }));
-      }
-      return;
-    }
-    if (isActive) {
-      // Already Yes — just flip to No and reset section state.
-      if (key === "tds") {
+  // Reset a section back to its empty/off state (used when flipping Yes -> No).
+  const resetSection = (key: OtherStatutorySectionKey) => {
+    switch (key) {
+      case "tds":
         setForm((f) => ({
           ...f,
           tds: { ...EMPTY_TDS_FORM, tds_pan_it_no: f.tds.tds_pan_it_no, tds_name_on_pan: f.tds.tds_name_on_pan },
         }));
-      } else {
+        break;
+      case "tcs":
         setForm((f) => ({
           ...f,
           tcs: { ...EMPTY_TCS_FORM, tcs_pan_it_no: f.tcs.tcs_pan_it_no, tcs_name_on_pan: f.tcs.tcs_name_on_pan },
         }));
-      }
-    } else {
-      // Flip to Yes, then open Tier-2 on the next tick.
-      if (key === "tds") {
+        break;
+      case "serviceTax":
+        setForm((f) => ({ ...f, serviceTax: { ...EMPTY_SERVICE_TAX_FORM } }));
+        break;
+      case "excise":
+        setForm((f) => ({ ...f, excise: { ...EMPTY_EXCISE_FORM } }));
+        break;
+      case "vat":
+        setForm((f) => ({ ...f, vat: { ...EMPTY_VAT_FORM } }));
+        break;
+    }
+  };
+
+  // Flip a section's "active" flag to Yes (1) without touching its other fields.
+  const activateSection = (key: OtherStatutorySectionKey) => {
+    switch (key) {
+      case "tds":
         setForm((f) => ({ ...f, tds: { ...f.tds, is_tds_deductable: 1 } }));
-      } else {
+        break;
+      case "tcs":
         setForm((f) => ({ ...f, tcs: { ...f.tcs, is_tcs_applicable: 1 } }));
-      }
+        break;
+      case "serviceTax":
+        setForm((f) => ({
+          ...f,
+          serviceTax: { ...f.serviceTax, set_alter_service_tax_details: 1 },
+        }));
+        break;
+      case "excise":
+        setForm((f) => ({
+          ...f,
+          excise: { ...f.excise, set_alter_excise_details: 1 },
+        }));
+        break;
+      case "vat":
+        setForm((f) => ({ ...f, vat: { ...f.vat, set_alter_vat_details: 1 } }));
+        break;
+    }
+  };
+
+  // Every section now follows the same Yes/No -> Tier-2 pattern as TDS/TCS:
+  //   No  -> Yes : flip the active flag, then open that section's Tier-2 modal
+  //   Yes -> Yes : already active, just reopen the Tier-2 modal to edit
+  //   Yes -> No  : reset the section back to its empty state, no modal
+  const onRowClick = (key: OtherStatutorySectionKey) => {
+    const isActive = sectionActive(key);
+    if (isActive) {
+      resetSection(key);
+    } else {
+      activateSection(key);
       setTimeout(() => setActiveTier2({ kind: key }), 0);
     }
   };
@@ -183,7 +195,7 @@ export default function OtherStatutoryModal({
             return (
               <FormRow
                 key={key}
-                label={meta.showYesNoInTier1 ? meta.label : `Set/Alter ${meta.label} details`}
+                label={`Set/Alter ${meta.label} details`}
                 labelWidth="w-60"
                 className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50"
               >
@@ -214,7 +226,7 @@ export default function OtherStatutoryModal({
             updateSection("tds", state);
             setActiveTier2(null);
           }}
-          companyId={selectedCompany?.company_id} 
+          companyId={selectedCompany?.company_id}
         />
       )}
       {activeTier2?.kind === "tcs" && (
