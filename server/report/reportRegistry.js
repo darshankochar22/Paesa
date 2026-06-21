@@ -14,6 +14,7 @@ const registry = {
   cash_flow: require('./definitions/cash_flow'),
   funds_flow: require('./definitions/funds_flow'),
   stock_summary: require('./definitions/stock_summary'),
+  stock_item_monthly: require('./definitions/stock-item-monthly'),
   ratio_analysis: require('./definitions/ratio_analysis'),
   negative_cash: require('./definitions/negative_cash'),
   negative_stock: require('./definitions/negative_stock'),

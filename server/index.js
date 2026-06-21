@@ -165,6 +165,8 @@ ipcMain.handle('report:billsPayable', reportController.billsPayable);
 ipcMain.handle('report:cashFlow', reportController.cashFlow);
 ipcMain.handle('report:fundsFlow', reportController.fundsFlow);
 ipcMain.handle('report:stockSummary', reportController.stockSummary);
+ipcMain.handle('report:stockGroupItems', reportController.stockGroupItems);
+ipcMain.handle('report:stockItemMonthly', reportController.stockItemMonthly);
 ipcMain.handle('report:ratioAnalysis', reportController.ratioAnalysis);
 ipcMain.handle('report:run', reportController.run);
 ipcMain.handle('report:getSavedViews', reportController.getSavedViews);

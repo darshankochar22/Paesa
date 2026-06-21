@@ -47,6 +47,12 @@ module.exports = {
   stockSummary: async (event, { company_id, fy_id, as_on_date, method }) => {
     return await stockSummaryReportService.stockSummary(company_id, fy_id, as_on_date, method);
   },
+  stockGroupItems: async (event, { company_id, fy_id, group_id }) => {
+    return await stockSummaryReportService.stockGroupItems(company_id, fy_id, group_id);
+  },
+  stockItemMonthly: async (event, { company_id, fy_id, item_id }) => {
+    return await stockSummaryReportService.stockItemMonthly(company_id, fy_id, item_id);
+  },
   ratioAnalysis: async (event, { company_id, fy_id }) => {
     return await ratioAnalysisReportService.ratioAnalysis(company_id, fy_id);
   },

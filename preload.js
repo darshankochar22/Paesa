@@ -133,6 +133,8 @@ contextBridge.exposeInMainWorld('api', {
         cashFlow:        (company_id, fy_id, from_date, to_date)                 => invoke('report:cashFlow', { company_id, fy_id, from_date, to_date }),
         fundsFlow:       (company_id, fy_id, from_date, to_date)                 => invoke('report:fundsFlow', { company_id, fy_id, from_date, to_date }),
         stockSummary:    (company_id, fy_id, as_on_date, method)                 => invoke('report:stockSummary', { company_id, fy_id, as_on_date, method }),
+        stockGroupItems:  (company_id, fy_id, group_id)                          => invoke('report:stockGroupItems', { company_id, fy_id, group_id }),
+        stockItemMonthly: (company_id, fy_id, item_id)                           => invoke('report:stockItemMonthly', { company_id, fy_id, item_id }),
         ratioAnalysis:   (company_id, fy_id)                                     => invoke('report:ratioAnalysis', { company_id, fy_id }),
         run:              (reportId, params)                                     => invoke('report:run', { reportId, params }),
         getSavedViews:    (company_id)                                           => invoke('report:getSavedViews', { company_id }),
