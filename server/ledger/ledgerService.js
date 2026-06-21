@@ -150,6 +150,21 @@ module.exports = {
           isPredefined: 0,
           additionalGstDetails: data.additional_gst_details ? 1 : 0,
           serviceTaxDetails: data.service_tax_details ? 1 : 0,
+          behaveAsPaymentGateway: data.behave_as_payment_gateway ? 1 : 0,
+          paymentGatewayName: data.payment_gateway_name || null,
+          placeOfSupply: data.place_of_supply || null,
+          isPartyATransporter: data.is_party_a_transporter || "No",
+          transporterId: data.transporter_id || null,
+          serviceTaxRegistrationNumber: data.service_tax_registration_number || null,
+          typeOfService: data.type_of_service || "Undefined",
+          notificationNumber: data.notification_number || null,
+          notificationSerialNumber: data.notification_serial_number || null,
+          isPartyAnAssociatedEnterprise: data.is_party_an_associated_enterprise || "No",
+          doesPartyBelongToNonTaxableTerritory: data.does_party_belong_to_non_taxable_territory || "No",
+          vatTypeOfDealer: data.vat_type_of_dealer || "Unknown",
+          vatTinNo: data.vat_tin_no || null,
+          cstNo: data.cst_no || null,
+          salesPurchasesAgainstFormC: data.sales_purchases_against_form_c || "No",
       includeAssessableValue: data.include_assessable_value || "Not Applicable",
       methodOfCalculation: data.method_of_calculation || "Based on Value",
       otherStatutoryDetails: data.other_statutory_details ? 1 : 0,
@@ -167,6 +182,8 @@ module.exports = {
       tdsPanStatus: data.tds_pan_status || null,
       tdsPanEffectiveDate: data.tds_pan_effective_date || null,
       tdsNameOnPan: data.tds_name_on_pan || null,
+      tdsDeducteeRef: data.tds_deductee_ref || null,
+      tdsTaxUniqueIdNo: data.tds_tax_unique_id_no || null,
       isTcsApplicable: data.is_tcs_applicable ? 1 : 0,
       tcsBuyerLesseeType: data.tcs_buyer_lessee_type || null,
       tcsPanItNo: data.tcs_pan_it_no || null,
@@ -379,6 +396,31 @@ module.exports = {
             data.additional_gst_details ?? ledger.additional_gst_details ?? 0,
           serviceTaxDetails:
             data.service_tax_details ?? ledger.service_tax_details ?? 0,
+          behaveAsPaymentGateway:
+            data.behave_as_payment_gateway !== undefined
+              ? (data.behave_as_payment_gateway ? 1 : 0)
+              : (ledger.behave_as_payment_gateway ?? 0),
+          paymentGatewayName: data.payment_gateway_name ?? ledger.payment_gateway_name ?? null,
+          placeOfSupply: data.place_of_supply ?? ledger.place_of_supply ?? null,
+          isPartyATransporter: data.is_party_a_transporter ?? ledger.is_party_a_transporter ?? "No",
+          transporterId: data.transporter_id ?? ledger.transporter_id ?? null,
+          serviceTaxRegistrationNumber:
+            data.service_tax_registration_number ?? ledger.service_tax_registration_number ?? null,
+          typeOfService: data.type_of_service ?? ledger.type_of_service ?? "Undefined",
+          notificationNumber: data.notification_number ?? ledger.notification_number ?? null,
+          notificationSerialNumber:
+            data.notification_serial_number ?? ledger.notification_serial_number ?? null,
+          isPartyAnAssociatedEnterprise:
+            data.is_party_an_associated_enterprise ?? ledger.is_party_an_associated_enterprise ?? "No",
+          doesPartyBelongToNonTaxableTerritory:
+            data.does_party_belong_to_non_taxable_territory ??
+            ledger.does_party_belong_to_non_taxable_territory ??
+            "No",
+          vatTypeOfDealer: data.vat_type_of_dealer ?? ledger.vat_type_of_dealer ?? "Unknown",
+          vatTinNo: data.vat_tin_no ?? ledger.vat_tin_no ?? null,
+          cstNo: data.cst_no ?? ledger.cst_no ?? null,
+          salesPurchasesAgainstFormC:
+            data.sales_purchases_against_form_c ?? ledger.sales_purchases_against_form_c ?? "No",
           includeAssessableValue:
             data.include_assessable_value ??
             ledger.include_assessable_value ??
@@ -428,6 +470,8 @@ module.exports = {
           tdsPanEffectiveDate:
             data.tds_pan_effective_date ?? ledger.tds_pan_effective_date ?? null,
           tdsNameOnPan: data.tds_name_on_pan ?? ledger.tds_name_on_pan ?? null,
+          tdsDeducteeRef: data.tds_deductee_ref ?? ledger.tds_deductee_ref ?? null,
+          tdsTaxUniqueIdNo: data.tds_tax_unique_id_no ?? ledger.tds_tax_unique_id_no ?? null,
           isTcsApplicable:
             data.is_tcs_applicable !== undefined
               ? (data.is_tcs_applicable ? 1 : 0)

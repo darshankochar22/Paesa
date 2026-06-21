@@ -45,6 +45,9 @@ export const TCS_BUYER_LESSEE_TYPES = [
   "Partnership Firm",
 ];
 
+// Show foreign fields for these PAN statuses (matches Tally Prime behaviour)
+const FOREIGN_PAN_STATUSES = new Set(["Not Available", "Not Required"]);
+
 /* ── Form shape ───────────────────────────────────────────────────────────── */
 
 export interface TcsFormState {
@@ -93,7 +96,7 @@ export default function TCSDetailsModal({
   const update = <K extends keyof TcsFormState>(key: K, val: TcsFormState[K]) =>
     setForm((f) => ({ ...f, [key]: val }));
 
-  const showForeignFields = form.tcs_pan_status === "Not Available";
+  const showForeignFields = FOREIGN_PAN_STATUSES.has(form.tcs_pan_status);
 
   return (
     <ModalChrome width={520}>
@@ -137,9 +140,7 @@ export default function TCSDetailsModal({
                 onChange={(e) => update("tcs_buyer_lessee_type", e.target.value)}
               >
                 {TCS_BUYER_LESSEE_TYPES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </ModalFormRow>
@@ -171,14 +172,7 @@ export default function TCSDetailsModal({
               </select>
             </ModalFormRow>
 
-            <ModalFormRow label="Name on PAN" labelWidth="w-56">
-              <input
-                className={inputCls + " max-w-[280px]"}
-                value={form.tcs_name_on_pan}
-                onChange={(e) => update("tcs_name_on_pan", e.target.value)}
-              />
-            </ModalFormRow>
-
+            {/* Deductee Ref + Tax ID — shown when PAN is Not Available or Not Required */}
             {showForeignFields && (
               <>
                 <ModalFormRow label="Deductee Ref" labelWidth="w-56">
@@ -201,6 +195,14 @@ export default function TCSDetailsModal({
                 </ModalFormRow>
               </>
             )}
+
+            <ModalFormRow label="Name on PAN" labelWidth="w-56">
+              <input
+                className={inputCls + " max-w-[280px]"}
+                value={form.tcs_name_on_pan}
+                onChange={(e) => update("tcs_name_on_pan", e.target.value)}
+              />
+            </ModalFormRow>
           </>
         )}
       </div>

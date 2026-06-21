@@ -54,6 +54,8 @@ export const TDS_PAN_STATUSES = [
   "Not Required",
 ];
 
+// Show foreign fields for these PAN statuses (matches Tally Prime behaviour)
+const FOREIGN_PAN_STATUSES = new Set(["Not Available", "Not Required"]);
 
 export interface TdsFormState {
   is_tds_applicable: string;
@@ -66,6 +68,9 @@ export interface TdsFormState {
   tds_pan_status: string;
   tds_pan_effective_date: string;
   tds_name_on_pan: string;
+  // foreign / no-PAN fields
+  deductee_ref: string;
+  tax_unique_id_no: string;
 }
 
 export const EMPTY_TDS_FORM: TdsFormState = {
@@ -79,6 +84,8 @@ export const EMPTY_TDS_FORM: TdsFormState = {
   tds_pan_status: "Unknown",
   tds_pan_effective_date: "",
   tds_name_on_pan: "",
+  deductee_ref: "",
+  tax_unique_id_no: "",
 };
 
 interface TDSDetailsModalProps {
@@ -89,7 +96,6 @@ interface TDSDetailsModalProps {
   value: TdsFormState;
   companyId: number;
 }
-
 
 export default function TDSDetailsModal({
   isOpen,
@@ -104,10 +110,8 @@ export default function TDSDetailsModal({
   const nopFieldRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  const {
-    items: natureOfPaymentItems,
-    loading: nopLoading,
-  } = useTdsNatureOfPayments(companyId);
+  const { items: natureOfPaymentItems, loading: nopLoading } =
+    useTdsNatureOfPayments(companyId);
 
   useEscapeClose(isOpen, onClose);
 
@@ -117,6 +121,7 @@ export default function TDSDetailsModal({
     setForm((f) => ({ ...f, [key]: val }));
 
   const panStatusOptions = TDS_PAN_STATUSES.map((s) => ({ value: s, label: s }));
+  const showForeignFields = FOREIGN_PAN_STATUSES.has(form.tds_pan_status);
 
   const handleSelectNop = (val: string) => {
     update("nature_of_payment", val);
@@ -150,7 +155,9 @@ export default function TDSDetailsModal({
           <select
             className={selectCls + " max-w-[80px]"}
             value={form.is_tds_deductable ? "Yes" : "No"}
-            onChange={(e) => update("is_tds_deductable", e.target.value === "Yes" ? 1 : 0)}
+            onChange={(e) =>
+              update("is_tds_deductable", e.target.value === "Yes" ? 1 : 0)
+            }
           >
             <option>No</option>
             <option>Yes</option>
@@ -179,9 +186,7 @@ export default function TDSDetailsModal({
                 onChange={(e) => update("deductee_type", e.target.value)}
               >
                 {TDS_DEDUCTEE_TYPES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </ModalFormRow>
@@ -204,10 +209,7 @@ export default function TDSDetailsModal({
                 <button
                   type="button"
                   onClick={() => setNopPopupOpen((v) => !v)}
-                  className={
-                    selectCls +
-                    " max-w-[200px] text-left flex items-center justify-between"
-                  }
+                  className={selectCls + " max-w-[200px] text-left flex items-center justify-between"}
                 >
                   <span className="truncate">{form.nature_of_payment}</span>
                   <span className="text-zinc-400 ml-1">▾</span>
@@ -267,6 +269,30 @@ export default function TDSDetailsModal({
                 ))}
               </select>
             </ModalFormRow>
+
+            {/* Deductee Ref + Tax ID — shown when PAN is Not Available or Not Required */}
+            {showForeignFields && (
+              <>
+                <ModalFormRow label="Deductee Ref" labelWidth="w-56">
+                  <input
+                    className={inputCls + " max-w-[280px]"}
+                    value={form.deductee_ref}
+                    onChange={(e) => update("deductee_ref", e.target.value)}
+                  />
+                </ModalFormRow>
+                <ModalFormRow
+                  label="Tax/Unique Identification Number"
+                  labelWidth="w-56"
+                  helper="(Country of Residence)"
+                >
+                  <input
+                    className={inputCls + " max-w-[280px]"}
+                    value={form.tax_unique_id_no}
+                    onChange={(e) => update("tax_unique_id_no", e.target.value)}
+                  />
+                </ModalFormRow>
+              </>
+            )}
 
             <ModalFormRow label="Name on PAN" labelWidth="w-56">
               <input

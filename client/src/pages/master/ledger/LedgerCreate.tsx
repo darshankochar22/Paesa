@@ -20,16 +20,17 @@ import LedgerBillwisePanel from "./components/LedgerBillwisePanel";
 import LedgerBankingPanel from "./components/LedgerBankingPanel";
 import LedgerBankDetailsForm from "./components/LedgerBankDetailsForm";
 import InterestParametersModal from "./components/InterestParametersModal";
-import OtherStatutoryTriggerPanel from "./components/OtherStatutoryTriggerPanel";
 import OtherStatutoryModal from "./components/statutory/OtherStatutoryModal";
 import { getOtherStatutoryConfig } from "@/config/ledgerStatutoryConfig";
 import { getLedgerConfig } from "./config/LedgerConfig";
 import AdditionalGSTDetailsModal from "./components/AdditionalGSTDetails";
 import ServiceTaxModal from "./components/ServiceTaxModal";
 import VATDetailsModal from "./components/VATDetailsModal";
-import { EMPTY_VAT_DETAILS } from "./components/VATDetailsModal";
 
-const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+const inputCls =
+  "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+const selectCls =
+  "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
 export default function LedgerCreate() {
   const { selectedCompany } = useCompany();
@@ -47,7 +48,6 @@ export default function LedgerCreate() {
     otherStatutory,
     setOtherStatutory,
     vatDetails,
-    setVatDetails,
     provideBank,
     showBankPopup,
     setShowBankPopup,
@@ -72,6 +72,7 @@ export default function LedgerCreate() {
     setStatutoryField,
     setStatutoryNumber,
     handleActivateInterestChange,
+    handlePaymentGatewayChange,
     handleInterestClose,
     handleProvideBankChange,
     handleBankClose,
@@ -95,6 +96,25 @@ export default function LedgerCreate() {
 
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
   const currentConfig = getLedgerConfig(groupName);
+
+  // Whether to show the "Statutory Details" block on the LEFT panel.
+  // This matches Tally: shown for Current Assets (assessableValueCalc) and always
+  // present for the "Set/Alter other Statutory details" toggle.
+  const showLeftStatutorySection =
+    !form.behave_as_payment_gateway &&
+    (currentConfig.assessableValueCalc || true); // "Set/Alter other Statutory details" always shows
+
+  const isOtherStatutoryActive =
+    otherStatutory.tds.is_tds_deductable === 1 ||
+    otherStatutory.tcs.is_tcs_applicable === 1 ||
+    otherStatutory.serviceTax.set_alter_service_tax_details === 1 ||
+    otherStatutory.excise.set_alter_excise_details === 1 ||
+    otherStatutory.vat.set_alter_vat_details === 1;
+
+  const assessableGstSelected =
+    currentConfig.assessableValueCalc &&
+    !!statutoryForm.include_in_assessable_value_calculation &&
+    statutoryForm.include_in_assessable_value_calculation !== "Not Applicable";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -209,7 +229,9 @@ export default function LedgerCreate() {
       )}
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
+        {/* ── LEFT PANEL ─────────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
+          {/* Name / alias */}
           <div className="p-3 space-y-1">
             <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
               <input autoFocus className={inputCls} value={form.name || ""} onChange={setField("name")} />
@@ -219,6 +241,7 @@ export default function LedgerCreate() {
             </FormRow>
           </div>
 
+          {/* Under (group) */}
           <div className="p-3 border-t border-zinc-100 bg-zinc-50/20">
             <div
               className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
@@ -235,19 +258,126 @@ export default function LedgerCreate() {
             </div>
           </div>
 
+          {/* Behave as Payment Gateway */}
+          {currentConfig.paymentGateway && (
+            <div className="p-3 border-t border-zinc-100 bg-white space-y-1">
+              <FormRow label="Behave as Payment Gateway ledger" labelWidth="w-60" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={form.behave_as_payment_gateway ? "Yes" : "No"}
+                  onChange={handlePaymentGatewayChange}
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </FormRow>
+              {!!form.behave_as_payment_gateway && (
+                <FormRow label="Payment Gateway Name" labelWidth="w-60" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-500 italic px-1.5">Not Applicable</span>
+                </FormRow>
+              )}
+            </div>
+          )}
+
+          {/* Activate interest calculation */}
           <div className="p-3 border-t border-zinc-100 bg-white">
             <FormRow label="Activate interest calculation" labelWidth="w-52" className="flex items-center min-h-[26px]">
-              <select
-                className="bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded"
-                value={form.activate_interest ? "Yes" : "No"}
-                onChange={handleActivateInterestChange}
-              >
+              <select className={selectCls} value={form.activate_interest ? "Yes" : "No"} onChange={handleActivateInterestChange}>
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>
               </select>
             </FormRow>
           </div>
 
+          {/* ── Statutory Details (LEFT panel, matches Tally) ─────────────────
+               Only show when NOT a payment gateway ledger.
+               "Include in Assessable Value" only for groups with assessableValueCalc.
+               "Set/Alter other Statutory details" always shown.
+          ──────────────────────────────────────────────────────────────────── */}
+          {showLeftStatutorySection && (
+            <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
+                Statutory Details
+              </div>
+
+              {currentConfig.assessableValueCalc && (
+                <>
+                  <FormRow label="Include in Assessable Value calculation" labelWidth="w-60" className="flex items-center min-h-[26px]">
+                    <select
+                      className={selectCls}
+                      value={statutoryForm.include_in_assessable_value_calculation || "Not Applicable"}
+                      onChange={setStatutoryField("include_in_assessable_value_calculation")}
+                    >
+                      <option value="Not Applicable">Not Applicable</option>
+                      <option value="Excise">Excise</option>
+                      <option value="Excise & GST">Excise & GST</option>
+                      <option value="Excise & VAT">Excise & VAT</option>
+                      <option value="GST">GST</option>
+                      <option value="VAT">VAT</option>
+                    </select>
+                  </FormRow>
+
+                  {assessableGstSelected && (
+                    <>
+                      <FormRow label="Appropriate to" labelWidth="w-60" className="flex items-center min-h-[26px]">
+                        <select
+                          className={selectCls}
+                          value={statutoryForm.appropriate_to || "Goods"}
+                          onChange={setStatutoryField("appropriate_to")}
+                        >
+                          <option value="Goods">Goods</option>
+                          <option value="Goods and Services">Goods and Services</option>
+                          <option value="Services">Services</option>
+                        </select>
+                      </FormRow>
+                      <FormRow label="Method of calculation" labelWidth="w-60" className="flex items-center min-h-[26px]">
+                        <select
+                          className={selectCls}
+                          value={statutoryForm.method_of_calculation || "Based on Quantity"}
+                          onChange={setStatutoryField("method_of_calculation")}
+                        >
+                          <option value="Based on Quantity">Based on Quantity</option>
+                          <option value="Based on Value">Based on Value</option>
+                        </select>
+                      </FormRow>
+                    </>
+                  )}
+                </>
+              )}
+
+              <FormRow label="Set/Alter other Statutory details" labelWidth="w-60" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={isOtherStatutoryActive ? "Yes" : "No"}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "Yes" && !isOtherStatutoryActive) {
+                      setOtherStatutory((prev) => ({
+                        ...prev,
+                        tds: { ...prev.tds, is_tds_deductable: 1 },
+                      }));
+                      setShowOtherStatutoryModal(true);
+                    } else if (val === "No" && isOtherStatutoryActive) {
+                      setOtherStatutory({
+                        tds: { ...EMPTY_TDS },
+                        tcs: { ...EMPTY_TCS },
+                        serviceTax: { ...EMPTY_SERVICE_TAX },
+                        excise: { ...EMPTY_EXCISE },
+                        vat: { ...EMPTY_VAT },
+                      });
+                    } else if (val === "Yes" && isOtherStatutoryActive) {
+                      setShowOtherStatutoryModal(true);
+                    }
+                  }}
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </FormRow>
+            </div>
+          )}
+
+          {/* Bank details form (inline fields when group is bank) */}
           <LedgerBankDetailsForm
             bankForm={bankForm}
             setBankForm={setBankForm}
@@ -256,29 +386,9 @@ export default function LedgerCreate() {
             groupLineage={groupLineage}
           />
 
-          <OtherStatutoryTriggerPanel
-            form={otherStatutory}
-            onOpen={() => setShowOtherStatutoryModal(true)}
-            onEnable={() => {
-              setOtherStatutory((prev) => ({
-                ...prev,
-                tds: { ...prev.tds, is_tds_deductable: 1 },
-              }));
-              setShowOtherStatutoryModal(true);
-            }}
-            onDisable={() =>
-              setOtherStatutory({
-                tds: { ...EMPTY_TDS },
-                tcs: { ...EMPTY_TCS },
-                serviceTax: { ...EMPTY_SERVICE_TAX },
-                excise: { ...EMPTY_EXCISE },
-                vat: { ...EMPTY_VAT },
-              })
-            }
-          />
-
           <div className="flex-1" />
 
+          {/* Opening Balance */}
           <div className="border-t border-zinc-200 bg-zinc-50/50 p-3 flex items-center justify-center gap-2">
             <span className="text-sm font-semibold text-zinc-600">Opening Balance</span>
             <span className="text-sm text-zinc-500">( on {fyLabel} ) :</span>
@@ -292,6 +402,7 @@ export default function LedgerCreate() {
           </div>
         </div>
 
+        {/* ── RIGHT PANEL ────────────────────────────────────────────────────── */}
         <div className="w-[480px] border-l border-zinc-200 flex flex-col overflow-y-auto shrink-0 bg-zinc-50/25">
           <div className="p-3 flex justify-end">
             <div className="w-44 border border-zinc-200 rounded shrink-0 bg-white shadow-sm overflow-hidden">
@@ -302,19 +413,10 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          <LedgerRoundingPanel
-            form={form}
-            setForm={setForm}
-            setField={setField}
-            setNumber={setNumber}
-            groupLineage={groupLineage}
-          />
+          <LedgerRoundingPanel form={form} setForm={setForm} setField={setField} setNumber={setNumber} groupLineage={groupLineage} />
 
-          <LedgerMailingPanel
-            form={form}
-            setField={setField}
-            groupLineage={groupLineage}
-          />
+          <LedgerMailingPanel form={form} setField={setField} groupLineage={groupLineage} />
+
           <LedgerBankingPanel
             provideBank={provideBank}
             handleProvideBankChange={handleProvideBankChange}
@@ -324,6 +426,7 @@ export default function LedgerCreate() {
             groupLineage={groupLineage}
           />
 
+          {/* Tax panel: only DutyTax section + Tax Registration Details */}
           <LedgerTaxPanel
             form={form}
             setField={setField}
@@ -331,8 +434,6 @@ export default function LedgerCreate() {
             setStatutoryField={setStatutoryField}
             setStatutoryNumber={setStatutoryNumber}
             setStatutoryForm={setStatutoryForm}
-            otherStatutory={otherStatutory}
-            setOtherStatutory={setOtherStatutory}
             groupLineage={groupLineage}
             config={currentConfig}
             onGSTDetailsChange={(val) => {
@@ -349,14 +450,10 @@ export default function LedgerCreate() {
             }}
           />
 
-          <LedgerBillwisePanel
-            form={form}
-            setForm={setForm}
-            setNumber={setNumber}
-            groupLineage={groupLineage}
-          />
+          <LedgerBillwisePanel form={form} setForm={setForm} setNumber={setNumber} groupLineage={groupLineage} />
         </div>
 
+        {/* Group selector panel */}
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
             <GroupFlatList
@@ -366,7 +463,10 @@ export default function LedgerCreate() {
                 setForm((f) => ({ ...f, group_id: group.group_id }));
                 setShowGroupPanel(false);
               }}
-              onCreate={() => { setShowGroupPanel(false); navigate("/master/create/group"); }}
+              onCreate={() => {
+                setShowGroupPanel(false);
+                navigate("/master/create/group");
+              }}
               onClose={() => setShowGroupPanel(false)}
             />
           </div>

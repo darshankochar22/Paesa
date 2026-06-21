@@ -188,6 +188,33 @@ const init = async (db) => {
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN deductee_ref TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tax_unique_id_no TEXT`); } catch (err) {}
 
+  // Payment Gateway
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN behave_as_payment_gateway INTEGER DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN payment_gateway_name TEXT`); } catch (err) {}
+
+  // GST additional details
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN place_of_supply TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_party_a_transporter TEXT DEFAULT 'No'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN transporter_id TEXT`); } catch (err) {}
+
+  // Service Tax registration details
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN service_tax_registration_number TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN type_of_service TEXT DEFAULT 'Undefined'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN notification_number TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN notification_serial_number TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_party_an_associated_enterprise TEXT DEFAULT 'No'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN does_party_belong_to_non_taxable_territory TEXT DEFAULT 'No'`); } catch (err) {}
+
+  // VAT details
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN vat_type_of_dealer TEXT DEFAULT 'Unknown'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN vat_tin_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN cst_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN sales_purchases_against_form_c TEXT DEFAULT 'No'`); } catch (err) {}
+
+  // TDS-specific deductee ref (separate from TCS's deductee_ref/tax_unique_id_no)
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tds_deductee_ref TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tds_tax_unique_id_no TEXT`); } catch (err) {}
+
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN activate_interest INTEGER DEFAULT 0`);
   } catch (err) {}

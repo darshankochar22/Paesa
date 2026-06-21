@@ -43,7 +43,8 @@ export interface LedgerType {
   interest_rate?: number;
   interest_style?: string;
   interest_balances?: string;
-  // ── Other statutory details (TDS / TCS / Service Tax / Excise / VAT) ──────
+  behave_as_payment_gateway?: number;
+  payment_gateway_name?: string;
   set_alter_tds_details?: number;
   set_alter_tcs_details?: number;
   set_alter_service_tax_details?: number;

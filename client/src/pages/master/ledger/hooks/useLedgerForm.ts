@@ -59,6 +59,8 @@ export interface TdsDetails {
   tds_pan_status: string;
   tds_pan_effective_date: string;
   tds_name_on_pan: string;
+  deductee_ref: string;
+  tax_unique_id_no: string;
 }
 
 export interface TcsDetails {
@@ -105,6 +107,8 @@ export const EMPTY_TDS: TdsDetails = {
   tds_pan_status: "Unknown",
   tds_pan_effective_date: "",
   tds_name_on_pan: "",
+  deductee_ref: "",
+  tax_unique_id_no: "",
 };
 
 export const EMPTY_TCS: TcsDetails = {
@@ -187,6 +191,8 @@ export const INITIAL_FORM: Partial<LedgerType> = {
   method_of_calculation: "Based on Value",
   other_statutory_details: 0,
   activate_interest: 0,
+  behave_as_payment_gateway: 0,
+  payment_gateway_name: "",
   interest_include_added: 0,
   interest_include_deducted: 0,
   interest_rate: 0,
@@ -296,7 +302,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         lineage.isBank = true;
         lineage.isOD = true;
       }
-      if (name === "duties & taxes" || name === "current assets") lineage.isTax = true;
+      // ── FIX: only "duties & taxes" sets isTax, not "current assets" ──
+      if (name === "duties & taxes") lineage.isTax = true;
       if (name === "sundry debtors" || name === "sundry creditors") lineage.isDebtorCreditor = true;
       if (
         [
@@ -362,7 +369,14 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       if (!groupLineage.isInventory) {
         setForm((f) => ({ ...f, invoice_rounding: 0, rounding_method: "", rounding_limit: 0 }));
       }
-      setForm((f) => ({ ...f, activate_interest: 0, additional_gst_details: 0, service_tax_details: 0 }));
+      setForm((f) => ({
+        ...f,
+        activate_interest: 0,
+        additional_gst_details: 0,
+        service_tax_details: 0,
+        behave_as_payment_gateway: 0,
+        payment_gateway_name: "",
+      }));
       setInterestForm(EMPTY_INTEREST);
       setGstDetails({ ...EMPTY_GST_DETAILS });
       setServiceTaxDetails({ ...EMPTY_SERVICE_TAX_DETAILS });
@@ -481,6 +495,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           tds_pan_status: l.tds_pan_status || "Unknown",
           tds_pan_effective_date: l.tds_pan_effective_date || "",
           tds_name_on_pan: l.tds_name_on_pan || "",
+          deductee_ref: (l as any).tds_deductee_ref || "",
+          tax_unique_id_no: (l as any).tds_tax_unique_id_no || "",
         },
         tcs: {
           is_tcs_applicable: l.is_tcs_applicable ? 1 : 0,
@@ -528,6 +544,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         registration_type: l.registration_type || "Unregistered",
         additional_gst_details: (l as any).additional_gst_details ?? 0,
         service_tax_details: (l as any).service_tax_details ?? 0,
+        behave_as_payment_gateway: (l as any).behave_as_payment_gateway ? 1 : 0,
+        payment_gateway_name: (l as any).payment_gateway_name || "",
         is_bill_wise: l.is_bill_wise || 0,
         maintain_inventory_values: l.maintain_inventory_values || 0,
         default_credit_period: l.default_credit_period || 0,
@@ -609,6 +627,17 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
 
   const handleBankAccept = () => {
     setShowBankPopup(false);
+  };
+
+  // ── Payment Gateway handler ─────────────────────────────────────────────────
+
+  const handlePaymentGatewayChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value as "No" | "Yes";
+    setForm((f) => ({
+      ...f,
+      behave_as_payment_gateway: val === "Yes" ? 1 : 0,
+      payment_gateway_name: val === "Yes" ? f.payment_gateway_name : "",
+    }));
   };
 
   const handleGSTDetailsOpen = () => {
@@ -715,6 +744,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         rounding_limit: form.rounding_limit || 0,
         additional_gst_details: form.additional_gst_details ?? 0,
         service_tax_details: form.service_tax_details ?? 0,
+        behave_as_payment_gateway: form.behave_as_payment_gateway ?? 0,
+        payment_gateway_name: form.payment_gateway_name?.trim() || undefined,
         // GST details
         place_of_supply: gstDetails.place_of_supply || undefined,
         is_party_a_transporter: gstDetails.is_party_a_transporter || "No",
@@ -754,6 +785,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         tds_pan_status: otherStatutory.tds.tds_pan_status,
         tds_pan_effective_date: otherStatutory.tds.tds_pan_effective_date,
         tds_name_on_pan: otherStatutory.tds.tds_name_on_pan,
+        tds_deductee_ref: otherStatutory.tds.deductee_ref,
+        tds_tax_unique_id_no: otherStatutory.tds.tax_unique_id_no,
         is_tds_applicable: otherStatutory.tds.is_tds_applicable,
         is_tcs_applicable: otherStatutory.tcs.is_tcs_applicable,
         tcs_buyer_lessee_type: otherStatutory.tcs.tcs_buyer_lessee_type,
@@ -924,6 +957,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     handleProvideBankChange,
     handleBankClose,
     handleBankAccept,
+    handlePaymentGatewayChange,
     handleGSTDetailsOpen,
     handleGSTDetailsClose,
     handleGSTDetailsAccept,
