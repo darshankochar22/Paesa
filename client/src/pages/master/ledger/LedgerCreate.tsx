@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import GroupFlatList from "@/components/GroupFlatList";
@@ -26,6 +26,15 @@ import { getLedgerConfig } from "./config/LedgerConfig";
 import AdditionalGSTDetailsModal from "./components/AdditionalGSTDetails";
 import ServiceTaxModal from "./components/ServiceTaxModal";
 import VATDetailsModal from "./components/VATDetailsModal";
+import TDSDetailsModal from "./components/statutory/TDSDetailsModal";
+import TCSDetailsModal from "./components/statutory/TCSDetailsModal";
+import {
+  ServiceTaxDetailsModal,
+  ExciseDetailsModal,
+  VATDetailsModal as SimpleVATDetailsModal,
+} from "./components/statutory/SimpleTaxModals";
+import DetailedVATDetailsModal from "./components/statutory/VATTaxRateDetailsModal";
+import DetailedExciseTariffDetails from "../inventory/stock-item/components/ExciseTariffDetails";
 
 const inputCls =
   "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -121,6 +130,32 @@ export default function LedgerCreate() {
     !!statutoryForm.include_in_assessable_value_calculation &&
     statutoryForm.include_in_assessable_value_calculation !== "Not Applicable";
 
+  const [activeStatutoryModal, setActiveStatutoryModal] = useState<
+    | "parent"
+    | "tds"
+    | "tcs"
+    | "serviceTaxTier2"
+    | "serviceTaxTier3"
+    | "exciseTier2"
+    | "exciseTier3"
+    | "vatTier2"
+    | "vatTier3"
+    | null
+  >(null);
+
+  useEffect(() => {
+    if (showOtherStatutoryModal) {
+      setActiveStatutoryModal("parent");
+    } else {
+      setActiveStatutoryModal(null);
+    }
+  }, [showOtherStatutoryModal]);
+
+  const closeAllStatutory = () => {
+    setActiveStatutoryModal(null);
+    setShowOtherStatutoryModal(false);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !showBankPopup && !showGroupPanel && !showServiceTaxModal && !showVATDetailsModal) {
@@ -204,22 +239,154 @@ export default function LedgerCreate() {
         />
       )}
 
-      {showOtherStatutoryModal && (
+      {showOtherStatutoryModal && activeStatutoryModal === "parent" && (
         <OtherStatutoryModal
-          isOpen={showOtherStatutoryModal}
+          isOpen
           ledgerName={form.name || ""}
           visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName).sections}
           value={otherStatutory}
-          serviceTaxDetails={serviceTaxDetails}
-          vatDetails={vatTaxRateDetails}
-          exciseDetails={exciseDetails}
-          onClose={() => setShowOtherStatutoryModal(false)}
-          onAccept={(state, serviceTax, vat, excise) => {
+          onClose={closeAllStatutory}
+          onAccept={(state) => {
             setOtherStatutory(state);
-            if (serviceTax) setServiceTaxDetails(serviceTax);
-            if (vat) setVatTaxRateDetails(vat);
-            if (excise) setExciseDetails(excise);
-            setShowOtherStatutoryModal(false);
+            closeAllStatutory();
+          }}
+          onTriggerSubModal={(kind) => {
+            setOtherStatutory((prev) => {
+              const next = { ...prev };
+              if (kind === "tds") next.tds.is_tds_deductable = 1;
+              if (kind === "tcs") next.tcs.is_tcs_applicable = 1;
+              if (kind === "serviceTax") next.serviceTax.set_alter_service_tax_details = 1;
+              if (kind === "excise") next.excise.set_alter_excise_details = 1;
+              if (kind === "vat") next.vat.set_alter_vat_details = 1;
+              return next;
+            });
+            setActiveStatutoryModal(kind === "tds" ? "tds" : kind === "tcs" ? "tcs" : `${kind}Tier2` as any);
+          }}
+          onResetSubModal={(kind) => {
+            setOtherStatutory((prev) => {
+              const next = { ...prev };
+              if (kind === "tds") next.tds = { ...EMPTY_TDS, tds_pan_it_no: prev.tds.tds_pan_it_no, tds_name_on_pan: prev.tds.tds_name_on_pan };
+              if (kind === "tcs") next.tcs = { ...EMPTY_TCS, tcs_pan_it_no: prev.tcs.tcs_pan_it_no, tcs_name_on_pan: prev.tcs.tcs_name_on_pan };
+              if (kind === "serviceTax") next.serviceTax = { ...EMPTY_SERVICE_TAX };
+              if (kind === "excise") next.excise = { ...EMPTY_EXCISE };
+              if (kind === "vat") next.vat = { ...EMPTY_VAT };
+              return next;
+            });
+          }}
+        />
+      )}
+
+      {showOtherStatutoryModal && activeStatutoryModal === "tds" && (
+        <TDSDetailsModal
+          isOpen
+          ledgerName={form.name || ""}
+          value={otherStatutory.tds}
+          onClose={() => setActiveStatutoryModal("parent")}
+          onAccept={(state) => {
+            setOtherStatutory((prev) => ({ ...prev, tds: state }));
+            setActiveStatutoryModal("parent");
+          }}
+          companyId={selectedCompany?.company_id}
+        />
+      )}
+
+      {showOtherStatutoryModal && activeStatutoryModal === "tcs" && (
+        <TCSDetailsModal
+          isOpen
+          ledgerName={form.name || ""}
+          value={otherStatutory.tcs}
+          onClose={() => setActiveStatutoryModal("parent")}
+          onAccept={(state) => {
+            setOtherStatutory((prev) => ({ ...prev, tcs: state }));
+            setActiveStatutoryModal("parent");
+          }}
+        />
+      )}
+
+      {showOtherStatutoryModal && activeStatutoryModal === "serviceTaxTier2" && (
+        <ServiceTaxDetailsModal
+          isOpen
+          ledgerName={form.name || ""}
+          value={otherStatutory.serviceTax}
+          onClose={() => setActiveStatutoryModal("parent")}
+          onAccept={(state) => {
+            setOtherStatutory((prev) => ({ ...prev, serviceTax: state }));
+            if (state.set_alter_service_tax_details === 1) {
+              setActiveStatutoryModal("serviceTaxTier3");
+            } else {
+              setActiveStatutoryModal("parent");
+            }
+          }}
+        />
+      )}
+
+      {showOtherStatutoryModal && activeStatutoryModal === "serviceTaxTier3" && (
+        <ServiceTaxModal
+          isOpen
+          ledgerName={form.name || ""}
+          value={serviceTaxDetails}
+          onClose={() => setActiveStatutoryModal("parent")}
+          onAccept={(state) => {
+            setServiceTaxDetails(state);
+            setActiveStatutoryModal("parent");
+          }}
+        />
+      )}
+
+      {showOtherStatutoryModal && activeStatutoryModal === "exciseTier2" && (
+        <ExciseDetailsModal
+          isOpen
+          ledgerName={form.name || ""}
+          value={otherStatutory.excise}
+          onClose={() => setActiveStatutoryModal("parent")}
+          onAccept={(state) => {
+            setOtherStatutory((prev) => ({ ...prev, excise: state }));
+            if (state.set_alter_excise_details === 1) {
+              setActiveStatutoryModal("exciseTier3");
+            } else {
+              setActiveStatutoryModal("parent");
+            }
+          }}
+        />
+      )}
+
+      {showOtherStatutoryModal && activeStatutoryModal === "exciseTier3" && (
+        <DetailedExciseTariffDetails
+          initialData={exciseDetails}
+          onAccept={(state) => {
+            setExciseDetails(state);
+            setActiveStatutoryModal("parent");
+          }}
+          onClose={() => setActiveStatutoryModal("parent")}
+        />
+      )}
+
+      {showOtherStatutoryModal && activeStatutoryModal === "vatTier2" && (
+        <SimpleVATDetailsModal
+          isOpen
+          ledgerName={form.name || ""}
+          value={otherStatutory.vat}
+          onClose={() => setActiveStatutoryModal("parent")}
+          onAccept={(state) => {
+            setOtherStatutory((prev) => ({ ...prev, vat: state }));
+            if (state.set_alter_vat_details === 1) {
+              setActiveStatutoryModal("vatTier3");
+            } else {
+              setActiveStatutoryModal("parent");
+            }
+          }}
+        />
+      )}
+
+      {showOtherStatutoryModal && activeStatutoryModal === "vatTier3" && (
+        <DetailedVATDetailsModal
+          isOpen
+          ledgerName={form.name || ""}
+          value={vatTaxRateDetails}
+          onClose={() => setActiveStatutoryModal("parent")}
+          onAccept={(state) => {
+            setVatTaxRateDetails(state);
+            setActiveStatutoryModal("parent");
           }}
         />
       )}

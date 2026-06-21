@@ -1,10 +1,4 @@
 import { useState, useEffect } from "react";
-import DetailedServiceTaxModal from "../ServiceTaxModal";
-import DetailedVATDetailsModal from "./VATTaxRateDetailsModal";
-import DetailedExciseTariffDetails from "../../../inventory/stock-item/components/ExciseTariffDetails";
-import type { ServiceTaxDetails as ServiceTaxRegnDetails } from "../ServiceTaxModal";
-import type { VATTaxRateFormData } from "./VATTaxRateDetailsModal";
-import type { ExciseTariffFormData } from "../../../inventory/stock-item/components/ExciseTariffDetails";
 import {
   ModalChrome,
   ModalTitleBar,
@@ -16,28 +10,13 @@ import {
   type OtherStatutorySectionKey,
 } from "@/config/ledgerStatutoryConfig";
 import { FormRow } from "@/components/ui";
-import {
-  EMPTY_TDS_FORM,
-  type TdsFormState,
-} from "./TDSDetailsModal";
-import {
-  EMPTY_TCS_FORM,
-  type TcsFormState,
-} from "./TCSDetailsModal";
-import {
-  EMPTY_SERVICE_TAX_FORM,
-  EMPTY_EXCISE_FORM,
-  EMPTY_VAT_FORM,
-  ServiceTaxDetailsModal,
-  ExciseDetailsModal,
-  VATDetailsModal,
-  type ServiceTaxFormState,
-  type ExciseFormState,
-  type VATFormState,
+import type { TdsFormState } from "./TDSDetailsModal";
+import type { TcsFormState } from "./TCSDetailsModal";
+import type {
+  ServiceTaxFormState,
+  ExciseFormState,
+  VATFormState,
 } from "./SimpleTaxModals";
-import TDSDetailsModal from "./TDSDetailsModal";
-import TCSDetailsModal from "./TCSDetailsModal";
-import { useCompany } from "../../../../../context/CompanyContext";
 
 export interface OtherStatutoryForm {
   tds: TdsFormState;
@@ -47,41 +26,19 @@ export interface OtherStatutoryForm {
   vat: VATFormState;
 }
 
-export const EMPTY_OTHER_STATUTORY: OtherStatutoryForm = {
-  tds: { ...EMPTY_TDS_FORM },
-  tcs: { ...EMPTY_TCS_FORM },
-  serviceTax: { ...EMPTY_SERVICE_TAX_FORM },
-  excise: { ...EMPTY_EXCISE_FORM },
-  vat: { ...EMPTY_VAT_FORM },
-};
-
 const selectCls =
   "bg-transparent text-[12px] outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-300 focus:border-zinc-800 transition-colors rounded-sm cursor-pointer bg-white/50";
 
 interface OtherStatutoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAccept: (
-    state: OtherStatutoryForm,
-    serviceTax?: ServiceTaxRegnDetails,
-    vat?: VATTaxRateFormData,
-    excise?: ExciseTariffFormData
-  ) => void;
+  onAccept: (state: OtherStatutoryForm) => void;
   ledgerName?: string;
   visibleSections: OtherStatutorySectionKey[];
   value: OtherStatutoryForm;
-  serviceTaxDetails: ServiceTaxRegnDetails;
-  vatDetails: VATTaxRateFormData;
-  exciseDetails: ExciseTariffFormData;
+  onTriggerSubModal: (kind: OtherStatutorySectionKey) => void;
+  onResetSubModal: (kind: OtherStatutorySectionKey) => void;
 }
-
-type Tier2 =
-  | { kind: "tds" }
-  | { kind: "tcs" }
-  | { kind: "serviceTax" }
-  | { kind: "excise" }
-  | { kind: "vat" }
-  | null;
 
 export default function OtherStatutoryModal({
   isOpen,
@@ -90,43 +47,20 @@ export default function OtherStatutoryModal({
   ledgerName,
   visibleSections,
   value,
-  serviceTaxDetails,
-  vatDetails,
-  exciseDetails,
+  onTriggerSubModal,
+  onResetSubModal,
 }: OtherStatutoryModalProps) {
   const [form, setForm] = useState<OtherStatutoryForm>(value);
-  const [activeTier2, setActiveTier2] = useState<Tier2>(null);
-  const [activeTier3, setActiveTier3] = useState<"serviceTax" | "vat" | "excise" | null>(null);
-
-  const [localServiceTaxDetails, setLocalServiceTaxDetails] = useState<ServiceTaxRegnDetails>(serviceTaxDetails);
-  const [localVatDetails, setLocalVatDetails] = useState<VATTaxRateFormData>(vatDetails);
-  const [localExciseDetails, setLocalExciseDetails] = useState<ExciseTariffFormData>(exciseDetails);
-
-  const { selectedCompany } = useCompany();
 
   useEffect(() => {
     if (isOpen) {
       setForm(value);
-      setLocalServiceTaxDetails(serviceTaxDetails);
-      setLocalVatDetails(vatDetails);
-      setLocalExciseDetails(exciseDetails);
-      setActiveTier2(null);
-      setActiveTier3(null);
     }
-  }, [isOpen, value, serviceTaxDetails, vatDetails, exciseDetails]);
+  }, [isOpen, value]);
 
-  useEscapeClose(isOpen, () => {
-    if (activeTier3) setActiveTier3(null);
-    else if (activeTier2) setActiveTier2(null);
-    else onClose();
-  });
+  useEscapeClose(isOpen, onClose);
 
   if (!isOpen) return null;
-
-  const updateSection = <K extends keyof OtherStatutoryForm>(
-    key: K,
-    patch: Partial<OtherStatutoryForm[K]>,
-  ) => setForm((f) => ({ ...f, [key]: { ...f[key], ...patch } }));
 
   const sectionActive = (key: OtherStatutorySectionKey): boolean => {
     switch (key) {
@@ -143,235 +77,64 @@ export default function OtherStatutoryModal({
     }
   };
 
-  // Reset a section back to its empty/off state (used when flipping Yes -> No).
-  const resetSection = (key: OtherStatutorySectionKey) => {
-    switch (key) {
-      case "tds":
-        setForm((f) => ({
-          ...f,
-          tds: { ...EMPTY_TDS_FORM, tds_pan_it_no: f.tds.tds_pan_it_no, tds_name_on_pan: f.tds.tds_name_on_pan },
-        }));
-        break;
-      case "tcs":
-        setForm((f) => ({
-          ...f,
-          tcs: { ...EMPTY_TCS_FORM, tcs_pan_it_no: f.tcs.tcs_pan_it_no, tcs_name_on_pan: f.tcs.tcs_name_on_pan },
-        }));
-        break;
-      case "serviceTax":
-        setForm((f) => ({ ...f, serviceTax: { ...EMPTY_SERVICE_TAX_FORM } }));
-        break;
-      case "excise":
-        setForm((f) => ({ ...f, excise: { ...EMPTY_EXCISE_FORM } }));
-        break;
-      case "vat":
-        setForm((f) => ({ ...f, vat: { ...EMPTY_VAT_FORM } }));
-        break;
-    }
-  };
-
-  // Flip a section's "active" flag to Yes (1) without touching its other fields.
-  const activateSection = (key: OtherStatutorySectionKey) => {
-    switch (key) {
-      case "tds":
-        setForm((f) => ({ ...f, tds: { ...f.tds, is_tds_deductable: 1 } }));
-        break;
-      case "tcs":
-        setForm((f) => ({ ...f, tcs: { ...f.tcs, is_tcs_applicable: 1 } }));
-        break;
-      case "serviceTax":
-        setForm((f) => ({
-          ...f,
-          serviceTax: { ...f.serviceTax, set_alter_service_tax_details: 1 },
-        }));
-        break;
-      case "excise":
-        setForm((f) => ({
-          ...f,
-          excise: { ...f.excise, set_alter_excise_details: 1 },
-        }));
-        break;
-      case "vat":
-        setForm((f) => ({ ...f, vat: { ...f.vat, set_alter_vat_details: 1 } }));
-        break;
-    }
-  };
-
-  // Every section now follows the same Yes/No -> Tier-2 pattern as TDS/TCS:
-  //   No  -> Yes : flip the active flag, then open that section's Tier-2 modal
-  //   Yes -> Yes : already active, just reopen the Tier-2 modal to edit
-  //   Yes -> No  : reset the section back to its empty state, no modal
   const onRowClick = (key: OtherStatutorySectionKey) => {
     const isActive = sectionActive(key);
     if (isActive) {
-      resetSection(key);
+      onResetSubModal(key);
+      setForm((f) => {
+        const next = { ...f };
+        if (key === "tds") next.tds = { ...f.tds, is_tds_deductable: 0 };
+        if (key === "tcs") next.tcs = { ...f.tcs, is_tcs_applicable: 0 };
+        if (key === "serviceTax") next.serviceTax = { ...f.serviceTax, set_alter_service_tax_details: 0 };
+        if (key === "excise") next.excise = { ...f.excise, set_alter_excise_details: 0 };
+        if (key === "vat") next.vat = { ...f.vat, set_alter_vat_details: 0 };
+        return next;
+      });
     } else {
-      activateSection(key);
-      setTimeout(() => setActiveTier2({ kind: key }), 0);
+      onTriggerSubModal(key);
     }
   };
 
-  const showParent = activeTier2 === null && activeTier3 === null;
-
   return (
-    <>
-      {showParent && (
-        <ModalChrome width={520}>
-          <ModalTitleBar
-            title={`Statutory Details for ${ledgerName || "Ledger"}`}
-            onClose={onClose}
-          />
-          <div className="px-6 py-4 space-y-2">
-            {visibleSections.length === 0 && (
-              <div className="text-[12px] text-zinc-500 italic">
-                No statutory sections are applicable for this group.
-              </div>
-            )}
-            {visibleSections.map((key) => {
-              const meta = SECTION_META[key];
-              const isActive = sectionActive(key);
-              return (
-                <FormRow
-                  key={key}
-                  label={`Set/Alter ${meta.label} details`}
-                  labelWidth="w-60"
-                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50"
-                >
-                  <select
-                    className={selectCls + " max-w-[80px]"}
-                    value={isActive ? "Yes" : "No"}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={() => onRowClick(key)}
-                  >
-                    <option>No</option>
-                    <option>Yes</option>
-                  </select>
-                </FormRow>
-              );
-            })}
+    <ModalChrome width={520}>
+      <ModalTitleBar
+        title={`Statutory Details for ${ledgerName || "Ledger"}`}
+        onClose={onClose}
+      />
+      <div className="px-6 py-4 space-y-2">
+        {visibleSections.length === 0 && (
+          <div className="text-[12px] text-zinc-500 italic">
+            No statutory sections are applicable for this group.
           </div>
-          <ModalFooter
-            onClose={onClose}
-            onAccept={() =>
-              onAccept(
-                form,
-                localServiceTaxDetails,
-                localVatDetails,
-                localExciseDetails
-              )
-            }
-            acceptLabel="Ok"
-          />
-        </ModalChrome>
-      )}
-
-      {/* Tier-2 detail modals (z-[60] on top of Tier-1's z-50) */}
-      {activeTier2?.kind === "tds" && (
-        <TDSDetailsModal
-          isOpen
-          ledgerName={ledgerName}
-          value={form.tds}
-          onClose={() => setActiveTier2(null)}
-          onAccept={(state) => {
-            updateSection("tds", state);
-            setActiveTier2(null);
-          }}
-          companyId={selectedCompany?.company_id}
-        />
-      )}
-      {activeTier2?.kind === "tcs" && (
-        <TCSDetailsModal
-          isOpen
-          ledgerName={ledgerName}
-          value={form.tcs}
-          onClose={() => setActiveTier2(null)}
-          onAccept={(state) => {
-            updateSection("tcs", state);
-            setActiveTier2(null);
-          }}
-        />
-      )}
-      {activeTier2?.kind === "serviceTax" && (
-        <ServiceTaxDetailsModal
-          isOpen
-          ledgerName={ledgerName}
-          value={form.serviceTax}
-          onClose={() => setActiveTier2(null)}
-          onAccept={(state) => {
-            updateSection("serviceTax", state);
-            setActiveTier2(null);
-            if (state.set_alter_service_tax_details === 1) {
-              setActiveTier3("serviceTax");
-            }
-          }}
-        />
-      )}
-      {activeTier2?.kind === "excise" && (
-        <ExciseDetailsModal
-          isOpen
-          ledgerName={ledgerName}
-          value={form.excise}
-          onClose={() => setActiveTier2(null)}
-          onAccept={(state) => {
-            updateSection("excise", state);
-            setActiveTier2(null);
-            if (state.set_alter_excise_details === 1) {
-              setActiveTier3("excise");
-            }
-          }}
-        />
-      )}
-      {activeTier2?.kind === "vat" && (
-        <VATDetailsModal
-          isOpen
-          ledgerName={ledgerName}
-          value={form.vat}
-          onClose={() => setActiveTier2(null)}
-          onAccept={(state) => {
-            updateSection("vat", state);
-            setActiveTier2(null);
-            if (state.set_alter_vat_details === 1) {
-              setActiveTier3("vat");
-            }
-          }}
-        />
-      )}
-
-      {/* Tier-3 detail modals (z-[70] on top of Tier-2's z-[60]) */}
-      {activeTier3 === "serviceTax" && (
-        <DetailedServiceTaxModal
-          isOpen
-          ledgerName={ledgerName}
-          value={localServiceTaxDetails}
-          onClose={() => setActiveTier3(null)}
-          onAccept={(state) => {
-            setLocalServiceTaxDetails(state);
-            setActiveTier3(null);
-          }}
-        />
-      )}
-      {activeTier3 === "excise" && (
-        <DetailedExciseTariffDetails
-          initialData={localExciseDetails}
-          onAccept={(state) => {
-            setLocalExciseDetails(state);
-            setActiveTier3(null);
-          }}
-          onClose={() => setActiveTier3(null)}
-        />
-      )}
-      {activeTier3 === "vat" && (
-        <DetailedVATDetailsModal
-          isOpen
-          ledgerName={ledgerName}
-          value={localVatDetails}
-          onClose={() => setActiveTier3(null)}
-          onAccept={(state) => {
-            setLocalVatDetails(state);
-            setActiveTier3(null);
-          }}
-        />
-      )}
-    </>
+        )}
+        {visibleSections.map((key) => {
+          const meta = SECTION_META[key];
+          const isActive = sectionActive(key);
+          return (
+            <FormRow
+              key={key}
+              label={`Set/Alter ${meta.label} details`}
+              labelWidth="w-60"
+              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50"
+            >
+              <select
+                className={selectCls + " max-w-[80px]"}
+                value={isActive ? "Yes" : "No"}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => onRowClick(key)}
+              >
+                <option>No</option>
+                <option>Yes</option>
+              </select>
+            </FormRow>
+          );
+        })}
+      </div>
+      <ModalFooter
+        onClose={onClose}
+        onAccept={() => onAccept(form)}
+        acceptLabel="Ok"
+      />
+    </ModalChrome>
   );
 }
