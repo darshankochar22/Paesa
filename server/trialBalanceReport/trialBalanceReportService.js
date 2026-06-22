@@ -36,7 +36,7 @@ const computeTrialBalanceRows = async (company_id, fy_id) => {
 
   // 2. Ledgers
   const allLedgers = await db.all(
-    sql`SELECT ledger_id, name, opening_balance, group_id
+    sql`SELECT ledger_id, name, opening_balance, opening_balance_type, group_id
         FROM ${ledgers}
         WHERE company_id = ${company_id} AND is_active = 1`
   );
@@ -56,7 +56,11 @@ const computeTrialBalanceRows = async (company_id, fy_id) => {
   // 4. Per-ledger figures
   const ledgerMap = {};
   for (const l of allLedgers) {
-    const opening = Number(l.opening_balance) || 0;
+    const rawOpening = Number(l.opening_balance) || 0;
+    // Legacy negative = Cr; new positive uses opening_balance_type
+    const opening = rawOpening < 0
+      ? rawOpening
+      : (l.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
     let periodDr = 0;
     let periodCr = 0;
 

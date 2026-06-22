@@ -43,8 +43,11 @@ const getEntriesUpto = async (company_id, fy_id, cutoff_date, inclusive) => {
 };
 
 // Net balance of a single ledger across a set of entries (Dr positive, Cr negative).
-const calcLedgerBalance = (ledger_id, entries, opening_balance = 0) => {
-  let balance = opening_balance;
+const calcLedgerBalance = (ledger_id, entries, opening_balance = 0, opening_balance_type = 'Dr') => {
+  const rawOpening = Number(opening_balance) || 0;
+  let balance = rawOpening < 0
+    ? rawOpening
+    : (opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
   for (const e of entries) {
     if (e.ledger_id === ledger_id) {
       balance += e.type === 'Dr' ? e.amount : -e.amount;
@@ -62,7 +65,7 @@ module.exports = {
     try {
       // Ledgers joined to their group nature, exactly like balanceSheet/profitLoss.
       const ledgerRows = await db.all(
-        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id,
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type, l.group_id,
                    g.nature, g.name AS group_name
             FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
@@ -76,8 +79,8 @@ module.exports = {
       // Per-ledger opening balance, closing balance and change over the period.
       // `change` is signed in Dr-positive terms (the natural sign of the balance).
       const movements = ledgerRows.map(l => {
-        const opening = calcLedgerBalance(l.ledger_id, openingEntries, l.opening_balance || 0);
-        const closing = calcLedgerBalance(l.ledger_id, closingEntries, l.opening_balance || 0);
+        const opening = calcLedgerBalance(l.ledger_id, openingEntries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
+        const closing = calcLedgerBalance(l.ledger_id, closingEntries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
         return {
           ledger_id: l.ledger_id,
           ledger_name: l.name,

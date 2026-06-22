@@ -58,7 +58,7 @@ const trialBalance = async (company_id, fy_id) => {
     );
 
     const allLedgers = await db.all(
-      sql`SELECT ledger_id, name AS ledger_name, opening_balance, group_id
+      sql`SELECT ledger_id, name AS ledger_name, opening_balance, opening_balance_type, group_id
           FROM ${ledgers}
           WHERE company_id = ${company_id} AND is_active = 1`
     );
@@ -66,7 +66,10 @@ const trialBalance = async (company_id, fy_id) => {
     // Per-ledger net balance
     const ledgerBalances = {};
     for (const l of allLedgers) {
-      let balance = Number(l.opening_balance) || 0;
+      const rawOpening = Number(l.opening_balance) || 0;
+      let balance = rawOpening < 0
+        ? rawOpening
+        : (l.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
       for (const e of entries) {
         if (e.ledger_id === l.ledger_id)
           balance += e.type === 'Dr' ? Number(e.amount) : -Number(e.amount);
@@ -121,14 +124,17 @@ const groupSummary = async (company_id, fy_id, group_id) => {
     );
 
     const allLedgers = await db.all(
-      sql`SELECT ledger_id, name AS ledger_name, opening_balance, group_id
+      sql`SELECT ledger_id, name AS ledger_name, opening_balance, opening_balance_type, group_id
           FROM ${ledgers}
           WHERE company_id = ${company_id} AND is_active = 1`
     );
 
     const ledgerBalances = {};
     for (const l of allLedgers) {
-      let balance = Number(l.opening_balance) || 0;
+      const rawOpening = Number(l.opening_balance) || 0;
+      let balance = rawOpening < 0
+        ? rawOpening
+        : (l.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
       for (const e of entries) {
         if (e.ledger_id === l.ledger_id)
           balance += e.type === 'Dr' ? Number(e.amount) : -Number(e.amount);
@@ -190,7 +196,7 @@ const groupSummary = async (company_id, fy_id, group_id) => {
 const ledgerMonthlySummary = async (company_id, fy_id, ledger_id) => {
   try {
     const ledger = await db.get(
-      sql`SELECT ledger_id, name AS ledger_name, opening_balance, group_id
+      sql`SELECT ledger_id, name AS ledger_name, opening_balance, opening_balance_type, group_id
           FROM ${ledgers}
           WHERE ledger_id = ${ledger_id} AND company_id = ${company_id}`
     );
@@ -222,7 +228,10 @@ const ledgerMonthlySummary = async (company_id, fy_id, ledger_id) => {
       else                   monthlyTxn[idx].credit += Number(row.amount);
     }
 
-    const openingBalance = Number(ledger.opening_balance) || 0;
+    const rawOpening = Number(ledger.opening_balance) || 0;
+    const openingBalance = rawOpening < 0
+      ? rawOpening
+      : (ledger.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
     let runningBalance = openingBalance;
     const rows = MONTHS.map((month, idx) => {
       const { debit, credit } = monthlyTxn[idx];

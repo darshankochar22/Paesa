@@ -116,13 +116,19 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
   const row = rows[0];
   if (!row) return { success: false, error: 'Ledger not found' };
 
-  const isDrNature = row.nature !== 'Liabilities' && row.nature !== 'Income';
+  const rawOpening = Number(row.opening_balance) || 0;
+  const absOpening = Math.abs(rawOpening);
   const isDrType = row.opening_balance_type === 'Dr';
-  const openingBal = Math.abs(Number(row.opening_balance)) || 0;
+  const isDrNature = row.nature !== 'Liabilities' && row.nature !== 'Income';
+
+  // Legacy data: negative opening_balance means Cr (from Tally imports, etc.)
+  // New data: positive opening_balance, use opening_balance_type to determine sign
+  const effectiveOpening = rawOpening < 0
+    ? rawOpening
+    : (isDrNature === isDrType ? absOpening : -absOpening);
+
   const totalDr = Number(row.total_dr) || 0;
   const totalCr = Number(row.total_cr) || 0;
-
-  const effectiveOpening = (isDrNature === isDrType) ? openingBal : -openingBal;
 
   const balance = isDrNature
     ? effectiveOpening + totalDr - totalCr

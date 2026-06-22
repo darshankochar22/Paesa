@@ -62,7 +62,11 @@ module.exports = {
       );
 
       const processed = rows.map(r => {
-        let closing = (r.opening_balance_type === 'Dr' ? r.opening_balance : -r.opening_balance) 
+        const rawOpening = Number(r.opening_balance) || 0;
+        const effectiveOpening = rawOpening < 0
+          ? rawOpening
+          : (r.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
+        let closing = effectiveOpening
                       + (r.total_debit || 0) 
                       - (r.total_credit || 0);
         

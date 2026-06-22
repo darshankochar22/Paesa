@@ -197,7 +197,7 @@ const queryLedgerBalances = async (company_id, fy_id, filters = {}) => {
     if (filters.ledger_type) ledgerConditions.push(sql`l.ledger_type = ${filters.ledger_type}`);
 
     const ledgerRows = await db.all(
-      sql`SELECT l.ledger_id, l.name AS ledger_name, l.opening_balance, l.ledger_type,
+      sql`SELECT l.ledger_id, l.name AS ledger_name, l.opening_balance, l.opening_balance_type, l.ledger_type,
                  g.name AS group_name, g.nature
           FROM ${ledgers} l
           LEFT JOIN ${groups} g ON g.group_id = l.group_id
@@ -207,7 +207,10 @@ const queryLedgerBalances = async (company_id, fy_id, filters = {}) => {
 
     // Step 4: Combine opening balance + entries to get closing balance
     const mapped = ledgerRows.map(l => {
-      const opening = Number(l.opening_balance) || 0;
+      const rawOpening = Number(l.opening_balance) || 0;
+      const opening = rawOpening < 0
+        ? rawOpening
+        : (l.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
       const bal = balanceMap[l.ledger_id] || { debit: 0, credit: 0 };
       const closing = opening + bal.debit - bal.credit;
       return {
@@ -696,7 +699,12 @@ const getExceptions = async (company_id, fy_id, exceptionTypeArg = 'negative_sto
                 g.name AS group_name,
                 g.nature,
                 l.opening_balance,
-                COALESCE(l.opening_balance, 0)
+                l.opening_balance_type,
+                CASE
+                  WHEN l.opening_balance < 0 THEN l.opening_balance
+                  WHEN l.opening_balance_type = 'Cr' THEN -COALESCE(l.opening_balance, 0)
+                  ELSE COALESCE(l.opening_balance, 0)
+                END
                   + COALESCE((SELECT SUM(ve.amount) FROM ${voucherEntries} ve
                       INNER JOIN ${vouchers} v ON v.voucher_id = ve.voucher_id
                       WHERE ve.ledger_id = l.ledger_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id}
@@ -761,7 +769,8 @@ const getExceptions = async (company_id, fy_id, exceptionTypeArg = 'negative_sto
         // Find cash ledgers by ledger_type OR by group nature.
         let cashLedgerIds = await db.all(
           sql`SELECT l.ledger_id, l.name AS ledger_name,
-                     COALESCE(l.opening_balance, 0) AS opening_balance
+                     l.opening_balance,
+                     l.opening_balance_type
               FROM ${ledgers} l
               WHERE l.company_id = ${company_id} AND l.is_active = 1
                 AND l.ledger_type = 'Cash'`
@@ -769,7 +778,8 @@ const getExceptions = async (company_id, fy_id, exceptionTypeArg = 'negative_sto
         if (cashLedgerIds.length === 0) {
           cashLedgerIds = await db.all(
             sql`SELECT l.ledger_id, l.name AS ledger_name,
-                       COALESCE(l.opening_balance, 0) AS opening_balance
+                       l.opening_balance,
+                       l.opening_balance_type
                 FROM ${ledgers} l
                 INNER JOIN ${groups} g ON g.group_id = l.group_id
                 WHERE l.company_id = ${company_id} AND l.is_active = 1
@@ -794,10 +804,14 @@ const getExceptions = async (company_id, fy_id, exceptionTypeArg = 'negative_sto
         }
         const allCashRows = cashLedgerIds.map(l => {
           const e = entryMap[l.ledger_id] || { dr: 0, cr: 0 };
+          const rawOpening = Number(l.opening_balance) || 0;
+          const effectiveOpening = rawOpening < 0
+            ? rawOpening
+            : (l.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
           return {
             ledger_id: l.ledger_id,
             ledger_name: l.ledger_name,
-            closing_balance: l.opening_balance + e.dr - e.cr,
+            closing_balance: effectiveOpening + e.dr - e.cr,
           };
         });
         const negativeRows = allCashRows.filter(r => r.closing_balance < 0);
@@ -989,6 +1003,7 @@ const getSummary = async (company_id, fy_id, entityTypeArg = 'ledger') => {
                 g.name AS group_name,
                 g.nature,
                 COALESCE(l.opening_balance, 0) AS opening_balance,
+                l.opening_balance_type,
                 COALESCE((SELECT SUM(ve.amount) FROM ${voucherEntries} ve
                     INNER JOIN ${vouchers} v ON v.voucher_id = ve.voucher_id
                     WHERE ve.ledger_id = l.ledger_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id}
@@ -1005,7 +1020,8 @@ const getSummary = async (company_id, fy_id, entityTypeArg = 'ledger') => {
               ORDER BY g.name ASC, l.name ASC`
         );
         rows = rows.map(r => {
-          const ob = Number(r.opening_balance) || 0;
+          const rawOb = Number(r.opening_balance) || 0;
+          const ob = rawOb < 0 ? rawOb : (r.opening_balance_type === 'Cr' ? -rawOb : rawOb);
           const dr = Number(r.total_debit) || 0;
           const cr = Number(r.total_credit) || 0;
           const cb = ob + dr - cr;
@@ -1031,7 +1047,11 @@ const getSummary = async (company_id, fy_id, entityTypeArg = 'ledger') => {
                 g.nature,
                 COUNT(l.ledger_id) AS ledger_count,
                 COALESCE(SUM(
-                  COALESCE(l.opening_balance, 0)
+                  CASE
+                    WHEN l.opening_balance < 0 THEN l.opening_balance
+                    WHEN l.opening_balance_type = 'Cr' THEN -COALESCE(l.opening_balance, 0)
+                    ELSE COALESCE(l.opening_balance, 0)
+                  END
                   + COALESCE((SELECT SUM(ve.amount) FROM ${voucherEntries} ve
                       INNER JOIN ${vouchers} v ON v.voucher_id = ve.voucher_id
                       WHERE ve.ledger_id = l.ledger_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id}

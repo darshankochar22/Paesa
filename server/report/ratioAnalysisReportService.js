@@ -30,8 +30,11 @@ const getEntries = async (company_id, fy_id) => {
 
 // Signed running balance for one ledger (Dr +, Cr -) seeded from its opening
 // balance — same convention as reportService.calcLedgerBalance.
-const calcLedgerBalance = (ledger_id, entries, opening_balance = 0) => {
-  let balance = opening_balance;
+const calcLedgerBalance = (ledger_id, entries, opening_balance = 0, opening_balance_type = 'Dr') => {
+  const rawOpening = Number(opening_balance) || 0;
+  let balance = rawOpening < 0
+    ? rawOpening
+    : (opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
   entries
     .filter(e => e.ledger_id === ledger_id)
     .forEach(e => {
@@ -83,7 +86,7 @@ module.exports = {
       // ledger's own (null) `nature` column after the alias and clobbered the
       // group nature, which zeroed every component and ratio.
       const ledgerRows = await db.all(
-        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id, g.nature AS nature
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type, l.group_id, g.nature AS nature
             FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1`
@@ -112,7 +115,7 @@ module.exports = {
       ]);
 
       for (const l of ledgerRows) {
-        const bal = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0);
+        const bal = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
         const abs = Math.abs(bal);
         if (abs === 0) continue;
 

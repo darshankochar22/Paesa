@@ -6,7 +6,7 @@ module.exports = {
   run: async (company_id, fy_id, params = {}) => {
     try {
       const activeLedgers = await db.all(
-        sql`SELECT l.ledger_id, l.name, l.opening_balance, g.nature
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type, g.nature
             FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1`
@@ -28,18 +28,21 @@ module.exports = {
         const totalCr = ledgerEntries.filter(e => e.type === 'Cr').reduce((s, e) => s + e.amount, 0);
 
         const isDrNature = l.nature !== 'Liabilities' && l.nature !== 'Income';
-        const openingBal = Number(l.opening_balance) || 0;
+        const rawOpening = Number(l.opening_balance) || 0;
+        const effectiveOpening = rawOpening < 0
+          ? rawOpening
+          : (l.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
 
-        const balance = isDrNature
-          ? openingBal + totalDr - totalCr
-          : openingBal + totalCr - totalDr;
+        const rawBalance = effectiveOpening + totalDr - totalCr;
+        const balance = isDrNature ? rawBalance : -rawBalance;
 
         if (balance < 0) {
           result.push({
             ledger_id: l.ledger_id,
             ledger_name: l.name,
             nature: l.nature,
-            opening_balance: openingBal,
+            opening_balance: Math.abs(effectiveOpening),
+            opening_balance_type: effectiveOpening < 0 ? 'Cr' : 'Dr',
             total_dr: totalDr,
             total_cr: totalCr,
             balance: Math.abs(balance),

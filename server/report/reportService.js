@@ -16,8 +16,11 @@ const getEntries = async (company_id, fy_id) => {
   return rows;
 };
 
-const calcLedgerBalance = (ledger_id, entries, opening_balance = 0) => {
-  let balance = opening_balance;
+const calcLedgerBalance = (ledger_id, entries, opening_balance = 0, opening_balance_type = 'Dr') => {
+  const rawOpening = Number(opening_balance) || 0;
+  let balance = rawOpening < 0
+    ? rawOpening
+    : (opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
   entries
     .filter(e => e.ledger_id === ledger_id)
     .forEach(e => {
@@ -56,7 +59,7 @@ module.exports = {
       const entries = await getEntries(company_id, fy_id);
 
       const ledgerRows = await db.all(
-        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id,
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type, l.group_id,
                    g.nature
             FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
@@ -69,7 +72,7 @@ module.exports = {
         .map(l => ({
           ledger_id: l.ledger_id,
           ledger_name: l.name,
-          balance: calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0),
+          balance: calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0, l.opening_balance_type || 'Dr'),
         }));
 
       // Assets carry debit (positive) balances; liabilities carry credit
@@ -118,7 +121,7 @@ module.exports = {
       const entries = await getEntries(company_id, fy_id);
 
       const ledgerRows = await db.all(
-        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id,
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type, l.group_id,
                    g.nature
             FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
@@ -128,7 +131,7 @@ module.exports = {
       const getLedgersByNature = (nature) => ledgerRows
         .filter(l => l.nature === nature)
         .map(l => {
-          const raw = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0);
+          const raw = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
           return {
             ledger_id: l.ledger_id,
             ledger_name: l.name,
@@ -171,6 +174,11 @@ module.exports = {
       );
       if (ledgerRows.length === 0) return { success: false, error: 'Ledger not found' };
 
+      const rawOpening = Number(ledgerRows[0].opening_balance) || 0;
+      const effectiveOpening = rawOpening < 0
+        ? rawOpening
+        : (ledgerRows[0].opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
+
       // Build the entry query with optional date bounds, mirroring the legacy
       // conditional WHERE clauses. sql.join lets us append predicates only when
       // the corresponding date filter is supplied.
@@ -193,7 +201,7 @@ module.exports = {
             ORDER BY v.date ASC`
       );
 
-      let runningBalance = ledgerRows[0].opening_balance || 0;
+      let runningBalance = effectiveOpening;
       const rows = result.map(e => {
         runningBalance += e.type === 'Dr' ? e.amount : -e.amount;
         return {
@@ -210,7 +218,7 @@ module.exports = {
       return {
         success: true,
         ledger_name: ledgerRows[0].name,
-        opening_balance: ledgerRows[0].opening_balance || 0,
+        opening_balance: effectiveOpening,
         rows,
         closing_balance: runningBalance,
       };
@@ -299,7 +307,7 @@ module.exports = {
     try {
       const entries = await getEntries(company_id, fy_id);
       const ledgerRows = await db.all(
-        sql`SELECT l.ledger_id, l.name AS ledger_name, l.group_id, l.opening_balance,
+        sql`SELECT l.ledger_id, l.name AS ledger_name, l.group_id, l.opening_balance, l.opening_balance_type,
                    g.name AS group_name, g.nature
             FROM ${ledgers} l
             LEFT JOIN ${groups} g ON g.group_id = l.group_id
@@ -311,7 +319,7 @@ module.exports = {
       for (const l of ledgerRows) {
         const gname = l.group_name || 'Ungrouped';
         if (!groupMap[l.group_id]) groupMap[l.group_id] = { group_name: gname, debit: 0, credit: 0 };
-        const balance = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0);
+        const balance = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
         if (balance > 0) groupMap[l.group_id].debit += balance;
         else groupMap[l.group_id].credit += Math.abs(balance);
       }

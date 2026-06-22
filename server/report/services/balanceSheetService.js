@@ -15,8 +15,11 @@ const getEntries = async (company_id, fy_id) => {
   );
 };
 
-const calcLedgerBalance = (ledger_id, entries, opening_balance = 0) => {
-  let balance = Number(opening_balance) || 0;
+const calcLedgerBalance = (ledger_id, entries, opening_balance = 0, opening_balance_type = 'Dr') => {
+  const rawOpening = Number(opening_balance) || 0;
+  let balance = rawOpening < 0
+    ? rawOpening
+    : (opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
   for (const e of entries) {
     if (e.ledger_id === ledger_id) {
       balance += e.type === 'Dr' ? Number(e.amount) : -Number(e.amount);
@@ -72,7 +75,7 @@ const balanceSheet = async (company_id, fy_id) => {
 
 
     const allLedgers = await db.all(
-      sql`SELECT l.ledger_id, l.name AS ledger_name, l.opening_balance, l.group_id
+      sql`SELECT l.ledger_id, l.name AS ledger_name, l.opening_balance, l.opening_balance_type, l.group_id
           FROM ${ledgers} l
           WHERE l.company_id = ${company_id} AND l.is_active = 1`
     );
@@ -83,7 +86,7 @@ const balanceSheet = async (company_id, fy_id) => {
         ledger_id:    l.ledger_id,
         ledger_name:  l.ledger_name,
         group_id:     l.group_id,
-        balance:      calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0),
+        balance:      calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0, l.opening_balance_type || 'Dr'),
       };
     }
 

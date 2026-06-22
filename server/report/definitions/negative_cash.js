@@ -6,7 +6,7 @@ module.exports = {
   run: async (company_id, fy_id, params = {}) => {
     try {
       const cashLedgers = await db.all(
-        sql`SELECT l.ledger_id, l.name, l.opening_balance
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type
             FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1
@@ -25,7 +25,10 @@ module.exports = {
               ORDER BY v.date ASC, v.voucher_id ASC, e.entry_id ASC`
         );
 
-        let running = Number(ledger.opening_balance) || 0;
+        const rawOpening = Number(ledger.opening_balance) || 0;
+        let running = rawOpening < 0
+          ? rawOpening
+          : (ledger.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
         const negativeDates = [];
 
         for (const entry of entries) {
