@@ -554,7 +554,7 @@ export default function Daybook() {
   // Tries the edit route first; adjust the path to match your router setup.
   // Common patterns: /transactions/vouchers/edit/:id  OR  /transactions/voucher/:id/edit
   const openVoucher = useCallback((voucherId: number) => {
-    navigate(`/transactions/vouchers/edit/${voucherId}`);
+    navigate(`/transactions/voucher/${voucherId}`);
   }, [navigate]);
 
   useEffect(() => {
