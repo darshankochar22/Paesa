@@ -1,16 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../../context/CompanyContext";
 import { cn } from "@/lib/utils";
-
-interface StockGroup {
-  group_id: number;
-  group_name: string;
-  closing_qty: number;
-  closing_value: number;
-  item_count: number;
-  items: StockItem[];
-}
+import type { StockSummaryGroupNode } from "@/types/api/Transactions";
 
 interface StockItem {
   item_id: number;
@@ -32,7 +24,16 @@ interface MonthRow {
   closing_value: number;
 }
 
-type Level = "groups" | "items" | "monthly";
+// A row visible at the current drill level: either a child stock group
+// (drills further into the tree) or a leaf stock item (drills to monthly).
+type Row =
+  | { kind: "group"; node: StockSummaryGroupNode }
+  | { kind: "item"; item: StockItem };
+
+// "groups" covers every depth of the stock-group tree (root and nested,
+// since a node's shape is identical at any depth) plus a terminal "monthly"
+// level for a single item's month-wise movement.
+type Level = "groups" | "monthly";
 
 const fmt = (val: number, digits = 2): string => {
   if (val === 0) return "";
@@ -145,14 +146,16 @@ export default function StockSummary() {
   const { selectedCompany, activeFY } = useCompany();
 
   // ── Level state ────────────────────────────────────────────────────────────
+  // "groups" handles every depth of the stock-group tree. rootGroups never
+  // changes after load; groupPath is the stack of group nodes drilled into so
+  // far (e.g. [Choco, Dairy Milk] once you've drilled two levels deep). The
+  // rows shown at any time are the childGroups + items of the last entry in
+  // groupPath, or rootGroups if the path is empty.
   const [level, setLevel] = useState<Level>("groups");
-  const [groups, setGroups] = useState<StockGroup[]>([]);
+  const [rootGroups, setRootGroups] = useState<StockSummaryGroupNode[]>([]);
+  const [groupPath, setGroupPath] = useState<StockSummaryGroupNode[]>([]);
   const [totalClosingValue, setTotalClosingValue] = useState(0);
   const [totalClosingQty, setTotalClosingQty] = useState(0);
-
-  const [selectedGroup, setSelectedGroup] = useState<StockGroup | null>(null);
-  const [groupItems, setGroupItems] = useState<StockItem[]>([]);
-  const [groupItemsTotal, setGroupItemsTotal] = useState({ qty: 0, value: 0 });
 
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [monthlyData, setMonthlyData] = useState<{ item_name: string; opening_qty: number; opening_value: number; months: MonthRow[] } | null>(null);
@@ -172,10 +175,42 @@ export default function StockSummary() {
       })()
     : "";
 
+  // The group node currently being viewed, or null if we're at the root.
+  const currentGroup = groupPath.length > 0 ? groupPath[groupPath.length - 1] : null;
+
+  // Rows for the current level: child groups first (so sub-groups always
+  // list above leaf items, matching Tally), then this node's own direct
+  // items, each filtered down to ones with real activity.
+  const currentRows: Row[] = useMemo(() => {
+    const childGroups = currentGroup ? currentGroup.childGroups : rootGroups;
+    const directItems = currentGroup ? currentGroup.items : [];
+
+    const groupRows: Row[] = childGroups
+      .filter((g) => g.closing_value !== 0 || g.closing_qty !== 0 || g.item_count > 0)
+      .map((node) => ({ kind: "group" as const, node }));
+
+    const itemRows: Row[] = directItems
+      .filter((it) => it.closing_qty !== 0 || it.closing_value !== 0)
+      .map((item) => ({ kind: "item" as const, item }));
+
+    return [...groupRows, ...itemRows];
+  }, [currentGroup, rootGroups]);
+
+  const currentRowsTotal = useMemo(() => {
+    const qty = currentRows.reduce((s, r) => s + (r.kind === "group" ? r.node.closing_qty : r.item.closing_qty), 0);
+    const value = currentRows.reduce((s, r) => s + (r.kind === "group" ? r.node.closing_value : r.item.closing_value), 0);
+    return { qty, value };
+  }, [currentRows]);
+
   // ── Visible rows for keyboard nav ──────────────────────────────────────────
   const visibleRows: Array<{ id: string | number; label: string }> = (() => {
-    if (level === "groups") return groups.map((g) => ({ id: g.group_id, label: g.group_name }));
-    if (level === "items")  return groupItems.map((it) => ({ id: it.item_id, label: it.item_name }));
+    if (level === "groups") {
+      return currentRows.map((r) =>
+        r.kind === "group"
+          ? { id: `g-${r.node.group_id}`, label: r.node.group_name }
+          : { id: `i-${r.item.item_id}`, label: r.item.item_name }
+      );
+    }
     if (level === "monthly") return monthlyData ? monthlyData.months.map((m, i) => ({ id: i, label: m.month })) : [];
     return [];
   })();
@@ -189,10 +224,12 @@ export default function StockSummary() {
       const res = await window.api.report.stockSummary(companyId, fyId, undefined, "FIFO");
       if (!res.success) throw new Error(res.error || "Failed to load stock summary");
       // Filter out groups with no closing value AND no items with any activity
-      const nonEmpty = (res.groups as StockGroup[]).filter(
+      const nonEmpty = (res.groups as StockSummaryGroupNode[]).filter(
         (g) => g.closing_value !== 0 || g.closing_qty !== 0 || g.item_count > 0
       );
-      setGroups(nonEmpty);
+      setRootGroups(nonEmpty);
+      setGroupPath([]);
+      setLevel("groups");
       setTotalClosingValue(res.totalClosingValue || 0);
       setTotalClosingQty(res.totalClosingQty || 0);
     } catch (e: any) {
@@ -225,17 +262,12 @@ export default function StockSummary() {
   }, [visibleRows.length]);
 
   // ── Drill-down actions ─────────────────────────────────────────────────────
-  const drillToGroup = (g: StockGroup) => {
-    setSelectedGroup(g);
+  // Drilling into a group just pushes it onto the path — no extra fetch
+  // needed, since the whole tree (to any depth) already came back from
+  // stockSummary in one call.
+  const drillToGroup = (node: StockSummaryGroupNode) => {
+    setGroupPath((prev) => [...prev, node]);
     setFocusedIndex(0);
-    setLevel("items");
-    const items = (g.items || []).filter(
-      (it) => it.closing_qty !== 0 || it.closing_value !== 0
-    );
-    setGroupItems(items);
-    const qty = items.reduce((s, it) => s + it.closing_qty, 0);
-    const value = items.reduce((s, it) => s + it.closing_value, 0);
-    setGroupItemsTotal({ qty, value });
   };
 
   const drillToItem = (it: StockItem) => {
@@ -247,13 +279,12 @@ export default function StockSummary() {
 
   const handleBack = () => {
     if (level === "monthly") {
-      setLevel("items");
-      setMonthlyData(null);
-      setFocusedIndex(0);
-    } else if (level === "items") {
       setLevel("groups");
-      setSelectedGroup(null);
-      setGroupItems([]);
+      setMonthlyData(null);
+      setSelectedItem(null);
+      setFocusedIndex(0);
+    } else if (groupPath.length > 0) {
+      setGroupPath((prev) => prev.slice(0, -1));
       setFocusedIndex(0);
     } else {
       navigate(-1);
@@ -261,13 +292,11 @@ export default function StockSummary() {
   };
 
   const handleRowEnter = (idx: number) => {
-    if (level === "groups") {
-      const g = groups[idx];
-      if (g) drillToGroup(g);
-    } else if (level === "items") {
-      const it = groupItems[idx];
-      if (it) drillToItem(it);
-    }
+    if (level !== "groups") return;
+    const row = currentRows[idx];
+    if (!row) return;
+    if (row.kind === "group") drillToGroup(row.node);
+    else drillToItem(row.item);
   };
 
   // ── Keyboard navigation ────────────────────────────────────────────────────
@@ -292,13 +321,13 @@ export default function StockSummary() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [focusedIndex, visibleRows, level, groups, groupItems]);
+  }, [focusedIndex, visibleRows, level, currentRows, groupPath]);
 
   // ── Title / breadcrumb ─────────────────────────────────────────────────────
   const pageTitle = (() => {
-    if (level === "groups") return "Stock Summary";
-    if (level === "items") return `Stock Summary  ›  ${selectedGroup?.group_name}`;
-    return `Stock Summary  ›  ${selectedGroup?.group_name}  ›  ${selectedItem?.item_name}`;
+    const crumbs = ["Stock Summary", ...groupPath.map((g) => g.group_name)];
+    if (level === "monthly" && selectedItem) crumbs.push(selectedItem.item_name);
+    return crumbs.join("  ›  ");
   })();
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -319,7 +348,11 @@ export default function StockSummary() {
         <div className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
           <div className="flex-1 overflow-y-auto">
 
-            {/* ── LEVEL 1: Stock Groups ─────────────────────────────────── */}
+            {/* ── Stock Groups & Items at current depth ──────────────────── */}
+            {/* currentRows mixes child stock groups (▶, drill deeper) and
+                leaf stock items (drill to monthly) at whatever depth
+                groupPath has navigated to — Choco -> Dairy Milk -> 5 Star
+                and so on, to however many levels the data actually has. */}
             {level === "groups" && (
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 bg-[#ecf4f7] text-[#002d40] z-10 border-b border-[#a8c6d1] text-[10px]">
@@ -335,79 +368,51 @@ export default function StockSummary() {
                     <tr><td colSpan={4} className="text-center py-8 text-zinc-400 italic">Loading stock summary…</td></tr>
                   ) : error ? (
                     <tr><td colSpan={4} className="text-center py-8 text-red-500">{error}</td></tr>
-                  ) : groups.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center py-8 text-zinc-400 italic">No stock groups with activity found.</td></tr>
+                  ) : currentRows.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-8 text-zinc-400 italic">
+                      {currentGroup ? "No stock items in this group." : "No stock groups with activity found."}
+                    </td></tr>
                   ) : (
-                    groups.map((g, idx) => {
+                    currentRows.map((row, idx) => {
                       const isFocused = idx === focusedIndex;
-                      const avgRate = g.closing_qty !== 0 ? g.closing_value / g.closing_qty : 0;
-                      return (
-                        <tr
-                          key={g.group_id}
-                          onClick={() => setFocusedIndex(idx)}
-                          onDoubleClick={() => drillToGroup(g)}
-                          className={cn(
-                            "border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer h-6 text-[12px]",
-                            isFocused ? "bg-[#ffcc00] text-black font-bold" : "font-bold text-zinc-900"
-                          )}
-                        >
-                          <td className="px-3 py-0.5 border-r border-zinc-100 align-middle">
-                            <span className="mr-1 text-zinc-400">▶</span>
-                            {g.group_name}
-                          </td>
-                          <td className="px-3 py-0.5 text-right border-r border-zinc-100 align-middle">
-                            {fmtQty(g.closing_qty)}
-                          </td>
-                          <td className="px-3 py-0.5 text-right border-r border-zinc-100 align-middle">
-                            {avgRate > 0 ? fmt(avgRate) : ""}
-                          </td>
-                          <td className="px-3 py-0.5 text-right align-middle">
-                            {fmt(g.closing_value)}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                  {/* Grand Total */}
-                  {!loading && !error && groups.length > 0 && (
-                    <tr className="bg-[#ecf4f7] border-t border-[#a8c6d1] border-b-2 border-double border-zinc-800 font-bold text-zinc-900 text-[12px] h-7">
-                      <td className="px-3 py-1 text-left uppercase align-middle border-r border-[#a8c6d1]">Grand Total</td>
-                      <td className="px-3 py-1 text-right border-r border-[#a8c6d1] align-middle">{fmtQty(totalClosingQty)}</td>
-                      <td className="px-3 py-1 text-right border-r border-[#a8c6d1] align-middle"></td>
-                      <td className="px-3 py-1 text-right align-middle">{fmt(totalClosingValue)}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
 
-            {/* ── LEVEL 2: Stock Items in a Group ───────────────────────── */}
-            {level === "items" && (
-              <table className="w-full border-collapse">
-                <thead className="sticky top-0 bg-[#ecf4f7] text-[#002d40] z-10 border-b border-[#a8c6d1] text-[10px]">
-                  <tr>
-                    <th className="text-left px-3 py-2 font-bold border-r border-[#a8c6d1] w-[45%]">Particulars</th>
-                    <th className="text-right px-3 py-2 font-bold border-r border-[#a8c6d1] w-[18%]">Closing Qty</th>
-                    <th className="text-right px-3 py-2 font-bold border-r border-[#a8c6d1] w-[18%]">Rate</th>
-                    <th className="text-right px-3 py-2 font-bold w-[19%]">Closing Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr><td colSpan={4} className="text-center py-8 text-zinc-400 italic">Loading items…</td></tr>
-                  ) : error ? (
-                    <tr><td colSpan={4} className="text-center py-8 text-red-500">{error}</td></tr>
-                  ) : groupItems.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center py-8 text-zinc-400 italic">No stock items in this group.</td></tr>
-                  ) : (
-                    groupItems.map((it, idx) => {
-                      const isFocused = idx === focusedIndex;
+                      if (row.kind === "group") {
+                        const g = row.node;
+                        const avgRate = g.closing_qty !== 0 ? g.closing_value / g.closing_qty : 0;
+                        return (
+                          <tr
+                            key={`g-${g.group_id}`}
+                            onClick={() => setFocusedIndex(idx)}
+                            onDoubleClick={() => drillToGroup(g)}
+                            className={cn(
+                              "border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer h-6 text-[12px]",
+                              isFocused ? "bg-[#ffcc00] text-black font-bold" : "font-bold text-zinc-900"
+                            )}
+                          >
+                            <td className="px-3 py-0.5 border-r border-zinc-100 align-middle">
+                              <span className="mr-1 text-zinc-400">▶</span>
+                              {g.group_name}
+                            </td>
+                            <td className="px-3 py-0.5 text-right border-r border-zinc-100 align-middle">
+                              {fmtQty(g.closing_qty)}
+                            </td>
+                            <td className="px-3 py-0.5 text-right border-r border-zinc-100 align-middle">
+                              {avgRate > 0 ? fmt(avgRate) : ""}
+                            </td>
+                            <td className="px-3 py-0.5 text-right align-middle">
+                              {fmt(g.closing_value)}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const it = row.item;
                       const qtyLabel = it.closing_qty !== 0
                         ? `${fmtQty(it.closing_qty)}${it.unit_name ? " " + it.unit_name : ""}`
                         : "";
                       return (
                         <tr
-                          key={it.item_id}
+                          key={`i-${it.item_id}`}
                           onClick={() => setFocusedIndex(idx)}
                           onDoubleClick={() => drillToItem(it)}
                           className={cn(
@@ -431,18 +436,18 @@ export default function StockSummary() {
                       );
                     })
                   )}
-                  {/* Group total */}
-                  {!loading && !error && groupItems.length > 0 && (
+                  {/* Total for this level — Grand Total at root, else this group's total */}
+                  {!loading && !error && currentRows.length > 0 && (
                     <tr className="bg-[#ecf4f7] border-t border-[#a8c6d1] border-b-2 border-double border-zinc-800 font-bold text-zinc-900 text-[12px] h-7">
                       <td className="px-3 py-1 text-left uppercase align-middle border-r border-[#a8c6d1]">
-                        {selectedGroup?.group_name} Total
+                        {currentGroup ? `${currentGroup.group_name} Total` : "Grand Total"}
                       </td>
                       <td className="px-3 py-1 text-right border-r border-[#a8c6d1] align-middle">
-                        {fmtQty(groupItemsTotal.qty)}
+                        {fmtQty(currentGroup ? currentRowsTotal.qty : totalClosingQty)}
                       </td>
                       <td className="px-3 py-1 text-right border-r border-[#a8c6d1] align-middle"></td>
                       <td className="px-3 py-1 text-right align-middle">
-                        {fmt(groupItemsTotal.value)}
+                        {fmt(currentGroup ? currentRowsTotal.value : totalClosingValue)}
                       </td>
                     </tr>
                   )}
@@ -555,7 +560,7 @@ export default function StockSummary() {
 
         {/* Right sidebar buttons */}
         <div className="w-[120px] bg-[#cbe2ec] border-l border-[#a8c6d1] flex flex-col p-1 gap-1 shrink-0 text-[#002d40] text-[10px] font-bold">
-          {level !== "groups" && (
+          {(level !== "groups" || groupPath.length > 0) && (
             <button
               onClick={handleBack}
               className="w-full text-left p-1 border border-[#9cbac7] bg-[#d9ecf5] hover:bg-[#b0d4e5]"

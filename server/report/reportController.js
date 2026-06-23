@@ -130,7 +130,6 @@ module.exports = {
     return await stockCategorySummary(company_id, fy_id);
   },
 
-  // ── Advanced Accounting Reports ───────────────────────────────────────────
   costCentreReport: async (event, { company_id, fy_id, as_on_date }) => {
     return await advancedAccountingReportService.costCentreReport(company_id, fy_id, as_on_date);
   },
@@ -138,7 +137,6 @@ module.exports = {
     return await advancedAccountingReportService.budgetVsActual(company_id, fy_id);
   },
 
-  // ── Payroll Reports ───────────────────────────────────────────────────────
   payslipReport: async (event, { company_id, fy_id }) => {
     return await payrollReportService.payslipReport(company_id, fy_id);
   },

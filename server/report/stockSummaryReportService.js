@@ -176,6 +176,15 @@ module.exports = {
     try {
       const dateCond = as_on_date ? sql` AND v.date <= ${as_on_date}` : sql``;
 
+      // All stock groups for this company, including their parent, so we can
+      // build a real tree (group -> child groups -> ... -> items) instead of
+      // flattening everything to one level by item.group_id.
+      const allGroups = await db.all(
+        sql`SELECT sg_id AS group_id, name AS group_name, parent_group_id
+            FROM ${stockGroups}
+            WHERE company_id = ${company_id} AND is_active = 1`
+      );
+
       const rows = await db.all(
         sql`SELECT
               si.item_id        AS item_id,
@@ -267,28 +276,75 @@ module.exports = {
         it.rate = it.closing_qty !== 0 ? it.closing_value / it.closing_qty : 0;
       }
 
-      // Group-level rollup of closing quantity + value.
-      const groupMap = new Map();
+      // ── Build the real stock-group tree ──────────────────────────────────
+      // stock_groups.parent_group_id lets a group sit inside another group
+      // (e.g. Choco -> Dairy Milk -> 5 Star). Items can attach to a group at
+      // any depth. A node's closing qty/value must roll up everything below
+      // it - its own direct items, plus every descendant group's items -
+      // exactly like balanceSheetService.buildDescendantMap does for ledgers.
+      const childrenOf = new Map(); // group_id -> [child group_id, ...]
+      for (const g of allGroups) {
+        if (g.parent_group_id == null) continue;
+        if (!childrenOf.has(g.parent_group_id)) childrenOf.set(g.parent_group_id, []);
+        childrenOf.get(g.parent_group_id).push(g.group_id);
+      }
+
+      const directItemsByGroup = new Map(); // group_id|'ungrouped' -> ItemRow[]
       for (const it of items) {
         const key = it.group_id == null ? 'ungrouped' : it.group_id;
-        if (!groupMap.has(key)) {
-          groupMap.set(key, {
-            group_id: it.group_id,
-            group_name: it.group_name,
-            closing_qty: 0,
-            closing_value: 0,
-            item_count: 0,
-            items: [],
-          });
-        }
-        const g = groupMap.get(key);
-        g.closing_qty += it.closing_qty;
-        g.closing_value += it.closing_value;
-        g.item_count += 1;
-        g.items.push(it);
+        if (!directItemsByGroup.has(key)) directItemsByGroup.set(key, []);
+        directItemsByGroup.get(key).push(it);
       }
-      const groups = Array.from(groupMap.values())
-        .sort((a, b) => (a.group_name || '').localeCompare(b.group_name || ''));
+
+      // Recursively build a node for a group, rolling up qty/value/item_count
+      // from its own items plus all descendant groups.
+      const buildNode = (group) => {
+        const directItems = directItemsByGroup.get(group.group_id) || [];
+        const childGroupIds = childrenOf.get(group.group_id) || [];
+        const childNodes = childGroupIds
+          .map(id => allGroups.find(g => g.group_id === id))
+          .filter(Boolean)
+          .map(buildNode);
+
+        let closing_qty = directItems.reduce((s, it) => s + it.closing_qty, 0);
+        let closing_value = directItems.reduce((s, it) => s + it.closing_value, 0);
+        let item_count = directItems.length;
+        for (const child of childNodes) {
+          closing_qty += child.closing_qty;
+          closing_value += child.closing_value;
+          item_count += child.item_count;
+        }
+
+        return {
+          group_id: group.group_id,
+          group_name: group.group_name,
+          closing_qty,
+          closing_value,
+          item_count,
+          items: directItems,
+          childGroups: childNodes,
+        };
+      };
+
+      // Top-level groups = groups with no parent. "Ungrouped" items (no
+      // group_id at all) form their own synthetic top-level bucket.
+      const topLevelGroups = allGroups.filter(g => g.parent_group_id == null);
+      let groups = topLevelGroups.map(buildNode);
+
+      const ungroupedItems = directItemsByGroup.get('ungrouped') || [];
+      if (ungroupedItems.length > 0) {
+        groups.push({
+          group_id: null,
+          group_name: 'Ungrouped',
+          closing_qty: ungroupedItems.reduce((s, it) => s + it.closing_qty, 0),
+          closing_value: ungroupedItems.reduce((s, it) => s + it.closing_value, 0),
+          item_count: ungroupedItems.length,
+          items: ungroupedItems,
+          childGroups: [],
+        });
+      }
+
+      groups = groups.sort((a, b) => (a.group_name || '').localeCompare(b.group_name || ''));
 
       const totalClosingQty = items.reduce((s, it) => s + it.closing_qty, 0);
       const totalClosingValue = items.reduce((s, it) => s + it.closing_value, 0);

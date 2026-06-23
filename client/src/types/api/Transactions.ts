@@ -2,6 +2,16 @@ import type { VoucherRecordType } from '../entities/Voucher';
 import type { LedgerType } from '../entities/Ledger';
 import type { DaybookEntryType } from '../entities/Daybook';
 
+export interface StockSummaryGroupNode {
+  group_id: number | null;
+  group_name: string;
+  closing_qty: number;
+  closing_value: number;
+  item_count: number;
+  items: { item_id: number; item_name: string; group_id: number | null; group_name: string; unit_name: string; closing_qty: number; closing_value: number; rate: number }[];
+  childGroups: StockSummaryGroupNode[];
+}
+
 export interface VoucherAPI {
   voucher: {
     create: (data: Partial<VoucherRecordType>) => Promise<{ success: boolean; voucher: VoucherRecordType; error?: string }>;
@@ -31,7 +41,7 @@ export interface VoucherAPI {
     billsPayable: (company_id: number, fy_id: number) => Promise<{ success: boolean; as_on?: string; rows: { ledger_id: number; party: string; bill: string; bill_date: string; due_date: string; credit_period: number; overdue_days: number; balance: number; ageing: string }[]; total: number; bucketTotals: Record<string, number>; error?: string }>;
     cashFlow: (company_id: number, fy_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; from_date: string | null; to_date: string | null; cashBankLedgers: { ledger_id: number; ledger_name: string; ledger_type: string }[]; byCounterLedger: { ledger_id: number; ledger_name: string; inflow: number; outflow: number; net: number }[]; byVoucherType: { voucher_type: string; inflow: number; outflow: number; net: number }[]; totalInflow: number; totalOutflow: number; netCashFlow: number; error?: string }>;
     fundsFlow: (company_id: number, fy_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; from_date: string | null; to_date: string | null; fundsFromOperations: number; periodIncome: number; periodExpenses: number; sources: { particulars: string; amount: number }[]; applications: { particulars: string; amount: number }[]; totalSources: number; totalApplications: number; netWorkingCapitalChange: number; isNetIncrease: boolean; error?: string }>;
-    stockSummary: (company_id: number, fy_id: number, as_on_date?: string) => Promise<{ success: boolean; as_on_date: string | null; items: { item_id: number; item_name: string; group_id: number | null; group_name: string; opening_qty: number; opening_value: number; inwards_qty: number; inwards_value: number; outwards_qty: number; outwards_value: number; closing_qty: number; closing_value: number }[]; groups: { group_id: number | null; group_name: string; closing_qty: number; closing_value: number; item_count: number }[]; totalClosingQty: number; totalClosingValue: number; error?: string }>;
+    stockSummary: (company_id: number, fy_id: number, as_on_date?: string) => Promise<{ success: boolean; as_on_date: string | null; items: { item_id: number; item_name: string; group_id: number | null; group_name: string; unit_name: string; opening_qty: number; opening_value: number; inwards_qty: number; inwards_value: number; outwards_qty: number; outwards_value: number; closing_qty: number; closing_value: number; rate: number }[]; groups: StockSummaryGroupNode[]; totalClosingQty: number; totalClosingValue: number; error?: string }>;
     ratioAnalysis: (company_id: number, fy_id: number) => Promise<{ success: boolean; ratios: { key: string; label: string; unit: string; value: number | null }[]; components: Record<string, number>; error?: string }>;
   };
 
