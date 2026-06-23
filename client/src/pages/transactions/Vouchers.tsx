@@ -1381,8 +1381,8 @@ const handleSaveExciseDetails = useCallback(
         <div className="font-semibold text-black">
           <div>
             {form.gstRegistration
-              ? (form.gstRegistration.name ?? form.gstRegistration.legal_name ?? form.gstRegistration.trade_name ?? form.gstRegistration.gstin)
-              : "♦ Not Applicable"}
+              ? (form.gstRegistration.legal_name ?? form.gstRegistration.trade_name ?? form.gstRegistration.name ?? form.gstRegistration.gstin)
+            : "♦ Not Applicable"}
           </div>
           {["Sales", "Purchase"].includes(effectiveVoucherType) && (
             <div>{form.taxUnit ? form.taxUnit.name : "♦ Not Applicable"}</div>
@@ -1583,12 +1583,13 @@ const handleSaveExciseDetails = useCallback(
           <div className="flex items-center border-t border-black shrink-0 px-3 py-1 bg-white">
             <span className="text-sm text-black shrink-0 w-24">Narration</span>
             <span className="text-sm text-black shrink-0 mr-2">:</span>
-            <input
+           <input
               type="text"
-              className="flex-1 text-sm bg-transparent outline-none border-b border-transparent focus:border-black px-1 py-0"
-              value={form.narration}
-              onChange={(e) => form.setNarration(e.target.value)}
-            />
+             className="flex-1 text-sm bg-transparent outline-none border-b border-transparent focus:border-black px-1 py-0"
+             value={form.narration}
+            onChange={(e) => form.setNarration(e.target.value)}
+            onFocus={() => form.handleFieldBlur()}
+             />
             {form.totalAmount > 0 && (effectiveVoucherType !== "Contra" || form.contraEntryMode === "double") && (
               <span className="text-sm font-semibold text-black ml-4 shrink-0 tabular-nums">
                 {form.totalAmount.toLocaleString("en-IN", {

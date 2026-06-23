@@ -674,6 +674,7 @@ export function useVoucherForm(
 
     // ── Layout 1 — single-entry
     accountLedger: rows.accountLedger,
+    setAccountLedger: rows.setAccountLedger,
     accountBalance: rows.accountBalance,
     particulars: rows.particulars,
     setParticulars: rows.setParticulars,
@@ -717,12 +718,15 @@ export function useVoucherForm(
     handleAddJournalRow: rows.handleAddJournalRow,
     handleRemoveJournalRow: rows.handleRemoveJournalRow,
 
-    // ── Layout 3 — Sales / Purchase
+// ── Layout 3 — Sales / Purchase
     partyLedger: rows.partyLedger,
+    setPartyLedger: rows.setPartyLedger,
     partyBalance: rows.partyBalance,
     salesPurchaseLedger: rows.salesPurchaseLedger,
+    setSalesPurchaseLedger: rows.setSalesPurchaseLedger,
     salesPurchaseBalance: rows.salesPurchaseBalance,
     stockEntries: rows.stockEntries,
+    setStockEntries: rows.setStockEntries,
     handleUpdateStockRow: rows.handleUpdateStockRow,
     handleAddStockRow: rows.handleAddStockRow,
     handleRemoveStockRow: rows.handleRemoveStockRow,

@@ -35,6 +35,7 @@ const payHeadController = require('./payHead/payHeadController');
 const salaryStructureController = require('./salaryStructure/salaryStructureController');
 const trialBalanceReportController = require('./trialBalanceReport/trialBalanceReportController');
 const balanceSheetReportController = require('./balanceSheetReport/balanceSheetReportController');
+const cashFlowReportController = require('./cashFlowReport/cashFlowReportController');
 const profitLossReportController = require('./profitLossReport/profitLossReportController');
 const dayBookReportController = require('./dayBookReport/dayBookReportController');
 const masterController = require("./master/masterController");
@@ -163,7 +164,6 @@ ipcMain.handle('report:bankBook', reportController.bankBook);
 ipcMain.handle('report:daybook', reportController.daybook);
 ipcMain.handle('report:billsReceivable', reportController.billsReceivable);
 ipcMain.handle('report:billsPayable', reportController.billsPayable);
-ipcMain.handle('report:cashFlow', reportController.cashFlow);
 ipcMain.handle('report:fundsFlow', reportController.fundsFlow);
 ipcMain.handle('report:stockSummary', reportController.stockSummary);
 ipcMain.handle('report:stockGroupItems', reportController.stockGroupItems);
@@ -369,6 +369,13 @@ ipcMain.handle('balanceSheetReport:create', balanceSheetReportController.create)
 ipcMain.handle('balanceSheetReport:getAll', balanceSheetReportController.getAll);
 ipcMain.handle('balanceSheetReport:getById', balanceSheetReportController.getById);
 ipcMain.handle('balanceSheetReport:delete', balanceSheetReportController.delete);
+
+ipcMain.handle('cashFlowReport:create', cashFlowReportController.create);
+ipcMain.handle('cashFlowReport:getAll', cashFlowReportController.getAll);
+ipcMain.handle('cashFlowReport:getById', cashFlowReportController.getById);
+ipcMain.handle('cashFlowReport:delete', cashFlowReportController.delete);
+ipcMain.handle('report:cashFlow', cashFlowReportController.cashFlow);
+
 
 ipcMain.handle('profitLossReport:create', profitLossReportController.create);
 ipcMain.handle('profitLossReport:getAll', profitLossReportController.getAll);
