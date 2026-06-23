@@ -319,11 +319,12 @@ export function RatioAnalysisLayout() {
     },
   ], []);
 
-  const handleDrilldown = React.useCallback(() => {
-    const item = activeCol === "left" ? leftItems[focusedIndex] : rightItems[focusedIndex];
+  const handleDrilldownFor = React.useCallback((col: "left" | "right", idx: number) => {
+    const items = col === "left" ? leftItems : rightItems;
+    const item = items[idx];
     if (!item) return;
 
-    if (activeCol === "left") {
+    if (col === "left") {
       const gItem = item as typeof leftItems[0];
       if (gItem.isGroupDrilldown) {
         const groupName = gItem.drilldown;
@@ -360,7 +361,7 @@ export function RatioAnalysisLayout() {
         navigate(rItem.drilldown);
       }
     }
-  }, [activeCol, focusedIndex, groupsList, components, navigate, leftItems, rightItems]);
+  }, [groupsList, components, navigate, leftItems, rightItems]);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -393,13 +394,13 @@ export function RatioAnalysisLayout() {
         }
       } else if (e.key === "Enter") {
         e.preventDefault();
-        handleDrilldown();
+        handleDrilldownFor(activeCol, focusedIndex);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeCol, focusedIndex, handleDrilldown, leftItems.length, rightItems.length]);
+  }, [activeCol, focusedIndex, handleDrilldownFor, leftItems.length, rightItems.length]);
 
   const formatPeriod = (startStr: string, endStr: string) => {
     try {
@@ -467,7 +468,7 @@ export function RatioAnalysisLayout() {
                           setActiveCol("left");
                           setFocusedIndex(idx);
                         }}
-                        onDoubleClick={handleDrilldown}
+                        onDoubleClick={() => handleDrilldownFor("left", idx)}
                         className={`cursor-pointer transition-colors ${
                           isFocused
                             ? "bg-[#ffcc00] text-zinc-950 font-bold"
@@ -541,7 +542,7 @@ export function RatioAnalysisLayout() {
                           setActiveCol("right");
                           setFocusedIndex(idx);
                         }}
-                        onDoubleClick={handleDrilldown}
+                        onDoubleClick={() => handleDrilldownFor("right", idx)}
                         className={`cursor-pointer transition-colors ${
                           isFocused
                             ? "bg-[#ffcc00] text-zinc-950 font-bold"
