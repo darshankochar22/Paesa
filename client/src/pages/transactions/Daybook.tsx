@@ -297,7 +297,6 @@ export default function Daybook() {
   const [loading, setLoading] = useState(false);
   const [searchParams] = useSearchParams();
 
-const ledgerIdParam = searchParams.get("ledger_id");
 const monthParam = searchParams.get("month");
   const [error, setError] = useState<string | null>(null);
 
@@ -410,7 +409,7 @@ const openVoucher = useCallback((voucherId: number) => {
 
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
+    <div className="flex-1 flex flex-col bg-white min-h-0 text-xs select-none">
       <PageTitleBar title={listTitle} subtitle={selectedCompany?.name} />
 
       <div className="flex-1 flex min-h-0">

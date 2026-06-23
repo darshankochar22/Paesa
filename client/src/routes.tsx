@@ -103,10 +103,7 @@ import GroupCreate from "./pages/master/group/GroupCreate.tsx";
 import GroupAlter from "./pages/master/group/GroupAlter.tsx";
 import GroupAlterEdit from "./pages/master/group/GroupAlterEdit.tsx";
 import GroupCOA from "./pages/master/group/GroupCOA.tsx";
-import Vouchers from "./pages/transactions/Vouchers.tsx";
-import VoucherList from "./pages/transactions/VoucherList.tsx";
-import VoucherView from "./pages/transactions/VoucherView.tsx";
-import Daybook from "./pages/transactions/Daybook.tsx";
+
 import Banking from './pages/utilities/Banking';
 import Copilot from './pages/utilities/Copilot';
 import UnitCreate from "./pages/master/inventory/unit/UnitCreate.tsx";
