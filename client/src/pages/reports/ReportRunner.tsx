@@ -15,6 +15,7 @@ import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from "./repo
 import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
 import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
 import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
+import { ProfitLossLayout } from "@/components/reports/ProfitnLossLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -954,9 +955,11 @@ export function ReportRunner() {
         <BalanceSheetLayout />
          ):reportType === "stock-summary" ?(
         <StockSummaryLayout />
-        ):reportType === "trial-balance" ?(
-        <TrialBalanceLayout />
-         ):(
+        ):reportType === "profit-loss" ?(
+         <ProfitLossLayout />
+         ):reportType === "trial-balance" ? (
+         <TrialBalanceLayout />
+         ) :(
         <ReportTable
             columns={tableColumns}
             rows={rows}

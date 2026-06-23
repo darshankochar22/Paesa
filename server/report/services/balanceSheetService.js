@@ -183,7 +183,7 @@ const balanceSheet = async (company_id, fy_id) => {
       // the whole figure sits under Current Period.
       const pnlLedger = allLedgers.find(l => {
         const g = allGroups.find(gr => gr.group_id === l.group_id);
-        return g && g.name === 'Profit & Loss A/c';
+        return l.ledger_name === 'Profit & Loss A/c';
       });
       const pnlOpening = pnlLedger
         ? (pnlLedger.opening_balance_type === 'Cr' ? -(pnlLedger.opening_balance || 0) : (pnlLedger.opening_balance || 0))
