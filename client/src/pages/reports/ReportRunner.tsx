@@ -18,6 +18,7 @@ import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
 import { ProfitLossLayout } from "@/components/reports/ProfitnLossLayout";
 import GroupSummaryLayout from "@/components/reports/GroupSummaryLayout";
 import LedgerMonthlySummaryLayout from "@/components/reports/LedgerMonthlySummaryLayout";
+import { RatioAnalysisLayout } from "@/components/reports/RatioAnalysisLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -959,6 +960,8 @@ export function ReportRunner() {
          <GroupSummaryLayout />
          ):reportType === "ledger-summary" ? (
          <LedgerMonthlySummaryLayout />
+         ):reportType === "ratio-analysis" ? (
+         <RatioAnalysisLayout />
          ) :(
         <ReportTable
             columns={tableColumns}

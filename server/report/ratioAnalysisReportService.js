@@ -58,6 +58,21 @@ const resolvePrimaryGroupName = (group_id, groupById) => {
   return g ? g.name : null;
 };
 
+const getGroupAncestors = (group_id, groupById) => {
+  const ancestors = [];
+  let g = groupById.get(group_id);
+  const guard = new Set();
+  while (g) {
+    ancestors.push(g.name);
+    if (g.parent_group_id == null || !groupById.has(g.parent_group_id) || guard.has(g.group_id)) {
+      break;
+    }
+    guard.add(g.group_id);
+    g = groupById.get(g.parent_group_id);
+  }
+  return ancestors;
+};
+
 // Round to 2 dp; return null when the denominator is zero/undefined so callers
 // can surface "n/a" rather than Infinity/NaN.
 const ratio = (numerator, denominator) => {
@@ -108,6 +123,11 @@ module.exports = {
       let sales = 0;               // |bal| under "Sales Accounts"
       let purchases = 0;           // |bal| under "Purchase Accounts"
       let directExpenses = 0;      // |bal| under "Direct Expenses"
+      let cashInHand = 0;          // |bal| under "Cash-in-hand"
+      let bankAccounts = 0;        // |bal| under "Bank Accounts"
+      let bankOD = 0;              // |bal| under "Bank OD A/c" or "Bank OCC A/c"
+      let sundryDebtors = 0;       // |bal| under "Sundry Debtors"
+      let sundryCreditors = 0;     // |bal| under "Sundry Creditors"
 
       const DEBT_GROUPS = new Set([
         'Loans(Liability)', 'Secured Loans', 'Unsecured Loans',
@@ -120,6 +140,14 @@ module.exports = {
         if (abs === 0) continue;
 
         const primary = resolvePrimaryGroupName(l.group_id, groupById);
+        const ancestors = getGroupAncestors(l.group_id, groupById);
+        const ancestorsLower = ancestors.map(a => a.toLowerCase());
+
+        if (ancestorsLower.includes('cash-in-hand')) cashInHand += abs;
+        if (ancestorsLower.includes('bank accounts')) bankAccounts += abs;
+        if (ancestorsLower.includes('bank od a/c') || ancestorsLower.includes('bank occ a/c')) bankOD += abs;
+        if (ancestorsLower.includes('sundry debtors')) sundryDebtors += abs;
+        if (ancestorsLower.includes('sundry creditors')) sundryCreditors += abs;
 
         switch (l.nature) {
           case 'Assets':
@@ -183,7 +211,7 @@ module.exports = {
           key: 'net_profit_pct',
           label: 'Net Profit %',
           unit: '%',
-          value: pct(netProfit, totalIncome),
+          value: pct(netProfit, sales),
         },
         {
           key: 'working_capital',
@@ -195,7 +223,7 @@ module.exports = {
           key: 'inventory_turnover',
           label: 'Inventory Turnover',
           unit: 'x',
-          value: ratio(purchases + directExpenses, inventory),
+          value: ratio(sales, inventory),
         },
         {
           key: 'return_on_capital',
@@ -224,6 +252,11 @@ module.exports = {
           netProfit: Math.round(netProfit * 100) / 100,
           workingCapital: Math.round(workingCapital * 100) / 100,
           capitalEmployed: Math.round(capitalEmployed * 100) / 100,
+          cashInHand: Math.round(cashInHand * 100) / 100,
+          bankAccounts: Math.round(bankAccounts * 100) / 100,
+          bankOD: Math.round(bankOD * 100) / 100,
+          sundryDebtors: Math.round(sundryDebtors * 100) / 100,
+          sundryCreditors: Math.round(sundryCreditors * 100) / 100,
         },
       };
     } catch (err) {
