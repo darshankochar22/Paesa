@@ -20,6 +20,7 @@ import GroupSummaryLayout from "@/components/reports/GroupSummaryLayout";
 import LedgerMonthlySummaryLayout from "@/components/reports/LedgerMonthlySummaryLayout";
 import LedgerVouchersLayout from "@/components/reports/LedgerVouchersLayout";
 import { RatioAnalysisLayout } from "@/components/reports/RatioAnalysisLayout";
+import CashBankSummaryLayout from "@/components/reports/CashBankSummaryLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -508,6 +509,15 @@ export function ReportRunner() {
   };
 
   const loadData = React.useCallback(async () => {
+    const layoutOnlyReports = [
+    "balance-sheet", "stock-summary", "profit-loss", "trial-balance",
+    "group-summary", "ledger-summary", "ledger", "ratio-analysis",
+    "cash-book", "bank-book", "cash-bank"
+  ];
+  if (layoutOnlyReports.includes(reportType)) {
+    setLoading(false);
+    return;
+  }
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
       setLoading(false);
       return;
@@ -687,12 +697,12 @@ export function ReportRunner() {
           setRows([]);
         }
       } else {
-        setError(`Report API method '\${definition.apiMethod}' is missing or not implemented.`);
+        setError(`Report API method '${definition.apiMethod}' is missing or not implemented.`);
         setRows([]);
       }
     } catch (err: any) {
       console.error(err);
-      setError(`Error accessing database: \${err.message || "Unknown error"}`);
+      setError(`Error accessing database: ${err.message || "Unknown error"}`);
       setRows([]);
     } finally {
       setLoading(false);
@@ -999,6 +1009,8 @@ export function ReportRunner() {
          <LedgerVouchersLayout fromDate={fromDate} toDate={toDate} />
          ):reportType === "ratio-analysis" ? (
          <RatioAnalysisLayout />
+         ):reportType === "cash-bank" ? (
+         <CashBankSummaryLayout />
          ) :(
         <ReportTable
             columns={tableColumns}

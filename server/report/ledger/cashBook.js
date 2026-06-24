@@ -1,7 +1,7 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { ledgers, groups } = require('../../db/schema');
-const { ledgerReport } = require('./ledgerReport');
+const ledgerReport = require('./ledgerReport');
 
 const cashBook = async (company_id, fy_id, from_date, to_date) => {
   try {

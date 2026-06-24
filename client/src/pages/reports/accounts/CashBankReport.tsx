@@ -1,5 +1,5 @@
 import { ReportRunner } from "../ReportRunner";
 
-export default function BankBookReport() {
+export default function CashBankReport() {
   return <ReportRunner />;
 }

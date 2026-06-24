@@ -31,21 +31,21 @@ export default function AccountBooks() {
   ];
 
   const getRoute = (_section: string, item: string) => {
-    const routes: Record<string, string> = {
-      "Cash/Bank Book(s)": "/reports/account-books/cash-bank",
-      "Ledger": "/reports/account-books/ledger",
-      "Group Summary": "/reports/account-books/group-summary",
-      "Group Vouchers": "/reports/account-books/group-vouchers",
-      "Contra Register": "/reports/account-books/contra-register",
-      "Payment Register": "/reports/account-books/payment-register",
-      "Receipt Register": "/reports/account-books/receipt-register",
-      "Sales Register": "/reports/account-books/sales-register",
-      "Purchase Register": "/reports/account-books/purchase-register",
-      "Journal Register": "/reports/account-books/journal-register",
-      "Debit Note Register": "/reports/account-books/debit-note-register",
-      "Credit Note Register": "/reports/account-books/credit-note-register",
-      "Voucher Clarification": "/reports/account-books/voucher-clarification",
-    };
+const routes: Record<string, string> = {
+  "Cash/Bank Book(s)": "/reports/accounts/cash-bank",
+  "Ledger": "/reports/accounts/ledger-summary",
+  "Group Summary": "/reports/accounts/group-summary",
+  "Group Vouchers": "/reports/accounts/group-vouchers",
+  "Contra Register": "/reports/accounts/contra-register",
+  "Payment Register": "/reports/accounts/payment-register",
+  "Receipt Register": "/reports/accounts/receipt-register",
+  "Sales Register": "/reports/accounts/sales-register",
+  "Purchase Register": "/reports/accounts/purchase-register",
+  "Journal Register": "/reports/accounts/journal-register",
+  "Debit Note Register": "/reports/accounts/debit-note-register",
+  "Credit Note Register": "/reports/accounts/credit-note-register",
+  "Voucher Clarification": "/reports/accounts/voucher-clarification",
+};
     return routes[item] ?? null;
   };
 

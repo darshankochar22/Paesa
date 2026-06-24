@@ -3,11 +3,31 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/ca
 import { Button } from "@/components/shadcn/button";
 import { Separator } from "@/components/shadcn/separator";
 
-const BASE = "/reports/account-books";
+
+const BASE = "/reports/accounts";  
+
+const SLUG_OVERRIDES: Record<string, string> = {
+  "Ledger Vouchers": "ledger",
+  "Ledger Monthly Summary": "ledger-summary", 
+  "Group Summary": "group-summary",
+  "Cash Book": "cash-book",
+  "Bank Book": "bank-book",
+  "Sales Register": "sales-register",
+  "Purchase Register": "purchase-register",
+  "Journal Register": "journal-register",
+  "Debit Note Register": "debit-note-register",
+  "Credit Note Register": "credit-note-register",
+  "Cash/Bank Summary": "cash-bank",
+};
+
 const slug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const items = (labels: string[]) =>
-  labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
+  labels.map((label) => ({
+    label,
+    route: `${BASE}/${SLUG_OVERRIDES[label] ?? slug(label)}`,
+  }));
+
 
 export default function AccountBooksMenu() {
   const navigate = useNavigate();

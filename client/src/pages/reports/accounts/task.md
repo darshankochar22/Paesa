@@ -1,4 +1,0 @@
-- `[ ]` Compute extra balances & update formulas in ratioAnalysisReportService.js
-- `[ ]` Create RatioAnalysisLayout.tsx page layout component
-- `[ ]` Update ReportRunner.tsx to render RatioAnalysisLayout
-- `[ ]` Run build to verify clean compilation

@@ -39,13 +39,12 @@ import DisplayMoreReports from "./pages/menu/reports/DisplayMoreReports.tsx";
 import StatutoryReports from "./pages/menu/reports/StatutoryReports.tsx";
 import GSTReports from "./pages/menu/reports/GSTReports.tsx";
 import AccountBooks from "./pages/menu/reports/AccountBooks.tsx";
+import CashBankReport from "./pages/reports/accounts/CashBankReport.tsx";
 import StatementsOfAccounts from "./pages/menu/reports/StatementsOfAccounts.tsx";
 import InventoryBooks from "./pages/menu/reports/InventoryBooks.tsx";
 import StatementsOfInventory from "./pages/menu/reports/StatementsOfInventory.tsx";
 import ExceptionReports from "./pages/menu/reports/ExceptionReports.tsx";
 import PayrollReports from "./pages/menu/reports/PayrollReports.tsx";
-import CashBookReport from "./pages/reports/accounts/CashBookReport.tsx";
-import BankBookReport from "./pages/reports/accounts/BankBookReport.tsx";
 import LedgerReport from "./pages/reports/accounts/LedgerReport.tsx";
 import GroupSummary from "./pages/reports/accounts/GroupSummary.tsx";
 import LedgerMonthlySummary from "./pages/reports/accounts/LedgerMonthlySummary.tsx";
@@ -199,16 +198,13 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/display-more",           element: <DisplayMoreReports /> },
   { path: "/reports/statutory",               element: <StatutoryReports /> },
   { path: "/reports/statutory/gst",           element: <GSTReports /> },
-  // Sub-menu pages
   { path: "/reports/account-books",           element: <AccountBooks /> },
+  { path: "/reports/accounts/cash-bank",  element: <CashBankReport /> },
   { path: "/reports/statements-of-accounts",  element: <StatementsOfAccounts /> },
   { path: "/reports/inventory-books",         element: <InventoryBooks /> },
   { path: "/reports/statements-of-inventory", element: <StatementsOfInventory /> },
   { path: "/reports/exception",               element: <ExceptionReports /> },
   { path: "/reports/payroll-hr",                 element: <PayrollReports /> },
-  // Account reports
-  { path: "/reports/accounts/cash-book",              element: <CashBookReport /> },
-  { path: "/reports/accounts/bank-book",              element: <BankBookReport /> },
   { path: "/reports/accounts/ledger",                 element: <LedgerReport /> },
   { path: "/reports/accounts/group-summary",          element: <GroupSummary /> },
   { path: "/reports/accounts/group-summary/:groupId", element: <GroupSummary /> },
@@ -229,7 +225,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/cost-centre-summary",    element: <CostCentreSummary /> },
   { path: "/reports/accounts/cost-category-summary",  element: <CostCategorySummary /> },
   { path: "/reports/accounts/statistics",             element: <Statistics /> },
-  // Inventory reports
   { path: "/reports/inventory/stock-summary",           element: <StockSummary /> },
   { path: "/reports/inventory/stock-item",               element: <StockItemReport /> },
   { path: "/reports/inventory/stock-group",              element: <StockGroupReport /> },
