@@ -27,6 +27,8 @@ const stockSummaryReportService = require('./stockSummaryReportService');
 const ratioAnalysisReportService = require('./ratioAnalysisReportService');
 const payrollReportService = require('./payrollReportService');
 const reportRuntime = require('./reportRuntime');
+const { contraRegister } = require('./registers/contraRegister');
+const { contraRegisterVouchers } = require('./registers/contraRegisterVouchers');
 
 module.exports = {
   trialBalance: async (event, { company_id, fy_id }) => {
@@ -73,6 +75,12 @@ module.exports = {
   },
   ratioAnalysis: async (event, { company_id, fy_id }) => {
     return await ratioAnalysisReportService.ratioAnalysis(company_id, fy_id);
+  },
+  contraRegister: async (event, { company_id, fy_id }) => {
+  return await contraRegister(company_id, fy_id);
+  },
+  contraRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+  return await contraRegisterVouchers(company_id, fy_id, from_date, to_date);
   },
 
   run: async (event, { reportId, params }) => {

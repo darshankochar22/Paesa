@@ -14,8 +14,9 @@ import {
 } from "@/components/shadcn/table";
 import { EmptyState } from "@/components/blocks/EmptyState";
 import { cn } from "@/lib/utils";
+import { todayLocalISO } from "@/lib/date";
 
-const todayISO = () => new Date().toISOString().split("T")[0];
+const todayISO = todayLocalISO;
 
 const ALL_VOUCHER_TYPES = [
   "All Items",
@@ -74,24 +75,6 @@ const formatAmount = (n: number) => {
   return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-// ── Debit/Credit display logic matching TallyPrime Day Book ──────────────────
-//
-// TallyPrime shows ONE amount per row — either in Debit or Credit column —
-// based on the PRIMARY effect of the voucher type:
-//
-//   Sales        → Debit   (party/debtor is debited)
-//   Debit Note   → Debit   (reduces creditor balance, Dr effect)
-//   Journal      → Debit   (show Dr side, the "expense/asset" side)
-//   Payment      → Debit   (expense/party ledger is Dr)
-//
-//   Purchase     → Credit  (party/creditor is credited)
-//   Credit Note  → Credit  (reduces debtor balance, Cr effect)
-//   Receipt      → Credit  (income/party ledger is Cr)
-//   Contra       → Credit  (bank/cash receiving account is Cr-side of transfer)
-//   Payroll      → Credit  (salary payable is Cr)
-//
-// For anything else we fall back to whichever side has the larger total.
-// ─────────────────────────────────────────────────────────────────────────────
 function getAmountDisplay(v: VoucherRow): { debit: number; credit: number } {
   const dr = Number(v.debit_amount) || 0;
   const cr = Number(v.credit_amount) || 0;
@@ -265,7 +248,7 @@ function getMonthStartDate(monthName: string, fyStart: string): string {
   const idx = months.indexOf(monthName);
 
   if (idx === -1) {
-    return new Date().toISOString().split("T")[0];
+   return todayLocalISO();
   }
 
   const fyYear = new Date(fyStart).getFullYear();
@@ -279,15 +262,16 @@ function getMonthStartDate(monthName: string, fyStart: string): string {
 
 function getMonthEndDate(monthName: string, fyStart: string): string {
   const start = getMonthStartDate(monthName, fyStart);
+  const [y, m] = start.split("-").map(Number);
 
-  const d = new Date(start);
-  d.setMonth(d.getMonth() + 1);
-  d.setDate(0);
+  const d = new Date(Date.UTC(y, m, 0));
 
-  return d.toISOString().split("T")[0];
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-// ── Main Daybook component ────────────────────────────────────────────────────
 
 export default function Daybook() {
   const navigate = useNavigate();

@@ -1,35 +1,3 @@
-// ---------------------------------------------------------------------------
-// Drizzle ORM conversion (pattern: currencyService.js golden exemplar,
-// transaction style: physicalStockService.js).
-//
-//   * Import the drizzle instance `db` and the `sql`/`eq`/`and` helpers from
-//     drizzle-orm. Table objects come from the dialect-switching schema barrel.
-//
-//   * MUTATIONS use the query builder: db.insert().values(),
-//     db.update().set().where(), db.delete().where(). New-row ids come from
-//     .returning({ id: table.pkCol }) (replacing the legacy
-//     result.lastInsertRowid).
-//
-//   * SIMPLE READS that return rows to callers use db.all(sql`SELECT * FROM
-//     ${table} WHERE ...`) — preserving the EXACT legacy snake_case row shape
-//     and numeric 0/1 booleans the test oracle asserts against. (libsql's
-//     db.all returns the rows array directly; the legacy code read
-//     result.rows, so each `result.rows`/`X.rows` becomes the returned array.)
-//
-//   * COMPLEX analytical queries (correlated subqueries with CASE, multi-join
-//     aggregates with GROUP BY/HAVING, COALESCE(MAX(CAST(REPLACE(...)))), the
-//     payroll LEFT JOIN) are kept VERBATIM via Drizzle's typed `sql` operator
-//     (still parameterized) with table objects interpolated for FROM/JOIN
-//     targets. Recorded in usedTypedSqlFor.
-//
-//   * create() wraps its builder inserts in a manual BEGIN/COMMIT/ROLLBACK via
-//     db.execute — identical to the legacy transaction. (libsql's
-//     db.transaction() helper is avoided because it leaves the shared
-//     connection in a state that breaks follow-up db.all reads.)
-//
-//   * created_at/updated_at handling is preserved exactly: updates set
-//     updated_at = datetime('now') via sql`datetime('now')`.
-// ---------------------------------------------------------------------------
 const { db } = require('../db/index');
 const auditTrailService = require('../auditTrail/auditTrailService');
 const { sql, eq, and } = require('drizzle-orm');

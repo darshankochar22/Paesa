@@ -64,7 +64,10 @@ const getRegisterData = async (company_id, fy_id, voucher_type) => {
     } else if (voucher_type === 'Credit Note') {
       credit = totalAmount;
       cumulativeBalance += totalAmount;
-    }
+    } else if (voucher_type === 'Contra') {
+     debit = totalAmount;
+     credit = totalAmount;
+   }
 
     return {
       month: m.name,

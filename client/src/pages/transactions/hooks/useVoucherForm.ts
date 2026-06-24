@@ -1,8 +1,3 @@
-// hooks/useVoucherForm.ts
-// ─── Barrel hook: assembles all sub-hooks into one unified API ────────────────
-//
-// External API is IDENTICAL to the original monolithic version.
-// All consumers (Vouchers.tsx, popups, etc.) import from this file unchanged.
 
 import { useCallback, useEffect, useRef } from "react";
 import { useCompany } from "../../../context/CompanyContext";

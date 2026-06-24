@@ -173,6 +173,8 @@ contextBridge.exposeInMainWorld('api', {
         creditNoteRegister: (company_id, fy_id) => invoke('report:creditNoteRegister', { company_id, fy_id }),
         purchaseRegister:   (company_id, fy_id) => invoke('report:purchaseRegister',   { company_id, fy_id }),
         salesRegister:      (company_id, fy_id) => invoke('report:salesRegister',      { company_id, fy_id }),
+        contraRegister:     (company_id, fy_id) => invoke('report:contraRegister',     { company_id, fy_id }),
+       contraRegisterVouchers: (company_id, fy_id, from_date, to_date)   => invoke('report:contraRegisterVouchers', { company_id, fy_id, from_date, to_date }),
     },
     banking: {
         getUnreconciled: (company_id, fy_id, ledger_id)                          => invoke('banking:getUnreconciled', { company_id, fy_id, ledger_id }),

@@ -1,20 +1,9 @@
 const { sqliteTable, text, integer, real } = require('drizzle-orm/sqlite-core');
 const { sql } = require('drizzle-orm');
 
-// Mirrors server/voucher/voucher.js CREATE TABLE statements (SQLite ground truth).
-// Raw SQLite types preserved: 0/1 INTEGER flags kept as integer, money/qty/rate as REAL,
-// date / *_date stored as TEXT, created_at / updated_at are TEXT ISO datetime strings.
-// In-module FKs (voucher_id, stock_entry_id, entry_id) use .references(); cross-module
-// FKs (companies, financial_years, ledgers, employees, pay_heads) are comments only.
-
-// ---------------------------------------------------------------------------
-// vouchers  (header)
-// ---------------------------------------------------------------------------
 const vouchers = sqliteTable('vouchers', {
   voucherId: integer('voucher_id').primaryKey({ autoIncrement: true }),
-  // FK -> companies(company_id) ON DELETE CASCADE (cross-module).
   companyId: integer('company_id').notNull(),
-  // FK -> financial_years(fy_id) ON DELETE CASCADE (cross-module).
   fyId: integer('fy_id').notNull(),
   voucherType: text('voucher_type').notNull(),
   voucherNumber: text('voucher_number'),
@@ -25,7 +14,6 @@ const vouchers = sqliteTable('vouchers', {
   referenceNumber: text('reference_number'),
   referenceDate: text('reference_date'),
   narration: text('narration'),
-  // FK -> ledgers(ledger_id) (cross-module).
   partyLedgerId: integer('party_ledger_id'),
   partyName: text('party_name'),
   placeOfSupply: text('place_of_supply'),

@@ -22,6 +22,7 @@ import LedgerVouchersLayout from "@/components/reports/LedgerVouchersLayout";
 import { RatioAnalysisLayout } from "@/components/reports/RatioAnalysisLayout";
 import CashBankSummaryLayout from "@/components/reports/CashBankSummaryLayout";
 import GroupVouchersLayout from "@/components/reports/GroupVouchersLayout";
+import ContraRegisterLayout from "@/components/reports/ContraRegisterLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -985,7 +986,7 @@ export function ReportRunner() {
       )}
     >
       <div className="flex h-full w-full overflow-hidden">
-        {error ? (
+  {error ? (
           <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center animate-fade-in">
             {error}
           </div>
@@ -1015,7 +1016,9 @@ export function ReportRunner() {
          <GroupVouchersLayout />
          ):reportType === "cash-bank" ? (
          <CashBankSummaryLayout />
-         ) :(
+         ) :reportType === "contra-register" ?(
+          <ContraRegisterLayout />
+         ):(
         <ReportTable
             columns={tableColumns}
             rows={rows}

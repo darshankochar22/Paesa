@@ -212,6 +212,8 @@ ipcMain.handle('report:debitNoteRegister',   reportController.debitNoteRegister)
 ipcMain.handle('report:creditNoteRegister',  reportController.creditNoteRegister);
 ipcMain.handle('report:purchaseRegister',    reportController.purchaseRegister);
 ipcMain.handle('report:salesRegister',       reportController.salesRegister);
+ipcMain.handle('report:contraRegister',         reportController.contraRegister);
+ipcMain.handle('report:contraRegisterVouchers', reportController.contraRegisterVouchers);
 
 ipcMain.handle('banking:getUnreconciled', bankingController.getUnreconciled);
 ipcMain.handle('banking:reconcile', bankingController.reconcile);
@@ -424,7 +426,7 @@ ipcMain.handle('companyTcsDetails:save', companyTcsDetailsController.save);
 ipcMain.handle('companyPanCinDetails:get', companyPanCinDetailsController.get);
 ipcMain.handle('companyPanCinDetails:save', companyPanCinDetailsController.save);
 
-// AI copilot + BYOK (key stays in main process)
+
 ipcMain.handle('ai:getKeyStatus', aiController.getKeyStatus);
 ipcMain.handle('ai:setKey',       aiController.setKey);
 ipcMain.handle('ai:clearKey',     aiController.clearKey);
