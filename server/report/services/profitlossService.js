@@ -2,6 +2,8 @@ const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../../db/schema');
 
+/* ── reused helpers (same as balanceSheetService) ────────────────────── */
+
 const getEntries = async (company_id, fy_id) => {
   return await db.all(
     sql`SELECT e.ledger_id, e.type, e.amount
@@ -28,6 +30,55 @@ const calcLedgerBalance = (ledger_id, entries, opening_balance = 0, opening_bala
   return balance;
 };
 
+const buildDescendantMap = (allGroups) => {
+  const childrenMap = {};
+  for (const g of allGroups) {
+    if (!childrenMap[g.group_id]) childrenMap[g.group_id] = [];
+    if (g.parent_group_id) {
+      if (!childrenMap[g.parent_group_id]) childrenMap[g.parent_group_id] = [];
+      childrenMap[g.parent_group_id].push(g.group_id);
+    }
+  }
+  const getAllDescendants = (group_id) => {
+    const result = new Set();
+    const queue = [group_id];
+    while (queue.length) {
+      const current = queue.shift();
+      for (const child of (childrenMap[current] || [])) {
+        if (!result.has(child)) { result.add(child); queue.push(child); }
+      }
+    }
+    return result;
+  };
+  const descendantMap = {};
+  for (const g of allGroups) {
+    descendantMap[g.group_id] = getAllDescendants(g.group_id);
+  }
+  return descendantMap;
+};
+
+/**
+ * Map a primary group name → P&L bucket.
+ * Uses substring matching to handle variations in user-defined group names.
+ * Priority: more specific matches checked first.
+ */
+const getPnLCategory = (name) => {
+  if (!name) return null;
+  const n = name.toLowerCase().trim();
+
+  // More specific first (indirect before direct)
+  if (n.includes('indirect expense'))  return 'indirectExpenses';
+  if (n.includes('indirect income'))   return 'indirectIncomes';
+  if (n.includes('direct expense'))    return 'directExpenses';
+  if (n.includes('direct income'))     return 'directIncomes';
+  if (n.includes('purchase'))          return 'purchaseAccounts';
+  if (n.includes('sales'))             return 'salesAccounts';
+
+  return null;
+};
+
+/* ── main function ───────────────────────────────────────────────────── */
+
 const profitLoss = async (company_id, fy_id) => {
   try {
     const entries = await getEntries(company_id, fy_id);
@@ -46,89 +97,92 @@ const profitLoss = async (company_id, fy_id) => {
           WHERE l.company_id = ${company_id} AND l.is_active = 1`
     );
 
-
+    /* Build ledger balances */
     const ledgerBalances = {};
     for (const l of allLedgers) {
       ledgerBalances[l.ledger_id] = {
         ledger_id:   l.ledger_id,
         ledger_name: l.ledger_name,
         group_id:    l.group_id,
-        balance:     calcLedgerBalance(
-          l.ledger_id, entries,
-          l.opening_balance || 0,
-          l.opening_balance_type || 'Dr'
-        ),
+        balance:     calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0, l.opening_balance_type || 'Dr'),
       };
     }
 
+    const descendantMap = buildDescendantMap(allGroups);
 
-    const getRootNature = (group_id) => {
-      let g = allGroups.find(x => x.group_id === group_id);
-      while (g && g.parent_group_id) {
-        g = allGroups.find(x => x.group_id === g.parent_group_id) || g;
-      }
-      return g ? g.nature : null;
-    };
-
- 
-    const childrenOf = {};
+    /* Build groupBalances — identical pattern to balanceSheetService */
+    const groupBalances = {};
     for (const g of allGroups) {
-      if (!childrenOf[g.group_id]) childrenOf[g.group_id] = [];
-      if (g.parent_group_id) {
-        if (!childrenOf[g.parent_group_id]) childrenOf[g.parent_group_id] = [];
-        childrenOf[g.parent_group_id].push(g.group_id);
-      }
-    }
-
-    const getAllDescendants = (group_id) => {
-      const result = new Set();
-      const queue = [group_id];
-      while (queue.length) {
-        const cur = queue.shift();
-        for (const child of (childrenOf[cur] || [])) {
-          if (!result.has(child)) { result.add(child); queue.push(child); }
-        }
-      }
-      return result;
-    };
-
-    const primaryGroups = allGroups.filter(g => g.parent_group_id === null);
-
-    const buildGroupRow = (g) => {
-      const relevantIds = new Set([g.group_id, ...getAllDescendants(g.group_id)]);
+      const relevantGroupIds = new Set([g.group_id, ...descendantMap[g.group_id]]);
       let total = 0;
       const directLedgers = [];
 
       for (const l of Object.values(ledgerBalances)) {
-        if (relevantIds.has(l.group_id)) total += l.balance;
+        if (relevantGroupIds.has(l.group_id)) total += l.balance;
         if (l.group_id === g.group_id && l.balance !== 0) {
-          directLedgers.push({
-            ledger_id:   l.ledger_id,
-            ledger_name: l.ledger_name,
-            balance:     l.balance,
-          });
+          directLedgers.push({ ledger_id: l.ledger_id, ledger_name: l.ledger_name, balance: l.balance });
         }
       }
 
-      const childGroups = allGroups
-        .filter(cg => cg.parent_group_id === g.group_id)
-        .map(cg => buildGroupRow(cg))
-        .filter(cg => cg.balance !== 0);
-
-      return {
+      groupBalances[g.group_id] = {
         group_id:    g.group_id,
         group_name:  g.name,
         nature:      g.nature,
         balance:     total,
         ledgers:     directLedgers,
-        childGroups,
+        childGroups: [],
       };
+    }
+
+    /* Wire up childGroups (with full subtree data) */
+    for (const g of allGroups) {
+      groupBalances[g.group_id].childGroups = allGroups
+        .filter(cg => cg.parent_group_id === g.group_id)
+        .filter(cg => groupBalances[cg.group_id]?.balance !== 0)
+        .map(cg => ({
+          group_id:    cg.group_id,
+          group_name:  cg.name,
+          balance:     groupBalances[cg.group_id].balance,
+          ledgers:     groupBalances[cg.group_id].ledgers,
+          childGroups: groupBalances[cg.group_id].childGroups,
+        }));
+    }
+
+    /* Identify primary groups (parent_group_id is null OR undefined/falsy for predefined roots) */
+    const primaryGroups = allGroups.filter(g => !g.parent_group_id);
+
+    /* Categorize into 6 P&L buckets */
+    const buckets = {
+      purchaseAccounts: [],
+      directExpenses:   [],
+      indirectExpenses: [],
+      salesAccounts:    [],
+      directIncomes:    [],
+      indirectIncomes:  [],
     };
 
+    for (const pg of primaryGroups) {
+      const category = getPnLCategory(pg.name);
+      if (!category) continue;
+      const row = groupBalances[pg.group_id];
+      if (!row) continue;
+      if (row.balance !== 0 || row.ledgers.length > 0 || row.childGroups.length > 0) {
+        buckets[category].push(row);
+      }
+    }
 
+    /* Totals — use Math.abs since expense ledgers have Dr (+) balance,
+       income ledgers have Cr (-) balance in our sign convention */
+    const totalPurchase         = Math.abs(buckets.purchaseAccounts.reduce((s, g) => s + g.balance, 0));
+    const totalDirectExpenses   = Math.abs(buckets.directExpenses.reduce((s, g)   => s + g.balance, 0));
+    const totalIndirectExpenses = Math.abs(buckets.indirectExpenses.reduce((s, g) => s + g.balance, 0));
+    const totalSales            = Math.abs(buckets.salesAccounts.reduce((s, g)    => s + g.balance, 0));
+    const totalDirectIncomes    = Math.abs(buckets.directIncomes.reduce((s, g)    => s + g.balance, 0));
+    const totalIndirectIncomes  = Math.abs(buckets.indirectIncomes.reduce((s, g)  => s + g.balance, 0));
+
+    /* Opening / Closing Stock */
     let openingStockValue = 0;
     let closingStockValue = 0;
-
     try {
       const osRows = await db.all(
         sql`SELECT COALESCE(SUM(opening_value), 0) AS total
@@ -136,51 +190,49 @@ const profitLoss = async (company_id, fy_id) => {
             WHERE company_id = ${company_id} AND is_active = 1`
       );
       openingStockValue = Number(osRows[0]?.total) || 0;
+      closingStockValue = openingStockValue;
+    } catch (_) { /* no stock_items table or no data */ }
 
+    /* Gross profit calculation */
+    const tradingCredit = totalSales + totalDirectIncomes + closingStockValue;
+    const tradingDebit  = openingStockValue + totalPurchase + totalDirectExpenses;
+    const grossProfit   = tradingCredit - tradingDebit;
+    const isGrossProfit = grossProfit >= 0;
 
-      const csRows = await db.all(
-        sql`SELECT
-              COALESCE(SUM(CASE WHEN ve.type = 'Dr' THEN ve.amount ELSE -ve.amount END), 0) AS net
-            FROM voucher_entries ve
-            INNER JOIN vouchers v ON v.voucher_id = ve.voucher_id
-            INNER JOIN ledgers l  ON l.ledger_id  = ve.ledger_id
-            INNER JOIN groups  g  ON g.group_id   = l.group_id
-            WHERE v.company_id    = ${company_id}
-              AND v.fy_id         = ${fy_id}
-              AND v.is_cancelled  = 0
-              AND g.nature        IN ('Assets')`
-      );
-
-      closingStockValue = openingStockValue; 
-    } catch (_) {
-      openingStockValue = 0;
-      closingStockValue = 0;
-    }
-    const incomeGroups = primaryGroups
-      .filter(g => g.nature === 'Income')
-      .map(g => buildGroupRow(g))
-      .filter(g => g.balance !== 0);
-
-    const expenseGroups = primaryGroups
-      .filter(g => g.nature === 'Expenses')
-      .map(g => buildGroupRow(g))
-      .filter(g => g.balance !== 0);
-
-    const totalIncome = incomeGroups.reduce((s, g) => s + Math.abs(g.balance), 0);
-    const totalExpenses = expenseGroups.reduce((s, g) => s + Math.abs(g.balance), 0);
-    const netProfit = totalIncome - totalExpenses;
-    const isProfit = netProfit >= 0;
+    /* Net profit calculation */
+    const netProfit = grossProfit + totalIndirectIncomes - totalIndirectExpenses;
+    const isProfit  = netProfit >= 0;
 
     return {
-      success:       true,
-      income:        incomeGroups,
-      expenses:      expenseGroups,
-      totalIncome,
-      totalExpenses,
+      success: true,
+
+      openingStock: openingStockValue,
+      closingStock:  closingStockValue,
+
+      purchaseAccounts:       buckets.purchaseAccounts,
+      totalPurchase,
+      directExpenses:         buckets.directExpenses,
+      totalDirectExpenses,
+      indirectExpenses:       buckets.indirectExpenses,
+      totalIndirectExpenses,
+
+      salesAccounts:          buckets.salesAccounts,
+      totalSales,
+      directIncomes:          buckets.directIncomes,
+      totalDirectIncomes,
+      indirectIncomes:        buckets.indirectIncomes,
+      totalIndirectIncomes,
+
+      grossProfit,
+      isGrossProfit,
       netProfit,
       isProfit,
-      openingStock:  openingStockValue,
-      closingStock:  closingStockValue,
+
+      /* backward-compat for profit_loss.js definition */
+      income:        buckets.salesAccounts,
+      expenses:      buckets.purchaseAccounts,
+      totalIncome:   totalSales,
+      totalExpenses: totalPurchase,
     };
 
   } catch (err) {
