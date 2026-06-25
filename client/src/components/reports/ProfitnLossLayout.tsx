@@ -401,19 +401,29 @@ function ProfitLossLayoutInner() {
     data.openingStock +
     data.totalPurchase +
     data.totalDirectExpenses +
-    data.closingStock +
-    (!data.isGrossProfit ? absGross : 0);
+    (data.isGrossProfit ? absGross : 0);
 
   const tradingCreditTotal =
     data.totalSales +
     data.totalDirectIncomes +
-    (data.isGrossProfit ? absGross : 0);
+    data.closingStock +
+    (!data.isGrossProfit ? absGross : 0);
 
   const tradingSubtotal = Math.max(tradingDebitTotal, tradingCreditTotal);
 
   /* Grand total (both sides must balance) */
-  const leftTotal = tradingDebitTotal + data.totalIndirectExpenses + (data.isProfit ? absNet : 0);
-  const rightTotal = tradingCreditTotal + data.totalIndirectIncomes + (!data.isProfit ? absNet : 0);
+  const leftTotal =
+    (showTrading ? (data.openingStock + data.totalPurchase + data.totalDirectExpenses) : 0) +
+    (showTrading ? absGross : 0) +
+    data.totalIndirectExpenses +
+    (data.isProfit ? absNet : 0);
+
+  const rightTotal =
+    (showTrading ? (data.totalSales + data.totalDirectIncomes + data.closingStock) : 0) +
+    (showTrading ? absGross : 0) +
+    data.totalIndirectIncomes +
+    (!data.isProfit ? absNet : 0);
+
   const grandTotal = Math.max(leftTotal, rightTotal);
 
   return (
@@ -484,19 +494,10 @@ function ProfitLossLayoutInner() {
                       />
                     )}
 
-                    {/* Closing Stock — on LEFT/debit side as per TallyPrime */}
-                    <TRow
-                      label="Closing Stock"
-                      amount={data.closingStock}
-                      showZero
-                      isFocused={focusedId === "closing-stock"}
-                      onClick={() => focus("closing-stock")}
-                    />
-
-                    {/* Gross Loss c/o goes on LEFT only if there's a gross LOSS */}
-                    {!data.isGrossProfit && (
+                    {/* Gross Profit c/o goes on LEFT only if there's a gross PROFIT */}
+                    {data.isGrossProfit && (
                       <TRow
-                        label="Gross Loss c/o"
+                        label="Gross Profit c/o"
                         amount={absGross}
                         isGrossEntry
                         isFocused={focusedId === "gross-co"}
@@ -507,10 +508,10 @@ function ProfitLossLayoutInner() {
                     {/* Trading subtotal divider */}
                     <SubtotalRow amount={tradingSubtotal} />
 
-                    {/* Gross Profit b/f goes on LEFT (below subtotal) if there's gross PROFIT */}
-                    {data.isGrossProfit && (
+                    {/* Gross Loss b/f goes on LEFT (below subtotal) if there's gross LOSS */}
+                    {!data.isGrossProfit && (
                       <TRow
-                        label="Gross Profit b/f"
+                        label="Gross Loss b/f"
                         amount={absGross}
                         isGrossEntry
                         isFocused={focusedId === "gross-bf"}
@@ -547,17 +548,6 @@ function ProfitLossLayoutInner() {
                     isGrossEntry
                     isFocused={focusedId === "net-profit"}
                     onClick={() => focus("net-profit")}
-                  />
-                )}
-
-                {/* Net Loss on LEFT if it's a loss — balancing entry */}
-                {!data.isProfit && (
-                  <TRow
-                    label="Nett Loss b/f"
-                    amount={absNet}
-                    isGrossEntry
-                    isFocused={focusedId === "net-loss-bf"}
-                    onClick={() => focus("net-loss-bf")}
                   />
                 )}
 
@@ -621,6 +611,15 @@ function ProfitLossLayoutInner() {
                       />
                     )}
 
+                    {/* Closing Stock — on RIGHT/credit side as per TallyPrime */}
+                    <TRow
+                      label="Closing Stock"
+                      amount={data.closingStock}
+                      showZero
+                      isFocused={focusedId === "closing-stock"}
+                      onClick={() => focus("closing-stock")}
+                    />
+
                     {/* Gross Loss c/o on RIGHT when there's a gross LOSS */}
                     {!data.isGrossProfit && (
                       <TRow
@@ -675,17 +674,6 @@ function ProfitLossLayoutInner() {
                     isGrossEntry
                     isFocused={focusedId === "net-loss"}
                     onClick={() => focus("net-loss")}
-                  />
-                )}
-
-                {/* Net Profit on RIGHT as balancing entry when profit */}
-                {data.isProfit && (
-                  <TRow
-                    label="Nett Profit c/o"
-                    amount={absNet}
-                    isGrossEntry
-                    isFocused={focusedId === "net-profit-co"}
-                    onClick={() => focus("net-profit-co")}
                   />
                 )}
 

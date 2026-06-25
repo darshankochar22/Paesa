@@ -7640,6 +7640,8 @@ Object.assign(REPORT_DEFINITIONS, {
   "cash-flow": REPORT_DEFINITIONS["cash-flow-statement"],
   "outstandings-receivable": REPORT_DEFINITIONS["bills-receivable"],
   "outstandings-payable": REPORT_DEFINITIONS["bills-payable"],
+  "outstandings-ledger": REPORT_DEFINITIONS["ledger-outstandings"],
+  "outstandings-group": REPORT_DEFINITIONS["group-outstandings"],
   "stock-category": REPORT_DEFINITIONS["stock-category-summary"],
   "godown": REPORT_DEFINITIONS["godown-summary"],
   "ageing-analysis": REPORT_DEFINITIONS["stock-ageing-analysis"],

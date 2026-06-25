@@ -42,6 +42,7 @@ import CostCentreSummaryLayout from "@/components/reports/CostCentreSummaryLayou
 import CostCentreBreakupLayout from "@/components/reports/CostCentreBreakupLayout";
 import CostCentreLedgerLayout from "@/components/reports/CostCentreLedgerLayout";
 import CostCentreWisePLLayout from "@/components/reports/CostCentreWisePLLayout";
+import StatisticsLayout from "@/components/reports/StatisticsLayout";
 
 
 export function ReportRunner() {
@@ -536,6 +537,7 @@ export function ReportRunner() {
     "cash-book", "bank-book", "cash-bank", "group-vouchers", "voucher-clarification",
     "outstandings-receivable", "outstandings-payable",
     "ledger-outstandings", "group-outstandings",
+    "outstandings-ledger", "outstandings-group",
     "interest-receivable", "interest-payable",
     "interest-calculation-ledger-wise", "interest-calculation-bill-wise",
     "cost-category-summary", "cost-centre-summary", "cost-centre-break-up",
@@ -1044,9 +1046,9 @@ export function ReportRunner() {
          <BillsLayout mode="receivable" />
          ):reportType === "outstandings-payable" ? (
          <BillsLayout mode="payable" />
-         ):reportType === "ledger-outstandings" ? (
+         ):reportType === "ledger-outstandings" || reportType === "outstandings-ledger" ? (
          <LedgerOutstandingsLayout />
-         ):reportType === "group-outstandings" ? (
+         ):reportType === "group-outstandings" || reportType === "outstandings-group" ? (
          <GroupOutstandingsLayout />
          ):reportType === "interest-receivable" ? (
          <InterestBillsLayout mode="receivable" />
@@ -1084,6 +1086,8 @@ export function ReportRunner() {
             <CostCentreLedgerLayout />
          ):reportType === "cost-centre-wise-p-and-l" ? (
             <CostCentreWisePLLayout />
+         ):reportType === "statistics" ? (
+            <StatisticsLayout />
          ):(
         <ReportTable
             columns={tableColumns}

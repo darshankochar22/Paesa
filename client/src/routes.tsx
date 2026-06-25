@@ -61,6 +61,8 @@ import FundsFlowStatement from "./pages/reports/accounts/FundsFlowStatement.tsx"
 import RatioAnalysis from "./pages/reports/accounts/RatioAnalysis.tsx";
 import OutstandingsReceivable from "./pages/reports/accounts/OutstandingsReceivable.tsx";
 import OutstandingsPayable from "./pages/reports/accounts/OutstandingsPayable.tsx";
+import OutstandingsLedgerSelect from "./pages/reports/accounts/OutstandingsLedger.tsx";
+import OutstandingsGroupSelect from "./pages/reports/accounts/OutstandingsGroupSelect.tsx";
 import InterestCalculationsMenu from "./pages/menu/reports/InterestCalculationsMenu.tsx";
 import CostCentreSummary from "./pages/reports/accounts/CostCentreSummary.tsx";
 import CostCategorySummary from "./pages/reports/accounts/CostCategorySummary.tsx";
@@ -228,9 +230,19 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/ratio-analysis",          element: <RatioAnalysis /> },
   { path: "/reports/accounts/outstandings-receivable",element: <OutstandingsReceivable /> },
   { path: "/reports/accounts/outstandings-payable",   element: <OutstandingsPayable /> },
-  { path: "/reports/accounts/interest-calculations",  element: <InterestCalculationsMenu /> },
+  { path: "/reports/accounts/ledger-outstandings",     element: <OutstandingsLedgerSelect /> },
+  { path: "/reports/accounts/outstandings-ledger",     element: <ReportRunner /> },
+  { path: "/reports/accounts/group-outstandings",      element: <OutstandingsGroupSelect /> },
+  { path: "/reports/accounts/outstandings-group",      element: <ReportRunner /> },
+  { path: "/reports/accounts/interest-receivable",     element: <ReportRunner /> },
+  { path: "/reports/accounts/interest-payable",        element: <ReportRunner /> },
+  { path: "/reports/accounts/interest-calculation-ledger-wise", element: <ReportRunner /> },
+  { path: "/reports/accounts/interest-calculation-bill-wise",   element: <ReportRunner /> },
   { path: "/reports/accounts/cost-centre-summary",    element: <CostCentreSummary /> },
   { path: "/reports/accounts/cost-category-summary",  element: <CostCategorySummary /> },
+  { path: "/reports/accounts/cost-centre-break-up",    element: <ReportRunner /> },
+  { path: "/reports/accounts/cost-centre-ledger",      element: <ReportRunner /> },
+  { path: "/reports/accounts/cost-centre-wise-p-and-l", element: <ReportRunner /> },
   { path: "/reports/accounts/statistics",             element: <Statistics /> },
   { path: "/reports/inventory/stock-summary",           element: <StockSummary /> },
   { path: "/reports/inventory/stock-item",               element: <StockItemReport /> },
@@ -270,6 +282,7 @@ export const APP_ROUTES: RouteConfig[] = [
 { path: "/reports/statements-of-accounts/outstandings", element: <OutStandingsMenu /> },
 { path: "/reports/statements-of-accounts/interest-calculations", element: <InterestCalculationsMenu /> },
 { path: "/reports/statements-of-accounts/cost-centres", element: <CostCentresMenu /> },
+{ path: "/reports/statements-of-accounts/statistics", element: <Statistics /> },
 
   { path: "/master/create/tds-details", element: <TDSDetailsCreate /> },
   { path: "/master/alter/tds-details", element: <TDSDetailsAlter /> },

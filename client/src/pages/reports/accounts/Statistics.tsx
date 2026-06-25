@@ -1,5 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
 
 export default function Statistics() {
-  return <ReportStub title="tatistics" />;
+  return <ReportRunner />;
 }
