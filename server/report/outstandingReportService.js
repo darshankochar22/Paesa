@@ -100,6 +100,109 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
   return { rows: resultRows, total, bucketTotals, as_on: asOnDate };
 };
 
+// Pending bills for a single ledger (used by Ledger Outstandings report).
+const buildLedgerOutstanding = async (company_id, fy_id, ledger_id) => {
+  const asOnDate = new Date().toISOString().slice(0, 10);
+  const rows = await db.all(
+    sql`
+      SELECT
+        l.ledger_id              AS ledger_id,
+        l.name                   AS party_name,
+        vbr.bill_name            AS bill_name,
+        COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
+        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
+        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
+        SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS total_amount
+      FROM ${voucherBillReferences} vbr
+      JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
+      JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
+      WHERE v.company_id = ${company_id}
+        AND v.fy_id = ${fy_id}
+        AND v.is_cancelled = 0
+        AND COALESCE(v.is_optional, 0) = 0
+        AND COALESCE(v.is_post_dated, 0) = 0
+        AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
+        AND vbr.ledger_id = ${ledger_id}
+      GROUP BY l.ledger_id, l.name, vbr.bill_name
+      HAVING ABS(total_amount) > 0.01
+      ORDER BY MAX(v.date) DESC
+    `
+  );
+
+  const bucketTotals = AGEING_BUCKETS.reduce((acc, b) => { acc[b] = 0; return acc; }, {});
+  const resultRows = rows.map((row) => {
+    const balance = Number(row.total_amount) || 0;
+    const overdueDays = row.due_date ? Math.max(0, dayDiff(row.due_date, asOnDate)) : 0;
+    const ageing = bucketFor(overdueDays);
+    bucketTotals[ageing] += balance;
+    return {
+      bill: row.bill_name,
+      bill_date: row.bill_date,
+      due_date: row.due_date,
+      credit_period: row.credit_period,
+      overdue_days: overdueDays,
+      balance,
+      ageing,
+    };
+  });
+
+  const total = resultRows.reduce((s, r) => s + r.balance, 0);
+  return { rows: resultRows, total, bucketTotals, as_on: asOnDate };
+};
+
+// Pending bills grouped by ledger for a group (used by Group Outstandings).
+const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
+  const asOnDate = new Date().toISOString().slice(0, 10);
+  const rows = await db.all(
+    sql`
+      SELECT
+        l.ledger_id              AS ledger_id,
+        l.name                   AS party_name,
+        vbr.bill_name            AS bill_name,
+        COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
+        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
+        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
+        SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS total_amount
+      FROM ${voucherBillReferences} vbr
+      JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
+      JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
+      WHERE v.company_id = ${company_id}
+        AND v.fy_id = ${fy_id}
+        AND v.is_cancelled = 0
+        AND COALESCE(v.is_optional, 0) = 0
+        AND COALESCE(v.is_post_dated, 0) = 0
+        AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
+        AND l.group_id = ${group_id}
+        AND l.company_id = ${company_id}
+      GROUP BY l.ledger_id, l.name, vbr.bill_name
+      HAVING ABS(total_amount) > 0.01
+      ORDER BY l.name ASC, MAX(v.date) DESC
+    `
+  );
+
+  const bucketTotals = AGEING_BUCKETS.reduce((acc, b) => { acc[b] = 0; return acc; }, {});
+
+  // Group rows by ledger
+  const ledgerMap = new Map();
+  rows.forEach((row) => {
+    const balance = Number(row.total_amount) || 0;
+    const overdueDays = row.due_date ? Math.max(0, dayDiff(row.due_date, asOnDate)) : 0;
+    const ageing = bucketFor(overdueDays);
+    bucketTotals[ageing] += balance;
+
+    if (!ledgerMap.has(row.ledger_id)) {
+      ledgerMap.set(row.ledger_id, { ledger_id: row.ledger_id, party: row.party_name, total: 0, bills: [] });
+    }
+    const entry = ledgerMap.get(row.ledger_id);
+    entry.total += balance;
+    entry.bills.push({ bill: row.bill_name, bill_date: row.bill_date, due_date: row.due_date, credit_period: row.credit_period, overdue_days: overdueDays, balance, ageing });
+  });
+
+  const resultRows = Array.from(ledgerMap.values());
+  const total = resultRows.reduce((s, r) => s + r.total, 0);
+  return { rows: resultRows, total, bucketTotals, as_on: asOnDate };
+};
+
 module.exports = {
   billsReceivable: async (company_id, fy_id) => {
     try {
@@ -120,4 +223,25 @@ module.exports = {
       return { success: false, error: err.message };
     }
   },
+
+  ledgerOutstandings: async (company_id, fy_id, ledger_id) => {
+    try {
+      const { rows, total, bucketTotals, as_on } =
+        await buildLedgerOutstanding(company_id, fy_id, ledger_id);
+      return { success: true, as_on, rows, total, bucketTotals };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  groupOutstandings: async (company_id, fy_id, group_id) => {
+    try {
+      const { rows, total, bucketTotals, as_on } =
+        await buildGroupOutstanding(company_id, fy_id, group_id);
+      return { success: true, as_on, rows, total, bucketTotals };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 };
+

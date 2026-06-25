@@ -31,6 +31,9 @@ import CreditNoteRegisterLayout from "@/components/reports/CreditNoteRegisterLay
 import DebitNoteRegisterLayout from "@/components/reports/DebitNoteRegisterLayout";
 import JournalRegisterLayout from "@/components/reports/JournalRegisterLayout";
 import VoucherClarificationLayout from "@/components/reports/VoucherClarificationLayout";
+import BillsLayout from "@/components/reports/BillsLayout";
+import LedgerOutstandingsLayout from "@/components/reports/LedgerOutstandingsLayout";
+import GroupOutstandingsLayout from "@/components/reports/GroupOutstandingsLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -521,7 +524,9 @@ export function ReportRunner() {
     const layoutOnlyReports = [
     "balance-sheet", "stock-summary", "profit-loss", "trial-balance",
     "group-summary", "ledger-summary", "ledger", "ratio-analysis",
-    "cash-book", "bank-book", "cash-bank", "group-vouchers","voucher-clarification",
+    "cash-book", "bank-book", "cash-bank", "group-vouchers", "voucher-clarification",
+    "outstandings-receivable", "outstandings-payable",
+    "ledger-outstandings", "group-outstandings",
   ];
   if (layoutOnlyReports.includes(reportType)) {
     setLoading(false);
@@ -1022,7 +1027,15 @@ export function ReportRunner() {
          <GroupVouchersLayout />
          ):reportType === "cash-bank" ? (
          <CashBankSummaryLayout />
-        ):reportType === "contra-register" ? (
+        ):reportType === "outstandings-receivable" ? (
+         <BillsLayout mode="receivable" />
+         ):reportType === "outstandings-payable" ? (
+         <BillsLayout mode="payable" />
+         ):reportType === "ledger-outstandings" ? (
+         <LedgerOutstandingsLayout />
+         ):reportType === "group-outstandings" ? (
+         <GroupOutstandingsLayout />
+         ):reportType === "contra-register" ? (
          <ContraRegisterLayout />
          ):reportType === "payment-register" ? (
          <PaymentRegisterLayout />

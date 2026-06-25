@@ -164,6 +164,8 @@ ipcMain.handle('report:bankBook', reportController.bankBook);
 ipcMain.handle('report:daybook', reportController.daybook);
 ipcMain.handle('report:billsReceivable', reportController.billsReceivable);
 ipcMain.handle('report:billsPayable', reportController.billsPayable);
+ipcMain.handle('report:ledgerOutstandings', reportController.ledgerOutstandings);
+ipcMain.handle('report:groupOutstandings', reportController.groupOutstandings);
 ipcMain.handle('report:fundsFlow', reportController.fundsFlow);
 ipcMain.handle('report:stockSummary', reportController.stockSummary);
 ipcMain.handle('report:stockGroupItems', reportController.stockGroupItems);

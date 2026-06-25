@@ -26,7 +26,7 @@ export default function VoucherClarificationLayout() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
 
-  const [counts, setCounts] = React.useState<ClarificationCount>({
+  const [counts] = React.useState<ClarificationCount>({
     verification: 0,
     "related-party": 0,
     forex: 0,

@@ -67,6 +67,12 @@ module.exports = {
   billsPayable: async (event, { company_id, fy_id }) => {
     return await outstandingReportService.billsPayable(company_id, fy_id);
   },
+  ledgerOutstandings: async (event, { company_id, fy_id, ledger_id }) => {
+    return await outstandingReportService.ledgerOutstandings(company_id, fy_id, ledger_id);
+  },
+  groupOutstandings: async (event, { company_id, fy_id, group_id }) => {
+    return await outstandingReportService.groupOutstandings(company_id, fy_id, group_id);
+  },
   cashFlow: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await cashFlowReportService.cashFlow(company_id, fy_id, from_date, to_date);
   },

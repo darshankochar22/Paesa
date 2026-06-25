@@ -184,6 +184,7 @@ import VoucherList from "./pages/transactions/VoucherList.tsx";
 import LedgerSelect from "./pages/reports/accounts/LedgerSelect.tsx";
 import GroupSelect from "./pages/reports/accounts/GroupSelect.tsx";
 import GroupVouchersSelect from "./pages/reports/accounts/GroupVouchersSelect.tsx";
+import OutStandingsMenu from "./pages/menu/reports/OutStandingsMenu.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -264,6 +265,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/payroll/esi",               element: <ESIReports /> },
   { path: "/reports/payroll/professional-tax",  element: <ProfessionalTax /> },
   { path: "/reports/payroll/gratuity",          element: <Gratuity /> },
+{ path: "/reports/statements-of-accounts/outstandings", element: <OutStandingsMenu /> },
 
   { path: "/master/create/tds-details", element: <TDSDetailsCreate /> },
   { path: "/master/alter/tds-details", element: <TDSDetailsAlter /> },

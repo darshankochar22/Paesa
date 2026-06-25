@@ -131,6 +131,8 @@ contextBridge.exposeInMainWorld('api', {
         daybook:      (company_id, fy_id, from_date, to_date)                    => invoke('report:daybook', { company_id, fy_id, from_date, to_date }),
         billsReceivable: (company_id, fy_id)                                     => invoke('report:billsReceivable', { company_id, fy_id }),
         billsPayable:    (company_id, fy_id)                                     => invoke('report:billsPayable', { company_id, fy_id }),
+        ledgerOutstandings: (company_id, fy_id, ledger_id)                      => invoke('report:ledgerOutstandings', { company_id, fy_id, ledger_id }),
+        groupOutstandings:  (company_id, fy_id, group_id)                       => invoke('report:groupOutstandings', { company_id, fy_id, group_id }),
         cashFlow:        (company_id, fy_id, from_date, to_date)                 => invoke('report:cashFlow', { company_id, fy_id, from_date, to_date }),
         fundsFlow:       (company_id, fy_id, from_date, to_date)                 => invoke('report:fundsFlow', { company_id, fy_id, from_date, to_date }),
         stockSummary:    (company_id, fy_id, as_on_date, method)                 => invoke('report:stockSummary', { company_id, fy_id, as_on_date, method }),

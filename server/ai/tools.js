@@ -29,7 +29,7 @@ const advancedInventoryReportService = require('../report/advancedInventoryRepor
 const advancedAccountingReportService = require('../report/advancedAccountingReportService');
 
 const QUERY_RESOURCES = {
-  trial_balance:    (c) => trialBalance(c.company_id, c.fy_id),
+  trial_balance:    (c) => trialBalance(c.company_id, c.fy_id).then(res => res.success ? { ...res, rows: res.groups } : res),
   balance_sheet:    (c) => balanceSheet(c.company_id, c.fy_id),
   profit_loss:      (c) => profitLoss(c.company_id, c.fy_id),
   daybook:          (c, a) => daybook(c.company_id, c.fy_id, a.from_date, a.to_date),
