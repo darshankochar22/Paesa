@@ -277,7 +277,6 @@
 import { useState } from "react";
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 import FieldRow from "../components/FieldRow";
-import { Divide } from "lucide-react";
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -302,14 +301,6 @@ export default function SalesVoucher({
 
 
 
-  const gstRegistrationLabel =
-    form.gstRegistration?.name ??
-    form.gstRegistration?.legal_name ??
-    form.gstRegistration?.trade_name ??
-    form.gstRegistration?.gstin ??
-    "♦ Not Applicable";
-
-  const taxUnitLabel = form.taxUnit?.name ?? "♦ Not Applicable";
   const priceLevelLabel = form.priceLevel || "♦ Not Applicable";
 
   return (

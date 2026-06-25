@@ -20,6 +20,7 @@ const { purchaseRegister } = require('./registers/purchaseRegister');
 const { salesRegister } = require('./registers/salesRegister');
 const outstandingReportService = require('./outstandingReportService');
 const advancedInventoryReportService = require('./advancedInventoryReportService');
+const interestReportService = require('./interestReportService');
 const advancedAccountingReportService = require('./advancedAccountingReportService');
 const cashFlowReportService = require('./cashFlowReportService');
 const fundsFlowReportService = require('./fundsFlowReportService');
@@ -72,6 +73,18 @@ module.exports = {
   },
   groupOutstandings: async (event, { company_id, fy_id, group_id }) => {
     return await outstandingReportService.groupOutstandings(company_id, fy_id, group_id);
+  },
+  interestReceivable: async (event, { company_id, fy_id, params }) => {
+    return await interestReportService.interestReceivable(company_id, fy_id, params);
+  },
+  interestPayable: async (event, { company_id, fy_id, params }) => {
+    return await interestReportService.interestPayable(company_id, fy_id, params);
+  },
+  ledgerInterest: async (event, { company_id, fy_id, params }) => {
+    return await interestReportService.ledgerInterest(company_id, fy_id, params);
+  },
+  billWiseInterest: async (event, { company_id, fy_id, params }) => {
+    return await interestReportService.billWiseInterest(company_id, fy_id, params);
   },
   cashFlow: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await cashFlowReportService.cashFlow(company_id, fy_id, from_date, to_date);

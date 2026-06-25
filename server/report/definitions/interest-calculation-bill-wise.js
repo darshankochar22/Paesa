@@ -1,6 +1,6 @@
 module.exports = {
   run: async (company_id, fy_id, params = {}) => {
-    const service = require('../universalReportService');
-    return await service.calculateOutstanding(company_id, fy_id, { reportId: 'R122', outstandingType: 'interest', subType: 'bill_wise', ...params });
+    const service = require('../interestReportService');
+    return await service.billWiseInterest(company_id, fy_id, params);
   }
 };

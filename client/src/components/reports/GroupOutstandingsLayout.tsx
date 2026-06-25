@@ -2,7 +2,6 @@ import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 
-
 const fmtDate = (d: string) => {
   if (!d) return "";
   const dt = new Date(d);

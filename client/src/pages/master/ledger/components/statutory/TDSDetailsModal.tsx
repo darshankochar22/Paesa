@@ -10,7 +10,7 @@ import {
   useEscapeClose,
 } from "./shared";
 import ApplicabilityDropdown from "./ApplicabilityDropdown";
-import NatureOfPaymentFlatList from "./Natureofpaymentflatlist";
+import NatureOfPaymentFlatList from "./NatureofPaymentFlatlist";
 import { useNavigate } from "react-router-dom";
 import { useTdsNatureOfPayments } from "../../hooks/usetdsnatureofpayments";
 

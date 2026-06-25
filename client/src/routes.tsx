@@ -61,7 +61,7 @@ import FundsFlowStatement from "./pages/reports/accounts/FundsFlowStatement.tsx"
 import RatioAnalysis from "./pages/reports/accounts/RatioAnalysis.tsx";
 import OutstandingsReceivable from "./pages/reports/accounts/OutstandingsReceivable.tsx";
 import OutstandingsPayable from "./pages/reports/accounts/OutstandingsPayable.tsx";
-import InterestCalculations from "./pages/reports/accounts/InterestCalculations.tsx";
+import InterestCalculationsMenu from "./pages/menu/reports/InterestCalculationsMenu.tsx";
 import CostCentreSummary from "./pages/reports/accounts/CostCentreSummary.tsx";
 import CostCategorySummary from "./pages/reports/accounts/CostCategorySummary.tsx";
 import Statistics from "./pages/reports/accounts/Statistics.tsx";
@@ -226,7 +226,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/ratio-analysis",          element: <RatioAnalysis /> },
   { path: "/reports/accounts/outstandings-receivable",element: <OutstandingsReceivable /> },
   { path: "/reports/accounts/outstandings-payable",   element: <OutstandingsPayable /> },
-  { path: "/reports/accounts/interest-calculations",  element: <InterestCalculations /> },
+  { path: "/reports/accounts/interest-calculations",  element: <InterestCalculationsMenu /> },
   { path: "/reports/accounts/cost-centre-summary",    element: <CostCentreSummary /> },
   { path: "/reports/accounts/cost-category-summary",  element: <CostCategorySummary /> },
   { path: "/reports/accounts/statistics",             element: <Statistics /> },
@@ -266,6 +266,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/payroll/professional-tax",  element: <ProfessionalTax /> },
   { path: "/reports/payroll/gratuity",          element: <Gratuity /> },
 { path: "/reports/statements-of-accounts/outstandings", element: <OutStandingsMenu /> },
+{ path: "/reports/statements-of-accounts/interest-calculations", element: <InterestCalculationsMenu /> },
 
   { path: "/master/create/tds-details", element: <TDSDetailsCreate /> },
   { path: "/master/alter/tds-details", element: <TDSDetailsAlter /> },

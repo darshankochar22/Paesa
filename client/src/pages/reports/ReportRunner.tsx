@@ -34,6 +34,9 @@ import VoucherClarificationLayout from "@/components/reports/VoucherClarificatio
 import BillsLayout from "@/components/reports/BillsLayout";
 import LedgerOutstandingsLayout from "@/components/reports/LedgerOutstandingsLayout";
 import GroupOutstandingsLayout from "@/components/reports/GroupOutstandingsLayout";
+import InterestBillsLayout from "@/components/reports/InterestBillsLayout";
+import InterestLedgerLayout from "@/components/reports/InterestLedgerLayout";
+import InterestBillWiseLayout from "@/components/reports/InterestBillWiseLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -527,6 +530,8 @@ export function ReportRunner() {
     "cash-book", "bank-book", "cash-bank", "group-vouchers", "voucher-clarification",
     "outstandings-receivable", "outstandings-payable",
     "ledger-outstandings", "group-outstandings",
+    "interest-receivable", "interest-payable",
+    "interest-calculation-ledger-wise", "interest-calculation-bill-wise",
   ];
   if (layoutOnlyReports.includes(reportType)) {
     setLoading(false);
@@ -1035,6 +1040,14 @@ export function ReportRunner() {
          <LedgerOutstandingsLayout />
          ):reportType === "group-outstandings" ? (
          <GroupOutstandingsLayout />
+         ):reportType === "interest-receivable" ? (
+         <InterestBillsLayout mode="receivable" />
+         ):reportType === "interest-payable" ? (
+         <InterestBillsLayout mode="payable" />
+         ):reportType === "interest-calculation-ledger-wise" ? (
+         <InterestLedgerLayout />
+         ):reportType === "interest-calculation-bill-wise" ? (
+         <InterestBillWiseLayout />
          ):reportType === "contra-register" ? (
          <ContraRegisterLayout />
          ):reportType === "payment-register" ? (

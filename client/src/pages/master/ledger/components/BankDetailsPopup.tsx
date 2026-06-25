@@ -40,7 +40,7 @@ const BANK_LIST = ["All Items", "End of List", "SBI", "HDFC", "ICICI", "Axis", "
 
 export default function BankDetailsPopup({
   ledgerName,
-  isOD = false,
+  isOD: _isOD = false,
   bankForm,
   setBankForm,
   onClose,

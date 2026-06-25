@@ -13,7 +13,7 @@ interface OtherStatutoryTriggerPanelProps {
 
 export default function OtherStatutoryTriggerPanel({
   form,
-  onOpen,
+  onOpen: _onOpen,
   onEnable,
   onDisable,
 }: OtherStatutoryTriggerPanelProps) {
