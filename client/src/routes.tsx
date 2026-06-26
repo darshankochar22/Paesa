@@ -73,6 +73,11 @@ import StockGroupReport from "./pages/reports/inventory/StockGroupReport.tsx";
 import StockCategoryReport from "./pages/reports/inventory/StockCategoryReport.tsx";
 import GodownReport from "./pages/reports/inventory/GodownReport.tsx";
 import BatchVouchers from "./pages/reports/inventory/BatchVouchers.tsx";
+import GodownSummary from "./pages/reports/inventory/GodownSummary.tsx";
+import StockGroupSummary from "./pages/reports/inventory/StockGroupSummary.tsx";
+import StockCategorySummary from "./pages/reports/inventory/StockCategorySummary.tsx";
+import StockJournalRegister from "./pages/reports/inventory/StockJournalRegister.tsx";
+import PhysicalStockRegister from "./pages/reports/inventory/PhysicalStockRegister.tsx";
 import MovementAnalysis from "./pages/reports/inventory/MovementAnalysis.tsx";
 import SalesOrderBook from "./pages/reports/inventory/SalesOrderBook.tsx";
 import PurchaseOrderBook from "./pages/reports/inventory/PurchaseOrderBook.tsx";
@@ -250,6 +255,11 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/inventory/stock-category",           element: <StockCategoryReport /> },
   { path: "/reports/inventory/godown",                   element: <GodownReport /> },
   { path: "/reports/inventory/batch-vouchers",           element: <BatchVouchers /> },
+  { path: "/reports/inventory/godown-summary",           element: <GodownSummary /> },
+  { path: "/reports/inventory/stock-group-summary",      element: <StockGroupSummary /> },
+  { path: "/reports/inventory/stock-category-summary",   element: <StockCategorySummary /> },
+  { path: "/reports/inventory-books/stock-transfer-register",  element: <StockJournalRegister /> },
+  { path: "/reports/inventory-books/physical-stock-register",  element: <PhysicalStockRegister /> },
   { path: "/reports/inventory/movement-analysis",        element: <MovementAnalysis /> },
   { path: "/reports/inventory/sales-order-book",         element: <SalesOrderBook /> },
   { path: "/reports/inventory/purchase-order-book",      element: <PurchaseOrderBook /> },

@@ -10,13 +10,15 @@ export default function OutstandingsGroupSelect() {
   const [focusedIndex, setFocusedIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => {
-    inputRef.current?.focus();
-    if (!selectedCompany?.company_id) return;
-    (window as any).api.group.getAll(selectedCompany.company_id).then((res: any) => {
-      if (res?.success) setGroups((res.groups || []).map((g: any) => ({ group_id: g.group_id, group_name: g.group_name })));
-    });
-  }, [selectedCompany?.company_id]);
+React.useEffect(() => {
+  inputRef.current?.focus();
+  if (!selectedCompany?.company_id) return;
+  (window as any).api.group.getAll(selectedCompany.company_id).then((res: any) => {
+    if (res?.success) {
+      setGroups((res.groups || []).map((g: any) => ({ group_id: g.group_id, group_name: g.name })));
+    }
+  });
+}, [selectedCompany?.company_id]);
 
   const filtered = groups.filter(g => g.group_name.toLowerCase().includes(search.toLowerCase()));
   React.useEffect(() => { setFocusedIndex(0); }, [search]);

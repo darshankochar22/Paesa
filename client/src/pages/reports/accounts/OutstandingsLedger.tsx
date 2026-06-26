@@ -10,13 +10,15 @@ export default function OutstandingsLedgerSelect() {
   const [focusedIndex, setFocusedIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => {
-    inputRef.current?.focus();
-    if (!selectedCompany?.company_id) return;
-    (window as any).api.ledger.getAll(selectedCompany.company_id).then((res: any) => {
-      if (res?.success) setLedgers(res.ledgers.map((l: any) => ({ ledger_id: l.ledger_id, ledger_name: l.ledger_name })));
-    });
-  }, [selectedCompany?.company_id]);
+React.useEffect(() => {
+  inputRef.current?.focus();
+  if (!selectedCompany?.company_id) return;
+  (window as any).api.ledger.getAll(selectedCompany.company_id).then((res: any) => {
+    if (res?.success) {
+      setLedgers((res.ledgers || []).map((l: any) => ({ ledger_id: l.ledger_id, ledger_name: l.name })));
+    }
+  });
+}, [selectedCompany?.company_id]);
 
   const filtered = ledgers.filter(l => l.ledger_name.toLowerCase().includes(search.toLowerCase()));
 

@@ -1,5 +1,436 @@
-import { ReportStub } from "../ReportStub";
+import * as React from "react";
+import { useNavigate } from "react-router-dom";
+import { useCompany } from "@/context/CompanyContext";
+
+const fmtAmount = (val: number | null | undefined) => {
+  const n = Number(val) || 0;
+  if (n === 0) return "";
+  return new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+};
+
+const fmtQty = (val: number | null | undefined) => {
+  const n = Number(val) || 0;
+  if (n === 0) return "";
+  return n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+};
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+  } catch {
+    return dateStr;
+  }
+};
+
+interface StockItemRow {
+  item_id: number;
+  name: string;
+  alias?: string;
+}
+
+interface VoucherRow {
+  voucher_id: number;
+  date: string;
+  particulars: string;
+  voucher_type: string;
+  voucher_number: string | number;
+  inwards_qty: number | null;
+  inwards_value: number | null;
+  outwards_qty: number | null;
+  outwards_value: number | null;
+  closing_qty: number;
+  closing_value: number;
+}
+
+type Level = { step: "item" } | { step: "batch"; item: StockItemRow } | { step: "vouchers"; item: StockItemRow; batch: string };
 
 export default function BatchVouchers() {
-  return <ReportStub title="atch ouchers" />;
+  const navigate = useNavigate();
+  const { selectedCompany, activeFY } = useCompany();
+  const companyId = selectedCompany?.company_id;
+  const fyId = activeFY?.fy_id;
+  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
+
+  const [level, setLevel] = React.useState<Level>({ step: "item" });
+
+  // ── Level 1: Stock Item picker ──────────────────────────────────────────
+  const [items, setItems] = React.useState<StockItemRow[]>([]);
+  const [loadingItems, setLoadingItems] = React.useState(true);
+  const [itemSearch, setItemSearch] = React.useState("");
+  const [itemIndex, setItemIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!companyId) { setLoadingItems(false); return; }
+    setLoadingItems(true);
+    (window as any).api.stockItem.getAll(companyId).then((res: any) => {
+      if (res.success) setItems(res.stockItems ?? []);
+      setLoadingItems(false);
+    });
+  }, [companyId]);
+
+  const filteredItems = React.useMemo(() => {
+    const list = [...items].sort((a, b) => a.name.localeCompare(b.name));
+    if (!itemSearch.trim()) return list;
+    const q = itemSearch.toLowerCase();
+    return list.filter((i) => i.name.toLowerCase().includes(q));
+  }, [items, itemSearch]);
+
+  React.useEffect(() => { setItemIndex(0); }, [itemSearch]);
+
+  // ── Level 2: Batch picker (for selected item) ───────────────────────────
+  const [batches, setBatches] = React.useState<string[]>([]);
+  const [loadingBatches, setLoadingBatches] = React.useState(false);
+  const [batchError, setBatchError] = React.useState<string | null>(null);
+  const [batchIndex, setBatchIndex] = React.useState(0);
+
+  const loadBatches = React.useCallback((item: StockItemRow) => {
+    if (!companyId) return;
+    setLevel({ step: "batch", item });
+    setLoadingBatches(true);
+    setBatchError(null);
+    setBatchIndex(0);
+    (window as any).api.report.batchesForItem(companyId, item.item_id).then((res: any) => {
+      if (res.success) {
+        setBatches(res.batches ?? []);
+      } else {
+        setBatchError(res.error || "Failed to load batches");
+      }
+      setLoadingBatches(false);
+    });
+  }, [companyId]);
+
+  // ── Level 3: Voucher register (for selected item + batch) ───────────────
+  const [voucherRows, setVoucherRows] = React.useState<VoucherRow[]>([]);
+  const [loadingVouchers, setLoadingVouchers] = React.useState(false);
+  const [voucherError, setVoucherError] = React.useState<string | null>(null);
+  const [voucherIndex, setVoucherIndex] = React.useState(0);
+
+  const loadVouchers = React.useCallback((item: StockItemRow, batch: string) => {
+    if (!companyId || !fyId) return;
+    setLevel({ step: "vouchers", item, batch });
+    setLoadingVouchers(true);
+    setVoucherError(null);
+    setVoucherIndex(0);
+    (window as any).api.report
+      .batchVouchers(companyId, fyId, item.item_id, batch, activeFY?.start_date, activeFY?.end_date)
+      .then((res: any) => {
+        if (res.success) {
+          setVoucherRows(res.rows ?? []);
+        } else {
+          setVoucherError(res.error || "Failed to load batch vouchers");
+        }
+        setLoadingVouchers(false);
+      });
+  }, [companyId, fyId, activeFY]);
+
+  const backToItems = React.useCallback(() => {
+    setLevel({ step: "item" });
+    setBatches([]);
+  }, []);
+
+  const backToBatches = React.useCallback((item: StockItemRow) => {
+    setLevel({ step: "batch", item });
+    setVoucherRows([]);
+  }, []);
+
+  // ── Keyboard nav: item level ─────────────────────────────────────────────
+  React.useEffect(() => {
+    if (level.step !== "item") return;
+    const handler = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === "INPUT") {
+        if (e.key === "Escape") { (document.activeElement as HTMLElement).blur(); return; }
+        if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
+      }
+      if (e.key === "Escape") { e.preventDefault(); navigate(-1); return; }
+      if (e.key === "ArrowDown") { e.preventDefault(); setItemIndex((p) => Math.min(filteredItems.length - 1, p + 1)); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setItemIndex((p) => Math.max(0, p - 1)); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const item = filteredItems[itemIndex];
+        if (item) loadBatches(item);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [level.step, filteredItems, itemIndex, navigate, loadBatches]);
+
+  // ── Keyboard nav: batch level ────────────────────────────────────────────
+  React.useEffect(() => {
+    if (level.step !== "batch") return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") { e.preventDefault(); setBatchIndex((p) => Math.min(batches.length - 1, p + 1)); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setBatchIndex((p) => Math.max(0, p - 1)); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const batch = batches[batchIndex];
+        if (batch) loadVouchers(level.item, batch);
+        return;
+      }
+      if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToItems(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [level, batches, batchIndex, loadVouchers, backToItems]);
+
+  // ── Keyboard nav: voucher level ──────────────────────────────────────────
+  React.useEffect(() => {
+    if (level.step !== "vouchers") return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") { e.preventDefault(); setVoucherIndex((p) => Math.min(voucherRows.length - 1, p + 1)); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setVoucherIndex((p) => Math.max(0, p - 1)); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const row = voucherRows[voucherIndex];
+        if (row?.voucher_id) navigate(`/transactions/voucher/${row.voucher_id}`);
+        return;
+      }
+      if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToBatches(level.item); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [level, voucherRows, voucherIndex, navigate, backToBatches]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LEVEL 1 — Name of Item / Name of Batch picker (matches screenshot 1-2)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (level.step === "item") {
+    return (
+      <div className="flex h-full w-full items-start justify-center bg-zinc-100 select-none" style={{ fontFamily: "system-ui, sans-serif" }}>
+        <div className="flex h-full">
+          <div className="flex flex-col w-[420px] border-x border-zinc-300 bg-white">
+            <div className="px-3 py-1.5 bg-[#003047] text-white text-sm font-semibold text-center">
+              Batch Items
+            </div>
+            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50 text-center text-xs font-semibold">
+              {selectedCompany?.name || "Company"}
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
+              <span className="text-xs w-28 shrink-0">Name of Item</span>
+              <span className="text-xs">:</span>
+              <input
+                autoFocus
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                className="flex-1 border border-zinc-300 bg-yellow-100/60 px-2 py-1 text-xs outline-none focus:border-zinc-500"
+              />
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300 text-zinc-400">
+              <span className="text-xs w-28 shrink-0">Name of Batch</span>
+              <span className="text-xs">:</span>
+              <input disabled className="flex-1 border border-zinc-200 bg-zinc-100 px-2 py-1 text-xs outline-none" />
+            </div>
+          </div>
+
+          <div className="flex flex-col w-[300px] border-r border-zinc-300 bg-white">
+            <div className="px-3 py-1.5 bg-[#003047] text-white text-xs font-semibold text-center">
+              List of Items
+            </div>
+            <div className="px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-right text-zinc-500">
+              Create
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {loadingItems ? (
+                <div className="px-3 py-4 text-xs text-zinc-400 italic">Loading items...</div>
+              ) : filteredItems.length === 0 ? (
+                <div className="px-3 py-4 text-xs text-zinc-400 italic">No stock items found.</div>
+              ) : (
+                filteredItems.map((item, idx) => {
+                  const isFocused = idx === itemIndex;
+                  return (
+                    <div
+                      key={item.item_id}
+                      onClick={() => setItemIndex(idx)}
+                      onDoubleClick={() => loadBatches(item)}
+                      className={`px-3 py-1 text-xs cursor-pointer ${
+                        isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                      }`}
+                    >
+                      {item.name}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LEVEL 2 — Name of Batch picker, item already chosen (matches screenshot 3)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (level.step === "batch") {
+    return (
+      <div className="flex h-full w-full items-start justify-center bg-zinc-100 select-none" style={{ fontFamily: "system-ui, sans-serif" }}>
+        <div className="flex h-full">
+          <div className="flex flex-col w-[420px] border-x border-zinc-300 bg-white">
+            <div className="px-3 py-1.5 bg-[#003047] text-white text-sm font-semibold text-center">
+              Batch Items
+            </div>
+            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50 text-center text-xs font-semibold">
+              {selectedCompany?.name || "Company"}
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
+              <span className="text-xs w-28 shrink-0">Name of Item</span>
+              <span className="text-xs">:</span>
+              <span className="flex-1 text-xs font-semibold">{level.item.name}</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
+              <span className="text-xs w-28 shrink-0">Name of Batch</span>
+              <span className="text-xs">:</span>
+              <input disabled className="flex-1 border border-zinc-300 bg-yellow-100/60 px-2 py-1 text-xs outline-none" />
+            </div>
+          </div>
+
+          <div className="flex flex-col w-[300px] border-r border-zinc-300 bg-white">
+            <div className="px-3 py-1.5 bg-[#003047] text-white text-xs font-semibold text-center">
+              List of Batches
+            </div>
+            <div className="px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-zinc-500">
+              Name
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {loadingBatches ? (
+                <div className="px-3 py-4 text-xs text-zinc-400 italic">Loading batches...</div>
+              ) : batchError ? (
+                <div className="px-3 py-4 text-xs text-red-500">{batchError}</div>
+              ) : batches.length === 0 ? (
+                <div className="px-3 py-4 text-xs text-zinc-400 italic">No batches found for this item.</div>
+              ) : (
+                batches.map((batch, idx) => {
+                  const isFocused = idx === batchIndex;
+                  return (
+                    <div
+                      key={batch}
+                      onClick={() => setBatchIndex(idx)}
+                      onDoubleClick={() => loadVouchers(level.item, batch)}
+                      className={`px-3 py-1 text-xs cursor-pointer ${
+                        isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                      }`}
+                    >
+                      {batch}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LEVEL 3 — Batch Vouchers register (matches screenshot 4)
+  // ─────────────────────────────────────────────────────────────────────────
+  const totalInQty = voucherRows.reduce((s, r) => s + (Number(r.inwards_qty) || 0), 0);
+  const totalInValue = voucherRows.reduce((s, r) => s + (Number(r.inwards_value) || 0), 0);
+  const totalOutQty = voucherRows.reduce((s, r) => s + (Number(r.outwards_qty) || 0), 0);
+  const totalOutValue = voucherRows.reduce((s, r) => s + (Number(r.outwards_value) || 0), 0);
+  const finalClosingQty = voucherRows.length ? voucherRows[voucherRows.length - 1].closing_qty : 0;
+  const finalClosingValue = voucherRows.length ? voucherRows[voucherRows.length - 1].closing_value : 0;
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+      {/* Tally Header */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+        <span className="font-bold text-sm tracking-wide">Batch Vouchers</span>
+        <span className="font-bold text-sm">{selectedCompany?.name || "Company"}</span>
+        <span />
+      </div>
+
+      {/* Item / Batch / Period subtitle bar */}
+      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
+        <div className="flex flex-col gap-0.5">
+          <span>Stock Item: <span className="font-bold">{level.item.name}</span></span>
+          <span>Batch Name: <span className="font-bold">{level.batch}</span></span>
+        </div>
+        <span>{periodLabel}</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <table className="w-full border-collapse text-[11px] font-mono select-none">
+          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+            <tr>
+              <th rowSpan={2} className="px-3 py-1 text-left font-bold w-20 border-b border-zinc-300 align-bottom">Date</th>
+              <th rowSpan={2} className="px-3 py-1 text-left font-bold border-b border-zinc-300 align-bottom">Particulars</th>
+              <th rowSpan={2} className="px-3 py-1 text-left font-bold w-28 border-b border-zinc-300 align-bottom">Vch Type</th>
+              <th rowSpan={2} className="px-3 py-1 text-right font-bold w-20 border-b border-zinc-300 align-bottom">Vch No.</th>
+              <th colSpan={2} className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200">Inwards</th>
+              <th colSpan={2} className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200">Outwards</th>
+              <th colSpan={2} className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200">Closing</th>
+            </tr>
+            <tr>
+              <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">Quantity</th>
+              <th className="px-3 py-1 text-right font-bold w-24">Value</th>
+              <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">Quantity</th>
+              <th className="px-3 py-1 text-right font-bold w-24">Value</th>
+              <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">Quantity</th>
+              <th className="px-3 py-1 text-right font-bold w-24">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingVouchers ? (
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">Loading vouchers...</td></tr>
+            ) : voucherError ? (
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-red-500">{voucherError}</td></tr>
+            ) : voucherRows.length === 0 ? (
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
+            ) : (
+              voucherRows.map((row, idx) => {
+                const isFocused = idx === voucherIndex;
+                return (
+                  <tr
+                    key={row.voucher_id}
+                    onClick={() => setVoucherIndex(idx)}
+                    onDoubleClick={() => navigate(`/transactions/voucher/${row.voucher_id}`)}
+                    className={`border-b border-zinc-100 cursor-pointer transition-colors ${
+                      isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                    }`}
+                  >
+                    <td className="px-3 py-1 whitespace-nowrap">{formatDate(row.date)}</td>
+                    <td className="px-3 py-1 truncate max-w-xs">{row.particulars}</td>
+                    <td className="px-3 py-1">{row.voucher_type}</td>
+                    <td className="px-3 py-1 text-right">{row.voucher_number ?? "—"}</td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.inwards_qty)}</td>
+                    <td className="px-3 py-1 text-right">{fmtAmount(row.inwards_value)}</td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.outwards_qty)}</td>
+                    <td className="px-3 py-1 text-right">{fmtAmount(row.outwards_value)}</td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.closing_qty)}</td>
+                    <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Totals as per 'Default' valuation */}
+      <div className="border-t border-zinc-300 px-3 py-1 text-center text-[10px] italic text-zinc-500">
+        Totals as per 'Default' valuation :
+      </div>
+      <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
+        <span className="w-20" />
+        <span className="flex-1" />
+        <span className="w-28" />
+        <span className="w-20" />
+        <span className="w-20 text-right pr-2 border-l border-zinc-300">{fmtQty(totalInQty)}</span>
+        <span className="w-24 text-right pr-2">{fmtAmount(totalInValue)}</span>
+        <span className="w-20 text-right pr-2 border-l border-zinc-300">{fmtQty(totalOutQty)}</span>
+        <span className="w-24 text-right pr-2">{fmtAmount(totalOutValue)}</span>
+        <span className="w-20 text-right pr-2 border-l border-zinc-300">{fmtQty(finalClosingQty)}</span>
+        <span className="w-24 text-right pr-2">{fmtAmount(finalClosingValue)}</span>
+      </div>
+
+      {/* Footer keys — F4:Batch, F8:Batch-wise etc, matching TallyPrime screenshot */}
+      <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
+        <button onClick={() => navigate(-1)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
+        <button onClick={() => backToBatches(level.item)} className="hover:underline hover:text-zinc-900">F4: Batch</button>
+        <span>F8: Batch-wise</span>
+      </div>
+    </div>
+  );
 }

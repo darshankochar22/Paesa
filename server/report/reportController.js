@@ -101,6 +101,33 @@ module.exports = {
   stockItemMonthly: async (event, { company_id, fy_id, item_id }) => {
     return await stockSummaryReportService.stockItemMonthly(company_id, fy_id, item_id);
   },
+  batchesForItem: async (event, { company_id, item_id }) => {
+    return await stockSummaryReportService.batchesForItem(company_id, item_id);
+  },
+  batchVouchers: async (event, { company_id, fy_id, item_id, batch, from_date, to_date }) => {
+    return await stockSummaryReportService.batchVouchers(company_id, fy_id, item_id, batch, from_date, to_date);
+  },
+  godownItems: async (event, { company_id, fy_id, godown_id, as_on_date }) => {
+    return await stockSummaryReportService.godownItems(company_id, fy_id, godown_id, as_on_date);
+  },
+  godownItemMonthly: async (event, { company_id, fy_id, godown_id, item_id }) => {
+    return await stockSummaryReportService.godownItemMonthly(company_id, fy_id, godown_id, item_id);
+  },
+  godownVouchers: async (event, { company_id, fy_id, godown_id, item_id, from_date, to_date }) => {
+    return await stockSummaryReportService.godownVouchers(company_id, fy_id, godown_id, item_id, from_date, to_date);
+  },
+  stockItemVouchers: async (event, { company_id, fy_id, item_id, from_date, to_date }) => {
+    return await stockSummaryReportService.stockItemVouchers(company_id, fy_id, item_id, from_date, to_date);
+  },
+  stockCategoryItems: async (event, { company_id, fy_id, category_id }) => {
+    return await stockSummaryReportService.stockCategoryItems(company_id, fy_id, category_id);
+  },
+  inventoryRegisterMonthly: async (event, { company_id, fy_id, voucher_type }) => {
+    return await stockSummaryReportService.inventoryRegisterMonthly(company_id, fy_id, voucher_type);
+  },
+  inventoryRegisterVouchers: async (event, { company_id, fy_id, voucher_type, from_date, to_date }) => {
+    return await stockSummaryReportService.inventoryRegisterVouchers(company_id, fy_id, voucher_type, from_date, to_date);
+  },
   ratioAnalysis: async (event, { company_id, fy_id }) => {
     return await ratioAnalysisReportService.ratioAnalysis(company_id, fy_id);
   },

@@ -1,15 +1,4 @@
-// ---------------------------------------------------------------------------
-// Drizzle ORM conversion. Follows the golden exemplar (currencyService.js):
-//
-//   * MUTATIONS use the query builder: db.insert(...).values(...),
-//     db.update(...).set(...).where(...), with eq()/and()/sql`` predicates.
-//   * READS THAT RETURN ROWS TO CALLERS use db.all(sql`SELECT * FROM ${table}
-//     WHERE ...`) so the legacy snake_case column keys and numeric 0/1 booleans
-//     are preserved exactly (the controllers/tests + buildTree depend on the
-//     snake_case keys group_id / parent_group_id).
-//   * New-row id after INSERT comes from .returning({ id: groups.groupId }),
-//     replacing the old result.lastInsertRowid.
-// ---------------------------------------------------------------------------
+
 const { db } = require("../db/index");
 const { sql, eq, and } = require("drizzle-orm");
 const { groups } = require("../db/schema");
