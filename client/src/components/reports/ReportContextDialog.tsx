@@ -71,7 +71,7 @@ export function ReportContextDialog({
               type="checkbox"
               checked={showNarration}
               onChange={(e) => setShowNarration(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+              className="h-4 w-4 rounded border-zinc-300 text-zinc-700 focus:ring-zinc-400"
             />
           </div>
 
@@ -84,7 +84,7 @@ export function ReportContextDialog({
               type="checkbox"
               checked={showPercentage}
               onChange={(e) => setShowPercentage(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+              className="h-4 w-4 rounded border-zinc-300 text-zinc-700 focus:ring-zinc-400"
             />
           </div>
 
@@ -97,7 +97,7 @@ export function ReportContextDialog({
               type="checkbox"
               checked={detailedFormat}
               onChange={(e) => setDetailedFormat(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+              className="h-4 w-4 rounded border-zinc-300 text-zinc-700 focus:ring-zinc-400"
             />
           </div>
 
@@ -110,7 +110,7 @@ export function ReportContextDialog({
               type="checkbox"
               checked={excludeZeroBalances}
               onChange={(e) => setExcludeZeroBalances(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+              className="h-4 w-4 rounded border-zinc-300 text-zinc-700 focus:ring-zinc-400"
             />
           </div>
 
@@ -122,7 +122,7 @@ export function ReportContextDialog({
               id="val-method"
               value={valuationMethod}
               onChange={(e) => setValuationMethod(e.target.value)}
-              className="w-full text-xs h-9 px-2 rounded-md border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full text-xs h-9 px-2 rounded-md border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-zinc-800 focus:ring-1 focus:ring-zinc-400"
             >
               <option value="Average Price">Average Price</option>
               <option value="FIFO">FIFO (First In First Out)</option>
@@ -139,7 +139,7 @@ export function ReportContextDialog({
               id="basis-values"
               value={basisOfValues}
               onChange={(e) => setBasisOfValues(e.target.value)}
-              className="w-full text-xs h-9 px-2 rounded-md border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full text-xs h-9 px-2 rounded-md border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-zinc-800 focus:ring-1 focus:ring-zinc-400"
             >
               <option value="Accrual">Accrual (Normal)</option>
               <option value="Cash">Cash Basis</option>
@@ -159,7 +159,7 @@ export function ReportContextDialog({
             variant="default"
             size="sm"
             onClick={handleSave}
-            className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+            className="text-xs bg-zinc-900 hover:bg-zinc-800 text-white font-semibold"
           >
             Accept
           </Button>

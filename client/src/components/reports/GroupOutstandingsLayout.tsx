@@ -158,23 +158,23 @@ export default function GroupOutstandingsLayout() {
   if (!groupId) {
     return (
       <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-        <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+        <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
           <span className="font-bold">Group Outstandings</span>
           <span className="ml-auto">Select a group to view pending bills</span>
         </div>
-        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#f5f9fb]">
+        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#fafafa]">
           <input
             autoFocus
             type="text"
             placeholder="Type to search group..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPickerFocus(0); }}
-            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-blue-400 bg-white"
+            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-zinc-800 bg-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono">
-            <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 select-none">
+            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 select-none">
               <tr>
                 <th className="px-3 py-1.5 text-left font-bold">Group Name</th>
                 <th className="px-3 py-1.5 text-left font-bold w-48">Under</th>
@@ -186,7 +186,7 @@ export default function GroupOutstandingsLayout() {
               ) : filtered.map((g, idx) => (
                 <tr
                   key={g.group_id}
-                  className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${pickerFocus === idx ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                  className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${pickerFocus === idx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                   onClick={() => { setPickerFocus(idx); setGroupId(g.group_id); setGroupName(g.name); }}
                 >
                   <td className="px-3 py-1.5">{g.name}</td>
@@ -201,7 +201,7 @@ export default function GroupOutstandingsLayout() {
   }
 
   if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">Loading Group Outstandings...</div>;
-  if (error)   return <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">{error}</div>;
+  if (error)   return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">{error}</div>;
 
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
   const BUCKETS = ["0-30", "31-60", "61-90", "90+"] as const;
@@ -210,7 +210,7 @@ export default function GroupOutstandingsLayout() {
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       {/* Sub-header */}
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
         <span>Group : <span className="font-bold">{groupName}</span></span>
         <span>Details of : <span className="font-bold">Pending Bills</span></span>
         <span className="ml-auto">
@@ -219,7 +219,7 @@ export default function GroupOutstandingsLayout() {
       </div>
 
       {/* Ageing summary bar */}
-      <div className="bg-[#f5f9fb] border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
+      <div className="bg-[#fafafa] border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
         {BUCKETS.map(b => (
           <span key={b}><span className="font-bold text-zinc-800">{b} days:</span> {fmt(bucketTotals[b]) || "0.00"}</span>
         ))}
@@ -227,7 +227,7 @@ export default function GroupOutstandingsLayout() {
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 select-none">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 select-none">
             <tr>
               <th className="px-3 py-1.5 text-left font-bold">Party / Bill Ref</th>
               <th className="px-3 py-1.5 text-left font-bold w-[11%]">Bill Date</th>
@@ -248,7 +248,7 @@ export default function GroupOutstandingsLayout() {
                 <React.Fragment key={row.ledger_id}>
                   {/* Ledger (party) header row */}
                   <tr
-                    className={`border-b border-zinc-200 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#ffcc00] text-zinc-950" : "bg-[#edf4f9] text-zinc-900"} font-bold`}
+                    className={`border-b border-zinc-200 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#e4e4e7] text-zinc-950" : "bg-[#fafafa] text-zinc-900"} font-bold`}
                     onClick={() => setFocused(idx)}
                     onDoubleClick={() => setExpanded(prev => {
                       const s = new Set(prev);
@@ -272,7 +272,7 @@ export default function GroupOutstandingsLayout() {
                       <td className="px-3 py-1">{fmtDate(b.bill_date)}</td>
                       <td className="px-3 py-1 text-center">{b.credit_period || ""}</td>
                       <td className="px-3 py-1">{fmtDate(b.due_date)}</td>
-                      <td className={`px-3 py-1 text-center ${b.overdue_days > 0 ? "text-red-600 font-bold" : ""}`}>{b.overdue_days > 0 ? b.overdue_days : ""}</td>
+                      <td className={`px-3 py-1 text-center ${b.overdue_days > 0 ? "text-zinc-700 font-bold" : ""}`}>{b.overdue_days > 0 ? b.overdue_days : ""}</td>
                       <td className="px-3 py-1 text-right">{fmt(b.balance)}</td>
                       <td className="px-3 py-1 text-center text-zinc-400">{b.ageing}</td>
                     </tr>
@@ -285,7 +285,7 @@ export default function GroupOutstandingsLayout() {
       </div>
 
       {/* Footer total */}
-      <div className="border-t-2 border-double border-zinc-400 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
+      <div className="border-t-2 border-double border-zinc-400 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
         <span className="flex-1">Grand Total</span>
         <span className="w-[16%] text-right pr-3">{fmtTotal(grandTotal)}</span>
         <span className="w-[8%]" />

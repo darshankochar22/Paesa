@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 
 const ColHeader = ({ title, companyName, periodText }: { title: string; companyName: string; periodText: string }) => (
-  <div className="bg-[#e5eff5] sticky top-0 px-3 py-1 border-b border-zinc-300 select-none text-[10px]">
+  <div className="bg-[#f4f4f5] sticky top-0 px-3 py-1 border-b border-zinc-300 select-none text-[10px]">
     <div className="font-bold text-zinc-800">{title}</div>
     <div className="text-zinc-600">{companyName}</div>
     <div className="text-zinc-500">{periodText}</div>
@@ -111,12 +111,12 @@ export default function StatisticsLayout() {
   }, [activeCol, vouchersFocusedIndex, accountsFocusedIndex, vouchersRows, accountsRows, navigate]);
 
   if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">Loading Statistics...</div>;
-  if (error)   return <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs">{error}</div>;
+  if (error)   return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs">{error}</div>;
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       {/* Page header */}
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[11px] font-bold text-zinc-700 select-none text-center">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[11px] font-bold text-zinc-700 select-none text-center">
         Statistics
       </div>
 
@@ -135,7 +135,7 @@ export default function StatisticsLayout() {
                     return (
                       <tr
                         key={row.vch_type}
-                        className={`border-b border-zinc-100 cursor-pointer select-none ${focused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                        className={`border-b border-zinc-100 cursor-pointer select-none ${focused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                         onClick={() => { setActiveCol("vouchers"); setVouchersFocusedIndex(idx); }}
                         onDoubleClick={() => navigate(getVoucherRegisterUrl(row.vch_type))}
                       >
@@ -149,7 +149,7 @@ export default function StatisticsLayout() {
             </table>
           </div>
           {vouchersRows.length > 0 && (
-            <div className="bg-[#e5eff5] border-t border-zinc-300 font-bold text-zinc-800 text-[11px] px-3 py-1.5 flex justify-between select-none">
+            <div className="bg-[#f4f4f5] border-t border-zinc-300 font-bold text-zinc-800 text-[11px] px-3 py-1.5 flex justify-between select-none">
               <span>Total</span>
               <span className="w-20 text-right">{totalVouchers}</span>
             </div>
@@ -167,7 +167,7 @@ export default function StatisticsLayout() {
                   return (
                     <tr
                       key={row.name}
-                      className={`border-b border-zinc-100 cursor-pointer select-none ${focused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                      className={`border-b border-zinc-100 cursor-pointer select-none ${focused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                       onClick={() => { setActiveCol("accounts"); setAccountsFocusedIndex(idx); }}
                       onDoubleClick={() => navigate(row.path)}
                     >

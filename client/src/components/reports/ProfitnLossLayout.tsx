@@ -129,7 +129,7 @@ class ReportErrorBoundary extends React.Component<{ children: React.ReactNode },
   render() {
     if (this.state.error) {
       return (
-        <div className="flex-1 flex items-center justify-center text-red-600 text-xs font-mono">
+        <div className="flex-1 flex items-center justify-center text-zinc-700 text-xs font-mono">
           <div>
             <div className="font-bold">Profit &amp; Loss report failed to render</div>
             <div>{this.state.error.message}</div>
@@ -180,7 +180,7 @@ function TRow({
       className={[
         "border-b border-transparent select-none",
         onClick ? "cursor-pointer hover:bg-zinc-50" : "",
-        isFocused ? "bg-[#f6c744] text-zinc-950" : "",
+        isFocused ? "bg-[#e4e4e7] text-zinc-950" : "",
         isTotal || isGrossEntry ? "font-semibold" : "",
         isGrossEntry ? "italic" : "",
       ].join(" ")}
@@ -346,7 +346,7 @@ function ProfitLossLayoutInner() {
   }
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
@@ -429,7 +429,7 @@ function ProfitLossLayoutInner() {
   return (
     <div className="flex flex-col h-full w-full bg-white text-black overflow-hidden font-sans">
       {/* T-format title bar */}
-      <div className="h-6 bg-[#b7d9f2] border-b border-zinc-300 flex items-center justify-center text-sm font-semibold tracking-wide">
+      <div className="h-6 bg-[#e4e4e7] border-b border-zinc-300 flex items-center justify-center text-sm font-semibold tracking-wide">
         Profit &amp; Loss A/c
       </div>
 

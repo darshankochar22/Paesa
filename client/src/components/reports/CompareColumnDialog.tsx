@@ -64,7 +64,7 @@ export function CompareColumnDialog({
               id="compare-company"
               value={selectedCompanyId}
               onChange={(e) => setSelectedCompanyId(Number(e.target.value))}
-              className="w-full text-xs h-9 px-2 rounded-md border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full text-xs h-9 px-2 rounded-md border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-zinc-800 focus:ring-1 focus:ring-zinc-400"
             >
               {companies.map((c) => (
                 <option key={c.company_id} value={c.company_id}>
@@ -84,7 +84,7 @@ export function CompareColumnDialog({
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="text-xs h-9 border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 text-zinc-900"
+                className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -96,7 +96,7 @@ export function CompareColumnDialog({
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="text-xs h-9 border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 text-zinc-900"
+                className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
               />
             </div>
           </div>
@@ -114,7 +114,7 @@ export function CompareColumnDialog({
             variant="default"
             size="sm"
             onClick={handleAdd}
-            className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+            className="text-xs bg-zinc-900 hover:bg-zinc-800 text-white font-semibold"
           >
             Add Column
           </Button>

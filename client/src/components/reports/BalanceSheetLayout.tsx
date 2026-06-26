@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import TwoColumnReport from "@/components/ui/TwoColumnReport";
+import { fmtAbs } from "@/lib/format";
 
 interface GroupRow {
   group_id: number;
@@ -10,10 +12,7 @@ interface GroupRow {
   ledgers: { ledger_id: number; ledger_name: string; balance: number }[];
   childGroups: GroupRow[];
   isPnL?: boolean;
-  pnlBreakup?: {
-    openingBalance: number;
-    currentPeriod: number;
-  };
+  pnlBreakup?: { openingBalance: number; currentPeriod: number };
 }
 
 interface BSData {
@@ -23,146 +22,6 @@ interface BSData {
   totalLiabilities: number;
   netProfit?: number;
 }
-
-const fmt = (val: number) =>
-  new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(val));
-
-// ─── group rows (flat, top-level only — matches Tally's Balance Sheet) ───────
-
-interface GroupRowsProps {
-  groups: GroupRow[];
-  focusedId: string | null;
-  onFocus: (key: string, group: GroupRow) => void;
-  onOpenGroup: (group: GroupRow) => void;
-  side: "L" | "A";
-}
-
-function GroupRows({ groups, focusedId, onFocus, onOpenGroup, side }: GroupRowsProps) {
-  return (
-    <>
-      {groups.map((group) => {
-        const key = `${side}-g-${group.group_id}`;
-        const isFocused = focusedId === key;
-
-        return (
-          <React.Fragment key={key}>
-            <tr
-              className={`border-b border-zinc-100 cursor-pointer transition-colors select-none ${
-                isFocused
-                  ? "bg-[#ffcc00] text-zinc-950 font-bold"
-                  : "hover:bg-zinc-50 text-zinc-800 font-semibold"
-              }`}
-              onClick={() => onFocus(key, group)}
-              onDoubleClick={() => onOpenGroup(group)}
-            >
-              <td className="px-3 py-1.5 text-left">
-                {group.group_name}
-                {group.isPnL && (
-                  <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
-                    (Net {(group.balance ?? 0) >= 0 ? "Profit" : "Loss"})
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-1.5 text-right whitespace-nowrap w-36 font-mono">
-                ₹{fmt(group.balance)}
-              </td>
-            </tr>
-
-            {/* P&L breakdown — static info rows, never clickable, matches Tally's
-                "Opening Balance" / "Current Period" sub-lines under P&L A/c */}
-            {group.isPnL && group.pnlBreakup && (
-              <>
-                <tr className="border-b border-zinc-50 text-zinc-500 italic select-none">
-                  <td className="px-3 py-1 pl-8 text-left text-[10px]">Opening Balance</td>
-                  <td className="px-3 py-1 text-right w-36 font-mono text-[10px]">
-                    {group.pnlBreakup.openingBalance !== 0
-                      ? `₹${fmt(group.pnlBreakup.openingBalance)}`
-                      : ""}
-                  </td>
-                </tr>
-                <tr className="border-b border-zinc-50 text-zinc-500 italic select-none">
-                  <td className="px-3 py-1 pl-8 text-left text-[10px]">Current Period</td>
-                  <td className="px-3 py-1 text-right w-36 font-mono text-[10px]">
-                    ₹{fmt(group.pnlBreakup.currentPeriod)}
-                  </td>
-                </tr>
-              </>
-            )}
-          </React.Fragment>
-        );
-      })}
-    </>
-  );
-}
-
-// ─── panel ───────────────────────────────────────────────────────────────────
-
-interface PanelProps {
-  title: string;
-  groups: GroupRow[];
-  total: number;
-  totalLabel: string;
-  focusedId: string | null;
-  onFocus: (key: string, group: GroupRow) => void;
-  onOpenGroup: (group: GroupRow) => void;
-  side: "L" | "A";
-  periodLabel: string;
-}
-
-function Panel({
-  title,
-  groups,
-  total,
-  totalLabel,
-  focusedId,
-  onFocus,
-  onOpenGroup,
-  side,
-  periodLabel,
-}: PanelProps) {
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden border-r border-zinc-300 last:border-r-0">
-      <div className="bg-[#e5eff5] border-b border-zinc-200 px-3 py-1 flex justify-between items-center select-none">
-        <span className="font-mono text-[11px] font-bold text-zinc-800 tracking-wide uppercase">
-          {title}
-        </span>
-        <span className="font-mono text-[10px] text-zinc-500">{periodLabel}</span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <table className="w-full border-collapse font-mono text-[11px]">
-          <tbody>
-            {groups.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="px-3 py-8 text-center text-zinc-400 italic text-[11px]">
-                  No entries for this period.
-                </td>
-              </tr>
-            ) : (
-              <GroupRows
-                groups={groups}
-                focusedId={focusedId}
-                onFocus={onFocus}
-                onOpenGroup={onOpenGroup}
-                side={side}
-              />
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="border-t-2 border-double border-zinc-400 bg-[#e5eff5] px-3 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
-        <span>{totalLabel}</span>
-        <span>₹{fmt(total)}</span>
-      </div>
-    </div>
-  );
-}
-
-// ─── main layout ──────────────────────────────────────────────────────────────
 
 export function BalanceSheetLayout() {
   const { selectedCompany, activeFY } = useCompany();
@@ -193,9 +52,7 @@ export function BalanceSheetLayout() {
   }, [selectedCompany?.company_id, activeFY?.fy_id]);
 
   const openGroup = React.useCallback(
-    (group: GroupRow) => {
-      navigate(`/reports/accounts/group-summary/${group.group_id}`);
-    },
+    (group: GroupRow) => navigate(`/reports/accounts/group-summary/${group.group_id}`),
     [navigate]
   );
 
@@ -218,54 +75,74 @@ export function BalanceSheetLayout() {
 
   const periodLabel = activeFY ? `as at ${activeFY.start_date}` : "";
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
-        Loading Balance Sheet...
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">
-        {error}
-      </div>
-    );
-  }
-  if (!data) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
-        No data available.
-      </div>
-    );
-  }
+  const renderRow = React.useCallback(
+    (group: GroupRow, side: "left" | "right") => {
+      const key = `${side === "left" ? "L" : "A"}-g-${group.group_id}`;
+      const isFocused = focusedId === key;
+      return (
+        <>
+          <div
+            onClick={() => handleFocus(key, group)}
+            onDoubleClick={() => openGroup(group)}
+            className={`flex justify-between items-center px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none transition-colors ${
+              isFocused
+                ? "bg-zinc-200 text-zinc-950 font-bold"
+                : "hover:bg-zinc-50 text-zinc-800 font-semibold"
+            }`}
+          >
+            <span className="text-left">
+              {group.group_name}
+              {group.isPnL && (
+                <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
+                  (Net {(group.balance ?? 0) >= 0 ? "Profit" : "Loss"})
+                </span>
+              )}
+            </span>
+            <span className="text-right whitespace-nowrap font-mono">₹{fmtAbs(group.balance)}</span>
+          </div>
+
+          {group.isPnL && group.pnlBreakup && (
+            <>
+              <div className="flex justify-between px-3 py-1 pl-8 text-zinc-500 italic select-none text-[10px]">
+                <span>Opening Balance</span>
+                <span className="font-mono">
+                  {group.pnlBreakup.openingBalance !== 0 ? `₹${fmtAbs(group.pnlBreakup.openingBalance)}` : ""}
+                </span>
+              </div>
+              <div className="flex justify-between px-3 py-1 pl-8 text-zinc-500 italic select-none text-[10px]">
+                <span>Current Period</span>
+                <span className="font-mono">₹{fmtAbs(group.pnlBreakup.currentPeriod)}</span>
+              </div>
+            </>
+          )}
+        </>
+      );
+    },
+    [focusedId, handleFocus, openGroup]
+  );
+
+  if (loading)
+    return <Centered>Loading Balance Sheet...</Centered>;
+  if (error)
+    return <Centered>{error}</Centered>;
+  if (!data)
+    return <Centered>No data available.</Centered>;
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-white font-mono">
-      <div className="flex flex-1 overflow-hidden">
-        <Panel
-          title="Liabilities"
-          groups={data.liabilities}
-          total={data.totalLiabilities}
-          totalLabel="Total"
-          focusedId={focusedId}
-          onFocus={handleFocus}
-          onOpenGroup={openGroup}
-          side="L"
-          periodLabel={periodLabel}
-        />
-        <Panel
-          title="Assets"
-          groups={data.assets}
-          total={data.totalAssets}
-          totalLabel="Total"
-          focusedId={focusedId}
-          onFocus={handleFocus}
-          onOpenGroup={openGroup}
-          side="A"
-          periodLabel={periodLabel}
-        />
-      </div>
+    <TwoColumnReport<GroupRow>
+      periodLabel={periodLabel}
+      left={{ title: "Liabilities", rows: data.liabilities, total: data.totalLiabilities }}
+      right={{ title: "Assets", rows: data.assets, total: data.totalAssets }}
+      renderRow={renderRow}
+      rowKey={(g) => g.group_id}
+    />
+  );
+}
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs px-8 text-center">
+      {children}
     </div>
   );
 }

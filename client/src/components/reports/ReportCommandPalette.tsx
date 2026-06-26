@@ -75,7 +75,7 @@ export function ReportCommandPalette({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Type report name, category..."
-            className="mt-2 text-xs h-9 border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 text-zinc-900"
+            className="mt-2 text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
             autoFocus
             onKeyDown={handleKeyDown}
           />
@@ -94,7 +94,7 @@ export function ReportCommandPalette({
                     onClose();
                   }}
                   className={`flex flex-col px-3 py-2 rounded-md cursor-pointer select-none text-left ${
-                    isActive ? "bg-emerald-50 text-emerald-900 border border-emerald-200" : "hover:bg-zinc-50 text-zinc-800"
+                    isActive ? "bg-zinc-100 text-zinc-900 border border-zinc-200" : "hover:bg-zinc-50 text-zinc-800"
                   }`}
                 >
                   <div className="flex items-center justify-between">

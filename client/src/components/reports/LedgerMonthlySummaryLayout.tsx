@@ -216,7 +216,7 @@ export default function LedgerMonthlySummaryLayout() {
   }
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
@@ -237,7 +237,7 @@ export default function LedgerMonthlySummaryLayout() {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
             <tr>
               <th className="px-4 py-2 text-left font-bold" rowSpan={3}>Particulars</th>
               <th className="px-4 py-0.5 text-center font-bold border-b border-zinc-200" colSpan={3}>
@@ -286,7 +286,7 @@ export default function LedgerMonthlySummaryLayout() {
                   key={row.month}
                   className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
                     isFocused
-                      ? "bg-[#ffcc00] text-zinc-950 font-bold"
+                      ? "bg-[#e4e4e7] text-zinc-950 font-bold"
                       : "hover:bg-zinc-50 text-zinc-800"
                   }`}
                   onClick={() => setFocusedIndex(idx)}
@@ -315,7 +315,7 @@ export default function LedgerMonthlySummaryLayout() {
       </div>
 
       {/* Grand Total Bar */}
-      <div className="border-t border-zinc-300 bg-[#e5eff5] px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
+      <div className="border-t border-zinc-300 bg-[#f4f4f5] px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
         <span className="flex-1">Grand Total</span>
         <div className="flex justify-end">
           <span className="w-28 text-right pr-4 border-r border-zinc-300">
@@ -335,9 +335,9 @@ export default function LedgerMonthlySummaryLayout() {
       <div className="border-t border-zinc-300 bg-white p-3 flex flex-col items-center justify-center select-none shrink-0 h-44">
         <svg height={chartHeight} width={chartWidth} className="font-mono text-[9px] text-zinc-500">
           {/* Grid lines */}
-          <line x1={padding} y1={padding} x2={chartWidth - padding} y2={padding} stroke="#f3f4f6" strokeWidth={1} />
-          <line x1={padding} y1={chartHeight / 2} x2={chartWidth - padding} y2={chartHeight / 2} stroke="#f3f4f6" strokeWidth={1} />
-          <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding} y2={chartHeight - padding} stroke="#d1d5db" strokeWidth={1.5} />
+          <line x1={padding} y1={padding} x2={chartWidth - padding} y2={padding} stroke="#f4f4f5" strokeWidth={1} />
+          <line x1={padding} y1={chartHeight / 2} x2={chartWidth - padding} y2={chartHeight / 2} stroke="#f4f4f5" strokeWidth={1} />
+          <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding} y2={chartHeight - padding} stroke="#d4d4d8" strokeWidth={1.5} />
 
           {/* Month Bars */}
           {chartData.map((d, idx) => {
@@ -350,8 +350,8 @@ export default function LedgerMonthlySummaryLayout() {
                   y={chartHeight - padding - d.closingHeight}
                   width={barWidth}
                   height={d.closingHeight}
-                  fill={idx === focusedIndex ? "#ffcc00" : "#cbd5e1"}
-                  stroke={idx === focusedIndex ? "#e2b800" : "#94a3b8"}
+                  fill={idx === focusedIndex ? "#e4e4e7" : "#d4d4d8"}
+                  stroke={idx === focusedIndex ? "#d4d4d8" : "#a1a1aa"}
                   strokeWidth={1}
                 />
                 
@@ -362,7 +362,7 @@ export default function LedgerMonthlySummaryLayout() {
                     y={chartHeight - padding - d.closingHeight - 3}
                     width={barWidth}
                     height={3}
-                    fill="#3b82f6"
+                    fill="#71717a"
                   />
                 )}
 
@@ -385,7 +385,7 @@ export default function LedgerMonthlySummaryLayout() {
             Closing Balance
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-1 bg-blue-500" />
+            <span className="inline-block w-2.5 h-1 bg-zinc-700" />
             Transactions
           </span>
         </div>

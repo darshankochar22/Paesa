@@ -41,10 +41,10 @@ function CashFlowGraph({ data }: { data: MonthRow[] }) {
             <div key={m.month_name} className="flex flex-col items-center flex-1 min-w-[35px]">
               <div className="w-full flex justify-center items-end gap-0.5 h-20">
                 {m.inflow > 0 && (
-                  <div style={{ height: `${Math.max(inflowHeight, 2)}%` }} className="w-2.5 bg-red-600" />
+                  <div style={{ height: `${Math.max(inflowHeight, 2)}%` }} className="w-2.5 bg-zinc-900" />
                 )}
                 {m.outflow > 0 && (
-                  <div style={{ height: `${Math.max(outflowHeight, 2)}%` }} className="w-2.5 bg-blue-700" />
+                  <div style={{ height: `${Math.max(outflowHeight, 2)}%` }} className="w-2.5 bg-zinc-800" />
                 )}
               </div>
               <span className="mt-1 text-zinc-600 text-[9px] font-sans">{m.month_name.slice(0, 3)}</span>
@@ -91,7 +91,7 @@ export default function CashFlowStatement() {
   }, [selectedCompany, activeFY]);
 
   if (loading) return <div className="p-6 text-xs font-mono text-zinc-500">Loading Cash Flow Data...</div>;
-  if (error) return <div className="p-6 text-xs font-mono text-red-500">{error}</div>;
+  if (error) return <div className="p-6 text-xs font-mono text-zinc-600">{error}</div>;
   if (!reportData) return <div className="p-6 text-xs font-mono text-zinc-400">No entries available.</div>;
 
   const dateLabel = activeFY ? `For 1-Apr-${new Date(activeFY.start_date).getFullYear()}` : "";
@@ -99,7 +99,7 @@ export default function CashFlowStatement() {
   if (currentView === "monthly") {
     return (
       <div className="flex flex-col h-full w-full bg-white font-mono text-[11px]">
-        <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 flex justify-between items-center font-bold">
+        <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 flex justify-between items-center font-bold">
           <span className="text-zinc-800 uppercase">Cash Flow</span>
           <span className="text-zinc-600">{dateLabel}</span>
         </div>
@@ -121,7 +121,7 @@ export default function CashFlowStatement() {
                   <tr
                     key={m.month_name}
                     className={`border-b border-zinc-100 cursor-pointer ${
-                      isFocused ? "bg-[#ffcc00] font-bold text-zinc-950" : "hover:bg-zinc-50 text-zinc-800"
+                      isFocused ? "bg-[#e4e4e7] font-bold text-zinc-950" : "hover:bg-zinc-50 text-zinc-800"
                     }`}
                     onClick={() => setFocusedKey(`m-${idx}`)}
                     onDoubleClick={() => {
@@ -141,7 +141,7 @@ export default function CashFlowStatement() {
           </table>
         </div>
 
-        <div className="border-t-2 border-b border-double border-zinc-400 bg-[#e5eff5] px-3 py-1 flex justify-between font-bold text-zinc-900 select-none">
+        <div className="border-t-2 border-b border-double border-zinc-400 bg-[#f4f4f5] px-3 py-1 flex justify-between font-bold text-zinc-900 select-none">
           <span className="flex-1 text-left">Grand Total</span>
           <span className="w-40 text-right font-mono">{fmt(reportData.grandTotal.inflow)}</span>
           <span className="w-40 text-right font-mono">{fmt(reportData.grandTotal.outflow)}</span>
@@ -155,7 +155,7 @@ export default function CashFlowStatement() {
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono text-[11px]">
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 flex justify-between items-center font-bold">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 flex justify-between items-center font-bold">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentView("monthly")}
@@ -184,7 +184,7 @@ export default function CashFlowStatement() {
                     <tr
                       key={key}
                       className={`border-b border-zinc-50 cursor-pointer ${
-                        isFocused ? "bg-[#ffcc00] font-bold text-zinc-950" : "hover:bg-zinc-50 text-zinc-800"
+                        isFocused ? "bg-[#e4e4e7] font-bold text-zinc-950" : "hover:bg-zinc-50 text-zinc-800"
                       }`}
                       onClick={() => setFocusedKey(key)}
                       onDoubleClick={() => navigate(`/reports/accounts/group-summary/${item.group_id}`)}
@@ -214,7 +214,7 @@ export default function CashFlowStatement() {
                     <tr
                       key={key}
                       className={`border-b border-zinc-50 cursor-pointer ${
-                        isFocused ? "bg-[#ffcc00] font-bold text-zinc-950" : "hover:bg-zinc-50 text-zinc-800"
+                        isFocused ? "bg-[#e4e4e7] font-bold text-zinc-950" : "hover:bg-zinc-50 text-zinc-800"
                       }`}
                       onClick={() => setFocusedKey(key)}
                       onDoubleClick={() => navigate(`/reports/accounts/group-summary/${item.group_id}`)}
@@ -230,7 +230,7 @@ export default function CashFlowStatement() {
         </div>
       </div>
 
-      <div className="flex font-bold text-zinc-900 border-t border-zinc-400 bg-[#e5eff5] select-none text-[11px]">
+      <div className="flex font-bold text-zinc-900 border-t border-zinc-400 bg-[#f4f4f5] select-none text-[11px]">
         <div className="flex-1 px-3 py-1.5 flex justify-between border-r border-zinc-300">
           <span>Total Inflow</span>
           <span className="font-mono">{fmt(reportData.grandTotal.inflow)}</span>
@@ -241,7 +241,7 @@ export default function CashFlowStatement() {
         </div>
       </div>
 
-      <div className="border-t border-zinc-300 bg-[#d0e1f0] text-center py-1.5 font-bold text-blue-900 select-none text-[11px]">
+      <div className="border-t border-zinc-300 bg-[#e4e4e7] text-center py-1.5 font-bold text-zinc-900 select-none text-[11px]">
         Nett Flow: <span className="font-mono">₹{fmt(reportData.grandTotal.nett_flow)}</span>
       </div>
     </div>

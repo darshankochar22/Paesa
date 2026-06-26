@@ -165,12 +165,12 @@ export default function InterestLedgerLayout() {
   if (!ledgerId) {
     return (
       <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-        <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+        <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
           <span className="font-bold">Ledger Interest Calculation</span>
           <span className="ml-auto">Select a ledger to view interest calculation</span>
         </div>
         {/* Search */}
-        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#f5f9fb]">
+        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#fafafa]">
           <input
             autoFocus
             type="text"
@@ -180,12 +180,12 @@ export default function InterestLedgerLayout() {
               setSearch(e.target.value);
               setPickerFocus(0);
             }}
-            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-blue-400 bg-white"
+            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-zinc-800 bg-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono">
-            <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 select-none">
+            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 select-none">
               <tr>
                 <th className="px-3 py-1.5 text-left font-bold">Ledger Name</th>
                 <th className="px-3 py-1.5 text-left font-bold w-48">Group</th>
@@ -203,7 +203,7 @@ export default function InterestLedgerLayout() {
                   <tr
                     key={l.ledger_id}
                     className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
-                      pickerFocus === idx ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                      pickerFocus === idx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
                     }`}
                     onClick={() => {
                       setPickerFocus(idx);
@@ -234,7 +234,7 @@ export default function InterestLedgerLayout() {
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
@@ -248,7 +248,7 @@ export default function InterestLedgerLayout() {
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       {/* Sub-header */}
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
         <span>
           Ledger: <span className="font-bold">{ledgerName}</span>
         </span>
@@ -259,7 +259,7 @@ export default function InterestLedgerLayout() {
       </div>
 
       {/* Opening Balance Bar */}
-      <div className="bg-[#f5f9fb] border-b border-zinc-200 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
+      <div className="bg-[#fafafa] border-b border-zinc-200 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
         <span>
           <span className="font-bold text-zinc-800">Opening Balance:</span> {fmt(openingBalance)}{" "}
           {openingBalance >= 0 ? "Dr" : "Cr"}
@@ -273,7 +273,7 @@ export default function InterestLedgerLayout() {
       {/* Main Table */}
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 select-none">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 select-none">
             <tr>
               <th className="px-3 py-1.5 text-left font-bold w-[25%]">Date range</th>
               <th className="px-3 py-1.5 text-left font-bold w-[12%]">Rate / Style</th>
@@ -297,7 +297,7 @@ export default function InterestLedgerLayout() {
                   <tr
                     key={idx}
                     className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
-                      isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                      isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
                     }`}
                     onClick={() => setFocused(idx)}
                   >
@@ -312,7 +312,7 @@ export default function InterestLedgerLayout() {
                     <td className="px-3 py-1.5 text-right text-zinc-700">
                       {row.balance < 0 ? fmt(row.balance) : ""}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-bold text-red-700">
+                    <td className="px-3 py-1.5 text-right font-bold text-zinc-800">
                       {row.interest > 0 ? fmt(row.interest) : ""}
                     </td>
                   </tr>
@@ -324,13 +324,13 @@ export default function InterestLedgerLayout() {
       </div>
 
       {/* Footer Total */}
-      <div className="border-t-2 border-double border-zinc-400 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
+      <div className="border-t-2 border-double border-zinc-400 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
         <span className="w-[25%]">Closing Balance: {fmt(finalBalance)} {finalBalance >= 0 ? "Dr" : "Cr"}</span>
         <span className="w-[12%]" />
         <span className="w-[8%] text-center">Totals</span>
         <span className="w-[15%] text-right pr-3">{fmtTotal(totalDebit)}</span>
         <span className="w-[15%] text-right pr-3">{fmtTotal(totalCredit)}</span>
-        <span className="w-[15%] text-right pr-3 text-red-700">{fmtTotal(totalInterest)}</span>
+        <span className="w-[15%] text-right pr-3 text-zinc-800">{fmtTotal(totalInterest)}</span>
       </div>
     </div>
   );

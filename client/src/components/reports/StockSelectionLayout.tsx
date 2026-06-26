@@ -106,7 +106,7 @@ export default function StockItemSelectionLayout() {
           <div
             onClick={goToCreate}
             className={`px-3 py-1 text-sm cursor-pointer border-b border-zinc-100 ${
-              selectedIndex === 0 ? "bg-yellow-200 font-semibold" : "hover:bg-yellow-50"
+              selectedIndex === 0 ? "bg-zinc-200 font-semibold" : "hover:bg-zinc-50"
             }`}
           >
             Create
@@ -126,7 +126,7 @@ export default function StockItemSelectionLayout() {
                   onClick={() => goToItem(item)}
                   onMouseEnter={() => setSelectedIndex(rowIndex)}
                   className={`px-3 py-1 text-sm cursor-pointer border-b border-zinc-100 ${
-                    isSelected ? "bg-yellow-200 font-semibold" : "hover:bg-yellow-50"
+                    isSelected ? "bg-zinc-200 font-semibold" : "hover:bg-zinc-50"
                   }`}
                 >
                   {item.name}

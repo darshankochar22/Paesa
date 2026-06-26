@@ -93,8 +93,8 @@ export default function LedgerSelect() {
                   onMouseEnter={() => setSelectedId(ledger.ledger_id)}
                   className={`px-4 py-1 cursor-pointer text-[12px] font-mono select-none border-b border-zinc-50 transition-colors ${
                     isSelected
-                      ? "bg-[#ffcc33] text-zinc-950 font-bold"
-                      : "text-zinc-700 hover:bg-[#ffcc33] hover:text-zinc-950"
+                      ? "bg-[#e4e4e7] text-zinc-950 font-bold"
+                      : "text-zinc-700 hover:bg-[#e4e4e7] hover:text-zinc-950"
                   }`}
                 >
                   {ledger.name || ledger.ledger_name}

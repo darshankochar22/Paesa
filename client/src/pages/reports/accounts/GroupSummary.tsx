@@ -87,14 +87,14 @@ export default function GroupSummaryLayout() {
     return <div className="p-4 text-xs font-mono text-zinc-400">Loading...</div>;
   }
   if (error) {
-    return <div className="p-4 text-xs font-mono text-red-500">{error}</div>;
+    return <div className="p-4 text-xs font-mono text-zinc-600">{error}</div>;
   }
   if (!data) return null;
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-white font-mono">
       {/* Header bar, matches TallyPrime "Group Summary" title strip */}
-      <div className="bg-[#1c2b36] text-white px-3 py-1.5 flex items-center justify-between select-none">
+      <div className="bg-[#18181b] text-white px-3 py-1.5 flex items-center justify-between select-none">
         <button onClick={() => navigate(-1)} className="text-[11px] hover:underline">
           ← Back
         </button>
@@ -102,7 +102,7 @@ export default function GroupSummaryLayout() {
         <span className="text-[11px]">{selectedCompany?.name ?? ""}</span>
       </div>
 
-      <div className="bg-[#e5eff5] border-b border-zinc-200 px-3 py-2 flex justify-between items-start">
+      <div className="bg-[#f4f4f5] border-b border-zinc-200 px-3 py-2 flex justify-between items-start">
         <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-800">
           Particulars
         </span>
@@ -138,7 +138,7 @@ export default function GroupSummaryLayout() {
                       key={key}
                       className={`border-b border-zinc-100 cursor-pointer select-none ${
                         isFocused
-                          ? "bg-[#ffcc00] text-zinc-950 font-bold"
+                          ? "bg-[#e4e4e7] text-zinc-950 font-bold"
                           : "hover:bg-zinc-50 text-zinc-800 font-semibold"
                       }`}
                       onClick={() => {
@@ -162,7 +162,7 @@ export default function GroupSummaryLayout() {
                       key={key}
                       className={`border-b border-zinc-100 cursor-pointer select-none ${
                         isFocused
-                          ? "bg-[#ffcc00] text-zinc-950 font-bold"
+                          ? "bg-[#e4e4e7] text-zinc-950 font-bold"
                           : "hover:bg-zinc-50 text-zinc-800 font-semibold"
                       }`}
                       onClick={() => {

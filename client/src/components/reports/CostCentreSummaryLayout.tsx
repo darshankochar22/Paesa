@@ -60,7 +60,7 @@ export default function CostCentreSummaryLayout() {
   }, [filteredRows, focusedIndex, navigate]);
 
   if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">Loading Cost Centre Summary...</div>;
-  if (error) return <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs">{error}</div>;
+  if (error) return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs">{error}</div>;
 
   const totalExpense = filteredRows.reduce((s, r) => s + (Number(r.expense) || 0), 0);
   const totalIncome = filteredRows.reduce((s, r) => s + (Number(r.income) || 0), 0);
@@ -68,12 +68,12 @@ export default function CostCentreSummaryLayout() {
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
         <span className="font-bold">Cost Centre Summary{categoryFilter ? `: ${categoryFilter}` : ""}</span>
       </div>
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
             <tr>
               <th className="px-4 py-2 text-left font-bold">Cost Centre</th>
               <th className="w-40 text-right px-4 py-2 font-bold border-l border-zinc-200">Expense/Debit</th>
@@ -93,7 +93,7 @@ export default function CostCentreSummaryLayout() {
                   <tr
                     key={row.cc_id}
                     className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
-                      isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800 font-semibold"
+                      isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800 font-semibold"
                     }`}
                     onClick={() => setFocusedIndex(idx)}
                     onDoubleClick={() => navigate(`/reports/accounts/cost-centre-break-up?cost_centre_id=${row.cc_id}&cost_centre_name=${encodeURIComponent(row.cost_centre)}`)}
@@ -101,7 +101,7 @@ export default function CostCentreSummaryLayout() {
                     <td className="px-4 py-1.5 text-left">{row.cost_centre}</td>
                     <td className="w-40 text-right px-4 py-1.5 border-l border-zinc-100">{fmt(row.expense)}</td>
                     <td className="w-40 text-right px-4 py-1.5 border-l border-zinc-100">{fmt(row.income)}</td>
-                    <td className={`w-40 text-right px-4 py-1.5 border-l border-zinc-100 ${row.variance < 0 ? "text-red-600" : ""}`}>
+                    <td className={`w-40 text-right px-4 py-1.5 border-l border-zinc-100 ${row.variance < 0 ? "text-zinc-700" : ""}`}>
                       {fmt(row.variance)}
                     </td>
                   </tr>
@@ -110,12 +110,12 @@ export default function CostCentreSummaryLayout() {
             )}
           </tbody>
           {filteredRows.length > 0 && (
-            <tfoot className="sticky bottom-0 bg-[#e5eff5] border-t border-zinc-300 z-10 font-bold text-zinc-800">
+            <tfoot className="sticky bottom-0 bg-[#f4f4f5] border-t border-zinc-300 z-10 font-bold text-zinc-800">
               <tr>
                 <td className="px-4 py-2 text-left">Grand Total</td>
                 <td className="w-40 text-right px-4 py-2 border-l border-zinc-300">{fmtTotal(totalExpense)}</td>
                 <td className="w-40 text-right px-4 py-2 border-l border-zinc-300">{fmtTotal(totalIncome)}</td>
-                <td className={`w-40 text-right px-4 py-2 border-l border-zinc-300 ${totalVariance < 0 ? "text-red-600" : ""}`}>
+                <td className={`w-40 text-right px-4 py-2 border-l border-zinc-300 ${totalVariance < 0 ? "text-zinc-700" : ""}`}>
                   {fmtTotal(totalVariance)}
                 </td>
               </tr>

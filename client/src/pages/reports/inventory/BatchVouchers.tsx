@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import SelectionPopup from "./SelectionPopup";
 
 const fmtAmount = (val: number | null | undefined) => {
   const n = Number(val) || 0;
@@ -196,65 +197,22 @@ export default function BatchVouchers() {
   // ─────────────────────────────────────────────────────────────────────────
   if (level.step === "item") {
     return (
-      <div className="flex h-full w-full items-start justify-center bg-zinc-100 select-none" style={{ fontFamily: "system-ui, sans-serif" }}>
-        <div className="flex h-full">
-          <div className="flex flex-col w-[420px] border-x border-zinc-300 bg-white">
-            <div className="px-3 py-1.5 bg-[#003047] text-white text-sm font-semibold text-center">
-              Batch Items
-            </div>
-            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50 text-center text-xs font-semibold">
-              {selectedCompany?.name || "Company"}
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
-              <span className="text-xs w-28 shrink-0">Name of Item</span>
-              <span className="text-xs">:</span>
-              <input
-                autoFocus
-                value={itemSearch}
-                onChange={(e) => setItemSearch(e.target.value)}
-                className="flex-1 border border-zinc-300 bg-yellow-100/60 px-2 py-1 text-xs outline-none focus:border-zinc-500"
-              />
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300 text-zinc-400">
-              <span className="text-xs w-28 shrink-0">Name of Batch</span>
-              <span className="text-xs">:</span>
-              <input disabled className="flex-1 border border-zinc-200 bg-zinc-100 px-2 py-1 text-xs outline-none" />
-            </div>
-          </div>
-
-          <div className="flex flex-col w-[300px] border-r border-zinc-300 bg-white">
-            <div className="px-3 py-1.5 bg-[#003047] text-white text-xs font-semibold text-center">
-              List of Items
-            </div>
-            <div className="px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-right text-zinc-500">
-              Create
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {loadingItems ? (
-                <div className="px-3 py-4 text-xs text-zinc-400 italic">Loading items...</div>
-              ) : filteredItems.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-zinc-400 italic">No stock items found.</div>
-              ) : (
-                filteredItems.map((item, idx) => {
-                  const isFocused = idx === itemIndex;
-                  return (
-                    <div
-                      key={item.item_id}
-                      onClick={() => setItemIndex(idx)}
-                      onDoubleClick={() => loadBatches(item)}
-                      className={`px-3 py-1 text-xs cursor-pointer ${
-                        isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
-                      }`}
-                    >
-                      {item.name}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SelectionPopup
+        title="Batch Items"
+        fieldLabel="Name of Item"
+        listLabel="List of Items"
+        companyName={selectedCompany?.name}
+        items={filteredItems.map((it) => ({ id: it.item_id, name: it.name }))}
+        index={itemIndex}
+        loading={loadingItems}
+        emptyText="No stock items found."
+        search={itemSearch}
+        onSearchChange={setItemSearch}
+        onIndexChange={setItemIndex}
+        onAccept={(i) => { const it = filteredItems[i]; if (it) loadBatches(it); }}
+        onCancel={() => navigate(-1)}
+        onCreate={() => navigate("/master/create/stock-item")}
+      />
     );
   }
 
@@ -263,62 +221,20 @@ export default function BatchVouchers() {
   // ─────────────────────────────────────────────────────────────────────────
   if (level.step === "batch") {
     return (
-      <div className="flex h-full w-full items-start justify-center bg-zinc-100 select-none" style={{ fontFamily: "system-ui, sans-serif" }}>
-        <div className="flex h-full">
-          <div className="flex flex-col w-[420px] border-x border-zinc-300 bg-white">
-            <div className="px-3 py-1.5 bg-[#003047] text-white text-sm font-semibold text-center">
-              Batch Items
-            </div>
-            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50 text-center text-xs font-semibold">
-              {selectedCompany?.name || "Company"}
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
-              <span className="text-xs w-28 shrink-0">Name of Item</span>
-              <span className="text-xs">:</span>
-              <span className="flex-1 text-xs font-semibold">{level.item.name}</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
-              <span className="text-xs w-28 shrink-0">Name of Batch</span>
-              <span className="text-xs">:</span>
-              <input disabled className="flex-1 border border-zinc-300 bg-yellow-100/60 px-2 py-1 text-xs outline-none" />
-            </div>
-          </div>
-
-          <div className="flex flex-col w-[300px] border-r border-zinc-300 bg-white">
-            <div className="px-3 py-1.5 bg-[#003047] text-white text-xs font-semibold text-center">
-              List of Batches
-            </div>
-            <div className="px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-zinc-500">
-              Name
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {loadingBatches ? (
-                <div className="px-3 py-4 text-xs text-zinc-400 italic">Loading batches...</div>
-              ) : batchError ? (
-                <div className="px-3 py-4 text-xs text-red-500">{batchError}</div>
-              ) : batches.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-zinc-400 italic">No batches found for this item.</div>
-              ) : (
-                batches.map((batch, idx) => {
-                  const isFocused = idx === batchIndex;
-                  return (
-                    <div
-                      key={batch}
-                      onClick={() => setBatchIndex(idx)}
-                      onDoubleClick={() => loadVouchers(level.item, batch)}
-                      className={`px-3 py-1 text-xs cursor-pointer ${
-                        isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
-                      }`}
-                    >
-                      {batch}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SelectionPopup
+        title="Batch Items"
+        fieldLabel="Name of Batch"
+        listLabel="List of Batches"
+        companyName={selectedCompany?.name}
+        subtitle={<>Name of Item: <span className="font-bold">{level.item.name}</span></>}
+        items={batches.map((b) => ({ id: b, name: b }))}
+        index={batchIndex}
+        loading={loadingBatches}
+        emptyText={batchError ?? "No batches found for this item."}
+        onIndexChange={setBatchIndex}
+        onAccept={(i) => { const b = batches[i]; if (b) loadVouchers(level.item, b); }}
+        onCancel={() => backToItems()}
+      />
     );
   }
 
@@ -352,7 +268,7 @@ export default function BatchVouchers() {
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
             <tr>
               <th rowSpan={2} className="px-3 py-1 text-left font-bold w-20 border-b border-zinc-300 align-bottom">Date</th>
               <th rowSpan={2} className="px-3 py-1 text-left font-bold border-b border-zinc-300 align-bottom">Particulars</th>
@@ -375,7 +291,7 @@ export default function BatchVouchers() {
             {loadingVouchers ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">Loading vouchers...</td></tr>
             ) : voucherError ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-red-500">{voucherError}</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-600">{voucherError}</td></tr>
             ) : voucherRows.length === 0 ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
             ) : (
@@ -387,7 +303,7 @@ export default function BatchVouchers() {
                     onClick={() => setVoucherIndex(idx)}
                     onDoubleClick={() => navigate(`/transactions/voucher/${row.voucher_id}`)}
                     className={`border-b border-zinc-100 cursor-pointer transition-colors ${
-                      isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                      isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
                     }`}
                   >
                     <td className="px-3 py-1 whitespace-nowrap">{formatDate(row.date)}</td>
@@ -412,7 +328,7 @@ export default function BatchVouchers() {
       <div className="border-t border-zinc-300 px-3 py-1 text-center text-[10px] italic text-zinc-500">
         Totals as per 'Default' valuation :
       </div>
-      <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
+      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
         <span className="w-20" />
         <span className="flex-1" />
         <span className="w-28" />

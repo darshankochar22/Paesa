@@ -158,20 +158,20 @@ export function ReportTable({
   return (
     <div ref={containerRef} className="flex-1 flex flex-col h-full overflow-auto bg-white border-b border-zinc-300">
       <table className="w-full border-collapse font-mono text-[10px] select-none text-zinc-900">
-        <thead className="sticky top-0 bg-[#2e7d32] text-white z-10 shadow-sm">
+        <thead className="sticky top-0 bg-[#18181b] text-white z-10 shadow-sm">
           {comparisonColumns.length > 0 && (
             <tr>
-              <th className="border-b border-r border-[#1b5e20] px-2 py-1 text-left font-bold" colSpan={columns.length - (columns.length > 1 ? 1 : 0)}>
+              <th className="border-b border-r border-[#3f3f46] px-2 py-1 text-left font-bold" colSpan={columns.length - (columns.length > 1 ? 1 : 0)}>
                 Particulars
               </th>
               {comparisonColumns.map((col) => (
                 <th
                   key={col.id}
-                  className="border-b border-r border-[#1b5e20] px-2 py-1 text-center font-bold"
+                  className="border-b border-r border-[#3f3f46] px-2 py-1 text-center font-bold"
                   colSpan={1}
                 >
                   <div className="text-[9px] truncate max-w-[150px]">{col.companyName}</div>
-                  <div className="text-[8px] text-green-100 font-normal">
+                  <div className="text-[8px] text-zinc-200 font-normal">
                     {col.fromDate} to {col.toDate}
                   </div>
                 </th>
@@ -182,7 +182,7 @@ export function ReportTable({
             {columns.map((col, idx) => (
               <th
                 key={idx}
-                className="border-b-2 border-r border-[#1b5e20] px-2 py-1 font-bold uppercase text-left last:border-r-0 tracking-wide"
+                className="border-b-2 border-r border-[#3f3f46] px-2 py-1 font-bold uppercase text-left last:border-r-0 tracking-wide"
                 style={{ width: col.width, textAlign: col.align || "left" }}
               >
                 {col.header}
@@ -212,11 +212,11 @@ export function ReportTable({
                     data-row-index={rowIndex}
                     onClick={() => setFocusedIndex(rowIndex)}
                     onDoubleClick={() => onRowDrillDown?.(row)}
-                    className={`border-b border-zinc-200 hover:bg-blue-50 transition-colors cursor-pointer ${
-                      isFocused ? "bg-[#fff59d] border-l-4 border-l-[#f57c00]" : ""
-                    } ${isSelected ? "bg-[#ffe0b2] font-semibold" : ""} ${
-                      isTotal ? "bg-[#e3f2fd] font-bold border-t-2 border-[#1565c0]" : ""
-                    } ${isHeader ? "bg-[#f5f5f5] font-bold text-[#1a237e] border-t border-zinc-400" : ""}`}
+                    className={`border-b border-zinc-200 hover:bg-zinc-50 transition-colors cursor-pointer ${
+                      isFocused ? "bg-[#e4e4e7] border-l-4 border-l-[#18181b]" : ""
+                    } ${isSelected ? "bg-[#e4e4e7] font-semibold" : ""} ${
+                      isTotal ? "bg-[#f4f4f5] font-bold border-t-2 border-[#18181b]" : ""
+                    } ${isHeader ? "bg-[#f4f4f5] font-bold text-[#18181b] border-t border-zinc-400" : ""}`}
                   >
                     {columns.map((col, colIdx) => {
                       const alignClass =
@@ -229,7 +229,7 @@ export function ReportTable({
                           }`}
                         >
                           {colIdx === 0 && row.subItems && row.subItems.length > 0 && (
-                            <span className="mr-1 text-[#1565c0] font-bold">
+                            <span className="mr-1 text-[#18181b] font-bold">
                               {isExpanded ? "▼" : "▶"}
                             </span>
                           )}

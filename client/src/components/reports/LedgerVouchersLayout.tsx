@@ -154,7 +154,7 @@ const fetchLedgerReport = React.useCallback(async () => {
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
@@ -177,7 +177,7 @@ const fetchLedgerReport = React.useCallback(async () => {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
             <tr>
               <th className="px-4 py-2 text-left font-bold" rowSpan={3}>
                 Date
@@ -231,7 +231,7 @@ const fetchLedgerReport = React.useCallback(async () => {
                     key={idx}
                     className={`border-b border-zinc-100 cursor-pointer transition-colors ${
                       isFocused
-                        ? "bg-[#ffcc00] text-zinc-950 font-bold"
+                        ? "bg-[#e4e4e7] text-zinc-950 font-bold"
                         : "hover:bg-zinc-50 text-zinc-800"
                     }`}
                     onClick={() => {
@@ -265,7 +265,7 @@ const fetchLedgerReport = React.useCallback(async () => {
       </div>
 
       {/* Grand Total Bar */}
-      <div className="border-t border-zinc-300 bg-[#e5eff5] px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
+      <div className="border-t border-zinc-300 bg-[#f4f4f5] px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
         <span className="w-24">Grand Total</span>
         <div className="flex-1 flex justify-end gap-0">
           <span className="w-24 text-right" /> {/* Vch Type spacer */}

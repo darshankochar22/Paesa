@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import SelectionPopup from "./SelectionPopup";
 
 const fmtAmount = (val: number | null | undefined) => {
   const n = Number(val) || 0;
@@ -206,49 +207,20 @@ export default function StockCategorySummary() {
   // ═══════════════════════════════════════════════════════════════════════
   if (level.step === "category") {
     return (
-      <div className="flex h-full w-full items-start justify-center bg-zinc-100 select-none" style={{ fontFamily: "system-ui, sans-serif" }}>
-        <div className="flex h-full">
-          <div className="flex flex-col w-[360px] border-x border-zinc-300 bg-white">
-            <div className="px-3 py-1.5 bg-[#003047] text-white text-sm font-semibold text-center">Select Stock Category</div>
-            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50 text-center text-xs font-semibold">
-              {selectedCompany?.name || "Company"}
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
-              <span className="text-xs w-32 shrink-0">Name of Stock Category</span>
-              <span className="text-xs">:</span>
-              <span className="flex-1 border border-zinc-300 bg-yellow-100/60 px-2 py-1 text-xs">
-                {categories[categoryIndex]?.name ?? ""}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col w-[300px] border-r border-zinc-300 bg-white">
-            <div className="px-3 py-1.5 bg-[#003047] text-white text-xs font-semibold text-center">List of Stock Categories</div>
-            <div className="px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-right text-zinc-500">Create</div>
-            <div className="flex-1 overflow-y-auto">
-              {loadingCategories ? (
-                <div className="px-3 py-4 text-xs text-zinc-400 italic">Loading categories...</div>
-              ) : categories.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-zinc-400 italic">No stock categories found.</div>
-              ) : (
-                categories.map((c, idx) => {
-                  const isFocused = idx === categoryIndex;
-                  return (
-                    <div
-                      key={c.sc_id}
-                      onClick={() => setCategoryIndex(idx)}
-                      onDoubleClick={() => loadItems(c)}
-                      className={`px-3 py-1 text-xs cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
-                    >
-                      {c.name}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SelectionPopup
+        title="Select Stock Category"
+        fieldLabel="Name of Stock Category"
+        listLabel="List of Stock Categories"
+        companyName={selectedCompany?.name}
+        items={categories.map((c) => ({ id: c.sc_id, name: c.name }))}
+        index={categoryIndex}
+        loading={loadingCategories}
+        emptyText="No stock categories found."
+        onIndexChange={setCategoryIndex}
+        onAccept={(i) => { const c = categories[i]; if (c) loadItems(c); }}
+        onCancel={() => navigate(-1)}
+        onCreate={() => navigate("/master/create/stock-category")}
+      />
     );
   }
 
@@ -272,7 +244,7 @@ export default function StockCategorySummary() {
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
               <tr>
                 <th className="px-3 py-1 text-left font-bold">Particulars</th>
                 <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Quantity</th>
@@ -284,7 +256,7 @@ export default function StockCategorySummary() {
               {loadingItems ? (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
               ) : itemsError ? (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-red-500">{itemsError}</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-600">{itemsError}</td></tr>
               ) : items.length === 0 ? (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
               ) : (
@@ -295,7 +267,7 @@ export default function StockCategorySummary() {
                       key={row.item_id}
                       onClick={() => setItemIndex(idx)}
                       onDoubleClick={() => loadMonths(level.category, row)}
-                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                     >
                       <td className="px-3 py-1">{row.item_name}</td>
                       <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.closing_qty, row.unit_name)}</td>
@@ -309,7 +281,7 @@ export default function StockCategorySummary() {
           </table>
         </div>
 
-        <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
           <span className="flex-1">Grand Total</span>
           <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtQty(grandQty)}</span>
           <span className="w-28 border-l border-zinc-300" />
@@ -349,7 +321,7 @@ export default function StockCategorySummary() {
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
               <tr>
                 <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom">Particulars</th>
                 <th colSpan={2} className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200">Inwards</th>
@@ -369,7 +341,7 @@ export default function StockCategorySummary() {
               {loadingMonths ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
               ) : monthsError ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-red-500">{monthsError}</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{monthsError}</td></tr>
               ) : (
                 months.map((row, idx) => {
                   const isFocused = idx === monthIndex;
@@ -378,7 +350,7 @@ export default function StockCategorySummary() {
                       key={row.month}
                       onClick={() => setMonthIndex(idx)}
                       onDoubleClick={() => loadVouchers(level.category, level.item)}
-                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                     >
                       <td className="px-3 py-1">{row.month}</td>
                       <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.in_qty)}</td>
@@ -395,7 +367,7 @@ export default function StockCategorySummary() {
           </table>
         </div>
 
-        <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
           <span className="flex-1">Grand Total</span>
           <span className="w-20 text-right border-l border-zinc-300 pr-2">{fmtQty(totIn)}</span>
           <span className="w-24 text-right pr-2">{fmtAmount(totInVal)}</span>
@@ -437,7 +409,7 @@ export default function StockCategorySummary() {
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
             <tr>
               <th rowSpan={2} className="px-3 py-1 text-left font-bold w-20 border-b border-zinc-300 align-bottom">Date</th>
               <th rowSpan={2} className="px-3 py-1 text-left font-bold border-b border-zinc-300 align-bottom">Particulars</th>
@@ -460,7 +432,7 @@ export default function StockCategorySummary() {
             {loadingVouchers ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">Loading vouchers...</td></tr>
             ) : voucherError ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-red-500">{voucherError}</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-600">{voucherError}</td></tr>
             ) : voucherRows.length === 0 ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
             ) : (
@@ -471,7 +443,7 @@ export default function StockCategorySummary() {
                     key={row.voucher_id ?? `open-${idx}`}
                     onClick={() => setVoucherIndex(idx)}
                     onDoubleClick={() => row.voucher_id && navigate(`/transactions/voucher/${row.voucher_id}`)}
-                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                   >
                     <td className="px-3 py-1 whitespace-nowrap">{formatDate(row.date)}</td>
                     <td className="px-3 py-1 truncate max-w-xs">{row.particulars}</td>
@@ -494,7 +466,7 @@ export default function StockCategorySummary() {
       <div className="border-t border-zinc-300 px-3 py-1 text-center text-[10px] italic text-zinc-500">
         Totals as per 'Default' valuation :
       </div>
-      <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
         <span className="w-20" />
         <span className="flex-1" />
         <span className="w-28" />

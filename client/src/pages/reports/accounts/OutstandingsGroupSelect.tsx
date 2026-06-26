@@ -37,7 +37,7 @@ React.useEffect(() => {
   return (
     <div className="flex-1 flex items-start justify-center pt-16 bg-white/60">
       <div className="bg-white border border-zinc-300 shadow-lg w-96 font-mono text-[11px]">
-        <div className="bg-[#e5eff5] px-4 py-2 font-bold text-zinc-800 border-b border-zinc-300">Select Group</div>
+        <div className="bg-[#f4f4f5] px-4 py-2 font-bold text-zinc-800 border-b border-zinc-300">Select Group</div>
         <div className="px-4 py-2 border-b border-zinc-200">
           <div className="text-zinc-600 mb-1">Name of Group</div>
           <input
@@ -45,10 +45,10 @@ React.useEffect(() => {
             value={search}
             onChange={e => setSearch(e.target.value)}
             onKeyDown={onKey}
-            className="w-full border border-[#ffcc00] bg-[#fffce8] px-2 py-0.5 text-[11px] font-mono focus:outline-none"
+            className="w-full border border-[#e4e4e7] bg-[#f4f4f5] px-2 py-0.5 text-[11px] font-mono focus:outline-none"
           />
         </div>
-        <div className="bg-[#003366] text-white px-4 py-0.5 text-[10px] font-bold flex justify-between">
+        <div className="bg-[#18181b] text-white px-4 py-0.5 text-[10px] font-bold flex justify-between">
           <span>List of Groups</span>
           <span className="text-zinc-300 cursor-pointer">Create</span>
         </div>
@@ -56,7 +56,7 @@ React.useEffect(() => {
           {filtered.map((g, idx) => (
             <div
               key={g.group_id}
-              className={`px-4 py-0.5 cursor-pointer ${idx === focusedIndex ? "bg-[#ffcc00] font-bold text-zinc-950" : "hover:bg-zinc-100 text-zinc-800"}`}
+              className={`px-4 py-0.5 cursor-pointer ${idx === focusedIndex ? "bg-[#e4e4e7] font-bold text-zinc-950" : "hover:bg-zinc-100 text-zinc-800"}`}
               onClick={() => select(g)}
             >
               {g.group_name}
