@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import SelectionPopup from "./SelectionPopup";
 
 const fmtAmount = (val: number | null | undefined) => {
   const n = Number(val) || 0;
@@ -206,49 +207,20 @@ export default function GodownSummary() {
   // ═══════════════════════════════════════════════════════════════════════
   if (level.step === "godown") {
     return (
-      <div className="flex h-full w-full items-start justify-center bg-zinc-100 select-none" style={{ fontFamily: "system-ui, sans-serif" }}>
-        <div className="flex h-full">
-          <div className="flex flex-col w-[360px] border-x border-zinc-300 bg-white">
-            <div className="px-3 py-1.5 bg-[#003047] text-white text-sm font-semibold text-center">Select Godown</div>
-            <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50 text-center text-xs font-semibold">
-              {selectedCompany?.name || "Company"}
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
-              <span className="text-xs w-28 shrink-0">Name of Godown</span>
-              <span className="text-xs">:</span>
-              <span className="flex-1 border border-zinc-300 bg-yellow-100/60 px-2 py-1 text-xs">
-                {godowns[godownIndex]?.name ?? ""}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col w-[300px] border-r border-zinc-300 bg-white">
-            <div className="px-3 py-1.5 bg-[#003047] text-white text-xs font-semibold text-center">List of Godowns</div>
-            <div className="px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-right text-zinc-500">Create</div>
-            <div className="flex-1 overflow-y-auto">
-              {loadingGodowns ? (
-                <div className="px-3 py-4 text-xs text-zinc-400 italic">Loading godowns...</div>
-              ) : godowns.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-zinc-400 italic">No godowns found.</div>
-              ) : (
-                godowns.map((g, idx) => {
-                  const isFocused = idx === godownIndex;
-                  return (
-                    <div
-                      key={g.godown_id}
-                      onClick={() => setGodownIndex(idx)}
-                      onDoubleClick={() => loadItems(g)}
-                      className={`px-3 py-1 text-xs cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
-                    >
-                      {g.name}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SelectionPopup
+        title="Select Godown"
+        fieldLabel="Name of Godown"
+        listLabel="List of Godowns"
+        companyName={selectedCompany?.name}
+        items={godowns.map((g) => ({ id: g.godown_id, name: g.name }))}
+        index={godownIndex}
+        loading={loadingGodowns}
+        emptyText="No godowns found."
+        onIndexChange={setGodownIndex}
+        onAccept={(i) => { const g = godowns[i]; if (g) loadItems(g); }}
+        onCancel={() => navigate(-1)}
+        onCreate={() => navigate("/master/create/godown")}
+      />
     );
   }
 
@@ -272,7 +244,7 @@ export default function GodownSummary() {
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
               <tr>
                 <th className="px-3 py-1 text-left font-bold">Particulars</th>
                 <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Quantity</th>
@@ -284,7 +256,7 @@ export default function GodownSummary() {
               {loadingItems ? (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
               ) : itemsError ? (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-red-500">{itemsError}</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-600">{itemsError}</td></tr>
               ) : items.length === 0 ? (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
               ) : (
@@ -295,7 +267,7 @@ export default function GodownSummary() {
                       key={row.item_id}
                       onClick={() => setItemIndex(idx)}
                       onDoubleClick={() => loadMonths(level.godown, row)}
-                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                     >
                       <td className="px-3 py-1">{row.item_name}</td>
                       <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.closing_qty, row.unit_name)}</td>
@@ -309,7 +281,7 @@ export default function GodownSummary() {
           </table>
         </div>
 
-        <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
           <span className="flex-1">Grand Total</span>
           <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtQty(grandQty)}</span>
           <span className="w-28 border-l border-zinc-300" />
@@ -352,7 +324,7 @@ export default function GodownSummary() {
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
               <tr>
                 <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom">Particulars</th>
                 <th colSpan={2} className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200">Inwards</th>
@@ -372,7 +344,7 @@ export default function GodownSummary() {
               {loadingMonths ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
               ) : monthsError ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-red-500">{monthsError}</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{monthsError}</td></tr>
               ) : (
                 months.map((row, idx) => {
                   const isFocused = idx === monthIndex;
@@ -381,7 +353,7 @@ export default function GodownSummary() {
                       key={row.month}
                       onClick={() => setMonthIndex(idx)}
                       onDoubleClick={() => loadVouchers(level.godown, level.item)}
-                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                     >
                       <td className="px-3 py-1">{row.month}</td>
                       <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.in_qty)}</td>
@@ -398,7 +370,7 @@ export default function GodownSummary() {
           </table>
         </div>
 
-        <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
           <span className="flex-1">Grand Total</span>
           <span className="w-20 text-right border-l border-zinc-300 pr-2">{fmtQty(totIn)}</span>
           <span className="w-24 text-right pr-2">{fmtAmount(totInVal)}</span>
@@ -443,7 +415,7 @@ export default function GodownSummary() {
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
             <tr>
               <th rowSpan={2} className="px-3 py-1 text-left font-bold w-20 border-b border-zinc-300 align-bottom">Date</th>
               <th rowSpan={2} className="px-3 py-1 text-left font-bold border-b border-zinc-300 align-bottom">Particulars</th>
@@ -466,7 +438,7 @@ export default function GodownSummary() {
             {loadingVouchers ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">Loading vouchers...</td></tr>
             ) : voucherError ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-red-500">{voucherError}</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-600">{voucherError}</td></tr>
             ) : voucherRows.length === 0 ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
             ) : (
@@ -477,7 +449,7 @@ export default function GodownSummary() {
                     key={row.voucher_id}
                     onClick={() => setVoucherIndex(idx)}
                     onDoubleClick={() => navigate(`/transactions/voucher/${row.voucher_id}`)}
-                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                   >
                     <td className="px-3 py-1 whitespace-nowrap">{formatDate(row.date)}</td>
                     <td className="px-3 py-1 truncate max-w-xs">{row.particulars}</td>
@@ -500,7 +472,7 @@ export default function GodownSummary() {
       <div className="border-t border-zinc-300 px-3 py-1 text-center text-[10px] italic text-zinc-500">
         Totals as per 'Default' valuation :
       </div>
-      <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
         <span className="w-20" />
         <span className="flex-1" />
         <span className="w-28" />

@@ -1,5 +1,7 @@
 import * as React from "react";
 import { useCompany } from "@/context/CompanyContext";
+import DataTable, { type TableColumn } from "@/components/ui/DataTable";
+import { fmtAbs, fmtQty } from "@/lib/format";
 
 interface ItemRow {
   item_id: number;
@@ -29,128 +31,28 @@ interface StockSummaryData {
   as_on_date: string | null;
 }
 
-const fmt = (val: number) =>
-  new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(val));
-
-const fmtQty = (val: number) =>
-  new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(val));
-
 const signed = (val: number, formatted: string) => (val < 0 ? `(-)${formatted}` : formatted);
 
-interface ItemRowsProps {
-  items: ItemRow[];
-  depth: number;
-  focusedId: string | null;
-  onFocus: (id: string) => void;
-}
+// Render fns read either a group ({group_name}) or a nested item ({item_name, unit_name, rate}).
+const nameCell = (r: any) => r.group_name ?? r.item_name;
+const qtyCell = (r: any) => {
+  const q = r.closing_qty ?? 0;
+  if (!q) return "";
+  const unit = r.unit_name ? ` ${r.unit_name}` : "";
+  return signed(q, `${fmtQty(q)}${unit}`.trim());
+};
+const rateCell = (r: any) => (r.rate && r.closing_qty ? fmtAbs(r.rate) : "");
+const valueCell = (r: any) => {
+  const v = r.closing_value ?? 0;
+  return v ? signed(v, fmtAbs(v)) : "";
+};
 
-function ItemRows({ items, depth, focusedId, onFocus }: ItemRowsProps) {
-  return (
-    <>
-      {items.map((item) => {
-        const key = `i-${item.item_id}`;
-        const isFocused = focusedId === key;
-        return (
-          <tr
-            key={key}
-            className={`border-b border-zinc-50 cursor-pointer select-none ${
-              isFocused
-                ? "bg-[#ffcc00] text-zinc-950 font-bold"
-                : "bg-zinc-50 hover:bg-zinc-100 text-zinc-700"
-            }`}
-            onClick={() => onFocus(key)}
-          >
-            <td
-              className="px-3 py-1 text-left"
-              style={{ paddingLeft: `${12 + depth * 16}px` }}
-            >
-              {item.item_name}
-            </td>
-            <td className="px-3 py-1 text-right whitespace-nowrap w-28 font-mono">
-              {item.closing_qty !== 0
-                ? signed(item.closing_qty, `${fmtQty(item.closing_qty)} ${item.unit_name || ""}`.trim())
-                : ""}
-            </td>
-            <td className="px-3 py-1 text-right whitespace-nowrap w-24 font-mono italic text-zinc-500">
-              {item.closing_qty !== 0 && item.rate !== 0 ? fmt(item.rate) : ""}
-            </td>
-            <td className="px-3 py-1 text-right whitespace-nowrap w-32 font-mono">
-              {item.closing_value !== 0 ? signed(item.closing_value, fmt(item.closing_value)) : ""}
-            </td>
-          </tr>
-        );
-      })}
-    </>
-  );
-}
-
-interface GroupRowsProps {
-  groups: GroupRow[];
-  expandedIds: Set<string>;
-  focusedId: string | null;
-  onFocus: (id: string) => void;
-  onToggle: (id: string) => void;
-}
-
-function GroupRows({ groups, expandedIds, focusedId, onFocus, onToggle }: GroupRowsProps) {
-  return (
-    <>
-      {groups.map((group) => {
-        const key = `g-${group.group_id ?? "ungrouped"}`;
-        const isExpanded = expandedIds.has(key);
-        const isFocused = focusedId === key;
-        const groupItems = group.items ?? [];
-        const hasItems = groupItems.length > 0;
-
-        return (
-          <React.Fragment key={key}>
-            <tr
-              className={`border-b border-zinc-100 cursor-pointer transition-colors select-none ${
-                isFocused
-                  ? "bg-[#ffcc00] text-zinc-950 font-bold"
-                  : "hover:bg-zinc-50 text-zinc-800 font-semibold"
-              }`}
-              onClick={() => onFocus(key)}
-              onDoubleClick={() => hasItems && onToggle(key)}
-            >
-              <td className="px-3 py-1.5 text-left">
-                {hasItems && (
-                  <span className="mr-1.5 text-zinc-400 text-[9px]">
-                    {isExpanded ? "▼" : "▶"}
-                  </span>
-                )}
-                {!hasItems && <span className="mr-1.5 text-zinc-300 text-[9px]">–</span>}
-                {group.group_name}
-              </td>
-              <td className="px-3 py-1.5 text-right whitespace-nowrap w-28 font-mono">
-                {group.closing_qty !== 0 ? signed(group.closing_qty, fmtQty(group.closing_qty)) : ""}
-              </td>
-              <td className="px-3 py-1.5 text-right whitespace-nowrap w-24 font-mono" />
-              <td className="px-3 py-1.5 text-right whitespace-nowrap w-32 font-mono">
-                {signed(group.closing_value, fmt(group.closing_value))}
-              </td>
-            </tr>
-
-            {isExpanded && hasItems && (
-              <ItemRows
-                items={groupItems}
-                depth={1}
-                focusedId={focusedId}
-                onFocus={onFocus}
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </>
-  );
-}
+const COLUMNS: TableColumn[] = [
+  { key: "name", label: "Particulars", span: "col-span-6", align: "left", render: nameCell },
+  { key: "qty", label: "Quantity", span: "col-span-2", align: "right", render: qtyCell },
+  { key: "rate", label: "Rate", span: "col-span-2", align: "right", render: rateCell },
+  { key: "value", label: "Value", span: "col-span-2", align: "right", render: valueCell },
+];
 
 export function StockSummaryLayout() {
   const { selectedCompany, activeFY } = useCompany();
@@ -158,9 +60,6 @@ export function StockSummaryLayout() {
   const [data, setData] = React.useState<StockSummaryData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-
-  const [focusedId, setFocusedId] = React.useState<string | null>(null);
-  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
 
   React.useEffect(() => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
@@ -179,94 +78,42 @@ export function StockSummaryLayout() {
       .finally(() => setLoading(false));
   }, [selectedCompany?.company_id, activeFY?.fy_id, activeFY?.end_date]);
 
-  const toggle = React.useCallback((id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  const rows = React.useMemo(() => {
+    if (!data?.groups) return [];
+    const list: any[] = data.groups.map((g) => ({
+      id: `g-${g.group_id ?? "ungrouped"}`,
+      ...g,
+      subItems: (g.items ?? []).map((it) => ({ id: `i-${it.item_id}`, ...it })),
+    }));
+    list.push({
+      id: "__total",
+      group_name: "Grand Total",
+      closing_qty: data.totalClosingQty,
+      closing_value: data.totalClosingValue,
+      isTotal: true,
     });
-  }, []);
+    return list;
+  }, [data]);
 
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!focusedId) return;
-      if (e.key === "Enter") {
-        e.preventDefault();
-        toggle(focusedId);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [focusedId, toggle]);
-
-  const periodLabel = activeFY ? `1-Apr to ${activeFY.end_date}` : "";
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
-        Loading Stock Summary...
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">
-        {error}
-      </div>
-    );
-  }
-  if (!data) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
-        No data available.
-      </div>
-    );
-  }
+  if (loading) return <Centered>Loading Stock Summary...</Centered>;
+  if (error) return <Centered>{error}</Centered>;
+  if (!data) return <Centered>No data available.</Centered>;
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-white font-mono">
-      <div className="bg-[#e5eff5] border-b border-zinc-200 px-3 py-1 flex justify-between items-center select-none">
-        <span className="font-mono text-[11px] font-bold text-zinc-800 tracking-wide uppercase">
-          Particulars
-        </span>
-        <span className="font-mono text-[10px] text-zinc-500">{periodLabel}</span>
-      </div>
+    <DataTable
+      variant="report"
+      columns={COLUMNS}
+      rows={rows}
+      rowKey={(r: any) => r.id}
+      emptyMessage="No stock items found."
+    />
+  );
+}
 
-      <div className="flex-1 overflow-y-auto">
-        <table className="w-full border-collapse font-mono text-[11px]">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10">
-            <tr>
-              <th className="px-3 py-1 text-left font-bold text-zinc-700" />
-              <th className="px-3 py-1 text-right font-bold text-zinc-700 w-28">Quantity</th>
-              <th className="px-3 py-1 text-right font-bold italic text-zinc-700 w-24">Rate</th>
-              <th className="px-3 py-1 text-right font-bold text-zinc-700 w-32">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(!data.groups || data.groups.length === 0) ? (
-              <tr>
-                <td colSpan={4} className="px-3 py-8 text-center text-zinc-400 italic text-[11px]">
-                  No stock items found.
-                </td>
-              </tr>
-            ) : (
-              <GroupRows
-                groups={data.groups}
-                expandedIds={expandedIds}
-                focusedId={focusedId}
-                onFocus={setFocusedId}
-                onToggle={toggle}
-              />
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="border-t-2 border-double border-zinc-400 bg-[#e5eff5] px-3 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
-        <span>Grand Total</span>
-        <span>{signed(data.totalClosingValue, fmt(data.totalClosingValue))}</span>
-      </div>
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs px-8 text-center">
+      {children}
     </div>
   );
 }

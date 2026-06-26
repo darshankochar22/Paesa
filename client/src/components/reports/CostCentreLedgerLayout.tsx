@@ -133,18 +133,18 @@ export default function CostCentreLedgerLayout() {
   if (!costCentreId) {
     return (
       <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-        <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+        <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
           <span className="font-bold">Cost Centre Ledger</span>
           <span className="ml-auto">Select a cost centre to view details</span>
         </div>
-        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#f5f9fb]">
+        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#fafafa]">
           <input
             autoFocus
             type="text"
             placeholder="Type to search cost centre..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPickerFocus(0); }}
-            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-blue-400 bg-white"
+            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-zinc-800 bg-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -152,7 +152,7 @@ export default function CostCentreLedgerLayout() {
             <div
               key={c.cc_id}
               className={`px-4 py-2 text-[11px] cursor-pointer select-none border-b border-zinc-100 ${
-                pickerFocus === idx ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                pickerFocus === idx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
               }`}
               onClick={() => { setCostCentreId(c.cc_id); setCostCentreName(c.name); }}
             >
@@ -168,7 +168,7 @@ export default function CostCentreLedgerLayout() {
   }
 
   if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">Loading Ledger...</div>;
-  if (error) return <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs">{error}</div>;
+  if (error) return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs">{error}</div>;
 
   const totalDebit = filteredRows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
   const totalCredit = filteredRows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
@@ -176,12 +176,12 @@ export default function CostCentreLedgerLayout() {
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
         <span className="font-bold">Cost Centre Ledger: {costCentreName}{ledgerFilter ? ` (${ledgerFilter})` : ""}</span>
       </div>
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
             <tr>
               <th className="px-4 py-2 text-left font-bold w-24">Date</th>
               <th className="px-4 py-2 text-left font-bold">Particulars</th>
@@ -204,7 +204,7 @@ export default function CostCentreLedgerLayout() {
                   <tr
                     key={idx}
                     className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
-                      isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800 font-semibold"
+                      isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800 font-semibold"
                     }`}
                     onClick={() => setFocusedIndex(idx)}
                   >
@@ -223,7 +223,7 @@ export default function CostCentreLedgerLayout() {
             )}
           </tbody>
           {filteredRows.length > 0 && (
-            <tfoot className="sticky bottom-0 bg-[#e5eff5] border-t border-zinc-300 z-10 font-bold text-zinc-800">
+            <tfoot className="sticky bottom-0 bg-[#f4f4f5] border-t border-zinc-300 z-10 font-bold text-zinc-800">
               <tr>
                 <td colSpan={4} className="px-4 py-2 text-left">Grand Total</td>
                 <td className="w-32 text-right px-4 py-2 border-l border-zinc-300">{fmtTotal(totalDebit)}</td>

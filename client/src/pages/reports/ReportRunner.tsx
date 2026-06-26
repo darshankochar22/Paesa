@@ -75,187 +75,6 @@ export function ReportRunner() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  const isRegister = [].includes(reportType);
-
-  const [focusedIndex, setFocusedIndex] = React.useState<number>(0);
-
-  // Reset focused index when reportType changes
-  React.useEffect(() => {
-    setFocusedIndex(0);
-  }, [reportType]);
-
-  const handleRegisterRowDrilldown = React.useCallback((row: any) => {
-    if (!row) return;
-    const voucherTypeMap: Record<string, string> = {
-      "sales-register": "Sales",
-      "purchase-register": "Purchase",
-      "journal-register": "Journal",
-      "debit-note-register": "Debit Note",
-      "credit-note-register": "Credit Note",
-      "payment-register": "Payment",
-      "receipt-register": "Receipt"
-    };
-    const vchType = voucherTypeMap[reportType];
-    navigate(`/transactions/voucher-list?type=${vchType}&month=${row.month}`);
-  }, [reportType, navigate]);
-
-  React.useEffect(() => {
-    if (!isRegister || loading || rows.length === 0) return;
-
-    const handleRegisterKeys = (e: KeyboardEvent) => {
-      const activeEl = document.activeElement;
-      if (
-        activeEl &&
-        (activeEl.tagName === "INPUT" ||
-          activeEl.tagName === "SELECT" ||
-          activeEl.tagName === "TEXTAREA" ||
-          activeEl.closest("[role='dialog']"))
-      ) {
-        return;
-      }
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setFocusedIndex(prev => Math.min(rows.length - 1, prev + 1));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setFocusedIndex(prev => Math.max(0, prev - 1));
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        const activeRow = rows[focusedIndex];
-        if (activeRow) {
-          handleRegisterRowDrilldown(activeRow);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleRegisterKeys);
-    return () => window.removeEventListener("keydown", handleRegisterKeys);
-  }, [isRegister, loading, rows, focusedIndex, handleRegisterRowDrilldown]);
-
-  const formatCurrency = (val: any) => {
-    const num = Number(val);
-    if (isNaN(num) || num === 0) return "";
-    return new Intl.NumberFormat("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(num);
-  };
-
-  const formatNumber = (val: any) => {
-    const num = Number(val);
-    if (isNaN(num) || num === 0) return "";
-    return num.toLocaleString("en-IN");
-  };
-
-  const renderRegisterChart = () => {
-    const chartHeight = 140;
-    const padding = { top: 15, right: 20, bottom: 20, left: 55 };
-    const width = 800;
-    
-    const maxVal = Math.max(...rows.map(r => r.value || 0), 10);
-    const months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
-    const plotWidth = width - padding.left - padding.right;
-    const plotHeight = chartHeight - padding.top - padding.bottom;
-    const barWidth = Math.floor(plotWidth / 12) - 10;
-    
-    return (
-      <div className="p-3 bg-zinc-50 border-t border-zinc-200 select-none">
-        <div className="w-full max-w-4xl mx-auto h-[160px] bg-white border border-zinc-300 rounded shadow-sm p-1.5 flex flex-col justify-between">
-          <div className="text-[9px] font-bold text-zinc-600 px-1 border-b border-zinc-100 pb-0.5 font-mono">
-            {reportType === "purchase-register" ? "Purchase Transaction Value Trend (Monthly)" : "Sales Transaction Value Trend (Monthly)"}
-          </div>
-          <div className="flex-1 min-h-0 relative mt-1">
-            <svg viewBox={`0 0 ${width} ${chartHeight}`} className="w-full h-full font-mono text-[9px]">
-              {/* Grid Lines */}
-              {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
-                const y = padding.top + plotHeight * (1 - ratio);
-                const gridVal = maxVal * ratio;
-                return (
-                  <g key={idx}>
-                    <line
-                      x1={padding.left}
-                      y1={y}
-                      x2={width - padding.right}
-                      y2={y}
-                      stroke="#f3f3f3"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={padding.left - 8}
-                      y={y + 3}
-                      textAnchor="end"
-                      fill="#71717a"
-                    >
-                      {gridVal >= 10000000 
-                        ? `₹${(gridVal / 10000000).toFixed(1)}Cr` 
-                        : gridVal >= 100000 
-                          ? `₹${(gridVal / 100000).toFixed(1)}L` 
-                          : gridVal >= 1000 
-                            ? `₹${(gridVal / 1000).toFixed(0)}k` 
-                            : `₹${gridVal.toFixed(0)}`}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Bars */}
-              {rows.map((row, idx) => {
-                const val = row.value || 0;
-                const h = (val / maxVal) * plotHeight;
-                const x = padding.left + idx * (plotWidth / 12) + (plotWidth / 12 - barWidth) / 2;
-                const y = padding.top + plotHeight - h;
-                
-                return (
-                  <g key={row.month || idx} className="group">
-                    <rect
-                      x={x}
-                      y={y}
-                      width={barWidth}
-                      height={h}
-                      fill={reportType === "purchase-register" ? "#006699" : "#0088cc"}
-                      className="hover:opacity-85 transition-opacity"
-                    />
-                    <title>{`${row.month}: ₹${val.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}</title>
-                  </g>
-                );
-              })}
-
-              {/* X Axis Labels */}
-              {months.map((m, idx) => {
-                const x = padding.left + idx * (plotWidth / 12) + (plotWidth / 12) / 2;
-                return (
-                  <text
-                    key={m}
-                    x={x}
-                    y={chartHeight - 5}
-                    textAnchor="middle"
-                    fill="#3f3f46"
-                    className="font-semibold"
-                  >
-                    {m}
-                  </text>
-                );
-              })}
-              
-              {/* X Axis Line */}
-              <line
-                x1={padding.left}
-                y1={padding.top + plotHeight}
-                x2={width - padding.right}
-                y2={padding.top + plotHeight}
-                stroke="#d4d4d8"
-                strokeWidth={1}
-              />
-            </svg>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-
-
   // Configuration and View State
   const [config, setConfig] = React.useState<ReportContextConfig>({
     basisOfValues: "Accrual",
@@ -320,216 +139,6 @@ export function ReportRunner() {
       }
     }
   }, [location.search, activeFY]);
-
-  const getRegisterVoucherTypeTitle = () => {
-    const voucherTypeMap: Record<string, string> = {
-      "sales-register": "Sales",
-      "purchase-register": "Purchase",
-      "journal-register": "Journal",
-      "debit-note-register": "Debit Note",
-      "credit-note-register": "Credit Note",
-      "payment-register": "Payment",
-      "receipt-register": "Receipt"
-    };
-    return voucherTypeMap[reportType] || "";
-  };
-
-  const periodText = React.useMemo(() => {
-    if (!fromDate) return "";
-    const dateObj = new Date(fromDate);
-    if (isNaN(dateObj.getTime())) return "";
-    const day = dateObj.getDate();
-    const month = dateObj.toLocaleString("en-US", { month: "short" });
-    const year = dateObj.getFullYear();
-    return `For ${day}-${month}-${year.toString().slice(-2)}`;
-  }, [fromDate]);
-
-  const renderRegisterTable = () => {
-    if (rows.length === 0) {
-      return (
-        <div className="flex-1 flex items-center justify-center text-zinc-400 italic font-mono text-[11px]">
-          No records found.
-        </div>
-      );
-    }
-
-    const isJournalOrNote = ["journal-register", "debit-note-register", "credit-note-register"].includes(reportType);
-    const voucherTypeTitle = getRegisterVoucherTypeTitle();
-    const companyNameText = selectedCompany?.name || "Moly Jain";
-
-    // Compute Totals
-    let totalVouchersSum = 0;
-    let totalCancelledSum = 0;
-    let totalDebitSum = 0;
-    let totalCreditSum = 0;
-    let finalClosingBalance = 0;
-
-    rows.forEach(r => {
-      totalVouchersSum += Number(r.total_vouchers) || 0;
-      totalCancelledSum += Number(r.cancelled) || 0;
-      totalDebitSum += Number(r.debit) || 0;
-      totalCreditSum += Number(r.credit) || 0;
-    });
-
-    if (rows.length > 0) {
-      finalClosingBalance = Number(rows[rows.length - 1].closing_balance) || 0;
-    }
-
-    return (
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white border-b border-zinc-200">
-        <div className="flex-1 overflow-auto">
-          <table className="w-full border-collapse font-mono text-[11px] select-none text-zinc-850">
-            <thead className="sticky top-0 bg-[#e5eff5] text-zinc-900 border-b border-zinc-300 z-10">
-              {isJournalOrNote ? (
-                <>
-                  <tr className="bg-[#e5eff5]">
-                    <th rowSpan={5} className="border-b border-r border-zinc-300 px-3 py-1.5 text-left font-bold w-[50%] align-bottom">
-                      Particulars
-                    </th>
-                    <th colSpan={2} className="px-3 py-0.5 text-right font-normal italic">
-                      {voucherTypeTitle}
-                    </th>
-                  </tr>
-                  <tr className="bg-[#e5eff5]">
-                    <th colSpan={2} className="px-3 py-0.5 text-right font-bold text-zinc-800">
-                      {companyNameText}
-                    </th>
-                  </tr>
-                  <tr className="bg-[#e5eff5]">
-                    <th colSpan={2} className="px-3 py-0.5 text-right font-normal text-zinc-700">
-                      {periodText}
-                    </th>
-                  </tr>
-                  <tr className="bg-[#e5eff5] border-t border-zinc-200">
-                    <th colSpan={2} className="px-3 py-1 text-center font-bold border-b border-zinc-200">
-                      Transactions
-                    </th>
-                  </tr>
-                  <tr className="bg-[#e5eff5] border-b border-zinc-300">
-                    <th className="border-r border-zinc-300 px-3 py-1 text-right font-bold w-[25%]">
-                      Total Vouchers
-                    </th>
-                    <th className="px-3 py-1 text-right font-bold w-[25%]">
-                      (cancelled )
-                    </th>
-                  </tr>
-                </>
-              ) : (
-                <>
-                  <tr className="bg-[#e5eff5]">
-                    <th rowSpan={5} className="border-b border-r border-zinc-300 px-3 py-1.5 text-left font-bold w-[40%] align-bottom">
-                      Particulars
-                    </th>
-                    <th colSpan={3} className="px-3 py-0.5 text-right font-normal italic">
-                      {voucherTypeTitle}
-                    </th>
-                  </tr>
-                  <tr className="bg-[#e5eff5]">
-                    <th colSpan={3} className="px-3 py-0.5 text-right font-bold text-zinc-800">
-                      {companyNameText}
-                    </th>
-                  </tr>
-                  <tr className="bg-[#e5eff5]">
-                    <th colSpan={3} className="px-3 py-0.5 text-right font-normal text-zinc-700">
-                      {periodText}
-                    </th>
-                  </tr>
-                  <tr className="bg-[#e5eff5] border-t border-zinc-200">
-                    <th colSpan={2} className="px-3 py-1 text-center font-bold border-r border-zinc-300 border-b border-zinc-200">
-                      Transactions
-                    </th>
-                    <th className="px-3 py-1 text-right font-bold">
-                      Closing
-                    </th>
-                  </tr>
-                  <tr className="bg-[#e5eff5] border-b border-zinc-300">
-                    <th className="border-r border-zinc-300 px-3 py-1 text-right font-bold w-[15%]">
-                      Debit
-                    </th>
-                    <th className="border-r border-zinc-300 px-3 py-1 text-right font-bold w-[15%]">
-                      Credit
-                    </th>
-                    <th className="px-3 py-1 text-right font-bold w-[30%]">
-                      Balance
-                    </th>
-                  </tr>
-                </>
-              )}
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => {
-                const isFocused = idx === focusedIndex;
-                return (
-                  <tr
-                    key={row.month || idx}
-                    onClick={() => setFocusedIndex(idx)}
-                    onDoubleClick={() => handleRegisterRowDrilldown(row)}
-                    className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer ${
-                      isFocused ? "bg-[#ffcc33] text-zinc-950 font-bold" : "text-zinc-800"
-                    }`}
-                  >
-                    <td className="border-r border-zinc-155 px-3 py-1.5 text-left">{row.month}</td>
-                    {isJournalOrNote ? (
-                      <>
-                        <td className="border-r border-zinc-155 px-3 py-1.5 text-right font-mono">
-                          {formatNumber(row.total_vouchers)}
-                        </td>
-                        <td className="px-3 py-1.5 text-right font-mono text-zinc-500">
-                          {row.cancelled > 0 ? `(${row.cancelled} )` : ""}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="border-r border-zinc-155 px-3 py-1.5 text-right font-mono">
-                          {formatCurrency(row.debit)}
-                        </td>
-                        <td className="border-r border-zinc-155 px-3 py-1.5 text-right font-mono">
-                          {formatCurrency(row.credit)}
-                        </td>
-                        <td className="px-3 py-1.5 text-right font-mono">
-                          {formatCurrency(row.closing_balance)}
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
-              
-              {/* Grand Total Row */}
-              <tr className="border-t-2 border-b-2 border-zinc-300 bg-zinc-50 font-bold text-zinc-900">
-                <td className="border-r border-zinc-300 px-3 py-2 text-left">Grand Total</td>
-                {isJournalOrNote ? (
-                  <>
-                    <td className="border-r border-zinc-300 px-3 py-2 text-right font-mono">
-                      {totalVouchersSum > 0 ? totalVouchersSum : ""}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-zinc-500">
-                      {totalCancelledSum > 0 ? `(${totalCancelledSum} )` : ""}
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="border-r border-zinc-300 px-3 py-2 text-right font-mono">
-                      {totalDebitSum > 0 ? formatCurrency(totalDebitSum) : ""}
-                    </td>
-                    <td className="border-r border-zinc-300 px-3 py-2 text-right font-mono">
-                      {totalCreditSum > 0 ? formatCurrency(totalCreditSum) : ""}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono">
-                      {formatCurrency(finalClosingBalance)}
-                    </td>
-                  </>
-                )}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Chart Section */}
-        {!isJournalOrNote && renderRegisterChart()}
-      </div>
-    );
-  };
 
   const loadData = React.useCallback(async () => {
     const layoutOnlyReports = [
@@ -995,18 +604,18 @@ export function ReportRunner() {
     <TallyReportLayout
       title={definition.title}
       companyName={selectedCompany?.name || "No Company Selected"}
-      leftSubtitle={isRegister ? undefined : (
+      leftSubtitle={(
         <div className="flex gap-4 items-center">
           <span>Basis of Values: <span className="font-bold">{config.basisOfValues}</span></span>
           <span>Valuation: <span className="font-bold">{config.valuationMethod}</span></span>
           {reportType === "edit-log" && auditChainStatus && (
-            <span className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase ${auditChainStatus.intact ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+            <span className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase ${auditChainStatus.intact ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-200 text-zinc-800'}`}>
               {auditChainStatus.intact ? '✔ Chain Intact' : `⚠ Chain Broken at Log #${auditChainStatus.brokenAt}`}
             </span>
           )}
         </div>
       )}
-      rightSubtitle={isRegister ? undefined : (
+      rightSubtitle={(
         <span>
           Period: <span className="font-bold">{fromDate}</span> to <span className="font-bold">{toDate}</span>
         </span>
@@ -1014,16 +623,14 @@ export function ReportRunner() {
     >
       <div className="flex h-full w-full overflow-hidden">
   {error ? (
-          <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center animate-fade-in">
+          <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center animate-fade-in">
             {error}
           </div>
         ) : loading ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">
             Loading report data...
           </div>
-        ) : isRegister ? (
-          renderRegisterTable()
-         ) :reportType === "balance-sheet" ?(
+        ) :reportType === "balance-sheet" ?(
         <BalanceSheetLayout />
          ):reportType === "stock-summary" ?(
         <StockSummaryLayout />
@@ -1176,7 +783,7 @@ export function ReportRunner() {
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="text-xs h-9 border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 text-zinc-900"
+                className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -1185,7 +792,7 @@ export function ReportRunner() {
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="text-xs h-9 border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 text-zinc-900"
+                className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
               />
             </div>
           </div>
@@ -1205,7 +812,7 @@ export function ReportRunner() {
                 loadData();
                 setIsPeriodOpen(false);
               }}
-              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+              className="text-xs bg-zinc-900 hover:bg-zinc-800 text-white font-semibold"
             >
               Set Period
             </Button>
@@ -1236,7 +843,7 @@ export function ReportRunner() {
                 }}
                 className={`w-full text-left px-3 py-2 text-xs font-semibold border rounded hover:bg-zinc-50 ${
                   comp.company_id === selectedCompany?.company_id
-                    ? "border-emerald-500 bg-emerald-50/50 text-emerald-950 font-bold"
+                    ? "border-zinc-800 bg-zinc-100 text-zinc-900 font-bold"
                     : "border-zinc-200 text-zinc-700"
                 }`}
               >

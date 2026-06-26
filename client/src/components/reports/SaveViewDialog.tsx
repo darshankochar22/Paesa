@@ -49,7 +49,7 @@ export function SaveViewDialog({
               value={viewName}
               onChange={(e) => setViewName(e.target.value)}
               placeholder="e.g. Balance Sheet Q1 Detailed"
-              className="text-xs h-9 border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 text-zinc-900"
+              className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -73,7 +73,7 @@ export function SaveViewDialog({
             size="sm"
             onClick={handleSave}
             disabled={!viewName.trim()}
-            className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+            className="text-xs bg-zinc-900 hover:bg-zinc-800 text-white font-semibold"
           >
             Save View (Ctrl+L)
           </Button>

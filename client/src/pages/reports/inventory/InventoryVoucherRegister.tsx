@@ -148,7 +148,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
               <tr>
                 <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom">Particulars</th>
                 <th colSpan={2} className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200">Transactions</th>
@@ -162,7 +162,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
               {loadingMonths ? (
                 <tr><td colSpan={3} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
               ) : monthsError ? (
-                <tr><td colSpan={3} className="px-4 py-8 text-center text-red-500">{monthsError}</td></tr>
+                <tr><td colSpan={3} className="px-4 py-8 text-center text-zinc-600">{monthsError}</td></tr>
               ) : (
                 months.map((row, idx) => {
                   const isFocused = idx === monthIndex;
@@ -171,7 +171,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
                       key={row.month}
                       onClick={() => setMonthIndex(idx)}
                       onDoubleClick={() => loadVouchers(row.month)}
-                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                     >
                       <td className="px-3 py-1">{row.month}</td>
                       <td className="px-3 py-1 text-right border-l border-zinc-100">{row.total_vouchers > 0 ? row.total_vouchers : ""}</td>
@@ -184,7 +184,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
           </table>
         </div>
 
-        <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
           <span className="flex-1">Grand Total</span>
           <span className="w-40 text-right border-l border-zinc-300 pr-2">{totalVouchers > 0 ? totalVouchers : ""}</span>
           <span className="w-40 text-right text-zinc-500 pr-2">{totalCancelled > 0 ? `(${totalCancelled} )` : ""}</span>
@@ -217,7 +217,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
             <tr>
               <th className="px-3 py-1 text-left font-bold w-20">Date</th>
               <th className="px-3 py-1 text-left font-bold">Particulars</th>
@@ -231,7 +231,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
             {loadingVouchers ? (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">Loading vouchers...</td></tr>
             ) : voucherError ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-red-500">{voucherError}</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-600">{voucherError}</td></tr>
             ) : voucherRows.length === 0 ? (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
             ) : (
@@ -242,7 +242,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
                     key={row.voucher_id}
                     onClick={() => setVoucherIndex(idx)}
                     onDoubleClick={() => navigate(`/transactions/voucher/${row.voucher_id}`)}
-                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                   >
                     <td className="px-3 py-1 whitespace-nowrap">{formatDate(row.date)}</td>
                     <td className="px-3 py-1 truncate max-w-xs">{row.particulars}</td>
@@ -258,7 +258,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
         </table>
       </div>
 
-      <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
         <span className="w-20" />
         <span className="flex-1" />
         <span className="w-28" />

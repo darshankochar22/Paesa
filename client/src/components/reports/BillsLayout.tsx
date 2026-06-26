@@ -100,12 +100,12 @@ export default function BillsLayout({ mode }: Props) {
   const title = mode === "receivable" ? "Bills Receivable" : "Bills Payable";
 
   if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">Loading {title}...</div>;
-  if (error)   return <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">{error}</div>;
+  if (error)   return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">{error}</div>;
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       {/* Sub-header */}
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
         <span>Group : <span className="font-bold">♦ All Items</span></span>
         <span>Details of : <span className="font-bold">Pending Bills</span></span>
         <span className="ml-auto">
@@ -114,7 +114,7 @@ export default function BillsLayout({ mode }: Props) {
       </div>
 
       {/* Ageing summary bar */}
-      <div className="bg-[#f5f9fb] border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
+      <div className="bg-[#fafafa] border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
         {BUCKETS.map(b => (
           <span key={b}>
             <span className="font-bold text-zinc-800">{b} days:</span>{" "}
@@ -125,7 +125,7 @@ export default function BillsLayout({ mode }: Props) {
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 select-none">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 select-none">
             <tr>
               <th className="px-3 py-1.5 text-left font-bold w-[11%]">Date</th>
               <th className="px-3 py-1.5 text-left font-bold w-[10%]">Ref. No.</th>
@@ -145,7 +145,7 @@ export default function BillsLayout({ mode }: Props) {
               return (
                 <tr
                   key={row.bill_id}
-                  className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                  className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                   onClick={() => setFocusedIndex(idx)}
                 >
                   <td className="px-3 py-1.5">{fmtDate(row.date)}</td>
@@ -154,7 +154,7 @@ export default function BillsLayout({ mode }: Props) {
                   <td className="px-3 py-1.5 text-right">{fmt(row.pending_amount)}</td>
                   <td className="px-3 py-1.5 text-center">{row.credit_period || ""}</td>
                   <td className="px-3 py-1.5">{fmtDate(row.due_date)}</td>
-                  <td className={`px-3 py-1.5 text-center ${row.overdue_days > 0 ? "text-red-600 font-bold" : ""}`}>
+                  <td className={`px-3 py-1.5 text-center ${row.overdue_days > 0 ? "text-zinc-700 font-bold" : ""}`}>
                     {row.overdue_days > 0 ? row.overdue_days : ""}
                   </td>
                   <td className="px-3 py-1.5 text-center text-zinc-500">{row.ageing}</td>
@@ -166,7 +166,7 @@ export default function BillsLayout({ mode }: Props) {
       </div>
 
       {/* Grand total footer */}
-      <div className="border-t-2 border-double border-zinc-400 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
+      <div className="border-t-2 border-double border-zinc-400 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
         <span className="flex-[3] pl-[21%]">Grand Total</span>
         <span className="w-[16%] text-right">{fmtTotal(grandTotal)}</span>
         <span className="flex-1" />

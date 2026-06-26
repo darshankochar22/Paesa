@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate,useSearchParams } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { PageTitleBar, AlertBanner, RightActionPanel } from "../../components/ui";
+import { fmt } from "@/lib/format";
 import { PageFooterBar } from "./ui";
 import {
   Table,
@@ -70,10 +71,8 @@ const formatDate = (d: string) => {
   return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
 };
 
-const formatAmount = (n: number) => {
-  if (!n) return "";
-  return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
+// Shared en-IN formatter (returns "" for 0) — see @/lib/format.
+const formatAmount = (n: number) => fmt(n);
 
 function getAmountDisplay(v: VoucherRow): { debit: number; credit: number } {
   const dr = Number(v.debit_amount) || 0;

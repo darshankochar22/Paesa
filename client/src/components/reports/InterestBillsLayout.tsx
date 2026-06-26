@@ -169,7 +169,7 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
@@ -178,7 +178,7 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       {/* Sub-header */}
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
         <span className="font-bold">{reportTitle}</span>
         <span className="ml-auto">
           {asOn ? `As on ${fmtDate(asOn)}` : `${fmtDate(fromDate)} to ${fmtDate(toDate)}`}
@@ -186,7 +186,7 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
       </div>
 
       {/* Summary Bar */}
-      <div className="bg-[#f5f9fb] border-b border-zinc-200 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
+      <div className="bg-[#fafafa] border-b border-zinc-200 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
         <span>
           <span className="font-bold text-zinc-800">Total Principal:</span> {fmtTotal(totalPrincipal)}
         </span>
@@ -199,7 +199,7 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
       {/* Main Table */}
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#e5eff5] border-b border-zinc-300 z-10 select-none">
+          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 select-none">
             <tr>
               <th className="px-3 py-1.5 text-left font-bold">Ledger / Particulars</th>
               <th className="px-3 py-1.5 text-right font-bold w-[25%]">Principal Balance</th>
@@ -222,7 +222,7 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
                     {/* Parent Ledger Row */}
                     <tr
                       className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
-                        isFocused ? "bg-[#ffcc00] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                        isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
                       }`}
                       onClick={() => {
                         setFocused(idx);
@@ -241,7 +241,7 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
                         <span>{g.name}</span>
                       </td>
                       <td className="px-3 py-1.5 text-right font-semibold">{fmt(g.total_principal)}</td>
-                      <td className="px-3 py-1.5 text-right font-bold text-red-700">{fmt(g.total_interest)}</td>
+                      <td className="px-3 py-1.5 text-right font-bold text-zinc-800">{fmt(g.total_interest)}</td>
                     </tr>
 
                     {/* Expandable Bill Rows */}
@@ -279,10 +279,10 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
       </div>
 
       {/* Footer Total */}
-      <div className="border-t-2 border-double border-zinc-400 bg-[#e5eff5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
+      <div className="border-t-2 border-double border-zinc-400 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
         <span className="flex-1">Total</span>
         <span className="w-[25%] text-right pr-3">{fmtTotal(totalPrincipal)}</span>
-        <span className="w-[25%] text-right pr-3 text-red-700">{fmtTotal(totalInterest)}</span>
+        <span className="w-[25%] text-right pr-3 text-zinc-800">{fmtTotal(totalInterest)}</span>
       </div>
     </div>
   );

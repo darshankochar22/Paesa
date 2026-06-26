@@ -422,7 +422,7 @@ export function RatioAnalysisLayout() {
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center animate-fade-in">
+      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center animate-fade-in">
         {error}
       </div>
     );
@@ -439,7 +439,7 @@ export function RatioAnalysisLayout() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-white text-zinc-900 border-b border-zinc-200 select-none">
       {/* Upper header section */}
-      <div className="bg-[#e5eff5] border-b border-zinc-300 px-4 py-1.5 flex justify-between items-center text-zinc-800 font-mono text-[11px] font-semibold select-none">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-4 py-1.5 flex justify-between items-center text-zinc-800 font-mono text-[11px] font-semibold select-none">
         <span className="font-bold text-zinc-900 tracking-wide">Ratio Analysis</span>
         <span className="text-zinc-800">{selectedCompany?.name || "Moly Jain"}</span>
         <span className="text-zinc-500">{periodText}</span>
@@ -449,7 +449,7 @@ export function RatioAnalysisLayout() {
       <div className="flex-1 flex overflow-hidden font-mono text-[11px] relative">
         {/* Left Column (Principal Groups) */}
         <div className="w-[50%] flex flex-col overflow-hidden border-r border-zinc-300">
-          <div className="bg-[#e5eff5] border-b border-zinc-200 px-3 py-1 flex justify-between items-center select-none font-bold text-zinc-800 border-r border-zinc-200">
+          <div className="bg-[#f4f4f5] border-b border-zinc-200 px-3 py-1 flex justify-between items-center select-none font-bold text-zinc-800 border-r border-zinc-200">
             <span>Principal Groups</span>
             <span className="text-zinc-500 text-[10px]">{periodText}</span>
           </div>
@@ -471,7 +471,7 @@ export function RatioAnalysisLayout() {
                         onDoubleClick={() => handleDrilldownFor("left", idx)}
                         className={`cursor-pointer transition-colors ${
                           isFocused
-                            ? "bg-[#ffcc00] text-zinc-950 font-bold"
+                            ? "bg-[#e4e4e7] text-zinc-950 font-bold"
                             : "hover:bg-zinc-50 text-zinc-800"
                         }`}
                       >
@@ -487,7 +487,7 @@ export function RatioAnalysisLayout() {
                             setFocusedIndex(idx);
                           }}
                           className={`${
-                            isFocused ? "bg-[#ffcc00] text-zinc-950" : "text-zinc-500"
+                            isFocused ? "bg-[#e4e4e7] text-zinc-950" : "text-zinc-500"
                           }`}
                         >
                           <td colSpan={2} className="px-5 pb-1 text-left italic text-[10px]">
@@ -502,7 +502,7 @@ export function RatioAnalysisLayout() {
                             setFocusedIndex(idx);
                           }}
                           className={`border-b border-zinc-100 ${
-                            isFocused ? "bg-[#ffcc00] text-zinc-950 font-semibold" : "text-zinc-600"
+                            isFocused ? "bg-[#e4e4e7] text-zinc-950 font-semibold" : "text-zinc-600"
                           }`}
                         >
                           <td className="px-5 py-0.5 text-left italic text-[10px]">
@@ -523,7 +523,7 @@ export function RatioAnalysisLayout() {
 
         {/* Right Column (Principal Ratios) */}
         <div className="w-[50%] flex flex-col overflow-hidden">
-          <div className="bg-[#e5eff5] border-b border-zinc-200 px-3 py-1 flex justify-between items-center select-none font-bold text-zinc-800">
+          <div className="bg-[#f4f4f5] border-b border-zinc-200 px-3 py-1 flex justify-between items-center select-none font-bold text-zinc-800">
             <span>Principal Ratios</span>
             <span className="text-zinc-500 text-[10px]">{periodText}</span>
           </div>
@@ -545,7 +545,7 @@ export function RatioAnalysisLayout() {
                         onDoubleClick={() => handleDrilldownFor("right", idx)}
                         className={`cursor-pointer transition-colors ${
                           isFocused
-                            ? "bg-[#ffcc00] text-zinc-950 font-bold"
+                            ? "bg-[#e4e4e7] text-zinc-950 font-bold"
                             : "hover:bg-zinc-50 text-zinc-800"
                         }`}
                       >
@@ -561,7 +561,7 @@ export function RatioAnalysisLayout() {
                             setFocusedIndex(idx);
                           }}
                           className={`${
-                            isFocused ? "bg-[#ffcc00] text-zinc-950" : "text-zinc-500"
+                            isFocused ? "bg-[#e4e4e7] text-zinc-950" : "text-zinc-500"
                           }`}
                         >
                           <td colSpan={2} className="px-5 pb-1 text-left italic text-[10px]">
@@ -579,7 +579,7 @@ export function RatioAnalysisLayout() {
       </div>
 
       {/* Retro Status Footer bar */}
-      <div className="bg-[#e5eff5] border-t border-zinc-300 px-4 py-1 flex justify-between items-center text-[10px] text-zinc-600 font-semibold select-none font-mono">
+      <div className="bg-[#f4f4f5] border-t border-zinc-300 px-4 py-1 flex justify-between items-center text-[10px] text-zinc-600 font-semibold select-none font-mono">
         <span><span className="text-zinc-800 font-bold">Q:</span> Quit</span>
         <span><span className="text-zinc-800 font-bold">Space:</span> Select</span>
         <span><span className="text-zinc-800 font-bold">R:</span> Remove Line</span>

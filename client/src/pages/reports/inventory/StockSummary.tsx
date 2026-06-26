@@ -84,21 +84,21 @@ function MonthlyChart({ months }: { months: MonthRow[] }) {
           y1={t.y}
           x2={W - PADR}
           y2={t.y}
-          stroke="#d1e5ed"
+          stroke="#e4e4e7"
           strokeDasharray="3,3"
         />
       ))}
     
       {yTicks.map((t, i) => (
-        <text key={i} x={PADL - 4} y={t.y + 3} textAnchor="end" fill="#6b7280" fontSize={9}>
+        <text key={i} x={PADL - 4} y={t.y + 3} textAnchor="end" fill="#71717a" fontSize={9}>
           {t.v === 0 ? "0" : t.v >= 100000 ? `${(t.v / 100000).toFixed(1)}L` : t.v >= 1000 ? `${(t.v / 1000).toFixed(0)}K` : t.v.toFixed(0)}
         </text>
       ))}
   
-      <line x1={PADL} y1={PADT} x2={PADL} y2={PADT + chartH} stroke="#9cbac7" />
-      <line x1={PADL} y1={PADT + chartH} x2={W - PADR} y2={PADT + chartH} stroke="#9cbac7" />
+      <line x1={PADL} y1={PADT} x2={PADL} y2={PADT + chartH} stroke="#d4d4d8" />
+      <line x1={PADL} y1={PADT + chartH} x2={W - PADR} y2={PADT + chartH} stroke="#d4d4d8" />
       
-      <path d={pathD} fill="none" stroke="#0078a8" strokeWidth={1.5} />
+      <path d={pathD} fill="none" stroke="#52525b" strokeWidth={1.5} />
     
       {points.map((p, i) => (
         <g key={i}>
@@ -106,7 +106,7 @@ function MonthlyChart({ months }: { months: MonthRow[] }) {
             cx={p.x}
             cy={p.y}
             r={hovered === i ? 4 : 2.5}
-            fill={hovered === i ? "#f59e0b" : "#0078a8"}
+            fill={hovered === i ? "#71717a" : "#52525b"}
             stroke="white"
             strokeWidth={1}
             onMouseEnter={() => setHovered(i)}
@@ -118,7 +118,7 @@ function MonthlyChart({ months }: { months: MonthRow[] }) {
             x={p.x}
             y={PADT + chartH + 14}
             textAnchor="middle"
-            fill="#6b7280"
+            fill="#71717a"
             fontSize={8}
           >
             {p.m.month.slice(0, 3)}
@@ -132,7 +132,7 @@ function MonthlyChart({ months }: { months: MonthRow[] }) {
         const tx = Math.min(p.x + 6, W - PADR - 80);
         return (
           <g>
-            <rect x={tx} y={p.y - 18} width={70} height={14} rx={2} fill="#002d40" opacity={0.85} />
+            <rect x={tx} y={p.y - 18} width={70} height={14} rx={2} fill="#18181b" opacity={0.85} />
             <text x={tx + 4} y={p.y - 7} fill="white" fontSize={9}>{label}</text>
           </g>
         );
@@ -355,7 +355,7 @@ export default function StockSummary() {
     <div className="flex flex-col h-screen w-screen bg-white select-none text-zinc-900 font-mono text-[11px]">
 
       {/* Title Bar */}
-      <div className="bg-[#cbe2ec] border-b border-[#a8c6d1] px-3 py-1.5 flex items-center justify-between shrink-0 text-[#002d40]">
+      <div className="bg-[#e4e4e7] border-b border-[#d4d4d8] px-3 py-1.5 flex items-center justify-between shrink-0 text-[#18181b]">
         <div className="font-bold text-sm truncate">{pageTitle}</div>
         <div className="font-bold text-sm">{companyName}</div>
         <div className="text-[10px] text-zinc-500">{fyLabel}</div>
@@ -375,11 +375,11 @@ export default function StockSummary() {
                 and so on, to however many levels the data actually has. */}
             {level === "groups" && (
               <table className="w-full border-collapse">
-                <thead className="sticky top-0 bg-[#ecf4f7] text-[#002d40] z-10 border-b border-[#a8c6d1] text-[10px]">
+                <thead className="sticky top-0 bg-[#f4f4f5] text-[#18181b] z-10 border-b border-[#d4d4d8] text-[10px]">
                   <tr>
-                    <th className="text-left px-3 py-2 font-bold border-r border-[#a8c6d1] w-[45%]">Particulars</th>
-                    <th className="text-right px-3 py-2 font-bold border-r border-[#a8c6d1] w-[18%]">Closing Qty</th>
-                    <th className="text-right px-3 py-2 font-bold border-r border-[#a8c6d1] w-[18%]">Rate</th>
+                    <th className="text-left px-3 py-2 font-bold border-r border-[#d4d4d8] w-[45%]">Particulars</th>
+                    <th className="text-right px-3 py-2 font-bold border-r border-[#d4d4d8] w-[18%]">Closing Qty</th>
+                    <th className="text-right px-3 py-2 font-bold border-r border-[#d4d4d8] w-[18%]">Rate</th>
                     <th className="text-right px-3 py-2 font-bold w-[19%]">Closing Value</th>
                   </tr>
                 </thead>
@@ -387,7 +387,7 @@ export default function StockSummary() {
                   {loading ? (
                     <tr><td colSpan={4} className="text-center py-8 text-zinc-400 italic">Loading stock summary…</td></tr>
                   ) : error ? (
-                    <tr><td colSpan={4} className="text-center py-8 text-red-500">{error}</td></tr>
+                    <tr><td colSpan={4} className="text-center py-8 text-zinc-600">{error}</td></tr>
                   ) : currentRows.length === 0 ? (
                     <tr><td colSpan={4} className="text-center py-8 text-zinc-400 italic">
                       {currentGroup ? "No stock items in this group." : "No stock items or groups with activity found."}
@@ -411,7 +411,7 @@ export default function StockSummary() {
                             onDoubleClick={() => drillToGroup(g)}
                             className={cn(
                               "border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer h-6 text-[12px]",
-                              isFocused ? "bg-[#ffcc00] text-black font-bold" : "font-bold text-zinc-900"
+                              isFocused ? "bg-[#e4e4e7] text-black font-bold" : "font-bold text-zinc-900"
                             )}
                           >
                             <td className="px-3 py-0.5 border-r border-zinc-100 align-middle">
@@ -442,7 +442,7 @@ export default function StockSummary() {
                           onDoubleClick={() => drillToItem(it)}
                           className={cn(
                             "border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer h-6 text-[12px]",
-                            isFocused ? "bg-[#ffcc00] text-black font-bold" : "text-zinc-800"
+                            isFocused ? "bg-[#e4e4e7] text-black font-bold" : "text-zinc-800"
                           )}
                         >
                           <td className="px-3 py-0.5 border-r border-zinc-100 align-middle pl-6">
@@ -463,16 +463,16 @@ export default function StockSummary() {
                   )}
                   {/* Total for this level — Grand Total at root, else this group's total */}
                   {!loading && !error && currentRows.length > 0 && (
-                    <tr className="bg-[#ecf4f7] border-t border-[#a8c6d1] border-b-2 border-double border-zinc-800 font-bold text-zinc-900 text-[12px] h-7">
-                      <td className="px-3 py-1 text-left uppercase align-middle border-r border-[#a8c6d1]">
+                    <tr className="bg-[#f4f4f5] border-t border-[#d4d4d8] border-b-2 border-double border-zinc-800 font-bold text-zinc-900 text-[12px] h-7">
+                      <td className="px-3 py-1 text-left uppercase align-middle border-r border-[#d4d4d8]">
                         {currentGroup ? `${currentGroup.group_name} Total` : "Grand Total"}
                       </td>
-                      <td className="px-3 py-1 text-right border-r border-[#a8c6d1] align-middle">
+                      <td className="px-3 py-1 text-right border-r border-[#d4d4d8] align-middle">
                         {currentGroup
                           ? (currentRowsTotal.qtyDisplayable ? fmtQty(currentRowsTotal.qty) : "")
                           : (totalQtyDisplayable ? fmtQty(totalClosingQty) : "")}
                       </td>
-                      <td className="px-3 py-1 text-right border-r border-[#a8c6d1] align-middle"></td>
+                      <td className="px-3 py-1 text-right border-r border-[#d4d4d8] align-middle"></td>
                       <td className="px-3 py-1 text-right align-middle">
                         {fmt(currentGroup ? currentRowsTotal.value : totalClosingValue)}
                       </td>
@@ -488,30 +488,30 @@ export default function StockSummary() {
                 {loading ? (
                   <div className="text-center py-8 text-zinc-400 italic">Loading monthly data…</div>
                 ) : error ? (
-                  <div className="text-center py-8 text-red-500">{error}</div>
+                  <div className="text-center py-8 text-zinc-600">{error}</div>
                 ) : monthlyData ? (
                   <>
                     {/* Monthly table */}
                     <table className="w-full border-collapse">
-                      <thead className="sticky top-0 bg-[#ecf4f7] text-[#002d40] z-10 border-b border-[#a8c6d1] text-[10px]">
+                      <thead className="sticky top-0 bg-[#f4f4f5] text-[#18181b] z-10 border-b border-[#d4d4d8] text-[10px]">
                         <tr>
-                          <th rowSpan={2} className="text-left px-3 py-2 font-bold border-r border-[#a8c6d1] w-[18%] align-bottom">Particulars</th>
-                          <th colSpan={2} className="text-center px-2 py-1 font-bold border-r border-[#a8c6d1] border-b border-[#a8c6d1]">Inwards</th>
-                          <th colSpan={2} className="text-center px-2 py-1 font-bold border-r border-[#a8c6d1] border-b border-[#a8c6d1]">Outwards</th>
-                          <th colSpan={2} className="text-center px-2 py-1 font-bold border-b border-[#a8c6d1]">Closing Balance</th>
+                          <th rowSpan={2} className="text-left px-3 py-2 font-bold border-r border-[#d4d4d8] w-[18%] align-bottom">Particulars</th>
+                          <th colSpan={2} className="text-center px-2 py-1 font-bold border-r border-[#d4d4d8] border-b border-[#d4d4d8]">Inwards</th>
+                          <th colSpan={2} className="text-center px-2 py-1 font-bold border-r border-[#d4d4d8] border-b border-[#d4d4d8]">Outwards</th>
+                          <th colSpan={2} className="text-center px-2 py-1 font-bold border-b border-[#d4d4d8]">Closing Balance</th>
                         </tr>
                         <tr>
-                          <th className="text-right px-2 py-1 font-bold border-r border-[#a8c6d1] w-[12%]">Qty</th>
-                          <th className="text-right px-2 py-1 font-bold border-r border-[#a8c6d1] w-[13%]">Value</th>
-                          <th className="text-right px-2 py-1 font-bold border-r border-[#a8c6d1] w-[12%]">Qty</th>
-                          <th className="text-right px-2 py-1 font-bold border-r border-[#a8c6d1] w-[13%]">Value</th>
-                          <th className="text-right px-2 py-1 font-bold border-r border-[#a8c6d1] w-[12%]">Qty</th>
+                          <th className="text-right px-2 py-1 font-bold border-r border-[#d4d4d8] w-[12%]">Qty</th>
+                          <th className="text-right px-2 py-1 font-bold border-r border-[#d4d4d8] w-[13%]">Value</th>
+                          <th className="text-right px-2 py-1 font-bold border-r border-[#d4d4d8] w-[12%]">Qty</th>
+                          <th className="text-right px-2 py-1 font-bold border-r border-[#d4d4d8] w-[13%]">Value</th>
+                          <th className="text-right px-2 py-1 font-bold border-r border-[#d4d4d8] w-[12%]">Qty</th>
                           <th className="text-right px-2 py-1 font-bold w-[13%]">Value</th>
                         </tr>
                       </thead>
                       <tbody>
                         {/* Opening Balance row */}
-                        <tr className="bg-[#f7fafc] border-b border-zinc-200 h-6 font-bold text-[12px] text-zinc-700">
+                        <tr className="bg-[#fafafa] border-b border-zinc-200 h-6 font-bold text-[12px] text-zinc-700">
                           <td className="px-3 py-0.5 border-r border-zinc-100 align-middle">Opening Balance</td>
                           <td className="px-2 py-0.5 text-right border-r border-zinc-100 align-middle"></td>
                           <td className="px-2 py-0.5 text-right border-r border-zinc-100 align-middle"></td>
@@ -533,7 +533,7 @@ export default function StockSummary() {
                               onClick={() => setFocusedIndex(idx)}
                               className={cn(
                                 "border-b border-zinc-100 hover:bg-zinc-50 cursor-default h-6 text-[12px]",
-                                isFocused ? "bg-[#ffcc00] text-black font-bold" : hasActivity ? "text-zinc-900" : "text-zinc-400"
+                                isFocused ? "bg-[#e4e4e7] text-black font-bold" : hasActivity ? "text-zinc-900" : "text-zinc-400"
                               )}
                             >
                               <td className="px-3 py-0.5 border-r border-zinc-100 align-middle">{m.month}</td>
@@ -554,13 +554,13 @@ export default function StockSummary() {
                           const totalOutQty  = monthlyData.months.reduce((s, m) => s + m.out_qty,  0);
                           const totalOutVal  = monthlyData.months.reduce((s, m) => s + m.out_value,0);
                           return (
-                            <tr className="bg-[#ecf4f7] border-t border-[#a8c6d1] border-b-2 border-double border-zinc-800 font-bold text-zinc-900 text-[12px] h-7">
-                              <td className="px-3 py-1 uppercase align-middle border-r border-[#a8c6d1]">Grand Total</td>
-                              <td className="px-2 py-1 text-right border-r border-[#a8c6d1] align-middle">{fmtQty(totalInQty)}</td>
-                              <td className="px-2 py-1 text-right border-r border-[#a8c6d1] align-middle">{fmt(totalInVal)}</td>
-                              <td className="px-2 py-1 text-right border-r border-[#a8c6d1] align-middle">{fmtQty(totalOutQty)}</td>
-                              <td className="px-2 py-1 text-right border-r border-[#a8c6d1] align-middle">{fmt(totalOutVal)}</td>
-                              <td className="px-2 py-1 text-right border-r border-[#a8c6d1] align-middle">{fmtQty(last?.closing_qty ?? 0)}</td>
+                            <tr className="bg-[#f4f4f5] border-t border-[#d4d4d8] border-b-2 border-double border-zinc-800 font-bold text-zinc-900 text-[12px] h-7">
+                              <td className="px-3 py-1 uppercase align-middle border-r border-[#d4d4d8]">Grand Total</td>
+                              <td className="px-2 py-1 text-right border-r border-[#d4d4d8] align-middle">{fmtQty(totalInQty)}</td>
+                              <td className="px-2 py-1 text-right border-r border-[#d4d4d8] align-middle">{fmt(totalInVal)}</td>
+                              <td className="px-2 py-1 text-right border-r border-[#d4d4d8] align-middle">{fmtQty(totalOutQty)}</td>
+                              <td className="px-2 py-1 text-right border-r border-[#d4d4d8] align-middle">{fmt(totalOutVal)}</td>
+                              <td className="px-2 py-1 text-right border-r border-[#d4d4d8] align-middle">{fmtQty(last?.closing_qty ?? 0)}</td>
                               <td className="px-2 py-1 text-right align-middle">{fmt(last?.closing_value ?? 0)}</td>
                             </tr>
                           );
@@ -570,10 +570,10 @@ export default function StockSummary() {
 
                     {/* SVG Line Chart */}
                     <div className="px-4 pt-4 pb-2">
-                      <div className="text-[10px] font-bold text-[#002d40] mb-1 uppercase tracking-wide">
+                      <div className="text-[10px] font-bold text-[#18181b] mb-1 uppercase tracking-wide">
                         Closing Stock Value — {monthlyData.item_name}
                       </div>
-                      <div className="border border-[#a8c6d1] bg-[#f9fcfe] inline-block p-2">
+                      <div className="border border-[#d4d4d8] bg-[#fafafa] inline-block p-2">
                         <MonthlyChart months={monthlyData.months} />
                       </div>
                     </div>
@@ -586,25 +586,25 @@ export default function StockSummary() {
         </div>
 
         {/* Right sidebar buttons */}
-        <div className="w-[120px] bg-[#cbe2ec] border-l border-[#a8c6d1] flex flex-col p-1 gap-1 shrink-0 text-[#002d40] text-[10px] font-bold">
+        <div className="w-[120px] bg-[#e4e4e7] border-l border-[#d4d4d8] flex flex-col p-1 gap-1 shrink-0 text-[#18181b] text-[10px] font-bold">
           {(level !== "groups" || groupPath.length > 0) && (
             <button
               onClick={handleBack}
-              className="w-full text-left p-1 border border-[#9cbac7] bg-[#d9ecf5] hover:bg-[#b0d4e5]"
+              className="w-full text-left p-1 border border-[#d4d4d8] bg-[#e4e4e7] hover:bg-[#e4e4e7]"
             >
               ← Back
             </button>
           )}
           <button
             onClick={() => loadGroups()}
-            className="w-full text-left p-1 border border-[#9cbac7] bg-[#d9ecf5] hover:bg-[#b0d4e5]"
+            className="w-full text-left p-1 border border-[#d4d4d8] bg-[#e4e4e7] hover:bg-[#e4e4e7]"
           >
             F5: Refresh
           </button>
           <div className="flex-1" />
           <button
             onClick={handleBack}
-            className="w-full text-left p-1 border border-[#9cbac7] bg-[#d9ecf5] hover:bg-[#b0d4e5] text-red-700"
+            className="w-full text-left p-1 border border-[#d4d4d8] bg-[#e4e4e7] hover:bg-[#e4e4e7] text-zinc-800"
           >
             Esc: Back
           </button>

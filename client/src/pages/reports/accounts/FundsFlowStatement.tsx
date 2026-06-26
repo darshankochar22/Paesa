@@ -352,7 +352,7 @@ export default function FundsFlowStatement() {
             y={rectY}
             width={barW}
             height={barH}
-            fill={isPos ? "#0d9488" : "#ef4444"}
+            fill={isPos ? "#52525b" : "#71717a"}
             opacity={0.85}
           />
           <text
@@ -386,8 +386,8 @@ export default function FundsFlowStatement() {
         <div className="text-[10px] font-bold text-zinc-500 mt-1 mb-0.5 font-mono uppercase tracking-wider pl-12 flex gap-4">
           <span>Working Capital — Monthly Funds Flow</span>
           <span className="flex items-center gap-1 normal-case font-normal text-zinc-400">
-            <span className="inline-block w-3 h-2 bg-[#0d9488] opacity-85 rounded-sm"></span> Increase
-            <span className="inline-block w-3 h-2 bg-[#ef4444] opacity-85 rounded-sm ml-2"></span> Decrease
+            <span className="inline-block w-3 h-2 bg-[#52525b] opacity-85 rounded-sm"></span> Increase
+            <span className="inline-block w-3 h-2 bg-[#71717a] opacity-85 rounded-sm ml-2"></span> Decrease
           </span>
         </div>
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full max-h-[150px]">
@@ -496,7 +496,7 @@ export default function FundsFlowStatement() {
       <div className="flex-1 flex h-full min-h-0">
         <div className="flex-grow flex flex-col min-h-0 bg-white">
           {error && (
-            <div className="bg-red-50 text-red-700 text-[11px] p-2 border-b border-red-200">
+            <div className="bg-zinc-100 text-zinc-800 text-[11px] p-2 border-b border-zinc-200">
               {error}
             </div>
           )}
@@ -510,19 +510,19 @@ export default function FundsFlowStatement() {
             <>
               <div className="flex-grow overflow-auto min-h-0">
                 <table className="w-full border-collapse font-mono text-[11px] select-none text-zinc-800">
-                  <thead className="sticky top-0 bg-[#004433] text-white z-10">
-                    <tr className="border-b border-[#005544]">
+                  <thead className="sticky top-0 bg-[#18181b] text-white z-10">
+                    <tr className="border-b border-[#18181b]">
                       <th className="px-3 py-1.5 text-left font-bold w-[40%]">Particulars</th>
-                      <th colSpan={2} className="px-3 py-1 text-center font-bold border-l border-[#005544] border-b border-[#005544]">
+                      <th colSpan={2} className="px-3 py-1 text-center font-bold border-l border-[#18181b] border-b border-[#18181b]">
                         Working Capital
                       </th>
-                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#005544]">Funds Flow</th>
+                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#18181b]">Funds Flow</th>
                     </tr>
                     <tr>
                       <th></th>
-                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#005544]">Opening</th>
-                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#005544]">Closing</th>
-                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#005544]">Nett Flow</th>
+                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#18181b]">Opening</th>
+                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#18181b]">Closing</th>
+                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#18181b]">Nett Flow</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -536,7 +536,7 @@ export default function FundsFlowStatement() {
                           onDoubleClick={() => handleRowAction(idx)}
                           className={cn(
                             "border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer",
-                            isFocused ? "bg-[#e6b800] text-zinc-900 font-bold" : ""
+                            isFocused ? "bg-[#d4d4d8] text-zinc-900 font-bold" : ""
                           )}
                         >
                           <td className="px-3 py-1.5 text-left border-r border-zinc-100 font-semibold">
@@ -550,7 +550,7 @@ export default function FundsFlowStatement() {
                           </td>
                           <td className={cn(
                             "px-3 py-1.5 text-right font-semibold",
-                            !isFocused && (isNeg ? "text-red-600" : row.netChange > 0 ? "text-teal-700" : "text-zinc-400")
+                            !isFocused && (isNeg ? "text-zinc-700" : row.netChange > 0 ? "text-zinc-700" : "text-zinc-400")
                           )}>
                             {row.netChange !== 0 ? (
                               <span>
@@ -569,7 +569,7 @@ export default function FundsFlowStatement() {
                       <td className="px-3 py-2 text-right border-r border-zinc-300">{fmt(totalClosing)}</td>
                       <td className={cn(
                         "px-3 py-2 text-right",
-                        totalNetChange < 0 ? "text-red-700" : totalNetChange > 0 ? "text-teal-700" : ""
+                        totalNetChange < 0 ? "text-zinc-800" : totalNetChange > 0 ? "text-zinc-700" : ""
                       )}>
                         {totalNetChange !== 0 ? (
                           <>
@@ -607,7 +607,7 @@ export default function FundsFlowStatement() {
                   {/* Sources column */}
                   <div className="flex-1 border-r border-zinc-300 flex flex-col">
                     <table className="w-full border-collapse font-mono text-[11px] text-zinc-800">
-                      <thead className="bg-[#004433] text-white">
+                      <thead className="bg-[#18181b] text-white">
                         <tr>
                           <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
                           <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
@@ -627,7 +627,7 @@ export default function FundsFlowStatement() {
                               className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
                             >
                               <td className="px-3 py-1.5 pl-5">{s.particulars}</td>
-                              <td className="px-3 py-1.5 text-right text-teal-700">{fmt(s.amount)}</td>
+                              <td className="px-3 py-1.5 text-right text-zinc-700">{fmt(s.amount)}</td>
                             </tr>
                           ))
                         )}
@@ -644,7 +644,7 @@ export default function FundsFlowStatement() {
                   {/* Applications column */}
                   <div className="flex-1 flex flex-col">
                     <table className="w-full border-collapse font-mono text-[11px] text-zinc-800">
-                      <thead className="bg-[#004433] text-white">
+                      <thead className="bg-[#18181b] text-white">
                         <tr>
                           <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
                           <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
@@ -664,7 +664,7 @@ export default function FundsFlowStatement() {
                               className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
                             >
                               <td className="px-3 py-1.5 pl-5">{a.particulars}</td>
-                              <td className="px-3 py-1.5 text-right text-red-600">{fmt(a.amount)}</td>
+                              <td className="px-3 py-1.5 text-right text-zinc-700">{fmt(a.amount)}</td>
                             </tr>
                           ))
                         )}
@@ -673,7 +673,7 @@ export default function FundsFlowStatement() {
                           <tr
                             onClick={() => selectedMonth && navigate(`/reports/accounts/profit-loss?from_date=${selectedMonth.startDate}&to_date=${selectedMonth.endDate}`)}
                             title="View Profit & Loss for this period"
-                            className="border-b border-zinc-200 bg-[#e6b800]/20 cursor-pointer hover:bg-[#e6b800]/35 transition-colors"
+                            className="border-b border-zinc-200 bg-[#d4d4d8]/20 cursor-pointer hover:bg-[#d4d4d8]/35 transition-colors"
                           >
                             <td className="px-3 py-1.5 pl-5 font-semibold text-zinc-800">Nett Loss</td>
                             <td className="px-3 py-1.5 text-right font-semibold">{fmt(Math.abs(detailData.netWorkingCapitalChange))}</td>
@@ -681,9 +681,9 @@ export default function FundsFlowStatement() {
                         )}
                         {/* Net increase in working capital shown on applications side */}
                         {detailData.isNetIncrease && detailData.netWorkingCapitalChange > 0 && (
-                          <tr className="border-b border-zinc-200 bg-[#e6b800]/20">
+                          <tr className="border-b border-zinc-200 bg-[#d4d4d8]/20">
                             <td className="px-3 py-1.5 pl-5 font-semibold text-zinc-800">Net Increase in Working Capital</td>
-                            <td className="px-3 py-1.5 text-right font-semibold text-teal-700">{fmt(detailData.netWorkingCapitalChange)}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold text-zinc-700">{fmt(detailData.netWorkingCapitalChange)}</td>
                           </tr>
                         )}
                       </tbody>
@@ -724,7 +724,7 @@ export default function FundsFlowStatement() {
                         <td className="px-3 py-1.5 text-right text-zinc-600">
                           {fmt(detailData.currentAssetsClosing)} Dr
                         </td>
-                        <td className="px-3 py-1.5 text-right text-teal-700 font-semibold">
+                        <td className="px-3 py-1.5 text-right text-zinc-700 font-semibold">
                           {detailData.currentAssetsClosing - detailData.currentAssetsOpening !== 0
                             ? fmt(detailData.currentAssetsClosing - detailData.currentAssetsOpening)
                             : ""}
@@ -745,7 +745,7 @@ export default function FundsFlowStatement() {
                         <td className="px-3 py-1.5 text-right text-zinc-600">
                           {fmt(detailData.currentLiabClosing)} Cr
                         </td>
-                        <td className="px-3 py-1.5 text-right text-red-600 font-semibold">
+                        <td className="px-3 py-1.5 text-right text-zinc-700 font-semibold">
                           {detailData.currentLiabClosing - detailData.currentLiabOpening !== 0
                             ? `(-) ${fmt(detailData.currentLiabClosing - detailData.currentLiabOpening)}`
                             : ""}
@@ -761,7 +761,7 @@ export default function FundsFlowStatement() {
                         </td>
                         <td className={cn(
                           "px-3 py-1.5 text-right",
-                          detailData.netWorkingCapitalChange < 0 ? "text-red-700" : "text-teal-700"
+                          detailData.netWorkingCapitalChange < 0 ? "text-zinc-800" : "text-zinc-700"
                         )}>
                           {detailData.netWorkingCapitalChange < 0
                             ? `(-) ${fmt(Math.abs(detailData.netWorkingCapitalChange))}`
