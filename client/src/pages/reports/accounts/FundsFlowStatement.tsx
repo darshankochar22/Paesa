@@ -17,6 +17,10 @@ interface MonthData {
 interface SourceAppItem {
   particulars: string;
   amount: number;
+  // Present for line items that map to a real ledger (e.g. "Stock (Increase)").
+  // Absent for derived rows like "Funds from Operations" / "Funds Lost in
+  // Operations", which drill into the P&L instead.
+  ledger_id?: number;
 }
 
 interface DetailData {
@@ -62,6 +66,11 @@ export default function FundsFlowStatement() {
   const [error, setError] = useState<string | null>(null);
 
   const [focusedIndex, setFocusedIndex] = useState(0);
+  // Top-level group_id for "Current Assets" / "Current Liabilities", resolved
+  // from the group list we already fetch for the WC computation, so the
+  // reconciliation footer rows can drill into Group Summary.
+  const [caGroupId, setCaGroupId] = useState<number | null>(null);
+  const [clGroupId, setClGroupId] = useState<number | null>(null);
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -191,6 +200,10 @@ export default function FundsFlowStatement() {
       const ledgersData: LedgerRow[] = ledgerRes.success ? ledgerRes.ledgers || [] : [];
       const groupMap = new Map<number, GroupRow>();
       groupsData.forEach((g) => groupMap.set(g.group_id, g));
+      const caGroup = groupsData.find((g) => g.name === "Current Assets");
+      const clGroup = groupsData.find((g) => g.name === "Current Liabilities");
+      setCaGroupId(caGroup ? caGroup.group_id : null);
+      setClGroupId(clGroup ? clGroup.group_id : null);
 
       let currentAssetsOpening = 0;
       let currentLiabOpening = 0;
@@ -251,6 +264,18 @@ export default function FundsFlowStatement() {
       }
     }
   }, [viewMode, monthlyData]);
+
+  // Drill from a Sources/Applications line item into whatever backs it:
+  // a real ledger when ledger_id is present, otherwise the P&L for the
+  // derived "Funds from/Lost in Operations" rows.
+  const handleLineDrilldown = useCallback((item: SourceAppItem) => {
+    if (item.ledger_id) {
+      navigate(`/reports/accounts/ledger-summary/${item.ledger_id}`);
+      return;
+    }
+    if (!selectedMonth) return;
+    navigate(`/reports/accounts/profit-loss?from_date=${selectedMonth.startDate}&to_date=${selectedMonth.endDate}`);
+  }, [navigate, selectedMonth]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -595,22 +620,16 @@ export default function FundsFlowStatement() {
                           </tr>
                         ) : (
                           detailData.sources.map((s, idx) => (
-                            <tr key={idx} className="border-b border-zinc-100 hover:bg-zinc-50">
+                            <tr
+                              key={idx}
+                              onClick={() => handleLineDrilldown(s)}
+                              title={s.ledger_id ? `View ledger: ${s.particulars}` : "View Profit & Loss for this period"}
+                              className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
+                            >
                               <td className="px-3 py-1.5 pl-5">{s.particulars}</td>
                               <td className="px-3 py-1.5 text-right text-teal-700">{fmt(s.amount)}</td>
                             </tr>
                           ))
-                        )}
-                        {/* Nett Loss as Application if applicable */}
-                        {detailData.netWorkingCapitalChange < 0 && (
-                          <tr className="border-b border-zinc-200 bg-zinc-50">
-                            <td className="px-3 py-1.5 pl-5 text-zinc-500 italic">
-                              {detailData.isNetIncrease ? "" : "Nett Loss"}
-                            </td>
-                            <td className="px-3 py-1.5 text-right text-red-600">
-                              {!detailData.isNetIncrease ? fmt(Math.abs(detailData.netWorkingCapitalChange)) : ""}
-                            </td>
-                          </tr>
                         )}
                       </tbody>
                       <tfoot>
@@ -638,7 +657,12 @@ export default function FundsFlowStatement() {
                           </tr>
                         ) : (
                           detailData.applications.map((a, idx) => (
-                            <tr key={idx} className="border-b border-zinc-100 hover:bg-zinc-50">
+                            <tr
+                              key={idx}
+                              onClick={() => handleLineDrilldown(a)}
+                              title={a.ledger_id ? `View ledger: ${a.particulars}` : "View Profit & Loss for this period"}
+                              className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
+                            >
                               <td className="px-3 py-1.5 pl-5">{a.particulars}</td>
                               <td className="px-3 py-1.5 text-right text-red-600">{fmt(a.amount)}</td>
                             </tr>
@@ -646,7 +670,11 @@ export default function FundsFlowStatement() {
                         )}
                         {/* Nett Loss shown as Application header if isNetIncrease=false */}
                         {!detailData.isNetIncrease && detailData.netWorkingCapitalChange < 0 && (
-                          <tr className="border-b border-zinc-200 bg-[#e6b800]/20">
+                          <tr
+                            onClick={() => selectedMonth && navigate(`/reports/accounts/profit-loss?from_date=${selectedMonth.startDate}&to_date=${selectedMonth.endDate}`)}
+                            title="View Profit & Loss for this period"
+                            className="border-b border-zinc-200 bg-[#e6b800]/20 cursor-pointer hover:bg-[#e6b800]/35 transition-colors"
+                          >
                             <td className="px-3 py-1.5 pl-5 font-semibold text-zinc-800">Nett Loss</td>
                             <td className="px-3 py-1.5 text-right font-semibold">{fmt(Math.abs(detailData.netWorkingCapitalChange))}</td>
                           </tr>
@@ -681,7 +709,14 @@ export default function FundsFlowStatement() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b border-zinc-200">
+                      <tr
+                        onClick={() => caGroupId && navigate(`/reports/accounts/group-summary/${caGroupId}`)}
+                        title={caGroupId ? "View Current Assets group" : undefined}
+                        className={cn(
+                          "border-b border-zinc-200 transition-colors",
+                          caGroupId && "cursor-pointer hover:bg-zinc-100"
+                        )}
+                      >
                         <td className="px-3 py-1.5">Current Assets</td>
                         <td className="px-3 py-1.5 text-right text-zinc-600">
                           {fmt(detailData.currentAssetsOpening)} Dr
@@ -695,7 +730,14 @@ export default function FundsFlowStatement() {
                             : ""}
                         </td>
                       </tr>
-                      <tr className="border-b border-zinc-200">
+                      <tr
+                        onClick={() => clGroupId && navigate(`/reports/accounts/group-summary/${clGroupId}`)}
+                        title={clGroupId ? "View Current Liabilities group" : undefined}
+                        className={cn(
+                          "border-b border-zinc-200 transition-colors",
+                          clGroupId && "cursor-pointer hover:bg-zinc-100"
+                        )}
+                      >
                         <td className="px-3 py-1.5">Current Liabilities</td>
                         <td className="px-3 py-1.5 text-right text-zinc-600">
                           {fmt(detailData.currentLiabOpening)} Cr

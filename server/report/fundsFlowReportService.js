@@ -121,14 +121,17 @@ module.exports = {
       const sources = [];
       const applications = [];
 
-      const addSource = (name, amount) => {
-        if (amount > 0) sources.push({ particulars: name, amount });
+      const addSource = (name, amount, ledger_id) => {
+        if (amount > 0) sources.push({ particulars: name, amount, ...(ledger_id ? { ledger_id } : {}) });
       };
-      const addApplication = (name, amount) => {
-        if (amount > 0) applications.push({ particulars: name, amount });
+      const addApplication = (name, amount, ledger_id) => {
+        if (amount > 0) applications.push({ particulars: name, amount, ...(ledger_id ? { ledger_id } : {}) });
       };
 
       // Funds from operations is shown as a source (or, if negative, an application).
+      // It has no single backing ledger — it's the net of all Income/Expenses
+      // ledgers for the period — so it deliberately gets no ledger_id; the
+      // client routes these rows to the P&L instead.
       if (fundsFromOperations >= 0) addSource('Funds from Operations', fundsFromOperations);
       else addApplication('Funds Lost in Operations', Math.abs(fundsFromOperations));
 
@@ -137,13 +140,13 @@ module.exports = {
 
         if (m.nature === 'Assets') {
           // change in Dr-positive terms is the change in the asset value.
-          if (m.change > 0) addApplication(`${m.ledger_name} (Increase)`, m.change);
-          else addSource(`${m.ledger_name} (Decrease)`, Math.abs(m.change));
+          if (m.change > 0) addApplication(`${m.ledger_name} (Increase)`, m.change, m.ledger_id);
+          else addSource(`${m.ledger_name} (Decrease)`, Math.abs(m.change), m.ledger_id);
         } else if (m.nature === 'Liabilities') {
           // For liabilities a more-negative balance means the liability grew.
           const liabIncrease = -m.change; // positive when the liability increased
-          if (liabIncrease > 0) addSource(`${m.ledger_name} (Increase)`, liabIncrease);
-          else addApplication(`${m.ledger_name} (Decrease)`, Math.abs(liabIncrease));
+          if (liabIncrease > 0) addSource(`${m.ledger_name} (Increase)`, liabIncrease, m.ledger_id);
+          else addApplication(`${m.ledger_name} (Decrease)`, Math.abs(liabIncrease), m.ledger_id);
         }
         // Income / Expenses already captured via fundsFromOperations above.
       }

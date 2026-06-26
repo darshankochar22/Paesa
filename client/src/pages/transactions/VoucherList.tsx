@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel } from "@/components/ui";
@@ -14,11 +14,10 @@ import {
   TableHead,
   TableCell,
 } from "@/components/shadcn/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { EmptyState } from "@/components/blocks/EmptyState";
 import { cn } from "@/lib/utils";
 
-const VOUCHER_TYPES = ["Receipt", "Payment", "Contra", "Journal", "Sales", "Purchase", "Credit Note", "Debit Note"];
+const VOUCHER_TYPES = ["All", "Receipt", "Payment", "Contra", "Journal", "Sales", "Purchase", "Credit Note", "Debit Note"];
 
 interface VoucherRow {
   voucher_id: number;
@@ -27,6 +26,7 @@ interface VoucherRow {
   date: string;
   narration: string | null;
   party_name: string | null;
+  ledger_names: string | null;
   is_cancelled: number;
   debit_amount: number;
   credit_amount: number;
@@ -46,6 +46,61 @@ const formatAmount = (n: number) => {
   return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+/* ── Side-panel voucher type popup (same pattern as Daybook's F4 popup) ── */
+function ChangeVoucherTypePopup({ currentType, onSelect, onClose }: {
+  currentType: string;
+  onSelect: (t: string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState(currentType === "All" ? "" : currentType);
+  const filtered = VOUCHER_TYPES.filter(t =>
+    !search || t.toLowerCase().includes(search.toLowerCase())
+  );
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white border border-gray-400 shadow-xl w-80">
+        <div className="bg-blue-700 text-white text-sm font-semibold px-3 py-1">Change Voucher Type</div>
+        <div className="px-3 pt-2 pb-1">
+          <div className="text-xs text-gray-500 mb-1">Name of Voucher Type</div>
+          <input
+            ref={ref}
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Escape") onClose();
+              if (e.key === "Enter" && filtered.length > 0) onSelect(filtered[0]);
+            }}
+            className="w-full border border-blue-700 px-2 py-1 text-sm outline-none mb-1"
+            placeholder="Search voucher type…"
+          />
+        </div>
+        <div className="bg-blue-700 text-white text-xs font-semibold px-3 py-0.5">Voucher Types</div>
+        <div className="max-h-64 overflow-y-auto">
+          {filtered.map(t => (
+            <div
+              key={t}
+              onClick={() => onSelect(t)}
+              className={cn(
+                "px-3 py-1 text-sm cursor-pointer hover:bg-orange-200",
+                t === currentType ? "bg-orange-300 font-semibold" : ""
+              )}
+            >
+              {t}
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-gray-300 px-3 py-1 flex justify-end">
+          <button onClick={onClose} className="text-xs border border-gray-400 px-3 py-1 hover:bg-gray-100">Esc: Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function VoucherList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -54,7 +109,7 @@ export default function VoucherList() {
   const typeParam = searchParams.get("type") || "All";
   const monthParam = searchParams.get("month");
 
-  const selectedType = VOUCHER_TYPES.includes(typeParam) || typeParam === "All" ? typeParam : "All";
+  const selectedType = VOUCHER_TYPES.includes(typeParam) ? typeParam : "All";
 
   const handleTypeChange = (type: string) => {
     const params = new URLSearchParams(searchParams);
@@ -68,6 +123,7 @@ export default function VoucherList() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showTypePopup, setShowTypePopup] = useState(false);
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -96,6 +152,11 @@ export default function VoucherList() {
 
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
+      if (showTypePopup) return;
+      if (e.key === "F4") {
+        e.preventDefault();
+        setShowTypePopup(true);
+      }
       if (e.altKey && (e.key === "c" || e.key === "C")) {
         e.preventDefault();
         navigate("/transactions/vouchers");
@@ -127,10 +188,11 @@ export default function VoucherList() {
     };
     window.addEventListener("keydown", handleKeys);
     return () => window.removeEventListener("keydown", handleKeys);
-  }, [navigate, selectedIndex]);
+  }, [navigate, selectedIndex, showTypePopup]);
 
   const listActions = [
     { key: "Alt+C", label: "New Voucher", onClick: () => navigate("/transactions/vouchers") },
+    { key: "F4",     label: "Voucher Type", onClick: () => setShowTypePopup(true) },
     { key: "Alt+D", label: "Day Book", onClick: () => navigate("/transactions/daybook") },
     { key: "Alt+B", label: "Banking", onClick: () => navigate("/utilities/banking") },
     { key: "Esc", label: "Quit", onClick: () => navigate("/") },
@@ -146,6 +208,7 @@ export default function VoucherList() {
     const matchesSearch = !q ||
       v.voucher_number?.toLowerCase().includes(q) ||
       v.party_name?.toLowerCase().includes(q) ||
+      v.ledger_names?.toLowerCase().includes(q) ||
       v.narration?.toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
@@ -167,10 +230,12 @@ export default function VoucherList() {
     navigate(`/transactions/voucher/${filtered[idx].voucher_id}`);
   };
 
+  const listTitle = selectedType === "All" ? "Voucher Register" : `List of ${selectedType} Vouchers`;
+
   return (
     <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
       <PageTitleBar
-        title="Voucher Register"
+        title={listTitle}
         subtitle={selectedCompany?.name}
         actions={
           <Button
@@ -185,29 +250,14 @@ export default function VoucherList() {
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
-          <Tabs
-            value={selectedType}
-            onValueChange={handleTypeChange}
-            className="shrink-0"
-          >
-            <TabsList
-              variant="line"
-              className="h-auto w-full justify-start gap-0 overflow-x-auto rounded-none border-b border-zinc-200 bg-zinc-50 p-0"
-            >
-              {["All", ...VOUCHER_TYPES].map(type => (
-                <TabsTrigger
-                  key={type}
-                  value={type}
-                  className={cn(
-                    "flex-none rounded-none border-b-2 border-transparent px-4 py-2 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100",
-                    "data-active:border-zinc-900 data-active:text-zinc-900 data-active:bg-white"
-                  )}
-                >
-                  {type}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+
+          {/* Period / type info bar — no inline type tabs; type is changed via F4 side panel */}
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-200 bg-zinc-50 shrink-0 text-[11px]">
+            <span className="font-semibold text-zinc-700">{selectedType === "All" ? "All Vouchers" : selectedType}</span>
+            <span className="ml-auto text-zinc-400">
+              {filtered.length} voucher{filtered.length !== 1 ? "s" : ""}
+            </span>
+          </div>
 
           <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50/50 flex flex-wrap items-center gap-3">
             <Input
@@ -294,7 +344,9 @@ export default function VoucherList() {
                           )}
                         >
                           <TableCell className="px-3 py-1.5 text-zinc-800 text-[12px]">{formatDate(v.date)}</TableCell>
-                          <TableCell className="px-3 py-1.5 font-bold text-zinc-900 text-[12px]">{v.party_name || v.narration || "—"}</TableCell>
+                          <TableCell className="px-3 py-1.5 font-bold text-zinc-900 text-[12px]">
+                            {v.party_name || v.ledger_names || v.narration || "—"}
+                          </TableCell>
                           <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", idx === 0 ? "font-bold text-zinc-900" : "text-zinc-700")}>{v.voucher_type}</TableCell>
                           <TableCell className="px-3 py-1.5 text-right text-zinc-700 text-[12px]">{v.voucher_number || "—"}</TableCell>
                           <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", v.debit_amount ? "font-bold text-zinc-900" : "text-zinc-400")}>
@@ -320,6 +372,14 @@ export default function VoucherList() {
         countLabel={`${filtered.length} voucher${filtered.length !== 1 ? "s" : ""}`}
         onBack={() => navigate("/")}
       />
+
+      {showTypePopup && (
+        <ChangeVoucherTypePopup
+          currentType={selectedType}
+          onSelect={(t) => { handleTypeChange(t); setShowTypePopup(false); }}
+          onClose={() => setShowTypePopup(false)}
+        />
+      )}
     </div>
   );
 }

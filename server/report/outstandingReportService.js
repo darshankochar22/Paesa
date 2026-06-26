@@ -52,20 +52,15 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
         SUM(
-          CASE 
-            WHEN ${groupName === 'Sundry Creditors' ? sql`ve.entry_type = 'Dr'` : sql`ve.entry_type = 'Cr'`} THEN -vbr.amount 
-            ELSE vbr.amount 
+          CASE
+            WHEN vbr.bill_type = 'Agst Ref' THEN -vbr.amount
+            ELSE vbr.amount
           END
         ) AS total_amount
       FROM ${voucherBillReferences} vbr
       JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
       JOIN ${groups} g   ON g.group_id = l.group_id
-      LEFT JOIN (
-        SELECT voucher_id, ledger_id, MAX(type) AS entry_type
-        FROM ${voucherEntries}
-        GROUP BY voucher_id, ledger_id
-      ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
       WHERE v.company_id = ${company_id}
         AND v.fy_id = ${fy_id}
         AND v.is_cancelled = 0
@@ -75,9 +70,14 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
         AND l.is_bill_wise = 1
         AND g.company_id = ${company_id}
         AND g.name = ${groupName}
+        AND (
+          ${groupName === 'Sundry Creditors'
+            ? sql`v.voucher_type IN ('Purchase', 'Credit Note', 'Journal', 'Payment', 'Receipt')`
+            : sql`v.voucher_type IN ('Sales', 'Debit Note', 'Journal', 'Payment', 'Receipt')`}
+        )
       GROUP BY l.ledger_id, l.name, vbr.bill_name
       HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
-         AND ABS(total_amount) > 0.01
+         AND total_amount > 0.01
       ORDER BY l.name ASC, MAX(v.date) DESC
     `
   );
@@ -137,7 +137,7 @@ const buildLedgerOutstanding = async (company_id, fy_id, ledger_id) => {
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
       JOIN ${groups} g   ON g.group_id = l.group_id
       LEFT JOIN (
-        SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+        SELECT voucher_id, ledger_id, CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
         FROM ${voucherEntries}
         GROUP BY voucher_id, ledger_id
       ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
@@ -202,7 +202,7 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
       JOIN ${groups} g   ON g.group_id = l.group_id
       LEFT JOIN (
-        SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+        SELECT voucher_id, ledger_id, CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
         FROM ${voucherEntries}
         GROUP BY voucher_id, ledger_id
       ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
@@ -240,7 +240,7 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
     entry.bills.push({ bill: row.bill_name, bill_date: row.bill_date, due_date: row.due_date, credit_period: row.credit_period, overdue_days: overdueDays, balance, ageing });
   });
 
-  const resultRows = Array.from(ledgerMap.values());
+  const resultRows = Array.from(ledgerMap.values()).filter(r => Math.abs(r.total) > 0.01);
   const total = resultRows.reduce((s, r) => s + r.total, 0);
   return { rows: resultRows, total, bucketTotals, as_on: asOnDate };
 };
@@ -286,4 +286,3 @@ module.exports = {
     }
   },
 };
-

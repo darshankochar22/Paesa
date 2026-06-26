@@ -1,5 +1,5 @@
 import { ReportStub } from "../ReportStub";
 
 export default function InterestCalculations() {
-  return <ReportStub title="nterest alculations" />;
+  return <ReportStub title="Interest Calculations" />;
 }

@@ -787,6 +787,12 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         sql`SELECT v.*,
               COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Dr'), 0) AS debit_amount,
               COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Cr'), 0) AS credit_amount,
+              (SELECT COALESCE(e.ledger_name, l.name)
+               FROM ${voucherEntries} e
+               LEFT JOIN ${ledgers} l ON l.ledger_id = e.ledger_id
+               WHERE e.voucher_id = v.voucher_id
+               ORDER BY e.entry_id ASC
+               LIMIT 1) AS ledger_names,
               CASE
                 WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
                 THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)
@@ -973,6 +979,12 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         sql`SELECT v.*,
               COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Dr'), 0) AS debit_amount,
               COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Cr'), 0) AS credit_amount,
+              (SELECT COALESCE(e.ledger_name, l.name)
+               FROM ${voucherEntries} e
+               LEFT JOIN ${ledgers} l ON l.ledger_id = e.ledger_id
+               WHERE e.voucher_id = v.voucher_id
+               ORDER BY e.entry_id ASC
+               LIMIT 1) AS ledger_names,
               CASE
                 WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
                 THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)

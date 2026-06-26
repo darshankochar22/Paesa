@@ -1,6 +1,7 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../../db/schema');
+const { calculateClosingStock } = require('../stockValuationEngine');
 
 /* ── reused helpers (same as balanceSheetService) ────────────────────── */
 
@@ -180,7 +181,10 @@ const profitLoss = async (company_id, fy_id) => {
     const totalDirectIncomes    = Math.abs(buckets.directIncomes.reduce((s, g)    => s + g.balance, 0));
     const totalIndirectIncomes  = Math.abs(buckets.indirectIncomes.reduce((s, g)  => s + g.balance, 0));
 
-    /* Opening / Closing Stock */
+    /* Opening / Closing Stock
+       Opening stock = sum of each stock item's opening_value.
+       Closing stock = real valuation using inward/outward movements
+       (same engine used by Stock Summary), NOT just equal to opening. */
     let openingStockValue = 0;
     let closingStockValue = 0;
     try {
@@ -190,7 +194,11 @@ const profitLoss = async (company_id, fy_id) => {
             WHERE company_id = ${company_id} AND is_active = 1`
       );
       openingStockValue = Number(osRows[0]?.total) || 0;
-      closingStockValue = openingStockValue;
+
+      const valuation = await calculateClosingStock(company_id, fy_id);
+      closingStockValue = valuation.success
+        ? Number(valuation.totalValue) || 0
+        : openingStockValue; // fallback if valuation fails (e.g. no stock module set up)
     } catch (_) { /* no stock_items table or no data */ }
 
     /* Gross profit calculation */

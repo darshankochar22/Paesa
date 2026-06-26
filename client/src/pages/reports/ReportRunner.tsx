@@ -74,7 +74,10 @@ export function ReportRunner() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  const isRegister = [].includes(reportType);
+  const isRegister = [
+    "sales-register", "purchase-register", "journal-register",
+    "debit-note-register", "credit-note-register", "payment-register", "receipt-register"
+  ].includes(reportType);
 
   const [focusedIndex, setFocusedIndex] = React.useState<number>(0);
 
@@ -541,7 +544,8 @@ export function ReportRunner() {
     "interest-receivable", "interest-payable",
     "interest-calculation-ledger-wise", "interest-calculation-bill-wise",
     "cost-category-summary", "cost-centre-summary", "cost-centre-break-up",
-    "cost-centre-ledger", "cost-centre-wise-p-and-l"
+    "cost-centre-ledger", "cost-centre-wise-p-and-l",
+    "statistics"
   ];
   if (layoutOnlyReports.includes(reportType)) {
     setLoading(false);
