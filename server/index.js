@@ -212,6 +212,8 @@ ipcMain.handle('report:groupSummary',        reportController.groupSummary);
 ipcMain.handle('report:groupSummaryDrilldown', reportController.groupSummaryDrilldown);
 ipcMain.handle('report:ledgerMonthlySummary', reportController.ledgerMonthlySummary);
 ipcMain.handle('report:statistics',          reportController.statistics);
+ipcMain.handle('report:statisticsVoucherMonthly', reportController.statisticsVoucherMonthly);
+ipcMain.handle('report:statisticsVoucherDayList', reportController.statisticsVoucherDayList);
 ipcMain.handle('report:costCategorySummary', reportController.costCategorySummary);
 
 // Inventory summaries

@@ -36,13 +36,15 @@ interface VoucherRow {
   outwards_qty: number;
   order_ref?: string;
   order_amount?: number;
+  debit?: number;
+  credit?: number;
 }
 
 interface Props {
   voucherType: string; // e.g. "Stock Journal" | "Physical Stock"
   title: string;       // e.g. "Stock Journal Register"
-  /** "inventory" → Inwards/Outwards Qty columns; "order" → Order Ref/Amount. */
-  variant?: "inventory" | "order";
+  /** "inventory" → Inwards/Outwards Qty; "order" → Order Ref/Amount; "accounting" → Debit/Credit. */
+  variant?: "inventory" | "order" | "accounting";
   /** Overrides the left sub-header (defaults to the voucher type). */
   subtitle?: string;
 }
@@ -51,6 +53,7 @@ type Level = { step: "monthly" } | { step: "vouchers"; month: string };
 
 export default function InventoryVoucherRegister({ voucherType, title, variant = "inventory", subtitle }: Props) {
   const isOrder = variant === "order";
+  const isAccounting = variant === "accounting";
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -70,14 +73,16 @@ export default function InventoryVoucherRegister({ voucherType, title, variant =
     if (!companyId || !fyId) { setLoadingMonths(false); return; }
     setLoadingMonths(true);
     setMonthsError(null);
-    (window as any).api.report
-      .inventoryRegisterMonthly(companyId, fyId, voucherType)
+    const monthlyFetcher = isAccounting
+      ? (window as any).api.report.statisticsVoucherMonthly(companyId, fyId, voucherType)
+      : (window as any).api.report.inventoryRegisterMonthly(companyId, fyId, voucherType);
+    monthlyFetcher
       .then((res: any) => {
         if (res.success) setMonths(res.rows ?? []);
         else setMonthsError(res.error || "Failed to load register");
         setLoadingMonths(false);
       });
-  }, [companyId, fyId, voucherType]);
+  }, [companyId, fyId, voucherType, isAccounting]);
 
   // ── Level 2: Vouchers for a month ────────────────────────────────────────
   const [voucherRows, setVoucherRows] = React.useState<VoucherRow[]>([]);
@@ -105,7 +110,9 @@ export default function InventoryVoucherRegister({ voucherType, title, variant =
     setVoucherError(null);
     setVoucherIndex(0);
     const { from, to } = monthRange(monthName);
-    const fetcher = isOrder
+    const fetcher = isAccounting
+      ? (window as any).api.report.statisticsVoucherDayList(companyId, fyId, voucherType, from, to)
+      : isOrder
       ? (window as any).api.report.jobWorkOrderVouchers(companyId, fyId, voucherType, from, to)
       : (window as any).api.report.inventoryRegisterVouchers(companyId, fyId, voucherType, from, to);
     fetcher.then((res: any) => {
@@ -113,7 +120,7 @@ export default function InventoryVoucherRegister({ voucherType, title, variant =
       else setVoucherError(res.error || "Failed to load vouchers");
       setLoadingVouchers(false);
     });
-  }, [companyId, fyId, voucherType, monthRange, isOrder]);
+  }, [companyId, fyId, voucherType, monthRange, isOrder, isAccounting]);
 
   const backToMonthly = React.useCallback(() => { setLevel({ step: "monthly" }); setVoucherRows([]); }, []);
 

@@ -51,14 +51,15 @@ export default function StatisticsLayout() {
     { name: "Groups",                      count: data?.accounts?.groups        || 0, path: "/master/coa/group" },
     { name: "Ledgers",                     count: data?.accounts?.ledgers       || 0, path: "/master/coa/ledger" },
     { name: "Cost Centres",                count: data?.accounts?.costCentres   || 0, path: "/master/coa/cost-centre" },
-    { name: "Stock Groups",                count: data?.accounts?.stockGroups   || 0, path: "/master/coa/stock-group" },
-    { name: "Stock Items",                 count: data?.accounts?.stockItems    || 0, path: "/master/alter/stock-item" },
-    { name: "Voucher Types",               count: data?.accounts?.voucherTypes  || 0, path: "/master/coa/voucher-type" },
-    { name: "Units",                       count: data?.accounts?.units         || 0, path: "/master/coa/unit" },
-    { name: "Currencies",                  count: data?.accounts?.currencies    || 0, path: "/master/coa/currency" },
-    { name: "Attendance/Production Types", count: 0,                                  path: "/" },
-    { name: "Employee Groups",             count: data?.accounts?.employeeGroups || 0, path: "/" },
-    { name: "Employees",                   count: data?.accounts?.employees     || 0, path: "/" },
+    { name: "Stock Groups",                count: data?.accounts?.stockGroups    || 0, path: "/master/coa/stock-group" },
+    { name: "Stock Categories",            count: data?.accounts?.stockCategories || 0, path: "/master/coa/stock-category" },
+    { name: "Stock Items",                 count: data?.accounts?.stockItems     || 0, path: "/master/alter/stock-item" },
+    { name: "Voucher Types",               count: data?.accounts?.voucherTypes   || 0, path: "/master/coa/voucher-type" },
+    { name: "Units",                       count: data?.accounts?.units          || 0, path: "/master/coa/unit" },
+    { name: "Currencies",                  count: data?.accounts?.currencies     || 0, path: "/master/coa/currency" },
+    { name: "Attendance/Production Types", count: 0,                                   path: "/master/coa/attendance-type" },
+    { name: "Employee Groups",             count: data?.accounts?.employeeGroups || 0,  path: "/master/coa/employee-group" },
+    { name: "Employees",                   count: data?.accounts?.employees     || 0,  path: "/master/coa/employee" },
   ], [data]);
 
   const vouchersRows = React.useMemo(() => data?.vouchers || [], [data]);

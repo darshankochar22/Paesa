@@ -175,6 +175,8 @@ contextBridge.exposeInMainWorld('api', {
         // Accounting summaries
         groupSummary:        (company_id, fy_id) => invoke('report:groupSummary',        { company_id, fy_id }),
         statistics:          (company_id, fy_id) => invoke('report:statistics',          { company_id, fy_id }),
+        statisticsVoucherMonthly: (company_id, fy_id, voucher_type)                     => invoke('report:statisticsVoucherMonthly', { company_id, fy_id, voucher_type }),
+        statisticsVoucherDayList: (company_id, fy_id, voucher_type, from_date, to_date) => invoke('report:statisticsVoucherDayList', { company_id, fy_id, voucher_type, from_date, to_date }),
         costCategorySummary: (company_id, fy_id) => invoke('report:costCategorySummary', { company_id, fy_id }),
         // Inventory summaries
         stockItemSummary:     (company_id, fy_id) => invoke('report:stockItemSummary',     { company_id, fy_id }),

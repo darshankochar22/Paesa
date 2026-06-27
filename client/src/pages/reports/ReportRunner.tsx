@@ -45,6 +45,14 @@ import CostCentreBreakupLayout from "@/components/reports/CostCentreBreakupLayou
 import CostCentreLedgerLayout from "@/components/reports/CostCentreLedgerLayout";
 import CostCentreWisePLLayout from "@/components/reports/CostCentreWisePLLayout";
 import StatisticsLayout from "@/components/reports/StatisticsLayout";
+import MultiPaySlipLayout from "@/components/reports/MultiPaySlipLayout";
+import PaySheetLayout from "@/components/reports/PaySheetLayout";
+import AttendanceSheetLayout from "@/components/reports/AttendanceSheetLayout";
+import PaymentAdviceLayout from "@/components/reports/PaymentAdviceLayout";
+import EmployeesWithoutEmailLayout from "@/components/reports/EmployeesWithoutEmailLayout";
+import PayrollStatementLayout from "@/components/reports/PayrollStatementLayout";
+import EmployeePayHeadBreakupLayout from "@/components/reports/EmployeePayHeadBreakupLayout";
+import PayHeadEmployeeBreakupLayout from "@/components/reports/PayHeadEmployeeBreakupLayout";
 
 
 export function ReportRunner() {
@@ -701,6 +709,22 @@ export function ReportRunner() {
             <CostCentreWisePLLayout />
          ):reportType === "statistics" ? (
             <StatisticsLayout />
+         ):reportType === "pay-slip" ? (
+            <MultiPaySlipLayout />
+         ):reportType === "pay-sheet" ? (
+            <PaySheetLayout />
+         ):reportType === "attendance-sheet" ? (
+            <AttendanceSheetLayout />
+         ):reportType === "payment-advice" ? (
+            <PaymentAdviceLayout />
+         ):reportType === "employees-without-email" ? (
+            <EmployeesWithoutEmailLayout />
+         ):reportType === "payroll-statement" ? (
+            <PayrollStatementLayout />
+         ):reportType === "employee-pay-head-breakup" ? (
+            <EmployeePayHeadBreakupLayout />
+         ):reportType === "pay-head-employee-breakup" ? (
+            <PayHeadEmployeeBreakupLayout />
          ):(
         <ReportTable
             columns={tableColumns}

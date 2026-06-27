@@ -8,7 +8,7 @@ const { cashBook } = require('./ledger/cashBook');
 const bankBook = require('./ledger/bankBook');
 const daybook = require('./daybook/daybook');
 const { groupSummary } = require('./financial/groupSummary');
-const { statistics } = require('./financial/statistics');
+const { statistics, statisticsVoucherMonthly, statisticsVoucherDayList } = require('./financial/statistics');
 const { costCategorySummary } = require('./financial/costCategorySummary');
 const { stockItemSummary } = require('./inventory/stockItemSummary');
 const { stockQuery } = require('./stockQueryService');
@@ -196,6 +196,12 @@ module.exports = {
   },
   statistics: async (event, { company_id, fy_id }) => {
     return await statistics(company_id, fy_id);
+  },
+  statisticsVoucherMonthly: async (event, { company_id, fy_id, voucher_type }) => {
+    return await statisticsVoucherMonthly(company_id, fy_id, voucher_type);
+  },
+  statisticsVoucherDayList: async (event, { company_id, fy_id, voucher_type, from_date, to_date }) => {
+    return await statisticsVoucherDayList(company_id, fy_id, voucher_type, from_date, to_date);
   },
   costCategorySummary: async (event, { company_id, fy_id }) => {
     return await costCategorySummary(company_id, fy_id);

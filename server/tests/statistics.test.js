@@ -28,6 +28,7 @@ describe("Statistics Service Tests", () => {
     expect(res.accounts.groups).toBeGreaterThan(0);
     expect(res.accounts.ledgers).toBeGreaterThan(0);
     expect(res.accounts.voucherTypes).toBeGreaterThan(0);
+    expect(res.accounts.stockCategories).toBeDefined();
     expect(res.vouchers).toBeDefined();
 
     // 2. Insert some mock vouchers and verify count updates
