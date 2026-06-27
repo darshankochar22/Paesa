@@ -25,14 +25,14 @@ export default function GSTStatutoryDetails({
 
   return (
     <div className="flex-1 min-w-0 px-6 pt-4 pb-2 overflow-y-auto flex flex-col gap-1.5 font-mono select-none">
-      <div className="text-sm font-bold text-zinc-900 mb-2 font-sans">Statutory Details</div>
+      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Statutory Details</div>
 
       {/* GST applicability */}
       <div
         className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
         onClick={() => setActivePanel("gst_applicable")}
       >
-        <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-0">GST applicability</span>
+        <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-0">GST applicability</span>
         <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
         <div className="flex-1">
           <span className="text-xs text-zinc-955 font-bold">{form.gst_applicable}</span>
@@ -42,14 +42,14 @@ export default function GSTStatutoryDetails({
       {form.gst_applicable === "Applicable" ? (
         <>
           {/* HSN/SAC & Related Details Header */}
-          <div className="text-xs font-bold text-zinc-900 mt-2 mb-0.5 font-sans pl-0">HSN/SAC & Related Details</div>
+          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-2 mb-1 pl-0">HSN/SAC & Related Details</div>
 
           {/* HSN/SAC Details */}
           <div
             className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
             onClick={() => setActivePanel("hsn_sac_details")}
           >
-            <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-4">HSN/SAC Details</span>
+            <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-4">HSN/SAC Details</span>
             <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
             <div className="flex-1">
               <span className="text-xs text-zinc-955 font-bold">
@@ -73,7 +73,7 @@ export default function GSTStatutoryDetails({
           {form.hsn_sac_details === "specify_here" && (
             <>
               <div className="flex items-center min-h-[22px]">
-                <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-8">HSN/SAC</span>
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">HSN/SAC</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
                 <div className="flex-1">
                   <input
@@ -85,7 +85,7 @@ export default function GSTStatutoryDetails({
                 </div>
               </div>
               <div className="flex items-center min-h-[22px]">
-                <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-8">Description</span>
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Description</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
                 <div className="flex-1">
                   <input
@@ -106,7 +106,7 @@ export default function GSTStatutoryDetails({
                 className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
                 onClick={() => setActivePanel("hsn_classification")}
               >
-                <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-8">Classification</span>
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Classification</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
                 <div className="flex-1">
                   <span className="text-xs text-zinc-955 font-bold truncate">
@@ -135,14 +135,14 @@ export default function GSTStatutoryDetails({
           )}
 
           {/* GST Rate & Related Details Header */}
-          <div className="text-xs font-bold text-zinc-900 mt-2 mb-0.5 font-sans pl-0">GST Rate & Related Details</div>
+          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-2 mb-1 pl-0">GST Rate & Related Details</div>
 
           {/* GST Rate Details */}
           <div
             className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
             onClick={() => setActivePanel("gst_rate_details")}
           >
-            <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-4">GST Rate Details</span>
+            <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-4">GST Rate Details</span>
             <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
             <div className="flex-1">
               <span className="text-xs text-zinc-955 font-bold">
@@ -179,7 +179,7 @@ export default function GSTStatutoryDetails({
                 className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
                 onClick={() => setActivePanel("taxability_type")}
               >
-                <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-8">Taxability</span>
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Taxability</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
                 <div className="flex-1">
                   <span className="text-xs text-zinc-950 font-bold">{form.taxability_type || "Select..."}</span>
@@ -188,7 +188,7 @@ export default function GSTStatutoryDetails({
 
               {form.taxability_type === "Taxable" && (
                 <div className="flex items-center min-h-[22px]">
-                  <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-8">GST Rate</span>
+                  <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">GST Rate</span>
                   <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
                   <div className="flex-1 flex items-center">
                     <input
@@ -212,7 +212,7 @@ export default function GSTStatutoryDetails({
                 className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
                 onClick={() => setActivePanel("rate_classification")}
               >
-                <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-8">Classification</span>
+                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Classification</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
                 <div className="flex-1">
                   <span className="text-xs text-zinc-950 font-bold truncate">
@@ -245,7 +245,7 @@ export default function GSTStatutoryDetails({
             className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
             onClick={() => setActivePanel("type_of_supply")}
           >
-            <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-0">Type of Supply</span>
+            <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-0">Type of Supply</span>
             <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
             <div className="flex-1">
               <span className="text-xs text-zinc-955 font-bold">{form.type_of_supply}</span>
@@ -259,7 +259,7 @@ export default function GSTStatutoryDetails({
         className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
         onClick={() => setActivePanel("set_alter_statutory")}
       >
-        <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-0">Set/Alter other Statutory details</span>
+        <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-0">Set/Alter other Statutory details</span>
         <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
         <div className="flex-1">
           <span className="text-xs text-zinc-955 font-bold">{form.set_alter_statutory}</span>
@@ -268,7 +268,7 @@ export default function GSTStatutoryDetails({
 
       {/* Rate of Duty */}
       <div className="flex items-center min-h-[22px]">
-        <span className="w-48 shrink-0 text-xs text-zinc-700 font-sans pl-0">Rate of Duty (eg 5)</span>
+        <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-0">Rate of Duty (eg 5)</span>
         <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
         <div className="flex-1">
           <input

@@ -68,7 +68,7 @@ export default function ListSidePanel({
 
   return (
     <div className="w-64 border-l border-zinc-300 flex flex-col bg-white shrink-0 font-mono shadow-md select-none">
-      <div className="bg-zinc-800 text-white text-xs px-3 py-1.5 font-bold uppercase tracking-wider">{title}</div>
+      <div className="bg-white text-zinc-700 text-xs px-3 py-1.5 font-bold uppercase tracking-wider border-b border-zinc-200">{title}</div>
       <input
         ref={inputRef}
         className="px-3 py-1.5 text-xs outline-none border-b border-zinc-200 placeholder-zinc-400 font-mono bg-zinc-50 focus:bg-white transition-colors"

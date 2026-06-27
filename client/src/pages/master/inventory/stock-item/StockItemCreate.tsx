@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { PageTitleBar, RightActionPanel, FormRow, MasterFormFooter } from "@/components/ui";
 import type { StockGroupType, UnitType, GodownType } from "@/types/api";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
@@ -187,6 +188,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
       if (e.altKey && e.key.toLowerCase() === "g") { e.preventDefault(); setActivePanel(p => p === "group" ? null : "group"); }
       if (e.altKey && e.key.toLowerCase() === "u") { e.preventDefault(); setActivePanel(p => p === "unit" ? null : "unit"); }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/alter/stock-item"); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -194,11 +196,17 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
 
   const inp = "w-full bg-transparent text-sm outline-none border-b border-zinc-300 focus:border-zinc-600 py-0 px-0 placeholder-zinc-300 transition-colors";
 
+  const createActions = [
+    { key: "Alt+G", label: "Select Group", onClick: () => setActivePanel(p => p === "group" ? null : "group") },
+    { key: "Alt+U", label: "Select Unit",  onClick: () => setActivePanel(p => p === "unit"  ? null : "unit")  },
+    { key: "Alt+A", label: "Accept",       onClick: handleSubmit },
+    { key: "Alt+C", label: "Alter Item",   onClick: () => navigate("/master/alter/stock-item") },
+    { key: "Esc",   label: "Quit",         onClick: handleQuit },
+  ];
+
   return (
     <div className="flex flex-col h-full bg-white select-none overflow-hidden" style={{ fontFamily: "system-ui, sans-serif" }}>
-      <div className="shrink-0 bg-zinc-900 text-white text-xs font-bold px-4 py-2 tracking-widest uppercase">
-        Stock Item Creation
-      </div>
+      <PageTitleBar title="Stock Item Creation" subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
@@ -216,64 +224,54 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex flex-col flex-1 min-w-0">
           <div className="px-6 py-4 border-b border-zinc-200 flex flex-col gap-1 shrink-0">
-            <div className="flex items-center min-h-[26px]">
-              <span className="w-24 shrink-0 text-sm text-zinc-700 font-sans">Name</span>
-              <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-              <div className="flex-1">
-                <input autoFocus className={inp} value={form.name} onChange={e => setVal("name", e.target.value)} placeholder="Enter item name" />
-              </div>
-            </div>
-            <div className="flex items-center min-h-[26px]">
-              <span className="w-24 shrink-0 text-sm text-zinc-400 font-sans">(alias)</span>
-              <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-              <div className="flex-1">
-                <input className={inp} value={form.alias} onChange={e => setVal("alias", e.target.value)} placeholder="Optional alias" style={{ color: "#aaa" }} />
-              </div>
-            </div>
+            <FormRow label="Name" labelWidth="w-24" className="flex items-center min-h-[26px]">
+              <input autoFocus className={inp} value={form.name} onChange={e => setVal("name", e.target.value)} placeholder="Enter item name" />
+            </FormRow>
+            <FormRow label="(alias)" labelWidth="w-24" className="flex items-center min-h-[26px]">
+              <input className={inp} value={form.alias} onChange={e => setVal("alias", e.target.value)} placeholder="Optional alias" style={{ color: "#aaa" }} />
+            </FormRow>
           </div>
 
           <div className="flex flex-1 min-h-0 overflow-hidden">
             <div className="flex-1 min-w-0 px-6 pt-4 pb-2 overflow-y-auto flex flex-col gap-0 border-r border-zinc-200">
-              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "group" ? null : "group")}>
-                <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Under</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span></div>
+              <div className="cursor-pointer group" onClick={() => setActivePanel(p => p === "group" ? null : "group")}>
+                <FormRow label="Under" labelWidth="w-32" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span>
+                </FormRow>
               </div>
-              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "unit" ? null : "unit")}>
-                <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Units</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span></div>
+              <div className="cursor-pointer group" onClick={() => setActivePanel(p => p === "unit" ? null : "unit")}>
+                <FormRow label="Units" labelWidth="w-32" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span>
+                </FormRow>
               </div>
 
-              <div className="text-sm font-bold text-zinc-900 mt-4 mb-1 font-sans">Additional Details</div>
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-4 mb-2">Additional Details</div>
 
-              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}>
-                <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Maintain in batches</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span></div>
+              <div className="cursor-pointer group" onClick={() => setActivePanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}>
+                <FormRow label="Maintain in batches" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span>
+                </FormRow>
               </div>
 
               {form.maintain_in_batches === "Yes" && (
-                <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}>
-                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Track date of manufacturing</span>
-                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                  <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span></div>
+                <div className="cursor-pointer group pl-4" onClick={() => setActivePanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}>
+                  <FormRow label="Track date of manufacturing" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                    <span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span>
+                  </FormRow>
                 </div>
               )}
 
               {form.maintain_in_batches === "Yes" && (
-                <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}>
-                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Use expiry dates</span>
-                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                  <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span></div>
+                <div className="cursor-pointer group pl-4" onClick={() => setActivePanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}>
+                  <FormRow label="Use expiry dates" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                    <span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span>
+                  </FormRow>
                 </div>
               )}
 
               {form.unit_id && (
-                <div className="flex items-center min-h-[26px] mt-0">
-                  <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
-                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                  <div className="flex-1 flex items-center gap-1.5">
+                <FormRow label="Set components (BOM)" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                  <div className="flex items-center gap-1.5">
                     <select
                       className="bg-transparent text-sm outline-none border-b border-zinc-300 focus:border-zinc-600 cursor-pointer font-mono"
                       value={form.has_bom ? "Yes" : "No"}
@@ -286,13 +284,13 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                       <span className="text-xs text-zinc-400 font-sans">({boms.length} BOM{boms.length > 1 ? "s" : ""})</span>
                     )}
                   </div>
-                </div>
+                </FormRow>
               )}
 
-              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}>
-                <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Enable cost tracking</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span></div>
+              <div className="cursor-pointer group" onClick={() => setActivePanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}>
+                <FormRow label="Enable cost tracking" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span>
+                </FormRow>
               </div>
             </div>
 
@@ -527,6 +525,8 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
             onClose={() => setActivePanel(null)}
           />
         )}
+
+        <RightActionPanel actions={createActions} />
       </div>
 
       {showOtherStatutory && (
@@ -553,14 +553,13 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
         />
       )}
 
-      <div className="border-t border-zinc-200 px-4 py-2.5 flex justify-between items-center shrink-0 bg-zinc-50">
-        <button onClick={handleQuit} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium font-sans">
-          <span className="font-bold">Q</span>: Quit
-        </button>
-        <button onClick={handleSubmit} disabled={loading} className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium font-sans">
-          {loading ? "Saving…" : "Accept"}
-        </button>
-      </div>
+      <MasterFormFooter
+        onCancel={handleQuit}
+        onSubmit={handleSubmit}
+        loading={loading}
+        cancelLabel="Back to Masters"
+        submitLabel="Accept"
+      />
 
       {showBomList && (
         <BomListModal
