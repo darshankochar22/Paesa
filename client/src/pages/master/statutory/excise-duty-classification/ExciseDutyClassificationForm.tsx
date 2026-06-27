@@ -48,7 +48,7 @@ export default function ExciseDutyClassificationForm({
 }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [dutyCode, setDutyCode] = useState(initial?.duty_code ?? "");
-  const [calculationMethod, setCalculationMethod] = useState(initial?.calculation_method ?? "");
+  const [methods, setMethods] = useState<string[]>(initial?.calculation_methods ?? []);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +69,7 @@ export default function ExciseDutyClassificationForm({
       company_id: companyId,
       name: name.trim(),
       duty_code: dutyCode || null,
-      calculation_method: calculationMethod || null,
+      calculation_methods: methods.filter(Boolean),
     };
     try {
       const res =
@@ -133,13 +133,7 @@ export default function ExciseDutyClassificationForm({
                 />
               </Row>
               <Row label="Calculation method">
-                <Select
-                  className="border-0 h-7 font-mono font-bold"
-                  value={calculationMethod}
-                  onChange={(e) => setCalculationMethod(e.target.value)}
-                  options={EXCISE_CALCULATION_METHODS}
-                  placeholder="Select calculation method…"
-                />
+                <CalculationMethodList methods={methods} onChange={setMethods} />
               </Row>
             </div>
           </div>
@@ -179,6 +173,57 @@ export default function ExciseDutyClassificationForm({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ───────────────── Calculation method multi-row list ─────────────────
+   Mirrors TallyPrime: pick a method from the list, a new entry line opens,
+   keep adding until "End of List". Each chosen method shows as a bulleted
+   row; the trailing entry row is the active picker. */
+
+function CalculationMethodList({
+  methods,
+  onChange,
+}: {
+  methods: string[];
+  onChange: (methods: string[]) => void;
+}) {
+  // The list of methods not yet chosen — what the trailing picker offers.
+  const remaining = EXCISE_CALCULATION_METHODS.filter((o) => !methods.includes(o.value));
+
+  const removeAt = (i: number) => onChange(methods.filter((_, idx) => idx !== i));
+  const addMethod = (value: string) => {
+    if (value && !methods.includes(value)) onChange([...methods, value]);
+  };
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {methods.map((m, i) => (
+        <div key={`${m}-${i}`} className="flex items-center gap-2 group">
+          <span className="text-[12px] font-bold text-zinc-950">• {m}</span>
+          <button
+            onClick={() => removeAt(i)}
+            className="text-zinc-300 group-hover:text-red-500 text-sm font-bold leading-none"
+            title="Remove"
+          >
+            &times;
+          </button>
+        </div>
+      ))}
+
+      {/* Trailing picker — "End of List" once everything is selected */}
+      {remaining.length > 0 ? (
+        <Select
+          className="border-0 h-7 font-mono font-bold mt-0.5"
+          value=""
+          onChange={(e) => addMethod(e.target.value)}
+          options={remaining}
+          placeholder={methods.length ? "Add another method…" : "Select calculation method…"}
+        />
+      ) : (
+        <span className="text-[11px] text-zinc-400 italic font-sans mt-1 pl-1 select-none">End of List</span>
+      )}
     </div>
   );
 }

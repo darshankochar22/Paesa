@@ -136,7 +136,7 @@ export default function ExciseDutyClassificationCOA() {
                 >
                   <div className="py-1.5 px-3 border-r border-zinc-100 truncate">{c.name}</div>
                   <div className="py-1.5 px-3 border-r border-zinc-100 truncate text-zinc-500">{c.duty_code || "—"}</div>
-                  <div className="py-1.5 px-3 truncate text-zinc-500">{c.calculation_method || "—"}</div>
+                  <div className="py-1.5 px-3 truncate text-zinc-500">{c.calculation_methods?.join(", ") || "—"}</div>
                 </div>
               ))
             )}

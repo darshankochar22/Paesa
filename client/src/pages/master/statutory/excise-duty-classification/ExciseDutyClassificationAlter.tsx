@@ -65,11 +65,11 @@ export default function ExciseDutyClassificationAlter() {
         ),
       },
       {
-        key: "calculation_method",
+        key: "calculation_methods",
         label: "Calculation method",
         span: "col-span-3",
         render: (r: ExciseDutyClassificationType) => (
-          <span className="text-zinc-500 font-semibold">{r.calculation_method || "—"}</span>
+          <span className="text-zinc-500 font-semibold">{r.calculation_methods?.join(", ") || "—"}</span>
         ),
       },
     ];
