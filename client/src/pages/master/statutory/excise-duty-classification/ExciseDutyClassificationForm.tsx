@@ -178,9 +178,11 @@ export default function ExciseDutyClassificationForm({
 }
 
 /* ───────────────── Calculation method multi-row list ─────────────────
-   Mirrors TallyPrime: pick a method from the list, a new entry line opens,
-   keep adding until "End of List". Each chosen method shows as a bulleted
-   row; the trailing entry row is the active picker. */
+   Mirrors TallyPrime: the list of methods stays available the whole time —
+   every option (On Assessable Value, Basic Excise Duty) is always offered and
+   can be added any number of times. Picking one appends a bulleted row and the
+   picker stays ready for the next; you simply stop (the "End of List" hint) when
+   done. Each chosen row is removable. */
 
 function CalculationMethodList({
   methods,
@@ -189,18 +191,15 @@ function CalculationMethodList({
   methods: string[];
   onChange: (methods: string[]) => void;
 }) {
-  // The list of methods not yet chosen — what the trailing picker offers.
-  const remaining = EXCISE_CALCULATION_METHODS.filter((o) => !methods.includes(o.value));
-
   const removeAt = (i: number) => onChange(methods.filter((_, idx) => idx !== i));
   const addMethod = (value: string) => {
-    if (value && !methods.includes(value)) onChange([...methods, value]);
+    if (value) onChange([...methods, value]);
   };
 
   return (
     <div className="flex flex-col gap-0.5">
       {methods.map((m, i) => (
-        <div key={`${m}-${i}`} className="flex items-center gap-2 group">
+        <div key={i} className="flex items-center gap-2 group">
           <span className="text-[12px] font-bold text-zinc-950">• {m}</span>
           <button
             onClick={() => removeAt(i)}
@@ -212,18 +211,18 @@ function CalculationMethodList({
         </div>
       ))}
 
-      {/* Trailing picker — "End of List" once everything is selected */}
-      {remaining.length > 0 ? (
-        <Select
-          className="border-0 h-7 font-mono font-bold mt-0.5"
-          value=""
-          onChange={(e) => addMethod(e.target.value)}
-          options={remaining}
-          placeholder={methods.length ? "Add another method…" : "Select calculation method…"}
-        />
-      ) : (
-        <span className="text-[11px] text-zinc-400 italic font-sans mt-1 pl-1 select-none">End of List</span>
-      )}
+      {/* Picker always offers the full list (Tally keeps it open until you stop). */}
+      <Select
+        className="border-0 h-7 font-mono font-bold mt-0.5"
+        value=""
+        onChange={(e) => {
+          addMethod(e.target.value);
+          e.target.value = ""; // reset so the same method can be picked again
+        }}
+        options={EXCISE_CALCULATION_METHODS}
+        placeholder={methods.length ? "Add another method…" : "Select calculation method…"}
+      />
+      <span className="text-[11px] text-zinc-400 italic font-sans mt-0.5 pl-1 select-none">End of List</span>
     </div>
   );
 }
