@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   ModalTitleBar,
   ModalFooter,
@@ -10,8 +9,6 @@ import {
   useEscapeClose,
 } from "./shared";
 import ApplicabilityDropdown from "./ApplicabilityDropdown";
-import NatureOfPaymentFlatList from "./NatureofPaymentFlatlist";
-import { useTdsNatureOfPayments } from "../../hooks/usetdsnatureofpayments";
 import { TDS_DEDUCTEE_TYPES, TDS_PAN_STATUSES, type TdsFormState } from "./TDSDetailsModal";
 import { TCS_BUYER_LESSEE_TYPES, type TcsFormState } from "./TCSDetailsModal";
 import type { ServiceTaxFormState, ExciseFormState, VATFormState } from "./SimpleTaxModals";
@@ -39,7 +36,6 @@ interface OtherStatutoryModalProps {
   ledgerName?: string;
   visibleSections: OtherStatutorySectionKey[];
   value: OtherStatutoryForm;
-  companyId?: number;
   /** Persist current edits to the parent without closing (used before delegating
    *  to a Service Tax / Excise / VAT detail sub-modal so inline TDS/TCS edits survive). */
   onCommit: (state: OtherStatutoryForm) => void;
@@ -54,15 +50,11 @@ export default function OtherStatutoryModal({
   ledgerName,
   visibleSections,
   value,
-  companyId,
   onCommit,
   onTriggerSubModal,
   onResetSubModal,
 }: OtherStatutoryModalProps) {
   const [form, setForm] = useState<OtherStatutoryForm>(value);
-  const [nopOpen, setNopOpen] = useState(false);
-  const navigate = useNavigate();
-  const { items: nopItems, loading: nopLoading } = useTdsNatureOfPayments(companyId ?? 0);
 
   // Re-sync from parent each time the modal (re)mounts/opens.
   useEffect(() => {
@@ -128,31 +120,6 @@ export default function OtherStatutoryModal({
               </select>
             </ModalFormRow>
 
-            <ModalFormRow label="Nature of Payment" labelWidth="w-56">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setNopOpen((v) => !v)}
-                  className={selectCls + " max-w-[220px] text-left flex items-center justify-between"}
-                >
-                  <span className="truncate">{tds.nature_of_payment}</span>
-                  <span className="text-zinc-400 ml-1">▾</span>
-                </button>
-                {nopOpen && (
-                  <div className="absolute z-50 top-full left-0 mt-1 w-[300px] h-[260px] border border-zinc-300 shadow-lg rounded-sm overflow-hidden bg-white">
-                    <NatureOfPaymentFlatList
-                      items={nopItems}
-                      loading={nopLoading}
-                      selectedValue={tds.nature_of_payment}
-                      onSelect={(v) => { setTds("nature_of_payment", v); setNopOpen(false); }}
-                      onCreate={() => { setNopOpen(false); navigate("/master/create/tds-nature-of-payment"); }}
-                      onClose={() => setNopOpen(false)}
-                    />
-                  </div>
-                )}
-              </div>
-            </ModalFormRow>
-
             <ModalFormRow
               label="PAN/IT No."
               labelWidth="w-56"
@@ -163,19 +130,6 @@ export default function OtherStatutoryModal({
                 value={tds.tds_pan_it_no}
                 maxLength={10}
                 onChange={(e) => setTds("tds_pan_it_no", e.target.value.toUpperCase())}
-              />
-            </ModalFormRow>
-
-            <ModalFormRow
-              label="PAN Effective Date"
-              labelWidth="w-56"
-              helper="(This has to be provided if the PAN is received after 1-4-2015)"
-            >
-              <input
-                type="date"
-                className={inputCls + " max-w-[160px]"}
-                value={tds.tds_pan_effective_date}
-                onChange={(e) => setTds("tds_pan_effective_date", e.target.value)}
               />
             </ModalFormRow>
 

@@ -260,7 +260,6 @@ export default function LedgerCreate() {
           ledgerName={form.name || ""}
           visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName).sections}
           value={otherStatutory}
-          companyId={selectedCompany?.company_id}
           onClose={closeAllStatutory}
           onAccept={(state) => {
             setOtherStatutory(state);

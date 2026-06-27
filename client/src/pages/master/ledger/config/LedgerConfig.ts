@@ -44,7 +44,7 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
   gstApplicabilitySection: true,   
   vatDetails: false,                
 },
-  "Capital Account": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
+  "Capital Account": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, vatDetails: true },
 "Loans (Liability)": { 
   taxRegistration: "full", 
   mailingDetails: true, 
