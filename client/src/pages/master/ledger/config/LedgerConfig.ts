@@ -126,13 +126,20 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
   "Suspense A/c": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
 };
 
+// Case-insensitive lookup — seeded group names vary in casing
+// (e.g. "Cash-in-hand" vs the "Cash-in-Hand" key), which must not silently
+// fall back to the primary-group config.
+const LEDGER_CONFIG_LC: Record<string, LedgerConfigOptions> = Object.fromEntries(
+  Object.entries(LEDGER_CONFIG).map(([k, v]) => [k.toLowerCase(), v]),
+);
+
 export const getLedgerConfig = (groupName: string | null, fallbackGroupName?: string | null): LedgerConfigOptions => {
   if (!groupName) return DEFAULT_LEDGER_CONFIG;
-  const config = LEDGER_CONFIG[groupName];
+  const config = LEDGER_CONFIG_LC[groupName.toLowerCase()];
   if (config) return config;
   // Fall back to primary group when sub-group has no explicit config
-  if (fallbackGroupName && fallbackGroupName !== groupName) {
-    const fallback = LEDGER_CONFIG[fallbackGroupName];
+  if (fallbackGroupName) {
+    const fallback = LEDGER_CONFIG_LC[fallbackGroupName.toLowerCase()];
     if (fallback) return fallback;
   }
   console.warn(`NO MATCH: "${groupName}"`);

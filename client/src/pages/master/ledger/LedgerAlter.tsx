@@ -133,13 +133,14 @@ export default function LedgerAlter() {
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
   const currentConfig = getLedgerConfig(groupName, groupLineage.primaryGroupName);
 
-  // Whether to show the "Statutory Details" block on the LEFT panel.
-  // Matches Tally: shown for Current Assets (assessableValueCalc) and always
-  // present for the "Set/Alter other Statutory details" toggle.
+  // Statutory section appears only when the group has assessable-value fields or
+  // other-statutory sub-sections (TDS/TCS/…). Hidden for banks, payment gateways,
+  // and simple groups like Cash-in-Hand that have neither.
+  const statutorySections = getOtherStatutoryConfig(groupLineage.primaryGroupName, groupName).sections;
   const showLeftStatutorySection =
     !form.behave_as_payment_gateway &&
     !groupLineage.isBank &&
-    (currentConfig.assessableValueCalc || true);
+    (currentConfig.assessableValueCalc || statutorySections.length > 0);
 
   const isOtherStatutoryActive =
     otherStatutory.tds.is_tds_deductable === 1 ||
@@ -286,7 +287,7 @@ export default function LedgerAlter() {
         <OtherStatutoryModal
           isOpen
           ledgerName={form.name || ""}
-          visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName).sections}
+          visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName, groupName).sections}
           value={otherStatutory}
           onClose={closeAllStatutory}
           onAccept={(state) => {
@@ -721,13 +722,14 @@ export default function LedgerAlter() {
   </>
 )}
 
+              {statutorySections.length > 0 && (
               <FormRow label="Set/Alter other Statutory details" labelWidth="w-60" className="flex items-center min-h-[26px]">
                 <select
                   className={selectCls}
                   value={isOtherStatutoryActive ? "Yes" : "No"}
                   onChange={(e) => {
                     const val = e.target.value;
-                    const sections = getOtherStatutoryConfig(groupLineage.primaryGroupName).sections;
+                    const sections = getOtherStatutoryConfig(groupLineage.primaryGroupName, groupName).sections;
                     const isTdsOnly = sections.length === 1 && sections[0] === "tds";
                     if (val === "Yes" && !isOtherStatutoryActive) {
                       setOtherStatutory((prev) => ({
@@ -754,6 +756,7 @@ export default function LedgerAlter() {
                   <option value="Yes">Yes</option>
                 </select>
               </FormRow>
+              )}
             </div>
           )}
 

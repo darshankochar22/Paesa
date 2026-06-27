@@ -77,6 +77,9 @@ const BY_PRIMARY_GROUP: Record<string, OtherStatutoryConfig> = {
   // and uses the duty-tax section in the right column instead).
   "Duties & Taxes": { sections: [] },
 
+  // Cash-in-Hand — simple cash ledger, no TDS/TCS statutory section.
+  "Cash-in-Hand": { sections: [] },
+
   // Suspense A/c → only TDS
   "Suspense A/c": { sections: ["tds"] },
 };
@@ -87,11 +90,22 @@ const DEFAULT_CONFIG: OtherStatutoryConfig = {
   sections: ["tds"],
 };
 
+// Case-insensitive lookup — seeded group names vary in casing
+// (e.g. "Cash-in-hand" vs the "Cash-in-Hand" key).
+const BY_PRIMARY_GROUP_LC: Record<string, OtherStatutoryConfig> = Object.fromEntries(
+  Object.entries(BY_PRIMARY_GROUP).map(([k, v]) => [k.toLowerCase(), v]),
+);
+
 export function getOtherStatutoryConfig(
   primaryGroupName: string | null | undefined,
+  immediateGroupName?: string | null,
 ): OtherStatutoryConfig {
+  // Prefer the immediate (under) group — e.g. a Cash-in-hand ledger lives under
+  // the "Current Assets" primary group but must use its own (empty) config.
+  const immediate = immediateGroupName && BY_PRIMARY_GROUP_LC[immediateGroupName.toLowerCase()];
+  if (immediate) return immediate;
   if (!primaryGroupName) return DEFAULT_CONFIG;
-  return BY_PRIMARY_GROUP[primaryGroupName] ?? DEFAULT_CONFIG;
+  return BY_PRIMARY_GROUP_LC[primaryGroupName.toLowerCase()] ?? DEFAULT_CONFIG;
 }
 
 /* ── Section metadata shared by the Tier-1 toggle modal and the Tier-2 detail modals ── */
