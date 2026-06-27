@@ -77,8 +77,9 @@ const BY_PRIMARY_GROUP: Record<string, OtherStatutoryConfig> = {
   // Duties & Taxes — TDS (Nature of Payment) + TCS (Nature of Goods) only.
   "Duties & Taxes": { sections: ["tds", "tcs"] },
 
-  // Cash-in-Hand — simple cash ledger, no TDS/TCS statutory section.
+  // Cash-in-Hand / Stock-in-Hand — simple ledgers, no TDS/TCS statutory section.
   "Cash-in-Hand": { sections: [] },
+  "Stock-in-Hand": { sections: [] },
 
   // Misc. Expenses (Asset) → Service Tax + TDS (Nature of Payment)
   "Misc. Expenses (Asset)": { sections: ["serviceTax", "tds"] },

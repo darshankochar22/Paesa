@@ -32,6 +32,7 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
   "Bank OCC A/c": { taxRegistration: "gstinServiceTaxOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, paymentGateway: true },
   "Bank OD A/c": { taxRegistration: "gstinServiceTaxOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, paymentGateway: true },
   "Cash-in-Hand": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
+  "Stock-in-Hand": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
   "Branch/Divisions": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, serviceTaxDetails: false, vatDetails: true },
 "Current Assets": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false, paymentGateway: true },
   "Deposits (Asset)": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, paymentGateway: false },
