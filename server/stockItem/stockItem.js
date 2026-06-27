@@ -113,6 +113,22 @@ const init = async (db) => {
       amount REAL DEFAULT 0
     )
   `);
+
+  // bom_components — Bill of Materials lines for manufactured items (Cost Estimation).
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS bom_components (
+      bom_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL,
+      item_id INTEGER NOT NULL REFERENCES stock_items(item_id) ON DELETE CASCADE,
+      bom_name TEXT,
+      component_item_id INTEGER NOT NULL,
+      godown_id INTEGER,
+      quantity REAL DEFAULT 0,
+      unit_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
 };
 
 module.exports = { init };

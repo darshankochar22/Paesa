@@ -20,6 +20,9 @@ const { stockCategoryAnalysis, stockCategoryAnalysisItems } = require('./invento
 const { stockItemAnalysis } = require('./inventory/stockItemAnalysis');
 const { groupAnalysis, ledgerAnalysis } = require('./inventory/groupAnalysis');
 const { transferAnalysis } = require('./inventory/transferAnalysis');
+const { costEstimation } = require('./inventory/costEstimation');
+const { itemCostAnalysis } = require('./inventory/itemCostAnalysis');
+const { jobWorkAnalysis } = require('./inventory/jobWorkAnalysis');
 const { journalRegister } = require('./registers/journalRegister');
 const { debitNoteRegister } = require('./registers/debitNoteRegister');
 const { creditNoteRegister } = require('./registers/creditNoteRegister');
@@ -240,6 +243,15 @@ module.exports = {
   },
   transferAnalysis: async (event, { company_id, fy_id, voucher_type }) => {
     return await transferAnalysis(company_id, fy_id, voucher_type);
+  },
+  costEstimation: async (event, { company_id, fy_id, group_id }) => {
+    return await costEstimation(company_id, fy_id, group_id);
+  },
+  itemCostAnalysis: async (event, { company_id, fy_id, mode, ref_id }) => {
+    return await itemCostAnalysis(company_id, fy_id, mode, ref_id);
+  },
+  jobWorkAnalysis: async (event, { company_id, fy_id, cc_id }) => {
+    return await jobWorkAnalysis(company_id, fy_id, cc_id);
   },
 
   costCentreReport: async (event, { company_id, fy_id, as_on_date }) => {

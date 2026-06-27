@@ -44,6 +44,7 @@ import StatementsOfAccounts from "./pages/menu/reports/StatementsOfAccounts.tsx"
 import InventoryBooks from "./pages/menu/reports/InventoryBooks.tsx";
 import StatementsOfInventory from "./pages/menu/reports/StatementsOfInventory.tsx";
 import MovementAnalysisMenu from "./pages/menu/reports/MovementAnalysisMenu.tsx";
+import ItemCostAnalysisMenu from "./pages/menu/reports/ItemCostAnalysisMenu.tsx";
 import ExceptionReports from "./pages/menu/reports/ExceptionReports.tsx";
 import PayrollReports from "./pages/menu/reports/PayrollReports.tsx";
 import LedgerReport from "./pages/reports/accounts/LedgerReport.tsx";
@@ -89,6 +90,9 @@ import TransferAnalysis from "./pages/reports/inventory/TransferAnalysis.tsx";
 import SalesOrderBook from "./pages/reports/inventory/SalesOrderBook.tsx";
 import PurchaseOrderBook from "./pages/reports/inventory/PurchaseOrderBook.tsx";
 import AgeingAnalysis from "./pages/reports/inventory/AgeingAnalysis.tsx";
+import CostEstimation from "./pages/reports/inventory/CostEstimation.tsx";
+import ItemCostAnalysis from "./pages/reports/inventory/ItemCostAnalysis.tsx";
+import JobWorkAnalysis from "./pages/reports/inventory/JobWorkAnalysis.tsx";
 import SalesOrderOutstanding from "./pages/reports/inventory/SalesOrderOutstanding.tsx";
 import PurchaseOrderOutstanding from "./pages/reports/inventory/PurchaseOrderOutstanding.tsx";
 import WorkOrderOutstanding from "./pages/reports/inventory/WorkOrderOutstanding.tsx";
@@ -226,6 +230,12 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/statements-of-inventory/stock-query",          element: <StockQuery /> },
   { path: "/reports/statements-of-inventory/movement-analysis",    element: <MovementAnalysisMenu /> },
   { path: "/reports/statements-of-inventory/ageing-analysis",      element: <AgeingAnalysis /> },
+  { path: "/reports/statements-of-inventory/job-work-analysis",    element: <JobWorkAnalysis /> },
+  { path: "/reports/statements-of-inventory/cost-estimation",      element: <CostEstimation /> },
+  { path: "/reports/statements-of-inventory/item-cost-analysis",   element: <ItemCostAnalysisMenu /> },
+  { path: "/reports/statements-of-inventory/item-cost-analysis/stock-group", element: <ItemCostAnalysis mode="group" /> },
+  { path: "/reports/statements-of-inventory/item-cost-analysis/stock-item",  element: <ItemCostAnalysis mode="item" /> },
+  { path: "/reports/statements-of-inventory/item-cost-analysis/cost-track",  element: <ItemCostAnalysis mode="track" /> },
   { path: "/reports/inventory-stock/movement-analysis-stock-group-wise", element: <StockGroupAnalysis /> },
   { path: "/reports/exception",               element: <ExceptionReports /> },
   { path: "/reports/payroll-hr",                 element: <PayrollReports /> },

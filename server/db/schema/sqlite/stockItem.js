@@ -92,7 +92,25 @@ const stockItemOpeningAllocations = sqliteTable('stock_item_opening_allocations'
   amount: real('amount').default(0),
 });
 
+// bom_components — Bill of Materials lines for a manufactured stock item.
+// One row per component consumed to produce the parent item (item_id).
+const bomComponents = sqliteTable('bom_components', {
+  bomId: integer('bom_id').primaryKey({ autoIncrement: true }),
+  companyId: integer('company_id').notNull(),
+  itemId: integer('item_id')
+    .notNull()
+    .references(() => stockItems.itemId, { onDelete: 'cascade' }),
+  bomName: text('bom_name'),
+  componentItemId: integer('component_item_id').notNull(),
+  godownId: integer('godown_id'),
+  quantity: real('quantity').default(0),
+  unitId: integer('unit_id'),
+  createdAt: text('created_at').default(datetimeNow),
+  updatedAt: text('updated_at').default(datetimeNow),
+});
+
 module.exports = {
   stockItems,
   stockItemOpeningAllocations,
+  bomComponents,
 };

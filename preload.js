@@ -182,6 +182,9 @@ contextBridge.exposeInMainWorld('api', {
         groupAnalysis:                (company_id, fy_id, group_id)     => invoke('report:groupAnalysis', { company_id, fy_id, group_id }),
         ledgerAnalysis:               (company_id, fy_id, ledger_id)    => invoke('report:ledgerAnalysis', { company_id, fy_id, ledger_id }),
         transferAnalysis:             (company_id, fy_id, voucher_type) => invoke('report:transferAnalysis', { company_id, fy_id, voucher_type }),
+        costEstimation:               (company_id, fy_id, group_id)     => invoke('report:costEstimation', { company_id, fy_id, group_id }),
+        itemCostAnalysis:             (company_id, fy_id, mode, ref_id) => invoke('report:itemCostAnalysis', { company_id, fy_id, mode, ref_id }),
+        jobWorkAnalysis:              (company_id, fy_id, cc_id)        => invoke('report:jobWorkAnalysis', { company_id, fy_id, cc_id }),
         stockQuery:               (company_id, fy_id, item_id) => invoke('report:stockQuery', { company_id, fy_id, item_id }),
         // Payroll reports
         payslipReport:    (company_id, fy_id) => invoke('report:payslipReport',    { company_id, fy_id }),

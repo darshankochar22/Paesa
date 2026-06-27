@@ -91,7 +91,26 @@ const stockItemOpeningAllocations = pgTable('stock_item_opening_allocations', {
   amount: numeric('amount', { precision: 18, scale: 2 }).notNull().default('0'),
 });
 
+// bom_components — Bill of Materials lines for a manufactured stock item.
+const bomComponents = pgTable('bom_components', {
+  bomId: bigint('bom_id', { mode: 'number' })
+    .primaryKey()
+    .generatedByDefaultAsIdentity(),
+  companyId: bigint('company_id', { mode: 'number' }).notNull(),
+  itemId: bigint('item_id', { mode: 'number' })
+    .notNull()
+    .references(() => stockItems.itemId, { onDelete: 'cascade' }),
+  bomName: text('bom_name'),
+  componentItemId: bigint('component_item_id', { mode: 'number' }).notNull(),
+  godownId: bigint('godown_id', { mode: 'number' }),
+  quantity: numeric('quantity', { precision: 18, scale: 4 }).notNull().default('0'),
+  unitId: bigint('unit_id', { mode: 'number' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
+});
+
 module.exports = {
   stockItems,
   stockItemOpeningAllocations,
+  bomComponents,
 };
