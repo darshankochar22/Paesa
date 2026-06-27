@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { PageTitleBar } from "@/components/ui";
 import GroupTree from "@/components/GroupTree";
 import type { GroupType } from "@/types/api";
 
@@ -71,15 +72,20 @@ export default function GroupAlter() {
   };
 
   return (
-    <div className="flex-1 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-4">
-          <Link to="/master/alter" className="text-sm text-zinc-500 hover:text-zinc-800">
-            &larr; Back to Masters
-          </Link>
-          <h1 className="text-lg font-semibold text-zinc-800">Alter Groups</h1>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col">
+      <PageTitleBar
+        title="Group Alteration"
+        subtitle={selectedCompany?.name}
+        actions={
+          <button
+            onClick={() => navigate("/master/alter")}
+            className="text-zinc-400 hover:text-white text-[11px] transition-colors"
+          >
+            ← Back
+          </button>
+        }
+      />
+      <div className="flex-1 p-6">
 
       {error && (
         <div className="mb-4 p-2 border border-red-200 text-red-700 text-sm flex justify-between items-center">
@@ -107,6 +113,7 @@ export default function GroupAlter() {
           onDelete={handleDelete}
           groupNameMap={groupNameMap}
         />
+      </div>
       </div>
     </div>
   );

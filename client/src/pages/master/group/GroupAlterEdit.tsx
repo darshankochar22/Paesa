@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { PageTitleBar } from "@/components/ui";
 import GroupFlatList from "@/components/GroupFlatList";
 import type { GroupType } from "@/types/api";
 import { TOGGLE_META, getConfig, type StatutoryToggle } from "@/config/statutoryConfig";
@@ -28,33 +29,6 @@ const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-
 const NATURES = ["Assets", "Liabilities", "Income", "Expenses"];
 const ALLOC_METHODS = ["Not Applicable", "Appropriate by Quantity", "Appropriate by Value"];
 
-const INITIAL_GROUP: Partial<GroupType> = {
-  name: "",
-  alias: "",
-  parent_group_id: undefined,
-  is_primary: 0,
-  nature: "Assets",
-  set_alter_tds_details: 0,
-  set_alter_tcs_details: 0,
-  set_alter_other_statutory_details: 0,
-  set_alter_service_tax_details: 0,
-  set_alter_vat_details: 0,
-  set_alter_excise_details: 0,
-  hsn_sac_source: "As per Company/Group",
-  hsn_sac_code: "",
-  hsn_sac_description: "",
-  gst_rate_source: "As per Company/Group",
-  gst_rate: 0,
-  taxability_type: "",
-  hsn_sac_classification_id: undefined,
-  gst_classification_id: undefined,
-  slab_based_rates: "[]",
-  behaves_like_subledger: 0,
-  show_net_debit_credit: 0,
-  used_for_calculation: 0,
-  allocation_method: "Not Applicable",
-};
-
 export default function GroupAlterEdit() {
   const { id } = useParams<{ id: string }>();
   const { selectedCompany } = useCompany();
@@ -67,10 +41,11 @@ export default function GroupAlterEdit() {
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [activeFeatureModal, setActiveFeatureModal] = useState<StatutoryToggle | null>(null);
   const [activeFeatureCreateModal, setActiveFeatureCreateModal] = useState<StatutoryToggle | null>(null);
+  const [gstClassifications, setGstClassifications] = useState<{ gc_id: number; name: string }[]>([]);
+  const [showClassPanel, setShowClassPanel] = useState<"hsn" | "gst" | null>(null);
 
   const companyId = selectedCompany?.company_id;
-
-  const [form, setForm] = useState<Partial<GroupType>>(INITIAL_GROUP);
+  const [form, setForm] = useState<Partial<GroupType>>({});
 
   useEffect(() => {
     if (!companyId || !id) return;
@@ -98,6 +73,20 @@ export default function GroupAlterEdit() {
     })();
     return () => { cancelled = true; };
   }, [companyId, id]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await window.api.gstClassification.getAll(companyId);
+        if (!cancelled && res.success && res.gstClassifications) {
+          setGstClassifications((res.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name })));
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [companyId]);
 
   const parentGroup = form.parent_group_id
     ? flatGroups.find((g) => g.group_id === form.parent_group_id)
@@ -187,6 +176,17 @@ export default function GroupAlterEdit() {
           ? Number(form.gst_classification_id)
           : null,
         slab_based_rates: form.slab_based_rates || "[]",
+        vat_nature_of_transaction: form.vat_nature_of_transaction || null,
+        vat_party_entity_type: form.vat_party_entity_type || null,
+        vat_tax_rate: form.vat_tax_rate ?? 0,
+        vat_tax_type: form.vat_tax_type || null,
+        vat_revised_applicability: form.vat_revised_applicability || null,
+        excise_tariff_name: form.excise_tariff_name || null,
+        excise_hsn_code: form.excise_hsn_code || null,
+        excise_reporting_uom: form.excise_reporting_uom || null,
+        excise_valuation_type: form.excise_valuation_type || null,
+        excise_rate: form.excise_rate ?? 0,
+        excise_rate_per_unit: form.excise_rate_per_unit ?? 0,
         behaves_like_subledger: form.behaves_like_subledger ? 1 : 0,
         show_net_debit_credit: form.show_net_debit_credit ? 1 : 0,
         used_for_calculation: form.used_for_calculation ? 1 : 0,
@@ -216,151 +216,208 @@ export default function GroupAlterEdit() {
   }
 
   return (
-    <div className="flex-1 flex">
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <Link to="/master/alter/group" className="text-sm text-zinc-500 hover:text-zinc-800">
-              &larr; Back to Groups
-            </Link>
-            <h1 className="text-lg font-semibold text-zinc-800">Edit Group</h1>
+    <div className="flex-1 flex flex-col">
+      <PageTitleBar
+        title="Group Alteration"
+        subtitle={selectedCompany?.name}
+        actions={
+          <button
+            onClick={() => navigate("/master/alter/group")}
+            className="text-zinc-400 hover:text-white text-[11px] transition-colors"
+          >
+            ← Back
+          </button>
+        }
+      />
+      <div className="flex-1 flex">
+        <div className="flex-1 p-6 overflow-y-auto">
+
+          {error && (
+            <div className="mb-4 p-2 border border-red-200 text-red-700 text-sm flex justify-between items-center">
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-2 border border-green-200 text-green-700 text-sm flex justify-between items-center">
+              <span>{success}</span>
+              <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-6 max-w-3xl">
+            <div>
+              <div className="border rounded overflow-hidden">
+                <Row label="Name" required>
+                  <input autoFocus className={inputCls} value={form.name || ""} onChange={setField("name")} placeholder="" />
+                </Row>
+                <Row label="(alias)">
+                  <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} placeholder="" />
+                </Row>
+                <Row label="Under" onClick={() => setShowGroupPanel(!showGroupPanel)}>
+                  <span className="text-sm py-1 font-medium text-zinc-800 cursor-pointer">
+                    {parentGroup ? parentGroup.name : "— Primary —"}
+                  </span>
+                  {primaryGroupName && primaryGroupName !== parentGroup?.name && (
+                    <span className="text-xs text-zinc-400 ml-2 font-normal">(Group: {primaryGroupName})</span>
+                  )}
+                </Row>
+                {isPrimarySelected && (
+                  <Row label="Nature of Group" required>
+                    <select className={selectCls} value={form.nature || "Liabilities"} onChange={setField("nature")}>
+                      {NATURES.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </Row>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t" />
+
+            <div className="border rounded overflow-hidden">
+              <Row label="Group behaves like a sub-ledger" onClick={toggleField("behaves_like_subledger")}>
+                <span className="text-sm py-1">{form.behaves_like_subledger ? "Yes" : "No"}</span>
+              </Row>
+              <Row label="Nett Debit/Credit Balances for Reporting" onClick={toggleField("show_net_debit_credit")}>
+                <span className="text-sm py-1">{form.show_net_debit_credit ? "Yes" : "No"}</span>
+              </Row>
+              <Row label="Used for calculation (for example: taxes, discounts) (for sales invoice entries)" onClick={toggleField("used_for_calculation")}>
+                <span className="text-sm py-1">{form.used_for_calculation ? "Yes" : "No"}</span>
+              </Row>
+              <Row label="Method to allocate when used in purchase invoice">
+                <select className={selectCls} value={form.allocation_method || "Not Applicable"} onChange={setField("allocation_method")}>
+                  {ALLOC_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </Row>
+              {statutoryConfig.featureToggles.map((key) => {
+                const meta = TOGGLE_META[key];
+                const dbKey = meta.dbKey as keyof GroupType;
+                const isYes = form[dbKey] as number;
+                return (
+                  <Row key={key} label={meta.label} onClick={() => handleFeatureToggle(dbKey, key)}>
+                    <span className="text-sm py-1">{isYes ? "Yes" : "No"}</span>
+                  </Row>
+                );
+              })}
+            </div>
+
+            {statutoryConfig.showStatutorySections && (
+              <StatutorySection
+                form={form}
+                setForm={setForm}
+                primaryGroupName={primaryGroupName}
+                parentGroupName={parentGroup?.name}
+                companyId={companyId}
+                gstClassifications={gstClassifications}
+                onOpenClassPanel={(target) => {
+                  setShowGroupPanel(false);
+                  setShowClassPanel(target);
+                }}
+              />
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => navigate("/master/alter/group")}
+                className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+              >
+                {loading ? "Saving..." : "Update"}
+              </button>
+            </div>
           </div>
         </div>
 
-        {error && (
-          <div className="mb-4 p-2 border border-red-200 text-red-700 text-sm flex justify-between items-center">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
-          </div>
-        )}
-        {success && (
-          <div className="mb-4 p-2 border border-green-200 text-green-700 text-sm flex justify-between items-center">
-            <span>{success}</span>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
+        {showGroupPanel && (
+          <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Under Group</span>
+              <button onClick={() => setShowGroupPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+            </div>
+            <div
+              className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isPrimarySelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+              onClick={handleSelectPrimary}
+            >
+              <span className="truncate">Primary</span>
+            </div>
+            <GroupFlatList
+              groups={flatGroups}
+              selectedId={form.parent_group_id as number}
+              onSelect={handleGroupSelect}
+              showHeader={false}
+            />
           </div>
         )}
 
-        <div className="flex flex-col gap-6 max-w-3xl">
-          <div>
-            <div className="border rounded overflow-hidden">
-              <Row label="Name" required>
-                <input autoFocus className={inputCls} value={form.name || ""} onChange={setField("name")} placeholder="" />
-              </Row>
-              <Row label="(alias)">
-                <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} placeholder="" />
-              </Row>
-              <Row label="Under" onClick={() => setShowGroupPanel(!showGroupPanel)}>
-                <span className="text-sm py-1 font-medium text-zinc-800 cursor-pointer">
-                  {parentGroup ? parentGroup.name : "\u2014 Primary \u2014"}
-                </span>
-                {primaryGroupName && primaryGroupName !== parentGroup?.name && (
-                  <span className="text-xs text-zinc-400 ml-2 font-normal">(Group: {primaryGroupName})</span>
-                )}
-              </Row>
-              {isPrimarySelected && (
-                <Row label="Nature of Group" required>
-                  <select className={selectCls} value={form.nature || "Liabilities"} onChange={setField("nature")}>
-                    {NATURES.map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </Row>
+        {showClassPanel && (
+          <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">List of Classifications</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowClassPanel(null); navigate("/master/create/gst-classification"); }}
+                  className="text-[11px] px-2 py-0.5 bg-black text-white font-medium"
+                >
+                  Create
+                </button>
+                <button onClick={() => setShowClassPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {gstClassifications.length === 0 ? (
+                <div className="px-3 py-6 text-xs text-zinc-400 text-center leading-relaxed">
+                  No classifications created yet.<br />Click <strong>Create</strong> to add one.
+                </div>
+              ) : (
+                gstClassifications.map((c) => {
+                  const selectedId = showClassPanel === "hsn"
+                    ? Number(form.hsn_sac_classification_id)
+                    : Number(form.gst_classification_id);
+                  const isSelected = selectedId === c.gc_id;
+                  return (
+                    <div
+                      key={c.gc_id}
+                      onClick={() => {
+                        if (showClassPanel === "hsn") {
+                          setForm((f) => ({ ...f, hsn_sac_classification_id: c.gc_id }));
+                        } else {
+                          setForm((f) => ({ ...f, gst_classification_id: c.gc_id }));
+                        }
+                        setShowClassPanel(null);
+                      }}
+                      className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isSelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+                    >
+                      <span className="truncate">{c.name}</span>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
+        )}
 
-          <div className="border-t" />
-
-          <div className="border rounded overflow-hidden">
-            <Row label="Group behaves like a sub-ledger" onClick={toggleField("behaves_like_subledger")}>
-              <span className="text-sm py-1">{form.behaves_like_subledger ? "Yes" : "No"}</span>
-            </Row>
-            <Row label="Nett Debit/Credit Balances for Reporting" onClick={toggleField("show_net_debit_credit")}>
-              <span className="text-sm py-1">{form.show_net_debit_credit ? "Yes" : "No"}</span>
-            </Row>
-            <Row label="Used for calculation (for example: taxes, discounts) (for sales invoice entries)" onClick={toggleField("used_for_calculation")}>
-              <span className="text-sm py-1">{form.used_for_calculation ? "Yes" : "No"}</span>
-            </Row>
-            <Row label="Method to allocate when used in purchase invoice">
-              <select className={selectCls} value={form.allocation_method || "Not Applicable"} onChange={setField("allocation_method")}>
-                {ALLOC_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </Row>
-            {statutoryConfig.featureToggles.map((key) => {
-              const meta = TOGGLE_META[key];
-              const dbKey = meta.dbKey as keyof GroupType;
-              const isYes = form[dbKey] as number;
-              return (
-                <Row key={key} label={meta.label} onClick={() => handleFeatureToggle(dbKey, key)}>
-                  <span className="text-sm py-1">{isYes ? "Yes" : "No"}</span>
-                </Row>
-              );
-            })}
-          </div>
-
-          {statutoryConfig.showStatutorySections && (
-            <StatutorySection
-              form={form}
-              setForm={setForm}
-              primaryGroupName={primaryGroupName}
-              parentGroupName={parentGroup?.name}
-              companyId={companyId}
-            />
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => navigate("/master/alter/group")}
-              className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
-            >
-              {loading ? "Saving..." : "Update"}
-            </button>
-          </div>
-        </div>
+        <FeatureSubModal
+          toggleKey={activeFeatureModal}
+          onClose={() => setActiveFeatureModal(null)}
+          companyId={companyId}
+          onOpenCreateForm={(key) => setActiveFeatureCreateModal(key)}
+        />
+        <FeatureCreateModal
+          toggleKey={activeFeatureCreateModal}
+          onClose={() => setActiveFeatureCreateModal(null)}
+          companyId={companyId}
+        />
       </div>
-
-      {showGroupPanel && (
-        <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Under Group</span>
-            <button onClick={() => setShowGroupPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
-          </div>
-          <div
-            className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isPrimarySelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
-            onClick={handleSelectPrimary}
-          >
-            <span className="truncate">Primary</span>
-          </div>
-          <GroupFlatList
-            groups={flatGroups}
-            selectedId={form.parent_group_id as number}
-            onSelect={handleGroupSelect}
-            showHeader={false}
-          />
-        </div>
-      )}
-
-      <FeatureSubModal
-        toggleKey={activeFeatureModal}
-        onClose={() => setActiveFeatureModal(null)}
-        companyId={companyId}
-        onOpenCreateForm={(key) => setActiveFeatureCreateModal(key)}
-      />
-      <FeatureCreateModal
-        toggleKey={activeFeatureCreateModal}
-        onClose={() => setActiveFeatureCreateModal(null)}
-        companyId={companyId}
-      />
     </div>
   );
 }
 
-/** Renders the appropriate sub-modal for a standalone feature toggle. */
 function FeatureSubModal({
   toggleKey,
   onClose,
@@ -395,7 +452,6 @@ function FeatureSubModal({
   return null;
 }
 
-/** Renders the creation-form modal for a standalone feature toggle. */
 function FeatureCreateModal({
   toggleKey,
   onClose,
