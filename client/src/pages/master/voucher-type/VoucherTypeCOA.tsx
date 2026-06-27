@@ -10,7 +10,10 @@ interface VoucherTypeWithConfig extends VoucherTypeType {
     make_voucher_optional?: number;
     allow_narration?: number;
     allow_narration_per_ledger?: number;
+    numbering_behaviour?: string;
+    prevent_duplicate_numbers?: number;
     print_after_save?: number;
+    whatsapp_after_save?: number;
   };
 }
 
@@ -222,6 +225,16 @@ export default function VoucherTypeCOA() {
                               <span className="text-zinc-400">Print after Save:</span>{" "}
                               <span className="font-semibold text-zinc-800">{yn(node.config.print_after_save)}</span>
                             </div>
+                            <div>
+                              <span className="text-zinc-400">WhatsApp after Save:</span>{" "}
+                              <span className="font-semibold text-zinc-800">{yn(node.config.whatsapp_after_save)}</span>
+                            </div>
+                            {node.config.numbering_behaviour && (
+                              <div className="col-span-2">
+                                <span className="text-zinc-400">Numbering Behaviour:</span>{" "}
+                                <span className="font-semibold text-zinc-800">{node.config.numbering_behaviour}</span>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>

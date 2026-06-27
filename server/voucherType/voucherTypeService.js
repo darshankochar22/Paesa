@@ -121,6 +121,7 @@ module.exports = {
         .values({
           companyId: data.company_id,
           name: data.name.trim(),
+          alias: data.alias || null,
           shortName: data.short_name || data.name.slice(0, 4),
           category: data.category,
           defaultVoucherClass: data.default_voucher_class || null,
@@ -148,6 +149,10 @@ module.exports = {
           makeVoucherOptional: data.make_voucher_optional ? 1 : 0,
           allowNarration: data.allow_narration !== undefined ? (data.allow_narration ? 1 : 0) : 1,
           allowNarrationPerLedger: data.allow_narration_per_ledger ? 1 : 0,
+          numberingBehaviour: data.numbering_behaviour || 'Retain Original Voucher No.',
+          setAlterAdditionalNumbering: data.set_alter_additional_numbering ? 1 : 0,
+          showUnusedNumbers: data.show_unused_numbers !== undefined ? (data.show_unused_numbers ? 1 : 0) : 1,
+          preventDuplicateNumbers: data.prevent_duplicate_numbers ? 1 : 0,
           whatsappAfterSave: data.whatsapp_after_save ? 1 : 0,
           printAfterSave: data.print_after_save ? 1 : 0,
           enableDefaultAccountingAllocation: data.enable_default_accounting_allocation ? 1 : 0,
@@ -190,6 +195,8 @@ module.exports = {
       const rows = await db.all(
         sql`SELECT vt.*, vtc.use_effective_dates, vtc.allow_zero_value_transactions,
                 vtc.make_voucher_optional, vtc.allow_narration, vtc.allow_narration_per_ledger,
+                vtc.numbering_behaviour, vtc.set_alter_additional_numbering, vtc.show_unused_numbers,
+                vtc.prevent_duplicate_numbers,
                 vtc.whatsapp_after_save, vtc.print_after_save, vtc.enable_default_accounting_allocation,
                 vtc.track_additional_cost_for_purchase, vtc.default_title_to_print,
                 vtc.use_for_pos_invoicing, vtc.default_bank_id, vtc.declaration, vtc.set_alter_declaration
@@ -227,6 +234,10 @@ module.exports = {
           makeVoucherOptional: data.make_voucher_optional ?? c.make_voucher_optional,
           allowNarration: data.allow_narration ?? c.allow_narration,
           allowNarrationPerLedger: data.allow_narration_per_ledger ?? c.allow_narration_per_ledger,
+          numberingBehaviour: data.numbering_behaviour ?? c.numbering_behaviour,
+          setAlterAdditionalNumbering: data.set_alter_additional_numbering ?? c.set_alter_additional_numbering,
+          showUnusedNumbers: data.show_unused_numbers ?? c.show_unused_numbers,
+          preventDuplicateNumbers: data.prevent_duplicate_numbers ?? c.prevent_duplicate_numbers,
           whatsappAfterSave: data.whatsapp_after_save ?? c.whatsapp_after_save,
           printAfterSave: data.print_after_save ?? c.print_after_save,
           enableDefaultAccountingAllocation: data.enable_default_accounting_allocation ?? c.enable_default_accounting_allocation,
@@ -256,6 +267,7 @@ module.exports = {
         .update(voucherTypes)
         .set({
           name: data.name ?? c.name,
+          alias: data.alias ?? c.alias,
           shortName: data.short_name ?? c.short_name,
           category: data.category ?? c.category,
           defaultVoucherClass: data.default_voucher_class ?? c.default_voucher_class,

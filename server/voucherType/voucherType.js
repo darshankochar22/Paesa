@@ -4,6 +4,7 @@ const init = async (db) => {
       vt_id                  INTEGER PRIMARY KEY AUTOINCREMENT,
       company_id             INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
       name                   TEXT NOT NULL,
+      alias                  TEXT,
       short_name             TEXT,
       category               TEXT,
       default_voucher_class  TEXT,
@@ -24,6 +25,7 @@ const init = async (db) => {
 
   // Run alter tables for voucher_types to support smooth database updates
   const columnsToAdd_vt = [
+    { name: 'alias', spec: 'TEXT' },
     { name: 'parent_vt_id', spec: 'INTEGER REFERENCES voucher_types(vt_id) ON DELETE SET NULL' },
     { name: 'default_voucher_class', spec: 'TEXT' },
     { name: 'affects_inventory', spec: 'INTEGER DEFAULT 0' },
@@ -49,6 +51,10 @@ const init = async (db) => {
       make_voucher_optional                INTEGER DEFAULT 0,
       allow_narration                      INTEGER DEFAULT 1,
       allow_narration_per_ledger           INTEGER DEFAULT 0,
+      numbering_behaviour                  TEXT DEFAULT 'Retain Original Voucher No.',
+      set_alter_additional_numbering       INTEGER DEFAULT 0,
+      show_unused_numbers                  INTEGER DEFAULT 1,
+      prevent_duplicate_numbers            INTEGER DEFAULT 0,
       print_after_save                     INTEGER DEFAULT 0,
       whatsapp_after_save                  INTEGER DEFAULT 0,
       enable_default_accounting_allocation INTEGER DEFAULT 0,
@@ -62,6 +68,10 @@ const init = async (db) => {
   `);
 
   const columnsToAdd_config = [
+    { name: 'numbering_behaviour', spec: "TEXT DEFAULT 'Retain Original Voucher No.'" },
+    { name: 'set_alter_additional_numbering', spec: 'INTEGER DEFAULT 0' },
+    { name: 'show_unused_numbers', spec: 'INTEGER DEFAULT 1' },
+    { name: 'prevent_duplicate_numbers', spec: 'INTEGER DEFAULT 0' },
     { name: 'whatsapp_after_save', spec: 'INTEGER DEFAULT 0' },
     { name: 'enable_default_accounting_allocation', spec: 'INTEGER DEFAULT 0' },
     { name: 'track_additional_cost_for_purchase', spec: 'INTEGER DEFAULT 0' },

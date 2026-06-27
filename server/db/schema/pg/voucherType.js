@@ -6,6 +6,7 @@ const voucherTypes = pgTable('voucher_types', {
   // EXPLICIT FK -> companies.company_id ON DELETE CASCADE (companies in another module; not referenced here)
   companyId: bigint('company_id', { mode: 'number' }).notNull(),
   name: text('name').notNull(),
+  alias: text('alias'),
   shortName: text('short_name'),
   category: text('category'),
   defaultVoucherClass: text('default_voucher_class'),
@@ -33,6 +34,10 @@ const voucherTypeConfigs = pgTable('voucher_type_configs', {
   makeVoucherOptional: boolean('make_voucher_optional').notNull().default(false),
   allowNarration: boolean('allow_narration').notNull().default(true),
   allowNarrationPerLedger: boolean('allow_narration_per_ledger').notNull().default(false),
+  numberingBehaviour: text('numbering_behaviour').notNull().default('Retain Original Voucher No.'),
+  setAlterAdditionalNumbering: boolean('set_alter_additional_numbering').notNull().default(false),
+  showUnusedNumbers: boolean('show_unused_numbers').notNull().default(true),
+  preventDuplicateNumbers: boolean('prevent_duplicate_numbers').notNull().default(false),
   printAfterSave: boolean('print_after_save').notNull().default(false),
   whatsappAfterSave: boolean('whatsapp_after_save').notNull().default(false),
   enableDefaultAccountingAllocation: boolean('enable_default_accounting_allocation').notNull().default(false),

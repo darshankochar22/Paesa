@@ -1,157 +1,23 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, RightActionPanel, SearchInput, DataTable, FormRow } from "@/components/ui";
+import { PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import type {
   VoucherTypeType,
   VoucherTypeUpdatePayload,
   VoucherTypeConfigUpdatePayload,
 } from "@/types/entities/VoucherType";
+import {
+  VoucherTypeFormBody,
+  INITIAL_CONFIG,
+  toInt,
+  fromInt,
+  type VTForm,
+  type VTConfig,
+  type NumberingMethod,
+} from "./VoucherTypeFormBody";
 
-const inputCls =
-  "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
-const selectCls =
-  "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-44";
-
-const CATEGORIES = [
-  "Attendance", "Contra", "Credit Note", "Debit Note", "Delivery Note",
-  "Job Work In Order", "Job Work Out Order", "Journal", "Manufacturing Journal",
-  "Material In", "Material Out",
-  "Memorandum", "Payment", "Payroll", "Physical Stock", "Purchase", "Purchase Order",
-  "Receipt", "Receipt Note", "Rejection In", "Rejection Out", "Reversing Journal",
-  "Sales", "Sales Order", "Stock Journal",
-];
-
-interface FormData {
-  name: string;
-  short_name: string;
-  category: string;
-  is_active: "Yes" | "No";
-  numbering_method: "Automatic" | "Manual" | "None";
-  parent_vt_id: string;
-}
-
-interface ConfigData {
-  use_effective_dates: "Yes" | "No";
-  allow_zero_value_transactions: "Yes" | "No";
-  make_voucher_optional: "Yes" | "No";
-  allow_narration: "Yes" | "No";
-  allow_narration_per_ledger: "Yes" | "No";
-  print_after_save: "Yes" | "No";
-}
-
-
-const toInt = (v: "Yes" | "No") => (v === "Yes" ? 1 : 0);
-
-function YesNoSelect({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: "Yes" | "No";
-  onChange: (v: "Yes" | "No") => void;
-  disabled?: boolean;
-}) {
-  return (
-    <select
-      className={`${selectCls} ${disabled ? "text-zinc-400 cursor-not-allowed bg-zinc-50" : ""}`}
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value as "Yes" | "No")}
-    >
-      <option>Yes</option>
-      <option>No</option>
-    </select>
-  );
-}
-
-
-function CategoryDropdown({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        panelRef.current && !panelRef.current.contains(e.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.stopPropagation(); setOpen(false); }
-    };
-    window.addEventListener("keydown", handler, true);
-    return () => window.removeEventListener("keydown", handler, true);
-  }, [open]);
-
-  if (disabled) {
-    return (
-      <span className={`${inputCls} text-zinc-400 cursor-not-allowed bg-zinc-50`}>
-        {value}
-      </span>
-    );
-  }
-
-  return (
-    <>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex-1 text-left text-sm px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 focus:outline-none rounded bg-white/50 transition-colors"
-      >
-        {value || <span className="text-zinc-400">Select...</span>}
-      </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" aria-hidden />
-          <div
-            ref={panelRef}
-            className="fixed top-0 right-0 h-full z-50 w-52 bg-white border-l border-zinc-300 shadow-2xl flex flex-col"
-          >
-            <div className="bg-zinc-700 text-white text-xs font-bold px-3 py-2 tracking-wide uppercase">
-              List of Voucher Types
-            </div>
-            <ul className="flex-1 overflow-y-auto">
-              {CATEGORIES.map((cat) => (
-                <li
-                  key={cat}
-                  onClick={() => { onChange(cat); setOpen(false); }}
-                  className={`px-3 py-1 text-sm cursor-pointer transition-colors ${
-                    cat === value
-                      ? "bg-zinc-700 text-white"
-                      : "hover:bg-zinc-100 text-zinc-800"
-                  }`}
-                >
-                  {cat}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      )}
-    </>
-  );
-}
-
-
+// ─── Voucher type picker (DataTable list) ──────────────────────────────────────
 function SelectionPanel({
   voucherTypes,
   onSelect,
@@ -208,9 +74,7 @@ function SelectionPanel({
       key: "category",
       label: "Category",
       span: "col-span-3",
-      render: (r: VoucherTypeType) => (
-        <span className="text-zinc-500">{r.category}</span>
-      ),
+      render: (r: VoucherTypeType) => <span className="text-zinc-500">{r.category}</span>,
     },
   ];
 
@@ -224,12 +88,7 @@ function SelectionPanel({
       <PageTitleBar title="Alter Voucher Type" subtitle="Select Voucher Type to Alter" />
 
       <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Search voucher types by name or category…"
-          autoFocus
-        />
+        <SearchInput value={search} onChange={setSearch} placeholder="Search voucher types by name or category…" autoFocus />
       </div>
 
       <div className="flex-1 flex min-h-0">
@@ -264,20 +123,17 @@ export default function VoucherTypeAlter() {
 
   const [voucherTypes, setVoucherTypes] = useState<VoucherTypeType[]>([]);
   const [selectedVT, setSelectedVT] = useState<VoucherTypeType | null>(null);
-  const [form, setForm] = useState<FormData | null>(null);
-  const [configForm, setConfigForm] = useState<ConfigData | null>(null);
+  const [form, setForm] = useState<VTForm | null>(null);
+  const [config, setConfig] = useState<VTConfig | null>(null);
+  const [showCategoryPanel, setShowCategoryPanel] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [parentVoucherTypes, setParentVoucherTypes] = useState<{ vt_id: number; name: string }[]>([]);
 
   const loadVoucherTypes = useCallback(async () => {
     if (!companyId) return;
     const result = await window.api.voucherType.getAll(companyId);
-    if (result.success) {
-      setVoucherTypes(result.voucherTypes ?? []);
-      setParentVoucherTypes((result.voucherTypes ?? []).map(vt => ({ vt_id: vt.vt_id!, name: vt.name })));
-    }
+    if (result.success) setVoucherTypes(result.voucherTypes ?? []);
   }, [companyId]);
 
   useEffect(() => { loadVoucherTypes(); }, [loadVoucherTypes]);
@@ -286,83 +142,40 @@ export default function VoucherTypeAlter() {
     setSelectedVT(vt);
     setForm({
       name:             vt.name ?? "",
+      alias:            vt.alias ?? "",
       short_name:       vt.short_name ?? "",
       category:         vt.category ?? "Receipt",
-      is_active:        !!vt.is_active ? "Yes" : "No",
-      numbering_method: (vt.numbering_method as FormData["numbering_method"]) ?? "Automatic",
-      parent_vt_id:     vt.parent_vt_id ? String(vt.parent_vt_id) : "",
+      is_active:        fromInt(vt.is_active),
+      numbering_method: (vt.numbering_method as NumberingMethod) ?? "Automatic",
     });
 
     try {
       const configRes = await window.api.voucherType.getConfig(vt.vt_id!);
       if (configRes.success && configRes.config) {
         const c = configRes.config;
-        setConfigForm({
-          use_effective_dates:           !!c.use_effective_dates           ? "Yes" : "No",
-          allow_zero_value_transactions: !!c.allow_zero_value_transactions ? "Yes" : "No",
-          make_voucher_optional:         !!c.make_voucher_optional         ? "Yes" : "No",
-          allow_narration:               !!c.allow_narration               ? "Yes" : "No",
-          allow_narration_per_ledger:    !!c.allow_narration_per_ledger    ? "Yes" : "No",
-          print_after_save:              !!c.print_after_save              ? "Yes" : "No",
+        setConfig({
+          use_effective_dates:            fromInt(c.use_effective_dates),
+          allow_zero_value_transactions:  fromInt(c.allow_zero_value_transactions),
+          make_voucher_optional:          fromInt(c.make_voucher_optional),
+          allow_narration:                fromInt(c.allow_narration),
+          allow_narration_per_ledger:     fromInt(c.allow_narration_per_ledger),
+          numbering_behaviour:            (c.numbering_behaviour as VTConfig["numbering_behaviour"]) ?? "Retain Original Voucher No.",
+          set_alter_additional_numbering: fromInt(c.set_alter_additional_numbering),
+          show_unused_numbers:            fromInt(c.show_unused_numbers),
+          prevent_duplicate_numbers:      fromInt(c.prevent_duplicate_numbers),
+          print_after_save:               fromInt(c.print_after_save),
+          whatsapp_after_save:            fromInt(c.whatsapp_after_save),
         });
       } else {
-        setConfigForm(null);
+        setConfig({ ...INITIAL_CONFIG });
       }
     } catch {
-      setConfigForm(null);
+      setConfig({ ...INITIAL_CONFIG });
     }
 
     setError(null);
     setSuccess(null);
   };
-
-  const setField =
-    (key: keyof FormData) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm((f) => (f ? { ...f, [key]: e.target.value } : f));
-
-  const handleParentChange = useCallback(
-    async (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const val = e.target.value;
-      setForm((f) => (f ? { ...f, parent_vt_id: val } : f));
-      const numVal = val ? Number(val) : null;
-      if (!numVal) return;
-      const [parentRes, configRes] = await Promise.all([
-        window.api.voucherType.getById(numVal),
-        window.api.voucherType.getConfig(numVal),
-      ]);
-      setForm((f) => {
-        if (!f) return f;
-        const updates: Partial<FormData> = { parent_vt_id: val };
-        if (parentRes.success && parentRes.voucherType) {
-          updates.category = parentRes.voucherType.category || f.category;
-          updates.numbering_method = (parentRes.voucherType.numbering_method as FormData["numbering_method"]) || f.numbering_method;
-        }
-        return { ...f, ...updates };
-      });
-      if (configRes.success && configRes.config) {
-        const c = configRes.config;
-        setConfigForm((cf) =>
-          cf ? {
-            use_effective_dates: !!c.use_effective_dates ? "Yes" : "No",
-            allow_zero_value_transactions: !!c.allow_zero_value_transactions ? "Yes" : "No",
-            make_voucher_optional: !!c.make_voucher_optional ? "Yes" : "No",
-            allow_narration: !!c.allow_narration ? "Yes" : "No",
-            allow_narration_per_ledger: !!c.allow_narration_per_ledger ? "Yes" : "No",
-            print_after_save: !!c.print_after_save ? "Yes" : "No",
-          } : cf
-        );
-      }
-    },
-    []
-  );
-
-  const setToggle =
-    (key: keyof FormData | keyof ConfigData, target: "form" | "config") =>
-    (v: "Yes" | "No") => {
-      if (target === "form") setForm((f) => (f ? { ...f, [key]: v } : f));
-      else setConfigForm((c) => (c ? { ...c, [key]: v } : c));
-    };
 
   const validate = (): string | null => {
     if (!form?.name.trim()) return "Voucher Type name is required.";
@@ -371,7 +184,7 @@ export default function VoucherTypeAlter() {
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!form || !selectedVT) return;
+    if (!form || !config || !selectedVT) return;
     const err = validate();
     if (err) { setError(err); return; }
 
@@ -382,57 +195,46 @@ export default function VoucherTypeAlter() {
         const payload: VoucherTypeUpdatePayload = {
           vt_id:            selectedVT.vt_id!,
           name:             form.name.trim(),
+          alias:            form.alias.trim() || null,
           short_name:       form.short_name.trim() || undefined,
           category:         form.category,
           numbering_method: form.numbering_method,
           is_active:        toInt(form.is_active),
-          parent_vt_id:     form.parent_vt_id ? Number(form.parent_vt_id) : null,
         };
         const result = await window.api.voucherType.update(payload);
-        if (!result.success) {
-          setError(result.error || "Failed to update voucher type.");
-          return;
-        }
+        if (!result.success) { setError(result.error || "Failed to update voucher type."); return; }
       }
 
-      if (configForm) {
-        const configPayload: VoucherTypeConfigUpdatePayload = {
-          voucher_type_id:               selectedVT.vt_id!,
-          use_effective_dates:           toInt(configForm.use_effective_dates),
-          allow_zero_value_transactions: toInt(configForm.allow_zero_value_transactions),
-          make_voucher_optional:         toInt(configForm.make_voucher_optional),
-          allow_narration:               toInt(configForm.allow_narration),
-          allow_narration_per_ledger:    toInt(configForm.allow_narration_per_ledger),
-          print_after_save:              toInt(configForm.print_after_save),
-        };
-        const configRes = await window.api.voucherType.updateConfig(configPayload);
-        if (!configRes.success) {
-          setError(configRes.error || "Failed to update config.");
-          return;
-        }
-      }
+      const configPayload: VoucherTypeConfigUpdatePayload = {
+        voucher_type_id:                selectedVT.vt_id!,
+        use_effective_dates:            toInt(config.use_effective_dates),
+        allow_zero_value_transactions:  toInt(config.allow_zero_value_transactions),
+        make_voucher_optional:          toInt(config.make_voucher_optional),
+        allow_narration:                toInt(config.allow_narration),
+        allow_narration_per_ledger:     toInt(config.allow_narration_per_ledger),
+        numbering_behaviour:            config.numbering_behaviour,
+        set_alter_additional_numbering: toInt(config.set_alter_additional_numbering),
+        show_unused_numbers:            toInt(config.show_unused_numbers),
+        prevent_duplicate_numbers:      toInt(config.prevent_duplicate_numbers),
+        print_after_save:               toInt(config.print_after_save),
+        whatsapp_after_save:            toInt(config.whatsapp_after_save),
+      };
+      const configRes = await window.api.voucherType.updateConfig(configPayload);
+      if (!configRes.success) { setError(configRes.error || "Failed to update config."); return; }
 
       setSuccess(`Voucher Type "${form.name}" updated successfully.`);
       await loadVoucherTypes();
-      setTimeout(() => {
-        setSuccess(null);
-        setSelectedVT(null);
-        setForm(null);
-        setConfigForm(null);
-      }, 1500);
+      setTimeout(() => { setSuccess(null); resetSelection(); }, 1500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unexpected error occurred.");
     } finally {
       setLoading(false);
     }
-  }, [form, configForm, selectedVT, companyId, loadVoucherTypes]);
+  }, [form, config, selectedVT, companyId, loadVoucherTypes]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedVT) return;
-    if (!!selectedVT.is_predefined) {
-      setError("Predefined voucher types cannot be deleted.");
-      return;
-    }
+    if (!!selectedVT.is_predefined) { setError("Predefined voucher types cannot be deleted."); return; }
     if (!window.confirm(`Delete Voucher Type "${selectedVT.name}"?`)) return;
 
     setLoading(true);
@@ -442,12 +244,7 @@ export default function VoucherTypeAlter() {
       if (result.success) {
         setSuccess("Voucher Type deleted successfully.");
         await loadVoucherTypes();
-        setTimeout(() => {
-          setSuccess(null);
-          setSelectedVT(null);
-          setForm(null);
-          setConfigForm(null);
-        }, 1500);
+        setTimeout(() => { setSuccess(null); resetSelection(); }, 1500);
       } else {
         setError(result.error || "Failed to delete voucher type.");
       }
@@ -461,7 +258,8 @@ export default function VoucherTypeAlter() {
   const resetSelection = () => {
     setSelectedVT(null);
     setForm(null);
-    setConfigForm(null);
+    setConfig(null);
+    setShowCategoryPanel(false);
     setError(null);
     setSuccess(null);
   };
@@ -470,7 +268,8 @@ export default function VoucherTypeAlter() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (selectedVT) resetSelection();
+        if (showCategoryPanel) setShowCategoryPanel(false);
+        else if (selectedVT) resetSelection();
         else navigate("/master/alter");
       }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
@@ -478,9 +277,9 @@ export default function VoucherTypeAlter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, handleDelete, navigate, selectedVT]);
+  }, [handleSubmit, handleDelete, navigate, selectedVT, showCategoryPanel]);
 
-  if (!selectedVT || !form) {
+  if (!selectedVT || !form || !config) {
     return (
       <SelectionPanel
         voucherTypes={voucherTypes}
@@ -501,10 +300,7 @@ export default function VoucherTypeAlter() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none">
-      <PageTitleBar
-        title={`Voucher Type Alteration: ${selectedVT.name}`}
-        subtitle={selectedCompany?.name}
-      />
+      <PageTitleBar title={`Voucher Type Alteration: ${selectedVT.name}`} subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
@@ -521,121 +317,21 @@ export default function VoucherTypeAlter() {
 
       {isPredefined && (
         <div className="px-3 py-1.5 border-b border-zinc-200 bg-zinc-50 text-zinc-500 text-[10px] uppercase font-bold shrink-0 select-none">
-          ℹ️ Predefined — identity is locked, configurations below can still be changed.
+          Predefined — identity is locked, configurations below can still be changed.
         </div>
       )}
 
       <div className="flex-1 flex min-h-0">
-        <div className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto">
-          <div className="p-4 space-y-3 max-w-4xl">
-
-            <div className="grid grid-cols-3 border border-zinc-200 rounded overflow-visible">
-              <div className="p-3 border-r border-zinc-200 space-y-1.5">
-                <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">General</div>
-
-                <FormRow label="Name" required labelWidth="w-48" className="flex items-center min-h-[26px]">
-                  <input
-                    autoFocus={!isPredefined}
-                    disabled={isPredefined}
-                    className={`${inputCls} ${isPredefined ? "text-zinc-400 cursor-not-allowed bg-zinc-50" : ""}`}
-                    value={form.name}
-                    onChange={setField("name")}
-                  />
-                </FormRow>
-                <FormRow label="Select type of voucher" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                  <CategoryDropdown
-                    value={form.category}
-                    onChange={(v) => setForm((f) => (f ? { ...f, category: v } : f))}
-                    disabled={isPredefined}
-                  />
-                </FormRow>
-                <FormRow label="Abbreviation" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                  <input
-                    disabled={isPredefined}
-                    className={`${inputCls} ${isPredefined ? "text-zinc-400 cursor-not-allowed bg-zinc-50" : ""}`}
-                    value={form.short_name}
-                    onChange={setField("short_name")}
-                    maxLength={6}
-                  />
-                </FormRow>
-                <FormRow label="Parent Voucher Type" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                  <select
-                    disabled={isPredefined}
-                    className={`${selectCls} ${isPredefined ? "text-zinc-400 cursor-not-allowed bg-zinc-50" : ""}`}
-                    value={form.parent_vt_id}
-                    onChange={handleParentChange}
-                  >
-                    <option value="">-- None --</option>
-                    {parentVoucherTypes
-                      .filter((p) => String(p.vt_id) !== String(selectedVT.vt_id))
-                      .map((p) => (
-                        <option key={p.vt_id} value={String(p.vt_id)}>{p.name}</option>
-                      ))}
-                  </select>
-                </FormRow>
-                <FormRow label="Activate this Voucher Type" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                  <YesNoSelect
-                    value={form.is_active}
-                    onChange={setToggle("is_active", "form")}
-                    disabled={isPredefined}
-                  />
-                </FormRow>
-                <FormRow label="Method of voucher numbering" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                  <select
-                    disabled={isPredefined}
-                    className={`${selectCls} ${isPredefined ? "text-zinc-400 cursor-not-allowed bg-zinc-50" : ""}`}
-                    value={form.numbering_method}
-                    onChange={setField("numbering_method")}
-                  >
-                    <option>Automatic</option>
-                    <option>Manual</option>
-                    <option>None</option>
-                  </select>
-                </FormRow>
-
-                <div className="border-t border-zinc-100 my-1" />
-
-                {configForm && (
-                  <>
-                    <FormRow label="Use effective dates for vouchers" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                      <YesNoSelect value={configForm.use_effective_dates} onChange={setToggle("use_effective_dates", "config")} />
-                    </FormRow>
-                    <FormRow label="Allow zero-valued transactions" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                      <YesNoSelect value={configForm.allow_zero_value_transactions} onChange={setToggle("allow_zero_value_transactions", "config")} />
-                    </FormRow>
-                    <FormRow label="Make this voucher type as 'Optional' by default" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                      <YesNoSelect value={configForm.make_voucher_optional} onChange={setToggle("make_voucher_optional", "config")} />
-                    </FormRow>
-                    <FormRow label="Allow narration in voucher" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                      <YesNoSelect value={configForm.allow_narration} onChange={setToggle("allow_narration", "config")} />
-                    </FormRow>
-                    <FormRow label="Provide narrations for each ledger in voucher" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                      <YesNoSelect value={configForm.allow_narration_per_ledger} onChange={setToggle("allow_narration_per_ledger", "config")} />
-                    </FormRow>
-                  </>
-                )}
-              </div>
-
-
-              <div className="p-3 border-r border-zinc-200 space-y-1.5">
-                <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Printing</div>
-                {configForm && (
-                  <FormRow label="Print voucher after saving" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                    <YesNoSelect value={configForm.print_after_save} onChange={setToggle("print_after_save", "config")} />
-                  </FormRow>
-                )}
-              </div>
-
-
-              <div className="p-3 space-y-1.5">
-                <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Name of Class</div>
-              </div>
-
-            </div>
-          </div>
-          <div className="flex-1" />
-        </div>
-
+        <VoucherTypeFormBody
+          form={form}
+          setForm={setForm as React.Dispatch<React.SetStateAction<VTForm>>}
+          config={config}
+          setConfig={setConfig as React.Dispatch<React.SetStateAction<VTConfig>>}
+          showCategoryPanel={showCategoryPanel}
+          setShowCategoryPanel={setShowCategoryPanel}
+          lockIdentity={isPredefined}
+          nameAutoFocus={!isPredefined}
+        />
         <RightActionPanel actions={alterActions} />
       </div>
 
