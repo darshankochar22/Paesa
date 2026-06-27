@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { PageTitleBar } from "@/components/ui";
 import GroupFlatList from "@/components/GroupFlatList";
 import type { GroupType } from "@/types/api";
 import { TOGGLE_META, getConfig, type StatutoryToggle } from "@/config/statutoryConfig";
@@ -279,16 +280,10 @@ export default function GroupCreate() {
   };
 
   return (
-    <div className="flex-1 flex">
+    <div className="flex-1 flex flex-col">
+      <PageTitleBar title="Group Creation" subtitle={selectedCompany?.name} />
+      <div className="flex-1 flex">
       <div className="flex-1 p-6 overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <Link to="/master/create" className="text-sm text-zinc-500 hover:text-zinc-800">
-              &larr; Back to Masters
-            </Link>
-            <h1 className="text-lg font-semibold text-zinc-800">Create Group</h1>
-          </div>
-        </div>
 
         {error && (
           <div className="mb-4 p-2 border border-red-200 text-red-700 text-sm flex justify-between items-center">
@@ -465,6 +460,7 @@ export default function GroupCreate() {
         onClose={() => setActiveFeatureCreateModal(null)}
         companyId={companyId}
       />
+      </div>
     </div>
   );
 }
