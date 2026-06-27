@@ -10,6 +10,7 @@ export interface LedgerConfigOptions {
   assessableValueCalc: boolean;
   serviceTaxDetails?: boolean;
   vatDetails?: boolean;
+  exciseDetails?: boolean;
   gstinDetails?: boolean;
   /** Registration Type + Set/Alter additional GST details block. */
   registrationTypeFields?: boolean;
@@ -81,8 +82,8 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
   dutyTaxDetails: false, 
   assessableValueCalc: true, 
 },
-  "Sundry Debtors": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
-  "Sundry Creditors": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
+  "Sundry Debtors": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, vatDetails: true, exciseDetails: true },
+  "Sundry Creditors": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, vatDetails: true, exciseDetails: true },
 
   "Duties & Taxes": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: true, assessableValueCalc: true },
   "Provisions": { taxRegistration: "gstinServiceTaxOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false, gstinDetails: false },

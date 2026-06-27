@@ -20,9 +20,11 @@ interface LedgerTaxPanelProps {
   };
   config: LedgerConfigOptions;
   vatActive: boolean;
+  exciseActive: boolean;
   onGSTDetailsChange: (val: "Yes" | "No") => void;
   onServiceTaxDetailsChange: (val: "Yes" | "No") => void;
   onVATDetailsChange: (val: "Yes" | "No") => void;
+  onExciseDetailsChange: (val: "Yes" | "No") => void;
 }
 
 function useTaxPanelVisibility(
@@ -41,6 +43,7 @@ function useTaxPanelVisibility(
       gstinField: true,
       serviceTaxField: false,
       vatField: false,
+      exciseField: false,
     };
   }
 
@@ -66,6 +69,7 @@ function useTaxPanelVisibility(
     gstinField: ((isFull && !assessableGstSelected && registrationKnown) || isGstinServiceTaxOnly) && config.gstinDetails !== false,
     serviceTaxField: (isFull || isGstinServiceTaxOnly) && config.serviceTaxDetails !== false,
     vatField: (isFull || isGstinServiceTaxOnly) && config.vatDetails === true,
+    exciseField: (isFull || isGstinServiceTaxOnly) && config.exciseDetails === true,
   };
 }
 
@@ -79,9 +83,11 @@ export default function LedgerTaxPanel({
   groupLineage,
   config,
   vatActive,
+  exciseActive,
   onGSTDetailsChange,
   onServiceTaxDetailsChange,
   onVATDetailsChange,
+  onExciseDetailsChange,
 }: LedgerTaxPanelProps) {
   const visibility = useTaxPanelVisibility(config, groupLineage, statutoryForm, form);
 
@@ -165,6 +171,19 @@ export default function LedgerTaxPanel({
                 className={selectCls}
                 value={vatActive ? "Yes" : "No"}
                 onChange={(e) => onVATDetailsChange(e.target.value as "Yes" | "No")}
+              >
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </FormRow>
+          )}
+
+          {visibility.exciseField && (
+            <FormRow label="Set/Alter excise details" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={exciseActive ? "Yes" : "No"}
+                onChange={(e) => onExciseDetailsChange(e.target.value as "Yes" | "No")}
               >
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>

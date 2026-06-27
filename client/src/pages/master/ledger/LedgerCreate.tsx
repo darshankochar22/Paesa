@@ -45,6 +45,7 @@ export default function LedgerCreate() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const [totalOpeningBalance, setTotalOpeningBalance] = useState<{ totalDr: number; totalCr: number; netBalance: number; balanceType: string } | null>(null);
+  const [showExciseTariffPopup, setShowExciseTariffPopup] = useState(false);
 
   useEffect(() => {
     if (!selectedCompany?.company_id) return;
@@ -253,6 +254,14 @@ export default function LedgerCreate() {
           value={vatDetails}
           onClose={handleVATDetailsClose}
           onAccept={handleVATDetailsAccept}
+        />
+      )}
+
+      {showExciseTariffPopup && (
+        <DetailedExciseTariffDetails
+          initialData={exciseDetails}
+          onAccept={(state) => { setExciseDetails(state); setShowExciseTariffPopup(false); }}
+          onClose={() => setShowExciseTariffPopup(false)}
         />
       )}
 
@@ -488,6 +497,9 @@ export default function LedgerCreate() {
               )}
             </div>
           )}
+
+          {/* Bill-wise Details — above interest calculation for debtor/creditor groups */}
+          <LedgerBillwisePanel form={form} setForm={setForm} setNumber={setNumber} groupLineage={groupLineage} />
 
           {/* Activate interest calculation */}
           <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
@@ -784,6 +796,7 @@ export default function LedgerCreate() {
             groupLineage={groupLineage}
             config={currentConfig}
             vatActive={otherStatutory.vat.set_alter_vat_details === 1}
+            exciseActive={otherStatutory.excise.set_alter_excise_details === 1}
             onGSTDetailsChange={(val) => {
               if (val === "Yes") handleGSTDetailsOpen();
               else handleGSTDetailsClose();
@@ -796,9 +809,15 @@ export default function LedgerCreate() {
               if (val === "Yes") handleVATDetailsOpen();
               else handleVATDetailsClose();
             }}
+            onExciseDetailsChange={(val) => {
+              if (val === "Yes") {
+                setOtherStatutory((p) => ({ ...p, excise: { ...p.excise, set_alter_excise_details: 1 } }));
+                setShowExciseTariffPopup(true);
+              } else {
+                setOtherStatutory((p) => ({ ...p, excise: { ...p.excise, set_alter_excise_details: 0 } }));
+              }
+            }}
           />
-
-          <LedgerBillwisePanel form={form} setForm={setForm} setNumber={setNumber} groupLineage={groupLineage} />
         </div>
 
         {showGroupPanel && (
