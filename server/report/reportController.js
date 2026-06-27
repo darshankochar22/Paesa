@@ -14,6 +14,7 @@ const { stockItemSummary } = require('./inventory/stockItemSummary');
 const { stockQuery } = require('./stockQueryService');
 const { stockGroupSummary } = require('./inventory/stockGroupSummary');
 const { stockCategorySummary } = require('./inventory/stockCategorySummary');
+const { stockGroupAnalysis, stockGroupAnalysisItems } = require('./inventory/stockGroupAnalysis');
 const { journalRegister } = require('./registers/journalRegister');
 const { debitNoteRegister } = require('./registers/debitNoteRegister');
 const { creditNoteRegister } = require('./registers/creditNoteRegister');
@@ -207,6 +208,12 @@ module.exports = {
   },
   stockCategorySummary: async (event, { company_id, fy_id }) => {
     return await stockCategorySummary(company_id, fy_id);
+  },
+  stockGroupAnalysis: async (event, { company_id, fy_id }) => {
+    return await stockGroupAnalysis(company_id, fy_id);
+  },
+  stockGroupAnalysisItems: async (event, { company_id, fy_id, group_id }) => {
+    return await stockGroupAnalysisItems(company_id, fy_id, group_id);
   },
 
   costCentreReport: async (event, { company_id, fy_id, as_on_date }) => {

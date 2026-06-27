@@ -43,6 +43,7 @@ import CashBankReport from "./pages/reports/accounts/CashBankReport.tsx";
 import StatementsOfAccounts from "./pages/menu/reports/StatementsOfAccounts.tsx";
 import InventoryBooks from "./pages/menu/reports/InventoryBooks.tsx";
 import StatementsOfInventory from "./pages/menu/reports/StatementsOfInventory.tsx";
+import MovementAnalysisMenu from "./pages/menu/reports/MovementAnalysisMenu.tsx";
 import ExceptionReports from "./pages/menu/reports/ExceptionReports.tsx";
 import PayrollReports from "./pages/menu/reports/PayrollReports.tsx";
 import LedgerReport from "./pages/reports/accounts/LedgerReport.tsx";
@@ -79,6 +80,7 @@ import StockCategorySummary from "./pages/reports/inventory/StockCategorySummary
 import StockJournalRegister from "./pages/reports/inventory/StockJournalRegister.tsx";
 import PhysicalStockRegister from "./pages/reports/inventory/PhysicalStockRegister.tsx";
 import MovementAnalysis from "./pages/reports/inventory/MovementAnalysis.tsx";
+import StockGroupAnalysis from "./pages/reports/inventory/StockGroupAnalysis.tsx";
 import SalesOrderBook from "./pages/reports/inventory/SalesOrderBook.tsx";
 import PurchaseOrderBook from "./pages/reports/inventory/PurchaseOrderBook.tsx";
 import AgeingAnalysis from "./pages/reports/inventory/AgeingAnalysis.tsx";
@@ -216,7 +218,9 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/statements-of-accounts",  element: <StatementsOfAccounts /> },
   { path: "/reports/inventory-books",         element: <InventoryBooks /> },
   { path: "/reports/statements-of-inventory",               element: <StatementsOfInventory /> },
-  { path: "/reports/statements-of-inventory/stock-query",  element: <StockQuery /> },
+  { path: "/reports/statements-of-inventory/stock-query",          element: <StockQuery /> },
+  { path: "/reports/statements-of-inventory/movement-analysis",    element: <MovementAnalysisMenu /> },
+  { path: "/reports/inventory-stock/movement-analysis-stock-group-wise", element: <StockGroupAnalysis /> },
   { path: "/reports/exception",               element: <ExceptionReports /> },
   { path: "/reports/payroll-hr",                 element: <PayrollReports /> },
   { path: "/reports/accounts/ledger",                 element: <LedgerReport /> },
@@ -261,7 +265,8 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/inventory/stock-category-summary",   element: <StockCategorySummary /> },
   { path: "/reports/inventory-books/stock-transfer-register",  element: <StockJournalRegister /> },
   { path: "/reports/inventory-books/physical-stock-register",  element: <PhysicalStockRegister /> },
-  { path: "/reports/inventory/movement-analysis",        element: <MovementAnalysis /> },
+  { path: "/reports/inventory/movement-analysis",             element: <MovementAnalysis /> },
+  { path: "/reports/inventory/stock-group-analysis",          element: <StockGroupAnalysis /> },
   { path: "/reports/inventory/sales-order-book",         element: <SalesOrderBook /> },
   { path: "/reports/inventory/purchase-order-book",      element: <PurchaseOrderBook /> },
   { path: "/reports/inventory/ageing-analysis",          element: <AgeingAnalysis /> },
