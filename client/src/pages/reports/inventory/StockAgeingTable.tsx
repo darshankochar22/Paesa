@@ -29,6 +29,8 @@ interface Props {
   companyName?: string;
   groupLabel: string;   // "Primary" or the stock group name
   asAt?: string;        // ISO date the stock is aged against
+  /** Job Work variant subtitle, e.g. "Job Work In" — shows an extra header line. */
+  basis?: string;
   bands: number[];      // [45, 90, 180]
   rows: AgeRow[];
   loading?: boolean;
@@ -62,7 +64,7 @@ const bandLabels = (bands: number[]) => [
  * Presentational only — the parent owns selection + keyboard navigation.
  */
 export default function StockAgeingTable({
-  companyName, groupLabel, asAt, bands, rows, loading, error,
+  companyName, groupLabel, asAt, basis, bands, rows, loading, error,
   emptyText = "No stock in this group.", selectedIndex, onSelectIndex, onActivate, footer,
 }: Props) {
   const labels = bandLabels(bands);
@@ -97,10 +99,17 @@ export default function StockAgeingTable({
         <span className="font-semibold">Items Under: {groupLabel}</span>
         <span>as at {fmtAsAt(asAt)}</span>
       </div>
-      <div className="flex justify-between items-center px-3 py-1 bg-white border-b border-zinc-300 font-mono text-[10px] italic text-zinc-500">
-        <span>All Batches (Aged by Date of Purchase)</span>
-        <span>Valued based on actual purchase cost</span>
-      </div>
+      {basis ? (
+        <div className="flex justify-between items-center px-3 py-1 bg-white border-b border-zinc-300 font-mono text-[11px]">
+          <span className="font-semibold">Ageing Analysis: {basis}</span>
+          <span className="text-[10px] italic text-zinc-500">Valued based on Actual Transfer</span>
+        </div>
+      ) : (
+        <div className="flex justify-between items-center px-3 py-1 bg-white border-b border-zinc-300 font-mono text-[10px] italic text-zinc-500">
+          <span>All Batches (Aged by Date of Purchase)</span>
+          <span>Valued based on actual purchase cost</span>
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">

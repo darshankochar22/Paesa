@@ -223,6 +223,14 @@ ipcMain.handle('report:transferAnalysis',           reportController.transferAna
 ipcMain.handle('report:costEstimation',             reportController.costEstimation);
 ipcMain.handle('report:itemCostAnalysis',           reportController.itemCostAnalysis);
 ipcMain.handle('report:jobWorkAnalysis',            reportController.jobWorkAnalysis);
+// Job Work Reports (#124)
+ipcMain.handle('report:jobWorkOrders',              reportController.jobWorkOrders);
+ipcMain.handle('report:jobWorkComponents',          reportController.jobWorkComponents);
+ipcMain.handle('report:jobWorkOrderVouchers',       reportController.jobWorkOrderVouchers);
+ipcMain.handle('report:jobWorkStock',               reportController.jobWorkStock);
+ipcMain.handle('report:jobWorkVariance',            reportController.jobWorkVariance);
+ipcMain.handle('report:jobWorkAnnexure',            reportController.jobWorkAnnexure);
+ipcMain.handle('report:jobWorkAgeing',              reportController.jobWorkAgeing);
 ipcMain.handle('report:stockQuery',           reportController.stockQuery);
 
 // Payroll Reports

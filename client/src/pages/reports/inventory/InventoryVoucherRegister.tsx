@@ -8,6 +8,12 @@ const fmtQty = (val: number | null | undefined) => {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 };
 
+const fmtAmt = (val: number | null | undefined) => {
+  const n = Number(val) || 0;
+  if (n === 0) return "";
+  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 const formatDate = (dateStr?: string | null) => {
   if (!dateStr) return "";
   try {
@@ -28,16 +34,23 @@ interface VoucherRow {
   voucher_number: string | number;
   inwards_qty: number;
   outwards_qty: number;
+  order_ref?: string;
+  order_amount?: number;
 }
 
 interface Props {
   voucherType: string; // e.g. "Stock Journal" | "Physical Stock"
   title: string;       // e.g. "Stock Journal Register"
+  /** "inventory" → Inwards/Outwards Qty columns; "order" → Order Ref/Amount. */
+  variant?: "inventory" | "order";
+  /** Overrides the left sub-header (defaults to the voucher type). */
+  subtitle?: string;
 }
 
 type Level = { step: "monthly" } | { step: "vouchers"; month: string };
 
-export default function InventoryVoucherRegister({ voucherType, title }: Props) {
+export default function InventoryVoucherRegister({ voucherType, title, variant = "inventory", subtitle }: Props) {
+  const isOrder = variant === "order";
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -92,14 +105,15 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
     setVoucherError(null);
     setVoucherIndex(0);
     const { from, to } = monthRange(monthName);
-    (window as any).api.report
-      .inventoryRegisterVouchers(companyId, fyId, voucherType, from, to)
-      .then((res: any) => {
-        if (res.success) setVoucherRows(res.rows ?? []);
-        else setVoucherError(res.error || "Failed to load vouchers");
-        setLoadingVouchers(false);
-      });
-  }, [companyId, fyId, voucherType, monthRange]);
+    const fetcher = isOrder
+      ? (window as any).api.report.jobWorkOrderVouchers(companyId, fyId, voucherType, from, to)
+      : (window as any).api.report.inventoryRegisterVouchers(companyId, fyId, voucherType, from, to);
+    fetcher.then((res: any) => {
+      if (res.success) setVoucherRows(res.rows ?? []);
+      else setVoucherError(res.error || "Failed to load vouchers");
+      setLoadingVouchers(false);
+    });
+  }, [companyId, fyId, voucherType, monthRange, isOrder]);
 
   const backToMonthly = React.useCallback(() => { setLevel({ step: "monthly" }); setVoucherRows([]); }, []);
 
@@ -142,7 +156,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
           <span />
         </div>
         <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
-          <span>{voucherType}</span>
+          <span>{subtitle ?? voucherType}</span>
           <span>{periodLabel}</span>
         </div>
 
@@ -202,6 +216,7 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
   // ═══════════════════════════════════════════════════════════════════════
   const totalIn = voucherRows.reduce((s, r) => s + (Number(r.inwards_qty) || 0), 0);
   const totalOut = voucherRows.reduce((s, r) => s + (Number(r.outwards_qty) || 0), 0);
+  const totalAmt = voucherRows.reduce((s, r) => s + (Number(r.order_amount) || 0), 0);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -223,8 +238,17 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
               <th className="px-3 py-1 text-left font-bold">Particulars</th>
               <th className="px-3 py-1 text-left font-bold w-28">Vch Type</th>
               <th className="px-3 py-1 text-right font-bold w-20">Vch No.</th>
-              <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">Inwards<br />Quantity</th>
-              <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">Outwards<br />Quantity</th>
+              {isOrder ? (
+                <>
+                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">Order<br />Ref No.</th>
+                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Order<br />Amount</th>
+                </>
+              ) : (
+                <>
+                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">Inwards<br />Quantity</th>
+                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">Outwards<br />Quantity</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -248,8 +272,17 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
                     <td className="px-3 py-1 truncate max-w-xs">{row.particulars}</td>
                     <td className="px-3 py-1">{row.voucher_type}</td>
                     <td className="px-3 py-1 text-right">{row.voucher_number || ""}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.inwards_qty)}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.outwards_qty)}</td>
+                    {isOrder ? (
+                      <>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{row.order_ref || ""}</td>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtAmt(row.order_amount)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.inwards_qty)}</td>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.outwards_qty)}</td>
+                      </>
+                    )}
                   </tr>
                 );
               })
@@ -263,8 +296,17 @@ export default function InventoryVoucherRegister({ voucherType, title }: Props) 
         <span className="flex-1" />
         <span className="w-28" />
         <span className="w-20" />
-        <span className="w-28 text-right pr-2 border-l border-zinc-300">{fmtQty(totalIn)}</span>
-        <span className="w-28 text-right pr-2 border-l border-zinc-300">{fmtQty(totalOut)}</span>
+        {isOrder ? (
+          <>
+            <span className="w-28 text-right pr-2 border-l border-zinc-300" />
+            <span className="w-32 text-right pr-2 border-l border-zinc-300">{fmtAmt(totalAmt)}</span>
+          </>
+        ) : (
+          <>
+            <span className="w-28 text-right pr-2 border-l border-zinc-300">{fmtQty(totalIn)}</span>
+            <span className="w-28 text-right pr-2 border-l border-zinc-300">{fmtQty(totalOut)}</span>
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">

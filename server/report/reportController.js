@@ -23,6 +23,14 @@ const { transferAnalysis } = require('./inventory/transferAnalysis');
 const { costEstimation } = require('./inventory/costEstimation');
 const { itemCostAnalysis } = require('./inventory/itemCostAnalysis');
 const { jobWorkAnalysis } = require('./inventory/jobWorkAnalysis');
+const {
+  jobWorkOrders,
+  jobWorkComponents,
+  jobWorkOrderVouchers,
+  jobWorkStock,
+  jobWorkVariance,
+  jobWorkAnnexure,
+} = require('./inventory/jobWork');
 const { journalRegister } = require('./registers/journalRegister');
 const { debitNoteRegister } = require('./registers/debitNoteRegister');
 const { creditNoteRegister } = require('./registers/creditNoteRegister');
@@ -252,6 +260,32 @@ module.exports = {
   },
   jobWorkAnalysis: async (event, { company_id, fy_id, cc_id }) => {
     return await jobWorkAnalysis(company_id, fy_id, cc_id);
+  },
+
+  // ── Job Work Reports (#124) ───────────────────────────────────────────────
+  jobWorkOrders: async (event, { company_id, fy_id, direction }) => {
+    return await jobWorkOrders(company_id, fy_id, direction);
+  },
+  jobWorkComponents: async (event, { company_id, fy_id, direction }) => {
+    return await jobWorkComponents(company_id, fy_id, direction);
+  },
+  jobWorkOrderVouchers: async (event, { company_id, fy_id, voucher_type, from_date, to_date }) => {
+    return await jobWorkOrderVouchers(company_id, fy_id, voucher_type, from_date, to_date);
+  },
+  jobWorkStock: async (event, { company_id, fy_id, mode }) => {
+    return await jobWorkStock(company_id, fy_id, mode);
+  },
+  jobWorkVariance: async (event, { company_id, fy_id, kind, direction }) => {
+    return await jobWorkVariance(company_id, fy_id, kind, direction);
+  },
+  jobWorkAnnexure: async (event, { company_id, fy_id, annexure, excise_unit_id }) => {
+    return await jobWorkAnnexure(company_id, fy_id, annexure, excise_unit_id);
+  },
+  jobWorkAgeing: async (event, { company_id, fy_id, group_id, as_at, fy_start, direction }) => {
+    const opts = direction === 'out'
+      ? { inwardTypes: ['Material Out'], outwardTypes: ['Material In'], includeOpening: false }
+      : { inwardTypes: ['Material In'], outwardTypes: ['Material Out'], includeOpening: false };
+    return await stockAgeingAnalysis(company_id, fy_id, group_id, as_at, fy_start, undefined, opts);
   },
 
   costCentreReport: async (event, { company_id, fy_id, as_on_date }) => {

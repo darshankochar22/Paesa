@@ -185,6 +185,13 @@ contextBridge.exposeInMainWorld('api', {
         costEstimation:               (company_id, fy_id, group_id)     => invoke('report:costEstimation', { company_id, fy_id, group_id }),
         itemCostAnalysis:             (company_id, fy_id, mode, ref_id) => invoke('report:itemCostAnalysis', { company_id, fy_id, mode, ref_id }),
         jobWorkAnalysis:              (company_id, fy_id, cc_id)        => invoke('report:jobWorkAnalysis', { company_id, fy_id, cc_id }),
+        jobWorkOrders:                (company_id, fy_id, direction)    => invoke('report:jobWorkOrders', { company_id, fy_id, direction }),
+        jobWorkComponents:            (company_id, fy_id, direction)    => invoke('report:jobWorkComponents', { company_id, fy_id, direction }),
+        jobWorkOrderVouchers:         (company_id, fy_id, voucher_type, from_date, to_date) => invoke('report:jobWorkOrderVouchers', { company_id, fy_id, voucher_type, from_date, to_date }),
+        jobWorkStock:                 (company_id, fy_id, mode)         => invoke('report:jobWorkStock', { company_id, fy_id, mode }),
+        jobWorkVariance:              (company_id, fy_id, kind, direction) => invoke('report:jobWorkVariance', { company_id, fy_id, kind, direction }),
+        jobWorkAnnexure:              (company_id, fy_id, annexure, excise_unit_id) => invoke('report:jobWorkAnnexure', { company_id, fy_id, annexure, excise_unit_id }),
+        jobWorkAgeing:                (company_id, fy_id, group_id, as_at, fy_start, direction) => invoke('report:jobWorkAgeing', { company_id, fy_id, group_id, as_at, fy_start, direction }),
         stockQuery:               (company_id, fy_id, item_id) => invoke('report:stockQuery', { company_id, fy_id, item_id }),
         // Payroll reports
         payslipReport:    (company_id, fy_id) => invoke('report:payslipReport',    { company_id, fy_id }),

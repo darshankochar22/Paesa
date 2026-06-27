@@ -93,6 +93,12 @@ import AgeingAnalysis from "./pages/reports/inventory/AgeingAnalysis.tsx";
 import CostEstimation from "./pages/reports/inventory/CostEstimation.tsx";
 import ItemCostAnalysis from "./pages/reports/inventory/ItemCostAnalysis.tsx";
 import JobWorkAnalysis from "./pages/reports/inventory/JobWorkAnalysis.tsx";
+import InventoryVoucherRegister from "./pages/reports/inventory/InventoryVoucherRegister.tsx";
+import JobWorkOrderSummary from "./pages/reports/inventory/jobwork/JobWorkOrderSummary.tsx";
+import JobWorkStock from "./pages/reports/inventory/jobwork/JobWorkStock.tsx";
+import JobWorkVariance from "./pages/reports/inventory/jobwork/JobWorkVariance.tsx";
+import JobWorkAgeingAnalysis from "./pages/reports/inventory/jobwork/JobWorkAgeingAnalysis.tsx";
+import JobWorkAnnexure from "./pages/reports/inventory/jobwork/JobWorkAnnexure.tsx";
 import SalesOrderOutstanding from "./pages/reports/inventory/SalesOrderOutstanding.tsx";
 import PurchaseOrderOutstanding from "./pages/reports/inventory/PurchaseOrderOutstanding.tsx";
 import WorkOrderOutstanding from "./pages/reports/inventory/WorkOrderOutstanding.tsx";
@@ -297,6 +303,20 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/inventory/stock-query",              element: <StockQuery /> },
   { path: "/reports/inventory/reorder-status",           element: <ReorderStatus /> },
   { path: "/reports/job-work",                           element: <JobWorkReports /> },
+  // Job Work Reports (#124)
+  { path: "/reports/job-work/orders",                    element: <JobWorkOrderSummary kind="orders" /> },
+  { path: "/reports/job-work/components",                element: <JobWorkOrderSummary kind="components" /> },
+  { path: "/reports/job-work/in-orders-book",            element: <InventoryVoucherRegister voucherType="Job Work In Order" title="Job Work In Orders Register" variant="order" subtitle="Job Work In Order" /> },
+  { path: "/reports/job-work/out-orders-book",           element: <InventoryVoucherRegister voucherType="Job Work Out Order" title="Job Work Out Orders Register" variant="order" subtitle="Job Work Out Order" /> },
+  { path: "/reports/job-work/material-out-register",     element: <InventoryVoucherRegister voucherType="Material Out" title="Material Out Register" subtitle="Material Out: Job Work Out" /> },
+  { path: "/reports/job-work/material-in-register",      element: <InventoryVoucherRegister voucherType="Material In" title="Material In Register" subtitle="Material In: Job Work Out" /> },
+  { path: "/reports/job-work/annexure-iv",               element: <JobWorkAnnexure annexure="IV" /> },
+  { path: "/reports/job-work/annexure-v",                element: <JobWorkAnnexure annexure="V" /> },
+  { path: "/reports/job-work/stock-from-party",          element: <JobWorkStock mode="from-party" /> },
+  { path: "/reports/job-work/stock-with-job-worker",     element: <JobWorkStock mode="with-job-worker" /> },
+  { path: "/reports/job-work/ageing-analysis",           element: <JobWorkAgeingAnalysis /> },
+  { path: "/reports/job-work/issue-variance",            element: <JobWorkVariance kind="issue" /> },
+  { path: "/reports/job-work/receipt-variance",          element: <JobWorkVariance kind="receipt" /> },
   { path: "/reports/exception/overdue-receivables",      element: <OverdueReceivables /> },
   { path: "/reports/exception/overdue-payables",         element: <OverduePayables /> },
   { path: "/reports/exception/pending-documents",        element: <PendingDocuments /> },

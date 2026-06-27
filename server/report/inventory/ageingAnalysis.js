@@ -35,8 +35,15 @@ const dayDiff = (asAt, d) => {
  * @param {string} fy_start   ISO date used to age the opening-balance lot
  * @param {number[]} periods  band boundaries in days (default [45,90,180])
  */
-const stockAgeingAnalysis = async (company_id, fy_id, group_id, as_at, fy_start, periods) => {
+const stockAgeingAnalysis = async (company_id, fy_id, group_id, as_at, fy_start, periods, opts = {}) => {
   try {
+    // Job Work variants reuse this engine but age stock built only from
+    // Material In/Out transfer lots (no opening balance). `opts.inwardTypes` /
+    // `opts.outwardTypes` override which voucher types add/remove a lot, and
+    // `opts.includeOpening === false` suppresses the opening-balance lot.
+    const inwardTypes  = Array.isArray(opts.inwardTypes)  && opts.inwardTypes.length  ? opts.inwardTypes  : INWARD;
+    const outwardTypes = Array.isArray(opts.outwardTypes) && opts.outwardTypes.length ? opts.outwardTypes : OUTWARD;
+    const includeOpening = opts.includeOpening !== false;
     const bands = Array.isArray(periods) && periods.length === 3 ? periods : DEFAULT_PERIODS;
     const asAt = as_at || new Date().toISOString().slice(0, 10);
     const openDate = fy_start || null;
@@ -74,7 +81,7 @@ const stockAgeingAnalysis = async (company_id, fy_id, group_id, as_at, fy_start,
         AND v.is_cancelled = 0
         AND COALESCE(v.is_optional, 0) = 0
         AND COALESCE(v.is_post_dated, 0) = 0
-        AND v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)})
+        AND v.voucher_type IN (${sql.join(inwardTypes.map(t => sql`${t}`), sql`, `)})
       ORDER BY v.date ASC, vse.stock_entry_id ASC
     `);
 
@@ -90,7 +97,7 @@ const stockAgeingAnalysis = async (company_id, fy_id, group_id, as_at, fy_start,
         AND v.is_cancelled = 0
         AND COALESCE(v.is_optional, 0) = 0
         AND COALESCE(v.is_post_dated, 0) = 0
-        AND v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)})
+        AND v.voucher_type IN (${sql.join(outwardTypes.map(t => sql`${t}`), sql`, `)})
       GROUP BY vse.stock_item_id
     `);
 
@@ -112,7 +119,7 @@ const stockAgeingAnalysis = async (company_id, fy_id, group_id, as_at, fy_start,
     for (const it of items) {
       // Build lots oldest→newest: opening balance lot, then inward lots.
       const lots = [];
-      if ((it.opening_qty || 0) > 0) {
+      if (includeOpening && (it.opening_qty || 0) > 0) {
         lots.push({ qty: it.opening_qty, rate: it.opening_rate || 0, date: openDate });
       }
       for (const l of (lotsByItem.get(it.item_id) || [])) lots.push({ ...l });
