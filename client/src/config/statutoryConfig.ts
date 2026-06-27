@@ -164,17 +164,17 @@ const PARENT_GROUP_OVERRIDES: Record<string, PrimaryGroupStatutoryConfig> = {
   },
   "Sundry Debtors": {
     showStatutorySections: false,
-    featureToggles: ["tds"],
+    featureToggles: [],
     statutoryModalToggles: [],
   },
   "Sundry Creditors": {
     showStatutorySections: false,
-    featureToggles: ["tds"],
+    featureToggles: [],
     statutoryModalToggles: [],
   },
   "Stock-in-hand": {
     showStatutorySections: false,
-    featureToggles: ["tds"],
+    featureToggles: [],
     statutoryModalToggles: [],
   },
   "Secured Loans": {
