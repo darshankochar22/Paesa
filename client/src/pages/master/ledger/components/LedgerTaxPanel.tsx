@@ -60,7 +60,7 @@ function useTaxPanelVisibility(
     // For isTax groups, DutyTaxSection is rendered in left panel by LedgerCreate/Alter
     dutyTaxSection: (config.dutyTaxDetails || groupLineage.isTax) && !groupLineage.isTax,
     taxRegistrationSection: config.taxRegistration !== "none",
-    panField: isPanOnly || isFull,
+    panField: isPanOnly || isFull || isGstinServiceTaxOnly,
     fullRegistrationFields: isFull && !assessableGstSelected,
     gstinField: (isFull && !assessableGstSelected && registrationKnown) || isGstinServiceTaxOnly,
     serviceTaxField: (isFull || isGstinServiceTaxOnly) && config.serviceTaxDetails !== false,

@@ -725,11 +725,14 @@ export default function LedgerAlter() {
                   value={isOtherStatutoryActive ? "Yes" : "No"}
                   onChange={(e) => {
                     const val = e.target.value;
+                    const sections = getOtherStatutoryConfig(groupLineage.primaryGroupName).sections;
+                    const isTdsOnly = sections.length === 1 && sections[0] === "tds";
                     if (val === "Yes" && !isOtherStatutoryActive) {
                       setOtherStatutory((prev) => ({
                         ...prev,
                         tds: { ...prev.tds, is_tds_deductable: 1 },
                       }));
+                      if (isTdsOnly) setActiveStatutoryModal("tds");
                       setShowOtherStatutoryModal(true);
                     } else if (val === "No" && isOtherStatutoryActive) {
                       setOtherStatutory({
@@ -740,6 +743,7 @@ export default function LedgerAlter() {
                         vat: { ...EMPTY_VAT },
                       });
                     } else if (val === "Yes" && isOtherStatutoryActive) {
+                      if (isTdsOnly) setActiveStatutoryModal("tds");
                       setShowOtherStatutoryModal(true);
                     }
                   }}

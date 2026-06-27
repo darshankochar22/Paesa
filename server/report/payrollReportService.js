@@ -312,42 +312,65 @@ module.exports = {
     }
   },
 
-  /** Pay Slip — per-employee, per-pay-head detail rows (earnings & deductions). */
+  /**
+   * Multi Pay Slip — one row per employee showing bank details and net pay.
+   * Matches TallyPrime's "Multi Pay Slip": Particulars | Employee Number |
+   * Account No. | Bank Name | Branch | Amount | E-Mail ID
+   */
   paySlip: async (company_id, fy_id) => {
     try {
       const salaryData = await getSalaryData(company_id);
-      const rows = salaryData.map((r, idx) => ({
-        id: idx + 1,
-        emp_name: r.emp_name,
-        pay_head_name: r.pay_head_name,
-        pay_type: isDeductionHead(r) ? 'Deduction' : 'Earning',
-        amount: Number(r.amount) || 0,
-      }));
+      const empRows = await getEmployees(company_id);
+
+      const empNetMap = {};
+      for (const r of salaryData) {
+        if (!empNetMap[r.employee_id]) empNetMap[r.employee_id] = { gross: 0, deductions: 0 };
+        const amt = Number(r.amount) || 0;
+        if (isDeductionHead(r)) empNetMap[r.employee_id].deductions += amt;
+        else empNetMap[r.employee_id].gross += amt;
+      }
+
+      const rows = empRows.map((e, idx) => {
+        const net = empNetMap[e.employee_id] || { gross: 0, deductions: 0 };
+        return {
+          id: idx + 1,
+          particulars: e.name,
+          emp_number: e.employee_code || '—',
+          account_no: e.bank_account_number || '—',
+          bank_name: e.bank_name || '—',
+          branch: e.bank_branch || '—',
+          amount: net.gross - net.deductions,
+          email_id: e.email || '—',
+        };
+      });
       return { success: true, rows };
     } catch (err) {
       return { success: false, error: err.message };
     }
   },
 
-  /** Pay Sheet — employee summary: gross, deductions, net. */
+  /**
+   * Pay Sheet — one row per employee: Particulars | Total Earnings | Total Deductions | Net Amount.
+   * Matches TallyPrime Pay Sheet column structure exactly.
+   */
   paySheet: async (company_id, fy_id) => {
     try {
       const salaryData = await getSalaryData(company_id);
       const empMap = {};
       for (const row of salaryData) {
         if (!empMap[row.employee_id]) {
-          empMap[row.employee_id] = { emp_name: row.emp_name, gross: 0, deductions: 0 };
+          empMap[row.employee_id] = { particulars: row.emp_name, total_earnings: 0, total_deductions: 0 };
         }
         const amt = Number(row.amount) || 0;
-        if (isDeductionHead(row)) empMap[row.employee_id].deductions += amt;
-        else empMap[row.employee_id].gross += amt;
+        if (isDeductionHead(row)) empMap[row.employee_id].total_deductions += amt;
+        else empMap[row.employee_id].total_earnings += amt;
       }
       const rows = Object.values(empMap).map((e, idx) => ({
         id: idx + 1,
-        emp_name: e.emp_name,
-        gross: e.gross,
-        deductions: e.deductions,
-        net_pay: e.gross - e.deductions,
+        particulars: e.particulars,
+        total_earnings: e.total_earnings,
+        total_deductions: e.total_deductions,
+        net_amount: e.total_earnings - e.total_deductions,
       }));
       return { success: true, rows };
     } catch (err) {
@@ -384,7 +407,7 @@ module.exports = {
         const a = attMap[e.employee_id] || { present: 0, absent: 0, leave: 0 };
         return {
           id: idx + 1,
-          emp_name: e.name,
+          particulars: e.name,
           present: a.present,
           absent: a.absent,
           leave: a.leave,

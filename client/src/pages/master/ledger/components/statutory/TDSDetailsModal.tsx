@@ -135,7 +135,7 @@ export default function TDSDetailsModal({
   return (
     <ModalChrome width={520}>
       <ModalTitleBar
-        title={`Statutory Details${ledgerName ? ` for ${ledgerName}` : ""}`}
+        title={`Statutory Details${ledgerName ? ` for ${ledgerName}` : ""} (Secondary)`}
         onClose={onClose}
       />
 
