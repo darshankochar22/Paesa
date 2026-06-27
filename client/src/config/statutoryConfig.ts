@@ -144,7 +144,7 @@ const PARENT_GROUP_OVERRIDES: Record<string, PrimaryGroupStatutoryConfig> = {
   },
   "Bank Accounts": {
     showStatutorySections: false,
-    featureToggles: ["tds"],
+    featureToggles: [],
     statutoryModalToggles: [],
   },
   "Bank OD A/c": {
