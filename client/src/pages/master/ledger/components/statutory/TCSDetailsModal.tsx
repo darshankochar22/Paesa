@@ -56,6 +56,7 @@ export interface TcsFormState {
   tcs_pan_it_no: string;
   tcs_pan_status: string;
   tcs_name_on_pan: string;
+  tcs_nature_of_goods?: string;
   deductee_ref: string;
   tax_unique_id_no: string;
 }

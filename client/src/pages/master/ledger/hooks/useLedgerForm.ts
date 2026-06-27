@@ -97,6 +97,7 @@ export interface TcsDetails {
   tcs_pan_it_no: string;
   tcs_pan_status: string;
   tcs_name_on_pan: string;
+  tcs_nature_of_goods?: string;
   deductee_ref: string;
   tax_unique_id_no: string;
 }
@@ -145,6 +146,7 @@ export const EMPTY_TCS: TcsDetails = {
   tcs_pan_it_no: "",
   tcs_pan_status: "Unknown",
   tcs_name_on_pan: "",
+  tcs_nature_of_goods: "",
   deductee_ref: "",
   tax_unique_id_no: "",
 };
@@ -575,6 +577,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           tcs_pan_it_no: l.tcs_pan_it_no || "",
           tcs_pan_status: l.tcs_pan_status || "Unknown",
           tcs_name_on_pan: l.tcs_name_on_pan || "",
+          tcs_nature_of_goods: l.tcs_nature_of_goods || "",
           deductee_ref: l.deductee_ref || "",
           tax_unique_id_no: l.tax_unique_id_no || "",
         },
@@ -866,6 +869,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         tcs_pan_it_no: otherStatutory.tcs.tcs_pan_it_no,
         tcs_pan_status: otherStatutory.tcs.tcs_pan_status,
         tcs_name_on_pan: otherStatutory.tcs.tcs_name_on_pan,
+        tcs_nature_of_goods: otherStatutory.tcs.tcs_nature_of_goods,
         is_service_tax_applicable: otherStatutory.serviceTax.is_service_tax_applicable,
         is_excise_applicable: otherStatutory.excise.is_excise_applicable,
         is_vat_cst_applicable: otherStatutory.vat.is_vat_cst_applicable,

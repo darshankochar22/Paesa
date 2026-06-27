@@ -188,6 +188,7 @@ const init = async (db) => {
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tcs_pan_it_no TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tcs_pan_status TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tcs_name_on_pan TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tcs_nature_of_goods TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_service_tax_applicable TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_tds_applicable TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN is_excise_applicable TEXT`); } catch (err) {}

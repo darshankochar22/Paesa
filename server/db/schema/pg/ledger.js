@@ -61,6 +61,7 @@ const ledgers = pgTable('ledgers', {
   tcsPanItNo: text('tcs_pan_it_no'),
   tcsPanStatus: text('tcs_pan_status'),
   tcsNameOnPan: text('tcs_name_on_pan'),
+  tcsNatureOfGoods: text('tcs_nature_of_goods'),
   isServiceTaxApplicable: text('is_service_tax_applicable'),
   isTdsApplicable: text('is_tds_applicable'),
   isExciseApplicable: text('is_excise_applicable'),

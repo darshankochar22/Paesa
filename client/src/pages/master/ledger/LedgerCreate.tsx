@@ -264,6 +264,7 @@ export default function LedgerCreate() {
           value={otherStatutory}
           companyId={selectedCompany?.company_id}
           tdsNatureOfPaymentOnly={groupLineage.isInventory}
+          tcsNatureOfGoodsOnly={groupLineage.isInventory}
           onClose={closeAllStatutory}
           onAccept={(state) => {
             setOtherStatutory(state);
@@ -678,7 +679,7 @@ export default function LedgerCreate() {
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "Yes") {
-                      if (!isOtherStatutoryActive && statutorySections.includes("tds")) {
+                      if (!isOtherStatutoryActive && statutorySections.includes("tds") && !groupLineage.isInventory) {
                         setOtherStatutory((prev) => ({
                           ...prev,
                           tds: { ...prev.tds, is_tds_deductable: 1 },

@@ -43,6 +43,8 @@ interface OtherStatutoryModalProps {
   /** Expense/income groups: the TDS section only asks Nature of Payment
    *  (not the deductee-party details shown for balance-sheet groups). */
   tdsNatureOfPaymentOnly?: boolean;
+  /** Income/sales groups: the TCS section only asks Nature of Goods. */
+  tcsNatureOfGoodsOnly?: boolean;
   /** Persist current edits to the parent without closing (used before delegating
    *  to a Service Tax / Excise / VAT detail sub-modal so inline TDS/TCS edits survive). */
   onCommit: (state: OtherStatutoryForm) => void;
@@ -59,6 +61,7 @@ export default function OtherStatutoryModal({
   value,
   companyId,
   tdsNatureOfPaymentOnly,
+  tcsNatureOfGoodsOnly,
   onCommit,
   onTriggerSubModal,
   onResetSubModal,
@@ -115,12 +118,22 @@ export default function OtherStatutoryModal({
     const tds = form.tds;
     const showForeign = FOREIGN_PAN_STATUSES.has(tds.tds_pan_status);
 
-    // Expense/income groups: only Nature of Payment under TDS.
+    // Expense/income groups: Is TDS Applicable Yes/No, then Nature of Payment.
     if (tdsNatureOfPaymentOnly) {
       return (
         <section key="tds" className="space-y-1.5">
           <SectionHeading>TDS</SectionHeading>
-          {natureOfPaymentRow}
+          <ModalFormRow label="Is TDS Applicable" labelWidth="w-56">
+            <select
+              className={yesNoSelect}
+              value={tds.is_tds_deductable ? "Yes" : "No"}
+              onChange={(e) => setTds("is_tds_deductable", e.target.value === "Yes" ? 1 : 0)}
+            >
+              <option>No</option>
+              <option>Yes</option>
+            </select>
+          </ModalFormRow>
+          {tds.is_tds_deductable === 1 && natureOfPaymentRow}
         </section>
       );
     }
@@ -216,6 +229,35 @@ export default function OtherStatutoryModal({
   const renderTCS = () => {
     const tcs = form.tcs;
     const showForeign = FOREIGN_PAN_STATUSES.has(tcs.tcs_pan_status);
+
+    // Income/sales groups: Is TCS Applicable Yes/No, then Nature of Goods.
+    if (tcsNatureOfGoodsOnly) {
+      return (
+        <section key="tcs" className="space-y-1.5">
+          <SectionHeading>TCS</SectionHeading>
+          <ModalFormRow label="Is TCS Applicable" labelWidth="w-56">
+            <select
+              className={yesNoSelect}
+              value={tcs.is_tcs_applicable ? "Yes" : "No"}
+              onChange={(e) => setTcs("is_tcs_applicable", e.target.value === "Yes" ? 1 : 0)}
+            >
+              <option>No</option>
+              <option>Yes</option>
+            </select>
+          </ModalFormRow>
+          {tcs.is_tcs_applicable === 1 && (
+            <ModalFormRow label="Nature of Goods" labelWidth="w-56">
+              <input
+                className={inputCls + " max-w-[280px]"}
+                value={tcs.tcs_nature_of_goods ?? ""}
+                onChange={(e) => setTcs("tcs_nature_of_goods", e.target.value)}
+              />
+            </ModalFormRow>
+          )}
+        </section>
+      );
+    }
+
     return (
       <section key="tcs" className="space-y-1.5">
         <SectionHeading>TCS</SectionHeading>

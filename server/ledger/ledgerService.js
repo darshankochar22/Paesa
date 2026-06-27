@@ -188,6 +188,7 @@ module.exports = {
       tcsPanItNo: data.tcs_pan_it_no || null,
       tcsPanStatus: data.tcs_pan_status || null,
       tcsNameOnPan: data.tcs_name_on_pan || null,
+      tcsNatureOfGoods: data.tcs_nature_of_goods || null,
       isServiceTaxApplicable: data.is_service_tax_applicable || null,
       isTdsApplicable: data.is_tds_applicable || null,
       isExciseApplicable: data.is_excise_applicable || null,
@@ -495,6 +496,7 @@ module.exports = {
           tcsPanItNo: data.tcs_pan_it_no ?? ledger.tcs_pan_it_no ?? null,
           tcsPanStatus: data.tcs_pan_status ?? ledger.tcs_pan_status ?? null,
           tcsNameOnPan: data.tcs_name_on_pan ?? ledger.tcs_name_on_pan ?? null,
+          tcsNatureOfGoods: data.tcs_nature_of_goods ?? ledger.tcs_nature_of_goods ?? null,
           isServiceTaxApplicable:
             data.is_service_tax_applicable ?? ledger.is_service_tax_applicable ?? null,
           isTdsApplicable: data.is_tds_applicable ?? ledger.is_tds_applicable ?? null,
