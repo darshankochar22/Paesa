@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import CostCentreFlatList from "@/components/CostCentreFlatList";
-import type { CostCentreType, CostCategoryType } from "@/types/api";
+import type { CostCentreType } from "@/types/api";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -131,14 +131,12 @@ export default function CostCentreAlter() {
   const companyId = selectedCompany?.company_id;
 
   const [costCentres, setCostCentres] = useState<CostCentreType[]>([]);
-  const [costCategories, setCostCategories] = useState<CostCategoryType[]>([]);
   const [selectedCC, setSelectedCC] = useState<CostCentreType | null>(null);
   const [form, setForm] = useState<Partial<CostCentreType> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showCCPanel, setShowCCPanel] = useState(false);
-  const [showCatPanel, setShowCatPanel] = useState(false);
   const [showAcceptPrompt, setShowAcceptPrompt] = useState(false);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -146,12 +144,8 @@ export default function CostCentreAlter() {
 
   const loadCostCentres = useCallback(async () => {
     if (!companyId) return;
-    const [ccRes, catRes] = await Promise.all([
-      window.api.costCentre.getAll(companyId),
-      window.api.costCategory.getAll(companyId),
-    ]);
+    const ccRes = await window.api.costCentre.getAll(companyId);
     if (ccRes.success) setCostCentres(ccRes.costCentres ?? []);
-    if (catRes.success) setCostCategories(catRes.costCategories ?? []);
   }, [companyId]);
 
   useEffect(() => {
@@ -164,7 +158,6 @@ export default function CostCentreAlter() {
       name: cc.name,
       alias: cc.alias || "",
       parent_id: cc.parent_id,
-      cost_category_id: cc.cost_category_id,
     });
     setError(null);
     setSuccess(null);
@@ -210,7 +203,6 @@ export default function CostCentreAlter() {
         name: form.name!.trim(),
         alias: form.alias?.trim() || undefined,
         parent_id: form.parent_id ? Number(form.parent_id) : null,
-        cost_category_id: form.cost_category_id ? Number(form.cost_category_id) : null,
       } as any);
 
       if (result.success) {
@@ -265,8 +257,6 @@ export default function CostCentreAlter() {
           setShowAcceptPrompt(false);
         } else if (showCCPanel) {
           setShowCCPanel(false);
-        } else if (showCatPanel) {
-          setShowCatPanel(false);
         } else if (selectedCC) {
           setSelectedCC(null);
           setForm(null);
@@ -304,7 +294,7 @@ export default function CostCentreAlter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, handleDelete, navigate, selectedCC, showCCPanel, showCatPanel, showAcceptPrompt]);
+  }, [handleSubmit, handleDelete, navigate, selectedCC, showCCPanel, showAcceptPrompt]);
 
   const handleFormKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -392,11 +382,6 @@ export default function CostCentreAlter() {
                     onKeyDown={handleFormKeyDown}
                   />
                 </Row>
-                <Row label="Category" onClick={() => setShowCatPanel(true)}>
-                  <span className="text-[12px] font-bold text-zinc-950 font-mono py-1 px-1 block cursor-pointer">
-                    {form.cost_category_id ? (costCategories.find(c => c.cc_cat_id === form.cost_category_id)?.name ?? "Primary") : "Primary"}
-                  </span>
-                </Row>
                 <Row label="Under" onClick={() => setShowCCPanel(true)}>
                   <span className="text-[12px] font-bold text-zinc-950 font-mono py-1 px-1 block cursor-pointer">
                     {parentCC ? parentCC.name : "Primary"}
@@ -455,36 +440,6 @@ export default function CostCentreAlter() {
           </div>
         </div>
       </div>
-
-      {/* Category selection panel */}
-      {showCatPanel && (
-        <div className="w-80 border-l border-zinc-200 flex flex-col shrink-0 bg-white animate-slide-in">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none shrink-0 font-sans">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cost Category</span>
-            <button onClick={() => setShowCatPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800">&times;</button>
-          </div>
-          <div
-            className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${!form.cost_category_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
-            onClick={() => { setForm(f => (f ? { ...f, cost_category_id: undefined } : f)); setShowCatPanel(false); }}
-          >
-            <span className="truncate">Primary</span>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {costCategories.map(c => (
-              <div
-                key={c.cc_cat_id}
-                className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${form.cost_category_id === c.cc_cat_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
-                onClick={() => { setForm(f => (f ? { ...f, cost_category_id: c.cc_cat_id } : f)); setShowCatPanel(false); }}
-              >
-                <span className="truncate">{c.name}</span>
-              </div>
-            ))}
-            {costCategories.length === 0 && (
-              <div className="text-xs text-zinc-400 px-3 py-2 italic font-sans">No categories yet</div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Right panel parent selection */}
       {showCCPanel && (

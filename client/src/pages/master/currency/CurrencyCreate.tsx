@@ -6,29 +6,27 @@ const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 borde
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24 ";
 
 interface FormData {
-  name: string;
+  symbol: string;
   formal_name: string;
   iso_code: string;
-  symbol: string;
   decimal_places: string;
-  decimal_symbol: string;
-  decimal_places_in_words: string;
-  suffix_symbol_to_amount: "No" | "Yes";
   show_amount_in_millions: "No" | "Yes";
+  suffix_symbol_to_amount: "No" | "Yes";
   add_space_between_amount_and_symbol: "No" | "Yes";
+  word_representing_amount_after_decimal: string;
+  decimal_places_in_words: string;
 }
 
 const INITIAL: FormData = {
-  name: "",
+  symbol: "",
   formal_name: "",
   iso_code: "",
-  symbol: "",
   decimal_places: "2",
-  decimal_symbol: ".",
-  decimal_places_in_words: "",
-  suffix_symbol_to_amount: "No",
   show_amount_in_millions: "No",
+  suffix_symbol_to_amount: "No",
   add_space_between_amount_and_symbol: "No",
+  word_representing_amount_after_decimal: "",
+  decimal_places_in_words: "2",
 };
 
 export default function CurrencyCreate() {
@@ -47,11 +45,12 @@ export default function CurrencyCreate() {
   ) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const validate = (): string | null => {
-    if (!form.name.trim()) return "Currency name is required.";
+    if (!form.symbol.trim()) return "Symbol is required.";
+    if (!form.formal_name.trim()) return "Formal name is required.";
     if (!form.iso_code.trim()) return "ISO Currency Code is required.";
     if (!companyId) return "No company selected.";
     const decimals = Number(form.decimal_places);
-    if (isNaN(decimals) || decimals < 0 || decimals > 10) return "Decimal places must be a number between 0 and 10.";
+    if (isNaN(decimals) || decimals < 0 || decimals > 10) return "Number of decimal places must be between 0 and 10.";
     return null;
   };
 
@@ -66,20 +65,20 @@ export default function CurrencyCreate() {
     try {
       const result = await window.api.currency.create({
         company_id: companyId!,
-        name: form.name.trim(),
+        name: form.formal_name.trim() || form.symbol.trim(),
         formal_name: form.formal_name.trim() || undefined,
         iso_code: form.iso_code.trim().toUpperCase(),
         symbol: form.symbol.trim() || undefined,
         decimal_places: Number(form.decimal_places) || 2,
-        decimal_symbol: form.decimal_symbol.trim() || ".",
         decimal_places_in_words: form.decimal_places_in_words.trim() || undefined,
+        word_representing_amount_after_decimal: form.word_representing_amount_after_decimal.trim() || undefined,
         suffix_symbol_to_amount: form.suffix_symbol_to_amount === "Yes" ? 1 : 0,
         show_amount_in_millions: form.show_amount_in_millions === "Yes" ? 1 : 0,
         add_space_between_amount_and_symbol: form.add_space_between_amount_and_symbol === "Yes" ? 1 : 0,
       });
 
       if (result.success) {
-        setSuccess(`Currency "${form.name}" created successfully.`);
+        setSuccess(`Currency "${form.formal_name || form.symbol}" created successfully.`);
         setForm(INITIAL);
         setTimeout(() => setSuccess(null), 3000);
       } else {
@@ -141,41 +140,49 @@ export default function CurrencyCreate() {
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <div className="p-3 space-y-1.5 max-w-2xl">
-            <FormRow label="Currency Symbol" required labelWidth="w-64" className="flex items-center min-h-[26px]">
+            <FormRow label="Symbol" required labelWidth="w-72" className="flex items-center min-h-[26px]">
               <input autoFocus className={inputCls} value={form.symbol} onChange={setField("symbol")} placeholder="e.g. ₹" />
             </FormRow>
-            <FormRow label="Formal Name" required labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Indian Rupee" />
+
+            <div className="h-3" />
+            <FormRow label="Formal name" required labelWidth="w-72" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Indian Rupee" />
             </FormRow>
-            <FormRow label="ISO Currency Code" required labelWidth="w-64" className="flex items-center min-h-[26px]">
+            <FormRow label="ISO Currency Code" required labelWidth="w-72" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={form.iso_code} onChange={setField("iso_code")} placeholder="e.g. INR" maxLength={3} />
             </FormRow>
-            <FormRow label="Decimal Places" labelWidth="w-64" className="flex items-center min-h-[26px]">
+
+            <div className="h-3" />
+            <FormRow label="Number of decimal places" labelWidth="w-72" className="flex items-center min-h-[26px]">
               <input className={inputCls} type="number" min="0" max="10" value={form.decimal_places} onChange={setField("decimal_places")} />
             </FormRow>
-            <FormRow label="Decimal Symbol" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.decimal_symbol} onChange={setField("decimal_symbol")} placeholder="." maxLength={1} />
-            </FormRow>
-            <FormRow label="Decimal Places in Words" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.decimal_places_in_words} onChange={setField("decimal_places_in_words")} placeholder="e.g. Paise" />
-            </FormRow>
-            <FormRow label="Suffix Symbol to Amount" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.suffix_symbol_to_amount} onChange={setField("suffix_symbol_to_amount")}>
-                <option>No</option>
-                <option>Yes</option>
-              </select>
-            </FormRow>
-            <FormRow label="Show Amount in Millions" labelWidth="w-64" className="flex items-center min-h-[26px]">
+            <FormRow label="Show amount in millions" labelWidth="w-72" className="flex items-center min-h-[26px]">
               <select className={selectCls} value={form.show_amount_in_millions} onChange={setField("show_amount_in_millions")}>
                 <option>No</option>
                 <option>Yes</option>
               </select>
             </FormRow>
-            <FormRow label="Add Space between Amount & Symbol" labelWidth="w-64" className="flex items-center min-h-[26px]">
+
+            <div className="h-3" />
+            <FormRow label="Suffix symbol to amount" labelWidth="w-72" className="flex items-center min-h-[26px]">
+              <select className={selectCls} value={form.suffix_symbol_to_amount} onChange={setField("suffix_symbol_to_amount")}>
+                <option>No</option>
+                <option>Yes</option>
+              </select>
+            </FormRow>
+            <FormRow label="Add space between amount and symbol" labelWidth="w-72" className="flex items-center min-h-[26px]">
               <select className={selectCls} value={form.add_space_between_amount_and_symbol} onChange={setField("add_space_between_amount_and_symbol")}>
                 <option>No</option>
                 <option>Yes</option>
               </select>
+            </FormRow>
+
+            <div className="h-3" />
+            <FormRow label="Word representing amount after decimal" labelWidth="w-72" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={form.word_representing_amount_after_decimal} onChange={setField("word_representing_amount_after_decimal")} placeholder="e.g. Paise" />
+            </FormRow>
+            <FormRow label="No. of decimal places for amount in words" labelWidth="w-72" className="flex items-center min-h-[26px]">
+              <input className={inputCls} type="number" min="0" max="10" value={form.decimal_places_in_words} onChange={setField("decimal_places_in_words")} />
             </FormRow>
           </div>
           <div className="flex-1" />

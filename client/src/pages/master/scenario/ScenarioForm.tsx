@@ -2,11 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { PageTitleBar, RightActionPanel, Select } from "@/components/ui";
 import type { ScenarioType, ScenarioVoucher, VoucherTypeType } from "@/types/api";
 
-const MODE_OPTIONS = [
-  { value: "Optional Vouchers Only", label: "Optional Vouchers Only" },
-  { value: "All Vouchers", label: "All Vouchers" },
-];
-
 const inputCls =
   "w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 border-b border-transparent focus:border-zinc-400 transition-colors";
 
@@ -233,33 +228,20 @@ function VoucherList({
       <div className="bg-zinc-100 px-3 py-1.5 border-b border-zinc-300 text-[11px] font-bold text-zinc-700">
         {heading}
       </div>
-      <div className="grid grid-cols-[3fr_2fr_40px] border-b border-zinc-300 text-[11px] font-bold text-zinc-600 bg-zinc-50">
-        <div className="py-1.5 px-2 border-r border-zinc-200">Name of Voucher Type</div>
-        <div className="py-1.5 px-2 border-r border-zinc-200">Type of Vouchers</div>
-        <div />
-      </div>
       {rows.length === 0 && (
         <div className="py-5 text-center text-zinc-400 italic font-sans text-xs">
           No voucher types — add a row below.
         </div>
       )}
       {rows.map((r, i) => (
-        <div key={i} className="grid grid-cols-[3fr_2fr_40px] border-b border-zinc-100 items-center">
+        <div key={i} className="grid grid-cols-[1fr_40px] border-b border-zinc-100 items-center">
           <div className="border-r border-zinc-100 px-1">
             <Select
               className="border-0 h-7"
               value={r.voucher_type_id || ""}
               onChange={(e) => update(i, { voucher_type_id: e.target.value ? Number(e.target.value) : 0 })}
               options={vtOptions}
-              placeholder="Select…"
-            />
-          </div>
-          <div className="border-r border-zinc-100 px-1">
-            <Select
-              className="border-0 h-7"
-              value={r.vouchers_mode || "Optional Vouchers Only"}
-              onChange={(e) => update(i, { vouchers_mode: e.target.value as ScenarioVoucher["vouchers_mode"] })}
-              options={MODE_OPTIONS}
+              placeholder="Select voucher type…"
             />
           </div>
           <button onClick={() => removeRow(i)} className="text-zinc-400 hover:text-red-500 text-sm font-bold">

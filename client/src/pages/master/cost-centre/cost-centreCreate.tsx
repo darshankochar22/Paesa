@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import CostCentreFlatList from "@/components/CostCentreFlatList";
-import type { CostCentreType, CostCategoryType } from "@/types/api";
+import type { CostCentreType } from "@/types/api";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -24,10 +24,9 @@ const INITIAL_FORM: FormState = {
   name: "",
   alias: "",
   parent_id: undefined,
-  cost_category_id: undefined,
 };
 
-type SidePanel = "parent" | "category" | null;
+type SidePanel = "parent" | null;
 
 export default function CostCentreCreate() {
   const { selectedCompany } = useCompany();
@@ -35,7 +34,6 @@ export default function CostCentreCreate() {
   const companyId = selectedCompany?.company_id;
 
   const [costCentres, setCostCentres] = useState<CostCentreType[]>([]);
-  const [costCategories, setCostCategories] = useState<CostCategoryType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -72,18 +70,13 @@ export default function CostCentreCreate() {
 
   const fetchData = async () => {
     if (!companyId) return;
-    const [ccRes, catRes] = await Promise.all([
-      window.api.costCentre.getAll(companyId),
-      window.api.costCategory.getAll(companyId),
-    ]);
+    const ccRes = await window.api.costCentre.getAll(companyId);
     if (ccRes.success && ccRes.costCentres) setCostCentres(ccRes.costCentres);
-    if (catRes.success && catRes.costCategories) setCostCategories(catRes.costCategories);
   };
 
   useEffect(() => { fetchData(); }, [companyId]);
 
   const parentCC = form.parent_id ? costCentres.find(cc => cc.cc_id === form.parent_id) : null;
-  const selectedCategory = form.cost_category_id ? costCategories.find(c => c.cc_cat_id === form.cost_category_id) : null;
 
   const setField = (key: keyof CostCentreType) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -99,7 +92,7 @@ export default function CostCentreCreate() {
     if (e.key === "Enter") {
       e.preventDefault();
       if (e.currentTarget === nameInputRef.current) aliasInputRef.current?.focus();
-      else if (e.currentTarget === aliasInputRef.current) setShowPanel("category");
+      else if (e.currentTarget === aliasInputRef.current) setShowPanel("parent");
     }
   };
 
@@ -115,7 +108,6 @@ export default function CostCentreCreate() {
         name: form.name!.trim(),
         alias: form.alias?.trim() || undefined,
         parent_id: form.parent_id ? Number(form.parent_id) : undefined,
-        cost_category_id: form.cost_category_id ? Number(form.cost_category_id) : undefined,
       };
       const res = await window.api.costCentre.create(payload);
       if (res.success) {
@@ -182,11 +174,6 @@ export default function CostCentreCreate() {
                   onKeyDown={handleFormKeyDown}
                 />
               </Row>
-              <Row label="Category" onClick={() => setShowPanel("category")}>
-                <span className="text-[12px] font-bold text-zinc-950 font-mono py-1 px-1 block cursor-pointer">
-                  {selectedCategory ? selectedCategory.name : "Primary"}
-                </span>
-              </Row>
               <Row label="Under" onClick={() => setShowPanel("parent")}>
                 <span className="text-[12px] font-bold text-zinc-950 font-mono py-1 px-1 block cursor-pointer">
                   {parentCC ? parentCC.name : "Primary"}
@@ -234,36 +221,6 @@ export default function CostCentreCreate() {
           </div>
         </div>
       </div>
-
-      {/* Cost Category panel */}
-      {showPanel === "category" && (
-        <div className="w-80 border-l border-zinc-200 flex flex-col shrink-0 bg-white animate-slide-in">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none shrink-0 font-sans">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cost Category</span>
-            <button onClick={() => setShowPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800">&times;</button>
-          </div>
-          <div
-            className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${!form.cost_category_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
-            onClick={() => { setForm(f => ({ ...f, cost_category_id: undefined })); setShowPanel(null); }}
-          >
-            <span className="truncate">Primary</span>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {costCategories.map(c => (
-              <div
-                key={c.cc_cat_id}
-                className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${form.cost_category_id === c.cc_cat_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
-                onClick={() => { setForm(f => ({ ...f, cost_category_id: c.cc_cat_id })); setShowPanel(null); }}
-              >
-                <span className="truncate">{c.name}</span>
-              </div>
-            ))}
-            {costCategories.length === 0 && (
-              <div className="text-xs text-zinc-400 px-3 py-2 italic font-sans">No categories yet</div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Parent cost centre panel */}
       {showPanel === "parent" && (

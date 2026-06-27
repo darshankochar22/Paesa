@@ -8,16 +8,15 @@ const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1.5 borde
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24 ";
 
 interface FormData {
-  name: string;
+  symbol: string;
   formal_name: string;
   iso_code: string;
-  symbol: string;
   decimal_places: string;
-  decimal_symbol: string;
-  decimal_places_in_words: string;
-  suffix_symbol_to_amount: "No" | "Yes";
   show_amount_in_millions: "No" | "Yes";
+  suffix_symbol_to_amount: "No" | "Yes";
   add_space_between_amount_and_symbol: "No" | "Yes";
+  word_representing_amount_after_decimal: string;
+  decimal_places_in_words: string;
 }
 
 function SelectionPanel({
@@ -162,16 +161,15 @@ export default function CurrencyAlter() {
   const handleSelectCurrency = (c: CurrencyType) => {
     setSelectedCurrency(c);
     setForm({
-      name: c.name ?? "",
-      formal_name: c.formal_name ?? "",
-      iso_code: c.iso_code ?? "",
       symbol: c.symbol ?? "",
+      formal_name: c.formal_name ?? c.name ?? "",
+      iso_code: c.iso_code ?? "",
       decimal_places: String(c.decimal_places ?? 2),
-      decimal_symbol: c.decimal_symbol ?? ".",
-      decimal_places_in_words: c.decimal_places_in_words ?? "",
-      suffix_symbol_to_amount: !!c.suffix_symbol_to_amount ? "Yes" : "No",
       show_amount_in_millions: !!c.show_amount_in_millions ? "Yes" : "No",
+      suffix_symbol_to_amount: !!c.suffix_symbol_to_amount ? "Yes" : "No",
       add_space_between_amount_and_symbol: !!c.add_space_between_amount_and_symbol ? "Yes" : "No",
+      word_representing_amount_after_decimal: c.word_representing_amount_after_decimal ?? "",
+      decimal_places_in_words: c.decimal_places_in_words ?? "2",
     });
     setError(null);
     setSuccess(null);
@@ -182,11 +180,12 @@ export default function CurrencyAlter() {
   ) => setForm((f) => (f ? { ...f, [key]: e.target.value } : f));
 
   const validate = (): string | null => {
-    if (!form?.name.trim()) return "Currency name is required.";
+    if (!form?.symbol.trim()) return "Symbol is required.";
+    if (!form?.formal_name.trim()) return "Formal name is required.";
     if (!form?.iso_code.trim()) return "ISO Currency Code is required.";
     if (!companyId) return "No company selected.";
     const decimals = Number(form.decimal_places);
-    if (isNaN(decimals) || decimals < 0 || decimals > 10) return "Decimal places must be a number between 0 and 10.";
+    if (isNaN(decimals) || decimals < 0 || decimals > 10) return "Number of decimal places must be between 0 and 10.";
     return null;
   };
 
@@ -209,20 +208,20 @@ export default function CurrencyAlter() {
       const result = await window.api.currency.update({
         currency_id: selectedCurrency.currency_id,
         company_id: companyId,
-        name: form.name.trim(),
+        name: form.formal_name.trim() || form.symbol.trim(),
         formal_name: form.formal_name.trim() || undefined,
         iso_code: form.iso_code.trim().toUpperCase(),
         symbol: form.symbol.trim() || undefined,
         decimal_places: Number(form.decimal_places) || 2,
-        decimal_symbol: form.decimal_symbol.trim() || ".",
         decimal_places_in_words: form.decimal_places_in_words.trim() || undefined,
+        word_representing_amount_after_decimal: form.word_representing_amount_after_decimal.trim() || undefined,
         suffix_symbol_to_amount: form.suffix_symbol_to_amount === "Yes" ? 1 : 0,
         show_amount_in_millions: form.show_amount_in_millions === "Yes" ? 1 : 0,
         add_space_between_amount_and_symbol: form.add_space_between_amount_and_symbol === "Yes" ? 1 : 0,
       });
 
       if (result.success) {
-        setSuccess(`Currency "${form.name}" updated successfully.`);
+        setSuccess(`Currency "${form.formal_name || form.symbol}" updated successfully.`);
         await loadCurrencies();
         setTimeout(() => {
           setSuccess(null);
@@ -374,7 +373,7 @@ export default function CurrencyAlter() {
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5 max-w-2xl bg-white border-r border-zinc-100">
-          <FormRow label="Currency Symbol" required labelWidth="w-64" className="flex items-center min-h-[26px]">
+          <FormRow label="Symbol" required labelWidth="w-72" className="flex items-center min-h-[26px]">
             <input
               autoFocus={!isPredefined}
               disabled={isPredefined}
@@ -383,15 +382,17 @@ export default function CurrencyAlter() {
               onChange={setField("symbol")}
             />
           </FormRow>
-          <FormRow label="Formal Name" required labelWidth="w-64" className="flex items-center min-h-[26px]">
+
+          <div className="h-3" />
+          <FormRow label="Formal name" required labelWidth="w-72" className="flex items-center min-h-[26px]">
             <input
               disabled={isPredefined}
               className={`${inputCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
-              value={form.name}
-              onChange={setField("name")}
+              value={form.formal_name}
+              onChange={setField("formal_name")}
             />
           </FormRow>
-          <FormRow label="ISO Currency Code" required labelWidth="w-64" className="flex items-center min-h-[26px]">
+          <FormRow label="ISO Currency Code" required labelWidth="w-72" className="flex items-center min-h-[26px]">
             <input
               disabled={isPredefined}
               className={`${inputCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
@@ -400,7 +401,9 @@ export default function CurrencyAlter() {
               maxLength={3}
             />
           </FormRow>
-          <FormRow label="Decimal Places" labelWidth="w-64" className="flex items-center min-h-[26px]">
+
+          <div className="h-3" />
+          <FormRow label="Number of decimal places" labelWidth="w-72" className="flex items-center min-h-[26px]">
             <input
               disabled={isPredefined}
               className={`${inputCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
@@ -411,35 +414,7 @@ export default function CurrencyAlter() {
               onChange={setField("decimal_places")}
             />
           </FormRow>
-          <FormRow label="Decimal Symbol" labelWidth="w-64" className="flex items-center min-h-[26px]">
-            <input
-              disabled={isPredefined}
-              className={`${inputCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
-              value={form.decimal_symbol}
-              onChange={setField("decimal_symbol")}
-              maxLength={1}
-            />
-          </FormRow>
-          <FormRow label="Decimal Places in Words" labelWidth="w-64" className="flex items-center min-h-[26px]">
-            <input
-              disabled={isPredefined}
-              className={`${inputCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
-              value={form.decimal_places_in_words}
-              onChange={setField("decimal_places_in_words")}
-            />
-          </FormRow>
-          <FormRow label="Suffix Symbol to Amount" labelWidth="w-64" className="flex items-center min-h-[26px]">
-            <select
-              disabled={isPredefined}
-              className={`${selectCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
-              value={form.suffix_symbol_to_amount}
-              onChange={setField("suffix_symbol_to_amount")}
-            >
-              <option>No</option>
-              <option>Yes</option>
-            </select>
-          </FormRow>
-          <FormRow label="Show Amount in Millions" labelWidth="w-64" className="flex items-center min-h-[26px]">
+          <FormRow label="Show amount in millions" labelWidth="w-72" className="flex items-center min-h-[26px]">
             <select
               disabled={isPredefined}
               className={`${selectCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
@@ -450,7 +425,20 @@ export default function CurrencyAlter() {
               <option>Yes</option>
             </select>
           </FormRow>
-          <FormRow label="Add Space between Amount & Symbol" labelWidth="w-64" className="flex items-center min-h-[26px]">
+
+          <div className="h-3" />
+          <FormRow label="Suffix symbol to amount" labelWidth="w-72" className="flex items-center min-h-[26px]">
+            <select
+              disabled={isPredefined}
+              className={`${selectCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
+              value={form.suffix_symbol_to_amount}
+              onChange={setField("suffix_symbol_to_amount")}
+            >
+              <option>No</option>
+              <option>Yes</option>
+            </select>
+          </FormRow>
+          <FormRow label="Add space between amount and symbol" labelWidth="w-72" className="flex items-center min-h-[26px]">
             <select
               disabled={isPredefined}
               className={`${selectCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
@@ -460,6 +448,27 @@ export default function CurrencyAlter() {
               <option>No</option>
               <option>Yes</option>
             </select>
+          </FormRow>
+
+          <div className="h-3" />
+          <FormRow label="Word representing amount after decimal" labelWidth="w-72" className="flex items-center min-h-[26px]">
+            <input
+              disabled={isPredefined}
+              className={`${inputCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
+              value={form.word_representing_amount_after_decimal}
+              onChange={setField("word_representing_amount_after_decimal")}
+            />
+          </FormRow>
+          <FormRow label="No. of decimal places for amount in words" labelWidth="w-72" className="flex items-center min-h-[26px]">
+            <input
+              disabled={isPredefined}
+              className={`${inputCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
+              type="number"
+              min="0"
+              max="10"
+              value={form.decimal_places_in_words}
+              onChange={setField("decimal_places_in_words")}
+            />
           </FormRow>
         </div>
 
