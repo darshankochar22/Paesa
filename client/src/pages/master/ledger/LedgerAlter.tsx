@@ -290,8 +290,8 @@ export default function LedgerAlter() {
           visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName, groupName).sections}
           value={otherStatutory}
           companyId={selectedCompany?.company_id}
-          tdsNatureOfPaymentOnly={groupLineage.isInventory}
-          tcsNatureOfGoodsOnly={groupLineage.isInventory}
+          tdsNatureOfPaymentOnly={groupLineage.isInventory || groupLineage.isTax}
+          tcsNatureOfGoodsOnly={groupLineage.isInventory || groupLineage.isTax}
           onClose={closeAllStatutory}
           onAccept={(state) => {
             setOtherStatutory(state);
@@ -732,7 +732,7 @@ export default function LedgerAlter() {
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "Yes") {
-                      if (!isOtherStatutoryActive && statutorySections.includes("tds") && !groupLineage.isInventory) {
+                      if (!isOtherStatutoryActive && statutorySections.includes("tds") && !groupLineage.isInventory && !groupLineage.isTax) {
                         setOtherStatutory((prev) => ({
                           ...prev,
                           tds: { ...prev.tds, is_tds_deductable: 1 },

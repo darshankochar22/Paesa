@@ -74,9 +74,8 @@ const BY_PRIMARY_GROUP: Record<string, OtherStatutoryConfig> = {
   "Direct Incomes": { sections: ["serviceTax", "tds", "tcs", "excise", "vat"] },
   "Indirect Incomes": { sections: ["serviceTax", "tds", "tcs", "excise", "vat"] },
 
-  // Duties & Taxes — keep the modal hidden (this group is itself a tax group
-  // and uses the duty-tax section in the right column instead).
-  "Duties & Taxes": { sections: [] },
+  // Duties & Taxes — TDS (Nature of Payment) + TCS (Nature of Goods) only.
+  "Duties & Taxes": { sections: ["tds", "tcs"] },
 
   // Cash-in-Hand — simple cash ledger, no TDS/TCS statutory section.
   "Cash-in-Hand": { sections: [] },

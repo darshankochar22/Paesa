@@ -11,7 +11,9 @@ import {
 } from "./shared";
 import ApplicabilityDropdown from "./ApplicabilityDropdown";
 import NatureOfPaymentFlatList from "./NatureofPaymentFlatlist";
+import NatureOfGoodsFlatList from "./NatureOfGoodsFlatlist";
 import { useTdsNatureOfPayments } from "../../hooks/usetdsnatureofpayments";
+import { useTcsNatureOfGoods } from "../../hooks/usetcsnatureofgoods";
 import { TDS_DEDUCTEE_TYPES, TDS_PAN_STATUSES, type TdsFormState } from "./TDSDetailsModal";
 import { TCS_BUYER_LESSEE_TYPES, type TcsFormState } from "./TCSDetailsModal";
 import type { ServiceTaxFormState, ExciseFormState, VATFormState } from "./SimpleTaxModals";
@@ -68,8 +70,10 @@ export default function OtherStatutoryModal({
 }: OtherStatutoryModalProps) {
   const [form, setForm] = useState<OtherStatutoryForm>(value);
   const [nopOpen, setNopOpen] = useState(false);
+  const [nogOpen, setNogOpen] = useState(false);
   const navigate = useNavigate();
   const { items: nopItems, loading: nopLoading } = useTdsNatureOfPayments(companyId ?? 0);
+  const { items: nogItems, loading: nogLoading } = useTcsNatureOfGoods(companyId ?? 0);
 
   // Re-sync from parent each time the modal (re)mounts/opens.
   useEffect(() => {
@@ -247,11 +251,28 @@ export default function OtherStatutoryModal({
           </ModalFormRow>
           {tcs.is_tcs_applicable === 1 && (
             <ModalFormRow label="Nature of Goods" labelWidth="w-56">
-              <input
-                className={inputCls + " max-w-[280px]"}
-                value={tcs.tcs_nature_of_goods ?? ""}
-                onChange={(e) => setTcs("tcs_nature_of_goods", e.target.value)}
-              />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setNogOpen((v) => !v)}
+                  className={selectCls + " max-w-[240px] text-left flex items-center justify-between"}
+                >
+                  <span className="truncate">{tcs.tcs_nature_of_goods || "Undefined"}</span>
+                  <span className="text-zinc-400 ml-1">▾</span>
+                </button>
+                {nogOpen && (
+                  <div className="absolute z-50 top-full left-0 mt-1 w-[300px] h-[260px] border border-zinc-300 shadow-lg rounded-sm overflow-hidden bg-white">
+                    <NatureOfGoodsFlatList
+                      items={nogItems}
+                      loading={nogLoading}
+                      selectedValue={tcs.tcs_nature_of_goods}
+                      onSelect={(v) => { setTcs("tcs_nature_of_goods", v); setNogOpen(false); }}
+                      onCreate={() => { setNogOpen(false); navigate("/master/create/tcs-nature-of-goods"); }}
+                      onClose={() => setNogOpen(false)}
+                    />
+                  </div>
+                )}
+              </div>
             </ModalFormRow>
           )}
         </section>
