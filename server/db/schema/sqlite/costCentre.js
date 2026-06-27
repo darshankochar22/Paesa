@@ -11,6 +11,7 @@ const costCentres = sqliteTable('cost_centres', {
   alias: text('alias'),
   parentId: integer('parent_id'),
   category: text('category').default('Primary'),
+  costCategoryId: integer('cost_category_id'),
   isActive: integer('is_active').default(1),
   isPredefined: integer('is_predefined').default(0),
   createdAt: text('created_at').default(sql`(datetime('now'))`),

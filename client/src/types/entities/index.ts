@@ -3,6 +3,7 @@ export type { FYType } from './FinancialYear';
 export type { GroupType, SlabBasedRate } from './Group';
 export type { LedgerType } from './Ledger';
 export type { CostCentreType } from './CostCentre';
+export type { CostCategoryType } from './CostCategory';
 export type { UnitType } from './Unit';
 export type { StockGroupType, StockGroupTreeNode } from './StockGroup';
 export type { StockCategoryType } from './StockCategory';

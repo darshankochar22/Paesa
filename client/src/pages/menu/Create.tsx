@@ -32,6 +32,7 @@ export default function Create() {
       "Group": "/master/create/group",
       "Currency": "/master/create/currency",
       "Voucher Type": "/master/create/voucher-type",
+      "Cost Category": "/master/create/cost-category",
       "Cost Centre": "/master/create/cost-centre",
       "Stock Group": "/master/create/stock-group",
       "Stock Category": "/master/create/stock-category",

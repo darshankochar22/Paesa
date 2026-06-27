@@ -51,6 +51,7 @@ module.exports = {
           alias: data.alias || null,
           parentId: data.parent_id || null,
           category: data.parent_id ? 'Secondary' : 'Primary',
+          costCategoryId: data.cost_category_id || null,
           isActive: 1,
           isPredefined: 0,
         })
@@ -112,6 +113,7 @@ module.exports = {
           alias: data.alias ?? current.alias,
           parentId: data.parent_id ?? current.parent_id,
           category: data.parent_id ? 'Secondary' : 'Primary',
+          costCategoryId: data.cost_category_id !== undefined ? (data.cost_category_id || null) : current.cost_category_id,
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(costCentres.ccId, data.cc_id));

@@ -15,6 +15,7 @@ module.exports = {
   ...require('./companyPanCinDetails'),
   ...require('./companyTcsDetails'),
   ...require('./companyTdsDetails'),
+  ...require('./costCategory'),
   ...require('./costCentre'),
   ...require('./currency'),
   ...require('./dayBookReport'),

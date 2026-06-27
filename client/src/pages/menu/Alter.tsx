@@ -58,6 +58,8 @@ export default function Alter() {
       "Pay Heads": "/master/alter/pay-head",
       "Units(work)": "/master/alter/payroll-unit",
       "Salary Structure": "/master/alter/salary-structure",
+      "Cost Category": "/master/alter/cost-category",
+      "Cost Centre": "/master/alter/cost-centre",
     };
     return map[item] ?? null;
   };

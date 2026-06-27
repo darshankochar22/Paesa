@@ -65,6 +65,13 @@ contextBridge.exposeInMainWorld('api', {
         delete:  (id)         => invoke('costCentre:delete', id),
         getTree: (company_id) => invoke('costCentre:getTree', company_id),
     },
+    costCategory: {
+        create:  (data)       => invoke('costCategory:create', data),
+        getAll:  (company_id) => invoke('costCategory:getAll', company_id),
+        getById: (id)         => invoke('costCategory:getById', id),
+        update:  (data)       => invoke('costCategory:update', data),
+        delete:  (id)         => invoke('costCategory:delete', id),
+    },
     unit: {
         create:       (data)       => invoke('unit:create', data),
         getAll:       (company_id) => invoke('unit:getAll', company_id),

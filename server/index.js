@@ -5,6 +5,7 @@ const financialYearController = require("./financialYear/financialYearController
 const groupController = require('./group/groupController');
 const ledgerController = require('./ledger/ledgerController');
 const costCentreController = require('./costCentre/costCentreController');
+const costCategoryController = require('./costCategory/costCategoryController');
 const unitController = require('./unit/unitController');
 const stockGroupController = require('./stockGroup/stockGroupController');
 const stockCategoryController = require('./stockCategory/stockCategoryController');
@@ -104,6 +105,12 @@ ipcMain.handle('costCentre:getById', costCentreController.getById);
 ipcMain.handle('costCentre:update', costCentreController.update);
 ipcMain.handle('costCentre:delete', costCentreController.delete);
 ipcMain.handle('costCentre:getTree', costCentreController.getTree);
+
+ipcMain.handle('costCategory:create', costCategoryController.create);
+ipcMain.handle('costCategory:getAll', costCategoryController.getAll);
+ipcMain.handle('costCategory:getById', costCategoryController.getById);
+ipcMain.handle('costCategory:update', costCategoryController.update);
+ipcMain.handle('costCategory:delete', costCategoryController.delete);
 
 ipcMain.handle('unit:create', unitController.create);
 ipcMain.handle('unit:getAll', unitController.getAll);

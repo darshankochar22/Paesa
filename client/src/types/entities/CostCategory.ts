@@ -1,11 +1,10 @@
-export interface CostCentreType {
-  cc_id?: number;
+export interface CostCategoryType {
+  cc_cat_id?: number;
   company_id?: number;
   name: string;
   alias?: string;
-  parent_id?: number;
-  category?: string;
-  cost_category_id?: number;
+  allocate_revenue_items?: number;
+  allocate_non_revenue_items?: number;
   is_active?: number;
   is_predefined?: number;
   created_at?: string;

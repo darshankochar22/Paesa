@@ -3,6 +3,7 @@ import type { FinancialYearAPI } from './FinancialYear';
 import type { GroupAPI } from './Group';
 import type { LedgerAPI } from './Ledger';
 import type { CostCentreAPI } from './CostCentre';
+import type { CostCategoryAPI } from './CostCategory';
 import type { UnitAPI } from './Unit';
 import type { InventoryAPI } from './Inventory';
 import type { GodownAPI } from './Godown';
@@ -26,6 +27,7 @@ export type {
   SlabBasedRate,
   LedgerType,
   CostCentreType,
+  CostCategoryType,
   UnitType,
   StockGroupType,
   StockGroupTreeNode,
@@ -59,6 +61,7 @@ export type WindowAPI =
   & GroupAPI
   & LedgerAPI
   & CostCentreAPI
+  & CostCategoryAPI
   & UnitAPI
   & InventoryAPI
   & GodownAPI

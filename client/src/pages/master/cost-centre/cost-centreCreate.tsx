@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import CostCentreFlatList from "@/components/CostCentreFlatList";
-import type { CostCentreType } from "@/types/api";
+import type { CostCentreType, CostCategoryType } from "@/types/api";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -18,11 +18,16 @@ function Row({ label, required, children, onClick }: { label: string; required?:
 
 const inputCls = "w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 rounded-sm placeholder:text-zinc-300 border-b border-transparent focus:border-zinc-300 transition-colors";
 
-const INITIAL_FORM: Partial<CostCentreType> = {
+interface FormState extends Partial<CostCentreType> {}
+
+const INITIAL_FORM: FormState = {
   name: "",
   alias: "",
   parent_id: undefined,
+  cost_category_id: undefined,
 };
+
+type SidePanel = "parent" | "category" | null;
 
 export default function CostCentreCreate() {
   const { selectedCompany } = useCompany();
@@ -30,89 +35,59 @@ export default function CostCentreCreate() {
   const companyId = selectedCompany?.company_id;
 
   const [costCentres, setCostCentres] = useState<CostCentreType[]>([]);
+  const [costCategories, setCostCategories] = useState<CostCategoryType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showCCPanel, setShowCCPanel] = useState(false);
+  const [showPanel, setShowPanel] = useState<SidePanel>(null);
   const [showAcceptPrompt, setShowAcceptPrompt] = useState(false);
 
-  const [form, setForm] = useState<Partial<CostCentreType>>(INITIAL_FORM);
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const aliasInputRef = useRef<HTMLInputElement>(null);
 
-  // Escape key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (showAcceptPrompt) {
-          setShowAcceptPrompt(false);
-        } else if (showCCPanel) {
-          setShowCCPanel(false);
-        } else {
-          navigate("/master/create");
-        }
+        if (showAcceptPrompt) { setShowAcceptPrompt(false); }
+        else if (showPanel) { setShowPanel(null); }
+        else { navigate("/master/create"); }
       }
-
       if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        if (showAcceptPrompt) {
-          handleConfirmSubmit();
-        } else {
-          setShowAcceptPrompt(true);
-        }
+        if (showAcceptPrompt) { handleConfirmSubmit(); }
+        else { setShowAcceptPrompt(true); }
       }
-
       if (showAcceptPrompt) {
         const k = e.key.toLowerCase();
-        if (k === "y" || e.key === "Enter") {
-          e.preventDefault();
-          handleConfirmSubmit();
-        } else if (k === "n") {
-          e.preventDefault();
-          setShowAcceptPrompt(false);
-        }
+        if (k === "y" || e.key === "Enter") { e.preventDefault(); handleConfirmSubmit(); }
+        else if (k === "n") { e.preventDefault(); setShowAcceptPrompt(false); }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showCCPanel, showAcceptPrompt, navigate]);
+  }, [showPanel, showAcceptPrompt, navigate]);
 
-  // Fetch existing cost centres
-  const fetchCostCentres = async () => {
+  const fetchData = async () => {
     if (!companyId) return;
-    try {
-      const res = await window.api.costCentre.getAll(companyId);
-      if (res.success && res.costCentres) {
-        setCostCentres(res.costCentres);
-      }
-    } catch (e) {
-      console.error("Failed to fetch cost centres:", e);
-    }
+    const [ccRes, catRes] = await Promise.all([
+      window.api.costCentre.getAll(companyId),
+      window.api.costCategory.getAll(companyId),
+    ]);
+    if (ccRes.success && ccRes.costCentres) setCostCentres(ccRes.costCentres);
+    if (catRes.success && catRes.costCategories) setCostCategories(catRes.costCategories);
   };
 
-  useEffect(() => {
-    fetchCostCentres();
-  }, [companyId]);
+  useEffect(() => { fetchData(); }, [companyId]);
 
-  const parentCC = form.parent_id
-    ? costCentres.find((cc) => cc.cc_id === form.parent_id)
-    : null;
-
-  const handleCCSelect = (cc: CostCentreType) => {
-    setForm((f) => ({ ...f, parent_id: cc.cc_id }));
-    setShowCCPanel(false);
-  };
-
-  const handleSelectPrimary = () => {
-    setForm((f) => ({ ...f, parent_id: undefined }));
-    setShowCCPanel(false);
-  };
+  const parentCC = form.parent_id ? costCentres.find(cc => cc.cc_id === form.parent_id) : null;
+  const selectedCategory = form.cost_category_id ? costCategories.find(c => c.cc_cat_id === form.cost_category_id) : null;
 
   const setField = (key: keyof CostCentreType) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((f) => ({ ...f, [key]: e.target.value }));
+      setForm(f => ({ ...f, [key]: e.target.value }));
 
   const validate = (): string | null => {
     if (!form.name?.trim()) return "Name is required.";
@@ -123,11 +98,8 @@ export default function CostCentreCreate() {
   const handleFormKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (e.currentTarget === nameInputRef.current) {
-        aliasInputRef.current?.focus();
-      } else if (e.currentTarget === aliasInputRef.current) {
-        setShowCCPanel(true);
-      }
+      if (e.currentTarget === nameInputRef.current) aliasInputRef.current?.focus();
+      else if (e.currentTarget === aliasInputRef.current) setShowPanel("category");
     }
   };
 
@@ -143,13 +115,13 @@ export default function CostCentreCreate() {
         name: form.name!.trim(),
         alias: form.alias?.trim() || undefined,
         parent_id: form.parent_id ? Number(form.parent_id) : undefined,
+        cost_category_id: form.cost_category_id ? Number(form.cost_category_id) : undefined,
       };
-
       const res = await window.api.costCentre.create(payload);
       if (res.success) {
         setSuccess(`Cost Centre "${form.name}" created.`);
         setForm(INITIAL_FORM);
-        fetchCostCentres();
+        fetchData();
         nameInputRef.current?.focus();
       } else {
         setError(res.error || "Failed to create cost centre.");
@@ -163,7 +135,6 @@ export default function CostCentreCreate() {
 
   return (
     <div className="flex-1 flex h-full bg-zinc-50 select-none text-zinc-950 font-mono text-[12px]">
-      {/* Central panel */}
       <div className="flex-1 flex flex-col min-h-0 relative p-6">
         <div className="flex items-center gap-4 mb-6 shrink-0">
           <Link to="/master/create" className="text-xs text-zinc-500 hover:text-zinc-800 font-sans">
@@ -187,7 +158,6 @@ export default function CostCentreCreate() {
 
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-[600px] bg-white border border-zinc-300 shadow-md flex flex-col relative overflow-hidden">
-            {/* Header banner */}
             <div className="bg-zinc-100 px-3 py-1.5 border-b border-zinc-200 text-center font-bold text-xs uppercase tracking-wider text-zinc-700">
               Cost Centre Creation
             </div>
@@ -201,7 +171,6 @@ export default function CostCentreCreate() {
                   value={form.name || ""}
                   onChange={setField("name")}
                   onKeyDown={handleFormKeyDown}
-                  placeholder=""
                 />
               </Row>
               <Row label="(alias)">
@@ -211,17 +180,20 @@ export default function CostCentreCreate() {
                   value={form.alias || ""}
                   onChange={setField("alias")}
                   onKeyDown={handleFormKeyDown}
-                  placeholder=""
                 />
               </Row>
-              <Row label="Under" onClick={() => setShowCCPanel(true)}>
+              <Row label="Category" onClick={() => setShowPanel("category")}>
+                <span className="text-[12px] font-bold text-zinc-950 font-mono py-1 px-1 block cursor-pointer">
+                  {selectedCategory ? selectedCategory.name : "Primary"}
+                </span>
+              </Row>
+              <Row label="Under" onClick={() => setShowPanel("parent")}>
                 <span className="text-[12px] font-bold text-zinc-950 font-mono py-1 px-1 block cursor-pointer">
                   {parentCC ? parentCC.name : "Primary"}
                 </span>
               </Row>
             </div>
 
-            {/* Accept? Confirmation Overlay */}
             {showAcceptPrompt && (
               <div className="absolute bottom-4 right-4 bg-white border-2 border-zinc-800 p-4 shadow-lg z-50 flex flex-col items-center min-w-[150px] font-sans">
                 <div className="text-xs font-bold text-zinc-800 mb-3">Accept?</div>
@@ -244,7 +216,6 @@ export default function CostCentreCreate() {
           </div>
         </div>
 
-        {/* Bottom actions footer */}
         <div className="border-t border-zinc-200 pt-3 flex justify-end bg-zinc-50 shrink-0 font-sans pr-2">
           <div className="flex gap-3">
             <button
@@ -264,16 +235,46 @@ export default function CostCentreCreate() {
         </div>
       </div>
 
-      {/* Right panel parent cost centre list */}
-      {showCCPanel && (
+      {/* Cost Category panel */}
+      {showPanel === "category" && (
+        <div className="w-80 border-l border-zinc-200 flex flex-col shrink-0 bg-white animate-slide-in">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none shrink-0 font-sans">
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cost Category</span>
+            <button onClick={() => setShowPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800">&times;</button>
+          </div>
+          <div
+            className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${!form.cost_category_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+            onClick={() => { setForm(f => ({ ...f, cost_category_id: undefined })); setShowPanel(null); }}
+          >
+            <span className="truncate">Primary</span>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {costCategories.map(c => (
+              <div
+                key={c.cc_cat_id}
+                className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${form.cost_category_id === c.cc_cat_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+                onClick={() => { setForm(f => ({ ...f, cost_category_id: c.cc_cat_id })); setShowPanel(null); }}
+              >
+                <span className="truncate">{c.name}</span>
+              </div>
+            ))}
+            {costCategories.length === 0 && (
+              <div className="text-xs text-zinc-400 px-3 py-2 italic font-sans">No categories yet</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Parent cost centre panel */}
+      {showPanel === "parent" && (
         <div className="w-80 border-l border-zinc-200 flex flex-col shrink-0 bg-white animate-slide-in">
           <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none shrink-0 font-sans">
             <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Under Cost Centre</span>
-            <button onClick={() => setShowCCPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+            <button onClick={() => setShowPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800">&times;</button>
           </div>
           <div
             className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${!form.parent_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
-            onClick={handleSelectPrimary}
+            onClick={() => { setForm(f => ({ ...f, parent_id: undefined })); setShowPanel(null); }}
           >
             <span className="truncate">Primary</span>
           </div>
@@ -281,7 +282,7 @@ export default function CostCentreCreate() {
             <CostCentreFlatList
               costCentres={costCentres}
               selectedId={form.parent_id as number}
-              onSelect={handleCCSelect}
+              onSelect={cc => { setForm(f => ({ ...f, parent_id: cc.cc_id })); setShowPanel(null); }}
               showHeader={false}
             />
           </div>

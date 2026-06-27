@@ -1,6 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import App from './App.tsx';
 import CostCentreCreate from "./pages/master/cost-centre/cost-centreCreate.tsx";
+import CostCategoryCreate from "./pages/master/cost-category/CostCategoryCreate.tsx";
+import CostCategoryAlter from "./pages/master/cost-category/CostCategoryAlter.tsx";
+import CostCategoryCOA from "./pages/master/cost-category/CostCategoryCOA.tsx";
 import PricelevelsCreate from "./pages/master/inventory/price-levels/pricelevelsCreate.tsx";
 import PricelevelsAlter from "./pages/master/inventory/price-levels/pricelevelsAlter.tsx";
 import PricelevelsCOA from "./pages/master/inventory/price-levels/pricelevelsCOA.tsx";
@@ -380,6 +383,10 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/create/cost-centre", element: <CostCentreCreate /> },
   { path: "/master/alter/cost-centre", element: <CostCentreAlter /> },
   { path: "/master/coa/cost-centre", element: <CostCentreCOA /> },
+
+  { path: "/master/create/cost-category", element: <CostCategoryCreate /> },
+  { path: "/master/alter/cost-category", element: <CostCategoryAlter /> },
+  { path: "/master/coa/cost-category", element: <CostCategoryCOA /> },
 
   { path: "/master/create/ledger", element: <LedgerCreate /> },
   { path: "/master/alter/ledger", element: <LedgerAlter /> },
