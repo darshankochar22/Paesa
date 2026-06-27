@@ -72,6 +72,7 @@ import InterestCalculationsMenu from "./pages/menu/reports/InterestCalculationsM
 import CostCentreSummary from "./pages/reports/accounts/CostCentreSummary.tsx";
 import CostCategorySummary from "./pages/reports/accounts/CostCategorySummary.tsx";
 import Statistics from "./pages/reports/accounts/Statistics.tsx";
+import StatisticsVoucherRegister from "./pages/reports/StatisticsVoucherRegister.tsx";
 import StockSummary from "./pages/reports/inventory/StockSummary.tsx";
 import StockItemReport from "./pages/reports/inventory/StockItemReport.tsx";
 import StockGroupReport from "./pages/reports/inventory/StockGroupReport.tsx";
@@ -113,15 +114,6 @@ import PendingDocuments from "./pages/reports/exception/PendingDocuments.tsx";
 import NegativeStock from "./pages/reports/exception/NegativeStock.tsx";
 import NegativeLedger from "./pages/reports/exception/NegativeLedger.tsx";
 import EditLogSummary from "./pages/reports/exception/EditLogSummary.tsx";
-import PayslipReport from "./pages/reports/payroll/PayslipReport.tsx";
-import SalaryStatement from "./pages/reports/payroll/SalaryStatement.tsx";
-import SalaryRegister from "./pages/reports/payroll/SalaryRegister.tsx";
-import AttendanceReport from "./pages/reports/payroll/AttendanceReport.tsx";
-import PayHeadBreakup from "./pages/reports/payroll/PayHeadBreakup.tsx";
-import PFReports from "./pages/reports/payroll/PFReports.tsx";
-import ESIReports from "./pages/reports/payroll/ESIReports.tsx";
-import ProfessionalTax from "./pages/reports/payroll/ProfessionalTax.tsx";
-import Gratuity from "./pages/reports/payroll/Gratuity.tsx";
 import LedgerCreate from "./pages/master/ledger/LedgerCreate.tsx";
 import LedgerAlter from "./pages/master/ledger/LedgerAlter.tsx";
 import LedgerCOA from "./pages/master/ledger/LedgerCOA.tsx";
@@ -330,19 +322,11 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/ledger-select", element: <LedgerSelect /> },
   { path: "/reports/accounts/group-select", element: <GroupSelect /> },
   { path: "/reports/accounts/group-vouchers-select", element: <GroupVouchersSelect /> },
-  { path: "/reports/payroll/payslip",           element: <PayslipReport /> },
-  { path: "/reports/payroll/salary-statement",  element: <SalaryStatement /> },
-  { path: "/reports/payroll/salary-register",   element: <SalaryRegister /> },
-  { path: "/reports/payroll/attendance-register",element: <AttendanceReport /> },
-  { path: "/reports/payroll/pay-head-breakup",  element: <PayHeadBreakup /> },
-  { path: "/reports/payroll/pf",                element: <PFReports /> },
-  { path: "/reports/payroll/esi",               element: <ESIReports /> },
-  { path: "/reports/payroll/professional-tax",  element: <ProfessionalTax /> },
-  { path: "/reports/payroll/gratuity",          element: <Gratuity /> },
 { path: "/reports/statements-of-accounts/outstandings", element: <OutStandingsMenu /> },
 { path: "/reports/statements-of-accounts/interest-calculations", element: <InterestCalculationsMenu /> },
 { path: "/reports/statements-of-accounts/cost-centres", element: <CostCentresMenu /> },
 { path: "/reports/statements-of-accounts/statistics", element: <Statistics /> },
+{ path: "/reports/statements-of-accounts/statistics/voucher/:voucherType", element: <StatisticsVoucherRegister /> },
 
   { path: "/master/create/tds-details", element: <TDSDetailsCreate /> },
   { path: "/master/alter/tds-details", element: <TDSDetailsAlter /> },
@@ -495,7 +479,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/e-invoice-eway-bill", element: <CategoryMenuPage title="E-Invoice & E-Way Bill" categorySlug="e-invoice-eway-bill" description="E-invoice status, IRN generation, e-way bill tracking and compliance reports." /> },
   { path: "/reports/tds", element: <CategoryMenuPage title="TDS Reports" categorySlug="tds" description="TDS computation, TDS payable, Form 26Q/24Q, TDS analysis and deduction registers." /> },
   { path: "/reports/tcs", element: <CategoryMenuPage title="TCS Reports" categorySlug="tcs" description="TCS computation, TCS payable, Form 27EQ, TCS analysis and collection registers." /> },
-  { path: "/reports/payroll-hr", element: <CategoryMenuPage title="Payroll & HR" categorySlug="payroll-hr" description="Payslips, salary register, attendance, PF, ESI, professional tax, gratuity and payroll analytics." /> },
   { path: "/reports/legacy-statutory", element: <CategoryMenuPage title="Legacy & Statutory" categorySlug="legacy-statutory" description="VAT, excise, service tax, sales tax and other legacy statutory compliance reports." /> },
   { path: "/reports/audit-security", element: <CategoryMenuPage title="Audit & Security" categorySlug="audit-security" description="Edit log, audit trail, verification, TallyMarks, user access logs and data integrity reports." /> },
   { path: "/reports/:category/:reportSlug", element: <ReportRunner /> },
