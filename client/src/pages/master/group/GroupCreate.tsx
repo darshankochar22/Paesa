@@ -9,7 +9,6 @@ import NatureOfGoodsDetailsModal from "./NatureOfGoodsDetailsModal";
 import TDSNatureOfPaymentCreation from "./TDSNatureOfPaymentCreation";
 import TCSNatureOfGoodsCreation from "./TCSNatureOfGoodsCreation";
 import StatutorySection from "./StatutorySection";
-import GSTClassificationSecondaryModal from "@/pages/master/statutory/company-gst-details/components/GSTClassificationSecondaryModal";
 
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
@@ -71,8 +70,6 @@ export default function GroupCreate() {
   const [activeFeatureCreateModal, setActiveFeatureCreateModal] = useState<StatutoryToggle | null>(null);
   const [gstClassifications, setGstClassifications] = useState<{ gc_id: number; name: string }[]>([]);
   const [showClassPanel, setShowClassPanel] = useState<"hsn" | "gst" | null>(null);
-  const [showCreateClassModal, setShowCreateClassModal] = useState(false);
-  const [pendingClassTarget, setPendingClassTarget] = useState<"hsn" | "gst" | null>(null);
 
   const [form, setForm] = useState<Partial<GroupType>>(INITIAL_FORM);
 
@@ -131,27 +128,6 @@ export default function GroupCreate() {
     })();
     return () => { cancelled = true; };
   }, [companyId]);
-
-  const handleClassCreated = async (newName: string) => {
-    setShowCreateClassModal(false);
-    if (!companyId) return;
-    try {
-      const res = await window.api.gstClassification.getAll(companyId);
-      if (res.success && res.gstClassifications) {
-        const updated = (res.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name }));
-        setGstClassifications(updated);
-        const newClass = updated.find((c) => c.name === newName);
-        if (newClass) {
-          if (pendingClassTarget === "hsn") {
-            setForm((f) => ({ ...f, hsn_sac_classification_id: newClass.gc_id }));
-          } else if (pendingClassTarget === "gst") {
-            setForm((f) => ({ ...f, gst_classification_id: newClass.gc_id }));
-          }
-        }
-      }
-    } catch {}
-    setPendingClassTarget(null);
-  };
 
   const parentGroup = form.parent_group_id
     ? flatGroups.find((g) => g.group_id === form.parent_group_id)
@@ -426,7 +402,7 @@ export default function GroupCreate() {
             <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">List of Classifications</span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { setPendingClassTarget(showClassPanel); setShowClassPanel(null); setShowCreateClassModal(true); }}
+                onClick={() => { setShowClassPanel(null); navigate("/master/create/gst-classification"); }}
                 className="text-[11px] px-2 py-0.5 bg-black text-white font-medium"
               >
                 Create
@@ -467,14 +443,6 @@ export default function GroupCreate() {
         </div>
       )}
 
-      {showCreateClassModal && companyId && (
-        <GSTClassificationSecondaryModal
-          isOpen={showCreateClassModal}
-          companyId={companyId}
-          onClose={() => { setShowCreateClassModal(false); setPendingClassTarget(null); }}
-          onSaveSuccess={handleClassCreated}
-        />
-      )}
       <FeatureSubModal
         toggleKey={activeFeatureModal}
         onClose={() => setActiveFeatureModal(null)}
