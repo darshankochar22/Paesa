@@ -44,8 +44,9 @@ const BY_PRIMARY_GROUP: Record<string, OtherStatutoryConfig> = {
   // Investments → only TDS
   "Investments": { sections: ["tds"] },
 
-  // Current Assets / Liabilities → TDS + Service Tax
-  "Current Assets": { sections: ["serviceTax", "tds"] },
+  // Current Assets → TDS only
+  "Current Assets": { sections: ["tds"] },
+  // Current Liabilities → TDS + Service Tax
   "Current Liabilities": { sections: ["serviceTax", "tds"] },
   "Provisions": { sections: ["serviceTax", "tds"] },
 
