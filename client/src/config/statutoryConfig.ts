@@ -159,7 +159,7 @@ const PARENT_GROUP_OVERRIDES: Record<string, PrimaryGroupStatutoryConfig> = {
   },
   "Cash-in-hand": {
     showStatutorySections: false,
-    featureToggles: ["tds"],
+    featureToggles: [],
     statutoryModalToggles: [],
   },
   "Sundry Debtors": {
