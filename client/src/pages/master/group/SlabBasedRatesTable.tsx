@@ -68,7 +68,7 @@ export default function SlabBasedRatesTable({ rows, onChange }: SlabBasedRatesTa
                 <select
                   className="w-full bg-transparent text-xs outline-none cursor-pointer"
                   value={row.taxability_type || "Taxable"}
-                  onChange={(e) => update(idx, { taxability_type: e.target.value })}
+                  onChange={(e) => update(idx, { taxability_type: e.target.value, gst_rate: e.target.value === "Taxable" ? (row.gst_rate ?? 0) : 0 })}
                 >
                   {TAXABILITY_OPTIONS.map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -76,17 +76,21 @@ export default function SlabBasedRatesTable({ rows, onChange }: SlabBasedRatesTa
                 </select>
               </td>
               <td className="border-b border-r border-zinc-200 px-1 py-1">
-                <div className="flex items-center gap-1">
-                  <input
-                    className="w-full bg-transparent text-xs outline-none tabular-nums"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={row.gst_rate ?? 0}
-                    onChange={(e) => update(idx, { gst_rate: Number(e.target.value) })}
-                  />
-                  <span className="text-zinc-500">%</span>
-                </div>
+                {row.taxability_type === "Taxable" ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      className="w-full bg-transparent text-xs outline-none tabular-nums"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={row.gst_rate ?? 0}
+                      onChange={(e) => update(idx, { gst_rate: Number(e.target.value) })}
+                    />
+                    <span className="text-zinc-500">%</span>
+                  </div>
+                ) : (
+                  <span className="text-zinc-300 text-xs px-1">—</span>
+                )}
               </td>
               <td className="border-b border-zinc-200 px-1 py-1 text-center">
                 <button
@@ -105,7 +109,11 @@ export default function SlabBasedRatesTable({ rows, onChange }: SlabBasedRatesTa
       <div className="px-2 py-1.5 border-t border-zinc-200">
         <button
           type="button"
-          onClick={() => onChange([...rows, { greater_than: 0, up_to: null, taxability_type: "Taxable", gst_rate: 0 }])}
+          onClick={() => {
+            const last = rows[rows.length - 1];
+            const nextFrom = last?.up_to != null ? last.up_to : 0;
+            onChange([...rows, { greater_than: nextFrom, up_to: null, taxability_type: "Taxable", gst_rate: 0 }]);
+          }}
           className="text-xs text-zinc-500 hover:text-black underline underline-offset-1"
         >
           + Add Row
