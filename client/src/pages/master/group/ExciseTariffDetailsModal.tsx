@@ -76,8 +76,8 @@ export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTari
 
   if (!isOpen) return null;
 
-  const showRate = valuationType === "Ad Valorem" || valuationType === "Valorem + Quantum";
-  const showRatePerUnit = valuationType === "Ad Quantum" || valuationType === "Valorem + Quantum";
+  const showRate = valuationType === "Undefined" || valuationType === "Ad Valorem" || valuationType === "Valorem + Quantum";
+  const showRatePerUnit = valuationType === "Undefined" || valuationType === "Ad Quantum" || valuationType === "Valorem + Quantum";
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
