@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
-import { calculateStockGroupGstDetails } from "./utils";
+import StatutorySection from "@/pages/master/group/StatutorySection";
+import {
+  parseStockGroupStatutory,
+  buildStockGroupGstPayload,
+  type StockGroupStatutory,
+} from "./utils";
 
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-300";
@@ -26,22 +31,6 @@ function Row({ label, required, children, indent }: {
   );
 }
 
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="mt-3 mb-1 text-xs font-semibold text-zinc-600 select-none border-b border-zinc-200 pb-0.5">
-      {title}
-    </div>
-  );
-}
-
-function SubSectionLabel({ title }: { title: string }) {
-  return (
-    <div className="flex items-center min-h-[26px] pl-2">
-      <span className="text-sm text-zinc-500 italic">{title}</span>
-    </div>
-  );
-}
 
 // ── Group side panel ───────────────────────────────────────────────────────────
 function SidePanel({
@@ -177,36 +166,14 @@ interface FormData {
   alias: string;
   parent_group_id: string;
   should_quantities_be_added: string;
-  // HSN/SAC
-  hsn_sac_details: string;     // UI toggle: "as_per_company" | "specify"
-  hsn_sac_code: string;
-  hsn_sac_description: string;
-  // GST
-  gst_rate_details: string;    // UI toggle: "as_per_company" | "specify"
-  taxability_type: string;
-  gst_rate: string;
-  cgst_rate: string;
-  sgst_rate: string;
 }
 
-// Derive UI toggles from saved DB values
 function buildForm(g: StockGroupType): FormData {
-  const hasHsn = !!(g.hsn_sac_code || g.hsn_sac_description);
-  const hasGst = !!(g.gst_rate && Number(g.gst_rate) > 0);
-
   return {
     name:                       g.name ?? "",
     alias:                      g.alias ?? "",
     parent_group_id:            g.parent_group_id ? String(g.parent_group_id) : "",
     should_quantities_be_added: String(g.should_quantities_be_added ?? 0),
-    hsn_sac_details:            hasHsn ? "specify" : "as_per_company",
-    hsn_sac_code:               g.hsn_sac_code ?? "",
-    hsn_sac_description:        g.hsn_sac_description ?? "",
-    gst_rate_details:           hasGst ? "specify" : "as_per_company",
-    taxability_type:            g.taxability_type ?? "as_per_company",
-    gst_rate:                   String(g.gst_rate ?? 0),
-    cgst_rate:                  String(g.cgst_rate ?? 0),
-    sgst_rate:                  String(g.sgst_rate ?? 0),
   };
 }
 
@@ -218,23 +185,33 @@ export default function StockGroupAlter() {
   const [stockGroups, setStockGroups]     = useState<StockGroupType[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<StockGroupType | null>(null);
   const [form, setForm]                   = useState<FormData | null>(null);
+  const [stat, setStat]                   = useState<StockGroupStatutory>({});
+  const [gstClassifications, setGstClassifications] = useState<{ gc_id: number; name: string }[]>([]);
+  const [showClassPanel, setShowClassPanel] = useState<"hsn" | "gst" | null>(null);
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState<string | null>(null);
   const [success, setSuccess]             = useState<string | null>(null);
   const [showPanel, setShowPanel]         = useState(false);
 
-  // Load all groups on mount
+  const companyId = selectedCompany?.company_id;
+
+  // Load all groups + classifications on mount
   useEffect(() => {
-    const company_id = selectedCompany?.company_id;
-    if (!company_id) return;
-    window.api.stockGroup.getAll(company_id).then(r => {
+    if (!companyId) return;
+    window.api.stockGroup.getAll(companyId).then(r => {
       if (r.success) setStockGroups(r.stockGroups ?? []);
     });
-  }, [selectedCompany]);
+    window.api.gstClassification.getAll(companyId).then((r) => {
+      if (r.success && r.gstClassifications) {
+        setGstClassifications((r.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name })));
+      }
+    });
+  }, [companyId]);
 
   const handleSelectGroup = (g: StockGroupType) => {
     setSelectedGroup(g);
     setForm(buildForm(g));
+    setStat(parseStockGroupStatutory(g));
     setError(null);
     setSuccess(null);
   };
@@ -243,18 +220,9 @@ export default function StockGroupAlter() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(f => f ? { ...f, [key]: e.target.value } : f);
 
-  // Auto-split GST into CGST + SGST
-  const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val  = e.target.value;
-    const half = val === "" ? "0" : String(parseFloat((parseFloat(val) / 2).toFixed(2)));
-    setForm(f => f ? { ...f, gst_rate: val, cgst_rate: half, sgst_rate: half } : f);
-  };
-
   const validate = (): string | null => {
     if (!form?.name.trim()) return "Name is required.";
     if (!selectedCompany?.company_id) return "No company selected.";
-    const gst = Number(form.gst_rate);
-    if (gst < 0 || gst > 100) return "GST rate must be between 0 and 100.";
     return null;
   };
 
@@ -265,7 +233,7 @@ export default function StockGroupAlter() {
 
     setLoading(true); setError(null);
     try {
-      const gst = calculateStockGroupGstDetails(form);
+      const gst = buildStockGroupGstPayload(stat);
 
       const result = await window.api.stockGroup.update({
         sg_id:                      selectedGroup.sg_id,
@@ -274,13 +242,7 @@ export default function StockGroupAlter() {
         alias:                      form.alias.trim() || null,
         parent_group_id:            form.parent_group_id ? Number(form.parent_group_id) : null,
         should_quantities_be_added: Number(form.should_quantities_be_added),
-        hsn_sac_code:               gst.hsn_sac_code,
-        hsn_sac_description:        gst.hsn_sac_description,
-        gst_rate:                   gst.gst_rate,
-        cgst_rate:                  gst.cgst_rate,
-        sgst_rate:                  gst.sgst_rate,
-        taxability_type:            gst.taxability_type,
-        statutory_details:          null,
+        ...gst,
       });
 
       if (result.success) {
@@ -300,7 +262,7 @@ export default function StockGroupAlter() {
     } finally {
       setLoading(false);
     }
-  }, [form, selectedGroup, selectedCompany]);
+  }, [form, stat, selectedGroup, selectedCompany]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedGroup) return;
@@ -329,6 +291,7 @@ export default function StockGroupAlter() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        if (showClassPanel) { setShowClassPanel(null); return; }
         if (showPanel) { setShowPanel(false); return; }
         if (selectedGroup) { setSelectedGroup(null); setForm(null); return; }
         navigate("/master/alter");
@@ -343,7 +306,7 @@ export default function StockGroupAlter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, handleDelete, navigate, showPanel, selectedGroup]);
+  }, [handleSubmit, handleDelete, navigate, showPanel, showClassPanel, selectedGroup]);
 
   // ── Selection screen ─────────────────────────────────────────────────────────
   if (!selectedGroup || !form) {
@@ -363,9 +326,6 @@ export default function StockGroupAlter() {
   const selectedUnderLabel = form.parent_group_id
     ? stockGroups.find(g => String(g.sg_id) === form.parent_group_id)?.name ?? "Primary"
     : "Primary";
-
-  const hsnSourceLabel = form.hsn_sac_details === "as_per_company" ? "Not Available" : "Specified Here";
-  const gstSourceLabel = form.gst_rate_details === "as_per_company" ? "Not Available" : "Specified Here";
 
   const alterActions = [
     { key: "Alt+G", label: "Select Under", onClick: () => setShowPanel(prev => !prev) },
@@ -424,98 +384,69 @@ export default function StockGroupAlter() {
             </select>
           </Row>
 
-          {/* ── Statutory Details ── */}
-          <SectionHeader title="Statutory Details" />
-
-          <SubSectionLabel title="HSN/SAC & Related Details" />
-
-          <Row label="HSN/SAC Details" indent>
-            <select className={selectCls} value={form.hsn_sac_details} onChange={set("hsn_sac_details")}>
-              <option value="as_per_company">As per Company/Stock Group</option>
-              <option value="specify">Specify Here</option>
-            </select>
-          </Row>
-
-          <Row label="Source of details" indent>
-            <span className="text-sm text-zinc-400 px-1">{hsnSourceLabel}</span>
-          </Row>
-
-          {form.hsn_sac_details === "specify" && (
-            <>
-              <Row label="HSN/SAC" indent>
-                <input className={inputCls} value={form.hsn_sac_code} onChange={set("hsn_sac_code")} placeholder="e.g. 1001" />
-              </Row>
-              <Row label="Description" indent>
-                <input className={inputCls} value={form.hsn_sac_description} onChange={set("hsn_sac_description")} placeholder="HSN description (optional)" />
-              </Row>
-            </>
-          )}
-
-          <SubSectionLabel title="GST Rate & Related Details" />
-
-          <Row label="GST Rate Details" indent>
-            <select className={selectCls} value={form.gst_rate_details} onChange={set("gst_rate_details")}>
-              <option value="as_per_company">As per Company/Stock Group</option>
-              <option value="specify">Specify Here</option>
-            </select>
-          </Row>
-
-          <Row label="Source of details" indent>
-            <span className="text-sm text-zinc-400 px-1">{gstSourceLabel}</span>
-          </Row>
-
-          <Row label="Taxability Type" indent>
-            <select className={selectCls} value={form.taxability_type} onChange={set("taxability_type")}>
-              <option value="as_per_company">As per Company/Stock Group</option>
-              <option value="Taxable">Taxable</option>
-              <option value="Exempt">Exempt</option>
-              <option value="Nil Rated">Nil Rated</option>
-              <option value="Non-GST">Non-GST</option>
-            </select>
-          </Row>
-
-          {form.gst_rate_details === "specify" && (
-            <>
-              <Row label="GST Rate (%)" indent>
-                <div className="flex items-center gap-1">
-                  <input
-                    className={inputCls}
-                    style={{ width: "60px" }}
-                    type="number" min="0" max="100" step="0.01"
-                    value={form.gst_rate}
-                    onChange={handleGstChange}
-                  />
-                  <span className="text-sm text-zinc-400">%</span>
-                </div>
-              </Row>
-              <Row label="CGST Rate (%)" indent>
-                <div className="flex items-center gap-1">
-                  <input
-                    className={inputCls}
-                    style={{ width: "60px" }}
-                    type="number" min="0" max="100" step="0.01"
-                    value={form.cgst_rate}
-                    onChange={set("cgst_rate")}
-                  />
-                  <span className="text-sm text-zinc-400">%</span>
-                </div>
-              </Row>
-              <Row label="SGST Rate (%)" indent>
-                <div className="flex items-center gap-1">
-                  <input
-                    className={inputCls}
-                    style={{ width: "60px" }}
-                    type="number" min="0" max="100" step="0.01"
-                    value={form.sgst_rate}
-                    onChange={set("sgst_rate")}
-                  />
-                  <span className="text-sm text-zinc-400">%</span>
-                </div>
-              </Row>
-            </>
-          )}
+          {/* ── Statutory Details (shared with Group / Ledger) ── */}
+          <div className="mt-3">
+            <StatutorySection
+              form={stat}
+              setForm={setStat}
+              primaryGroupName="Primary"
+              companyId={companyId}
+              gstClassifications={gstClassifications}
+              entityWord="Stock Group"
+              showOtherStatutory={false}
+              onOpenClassPanel={(target) => { setShowPanel(false); setShowClassPanel(target); }}
+            />
+          </div>
 
         </div>
+
+        {/* GST classification panel */}
+        {showClassPanel && (
+          <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">List of Classifications</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowClassPanel(null); navigate("/master/create/gst-classification"); }}
+                  className="text-[11px] px-2 py-0.5 bg-black text-white font-medium"
+                >
+                  Create
+                </button>
+                <button onClick={() => setShowClassPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {gstClassifications.length === 0 ? (
+                <div className="px-3 py-6 text-xs text-zinc-400 text-center leading-relaxed">
+                  No classifications created yet.<br />Click <strong>Create</strong> to add one.
+                </div>
+              ) : (
+                gstClassifications.map((c) => {
+                  const selectedId = showClassPanel === "hsn"
+                    ? Number(stat.hsn_sac_classification_id)
+                    : Number(stat.gst_classification_id);
+                  const isSelected = selectedId === c.gc_id;
+                  return (
+                    <div
+                      key={c.gc_id}
+                      onClick={() => {
+                        if (showClassPanel === "hsn") {
+                          setStat((f) => ({ ...f, hsn_sac_classification_id: c.gc_id }));
+                        } else {
+                          setStat((f) => ({ ...f, gst_classification_id: c.gc_id }));
+                        }
+                        setShowClassPanel(null);
+                      }}
+                      className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isSelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+                    >
+                      <span className="truncate">{c.name}</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
 
         <RightActionPanel actions={alterActions} />
       </div>

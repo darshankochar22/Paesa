@@ -11,19 +11,6 @@ import TDSNatureOfPaymentCreation from "./TDSNatureOfPaymentCreation";
 import TCSNatureOfGoodsCreation from "./TCSNatureOfGoodsCreation";
 import SlabBasedRatesTable from "./SlabBasedRatesTable";
 
-const HSN_SAC_SOURCES = [
-  "As per Company/Group",
-  "Specify Details Here",
-  "Use GST Classification",
-  "Specify in Voucher",
-];
-const GST_RATE_SOURCES = [
-  "As per Company/Group",
-  "Specify Details Here",
-  "Specify Slab-Based Rates",
-  "Use GST Classification",
-  "Specify in Voucher",
-];
 const TAXABILITY_TYPES = ["Taxable", "Exempt", "Nil Rated", "Non-GST"];
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-300 transition-colors";
@@ -49,6 +36,10 @@ interface StatutorySectionProps {
   companyId: number | undefined;
   gstClassifications: { gc_id: number; name: string }[];
   onOpenClassPanel: (target: "hsn" | "gst") => void;
+  /** Word used in "As per Company/<word>" — "Group" (default) or "Stock Group". */
+  entityWord?: string;
+  /** Show the "Set/Alter other Statutory details" block + sub-modals (default true). */
+  showOtherStatutory?: boolean;
 }
 
 export default function StatutorySection({
@@ -59,8 +50,14 @@ export default function StatutorySection({
   companyId,
   gstClassifications,
   onOpenClassPanel,
+  entityWord = "Group",
+  showOtherStatutory = true,
 }: StatutorySectionProps) {
   const config = useMemo(() => getConfig(primaryGroupName, parentGroupName), [primaryGroupName, parentGroupName]);
+
+  const asPer = `As per Company/${entityWord}`;
+  const HSN_SAC_SOURCES = [asPer, "Specify Details Here", "Use GST Classification", "Specify in Voucher"];
+  const GST_RATE_SOURCES = [asPer, "Specify Details Here", "Specify Slab-Based Rates", "Use GST Classification", "Specify in Voucher"];
 
   const [showStatutoryModal, setShowStatutoryModal] = useState(false);
   const [activeSubModal, setActiveSubModal] = useState<StatutoryToggle | null>(null);
@@ -102,7 +99,7 @@ export default function StatutorySection({
         <Row label="HSN/SAC Details">
           <select
             className={selectCls}
-            value={form.hsn_sac_source || "As per Company/Group"}
+            value={form.hsn_sac_source || asPer}
             onChange={(e) => {
               const val = e.target.value;
               setForm((f) => ({
@@ -121,7 +118,7 @@ export default function StatutorySection({
         </Row>
         <Row label="Source of details">
           <span className="text-sm py-1 text-zinc-700">
-            {form.hsn_sac_source === "As per Company/Group" || !form.hsn_sac_source
+            {form.hsn_sac_source === asPer || !form.hsn_sac_source
               ? "Not Available"
               : form.hsn_sac_source === "Use GST Classification"
                 ? (gstClassifications.find((g) => g.gc_id === Number(form.hsn_sac_classification_id))?.name ?? "Not Available")
@@ -161,7 +158,7 @@ export default function StatutorySection({
         <Row label="GST Rate Details">
           <select
             className={selectCls}
-            value={form.gst_rate_source || "As per Company/Group"}
+            value={form.gst_rate_source || asPer}
             onChange={(e) => {
               const val = e.target.value;
               setForm((f) => ({
@@ -179,7 +176,7 @@ export default function StatutorySection({
         </Row>
         <Row label="Source of details">
           <span className="text-sm py-1 text-zinc-700">
-            {form.gst_rate_source === "As per Company/Group" || !form.gst_rate_source
+            {form.gst_rate_source === asPer || !form.gst_rate_source
               ? "Not Available"
               : form.gst_rate_source === "Use GST Classification"
                 ? (gstClassifications.find((g) => g.gc_id === Number(form.gst_classification_id))?.name ?? "Not Available")
@@ -251,6 +248,8 @@ export default function StatutorySection({
           </>
         )}
       </div>
+      {showOtherStatutory && (
+      <>
       <div className="border rounded overflow-hidden mt-3">
         <Row label="Set/Alter other Statutory details" onClick={() => setShowStatutoryModal(true)}>
           <span className="text-sm py-1">
@@ -326,6 +325,8 @@ export default function StatutorySection({
           window.dispatchEvent(new CustomEvent("tcs-nature-of-goods-created"));
         }}
       />
+      </>
+      )}
     </div>
   );
 }

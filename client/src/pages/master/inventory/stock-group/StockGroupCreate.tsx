@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
-import { calculateStockGroupGstDetails } from "./utils";
+import StatutorySection from "@/pages/master/group/StatutorySection";
+import {
+  initialStockGroupStatutory,
+  buildStockGroupGstPayload,
+  type StockGroupStatutory,
+} from "./utils";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
 const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer";
@@ -72,14 +77,6 @@ interface FormData {
   alias: string;
   parent_group_id: string;
   should_quantities_be_added: string;
-  // HSN/SAC
-  hsn_sac_details: string;  
-  hsn_sac_code: string;        
-  hsn_sac_description: string; 
-  // GST
-  gst_rate_details: string;   
-  taxability_type: string;     
-  gst_rate: string;            
 }
 
 const INITIAL: FormData = {
@@ -87,29 +84,7 @@ const INITIAL: FormData = {
   alias: "",
   parent_group_id: "",
   should_quantities_be_added: "0", // Tally default: No
-  hsn_sac_details: "as_per_company",
-  hsn_sac_code: "",
-  hsn_sac_description: "",
-  gst_rate_details: "as_per_company",
-  taxability_type: "as_per_company",
-  gst_rate: "0",
 };
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="mt-3 mb-1 text-xs font-semibold text-zinc-600 select-none border-b border-zinc-200 pb-0.5">
-      {title}
-    </div>
-  );
-}
-
-function SubSectionLabel({ title }: { title: string }) {
-  return (
-    <div className="flex items-center min-h-[26px] pl-2">
-      <span className="text-sm text-zinc-500 italic">{title}</span>
-    </div>
-  );
-}
 
 export default function StockGroupCreate() {
   const navigate = useNavigate();
@@ -118,19 +93,28 @@ export default function StockGroupCreate() {
   const [form, setForm] = useState<FormData>(
     INITIAL
   );
+  const [stat, setStat] = useState<StockGroupStatutory>(initialStockGroupStatutory());
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
+  const [gstClassifications, setGstClassifications] = useState<{ gc_id: number; name: string }[]>([]);
+  const [showClassPanel, setShowClassPanel] = useState<"hsn" | "gst" | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState(false);
 
+  const companyId = selectedCompany?.company_id;
+
   useEffect(() => {
-    const company_id = selectedCompany?.company_id;
-    if (!company_id) return;
-    window.api.stockGroup.getAll(company_id).then(r => {
+    if (!companyId) return;
+    window.api.stockGroup.getAll(companyId).then(r => {
       if (r.success) setStockGroups(r.stockGroups ?? []);
     });
-  }, [selectedCompany]);
+    window.api.gstClassification.getAll(companyId).then((r) => {
+      if (r.success && r.gstClassifications) {
+        setGstClassifications((r.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name })));
+      }
+    });
+  }, [companyId]);
 
   const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -147,7 +131,7 @@ export default function StockGroupCreate() {
     if (err) { setError(err); return; }
     setLoading(true); setError(null);
     try {
-      const gst = calculateStockGroupGstDetails(form);
+      const gst = buildStockGroupGstPayload(stat);
 
       const result = await window.api.stockGroup.create({
         company_id:                 selectedCompany!.company_id,
@@ -155,13 +139,7 @@ export default function StockGroupCreate() {
         alias:                      form.alias.trim() || null,
         parent_group_id:            form.parent_group_id ? Number(form.parent_group_id) : null,
         should_quantities_be_added: Number(form.should_quantities_be_added),
-        hsn_sac_code:               gst.hsn_sac_code,
-        hsn_sac_description:        gst.hsn_sac_description,
-        gst_rate:                   gst.gst_rate,
-        cgst_rate:                  gst.cgst_rate,
-        sgst_rate:                  gst.sgst_rate,
-        taxability_type:            gst.taxability_type,
-        statutory_details:          null,
+        ...gst,
       });
 
       if (result.success) {
@@ -169,6 +147,7 @@ export default function StockGroupCreate() {
         if (updated.success) setStockGroups(updated.stockGroups ?? []);
         setSuccess(`Stock Group "${form.name}" created.`);
         setForm(INITIAL);
+        setStat(initialStockGroupStatutory());
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create stock group.");
@@ -178,13 +157,14 @@ export default function StockGroupCreate() {
     } finally {
       setLoading(false);
     }
-  }, [form, selectedCompany]);
+  }, [form, stat, selectedCompany]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (showPanel) setShowPanel(false);
+        if (showClassPanel) setShowClassPanel(null);
+        else if (showPanel) setShowPanel(false);
         else navigate("/master/create");
       }
       if (e.altKey && e.key.toLowerCase() === "g") { e.preventDefault(); setShowPanel(prev => !prev); }
@@ -194,14 +174,11 @@ export default function StockGroupCreate() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate, showPanel]);
+  }, [handleSubmit, navigate, showPanel, showClassPanel]);
 
   const selectedGroupLabel = form.parent_group_id
     ? stockGroups.find(g => String(g.sg_id) === form.parent_group_id)?.name ?? "Primary"
     : "Primary";
-
-  const hsnSourceLabel = form.hsn_sac_details === "as_per_company" ? "Not Available" : "Specified Here";
-  const gstSourceLabel = form.gst_rate_details === "as_per_company" ? "Not Available" : "Specified Here";
 
   const groupActions = [
     { key: "Alt+G", label: "Select Group", onClick: () => setShowPanel(prev => !prev) },
@@ -259,71 +236,19 @@ export default function StockGroupCreate() {
               </select>
             </FormRow>
 
-            {/* ── Statutory Details ── */}
-            <SectionHeader title="Statutory Details" />
-
-            <SubSectionLabel title="HSN/SAC & Related Details" />
-
-            <FormRow label="HSN/SAC Details" labelWidth="w-56" className="flex items-center min-h-[26px] pl-4">
-              <select className={selectCls} value={form.hsn_sac_details} onChange={setField("hsn_sac_details")}>
-                <option value="as_per_company">As per Company/Stock Group</option>
-                <option value="specify">Specify Here</option>
-              </select>
-            </FormRow>
-
-            <FormRow label="Source of details" labelWidth="w-56" className="flex items-center min-h-[26px] pl-4">
-              <span className="text-sm text-zinc-400 px-1">{hsnSourceLabel}</span>
-            </FormRow>
-
-            {form.hsn_sac_details === "specify" && (
-              <>
-                <FormRow label="HSN/SAC" labelWidth="w-56" className="flex items-center min-h-[26px] pl-4">
-                  <input className={inputCls} value={form.hsn_sac_code} onChange={setField("hsn_sac_code")} />
-                </FormRow>
-                <FormRow label="Description" labelWidth="w-56" className="flex items-center min-h-[26px] pl-4">
-                  <input className={inputCls} value={form.hsn_sac_description} onChange={setField("hsn_sac_description")} />
-                </FormRow>
-              </>
-            )}
-
-            <SubSectionLabel title="GST Rate & Related Details" />
-
-            <FormRow label="GST Rate Details" labelWidth="w-56" className="flex items-center min-h-[26px] pl-4">
-              <select className={selectCls} value={form.gst_rate_details} onChange={setField("gst_rate_details")}>
-                <option value="as_per_company">As per Company/Stock Group</option>
-                <option value="specify">Specify Here</option>
-              </select>
-            </FormRow>
-
-            <FormRow label="Source of details" labelWidth="w-56" className="flex items-center min-h-[26px] pl-4">
-              <span className="text-sm text-zinc-400 px-1">{gstSourceLabel}</span>
-            </FormRow>
-
-            <FormRow label="Taxability Type" labelWidth="w-56" className="flex items-center min-h-[26px] pl-4">
-              <select className={selectCls} value={form.taxability_type} onChange={setField("taxability_type")}>
-                <option value="as_per_company">As per Company/Stock Group</option>
-                <option value="Taxable">Taxable</option>
-                <option value="Exempt">Exempt</option>
-                <option value="Nil Rated">Nil Rated</option>
-                <option value="Non-GST">Non-GST</option>
-              </select>
-            </FormRow>
-
-            <FormRow label="GST Rate" labelWidth="w-56" className="flex items-center min-h-[26px] pl-4">
-              <div className="flex items-center gap-1">
-                <input
-                  className={inputCls}
-                  style={{ width: "60px" }}
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={form.gst_rate}
-                  onChange={setField("gst_rate")}
-                />
-                <span className="text-sm text-zinc-400">%</span>
-              </div>
-            </FormRow>
+            {/* ── Statutory Details (shared with Group / Ledger) ── */}
+            <div className="mt-3">
+              <StatutorySection
+                form={stat}
+                setForm={setStat}
+                primaryGroupName="Primary"
+                companyId={companyId}
+                gstClassifications={gstClassifications}
+                entityWord="Stock Group"
+                showOtherStatutory={false}
+                onOpenClassPanel={(target) => { setShowPanel(false); setShowClassPanel(target); }}
+              />
+            </div>
 
           </div>
           <div className="flex-1" />
@@ -338,6 +263,54 @@ export default function StockGroupCreate() {
             onClose={() => setShowPanel(false)}
             onCreate={() => { setShowPanel(false); navigate("/master/create/stock-group"); }}
           />
+        )}
+
+        {/* GST classification panel */}
+        {showClassPanel && (
+          <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">List of Classifications</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowClassPanel(null); navigate("/master/create/gst-classification"); }}
+                  className="text-[11px] px-2 py-0.5 bg-black text-white font-medium"
+                >
+                  Create
+                </button>
+                <button onClick={() => setShowClassPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {gstClassifications.length === 0 ? (
+                <div className="px-3 py-6 text-xs text-zinc-400 text-center leading-relaxed">
+                  No classifications created yet.<br />Click <strong>Create</strong> to add one.
+                </div>
+              ) : (
+                gstClassifications.map((c) => {
+                  const selectedId = showClassPanel === "hsn"
+                    ? Number(stat.hsn_sac_classification_id)
+                    : Number(stat.gst_classification_id);
+                  const isSelected = selectedId === c.gc_id;
+                  return (
+                    <div
+                      key={c.gc_id}
+                      onClick={() => {
+                        if (showClassPanel === "hsn") {
+                          setStat((f) => ({ ...f, hsn_sac_classification_id: c.gc_id }));
+                        } else {
+                          setStat((f) => ({ ...f, gst_classification_id: c.gc_id }));
+                        }
+                        setShowClassPanel(null);
+                      }}
+                      className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isSelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+                    >
+                      <span className="truncate">{c.name}</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         )}
 
         <RightActionPanel actions={groupActions} />
