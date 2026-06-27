@@ -334,6 +334,7 @@ module.exports = {
         const net = empNetMap[e.employee_id] || { gross: 0, deductions: 0 };
         return {
           id: idx + 1,
+          employee_id: e.employee_id,
           particulars: e.name,
           emp_number: e.employee_code || '—',
           account_no: e.bank_account_number || '—',
@@ -344,6 +345,82 @@ module.exports = {
         };
       });
       return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * Pay Slip (individual) — the detailed slip for a single employee, matching
+   * TallyPrime's per-employee Pay Slip: employee/header particulars, an Earnings
+   * column and a Deductions column listing every pay head, totals for each, the
+   * Net Amount, and an attendance summary for the period.
+   */
+  paySlipDetail: async (company_id, fy_id, employee_id) => {
+    try {
+      const empId = Number(employee_id);
+      const empRows = await getEmployees(company_id);
+      const emp = empRows.find((e) => Number(e.employee_id) === empId);
+      if (!emp) return { success: false, error: 'Employee not found.' };
+
+      const salaryData = await getSalaryData(company_id);
+      const mine = salaryData.filter((r) => Number(r.employee_id) === empId);
+
+      const earnings = [];
+      const deductions = [];
+      for (const r of mine) {
+        const amt = Number(r.amount) || 0;
+        const line = { pay_head: r.pay_head_name, amount: amt };
+        if (isDeductionHead(r)) deductions.push(line);
+        else earnings.push(line);
+      }
+      const total_earnings = earnings.reduce((s, l) => s + l.amount, 0);
+      const total_deductions = deductions.reduce((s, l) => s + l.amount, 0);
+
+      // Attendance summary for the employee over the company's records.
+      const avRows = await db.all(sql`
+        SELECT SUM(ave.value) AS total_value, at.name AS at_name
+        FROM ${attendanceVouchers} av
+        INNER JOIN ${attendanceVoucherEntries} ave ON ave.attendance_voucher_id = av.attendance_voucher_id
+        LEFT JOIN (SELECT attendance_type_id, name FROM attendance_types WHERE company_id = ${company_id}) at
+          ON at.attendance_type_id = ave.attendance_type_id
+        WHERE av.company_id = ${company_id} AND ave.employee_id = ${empId}
+        GROUP BY ave.attendance_type_id
+      `).catch(() => []);
+      const attendance = { present: 0, absent: 0, leave: 0 };
+      for (const r of avRows) {
+        const nm = (r.at_name || '').toLowerCase();
+        const val = Number(r.total_value) || 0;
+        if (nm.includes('present') || nm.includes('work')) attendance.present += val;
+        else if (nm.includes('absent') || nm.includes('lop')) attendance.absent += val;
+        else if (nm.includes('leave') || nm.includes('holiday')) attendance.leave += val;
+        else attendance.present += val;
+      }
+
+      return {
+        success: true,
+        employee: {
+          employee_id: emp.employee_id,
+          name: emp.name,
+          emp_number: emp.employee_code || '—',
+          designation: emp.designation || '—',
+          department: emp.department || '—',
+          date_of_joining: emp.date_of_joining || '—',
+          account_no: emp.bank_account_number || '—',
+          bank_name: emp.bank_name || '—',
+          branch: emp.bank_branch || '—',
+          ifsc_code: emp.ifsc_code || '—',
+          pan: emp.pan || '—',
+          uan: emp.uan || '—',
+          email: emp.email || '—',
+        },
+        earnings,
+        deductions,
+        total_earnings,
+        total_deductions,
+        net_amount: total_earnings - total_deductions,
+        attendance,
+      };
     } catch (err) {
       return { success: false, error: err.message };
     }

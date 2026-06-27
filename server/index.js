@@ -253,6 +253,7 @@ ipcMain.handle('report:esiReport',        reportController.esiReport);
 ipcMain.handle('report:professionalTax',  reportController.professionalTax);
 ipcMain.handle('report:gratuity',         reportController.gratuity);
 ipcMain.handle('report:paySlip',                reportController.paySlip);
+ipcMain.handle('report:paySlipDetail',          reportController.paySlipDetail);
 ipcMain.handle('report:paySheet',               reportController.paySheet);
 ipcMain.handle('report:attendanceSheet',        reportController.attendanceSheet);
 ipcMain.handle('report:paymentAdvice',          reportController.paymentAdvice);

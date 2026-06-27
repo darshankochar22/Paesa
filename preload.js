@@ -213,6 +213,7 @@ contextBridge.exposeInMainWorld('api', {
         professionalTax:  (company_id, fy_id) => invoke('report:professionalTax',  { company_id, fy_id }),
         gratuity:         (company_id, fy_id) => invoke('report:gratuity',         { company_id, fy_id }),
         paySlip:                (company_id, fy_id) => invoke('report:paySlip',                { company_id, fy_id }),
+        paySlipDetail:          (company_id, fy_id, employee_id) => invoke('report:paySlipDetail', { company_id, fy_id, employee_id }),
         paySheet:               (company_id, fy_id) => invoke('report:paySheet',               { company_id, fy_id }),
         attendanceSheet:        (company_id, fy_id) => invoke('report:attendanceSheet',        { company_id, fy_id }),
         paymentAdvice:          (company_id, fy_id) => invoke('report:paymentAdvice',          { company_id, fy_id }),

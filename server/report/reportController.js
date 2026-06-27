@@ -331,6 +331,9 @@ module.exports = {
   paySlip: async (event, { company_id, fy_id }) => {
     return await payrollReportService.paySlip(company_id, fy_id);
   },
+  paySlipDetail: async (event, { company_id, fy_id, employee_id }) => {
+    return await payrollReportService.paySlipDetail(company_id, fy_id, employee_id);
+  },
   paySheet: async (event, { company_id, fy_id }) => {
     return await payrollReportService.paySheet(company_id, fy_id);
   },
