@@ -9,6 +9,7 @@ import NatureOfGoodsDetailsModal from "./NatureOfGoodsDetailsModal";
 import TDSNatureOfPaymentCreation from "./TDSNatureOfPaymentCreation";
 import TCSNatureOfGoodsCreation from "./TCSNatureOfGoodsCreation";
 import StatutorySection from "./StatutorySection";
+import GSTClassificationSecondaryModal from "@/pages/master/statutory/company-gst-details/components/GSTClassificationSecondaryModal";
 
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
@@ -68,13 +69,17 @@ export default function GroupCreate() {
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [activeFeatureModal, setActiveFeatureModal] = useState<StatutoryToggle | null>(null);
   const [activeFeatureCreateModal, setActiveFeatureCreateModal] = useState<StatutoryToggle | null>(null);
+  const [gstClassifications, setGstClassifications] = useState<{ gc_id: number; name: string }[]>([]);
+  const [showClassPanel, setShowClassPanel] = useState<"hsn" | "gst" | null>(null);
+  const [showCreateClassModal, setShowCreateClassModal] = useState(false);
+  const [pendingClassTarget, setPendingClassTarget] = useState<"hsn" | "gst" | null>(null);
 
   const [form, setForm] = useState<Partial<GroupType>>(INITIAL_FORM);
 
   // Escape key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const anyModal = showGroupPanel || activeFeatureModal !== null || activeFeatureCreateModal !== null;
+      const anyModal = showGroupPanel || showClassPanel !== null || activeFeatureModal !== null || activeFeatureCreateModal !== null;
       if (e.key === "Escape" && !anyModal) {
         e.preventDefault();
         navigate("/master/create");
@@ -82,7 +87,7 @@ export default function GroupCreate() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showGroupPanel, activeFeatureModal, activeFeatureCreateModal, navigate]);
+  }, [showGroupPanel, showClassPanel, activeFeatureModal, activeFeatureCreateModal, navigate]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -112,6 +117,41 @@ export default function GroupCreate() {
     })();
     return () => { cancelled = true; };
   }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await window.api.gstClassification.getAll(companyId);
+        if (!cancelled && res.success && res.gstClassifications) {
+          setGstClassifications((res.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name })));
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [companyId]);
+
+  const handleClassCreated = async (newName: string) => {
+    setShowCreateClassModal(false);
+    if (!companyId) return;
+    try {
+      const res = await window.api.gstClassification.getAll(companyId);
+      if (res.success && res.gstClassifications) {
+        const updated = (res.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name }));
+        setGstClassifications(updated);
+        const newClass = updated.find((c) => c.name === newName);
+        if (newClass) {
+          if (pendingClassTarget === "hsn") {
+            setForm((f) => ({ ...f, hsn_sac_classification_id: newClass.gc_id }));
+          } else if (pendingClassTarget === "gst") {
+            setForm((f) => ({ ...f, gst_classification_id: newClass.gc_id }));
+          }
+        }
+      }
+    } catch {}
+    setPendingClassTarget(null);
+  };
 
   const parentGroup = form.parent_group_id
     ? flatGroups.find((g) => g.group_id === form.parent_group_id)
@@ -339,6 +379,11 @@ export default function GroupCreate() {
               primaryGroupName={primaryGroupName}
               parentGroupName={parentGroup?.name}
               companyId={companyId}
+              gstClassifications={gstClassifications}
+              onOpenClassPanel={(target) => {
+                setShowGroupPanel(false);
+                setShowClassPanel(target);
+              }}
             />
           )}
 
@@ -375,6 +420,61 @@ export default function GroupCreate() {
         </div>
       )}
 
+      {showClassPanel && (
+        <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">List of Classifications</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setPendingClassTarget(showClassPanel); setShowClassPanel(null); setShowCreateClassModal(true); }}
+                className="text-[11px] px-2 py-0.5 bg-black text-white font-medium"
+              >
+                Create
+              </button>
+              <button onClick={() => setShowClassPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {gstClassifications.length === 0 ? (
+              <div className="px-3 py-6 text-xs text-zinc-400 text-center leading-relaxed">
+                No classifications created yet.<br />Click <strong>Create</strong> to add one.
+              </div>
+            ) : (
+              gstClassifications.map((c) => {
+                const selectedId = showClassPanel === "hsn"
+                  ? Number(form.hsn_sac_classification_id)
+                  : Number(form.gst_classification_id);
+                const isSelected = selectedId === c.gc_id;
+                return (
+                  <div
+                    key={c.gc_id}
+                    onClick={() => {
+                      if (showClassPanel === "hsn") {
+                        setForm((f) => ({ ...f, hsn_sac_classification_id: c.gc_id }));
+                      } else {
+                        setForm((f) => ({ ...f, gst_classification_id: c.gc_id }));
+                      }
+                      setShowClassPanel(null);
+                    }}
+                    className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isSelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+                  >
+                    <span className="truncate">{c.name}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {showCreateClassModal && companyId && (
+        <GSTClassificationSecondaryModal
+          isOpen={showCreateClassModal}
+          companyId={companyId}
+          onClose={() => { setShowCreateClassModal(false); setPendingClassTarget(null); }}
+          onSaveSuccess={handleClassCreated}
+        />
+      )}
       <FeatureSubModal
         toggleKey={activeFeatureModal}
         onClose={() => setActiveFeatureModal(null)}

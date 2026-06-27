@@ -10,7 +10,6 @@ import ExciseTariffDetailsModal from "./ExciseTariffDetailsModal";
 import TDSNatureOfPaymentCreation from "./TDSNatureOfPaymentCreation";
 import TCSNatureOfGoodsCreation from "./TCSNatureOfGoodsCreation";
 import SlabBasedRatesTable from "./SlabBasedRatesTable";
-import GSTClassificationSecondaryModal from "@/pages/master/statutory/company-gst-details/components/GSTClassificationSecondaryModal";
 
 const HSN_SAC_SOURCES = [
   "As per Company/Group",
@@ -48,6 +47,8 @@ interface StatutorySectionProps {
   primaryGroupName: string | null;
   parentGroupName?: string | null;
   companyId: number | undefined;
+  gstClassifications: { gc_id: number; name: string }[];
+  onOpenClassPanel: (target: "hsn" | "gst") => void;
 }
 
 export default function StatutorySection({
@@ -56,6 +57,8 @@ export default function StatutorySection({
   primaryGroupName,
   parentGroupName,
   companyId,
+  gstClassifications,
+  onOpenClassPanel,
 }: StatutorySectionProps) {
   const config = useMemo(() => getConfig(primaryGroupName, parentGroupName), [primaryGroupName, parentGroupName]);
 
@@ -63,11 +66,6 @@ export default function StatutorySection({
   const [activeSubModal, setActiveSubModal] = useState<StatutoryToggle | null>(null);
   const [showTdsCreate, setShowTdsCreate] = useState(false);
   const [showTcsCreate, setShowTcsCreate] = useState(false);
-  const [gstClassifications, setGstClassifications] = useState<{ gc_id: number; name: string }[]>([]);
-  const [showHsnClassPanel, setShowHsnClassPanel] = useState(false);
-  const [showGstClassPanel, setShowGstClassPanel] = useState(false);
-  const [showCreateClassModal, setShowCreateClassModal] = useState(false);
-  const [pendingClassTarget, setPendingClassTarget] = useState<"hsn" | "gst" | null>(null);
 
   const values = useMemo<Record<StatutoryToggle, number>>(() => ({
     tds:        form.set_alter_tds_details ?? 0,
@@ -76,24 +74,6 @@ export default function StatutorySection({
     vat:        form.set_alter_vat_details ?? 0,
     excise:     form.set_alter_excise_details ?? 0,
   }), [form.set_alter_tds_details, form.set_alter_tcs_details, form.set_alter_service_tax_details, form.set_alter_vat_details, form.set_alter_excise_details]);
-
-  useEffect(() => {
-    if (!companyId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await window.api.gstClassification.getAll(companyId);
-        if (!cancelled && res.success && res.gstClassifications) {
-          setGstClassifications(
-            (res.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name }))
-          );
-        }
-      } catch {
-        // ignore
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [companyId]);
 
   const handleToggle = (key: StatutoryToggle) => {
     const dbKey = TOGGLE_META[key].dbKey as keyof GroupType;
@@ -111,27 +91,6 @@ export default function StatutorySection({
   const setField = (key: keyof GroupType) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const handleClassCreated = async (newName: string) => {
-    setShowCreateClassModal(false);
-    if (!companyId) return;
-    try {
-      const res = await window.api.gstClassification.getAll(companyId);
-      if (res.success && res.gstClassifications) {
-        const updated = (res.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name }));
-        setGstClassifications(updated);
-        const newClass = updated.find((c) => c.name === newName);
-        if (newClass) {
-          if (pendingClassTarget === "hsn") {
-            setForm((f) => ({ ...f, hsn_sac_classification_id: newClass.gc_id }));
-          } else if (pendingClassTarget === "gst") {
-            setForm((f) => ({ ...f, gst_classification_id: newClass.gc_id }));
-          }
-        }
-      }
-    } catch {}
-    setPendingClassTarget(null);
-  };
 
   return (
     <div>
@@ -165,58 +124,15 @@ export default function StatutorySection({
             {form.hsn_sac_source === "As per Company/Group" || !form.hsn_sac_source
               ? "Not Available"
               : form.hsn_sac_source === "Use GST Classification"
-                ? (() => {
-                    const c = gstClassifications.find(
-                      (g) => g.gc_id === Number(form.hsn_sac_classification_id)
-                    );
-                    return c ? c.name : "Not Available";
-                  })()
+                ? (gstClassifications.find((g) => g.gc_id === Number(form.hsn_sac_classification_id))?.name ?? "Not Available")
                 : ""}
           </span>
         </Row>
         {form.hsn_sac_source === "Use GST Classification" && (
-          <Row label="Classification">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => { setShowHsnClassPanel((v) => !v); setShowGstClassPanel(false); }}
-                className="text-sm text-left w-full py-1 px-1 border-b border-transparent hover:border-zinc-300 transition-colors"
-              >
-                {gstClassifications.find((c) => c.gc_id === Number(form.hsn_sac_classification_id))?.name || <span className="text-zinc-400">Select...</span>}
-              </button>
-              {showHsnClassPanel && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowHsnClassPanel(false)} />
-                  <div className="absolute left-0 top-full z-50 bg-white border border-zinc-200 shadow-lg w-72 max-h-52 flex flex-col">
-                    <div className="flex items-center justify-between px-2 py-1.5 border-b bg-zinc-50 shrink-0">
-                      <span className="text-xs font-semibold text-zinc-600">List of Classifications</span>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setShowHsnClassPanel(false); setPendingClassTarget("hsn"); setShowCreateClassModal(true); }}
-                        className="text-[11px] px-2 py-0.5 bg-black text-white font-medium"
-                      >
-                        Create
-                      </button>
-                    </div>
-                    <div className="overflow-y-auto flex-1">
-                      {gstClassifications.length === 0 ? (
-                        <div className="px-3 py-3 text-xs text-zinc-400 text-center">No classifications yet. Click Create.</div>
-                      ) : (
-                        gstClassifications.map((c) => (
-                          <div
-                            key={c.gc_id}
-                            onClick={(e) => { e.stopPropagation(); setForm((f) => ({ ...f, hsn_sac_classification_id: c.gc_id })); setShowHsnClassPanel(false); }}
-                            className={`px-3 py-1.5 text-[13px] cursor-pointer hover:bg-zinc-100 ${Number(form.hsn_sac_classification_id) === c.gc_id ? "bg-zinc-100 font-medium" : ""}`}
-                          >
-                            {c.name}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+          <Row label="Classification" onClick={() => onOpenClassPanel("hsn")}>
+            <span className="text-sm py-1 font-medium text-zinc-800">
+              {gstClassifications.find((c) => c.gc_id === Number(form.hsn_sac_classification_id))?.name || ""}
+            </span>
           </Row>
         )}
         {form.hsn_sac_source === "Specify Details Here" && (
@@ -266,58 +182,15 @@ export default function StatutorySection({
             {form.gst_rate_source === "As per Company/Group" || !form.gst_rate_source
               ? "Not Available"
               : form.gst_rate_source === "Use GST Classification"
-                ? (() => {
-                    const c = gstClassifications.find(
-                      (g) => g.gc_id === Number(form.gst_classification_id)
-                    );
-                    return c ? c.name : "Not Available";
-                  })()
+                ? (gstClassifications.find((g) => g.gc_id === Number(form.gst_classification_id))?.name ?? "Not Available")
                 : ""}
           </span>
         </Row>
         {form.gst_rate_source === "Use GST Classification" && (
-          <Row label="Classification">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => { setShowGstClassPanel((v) => !v); setShowHsnClassPanel(false); }}
-                className="text-sm text-left w-full py-1 px-1 border-b border-transparent hover:border-zinc-300 transition-colors"
-              >
-                {gstClassifications.find((c) => c.gc_id === Number(form.gst_classification_id))?.name || <span className="text-zinc-400">Select...</span>}
-              </button>
-              {showGstClassPanel && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowGstClassPanel(false)} />
-                  <div className="absolute left-0 top-full z-50 bg-white border border-zinc-200 shadow-lg w-72 max-h-52 flex flex-col">
-                    <div className="flex items-center justify-between px-2 py-1.5 border-b bg-zinc-50 shrink-0">
-                      <span className="text-xs font-semibold text-zinc-600">List of Classifications</span>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setShowGstClassPanel(false); setPendingClassTarget("gst"); setShowCreateClassModal(true); }}
-                        className="text-[11px] px-2 py-0.5 bg-black text-white font-medium"
-                      >
-                        Create
-                      </button>
-                    </div>
-                    <div className="overflow-y-auto flex-1">
-                      {gstClassifications.length === 0 ? (
-                        <div className="px-3 py-3 text-xs text-zinc-400 text-center">No classifications yet. Click Create.</div>
-                      ) : (
-                        gstClassifications.map((c) => (
-                          <div
-                            key={c.gc_id}
-                            onClick={(e) => { e.stopPropagation(); setForm((f) => ({ ...f, gst_classification_id: c.gc_id })); setShowGstClassPanel(false); }}
-                            className={`px-3 py-1.5 text-[13px] cursor-pointer hover:bg-zinc-100 ${Number(form.gst_classification_id) === c.gc_id ? "bg-zinc-100 font-medium" : ""}`}
-                          >
-                            {c.name}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+          <Row label="Classification" onClick={() => onOpenClassPanel("gst")}>
+            <span className="text-sm py-1 font-medium text-zinc-800">
+              {gstClassifications.find((c) => c.gc_id === Number(form.gst_classification_id))?.name || ""}
+            </span>
           </Row>
         )}
         {form.gst_rate_source === "Specify Details Here" && (
@@ -436,14 +309,6 @@ export default function StatutorySection({
           window.dispatchEvent(new CustomEvent("tcs-nature-of-goods-created"));
         }}
       />
-      {showCreateClassModal && companyId && (
-        <GSTClassificationSecondaryModal
-          isOpen={showCreateClassModal}
-          companyId={companyId}
-          onClose={() => { setShowCreateClassModal(false); setPendingClassTarget(null); }}
-          onSaveSuccess={handleClassCreated}
-        />
-      )}
     </div>
   );
 }

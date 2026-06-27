@@ -68,7 +68,6 @@ module.exports = {
       try { await godownService.seedDefaultGodowns(company_id); console.log('godowns ok'); } catch(e) { console.error('godowns failed:', e.message); }
       try { await currencyService.seedDefaultCurrency(company_id); console.log('currency ok'); } catch(e) { console.error('currency failed:', e.message); }
       try { await voucherTypeService.seedDefaultVoucherTypes(company_id); console.log('voucherTypes ok'); } catch(e) { console.error('voucherTypes failed:', e.message); }
-      try { await gstClassificationService.seedDefaultGSTClassifications(company_id); console.log('gst ok'); } catch(e) { console.error('gst failed:', e.message); }
       try { await employeeCategoryService.seedDefaultEmployeeCategory(company_id); console.log('employeeCategories ok'); } catch(e) { console.error('employeeCategories failed:', e.message); }
       try { await employeeGroupService.seedDefaultEmployeeGroups(company_id); console.log('employeeGroups ok'); } catch(e) { console.error('employeeGroups failed:', e.message); }
       try { await payrollUnitService.seedDefaultPayrollUnits(company_id); console.log('payrollUnits ok'); } catch(e) { console.error('payrollUnits failed:', e.message); }
