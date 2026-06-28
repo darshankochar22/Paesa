@@ -78,6 +78,16 @@ import WorkOrderOutstanding from "../pages/reports/inventory/WorkOrderOutstandin
 import StockQuery from "../pages/reports/inventory/StockQuery.tsx";
 import ReorderStatus from "../pages/reports/inventory/ReorderStatus.tsx";
 
+// Payroll report layouts
+import MultiPaySlipLayout from "../components/reports/MultiPaySlipLayout.tsx";
+import PaySheetLayout from "../components/reports/PaySheetLayout.tsx";
+import AttendanceSheetLayout from "../components/reports/AttendanceSheetLayout.tsx";
+import PaymentAdviceLayout from "../components/reports/PaymentAdviceLayout.tsx";
+import EmployeesWithoutEmailLayout from "../components/reports/EmployeesWithoutEmailLayout.tsx";
+import PayrollStatementLayout from "../components/reports/PayrollStatementLayout.tsx";
+import EmployeePayHeadBreakupLayout from "../components/reports/EmployeePayHeadBreakupLayout.tsx";
+import PayHeadEmployeeBreakupLayout from "../components/reports/PayHeadEmployeeBreakupLayout.tsx";
+
 // Job Work reports
 import JobWorkOrderSummary from "../pages/reports/inventory/jobwork/JobWorkOrderSummary.tsx";
 import JobWorkStock from "../pages/reports/inventory/jobwork/JobWorkStock.tsx";
@@ -106,6 +116,15 @@ export const reportRoutes: RouteConfig[] = [
   { path: "/reports/statements-of-inventory", element: <StatementsOfInventory /> },
   { path: "/reports/exception", element: <ExceptionReports /> },
   { path: "/reports/payroll-hr", element: <PayrollReports /> },
+  // Payroll report sub-pages (#125–#131)
+  { path: "/reports/payroll-hr/pay-slip", element: <MultiPaySlipLayout /> },
+  { path: "/reports/payroll-hr/pay-sheet", element: <PaySheetLayout /> },
+  { path: "/reports/payroll-hr/attendance-sheet", element: <AttendanceSheetLayout /> },
+  { path: "/reports/payroll-hr/payment-advice", element: <PaymentAdviceLayout /> },
+  { path: "/reports/payroll-hr/employees-without-email", element: <EmployeesWithoutEmailLayout /> },
+  { path: "/reports/payroll-hr/payroll-statement", element: <PayrollStatementLayout /> },
+  { path: "/reports/payroll-hr/employee-pay-head-breakup", element: <EmployeePayHeadBreakupLayout /> },
+  { path: "/reports/payroll-hr/pay-head-employee-breakup", element: <PayHeadEmployeeBreakupLayout /> },
   { path: "/reports/job-work", element: <JobWorkReports /> },
   { path: "/reports/analysis-verification", element: <AnalysisVerification /> },
 

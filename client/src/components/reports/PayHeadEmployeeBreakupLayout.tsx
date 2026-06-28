@@ -1,5 +1,7 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import PageTitleBar from "@/components/ui/PageTitleBar";
 
 const fmt = (val: number) =>
   val === 0
@@ -15,6 +17,7 @@ interface BreakupRow {
 }
 
 export default function PayHeadEmployeeBreakupLayout() {
+  const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -62,11 +65,23 @@ export default function PayHeadEmployeeBreakupLayout() {
     return map;
   }, [rows]);
 
-  if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">Loading Pay Head Employee Breakup...</div>;
-  if (error) return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">{error}</div>;
+  if (loading) return (
+    <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
+      <PageTitleBar title="Pay Head Employee Breakup" subtitle={selectedCompany?.name} />
+      <div className="flex-1 flex items-center justify-center text-zinc-400 text-xs">Loading Pay Head Employee Breakup...</div>
+    </div>
+  );
+  if (error) return (
+    <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
+      <PageTitleBar title="Pay Head Employee Breakup" subtitle={selectedCompany?.name} />
+      <div className="flex-1 flex items-center justify-center text-zinc-600 text-xs px-8 text-center">{error}</div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
+      <PageTitleBar title="Pay Head Employee Breakup" subtitle={selectedCompany?.name}
+        actions={<button onClick={() => navigate(-1)} className="text-zinc-400 hover:text-white text-[10px]">Esc: Back</button>} />
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
           <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10">
