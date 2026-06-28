@@ -1,0 +1,95 @@
+/** All supported voucher type names — single source of truth. */
+export const VOUCHER_TYPES = {
+  // Accounting
+  PAYMENT: "Payment",
+  RECEIPT: "Receipt",
+  CONTRA: "Contra",
+  JOURNAL: "Journal",
+  SALES: "Sales",
+  PURCHASE: "Purchase",
+  CREDIT_NOTE: "Credit Note",
+  DEBIT_NOTE: "Debit Note",
+  MEMORANDUM: "Memorandum",
+  REVERSING_JOURNAL: "Reversing Journal",
+
+  // Inventory
+  DELIVERY_NOTE: "Delivery Note",
+  RECEIPT_NOTE: "Receipt Note",
+  REJECTION_IN: "Rejection In",
+  REJECTION_OUT: "Rejection Out",
+  STOCK_JOURNAL: "Stock Journal",
+  PHYSICAL_STOCK: "Physical Stock",
+  MANUFACTURING_JOURNAL: "Manufacturing Journal",
+
+  // Orders
+  SALES_ORDER: "Sales Order",
+  PURCHASE_ORDER: "Purchase Order",
+
+  // Job Work
+  JOB_WORK_IN_ORDER: "Job Work In Order",
+  JOB_WORK_OUT_ORDER: "Job Work Out Order",
+  MATERIAL_IN: "Material In",
+  MATERIAL_OUT: "Material Out",
+
+  // Payroll
+  ATTENDANCE: "Attendance",
+  PAYROLL: "Payroll",
+} as const;
+
+export type VoucherType = (typeof VOUCHER_TYPES)[keyof typeof VOUCHER_TYPES];
+
+/** Voucher types shown in the primary sidebar (F-key shortcuts). */
+export const PRIMARY_VOUCHER_TYPES: VoucherType[] = [
+  VOUCHER_TYPES.CONTRA,
+  VOUCHER_TYPES.PAYMENT,
+  VOUCHER_TYPES.RECEIPT,
+  VOUCHER_TYPES.JOURNAL,
+  VOUCHER_TYPES.SALES,
+  VOUCHER_TYPES.PURCHASE,
+];
+
+/** Voucher types accessible via the "Other Vouchers" dropdown. */
+export const OTHER_VOUCHER_TYPES: VoucherType[] = [
+  VOUCHER_TYPES.ATTENDANCE,
+  VOUCHER_TYPES.CREDIT_NOTE,
+  VOUCHER_TYPES.DEBIT_NOTE,
+  VOUCHER_TYPES.DELIVERY_NOTE,
+  VOUCHER_TYPES.JOB_WORK_IN_ORDER,
+  VOUCHER_TYPES.JOB_WORK_OUT_ORDER,
+  VOUCHER_TYPES.MATERIAL_IN,
+  VOUCHER_TYPES.MATERIAL_OUT,
+  VOUCHER_TYPES.MANUFACTURING_JOURNAL,
+  VOUCHER_TYPES.MEMORANDUM,
+  VOUCHER_TYPES.PAYROLL,
+  VOUCHER_TYPES.PHYSICAL_STOCK,
+  VOUCHER_TYPES.PURCHASE_ORDER,
+  VOUCHER_TYPES.RECEIPT_NOTE,
+  VOUCHER_TYPES.REJECTION_IN,
+  VOUCHER_TYPES.REJECTION_OUT,
+  VOUCHER_TYPES.REVERSING_JOURNAL,
+  VOUCHER_TYPES.SALES_ORDER,
+  VOUCHER_TYPES.STOCK_JOURNAL,
+];
+
+/** Accounting-only voucher types (no inventory lines). */
+export const ACCOUNTING_VOUCHER_TYPES: VoucherType[] = [
+  VOUCHER_TYPES.PAYMENT,
+  VOUCHER_TYPES.RECEIPT,
+  VOUCHER_TYPES.CONTRA,
+  VOUCHER_TYPES.JOURNAL,
+];
+
+/** Voucher types that carry inventory lines. */
+export const INVENTORY_VOUCHER_TYPES: VoucherType[] = [
+  VOUCHER_TYPES.SALES,
+  VOUCHER_TYPES.PURCHASE,
+  VOUCHER_TYPES.CREDIT_NOTE,
+  VOUCHER_TYPES.DEBIT_NOTE,
+  VOUCHER_TYPES.DELIVERY_NOTE,
+  VOUCHER_TYPES.RECEIPT_NOTE,
+  VOUCHER_TYPES.REJECTION_IN,
+  VOUCHER_TYPES.REJECTION_OUT,
+  VOUCHER_TYPES.STOCK_JOURNAL,
+  VOUCHER_TYPES.PHYSICAL_STOCK,
+  VOUCHER_TYPES.MANUFACTURING_JOURNAL,
+];

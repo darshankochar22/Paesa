@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
 import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from "./reportDefinitions";
+import { LAYOUT_ONLY_REPORTS, CURRENCY_FIELDS, DATE_FIELDS, NUMBER_FIELDS, SKIP_FIELDS, CURRENCY_KEYWORDS, NUMBER_KEYWORDS } from "@/constants/reportFields";
 import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
 import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
 import StockItemSelectionLayout from "@/components/reports/StockSelectionLayout";
@@ -150,19 +151,7 @@ export function ReportRunner() {
   }, [location.search, activeFY]);
 
   const loadData = React.useCallback(async () => {
-    const layoutOnlyReports = [
-    "balance-sheet", "stock-summary", "profit-loss", "trial-balance",
-    "group-summary", "ledger-summary", "ledger", "ratio-analysis",
-    "cash-book", "bank-book", "cash-bank", "group-vouchers", "voucher-clarification",
-    "outstandings-receivable", "outstandings-payable",
-    "ledger-outstandings", "group-outstandings",
-    "outstandings-ledger", "outstandings-group",
-    "interest-receivable", "interest-payable",
-    "interest-calculation-ledger-wise", "interest-calculation-bill-wise",
-    "cost-category-summary", "cost-centre-summary", "cost-centre-break-up",
-    "cost-centre-ledger", "cost-centre-wise-p-and-l", "stock-item", "stock-query"
-  ];
-  if (layoutOnlyReports.includes(reportType)) {
+  if (LAYOUT_ONLY_REPORTS.has(reportType)) {
     setLoading(false);
     return;
   }
@@ -592,17 +581,13 @@ export function ReportRunner() {
     const matchCount = definedFields.filter(f => dataFields.includes(f)).length;
     if (matchCount >= Math.max(1, Math.floor(definedFields.length / 2))) return definition.columns;
 
-    const CURRENCY_FIELDS = new Set(['balance','debit','credit','amount','total','value','opening_balance','closing_balance','opening_value','closing_value','inwards_value','outwards_value','taxable_value','invoice_value','gross','deductions','net','current_period','previous_period','variance','total_debit','total_credit','net_balance','total_amount','total_debt','equity','working_capital','total_allocated','actual','budget','inflow','outflow','in_value','out_value','net_value','emp_contrib','employer_contrib','gratuity','total_payout','totalAssets','totalLiabilities','totalIncome','totalExpenses','netProfit','totalSources','totalApplications','totalInflow','totalOutflow','netCashFlow','closing_qty','opening_qty','inwards_qty','outwards_qty','reorder_level','reorder_qty','shortage','fifo_value','avg_rate','closing_rate']);
-    const DATE_FIELDS = new Set(['date','bill_date','due_date','from_date','to_date','as_on_date','voucher_date','reconciled_date','bank_date','last_inward_date','first_bill_date','last_bill_date','created_at','updated_at','timestamp']);
-    const NUMBER_FIELDS = new Set(['count','voucher_count','employees_count','item_count','ledger_count','cost_centre_count','transaction_count','bill_count','present','absent','leave','overdue_days','days30','days60','daysOver','days_since_inward','years','invoice_count','totalClosingQty','totalClosingValue','total_debit','total_credit','net','in_qty','out_qty','closing_qty','opening_qty','inwards_qty','outwards_qty','quantity','total_qty']);
-    const SKIP_FIELDS = new Set(['id','isHeader','isTotal','is_header','is_total','group_id','ledger_id','item_id','cc_id','sg_id','godown_id','employee_id','entry_id','voucher_id','bill_id','structure_id','pay_head_id','batch_id','reconciliation_id','irn_id','log_id','tds_id','tcs_id','gst_id','fy_id','company_id']);
     return dataFields
       .filter(f => !SKIP_FIELDS.has(f))
       .map(f => {
         const header = f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        const isCurrency = CURRENCY_FIELDS.has(f) || f.includes('amount') || f.includes('value') || f.includes('balance') || f.includes('debit') || f.includes('credit') || f.includes('total') || f.includes('variance') || f.includes('price') || f.includes('cost') || f.includes('profit') || f.includes('payout') || f.includes('contrib') || f.includes('gratuity') || f.includes('inflow') || f.includes('outflow') || f.includes('rate') || f.includes('capital') || f.includes('equity') || f.includes('debt');
+        const isCurrency = CURRENCY_FIELDS.has(f) || CURRENCY_KEYWORDS.some(kw => f.includes(kw));
         const isDate = DATE_FIELDS.has(f);
-        const isNumber = NUMBER_FIELDS.has(f) || f.includes('count') || f.includes('qty') || f.includes('quantity') || f.includes('days') || f.includes('years') || f.includes('present') || f.includes('absent') || f.includes('leave');
+        const isNumber = NUMBER_FIELDS.has(f) || NUMBER_KEYWORDS.some(kw => f.includes(kw));
         const align = (isCurrency || isNumber) ? 'right' as const : 'left' as const;
         const type = isDate ? 'date' as const : isCurrency ? 'currency' as const : isNumber ? 'number' as const : undefined;
         return { header, field: f, type, align };
