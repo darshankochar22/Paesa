@@ -16,6 +16,9 @@ const inputCls =
 const cellCls =
   "w-full bg-transparent text-[12px] text-zinc-950 font-mono outline-none py-1 px-1.5 border border-transparent focus:border-zinc-400 transition-colors";
 
+// Standard excise forms shown in the "Used for" picker.
+const EXCISE_FORMS = ["ARE-1", "ARE-2", "ARE-3", "Rule -11 Invoice"];
+
 interface Props {
   mode: "create" | "alter";
   companyId: number;
@@ -102,6 +105,7 @@ export default function ExciseBookForm({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFormsList, setShowFormsList] = useState(false);
 
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -173,12 +177,12 @@ export default function ExciseBookForm({
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-3xl mx-auto bg-white border border-zinc-300 shadow-sm">
+          <div className="max-w-6xl mx-auto bg-white border border-zinc-300 shadow-sm">
             <div className="bg-zinc-100 px-3 py-1.5 border-b border-zinc-200 text-center font-bold text-xs uppercase tracking-wider text-zinc-700">
               {title}
             </div>
 
-            <div className="p-4 flex flex-col gap-1">
+            <div className="p-4 flex flex-col gap-1 max-w-2xl">
               <Row label="Name" required>
                 <input ref={nameRef} className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
               </Row>
@@ -219,27 +223,45 @@ export default function ExciseBookForm({
                 <YesNoSelect value={prefillZero} onChange={setPrefillZero} />
               </Row>
               <Row label="Used for">
-                <input
-                  className={inputCls}
-                  value={usedFor}
-                  onChange={(e) => setUsedFor(e.target.value)}
-                  placeholder="e.g. Rule -11 Invoice"
-                />
+                <div className="relative">
+                  <input
+                    className={inputCls}
+                    value={usedFor}
+                    onChange={(e) => { setUsedFor(e.target.value); setShowFormsList(true); }}
+                    onFocus={() => setShowFormsList(true)}
+                    onBlur={() => setTimeout(() => setShowFormsList(false), 150)}
+                    placeholder="e.g. Rule -11 Invoice"
+                  />
+                  {showFormsList && (
+                    <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-zinc-300 shadow-xl w-56 flex flex-col">
+                      <div className="bg-zinc-800 text-white text-[11px] font-bold px-3 py-1.5 shrink-0">
+                        List of Forms
+                      </div>
+                      {EXCISE_FORMS.filter((f) =>
+                        f.toLowerCase().includes(usedFor.toLowerCase())
+                      ).map((f) => (
+                        <div
+                          key={f}
+                          onMouseDown={(e) => { e.preventDefault(); setUsedFor(f); setShowFormsList(false); }}
+                          className={`px-3 py-1.5 text-[12px] font-mono cursor-pointer border-b border-zinc-50 ${
+                            usedFor === f ? "bg-zinc-100 text-black font-bold" : "text-zinc-700 hover:bg-zinc-50"
+                          }`}
+                        >
+                          {f}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </Row>
             </div>
 
-            {/* Numbering tables */}
-            <RestartNumberingTable rows={restart} onChange={setRestart} />
-            <AffixTable
-              title="Prefix Details"
-              rows={prefix}
-              onChange={setPrefix}
-            />
-            <AffixTable
-              title="Suffix Details"
-              rows={suffix}
-              onChange={setSuffix}
-            />
+            {/* Numbering tables — three sections side-by-side in one row */}
+            <div className="flex border-t border-zinc-200 divide-x divide-zinc-200">
+              <RestartNumberingTable rows={restart} onChange={setRestart} className="flex-1 min-w-0" />
+              <AffixTable title="Prefix Details" rows={prefix} onChange={setPrefix} className="flex-1 min-w-0" />
+              <AffixTable title="Suffix Details" rows={suffix} onChange={setSuffix} className="flex-1 min-w-0" />
+            </div>
           </div>
         </div>
 
@@ -289,9 +311,11 @@ export default function ExciseBookForm({
 function RestartNumberingTable({
   rows,
   onChange,
+  className,
 }: {
   rows: ExciseBookRestartRow[];
   onChange: (rows: ExciseBookRestartRow[]) => void;
+  className?: string;
 }) {
   const all = [...rows, { ...EMPTY_RESTART_ROW }];
 
@@ -307,7 +331,7 @@ function RestartNumberingTable({
   const removeAt = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
 
   return (
-    <div className="border-t border-zinc-200">
+    <div className={className}>
       <div className="bg-zinc-50 px-3 py-1.5 border-b border-zinc-200 font-bold text-[11px] uppercase tracking-wider text-zinc-600">
         Restart Numbering
       </div>
@@ -366,10 +390,12 @@ function AffixTable({
   title,
   rows,
   onChange,
+  className,
 }: {
   title: string;
   rows: ExciseBookAffixRow[];
   onChange: (rows: ExciseBookAffixRow[]) => void;
+  className?: string;
 }) {
   const all = [...rows, { ...EMPTY_AFFIX_ROW }];
 
@@ -380,7 +406,7 @@ function AffixTable({
   const removeAt = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
 
   return (
-    <div className="border-t border-zinc-200">
+    <div className={className}>
       <div className="bg-zinc-50 px-3 py-1.5 border-b border-zinc-200 font-bold text-[11px] uppercase tracking-wider text-zinc-600">
         {title}
       </div>

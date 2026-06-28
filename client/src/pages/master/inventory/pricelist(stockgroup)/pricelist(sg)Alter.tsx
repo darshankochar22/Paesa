@@ -31,7 +31,66 @@ const emptyLine = (): PriceListLine => ({
 });
 
 const cellCls =
-  "bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent focus:border-zinc-400 rounded";
+  "bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent focus:bg-zinc-100 focus:border-zinc-300 rounded";
+
+// ─── Right-side selection list (Tally-style, full height, never clipped) ────────
+
+interface PanelEntry { key: string; label: string; selected: boolean; prefix?: string }
+
+function RightSelectPanel({
+  title, createLabel, onCreate, entries, onPick, onClose,
+}: {
+  title: string;
+  createLabel?: string;
+  onCreate?: () => void;
+  entries: PanelEntry[];
+  onPick: (key: string) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-0 right-0 h-full w-72 bg-white border-l border-zinc-300 shadow-xl z-[60] flex flex-col"
+    >
+      <div className="px-3 py-2 border-b border-zinc-200 flex justify-between items-center shrink-0">
+        <span className="text-xs font-bold text-zinc-700 uppercase tracking-wide">{title}</span>
+        {createLabel && onCreate && (
+          <button
+            onMouseDown={(e) => { e.preventDefault(); onCreate(); }}
+            className="text-[11px] font-bold text-zinc-900 underline hover:text-black"
+          >
+            {createLabel}
+          </button>
+        )}
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {entries.length === 0 ? (
+          <div className="px-3 py-2 text-xs text-zinc-400 font-sans">No items found.</div>
+        ) : (
+          entries.map((en) => (
+            <div
+              key={en.key}
+              onMouseDown={(e) => { e.preventDefault(); onPick(en.key); }}
+              className={`px-3 py-1.5 text-xs font-mono cursor-pointer border-b border-zinc-50 ${
+                en.selected ? "bg-zinc-100 text-black font-bold" : "text-zinc-700 hover:bg-zinc-50"
+              }`}
+            >
+              {en.prefix ? <span className="text-zinc-400 mr-1">{en.prefix}</span> : null}
+              {en.label}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -64,7 +123,7 @@ export default function PriceListSGAlter() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // ── Dropdown popups
+  // ── Right-panel selection state
   const [showGroupList, setShowGroupList] = useState(false);
   const [showLevelList, setShowLevelList] = useState(false);
   const [activeItemDropdown, setActiveItemDropdown] = useState<number | null>(null);
@@ -142,6 +201,9 @@ export default function PriceListSGAlter() {
     setStep("select");
     setEditingId(null);
     setLines([emptyLine()]);
+    setShowGroupList(false);
+    setShowLevelList(false);
+    setActiveItemDropdown(null);
   };
 
   // ── Line helpers
@@ -208,7 +270,6 @@ export default function PriceListSGAlter() {
         if (!result.success) throw new Error(result.error || "Update failed.");
       }
       setSuccess("Price list updated successfully.");
-      // Refresh records list in the background
       if (window.api?.priceList) {
         const pls = await window.api.priceList.getAll(companyId);
         if (pls?.success) setRecords(((pls as any).data ?? []) as PriceListRecord[]);
@@ -290,6 +351,14 @@ export default function PriceListSGAlter() {
 
   const filledCount = lines.filter((l) => l.particulars.trim() !== "").length;
 
+  // Notification banner — strict grayscale (no red/green)
+  const Banner = ({ text, onDismiss }: { text: string; onDismiss: () => void }) => (
+    <div className="px-4 py-2 border-b border-zinc-200 border-l-2 border-l-black bg-zinc-100 text-zinc-900 text-xs flex justify-between items-center shrink-0 font-sans">
+      <span className="font-semibold">{text}</span>
+      <button onClick={onDismiss} className="text-zinc-500 hover:text-black font-bold">&times;</button>
+    </div>
+  );
+
   // ════════════════════════════════════════════════════════════
   // STEP 1 — Select a saved price list to alter
   // ════════════════════════════════════════════════════════════
@@ -298,12 +367,7 @@ export default function PriceListSGAlter() {
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
         <PageTitleBar title="Price List — Alter" subtitle={selectedCompany?.name} />
 
-        {error && (
-          <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
-            <span>• {error}</span>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
-          </div>
-        )}
+        {error && <Banner text={error} onDismiss={() => setError(null)} />}
 
         <div className="flex-1 overflow-y-auto min-h-0">
           {fetching ? (
@@ -311,7 +375,7 @@ export default function PriceListSGAlter() {
           ) : records.length === 0 ? (
             <div className="p-6 text-sm text-zinc-400 font-sans">
               No saved price lists found.{" "}
-              <button onClick={() => navigate("/master/create/price-lists-sg")} className="text-zinc-700 hover:underline font-bold">Create one</button>
+              <button onClick={() => navigate("/master/create/price-lists-sg")} className="text-zinc-900 underline font-bold">Create one</button>
             </div>
           ) : (
             <table className="w-full text-[11px] font-mono border-collapse">
@@ -328,7 +392,7 @@ export default function PriceListSGAlter() {
                 {records.map((rec, i) => (
                   <tr
                     key={rec.price_list_id}
-                    className="border-b border-zinc-100 cursor-pointer hover:bg-zinc-50"
+                    className="border-b border-zinc-100 cursor-pointer hover:bg-zinc-100"
                     onClick={() => openRecord(rec)}
                   >
                     <td className="px-4 py-2 text-zinc-400">{i + 1}</td>
@@ -343,10 +407,10 @@ export default function PriceListSGAlter() {
           )}
         </div>
 
-        <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
+        <div className="border-t border-zinc-200 p-3 flex justify-end bg-white shrink-0 font-sans">
           <button
             onClick={() => navigate("/master/alter")}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
+            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
           >
             Quit
           </button>
@@ -364,24 +428,27 @@ export default function PriceListSGAlter() {
     { key: "Esc",   label: "Back",   onClick: backToSelect },
   ];
 
+  const activeRow = activeItemDropdown;
+  const itemEntries: PanelEntry[] =
+    activeRow == null
+      ? []
+      : (lines[activeRow]?.particulars.trim()
+          ? stockItems.filter((it) => it.name.toLowerCase().includes(lines[activeRow].particulars.toLowerCase()))
+          : stockItems
+        ).map((it) => ({
+          key: String(it.item_id),
+          label: it.name,
+          selected: lines[activeRow]?.item_id === it.item_id,
+        }));
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
       <PageTitleBar title="Price List — Alter" subtitle={selectedCompany?.name} />
 
-      {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
-          <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
-        </div>
-      )}
-      {success && (
-        <div className="px-4 py-2 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
-          <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
-        </div>
-      )}
+      {error && <Banner text={error} onDismiss={() => setError(null)} />}
+      {success && <Banner text={success} onDismiss={() => setSuccess(null)} />}
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative">
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* ── Inline header ── */}
@@ -390,31 +457,14 @@ export default function PriceListSGAlter() {
             <div className="flex items-center gap-2">
               <span className="text-zinc-500 w-28">Under Group</span>
               <span className="text-zinc-300">:</span>
-              <div className="relative">
-                <button
-                  type="button"
-                  className="flex items-center gap-1 px-2 py-0.5 border border-transparent hover:border-zinc-300 rounded font-bold text-zinc-900"
-                  onClick={() => { setShowGroupList((p) => !p); setShowLevelList(false); }}
-                >
-                  <span className="text-zinc-400">◆</span>
-                  {selectedGroup}
-                </button>
-                {showGroupList && (
-                  <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-zinc-300 rounded shadow-lg w-64 max-h-56 overflow-y-auto">
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-100 bg-zinc-50">List of Stock Groups</div>
-                    {[{ sg_id: 0, name: "All Items" }, ...stockGroups].map((sg) => (
-                      <div
-                        key={sg.sg_id}
-                        className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-50 ${selectedGroup === sg.name ? "bg-zinc-100 font-bold text-black" : "text-zinc-700"}`}
-                        onClick={() => { setSelectedGroup(sg.name); setShowGroupList(false); }}
-                      >
-                        {sg.name === "All Items" && <span className="text-zinc-400 mr-1">◆</span>}
-                        {sg.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 py-0.5 border border-transparent hover:border-zinc-400 rounded font-bold text-zinc-900"
+                onClick={() => { setShowGroupList((p) => !p); setShowLevelList(false); }}
+              >
+                <span className="text-zinc-400">◆</span>
+                {selectedGroup}
+              </button>
             </div>
 
             {/* Price Level + Applicable From */}
@@ -422,29 +472,13 @@ export default function PriceListSGAlter() {
               <div className="flex items-center gap-2">
                 <span className="text-zinc-500 w-28">Price Level</span>
                 <span className="text-zinc-300">:</span>
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="px-2 py-0.5 border border-transparent hover:border-zinc-300 rounded font-bold text-zinc-900"
-                    onClick={() => { setShowLevelList((p) => !p); setShowGroupList(false); }}
-                  >
-                    {selectedLevel || "Select…"}
-                  </button>
-                  {showLevelList && (
-                    <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-zinc-300 rounded shadow-lg w-56 max-h-56 overflow-y-auto">
-                      <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-100 bg-zinc-50">List of Price Levels</div>
-                      {mergedLevels.map((pl, i) => (
-                        <div
-                          key={i}
-                          className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-50 ${selectedLevel === pl ? "bg-zinc-100 font-bold text-black" : "text-zinc-700"}`}
-                          onClick={() => { setSelectedLevel(pl); setShowLevelList(false); }}
-                        >
-                          {pl}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  className="px-2 py-0.5 border border-transparent hover:border-zinc-400 rounded font-bold text-zinc-900"
+                  onClick={() => { setShowLevelList((p) => !p); setShowGroupList(false); }}
+                >
+                  {selectedLevel || "Select…"}
+                </button>
               </div>
 
               <div className="flex items-center gap-2">
@@ -463,7 +497,7 @@ export default function PriceListSGAlter() {
           </div>
 
           {/* ── Table ── */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-auto min-h-0">
             <table className="w-full text-[11px] font-mono border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-zinc-100 border-b border-zinc-300">
@@ -486,15 +520,12 @@ export default function PriceListSGAlter() {
               <tbody>
                 {lines.map((line, i) => {
                   const isLastEmpty = i === lines.length - 1 && line.particulars.trim() === "";
-                  const filtered = line.particulars.trim()
-                    ? stockItems.filter((it) => it.name.toLowerCase().includes(line.particulars.toLowerCase()))
-                    : stockItems;
 
                   return (
-                    <tr key={i} className={`border-b border-zinc-100 group ${isLastEmpty ? "bg-zinc-50/60" : "hover:bg-zinc-50"}`}>
+                    <tr key={i} className={`border-b border-zinc-100 group ${isLastEmpty ? "bg-zinc-50" : "hover:bg-zinc-50"} ${activeItemDropdown === i ? "bg-zinc-100" : ""}`}>
                       <td className="px-3 py-1 text-zinc-400 text-center align-middle">{isLastEmpty ? "" : i + 1}</td>
 
-                      <td className="px-2 py-1 align-middle relative">
+                      <td className="px-2 py-1 align-middle">
                         <input
                           ref={(el) => { particularRefs.current[i] = el; }}
                           className={cellCls + " font-bold"}
@@ -502,30 +533,8 @@ export default function PriceListSGAlter() {
                           placeholder={isLastEmpty ? "Select item…" : ""}
                           onChange={(e) => { setLineField(i, "particulars", e.target.value); setLineField(i, "item_id", null); setActiveItemDropdown(i); }}
                           onFocus={() => setActiveItemDropdown(i)}
-                          onBlur={() => setTimeout(() => setActiveItemDropdown(null), 150)}
                           onKeyDown={(e) => handleParticularKeyDown(e, i)}
                         />
-                        {activeItemDropdown === i && (
-                          <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-zinc-300 rounded shadow-lg w-64 max-h-48 overflow-y-auto">
-                            <div className="px-3 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-100 flex justify-between bg-zinc-50">
-                              <span>List of Items</span>
-                              <button onMouseDown={(e) => { e.preventDefault(); navigate("/master/create/stock-item"); }} className="text-zinc-700 hover:underline font-bold">Create</button>
-                            </div>
-                            {filtered.length === 0 ? (
-                              <div className="px-3 py-2 text-xs text-zinc-400">No items found.</div>
-                            ) : (
-                              filtered.map((it) => (
-                                <div
-                                  key={it.item_id}
-                                  onMouseDown={(e) => { e.preventDefault(); pickItem(i, it); }}
-                                  className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-50 ${line.item_id === it.item_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700"}`}
-                                >
-                                  {it.name}
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
                       </td>
 
                       <td className="px-2 py-1 align-middle w-24">
@@ -546,7 +555,7 @@ export default function PriceListSGAlter() {
                       </td>
                       <td className="px-1 align-middle">
                         {!isLastEmpty && (
-                          <button onClick={() => removeLine(i)} className="text-zinc-300 hover:text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity text-xs" tabIndex={-1}>×</button>
+                          <button onClick={() => removeLine(i)} className="text-zinc-300 hover:text-black opacity-0 group-hover:opacity-100 transition-opacity text-xs" tabIndex={-1}>×</button>
                         )}
                       </td>
                     </tr>
@@ -558,21 +567,58 @@ export default function PriceListSGAlter() {
         </div>
 
         <RightActionPanel actions={actions} />
+
+        {showGroupList && (
+          <RightSelectPanel
+            title="List of Stock Groups"
+            entries={[{ sg_id: 0, name: "All Items" }, ...stockGroups].map((sg) => ({
+              key: sg.name,
+              label: sg.name,
+              selected: selectedGroup === sg.name,
+              prefix: sg.name === "All Items" ? "◆" : undefined,
+            }))}
+            onPick={(key) => { setSelectedGroup(key); setShowGroupList(false); }}
+            onClose={() => setShowGroupList(false)}
+          />
+        )}
+
+        {showLevelList && (
+          <RightSelectPanel
+            title="List of Price Levels"
+            entries={mergedLevels.map((pl) => ({ key: pl, label: pl, selected: selectedLevel === pl }))}
+            onPick={(key) => { setSelectedLevel(key); setShowLevelList(false); }}
+            onClose={() => setShowLevelList(false)}
+          />
+        )}
+
+        {activeItemDropdown !== null && (
+          <RightSelectPanel
+            title="List of Items"
+            createLabel="Create"
+            onCreate={() => navigate("/master/create/stock-item")}
+            entries={itemEntries}
+            onPick={(key) => {
+              const it = stockItems.find((s) => String(s.item_id) === key);
+              if (it && activeItemDropdown !== null) pickItem(activeItemDropdown, it);
+            }}
+            onClose={() => setActiveItemDropdown(null)}
+          />
+        )}
       </div>
 
       {/* Footer */}
-      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50 shrink-0 font-sans">
+      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-white shrink-0 font-sans">
         <button onClick={handleDelete} disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 shadow-sm transition-colors font-medium">
+          className="text-xs px-4 py-1.5 rounded border border-zinc-300 text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 transition-colors font-medium">
           Delete
         </button>
         <div className="flex gap-3">
           <button onClick={backToSelect}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium">
+            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors font-medium">
             Back
           </button>
           <button onClick={handleSubmit} disabled={loading}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium">
+            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium">
             {loading ? "Updating…" : "Accept"}
           </button>
         </div>

@@ -42,7 +42,66 @@ const emptyLine = (): PriceListLine => ({
 });
 
 const cellCls =
-  "bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent focus:border-zinc-300 rounded";
+  "bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent focus:bg-zinc-100 focus:border-zinc-300 rounded";
+
+// ─── Right-side selection list (Tally-style, full height, never clipped) ────────
+
+interface PanelEntry { key: string; label: string; selected: boolean; prefix?: string }
+
+function RightSelectPanel({
+  title, createLabel, onCreate, entries, onPick, onClose,
+}: {
+  title: string;
+  createLabel?: string;
+  onCreate?: () => void;
+  entries: PanelEntry[];
+  onPick: (key: string) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-0 right-0 h-full w-72 bg-white border-l border-zinc-300 shadow-xl z-[60] flex flex-col"
+    >
+      <div className="px-3 py-2 border-b border-zinc-200 flex justify-between items-center shrink-0">
+        <span className="text-xs font-bold text-zinc-700 uppercase tracking-wide">{title}</span>
+        {createLabel && onCreate && (
+          <button
+            onMouseDown={(e) => { e.preventDefault(); onCreate(); }}
+            className="text-[11px] font-bold text-zinc-900 underline hover:text-black"
+          >
+            {createLabel}
+          </button>
+        )}
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {entries.length === 0 ? (
+          <div className="px-3 py-2 text-xs text-zinc-400 font-sans">No items found.</div>
+        ) : (
+          entries.map((en) => (
+            <div
+              key={en.key}
+              onMouseDown={(e) => { e.preventDefault(); onPick(en.key); }}
+              className={`px-3 py-1.5 text-xs font-mono cursor-pointer border-b border-zinc-50 ${
+                en.selected ? "bg-zinc-100 text-black font-bold" : "text-zinc-700 hover:bg-zinc-50"
+              }`}
+            >
+              {en.prefix ? <span className="text-zinc-400 mr-1">{en.prefix}</span> : null}
+              {en.label}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -75,7 +134,7 @@ export default function PriceListSGCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // ── Dropdown popups
+  // ── Right-panel selection state
   const [showGroupList, setShowGroupList] = useState(false);
   const [showLevelList, setShowLevelList] = useState(false);
   const [activeItemDropdown, setActiveItemDropdown] = useState<number | null>(null);
@@ -299,6 +358,14 @@ export default function PriceListSGCreate() {
   const fmtRate = (n?: number) =>
     n == null || n === 0 ? "" : n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // Notification banner — strict grayscale (no red/green)
+  const Banner = ({ text, onDismiss }: { text: string; onDismiss: () => void }) => (
+    <div className="px-4 py-2 border-b border-zinc-200 border-l-2 border-l-black bg-zinc-100 text-zinc-900 text-xs flex justify-between items-center shrink-0 font-sans">
+      <span className="font-semibold">{text}</span>
+      <button onClick={onDismiss} className="text-zinc-500 hover:text-black font-bold">&times;</button>
+    </div>
+  );
+
   const page1Actions = [
     { key: "Alt+A", label: "Accept", onClick: handlePage1Accept },
     { key: "Esc",   label: "Quit",   onClick: () => navigate("/master/create") },
@@ -317,17 +384,12 @@ export default function PriceListSGCreate() {
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
         <PageTitleBar title="Price List (Stock Group)" subtitle={selectedCompany?.name} />
 
-        {error && (
-          <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
-            <span>• {error}</span>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
-          </div>
-        )}
+        {error && <Banner text={error} onDismiss={() => setError(null)} />}
 
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex min-h-0 relative">
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 flex items-start justify-start px-6 py-6">
-              <div className="w-full max-w-lg bg-white border border-zinc-200 rounded shadow-sm overflow-hidden">
+              <div className="w-full max-w-lg bg-white border border-zinc-200 rounded overflow-hidden">
 
                 {/* Panel header */}
                 <div className="text-center font-bold text-xs py-3 border-b border-zinc-200 tracking-wide text-zinc-900 uppercase font-mono">
@@ -339,79 +401,26 @@ export default function PriceListSGCreate() {
                   {/* Stock Group */}
                   <div className="grid grid-cols-[180px_1fr] gap-x-4 items-center text-xs">
                     <span className="text-zinc-500">Stock Group Name</span>
-                    <div className="relative">
-                      <div
-                        className="flex items-center gap-1 border border-zinc-300 rounded px-2 py-1 bg-amber-50 cursor-pointer hover:border-zinc-400 text-[11px] font-mono font-bold"
-                        onClick={() => { setShowGroupList((p) => !p); setShowLevelList(false); }}
-                      >
-                        <span className="text-zinc-400 mr-1">◆</span>
-                        <span className="text-zinc-900">{selectedGroup}</span>
-                      </div>
-                      {showGroupList && (
-                        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-zinc-300 rounded shadow-lg w-64 max-h-56 overflow-y-auto">
-                          <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 flex justify-between">
-                            <span>List of Stock Groups</span>
-                            <button
-                              onClick={() => navigate("/master/create/stock-group")}
-                              className="text-sky-600 hover:underline"
-                            >
-                              Create
-                            </button>
-                          </div>
-                          {[{ sg_id: 0, name: "All Items" }, ...stockGroups].map((sg) => (
-                            <div
-                              key={sg.sg_id}
-                              className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-amber-100 ${selectedGroup === sg.name ? "bg-amber-200 font-bold" : ""}`}
-                              onClick={() => { setSelectedGroup(sg.name); setShowGroupList(false); }}
-                            >
-                              {sg.name === "All Items" && <span className="text-zinc-400 mr-1">◆</span>}
-                              {sg.name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 border border-zinc-300 rounded px-2 py-1 bg-white cursor-pointer hover:border-zinc-500 text-[11px] font-mono font-bold text-left"
+                      onClick={() => { setShowGroupList((p) => !p); setShowLevelList(false); }}
+                    >
+                      <span className="text-zinc-400 mr-1">◆</span>
+                      <span className="text-zinc-900">{selectedGroup}</span>
+                    </button>
                   </div>
 
                   {/* Price Level */}
                   <div className="grid grid-cols-[180px_1fr] gap-x-4 items-center text-xs">
                     <span className="text-zinc-500">Price Level</span>
-                    <div className="relative">
-                      <div
-                        className="flex items-center gap-1 border border-zinc-300 rounded px-2 py-1 bg-white cursor-pointer hover:border-zinc-400 text-[11px] font-mono font-bold"
-                        onClick={() => { setShowLevelList((p) => !p); setShowGroupList(false); }}
-                      >
-                        <span className="text-zinc-900">{selectedLevel || "Select..."}</span>
-                      </div>
-                      {showLevelList && (
-                        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-zinc-300 rounded shadow-lg w-56 max-h-48 overflow-y-auto">
-                          <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100">
-                            Price Levels
-                          </div>
-                          {priceLevels.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-zinc-400 font-sans">
-                              No price levels found.{" "}
-                              <button
-                                onClick={() => navigate("/master/create/price-levels")}
-                                className="text-sky-600 hover:underline"
-                              >
-                                Create one
-                              </button>
-                            </div>
-                          ) : (
-                            priceLevels.map((pl, i) => (
-                              <div
-                                key={i}
-                                className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-amber-100 ${selectedLevel === pl ? "bg-amber-200 font-bold" : ""}`}
-                                onClick={() => { setSelectedLevel(pl); setShowLevelList(false); }}
-                              >
-                                {pl}
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      className="flex items-center border border-zinc-300 rounded px-2 py-1 bg-white cursor-pointer hover:border-zinc-500 text-[11px] font-mono font-bold text-left"
+                      onClick={() => { setShowLevelList((p) => !p); setShowGroupList(false); }}
+                    >
+                      <span className="text-zinc-900">{selectedLevel || "Select…"}</span>
+                    </button>
                   </div>
 
                   {/* Applicable From */}
@@ -445,20 +454,47 @@ export default function PriceListSGCreate() {
           </div>
 
           <RightActionPanel actions={page1Actions} />
+
+          {showGroupList && (
+            <RightSelectPanel
+              title="List of Stock Groups"
+              createLabel="Create"
+              onCreate={() => navigate("/master/create/stock-group")}
+              entries={[{ sg_id: 0, name: "All Items" }, ...stockGroups].map((sg) => ({
+                key: sg.name,
+                label: sg.name,
+                selected: selectedGroup === sg.name,
+                prefix: sg.name === "All Items" ? "◆" : undefined,
+              }))}
+              onPick={(key) => { setSelectedGroup(key); setShowGroupList(false); }}
+              onClose={() => setShowGroupList(false)}
+            />
+          )}
+
+          {showLevelList && (
+            <RightSelectPanel
+              title="List of Price Levels"
+              createLabel="Create"
+              onCreate={() => navigate("/master/create/price-levels")}
+              entries={priceLevels.map((pl) => ({ key: pl, label: pl, selected: selectedLevel === pl }))}
+              onPick={(key) => { setSelectedLevel(key); setShowLevelList(false); }}
+              onClose={() => setShowLevelList(false)}
+            />
+          )}
         </div>
 
         {/* Footer */}
-        <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
+        <div className="border-t border-zinc-200 p-3 flex justify-end bg-white shrink-0 font-sans">
           <div className="flex gap-3">
             <button
               onClick={() => navigate("/master/create")}
-              className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
+              className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
             >
               Quit
             </button>
             <button
               onClick={handlePage1Accept}
-              className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 shadow-sm transition-colors font-medium"
+              className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 transition-colors font-medium"
             >
               Accept
             </button>
@@ -471,28 +507,31 @@ export default function PriceListSGCreate() {
   // ════════════════════════════════════════════════════════════
   // PAGE 2 — Item entry table
   // ════════════════════════════════════════════════════════════
+  const activeRow = activeItemDropdown;
+  const itemEntries: PanelEntry[] =
+    activeRow == null
+      ? []
+      : (lines[activeRow]?.particulars.trim()
+          ? stockItems.filter((it) => it.name.toLowerCase().includes(lines[activeRow].particulars.toLowerCase()))
+          : stockItems
+        ).map((it) => ({
+          key: String(it.item_id),
+          label: it.name,
+          selected: lines[activeRow]?.item_id === it.item_id,
+        }));
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
       <PageTitleBar title="Price List (Stock Group)" subtitle={selectedCompany?.name} />
 
-      {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
-          <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
-        </div>
-      )}
-      {success && (
-        <div className="px-4 py-2 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
-          <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
-        </div>
-      )}
+      {error && <Banner text={error} onDismiss={() => setError(null)} />}
+      {success && <Banner text={success} onDismiss={() => setSuccess(null)} />}
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative">
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* ── Sub-header showing selected values from page 1 ── */}
-          <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-1.5 flex items-center gap-8 text-[11px] font-mono shrink-0">
+          <div className="border-b border-zinc-200 px-6 py-1.5 flex items-center gap-8 text-[11px] font-mono shrink-0">
             <span>
               <span className="text-zinc-400">Under Group</span>
               <span className="mx-2 text-zinc-300">:</span>
@@ -533,26 +572,20 @@ export default function PriceListSGCreate() {
                     Disc. %
                     <div className="text-[10px] font-normal text-zinc-400">(if any)</div>
                   </th>
-                  <th className="text-center px-2 py-2 font-bold text-zinc-400 w-40 border-l border-zinc-200" colSpan={2}>
+                  <th className="text-center px-2 py-2 font-bold text-zinc-500 w-40 border-l border-zinc-200" colSpan={2}>
                     Historical Details
-                    <div className="flex justify-between mt-0.5 text-[10px] font-normal text-zinc-300">
+                    <div className="flex justify-between mt-0.5 text-[10px] font-normal text-zinc-400">
                       <span className="w-1/2 text-center">Rate</span>
                       <span className="w-1/2 text-center">Disc. %</span>
                     </div>
                   </th>
-                  <th className="text-right px-3 py-2 font-bold text-zinc-400 w-28 border-l border-zinc-200">Cost Price</th>
+                  <th className="text-right px-3 py-2 font-bold text-zinc-500 w-28 border-l border-zinc-200">Cost Price</th>
                   <th className="w-6"></th>
                 </tr>
               </thead>
               <tbody>
                 {lines.map((line, i) => {
                   const isLastEmpty = i === lines.length - 1 && line.particulars.trim() === "";
-                  const filtered = line.particulars.trim()
-                    ? stockItems.filter((it) =>
-                        it.name.toLowerCase().includes(line.particulars.toLowerCase())
-                      )
-                    : stockItems;
-
                   const hist = line.item_id != null ? histByItem[`${selectedLevel}|${line.item_id}`] : undefined;
                   const cost = line.item_id != null ? costByItem[line.item_id] : undefined;
 
@@ -560,56 +593,27 @@ export default function PriceListSGCreate() {
                     <tr
                       key={i}
                       className={`border-b border-zinc-100 group ${
-                        isLastEmpty ? "bg-amber-50/40" : "hover:bg-zinc-50"
-                      }`}
+                        isLastEmpty ? "bg-zinc-50" : "hover:bg-zinc-50"
+                      } ${activeItemDropdown === i ? "bg-zinc-100" : ""}`}
                     >
                       <td className="px-3 py-1 text-zinc-400 text-center align-middle">
                         {isLastEmpty ? "" : i + 1}
                       </td>
 
-                      <td className="px-2 py-1 align-middle relative">
+                      <td className="px-2 py-1 align-middle">
                         <input
                           ref={(el) => { particularRefs.current[i] = el; }}
                           className={cellCls + " font-bold"}
                           value={line.particulars}
-                          placeholder={isLastEmpty ? "Select item..." : ""}
+                          placeholder={isLastEmpty ? "Select item…" : ""}
                           onChange={(e) => {
                             setLineField(i, "particulars", e.target.value);
                             setLineField(i, "item_id", null);
                             setActiveItemDropdown(i);
                           }}
                           onFocus={() => setActiveItemDropdown(i)}
-                          onBlur={() => setTimeout(() => setActiveItemDropdown(null), 150)}
                           onKeyDown={(e) => handleParticularKeyDown(e, i)}
                         />
-                        {activeItemDropdown === i && (
-                          <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-zinc-300 rounded shadow-lg w-64 max-h-48 overflow-y-auto">
-                            <div className="px-3 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 flex justify-between">
-                              <span>List Of Items</span>
-                              <button
-                                onMouseDown={(e) => { e.preventDefault(); navigate("/master/create/stock-item"); }}
-                                className="text-sky-600 hover:underline"
-                              >
-                                Create
-                              </button>
-                            </div>
-                            {filtered.length === 0 ? (
-                              <div className="px-3 py-2 text-xs text-zinc-400">No items found.</div>
-                            ) : (
-                              filtered.map((it) => (
-                                <div
-                                  key={it.item_id}
-                                  onMouseDown={(e) => { e.preventDefault(); pickItem(i, it); }}
-                                  className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-amber-100 ${
-                                    line.item_id === it.item_id ? "bg-amber-200 font-bold" : ""
-                                  }`}
-                                >
-                                  {it.name}
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
                       </td>
 
                       <td className="px-2 py-1 align-middle w-24">
@@ -673,7 +677,7 @@ export default function PriceListSGCreate() {
                         {!isLastEmpty && (
                           <button
                             onClick={() => removeLine(i)}
-                            className="text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                            className="text-zinc-300 hover:text-black opacity-0 group-hover:opacity-100 transition-opacity text-xs"
                             tabIndex={-1}
                           >
                             ×
@@ -689,23 +693,37 @@ export default function PriceListSGCreate() {
         </div>
 
         <RightActionPanel actions={page2Actions} />
+
+        {activeItemDropdown !== null && (
+          <RightSelectPanel
+            title="List of Items"
+            createLabel="Create"
+            onCreate={() => navigate("/master/create/stock-item")}
+            entries={itemEntries}
+            onPick={(key) => {
+              const it = stockItems.find((s) => String(s.item_id) === key);
+              if (it && activeItemDropdown !== null) pickItem(activeItemDropdown, it);
+            }}
+            onClose={() => setActiveItemDropdown(null)}
+          />
+        )}
       </div>
 
       {/* Footer */}
-      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
+      <div className="border-t border-zinc-200 p-3 flex justify-end bg-white shrink-0 font-sans">
         <div className="flex gap-3">
           <button
             onClick={() => setPage(1)}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
+            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
           >
             Back
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
+            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
           >
-            {loading ? "Saving..." : "Accept"}
+            {loading ? "Saving…" : "Accept"}
           </button>
         </div>
       </div>
