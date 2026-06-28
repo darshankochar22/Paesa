@@ -100,3 +100,81 @@ describe("Payroll Report Service — Pay Slip (#125)", () => {
     expect(res.error).toMatch(/not found/i);
   });
 });
+
+describe("Payroll Report Service — Pay Sheet (#126)", () => {
+  let companyId;
+  let fyId;
+  let employeeId;
+
+  beforeAll(async () => {
+    await setupTestDB();
+    const company = await createTestCompany();
+    companyId = company.company_id;
+    fyId = company.fy_id;
+
+    // Use "Test " prefixed names: createTestCompany seeds default pay heads
+    // (Basic Salary, House Rent Allowance, Provident Fund, …) and create()
+    // rejects duplicate names, so unprefixed names would collide.
+    const earn = await payHeadService.create({
+      company_id: companyId,
+      name: "Test Basic Pay 126",
+      pay_head_type: "Earnings for Employees",
+      calculation_type: "Flat Rate",
+    });
+    expect(earn.success).toBe(true);
+    const hra = await payHeadService.create({
+      company_id: companyId,
+      name: "Test HRA 126",
+      pay_head_type: "Earnings for Employees",
+      calculation_type: "Flat Rate",
+    });
+    expect(hra.success).toBe(true);
+    const pf = await payHeadService.create({
+      company_id: companyId,
+      name: "Test PF 126",
+      pay_head_type: "Deductions from Employees",
+      calculation_type: "Flat Rate",
+    });
+    expect(pf.success).toBe(true);
+
+    const emp = await employeeService.create({
+      company_id: companyId,
+      name: "Ravi Kumar",
+      designation: "Engineer",
+      department: "Tech",
+      date_of_joining: "2026-04-01",
+    });
+    employeeId = emp.employee.employee_id;
+
+    await salaryStructureService.create({
+      company_id: companyId, employee_id: employeeId, effective_from: "2026-04-01",
+      pay_head_id: earn.payHead.pay_head_id, amount: 40000, calculation_mode: "Flat Rate",
+    });
+    await salaryStructureService.create({
+      company_id: companyId, employee_id: employeeId, effective_from: "2026-04-01",
+      pay_head_id: hra.payHead.pay_head_id, amount: 10000, calculation_mode: "Flat Rate",
+    });
+    await salaryStructureService.create({
+      company_id: companyId, employee_id: employeeId, effective_from: "2026-04-01",
+      pay_head_id: pf.payHead.pay_head_id, amount: 5000, calculation_mode: "Flat Rate",
+    });
+  });
+
+  it("Pay Sheet returns one row per employee with summed earnings, deductions and net", async () => {
+    const res = await payrollReportService.paySheet(companyId, fyId);
+    expect(res.success).toBe(true);
+    const row = res.rows.find((r) => r.particulars === "Ravi Kumar");
+    expect(row).toBeDefined();
+    expect(row.total_earnings).toBe(50000);   // 40000 Basic + 10000 HRA
+    expect(row.total_deductions).toBe(5000);  // PF
+    expect(row.net_amount).toBe(45000);       // 50000 - 5000
+  });
+
+  it("Pay Sheet net amount always equals earnings minus deductions for every row", async () => {
+    const res = await payrollReportService.paySheet(companyId, fyId);
+    expect(res.success).toBe(true);
+    for (const r of res.rows) {
+      expect(r.net_amount).toBe(r.total_earnings - r.total_deductions);
+    }
+  });
+});
