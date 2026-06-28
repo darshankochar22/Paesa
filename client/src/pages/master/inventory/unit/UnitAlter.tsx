@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import UnitDropdown from "./UnitDropdown";
 import type { UnitType } from "@/types/entities/Unit";
+import { UqcPopup } from "./UqcPopup";
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
@@ -108,6 +109,8 @@ export default function UnitAlter() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showUqc, setShowUqc] = useState(false);
+  const uqcAnchorRef = useRef<HTMLButtonElement>(null);
 
   const fetchUnitsList = useCallback(async () => {
     const company_id = selectedCompany?.company_id;
@@ -358,8 +361,22 @@ export default function UnitAlter() {
                   </select>
                 </FormRow>
 
-                <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                  <input className={inputCls} value={form.unit_quantity_code} onChange={set("unit_quantity_code")} placeholder="e.g. KGS-KILOGRAMS" />
+                <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="flex items-center min-h-[26px] relative">
+                  <button
+                    ref={uqcAnchorRef}
+                    type="button"
+                    className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
+                    onClick={() => setShowUqc(v => !v)}
+                  >
+                    ◆ {form.unit_quantity_code || "Not Applicable"}
+                  </button>
+                  {showUqc && (
+                    <UqcPopup
+                      selected={form.unit_quantity_code || "Not Applicable"}
+                      onSelect={v => { setForm(f => f ? { ...f, unit_quantity_code: v === "Not Applicable" ? "" : v } : f); setShowUqc(false); }}
+                      onClose={() => setShowUqc(false)}
+                    />
+                  )}
                 </FormRow>
               </>
             )}

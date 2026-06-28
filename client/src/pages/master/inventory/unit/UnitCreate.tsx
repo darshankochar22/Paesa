@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import UnitDropdown from "./UnitDropdown";
 import type { UnitType } from "@/types/entities/Unit";
+import { UQC_LIST, UqcPopup } from "./UqcPopup";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
@@ -13,6 +14,7 @@ interface FormData {
   unit_type: "Simple" | "Compound";
   symbol: string;
   formal_name: string;
+  uqc: string;
   decimal_places: string;
   first_unit_id: string;
   second_unit_id: string;
@@ -23,6 +25,7 @@ const INITIAL: FormData = {
   unit_type: "Simple",
   symbol: "",
   formal_name: "",
+  uqc: "Not Applicable",
   decimal_places: "0",
   first_unit_id: "",
   second_unit_id: "",
@@ -39,6 +42,8 @@ export default function UnitCreate() {
   const [success, setSuccess] = useState<string | null>(null);
   const [simpleUnits, setSimpleUnits] = useState<UnitType[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
+  const [showUqc, setShowUqc] = useState(false);
+  const uqcAnchorRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -108,6 +113,7 @@ export default function UnitCreate() {
           formal_name: form.formal_name.trim() || form.symbol.trim(),
           unit_type: form.unit_type,
           decimal_places: Number(form.decimal_places) || 0,
+          unit_quantity_code: form.uqc === "Not Applicable" ? null : form.uqc || null,
         });
       }
       if (result.success) {
@@ -190,6 +196,23 @@ export default function UnitCreate() {
                 </FormRow>
                 <FormRow label="Formal Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
                   <input className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Kilogram" />
+                </FormRow>
+                <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="flex items-center min-h-[26px] relative">
+                  <button
+                    ref={uqcAnchorRef}
+                    type="button"
+                    className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
+                    onClick={() => setShowUqc(v => !v)}
+                  >
+                    ◆ {form.uqc || "Not Applicable"}
+                  </button>
+                  {showUqc && (
+                    <UqcPopup
+                      selected={form.uqc}
+                      onSelect={v => { setForm(f => ({ ...f, uqc: v })); setShowUqc(false); }}
+                      onClose={() => setShowUqc(false)}
+                    />
+                  )}
                 </FormRow>
                 <FormRow label="Number of Decimal Places" labelWidth="w-56" className="flex items-center min-h-[26px]">
                   <select className={selectCls} value={form.decimal_places} onChange={setField("decimal_places")}>

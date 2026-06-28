@@ -5,6 +5,7 @@ import { EXCISE_REPORTING_UOM_OPTIONS, EXCISE_VALUATION_TYPE_OPTIONS } from "../
 export interface OtherStatutoryFormData {
   excise_applicable: string;
   set_alter_excise_details: string;
+  set_alter_additional_info: string;
   excise_tariff_name: string;
   excise_tariff_hsn_code: string;
   excise_tariff_uom: string;
@@ -40,6 +41,7 @@ export default function OtherStatutoryDetails({
   const [form, setForm] = useState<OtherStatutoryFormData>({
     excise_applicable:        initialData?.excise_applicable        || "Not Applicable",
     set_alter_excise_details: initialData?.set_alter_excise_details || "No",
+    set_alter_additional_info: initialData?.set_alter_additional_info || "No",
     excise_tariff_name:       initialData?.excise_tariff_name       || "",
     excise_tariff_hsn_code:   initialData?.excise_tariff_hsn_code   || "",
     excise_tariff_uom:        initialData?.excise_tariff_uom        || "Undefined",
@@ -119,6 +121,18 @@ export default function OtherStatutoryDetails({
             </select>
           </FormRow>
 
+          <FormRow label="Set/Alter Additional Info" labelWidth="w-52" className="flex items-center min-h-[26px]">
+            <select
+              className={selectCls}
+              value={form.set_alter_additional_info}
+              disabled={!hasExcise}
+              onChange={e => setVal("set_alter_additional_info", e.target.value)}
+            >
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </FormRow>
+
           {showTariff && (
             <>
               <FormRow label="Conversion factor" labelWidth="w-52" className="flex items-center min-h-[26px] pl-4">
@@ -166,19 +180,17 @@ export default function OtherStatutoryDetails({
                 </select>
               </FormRow>
 
-              {showRate && (
-                <FormRow label="Rate" labelWidth="w-52" className="flex items-center min-h-[26px] pl-4">
-                  <div className="flex items-center gap-1">
-                    <input
-                      className="w-20 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded text-right tabular-nums"
-                      type="number" min="0" max="100" step="0.01"
-                      value={form.excise_tariff_rate}
-                      onChange={e => setVal("excise_tariff_rate", e.target.value)}
-                    />
-                    <span className="text-sm text-zinc-500">%</span>
-                  </div>
-                </FormRow>
-              )}
+              <FormRow label="Rate in %" labelWidth="w-52" className="flex items-center min-h-[26px] pl-4">
+                <div className="flex items-center gap-1">
+                  <input
+                    className="w-20 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded text-right tabular-nums"
+                    type="number" min="0" max="100" step="0.01"
+                    value={form.excise_tariff_rate}
+                    onChange={e => setVal("excise_tariff_rate", e.target.value)}
+                  />
+                  <span className="text-sm text-zinc-500">%</span>
+                </div>
+              </FormRow>
 
               {showRatePerUnit && (
                 <FormRow label="Rate per Unit" labelWidth="w-52" className="flex items-center min-h-[26px] pl-4">
