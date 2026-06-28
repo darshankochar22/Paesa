@@ -180,3 +180,70 @@ describe("Payroll Report Service — Pay Sheet (#126)", () => {
     }
   });
 });
+
+describe("Payroll Report Service — Attendance Sheet (#127)", () => {
+  let companyId;
+  let fyId;
+  let employeeId;
+
+  beforeAll(async () => {
+    await setupTestDB();
+    const company = await createTestCompany();
+    companyId = company.company_id;
+    fyId = company.fy_id;
+
+    const emp = await employeeService.create({
+      company_id: companyId,
+      name: "Asha Devi",
+      designation: "Clerk",
+      department: "Admin",
+      date_of_joining: "2026-04-01",
+    });
+    employeeId = emp.employee.employee_id;
+
+    // createTestCompany seeds default attendance types (Present, Absent,
+    // Paid Leave, …) — look up their IDs rather than creating duplicates.
+    const types = await attendanceTypeService.getAll(companyId);
+    expect(types.success).toBe(true);
+    const byName = (n) =>
+      types.attendanceTypes.find((t) => t.name.toLowerCase() === n.toLowerCase());
+    const present = byName("Present");
+    const absent = byName("Absent");
+    const paidLeave = byName("Paid Leave");
+    expect(present && absent && paidLeave).toBeTruthy();
+
+    const created = await attendanceService.create({
+      company_id: companyId,
+      date: "2026-04-30",
+      narration: "April attendance",
+      entries: [
+        { employee_id: employeeId, attendance_type_id: present.attendance_type_id, value: 22 },
+        { employee_id: employeeId, attendance_type_id: absent.attendance_type_id, value: 2 },
+        { employee_id: employeeId, attendance_type_id: paidLeave.attendance_type_id, value: 3 },
+      ],
+    });
+    expect(created.success).toBe(true);
+  });
+
+  it("Attendance Sheet aggregates present/absent/leave per employee with correct total days", async () => {
+    const res = await payrollReportService.attendanceSheet(companyId, fyId);
+    expect(res.success).toBe(true);
+    const row = res.rows.find((r) => r.particulars === "Asha Devi");
+    expect(row).toBeDefined();
+    expect(row.present).toBe(22);
+    expect(row.absent).toBe(2);
+    expect(row.leave).toBe(3);            // "Paid Leave" → leave bucket
+    expect(row.total_days).toBe(27);      // 22 + 2 + 3
+  });
+
+  it("Attendance Sheet returns a row for every active employee even with no attendance", async () => {
+    const empB = await employeeService.create({
+      company_id: companyId, name: "No Attendance Emp", date_of_joining: "2026-04-01",
+    });
+    expect(empB.success).toBe(true);
+    const res = await payrollReportService.attendanceSheet(companyId, fyId);
+    const row = res.rows.find((r) => r.particulars === "No Attendance Emp");
+    expect(row).toBeDefined();
+    expect(row.total_days).toBe(0);
+  });
+});
