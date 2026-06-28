@@ -49,5 +49,9 @@ coverage/
 *.tmp
 *.orig
 *.rej
-*.patchtest-results/
+*.patch
+test-results/
 playwright-report/
+
+# Claude Code (local tooling / session config)
+.claude/
