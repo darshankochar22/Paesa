@@ -14,12 +14,13 @@ interface StockItem {
   item_id: number;
   name: string;
   opening_rate?: number;
-  unit_id?: number | null;
 }
 
-interface UnitRow {
-  unit_id: number;
-  symbol: string;
+// Most recent prior price (per item, per price level) shown read-only as
+// "Historical Details" alongside the rate being entered — matches TallyPrime.
+interface HistRate {
+  rate: number;
+  disc: number;
 }
 
 interface PriceListLine {
@@ -41,7 +42,7 @@ const emptyLine = (): PriceListLine => ({
 });
 
 const cellCls =
-  "bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent focus:border-zinc-400 rounded";
+  "bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent focus:border-zinc-300 rounded";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -50,20 +51,21 @@ export default function PriceListSGCreate() {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
 
-  // ── Masters
-  const [stockGroups, setStockGroups] = useState<StockGroup[]>([]);
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
-  const [units, setUnits] = useState<UnitRow[]>([]);
-  const [priceLevels, setPriceLevels] = useState<string[]>([]);
-  const [existingLists, setExistingLists] = useState<any[]>([]);
+  // ── Page state (1 = header form, 2 = item table)
+  const [page, setPage] = useState<1 | 2>(1);
 
   // ── Header fields
+  const [stockGroups, setStockGroups] = useState<StockGroup[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [priceLevels, setPriceLevels] = useState<string[]>([]);
+  // Historical prices keyed by `${level}|${item_id}` (most recent prior list).
+  const [histByItem, setHistByItem] = useState<Record<string, HistRate>>({});
+
   const [selectedGroup, setSelectedGroup] = useState<string>("All Items");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
   const [applicableFrom, setApplicableFrom] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
-  const asOnDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   // ── Table lines
   const [lines, setLines] = useState<PriceListLine[]>([emptyLine()]);
@@ -95,15 +97,7 @@ export default function PriceListSGCreate() {
         }
         if (window.api?.stockItem) {
           const si = await window.api.stockItem.getAll(companyId);
-          if (si?.success) setStockItems((si.stockItems ?? []) as StockItem[]);
-        }
-        if (window.api?.unit) {
-          const u = await window.api.unit.getAll(companyId);
-          if (u?.success) setUnits((u.units ?? []) as UnitRow[]);
-        }
-        if (window.api?.priceList) {
-          const pls = await window.api.priceList.getAll(companyId);
-          if (pls?.success) setExistingLists((pls as any).data ?? []);
+          if (si?.success) setStockItems(si.stockItems ?? []);
         }
         if (window.api?.priceLevels) {
           const pl = await window.api.priceLevels.get(companyId);
@@ -113,6 +107,22 @@ export default function PriceListSGCreate() {
             if (named.length > 0) setSelectedLevel(named[0]);
           }
         }
+        // Build the historical-price lookup from existing price lists. getAll is
+        // ordered newest-first, so the first hit per (level,item) is the latest.
+        if (window.api?.priceList) {
+          const plAll = await window.api.priceList.getAll(companyId);
+          if (plAll?.success && Array.isArray(plAll.data)) {
+            const hist: Record<string, HistRate> = {};
+            for (const rec of plAll.data as any[]) {
+              for (const ln of rec.lines || []) {
+                if (ln.item_id == null) continue;
+                const key = `${rec.price_level}|${ln.item_id}`;
+                if (!hist[key]) hist[key] = { rate: Number(ln.rate) || 0, disc: Number(ln.disc_percent) || 0 };
+              }
+            }
+            setHistByItem(hist);
+          }
+        }
       } catch (err) {
         console.error("Failed to load masters:", err);
       }
@@ -120,48 +130,14 @@ export default function PriceListSGCreate() {
     load();
   }, [companyId]);
 
-  // ── Lookups
-  const unitSymbolFor = useCallback(
-    (item_id: number | null): string => {
-      if (!item_id) return "";
-      const item = stockItems.find((it) => it.item_id === item_id);
-      if (!item?.unit_id) return "";
-      return units.find((u) => u.unit_id === item.unit_id)?.symbol ?? "";
-    },
-    [stockItems, units]
-  );
-
-  const costPriceFor = useCallback(
-    (item_id: number | null): number | null => {
-      if (!item_id) return null;
-      const item = stockItems.find((it) => it.item_id === item_id);
-      return item?.opening_rate ?? null;
-    },
-    [stockItems]
-  );
-
-  // "As on" = most recent saved price-list line for this item & selected level,
-  // with applicable_from <= asOnDate.
-  const asOnFor = useCallback(
-    (item_id: number | null): { rate: number; disc: number } | null => {
-      if (!item_id || !selectedLevel) return null;
-      const candidates = existingLists
-        .filter(
-          (pl) =>
-            pl.price_level === selectedLevel &&
-            (pl.applicable_from ?? "") <= asOnDate
-        )
-        .sort((a, b) =>
-          (b.applicable_from ?? "").localeCompare(a.applicable_from ?? "")
-        );
-      for (const pl of candidates) {
-        const line = (pl.lines ?? []).find((l: any) => l.item_id === item_id);
-        if (line) return { rate: line.rate ?? 0, disc: line.disc_percent ?? 0 };
-      }
-      return null;
-    },
-    [existingLists, selectedLevel, asOnDate]
-  );
+  // ── Page 1 validation → go to page 2
+  const handlePage1Accept = () => {
+    if (!selectedLevel) { setError("Select a price level."); return; }
+    if (!applicableFrom) { setError("Enter applicable from date."); return; }
+    setError(null);
+    setPage(2);
+    setTimeout(() => particularRefs.current[0]?.focus(), 50);
+  };
 
   // ── Line helpers
   const setLineField = (
@@ -217,6 +193,7 @@ export default function PriceListSGCreate() {
         const result = await window.api.priceList.create({
           company_id:      companyId,
           stock_group:     selectedGroup,
+          stock_category:  null,
           price_level:     selectedLevel,
           applicable_from: applicableFrom,
           lines: filledLines.map((l) => ({
@@ -253,16 +230,21 @@ export default function PriceListSGCreate() {
           return;
         }
         e.preventDefault();
-        navigate("/master/create");
+        if (page === 2) {
+          setPage(1);
+        } else {
+          navigate("/master/create");
+        }
       }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        handleSubmit();
+        if (page === 1) handlePage1Accept();
+        else handleSubmit();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate, showGroupList, showLevelList, activeItemDropdown]);
+  }, [page, handleSubmit, navigate, showGroupList, showLevelList, activeItemDropdown]);
 
   // ── Row keyboard nav
   const handleParticularKeyDown = (e: React.KeyboardEvent, i: number) => {
@@ -305,17 +287,193 @@ export default function PriceListSGCreate() {
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" }).replace(/ /g, "-");
   };
 
-  const fmtRate = (n: number, sym: string) =>
-    `${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${sym ? "/" + sym : ""}`;
+  const filledCount = lines.filter((l) => l.particulars.trim() !== "").length;
 
-  const actions = [
-    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+  // Cost price (item opening rate) keyed by item_id, for the read-only column.
+  const costByItem = useMemo(() => {
+    const m: Record<number, number> = {};
+    stockItems.forEach((s) => { if (s.opening_rate != null) m[s.item_id] = Number(s.opening_rate) || 0; });
+    return m;
+  }, [stockItems]);
+
+  const fmtRate = (n?: number) =>
+    n == null || n === 0 ? "" : n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const page1Actions = [
+    { key: "Alt+A", label: "Accept", onClick: handlePage1Accept },
     { key: "Esc",   label: "Quit",   onClick: () => navigate("/master/create") },
   ];
 
+  const page2Actions = [
+    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Esc",   label: "Back",   onClick: () => setPage(1) },
+  ];
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 1 — Header form
+  // ════════════════════════════════════════════════════════════
+  if (page === 1) {
+    return (
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
+        <PageTitleBar title="Price List (Stock Group)" subtitle={selectedCompany?.name} />
+
+        {error && (
+          <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
+            <span>• {error}</span>
+            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
+          </div>
+        )}
+
+        <div className="flex-1 flex min-h-0">
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex items-start justify-start px-6 py-6">
+              <div className="w-full max-w-lg bg-white border border-zinc-200 rounded shadow-sm overflow-hidden">
+
+                {/* Panel header */}
+                <div className="text-center font-bold text-xs py-3 border-b border-zinc-200 tracking-wide text-zinc-900 uppercase font-mono">
+                  Price List Details
+                </div>
+
+                <div className="p-5 space-y-4 font-mono">
+
+                  {/* Stock Group */}
+                  <div className="grid grid-cols-[180px_1fr] gap-x-4 items-center text-xs">
+                    <span className="text-zinc-500">Stock Group Name</span>
+                    <div className="relative">
+                      <div
+                        className="flex items-center gap-1 border border-zinc-300 rounded px-2 py-1 bg-amber-50 cursor-pointer hover:border-zinc-400 text-[11px] font-mono font-bold"
+                        onClick={() => { setShowGroupList((p) => !p); setShowLevelList(false); }}
+                      >
+                        <span className="text-zinc-400 mr-1">◆</span>
+                        <span className="text-zinc-900">{selectedGroup}</span>
+                      </div>
+                      {showGroupList && (
+                        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-zinc-300 rounded shadow-lg w-64 max-h-56 overflow-y-auto">
+                          <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 flex justify-between">
+                            <span>List of Stock Groups</span>
+                            <button
+                              onClick={() => navigate("/master/create/stock-group")}
+                              className="text-sky-600 hover:underline"
+                            >
+                              Create
+                            </button>
+                          </div>
+                          {[{ sg_id: 0, name: "All Items" }, ...stockGroups].map((sg) => (
+                            <div
+                              key={sg.sg_id}
+                              className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-amber-100 ${selectedGroup === sg.name ? "bg-amber-200 font-bold" : ""}`}
+                              onClick={() => { setSelectedGroup(sg.name); setShowGroupList(false); }}
+                            >
+                              {sg.name === "All Items" && <span className="text-zinc-400 mr-1">◆</span>}
+                              {sg.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Price Level */}
+                  <div className="grid grid-cols-[180px_1fr] gap-x-4 items-center text-xs">
+                    <span className="text-zinc-500">Price Level</span>
+                    <div className="relative">
+                      <div
+                        className="flex items-center gap-1 border border-zinc-300 rounded px-2 py-1 bg-white cursor-pointer hover:border-zinc-400 text-[11px] font-mono font-bold"
+                        onClick={() => { setShowLevelList((p) => !p); setShowGroupList(false); }}
+                      >
+                        <span className="text-zinc-900">{selectedLevel || "Select..."}</span>
+                      </div>
+                      {showLevelList && (
+                        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-zinc-300 rounded shadow-lg w-56 max-h-48 overflow-y-auto">
+                          <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100">
+                            Price Levels
+                          </div>
+                          {priceLevels.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-zinc-400 font-sans">
+                              No price levels found.{" "}
+                              <button
+                                onClick={() => navigate("/master/create/price-levels")}
+                                className="text-sky-600 hover:underline"
+                              >
+                                Create one
+                              </button>
+                            </div>
+                          ) : (
+                            priceLevels.map((pl, i) => (
+                              <div
+                                key={i}
+                                className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-amber-100 ${selectedLevel === pl ? "bg-amber-200 font-bold" : ""}`}
+                                onClick={() => { setSelectedLevel(pl); setShowLevelList(false); }}
+                              >
+                                {pl}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Applicable From */}
+                  <div className="grid grid-cols-[180px_1fr] gap-x-4 items-center text-xs">
+                    <span className="text-zinc-500">Applicable From</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={applicableFrom}
+                        onChange={(e) => setApplicableFrom(e.target.value)}
+                        className="border border-zinc-300 rounded px-2 py-1 text-[11px] font-mono font-bold text-zinc-900 bg-white focus:outline-none focus:border-zinc-500 w-36"
+                      />
+                      {applicableFrom && (
+                        <span className="text-[11px] text-zinc-400 font-mono">
+                          {formatDateDisplay(applicableFrom)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Hint */}
+                <div className="px-5 pb-4 text-[10px] text-zinc-400 font-sans">
+                  Press{" "}
+                  <kbd className="bg-zinc-100 border border-zinc-200 rounded px-1">Alt+A</kbd>{" "}
+                  or click Accept to proceed to item entry
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <RightActionPanel actions={page1Actions} />
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigate("/master/create")}
+              className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
+            >
+              Quit
+            </button>
+            <button
+              onClick={handlePage1Accept}
+              className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 shadow-sm transition-colors font-medium"
+            >
+              Accept
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 2 — Item entry table
+  // ════════════════════════════════════════════════════════════
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
-      <PageTitleBar title="Price List" subtitle={selectedCompany?.name} />
+      <PageTitleBar title="Price List (Stock Group)" subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
@@ -333,133 +491,57 @@ export default function PriceListSGCreate() {
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col overflow-hidden">
 
-          {/* ── Inline header: Under Group / Price Level / Applicable From ── */}
-          <div className="border-b border-zinc-200 px-6 py-3 shrink-0 font-mono text-[11px] space-y-2">
-            {/* Under Group */}
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-500 w-28">Under Group</span>
-              <span className="text-zinc-300">:</span>
-              <div className="relative">
-                <button
-                  type="button"
-                  className="flex items-center gap-1 px-2 py-0.5 border border-transparent hover:border-zinc-300 rounded font-bold text-zinc-900"
-                  onClick={() => { setShowGroupList((p) => !p); setShowLevelList(false); }}
-                >
-                  <span className="text-zinc-400">◆</span>
-                  {selectedGroup}
-                </button>
-                {showGroupList && (
-                  <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-zinc-300 rounded shadow-lg w-64 max-h-56 overflow-y-auto">
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-100 flex justify-between bg-zinc-50">
-                      <span>List of Stock Groups</span>
-                      <button onClick={() => navigate("/master/create/stock-group")} className="text-zinc-700 hover:underline font-bold">Create</button>
-                    </div>
-                    {[{ sg_id: 0, name: "All Items" }, ...stockGroups].map((sg) => (
-                      <div
-                        key={sg.sg_id}
-                        className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-50 ${selectedGroup === sg.name ? "bg-zinc-100 font-bold text-black" : "text-zinc-700"}`}
-                        onClick={() => { setSelectedGroup(sg.name); setShowGroupList(false); }}
-                      >
-                        {sg.name === "All Items" && <span className="text-zinc-400 mr-1">◆</span>}
-                        {sg.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Price Level + Applicable From */}
-            <div className="flex items-center gap-10">
-              <div className="flex items-center gap-2">
-                <span className="text-zinc-500 w-28">Price Level</span>
-                <span className="text-zinc-300">:</span>
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="px-2 py-0.5 border border-transparent hover:border-zinc-300 rounded font-bold text-zinc-900"
-                    onClick={() => { setShowLevelList((p) => !p); setShowGroupList(false); }}
-                  >
-                    {selectedLevel || "Select…"}
-                  </button>
-                  {showLevelList && (
-                    <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-zinc-300 rounded shadow-lg w-56 max-h-48 overflow-y-auto">
-                      <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-100 bg-zinc-50">
-                        Price Levels
-                      </div>
-                      {priceLevels.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-zinc-400 font-sans">
-                          No price levels found.{" "}
-                          <button onClick={() => navigate("/master/create/price-levels")} className="text-zinc-700 hover:underline font-bold">Create one</button>
-                        </div>
-                      ) : (
-                        priceLevels.map((pl, i) => (
-                          <div
-                            key={i}
-                            className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-50 ${selectedLevel === pl ? "bg-zinc-100 font-bold text-black" : "text-zinc-700"}`}
-                            onClick={() => { setSelectedLevel(pl); setShowLevelList(false); }}
-                          >
-                            {pl}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-zinc-500">Applicable From</span>
-                <span className="text-zinc-300">:</span>
-                <input
-                  type="date"
-                  value={applicableFrom}
-                  onChange={(e) => setApplicableFrom(e.target.value)}
-                  className="border border-zinc-300 rounded px-2 py-0.5 text-[11px] font-mono font-bold text-zinc-900 bg-white focus:outline-none focus:border-zinc-500"
-                />
-                {applicableFrom && (
-                  <span className="text-zinc-400">{formatDateDisplay(applicableFrom)}</span>
-                )}
-              </div>
-            </div>
+          {/* ── Sub-header showing selected values from page 1 ── */}
+          <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-1.5 flex items-center gap-8 text-[11px] font-mono shrink-0">
+            <span>
+              <span className="text-zinc-400">Under Group</span>
+              <span className="mx-2 text-zinc-300">:</span>
+              <span className="text-zinc-400">◆</span>
+              <span className="font-bold text-zinc-800 ml-1">{selectedGroup}</span>
+            </span>
+            <span>
+              <span className="text-zinc-400">Price Level</span>
+              <span className="mx-2 text-zinc-300">:</span>
+              <span className="font-bold text-zinc-800">{selectedLevel}</span>
+            </span>
+            <span>
+              <span className="text-zinc-400">Applicable From</span>
+              <span className="mx-2 text-zinc-300">:</span>
+              <span className="font-bold text-zinc-800">{formatDateDisplay(applicableFrom)}</span>
+            </span>
+            <span className="ml-auto text-zinc-400">
+              {filledCount} {filledCount === 1 ? "item" : "items"}
+            </span>
           </div>
 
           {/* ── Table ── */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-auto min-h-0">
             <table className="w-full text-[11px] font-mono border-collapse">
               <thead className="sticky top-0 z-10">
-                {/* Group header row */}
-                <tr className="bg-zinc-100 border-b border-zinc-200">
-                  <th className="px-3 py-1.5 w-12" rowSpan={2} />
-                  <th className="px-3 py-1.5 w-64" rowSpan={2} />
-                  <th className="px-2 py-1.5 w-48 border-l border-zinc-200" colSpan={2} rowSpan={2}>
-                    <span className="text-zinc-600 font-bold">Quantities</span>
+                <tr className="bg-zinc-100 border-b border-zinc-300">
+                  <th className="text-left px-3 py-2 font-bold text-zinc-600 w-12">S.No.</th>
+                  <th className="text-left px-3 py-2 font-bold text-zinc-600 w-64">Particulars</th>
+                  <th className="text-center px-2 py-2 font-bold text-zinc-600 w-48" colSpan={2}>
+                    Quantities
+                    <div className="flex justify-between mt-0.5 text-[10px] font-normal text-zinc-400">
+                      <span className="w-1/2 text-center">From</span>
+                      <span className="w-1/2 text-center">Less than</span>
+                    </div>
                   </th>
-                  <th className="px-3 py-1.5 w-28 border-l border-zinc-200" rowSpan={2} />
-                  <th className="px-3 py-1.5 w-28 border-l border-zinc-200" rowSpan={2} />
-                  <th className="px-3 py-1.5 border-l border-zinc-300 text-center text-zinc-600 font-bold" colSpan={3}>
-                    As on : {formatDateDisplay(asOnDate)}
+                  <th className="text-right px-3 py-2 font-bold text-zinc-600 w-28">Rate</th>
+                  <th className="text-center px-3 py-2 font-bold text-zinc-600 w-28">
+                    Disc. %
+                    <div className="text-[10px] font-normal text-zinc-400">(if any)</div>
                   </th>
-                  <th className="w-6" rowSpan={2} />
-                </tr>
-                {/* Sub-column header row */}
-                <tr className="bg-zinc-100 border-b border-zinc-300 text-[10px]">
-                  <th className="text-right px-3 py-1 font-bold text-zinc-600 border-l border-zinc-300 w-24">Rate</th>
-                  <th className="text-right px-3 py-1 font-bold text-zinc-600 w-20">Disc. %</th>
-                  <th className="text-right px-3 py-1 font-bold text-zinc-600 w-28">Cost Price</th>
-                </tr>
-                {/* Leaf labels for left columns rendered as a third row band */}
-                <tr className="bg-zinc-50 border-b border-zinc-300 text-[10px]">
-                  <th className="text-left px-3 py-1 font-bold text-zinc-600">S.No.</th>
-                  <th className="text-left px-3 py-1 font-bold text-zinc-600">Particulars</th>
-                  <th className="text-center px-2 py-1 font-normal text-zinc-400 border-l border-zinc-200">From</th>
-                  <th className="text-center px-2 py-1 font-normal text-zinc-400">Less than</th>
-                  <th className="text-right px-3 py-1 font-bold text-zinc-600 border-l border-zinc-200">Rate</th>
-                  <th className="text-center px-3 py-1 font-bold text-zinc-600 border-l border-zinc-200">
-                    Disc. % <span className="font-normal text-zinc-400">(if any)</span>
+                  <th className="text-center px-2 py-2 font-bold text-zinc-400 w-40 border-l border-zinc-200" colSpan={2}>
+                    Historical Details
+                    <div className="flex justify-between mt-0.5 text-[10px] font-normal text-zinc-300">
+                      <span className="w-1/2 text-center">Rate</span>
+                      <span className="w-1/2 text-center">Disc. %</span>
+                    </div>
                   </th>
-                  <th className="border-l border-zinc-300" colSpan={3} />
-                  <th />
+                  <th className="text-right px-3 py-2 font-bold text-zinc-400 w-28 border-l border-zinc-200">Cost Price</th>
+                  <th className="w-6"></th>
                 </tr>
               </thead>
               <tbody>
@@ -471,15 +553,14 @@ export default function PriceListSGCreate() {
                       )
                     : stockItems;
 
-                  const sym = unitSymbolFor(line.item_id);
-                  const cost = costPriceFor(line.item_id);
-                  const asOn = asOnFor(line.item_id);
+                  const hist = line.item_id != null ? histByItem[`${selectedLevel}|${line.item_id}`] : undefined;
+                  const cost = line.item_id != null ? costByItem[line.item_id] : undefined;
 
                   return (
                     <tr
                       key={i}
                       className={`border-b border-zinc-100 group ${
-                        isLastEmpty ? "bg-zinc-50/60" : "hover:bg-zinc-50"
+                        isLastEmpty ? "bg-amber-50/40" : "hover:bg-zinc-50"
                       }`}
                     >
                       <td className="px-3 py-1 text-zinc-400 text-center align-middle">
@@ -491,7 +572,7 @@ export default function PriceListSGCreate() {
                           ref={(el) => { particularRefs.current[i] = el; }}
                           className={cellCls + " font-bold"}
                           value={line.particulars}
-                          placeholder={isLastEmpty ? "Select item…" : ""}
+                          placeholder={isLastEmpty ? "Select item..." : ""}
                           onChange={(e) => {
                             setLineField(i, "particulars", e.target.value);
                             setLineField(i, "item_id", null);
@@ -503,11 +584,11 @@ export default function PriceListSGCreate() {
                         />
                         {activeItemDropdown === i && (
                           <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-zinc-300 rounded shadow-lg w-64 max-h-48 overflow-y-auto">
-                            <div className="px-3 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-100 flex justify-between bg-zinc-50">
-                              <span>List of Items</span>
+                            <div className="px-3 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 flex justify-between">
+                              <span>List Of Items</span>
                               <button
                                 onMouseDown={(e) => { e.preventDefault(); navigate("/master/create/stock-item"); }}
-                                className="text-zinc-700 hover:underline font-bold"
+                                className="text-sky-600 hover:underline"
                               >
                                 Create
                               </button>
@@ -519,8 +600,8 @@ export default function PriceListSGCreate() {
                                 <div
                                   key={it.item_id}
                                   onMouseDown={(e) => { e.preventDefault(); pickItem(i, it); }}
-                                  className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-50 ${
-                                    line.item_id === it.item_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700"
+                                  className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-amber-100 ${
+                                    line.item_id === it.item_id ? "bg-amber-200 font-bold" : ""
                                   }`}
                                 >
                                   {it.name}
@@ -531,7 +612,7 @@ export default function PriceListSGCreate() {
                         )}
                       </td>
 
-                      <td className="px-2 py-1 align-middle w-24 border-l border-zinc-100">
+                      <td className="px-2 py-1 align-middle w-24">
                         <input
                           ref={(el) => { qtyFromRefs.current[i] = el; }}
                           className={cellCls + " text-right"}
@@ -553,7 +634,7 @@ export default function PriceListSGCreate() {
                         />
                       </td>
 
-                      <td className="px-2 py-1 align-middle border-l border-zinc-100">
+                      <td className="px-2 py-1 align-middle">
                         <input
                           ref={(el) => { rateRefs.current[i] = el; }}
                           className={cellCls + " text-right"}
@@ -564,7 +645,7 @@ export default function PriceListSGCreate() {
                         />
                       </td>
 
-                      <td className="px-2 py-1 align-middle border-l border-zinc-100">
+                      <td className="px-2 py-1 align-middle">
                         <input
                           ref={(el) => { discRefs.current[i] = el; }}
                           className={cellCls + " text-right"}
@@ -575,22 +656,24 @@ export default function PriceListSGCreate() {
                         />
                       </td>
 
-                      {/* ── As on : <date> reference (read-only) ── */}
-                      <td className="px-3 py-1 align-middle text-right text-zinc-500 border-l border-zinc-300 tabular-nums">
-                        {asOn ? fmtRate(asOn.rate, sym) : ""}
+                      {/* Historical Details (read-only) — last saved price for this item + level */}
+                      <td className="px-2 py-1 align-middle text-right text-[11px] font-mono text-zinc-400 border-l border-zinc-100">
+                        {fmtRate(hist?.rate)}
                       </td>
-                      <td className="px-3 py-1 align-middle text-right text-zinc-500 tabular-nums">
-                        {asOn && asOn.disc ? `${asOn.disc}%` : ""}
+                      <td className="px-2 py-1 align-middle text-center text-[11px] font-mono text-zinc-400">
+                        {hist?.disc ? `${fmtRate(hist.disc)}%` : ""}
                       </td>
-                      <td className="px-3 py-1 align-middle text-right text-zinc-500 tabular-nums">
-                        {cost != null && line.item_id ? fmtRate(cost, sym) : ""}
+
+                      {/* Cost Price (read-only) — item opening rate */}
+                      <td className="px-3 py-1 align-middle text-right text-[11px] font-mono text-zinc-400 border-l border-zinc-100">
+                        {fmtRate(cost)}
                       </td>
 
                       <td className="px-1 align-middle">
                         {!isLastEmpty && (
                           <button
                             onClick={() => removeLine(i)}
-                            className="text-zinc-300 hover:text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                            className="text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
                             tabIndex={-1}
                           >
                             ×
@@ -605,24 +688,24 @@ export default function PriceListSGCreate() {
           </div>
         </div>
 
-        <RightActionPanel actions={actions} />
+        <RightActionPanel actions={page2Actions} />
       </div>
 
       {/* Footer */}
       <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/master/create")}
+            onClick={() => setPage(1)}
             className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
           >
-            Quit
+            Back
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
             className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
           >
-            {loading ? "Saving…" : "Accept"}
+            {loading ? "Saving..." : "Accept"}
           </button>
         </div>
       </div>
