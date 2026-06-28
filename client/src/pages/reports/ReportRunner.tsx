@@ -648,7 +648,7 @@ export function ReportRunner() {
         ):reportType === "stock-item" ?(
         <StockItemSelectionLayout />
         ):reportType === "profit-loss" ?(
-         <ProfitLossLayout />
+         <ProfitLossLayout fromDate={fromDate} toDate={toDate} />
          ):reportType === "trial-balance" ? (
          <TrialBalanceLayout />
          ):reportType === "group-summary" ? (

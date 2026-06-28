@@ -167,7 +167,7 @@ contextBridge.exposeInMainWorld('api', {
     report: {
         trialBalance: (company_id, fy_id)                                        => invoke('report:trialBalance', { company_id, fy_id }),
         balanceSheet: (company_id, fy_id)                                        => invoke('report:balanceSheet', { company_id, fy_id }),
-        profitLoss:   (company_id, fy_id)                                        => invoke('report:profitLoss', { company_id, fy_id }),
+        profitLoss:   (company_id, fy_id, from_date, to_date)                    => invoke('report:profitLoss', { company_id, fy_id, from_date, to_date }),
         ledgerReport: (company_id, fy_id, ledger_id, from_date, to_date)         => invoke('report:ledgerReport', { company_id, fy_id, ledger_id, from_date, to_date }),
         cashBook:     (company_id, fy_id, from_date, to_date)                    => invoke('report:cashBook', { company_id, fy_id, from_date, to_date }),
         bankBook:     (company_id, fy_id, ledger_id, from_date, to_date)         => invoke('report:bankBook', { company_id, fy_id, ledger_id, from_date, to_date }),

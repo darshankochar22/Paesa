@@ -5,7 +5,16 @@ const { calculateClosingStock } = require('../stockValuationEngine');
 
 /* ── reused helpers (same as balanceSheetService) ────────────────────── */
 
-const getEntries = async (company_id, fy_id) => {
+/* ISO date arithmetic (server-side Node, not a workflow script) */
+const addDays = (isoDate, delta) => {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+};
+
+const getEntries = async (company_id, fy_id, from_date = null, to_date = null) => {
+  const fromCond = from_date ? sql` AND v.date >= ${from_date}` : sql``;
+  const toCond   = to_date   ? sql` AND v.date <= ${to_date}`   : sql``;
   return await db.all(
     sql`SELECT e.ledger_id, e.type, e.amount
         FROM ${voucherEntries} e
@@ -14,7 +23,7 @@ const getEntries = async (company_id, fy_id) => {
           AND v.fy_id      = ${fy_id}
           AND v.is_cancelled = 0
           AND COALESCE(v.is_optional,   0) = 0
-          AND COALESCE(v.is_post_dated, 0) = 0`
+          AND COALESCE(v.is_post_dated, 0) = 0${fromCond}${toCond}`
   );
 };
 
@@ -80,9 +89,9 @@ const getPnLCategory = (name) => {
 
 /* ── main function ───────────────────────────────────────────────────── */
 
-const profitLoss = async (company_id, fy_id) => {
+const profitLoss = async (company_id, fy_id, from_date = null, to_date = null) => {
   try {
-    const entries = await getEntries(company_id, fy_id);
+    const entries = await getEntries(company_id, fy_id, from_date, to_date);
 
     const allGroups = await db.all(
       sql`SELECT group_id, name, nature, parent_group_id, sort_order, display_order
@@ -181,21 +190,37 @@ const profitLoss = async (company_id, fy_id) => {
     const totalDirectIncomes    = Math.abs(buckets.directIncomes.reduce((s, g)    => s + g.balance, 0));
     const totalIndirectIncomes  = Math.abs(buckets.indirectIncomes.reduce((s, g)  => s + g.balance, 0));
 
-    /* Opening / Closing Stock
-       Opening stock = sum of each stock item's opening_value.
-       Closing stock = real valuation using inward/outward movements
-       (same engine used by Stock Summary), NOT just equal to opening. */
+    /* Opening / Closing Stock — period-aware.
+       Opening stock  = stock value as on (period start − 1 day); when the
+                        period starts at FY beginning this is just the items'
+                        own opening_value.
+       Closing stock  = real valuation as on period end using inward/outward
+                        movements (same engine used by Stock Summary). */
     let openingStockValue = 0;
     let closingStockValue = 0;
     try {
-      const osRows = await db.all(
-        sql`SELECT COALESCE(SUM(opening_value), 0) AS total
-            FROM stock_items
-            WHERE company_id = ${company_id} AND is_active = 1`
+      const fyRow = await db.all(
+        sql`SELECT start_date, end_date FROM financial_years WHERE fy_id = ${fy_id}`
       );
-      openingStockValue = Number(osRows[0]?.total) || 0;
+      const fyStart     = fyRow[0]?.start_date || null;
+      const fyEnd       = fyRow[0]?.end_date || null;
+      const periodStart = from_date || fyStart;
+      const periodEnd   = to_date   || fyEnd;
 
-      const valuation = await calculateClosingStock(company_id, fy_id);
+      if (periodStart && fyStart && periodStart > fyStart) {
+        // Mid-year start: opening stock = closing valuation the day before.
+        const ov = await calculateClosingStock(company_id, fy_id, addDays(periodStart, -1));
+        openingStockValue = ov.success ? Number(ov.totalValue) || 0 : 0;
+      } else {
+        const osRows = await db.all(
+          sql`SELECT COALESCE(SUM(opening_value), 0) AS total
+              FROM stock_items
+              WHERE company_id = ${company_id} AND is_active = 1`
+        );
+        openingStockValue = Number(osRows[0]?.total) || 0;
+      }
+
+      const valuation = await calculateClosingStock(company_id, fy_id, periodEnd || null);
       closingStockValue = valuation.success
         ? Number(valuation.totalValue) || 0
         : openingStockValue; // fallback if valuation fails (e.g. no stock module set up)

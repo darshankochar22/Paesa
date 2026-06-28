@@ -55,6 +55,15 @@ const fmt = (val: number) =>
     maximumFractionDigits: 2,
   }).format(Math.abs(toNum(val)));
 
+/* TallyPrime period label format: "1-Apr-26" */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmtTallyDate = (iso?: string): string => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return `${d}-${MONTHS[m - 1]}-${String(y).slice(2)}`;
+};
+
 function normalizeLedger(raw: any): LedgerRow {
   return {
     ledger_id: toNum(raw?.ledger_id),
@@ -224,7 +233,7 @@ function GroupSection({
 }: {
   group: GroupRow;
   focusedId: string | null;
-  onFocus: (key: string) => void;
+  onFocus: (key: string, drill?: () => void) => void;
   onDrillGroup: (group: GroupRow) => void;
   prefix: string;
 }) {
@@ -239,7 +248,7 @@ function GroupSection({
         amount={group.balance}
         isFocused={isFocused}
         onClick={() => {
-          onFocus(key);
+          onFocus(key, () => onDrillGroup(group));
           setExpanded((e) => !e);
         }}
         onDoubleClick={() => onDrillGroup(group)}
@@ -297,7 +306,13 @@ function ColHeader({
 
 /* ─────────────────────────── Inner layout ──────────────────────────── */
 
-function ProfitLossLayoutInner() {
+interface ProfitLossLayoutProps {
+  /** Period start/end (ISO yyyy-mm-dd) from the report runner's F2 selector. */
+  fromDate?: string;
+  toDate?: string;
+}
+
+function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
   const { selectedCompany, activeFY } = useCompany();
   const navigate = useNavigate();
 
@@ -305,6 +320,9 @@ function ProfitLossLayoutInner() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [focusedId, setFocusedId] = React.useState<string | null>(null);
+
+  /* Drill target of the currently-focused row, invoked on Enter (Tally parity). */
+  const focusedDrillRef = React.useRef<null | (() => void)>(null);
 
   React.useEffect(() => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
@@ -321,21 +339,51 @@ function ProfitLossLayoutInner() {
       return;
     }
 
-    reportApi(selectedCompany.company_id, activeFY.fy_id)
+    reportApi(selectedCompany.company_id, activeFY.fy_id, fromDate, toDate)
       .then((res: any) => {
         if (res?.success) setData(normalizePnL(res));
         else setError(res?.error || "Failed to load Profit & Loss report.");
       })
       .catch((e: any) => setError(e?.message || "Unknown error"))
       .finally(() => setLoading(false));
-  }, [selectedCompany?.company_id, activeFY?.fy_id]);
+  }, [selectedCompany?.company_id, activeFY?.fy_id, fromDate, toDate]);
 
   const drillGroup = React.useCallback(
     (group: GroupRow) => navigate(`/reports/accounts/group-summary/${group.group_id}`),
     [navigate]
   );
 
-  const focus = React.useCallback((key: string) => setFocusedId(key), []);
+  /* Opening / Closing Stock both drill into the Stock Summary (gold screenshots). */
+  const drillStock = React.useCallback(
+    () => navigate("/reports/inventory/stock-summary"),
+    [navigate]
+  );
+
+  const focus = React.useCallback((key: string, drill?: () => void) => {
+    setFocusedId(key);
+    focusedDrillRef.current = drill || null;
+  }, []);
+
+  /* Enter on a focused, drillable row opens its drill-down. */
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || !focusedDrillRef.current) return;
+      const el = document.activeElement;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "SELECT" ||
+          el.tagName === "TEXTAREA" ||
+          el.closest("[role='dialog']"))
+      ) {
+        return;
+      }
+      e.preventDefault();
+      focusedDrillRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   if (loading) {
     return (
@@ -383,9 +431,11 @@ function ProfitLossLayoutInner() {
     (selectedCompany as any)?.name ??
     "Company";
 
+  const periodStart = fromDate || activeFY?.start_date;
+  const periodEnd = toDate || activeFY?.end_date;
   const periodLabel =
-    activeFY?.start_date && activeFY?.end_date
-      ? `${activeFY.start_date} to ${activeFY.end_date}`
+    periodStart && periodEnd
+      ? `${fmtTallyDate(periodStart)} to ${fmtTallyDate(periodEnd)}`
       : "";
 
   /*
@@ -447,13 +497,14 @@ function ProfitLossLayoutInner() {
                 {/* ── Trading section (debit) ── */}
                 {showTrading && (
                   <>
-                    {/* Opening Stock */}
+                    {/* Opening Stock — drills to Stock Summary */}
                     <TRow
                       label="Opening Stock"
                       amount={data.openingStock}
                       showZero
                       isFocused={focusedId === "opening-stock"}
-                      onClick={() => focus("opening-stock")}
+                      onClick={() => focus("opening-stock", drillStock)}
+                      onDoubleClick={drillStock}
                     />
 
                     {/* Purchase Accounts groups */}
@@ -611,13 +662,14 @@ function ProfitLossLayoutInner() {
                       />
                     )}
 
-                    {/* Closing Stock — on RIGHT/credit side as per TallyPrime */}
+                    {/* Closing Stock — credit side (integrated P&L); drills to Stock Summary */}
                     <TRow
                       label="Closing Stock"
                       amount={data.closingStock}
                       showZero
                       isFocused={focusedId === "closing-stock"}
-                      onClick={() => focus("closing-stock")}
+                      onClick={() => focus("closing-stock", drillStock)}
+                      onDoubleClick={drillStock}
                     />
 
                     {/* Gross Loss c/o on RIGHT when there's a gross LOSS */}
@@ -694,10 +746,10 @@ function ProfitLossLayoutInner() {
 
 /* ─────────────────────────── Export ────────────────────────────────── */
 
-export function ProfitLossLayout() {
+export function ProfitLossLayout({ fromDate, toDate }: ProfitLossLayoutProps = {}) {
   return (
     <ReportErrorBoundary>
-      <ProfitLossLayoutInner />
+      <ProfitLossLayoutInner fromDate={fromDate} toDate={toDate} />
     </ReportErrorBoundary>
   );
 }
