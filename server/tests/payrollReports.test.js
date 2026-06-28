@@ -2,6 +2,8 @@ const { setupTestDB, createTestCompany } = require("./helpers");
 const payHeadService = require("../payHead/payHeadService");
 const employeeService = require("../employee/employeeService");
 const salaryStructureService = require("../salaryStructure/salaryStructureService");
+const attendanceTypeService = require("../attendanceType/attendanceTypeService");
+const attendanceService = require("../attendance/attendanceService");
 const payrollReportService = require("../report/payrollReportService");
 
 describe("Payroll Report Service — Pay Slip (#125)", () => {
