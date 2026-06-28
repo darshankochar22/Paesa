@@ -1,7 +1,8 @@
 // VAT Registration Details — singleton per-company config (Issue #144).
 // Lives under Gateway → Statutory Details → VAT Registration Details.
 
-export const VAT_TAX_TYPES = ["Unknown", "Taxable", "Exempt", "Nil Rated"] as const;
+// TallyPrime "List of Taxability" for VAT (issue #144, body screenshot).
+export const VAT_TAX_TYPES = ["Unknown", "Exempt", "Tax Free"] as const;
 export type VatTaxType = (typeof VAT_TAX_TYPES)[number];
 
 // One row of the optional "Define VAT commodity and tax details as masters" list.

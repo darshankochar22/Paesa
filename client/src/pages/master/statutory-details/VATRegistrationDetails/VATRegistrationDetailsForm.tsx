@@ -88,9 +88,10 @@ export function VATRegistrationDetailsForm({
         <Text label="TIN" field="tin" />
         <Text label="Interstate sales tax number" field="interstateSalesTaxNumber" />
 
-        <YesNo label="Set/alter tax rate details" field="setAlterTaxRateDetails" />
+        <YesNo label="Set/alter tax/rate details" field="setAlterTaxRateDetails" />
         {Number(form.setAlterTaxRateDetails) === 1 && (
           <>
+            <div className="text-[12px] font-bold text-zinc-700 mt-1 mb-0.5 pl-4">VAT Rate</div>
             <FormRow label="Tax rate" labelWidth="w-80 pl-4" className="flex items-center min-h-[26px]">
               <input
                 type="number"
