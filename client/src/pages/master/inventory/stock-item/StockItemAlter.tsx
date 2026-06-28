@@ -113,6 +113,7 @@ function SelectionPanel({
 export default function StockItemAlter({ initialItemId, onDone, onCancel }: StockItemAlterProps = {}) {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
+  const companyId = selectedCompany?.company_id;
 
   const [stockItems,  setStockItems]  = useState<StockItemType[]>([]);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
@@ -703,9 +704,12 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
         <OtherStatutoryDetails
           stockItemName={form.name}
           unitLabel={selectedUnitLabel}
+          companyId={companyId}
           initialData={{
             excise_applicable: form.excise_applicable,
             set_alter_excise_details: form.set_alter_excise_details,
+            set_alter_additional_info: (form as any).set_alter_additional_info,
+            additional_info_rows: (form as any).additional_info_rows ?? [],
             excise_tariff_name: form.excise_tariff_name,
             excise_tariff_hsn_code: form.excise_tariff_hsn_code,
             excise_tariff_uom: form.excise_tariff_uom,
@@ -722,6 +726,8 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
               ...f,
               excise_applicable: data.excise_applicable,
               set_alter_excise_details: data.set_alter_excise_details,
+              set_alter_additional_info: data.set_alter_additional_info,
+              additional_info_rows: data.additional_info_rows,
               excise_tariff_name: data.excise_tariff_name,
               excise_tariff_hsn_code: data.excise_tariff_hsn_code,
               excise_tariff_uom: data.excise_tariff_uom,

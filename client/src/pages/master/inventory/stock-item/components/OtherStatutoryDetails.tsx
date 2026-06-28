@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { FormRow } from "@/components/ui";
 import { EXCISE_REPORTING_UOM_OPTIONS, EXCISE_VALUATION_TYPE_OPTIONS } from "../consts";
+import ExciseAdditionalInfoModal, { type ExciseAdditionalInfoRow } from "./ExciseAdditionalInfoModal";
 
 export interface OtherStatutoryFormData {
   excise_applicable: string;
   set_alter_excise_details: string;
   set_alter_additional_info: string;
+  additional_info_rows: ExciseAdditionalInfoRow[];
   excise_tariff_name: string;
   excise_tariff_hsn_code: string;
   excise_tariff_uom: string;
@@ -21,6 +23,7 @@ export interface OtherStatutoryFormData {
 interface OtherStatutoryDetailsProps {
   stockItemName: string;
   unitLabel?: string;
+  companyId?: number;
   initialData?: Partial<OtherStatutoryFormData>;
   onAccept: (data: OtherStatutoryFormData) => void;
   onClose: () => void;
@@ -34,25 +37,29 @@ const selectCls =
 export default function OtherStatutoryDetails({
   stockItemName,
   unitLabel,
+  companyId,
   initialData,
   onAccept,
   onClose,
 }: OtherStatutoryDetailsProps) {
   const [form, setForm] = useState<OtherStatutoryFormData>({
-    excise_applicable:        initialData?.excise_applicable        || "Not Applicable",
-    set_alter_excise_details: initialData?.set_alter_excise_details || "No",
-    set_alter_additional_info: initialData?.set_alter_additional_info || "No",
-    excise_tariff_name:       initialData?.excise_tariff_name       || "",
-    excise_tariff_hsn_code:   initialData?.excise_tariff_hsn_code   || "",
-    excise_tariff_uom:        initialData?.excise_tariff_uom        || "Undefined",
+    excise_applicable:            initialData?.excise_applicable            || "Not Applicable",
+    set_alter_excise_details:     initialData?.set_alter_excise_details     || "No",
+    set_alter_additional_info:    initialData?.set_alter_additional_info    || "No",
+    additional_info_rows:         initialData?.additional_info_rows         || [],
+    excise_tariff_name:           initialData?.excise_tariff_name           || "",
+    excise_tariff_hsn_code:       initialData?.excise_tariff_hsn_code       || "",
+    excise_tariff_uom:            initialData?.excise_tariff_uom            || "Undefined",
     excise_tariff_valuation_type: initialData?.excise_tariff_valuation_type || "Undefined",
-    excise_tariff_rate:       initialData?.excise_tariff_rate       || "0",
-    excise_tariff_rate_per_unit: initialData?.excise_tariff_rate_per_unit || "0",
-    vat_applicable:           initialData?.vat_applicable           || "Applicable",
-    set_alter_vat_details:    initialData?.set_alter_vat_details    || "No",
-    vat_tax_rate:             initialData?.vat_tax_rate             || "",
-    vat_tax_type:             initialData?.vat_tax_type             || "Unknown",
+    excise_tariff_rate:           initialData?.excise_tariff_rate           || "0",
+    excise_tariff_rate_per_unit:  initialData?.excise_tariff_rate_per_unit  || "0",
+    vat_applicable:               initialData?.vat_applicable               || "Applicable",
+    set_alter_vat_details:        initialData?.set_alter_vat_details        || "No",
+    vat_tax_rate:                 initialData?.vat_tax_rate                 || "",
+    vat_tax_type:                 initialData?.vat_tax_type                 || "Unknown",
   });
+
+  const [showAdditionalInfoModal, setShowAdditionalInfoModal] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -63,12 +70,12 @@ export default function OtherStatutoryDetails({
   const setVal = (key: keyof OtherStatutoryFormData, value: string) =>
     setForm(f => ({ ...f, [key]: value }));
 
-  const hasExcise    = form.excise_applicable === "Applicable";
-  const showTariff   = hasExcise && form.set_alter_excise_details === "Yes";
-  const showRate     = form.excise_tariff_valuation_type === "Ad Valorem" || form.excise_tariff_valuation_type === "Valorem + Quantum";
+  const hasExcise  = form.excise_applicable === "Applicable";
+  const showTariff = hasExcise && form.set_alter_excise_details === "Yes";
   const showRatePerUnit = form.excise_tariff_valuation_type === "Ad Quantum" || form.excise_tariff_valuation_type === "Valorem + Quantum";
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showAdditionalInfoModal) return;
     if (e.key === "Escape") { e.preventDefault(); onClose(); }
     if (e.altKey && e.key.toLowerCase() === "a") { e.preventDefault(); onAccept(form); }
   };
@@ -100,7 +107,10 @@ export default function OtherStatutoryDetails({
               onChange={e => {
                 const val = e.target.value;
                 setVal("excise_applicable", val);
-                if (val !== "Applicable") setVal("set_alter_excise_details", "No");
+                if (val !== "Applicable") {
+                  setVal("set_alter_excise_details", "No");
+                  setVal("set_alter_additional_info", "No");
+                }
               }}
             >
               <option value="Not Applicable">Not Applicable</option>
@@ -126,12 +136,29 @@ export default function OtherStatutoryDetails({
               className={selectCls}
               value={form.set_alter_additional_info}
               disabled={!hasExcise}
-              onChange={e => setVal("set_alter_additional_info", e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                setVal("set_alter_additional_info", val);
+                if (val === "Yes") setShowAdditionalInfoModal(true);
+              }}
             >
               <option value="No">No</option>
               <option value="Yes">Yes</option>
             </select>
           </FormRow>
+
+          {/* Show row count summary if additional info was filled */}
+          {form.set_alter_additional_info === "Yes" && form.additional_info_rows.length > 0 && (
+            <div className="pl-52 ml-4">
+              <button
+                type="button"
+                className="text-xs text-zinc-500 underline hover:text-zinc-800"
+                onClick={() => setShowAdditionalInfoModal(true)}
+              >
+                {form.additional_info_rows.length} excise unit{form.additional_info_rows.length !== 1 ? "s" : ""} configured — click to edit
+              </button>
+            </div>
+          )}
 
           {showTariff && (
             <>
@@ -278,6 +305,21 @@ export default function OtherStatutoryDetails({
         </div>
 
       </div>
+
+      {/* Excise Additional Info sub-modal */}
+      {showAdditionalInfoModal && (
+        <ExciseAdditionalInfoModal
+          stockItemName={stockItemName}
+          unitSymbol={unitLabel || "Nos"}
+          companyId={companyId}
+          initialRows={form.additional_info_rows}
+          onAccept={rows => {
+            setForm(f => ({ ...f, additional_info_rows: rows }));
+            setShowAdditionalInfoModal(false);
+          }}
+          onClose={() => setShowAdditionalInfoModal(false)}
+        />
+      )}
     </div>
   );
 }

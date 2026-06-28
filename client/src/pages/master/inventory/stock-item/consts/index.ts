@@ -109,6 +109,12 @@ export const EXCISE_REPORTING_UOM_OPTIONS = [
   { id: "M2",     label: "M2 - Square Metre" },
   { id: "M3",     label: "M3 - Cubic Metre" },
   { id: "MM",     label: "MM - Millimetre" },
+  { id: "MT",     label: "MT - Metric Tonne" },
+  { id: "PA",     label: "PA - Number of Pairs" },
+  { id: "Q",      label: "Q - Quintal" },
+  { id: "T",      label: "T - Ton" },
+  { id: "TU",     label: "TU - Thousand in Nos" },
+  { id: "U",      label: "U - Numbers" },
 ];
 
 export const EXCISE_VALUATION_TYPE_OPTIONS = [

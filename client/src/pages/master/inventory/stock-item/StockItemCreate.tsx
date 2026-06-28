@@ -459,11 +459,14 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
         <OtherStatutoryDetails
           stockItemName={form.name}
           unitLabel={selectedUnitLabel}
+          companyId={companyId}
           onAccept={(data) => {
             setForm(f => ({
               ...f,
               excise_applicable: data.excise_applicable,
               set_alter_excise_details: data.set_alter_excise_details,
+              set_alter_additional_info: data.set_alter_additional_info,
+              additional_info_rows: data.additional_info_rows,
               excise_tariff_name: data.excise_tariff_name,
               excise_tariff_hsn_code: data.excise_tariff_hsn_code,
               excise_tariff_uom: data.excise_tariff_uom,
