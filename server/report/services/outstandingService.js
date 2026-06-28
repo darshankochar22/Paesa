@@ -45,7 +45,8 @@ const calculateOutstanding = async (company_id, fy_id, type = 'receivable') => {
           INNER JOIN ${ledgers} l ON l.ledger_id = vbr.ledger_id
           INNER JOIN ${groups} g ON g.group_id = l.group_id
           LEFT JOIN (
-            SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+            SELECT voucher_id, ledger_id,
+              CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
             FROM ${voucherEntries}
             GROUP BY voucher_id, ledger_id
           ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
@@ -118,7 +119,8 @@ const calculateAgeing = async (company_id, fy_id, type = 'receivable', buckets =
           INNER JOIN ${ledgers} l ON l.ledger_id = vbr.ledger_id
           INNER JOIN ${groups} g ON g.group_id = l.group_id
           LEFT JOIN (
-            SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+            SELECT voucher_id, ledger_id,
+              CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
             FROM ${voucherEntries}
             GROUP BY voucher_id, ledger_id
           ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id

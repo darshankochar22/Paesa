@@ -27,17 +27,20 @@ const journalRegisterVouchers = async (company_id, fy_id, from_date, to_date) =>
       const creditEntry = entries.find((e) => e.type === 'Cr');
       const debitEntry = entries.find((e) => e.type === 'Dr');
 
-      const amount = creditEntry?.amount || debitEntry?.amount || 0;
+      const debitTotal = entries.filter(e => e.type === 'Dr').reduce((s, e) => s + (e.amount || 0), 0);
+      const creditTotal = entries.filter(e => e.type === 'Cr').reduce((s, e) => s + (e.amount || 0), 0);
+      const drEntry = entries.find(e => e.type === 'Dr');
+      const crEntry = entries.find(e => e.type === 'Cr');
 
       rows.push({
         id: v.voucher_id,
         voucher_id: v.voucher_id,
         date: v.date,
-        particulars: creditEntry?.ledger_name || debitEntry?.ledger_name || '—',
+        particulars: drEntry?.ledger_name || crEntry?.ledger_name || '—',
         voucher_type: v.voucher_type,
         voucher_number: v.voucher_number,
-        debit: 0,
-        credit: amount,
+        debit: debitTotal,
+        credit: creditTotal,
       });
     }
 

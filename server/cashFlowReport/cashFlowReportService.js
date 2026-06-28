@@ -24,6 +24,8 @@ module.exports = {
             AND v.fy_id = ?
             AND v.date BETWEEN ? AND ?
             AND v.is_cancelled = 0
+            AND COALESCE(v.is_optional, 0) = 0
+            AND COALESCE(v.is_post_dated, 0) = 0
         `,
         args: [company_id, fy_id, from_date, to_date],
       });

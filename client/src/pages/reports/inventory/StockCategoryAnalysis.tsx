@@ -64,9 +64,10 @@ export default function StockCategoryAnalysis() {
     if (!companyId || !fyId) return;
     setLevel({ step: "items", category });
     setLoadingItems(true); setItemErr(null); setItemIdx(0);
-    const req = category.category_id === PRIMARY_ID
-      ? (window as any).api.report.stockItemAnalysis(companyId, fyId)
-      : (window as any).api.report.stockCategoryAnalysisItems(companyId, fyId, category.category_id);
+    const req = (window as any).api.report.stockCategoryAnalysisItems(
+      companyId, fyId,
+      category.category_id === PRIMARY_ID ? null : category.category_id,
+    );
     req.then((res: any) => {
       if (res.success) setItems(res.items ?? []);
       else setItemErr(res.error || "Failed to load items");

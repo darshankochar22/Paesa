@@ -28,10 +28,10 @@ const creditNoteRegisterVouchers = async (company_id, fy_id, from_date, to_date)
         id: v.voucher_id,
         voucher_id: v.voucher_id,
         date: v.date,
-        particulars: creditEntry?.ledger_name || debitEntry?.ledger_name || '—',
+        particulars: v.party_name || debitEntry?.ledger_name || creditEntry?.ledger_name || '—',
         voucher_type: v.voucher_type,
         voucher_number: v.voucher_number,
-        debit: 0,
+        debit: debitTotal,
         credit: creditTotal,
       });
     }

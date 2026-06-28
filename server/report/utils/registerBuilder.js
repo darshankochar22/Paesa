@@ -44,7 +44,7 @@ const getRegisterData = async (company_id, fy_id, voucher_type) => {
   let cumulativeBalance = 0;
   const rows = months.map(m => {
     const monthVouchers = voucherRows.filter(v => v.date.startsWith(m.prefix));
-    const active = monthVouchers.filter(v => v.is_cancelled === 0 && v.is_optional === 0 && v.is_post_dated === 0);
+    const active = monthVouchers.filter(v => v.is_cancelled === 0 && (v.is_optional == null || v.is_optional === 0) && (v.is_post_dated == null || v.is_post_dated === 0));
     const cancelled = monthVouchers.filter(v => v.is_cancelled === 1);
 
     const count = active.length;

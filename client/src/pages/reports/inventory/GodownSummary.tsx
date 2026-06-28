@@ -4,6 +4,15 @@ import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
 import StockBarChart, { type ChartBar } from "./StockBarChart";
 
+function fyMonthRange(fyStart: string, idx: number): { from: string; to: string } {
+  const d = new Date(fyStart + "T00:00:00");
+  const year = d.getFullYear() + Math.floor((d.getMonth() + idx) / 12);
+  const month = (d.getMonth() + idx) % 12;
+  const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return { from, to: `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}` };
+}
+
 interface Opening { qty: number; value: number; }
 
 const fmtAmount = (val: number | null | undefined) => {
@@ -68,7 +77,9 @@ export default function GodownSummary() {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
-  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const dmy = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); return m ? `${Number(m[3])}-${MON[Number(m[2])-1]}-${m[1].slice(2)}` : iso; };
+  const periodLabel = activeFY ? `${dmy(activeFY.start_date)} to ${dmy(activeFY.end_date)}` : "";
 
   const [level, setLevel] = React.useState<Level>({ step: "godown" });
 
@@ -80,10 +91,9 @@ export default function GodownSummary() {
   React.useEffect(() => {
     if (!companyId) { setLoadingGodowns(false); return; }
     setLoadingGodowns(true);
-    (window as any).api.godown.getAll(companyId).then((res: any) => {
-      if (res.success) setGodowns(res.godowns ?? []);
-      setLoadingGodowns(false);
-    });
+    (window as any).api.godown.getAll(companyId)
+      .then((res: any) => { if (res.success) setGodowns(res.godowns ?? []); setLoadingGodowns(false); })
+      .catch(() => setLoadingGodowns(false));
   }, [companyId]);
 
   // ── Level 2: Godown Summary (items) ──────────────────────────────────────
@@ -138,14 +148,14 @@ export default function GodownSummary() {
   const [voucherError, setVoucherError] = React.useState<string | null>(null);
   const [voucherIndex, setVoucherIndex] = React.useState(0);
 
-  const loadVouchers = React.useCallback((godown: GodownRow, item: ItemRow) => {
+  const loadVouchers = React.useCallback((godown: GodownRow, item: ItemRow, fromDate?: string, toDate?: string) => {
     if (!companyId || !fyId) return;
     setLevel({ step: "vouchers", godown, item });
     setLoadingVouchers(true);
     setVoucherError(null);
     setVoucherIndex(0);
     (window as any).api.report
-      .godownVouchers(companyId, fyId, godown.godown_id, item.item_id, activeFY?.start_date, activeFY?.end_date)
+      .godownVouchers(companyId, fyId, godown.godown_id, item.item_id, fromDate ?? activeFY?.start_date, toDate ?? activeFY?.end_date)
       .then((res: any) => {
         if (res.success) {
           setVoucherRows(res.rows ?? []);
@@ -191,12 +201,17 @@ export default function GodownSummary() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") { e.preventDefault(); setMonthIndex((p) => Math.min(months.length - 1, p + 1)); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); setMonthIndex((p) => Math.max(0, p - 1)); return; }
-      if (e.key === "Enter") { e.preventDefault(); loadVouchers(level.godown, level.item); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, monthIndex); loadVouchers(level.godown, level.item, from, to); }
+        else loadVouchers(level.godown, level.item);
+        return;
+      }
       if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToSummary(level.godown); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [level, months, monthIndex, loadVouchers, backToSummary]);
+  }, [level, months, monthIndex, loadVouchers, backToSummary, activeFY]);
 
   // ── Keyboard nav: voucher level ──────────────────────────────────────────
   React.useEffect(() => {
@@ -377,7 +392,7 @@ export default function GodownSummary() {
                     <tr
                       key={row.month}
                       onClick={() => setMonthIndex(idx)}
-                      onDoubleClick={() => loadVouchers(level.godown, level.item)}
+                      onDoubleClick={() => { if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, idx); loadVouchers(level.godown, level.item, from, to); } else loadVouchers(level.godown, level.item); }}
                       className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                     >
                       <td className="px-3 py-1">{row.month}</td>
@@ -410,7 +425,7 @@ export default function GodownSummary() {
 
         <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
           <button onClick={() => backToSummary(level.godown)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
-          <button onClick={() => loadVouchers(level.godown, level.item)} className="hover:underline hover:text-zinc-900">Enter: Vouchers</button>
+          <button onClick={() => { if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, monthIndex); loadVouchers(level.godown, level.item, from, to); } else loadVouchers(level.godown, level.item); }} className="hover:underline hover:text-zinc-900">Enter: Vouchers</button>
         </div>
       </div>
     );
@@ -532,7 +547,7 @@ export default function GodownSummary() {
       </div>
 
       <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => navigate(-1)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
+        <button onClick={() => backToMonthly(level.godown, level.item)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
         <button onClick={() => backToMonthly(level.godown, level.item)} className="hover:underline hover:text-zinc-900">F4: Godown</button>
       </div>
     </div>

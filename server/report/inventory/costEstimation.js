@@ -1,7 +1,8 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 
-const INWARD = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
+const INWARD  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
+const OUTWARD = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
 
 // PRIMARY (-1) means "all stock groups" (Items Under: Primary).
 
@@ -36,7 +37,7 @@ const costEstimation = async (company_id, fy_id, group_id) => {
       LEFT JOIN (
         SELECT vse.stock_item_id,
           SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.quantity ELSE 0 END) AS in_qty,
-          SUM(CASE WHEN v.voucher_type NOT IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.quantity ELSE 0 END) AS out_qty
+          SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.quantity ELSE 0 END) AS out_qty
         FROM voucher_stock_entries vse
         INNER JOIN vouchers v ON v.voucher_id = vse.voucher_id
         WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
@@ -84,9 +85,9 @@ const costEstimation = async (company_id, fy_id, group_id) => {
       const closing_qty = (it.opening_qty || 0) + (it.in_qty || 0) - (it.out_qty || 0);
       const compTotal = components.reduce((s, c) => s + c.amount, 0);
       const compQty = components.reduce((s, c) => s + c.qty, 0);
-      // Per-unit cost: component cost spread over output qty, else item's own rate.
-      const cost = compTotal > 0 && closing_qty > 0 ? compTotal / closing_qty : (it.opening_rate || 0);
-      const amount = compTotal > 0 ? compTotal : closing_qty * cost;
+      // Per-unit cost: BoM defines cost to make 1 unit of output, so compTotal IS the unit cost.
+      const cost = compTotal > 0 ? compTotal : (it.opening_rate || 0);
+      const amount = closing_qty * cost;
       return {
         item_id: it.item_id,
         name: it.item_name,

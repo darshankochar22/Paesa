@@ -42,7 +42,7 @@ export default function GroupSummaryLayout() {
   const focusedRef = React.useRef<{ group?: ChildGroup; ledger?: LedgerRow } | null>(null);
 
   React.useEffect(() => {
-    if (!groupId || !selectedCompany?.company_id || !activeFY?.fy_id) return;
+    if (!groupId || !selectedCompany?.company_id || !activeFY?.fy_id) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     setFocusedKey(null);

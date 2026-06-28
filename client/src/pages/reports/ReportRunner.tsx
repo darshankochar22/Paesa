@@ -113,8 +113,14 @@ export function ReportRunner() {
   const [isPaletteOpen, setIsPaletteOpen] = React.useState(false);
 
   // Dates
-  const [fromDate, setFromDate] = React.useState<string>(activeFY?.start_date || "2026-04-01");
-  const [toDate, setToDate] = React.useState<string>(activeFY?.end_date || "2027-03-31");
+  const [fromDate, setFromDate] = React.useState<string>(activeFY?.start_date ?? "");
+  const [toDate, setToDate] = React.useState<string>(activeFY?.end_date ?? "");
+
+  // Sync dates when activeFY loads (handles async context)
+  React.useEffect(() => {
+    if (activeFY?.start_date && !fromDate) setFromDate(activeFY.start_date);
+    if (activeFY?.end_date && !toDate) setToDate(activeFY.end_date);
+  }, [activeFY?.start_date, activeFY?.end_date]);
 
   React.useEffect(() => {
     const queryParams = new URLSearchParams(location.search);

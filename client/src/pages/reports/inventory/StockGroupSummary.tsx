@@ -4,6 +4,16 @@ import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
 import StockBarChart, { type ChartBar } from "./StockBarChart";
 
+/** Compute ISO date range for the Nth month of a financial year. */
+function fyMonthRange(fyStart: string, idx: number): { from: string; to: string } {
+  const d = new Date(fyStart + "T00:00:00");
+  const year = d.getFullYear() + Math.floor((d.getMonth() + idx) / 12);
+  const month = (d.getMonth() + idx) % 12;
+  const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return { from, to: `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}` };
+}
+
 const fmtAmount = (val: number | null | undefined) => {
   const n = Number(val) || 0;
   if (n === 0) return "";
@@ -66,7 +76,9 @@ export default function StockGroupSummary() {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
-  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const dmy = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); return m ? `${Number(m[3])}-${MON[Number(m[2])-1]}-${m[1].slice(2)}` : iso; };
+  const periodLabel = activeFY ? `${dmy(activeFY.start_date)} to ${dmy(activeFY.end_date)}` : "";
 
   const [level, setLevel] = React.useState<Level>({ step: "group" });
 
@@ -78,13 +90,15 @@ export default function StockGroupSummary() {
   React.useEffect(() => {
     if (!companyId) { setLoadingGroups(false); return; }
     setLoadingGroups(true);
-    (window as any).api.stockGroup.getAll(companyId).then((res: any) => {
-      if (res.success) {
-        const list = [...(res.stockGroups ?? [])].sort((a, b) => a.name.localeCompare(b.name));
-        setGroups(list);
-      }
-      setLoadingGroups(false);
-    });
+    (window as any).api.stockGroup.getAll(companyId)
+      .then((res: any) => {
+        if (res.success) {
+          const list = [...(res.stockGroups ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+          setGroups(list);
+        }
+        setLoadingGroups(false);
+      })
+      .catch(() => setLoadingGroups(false));
   }, [companyId]);
 
   // ── Level 2: Group Summary (items) ───────────────────────────────────────
@@ -138,14 +152,14 @@ export default function StockGroupSummary() {
   const [voucherError, setVoucherError] = React.useState<string | null>(null);
   const [voucherIndex, setVoucherIndex] = React.useState(0);
 
-  const loadVouchers = React.useCallback((group: GroupRow, item: ItemRow) => {
+  const loadVouchers = React.useCallback((group: GroupRow, item: ItemRow, fromDate?: string, toDate?: string) => {
     if (!companyId || !fyId) return;
     setLevel({ step: "vouchers", group, item });
     setLoadingVouchers(true);
     setVoucherError(null);
     setVoucherIndex(0);
     (window as any).api.report
-      .stockItemVouchers(companyId, fyId, item.item_id, activeFY?.start_date, activeFY?.end_date)
+      .stockItemVouchers(companyId, fyId, item.item_id, fromDate ?? activeFY?.start_date, toDate ?? activeFY?.end_date)
       .then((res: any) => {
         if (res.success) setVoucherRows(res.rows ?? []);
         else setVoucherError(res.error || "Failed to load item vouchers");
@@ -187,7 +201,12 @@ export default function StockGroupSummary() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") { e.preventDefault(); setMonthIndex((p) => Math.min(months.length - 1, p + 1)); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); setMonthIndex((p) => Math.max(0, p - 1)); return; }
-      if (e.key === "Enter") { e.preventDefault(); loadVouchers(level.group, level.item); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, monthIndex); loadVouchers(level.group, level.item, from, to); }
+        else loadVouchers(level.group, level.item);
+        return;
+      }
       if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToSummary(level.group); }
     };
     window.addEventListener("keydown", handler);
@@ -367,7 +386,7 @@ export default function StockGroupSummary() {
                     <tr
                       key={row.month}
                       onClick={() => setMonthIndex(idx)}
-                      onDoubleClick={() => loadVouchers(level.group, level.item)}
+                      onDoubleClick={() => { if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, idx); loadVouchers(level.group, level.item, from, to); } else loadVouchers(level.group, level.item); }}
                       className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
                     >
                       <td className="px-3 py-1">{row.month}</td>
@@ -400,7 +419,7 @@ export default function StockGroupSummary() {
 
         <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
           <button onClick={() => backToSummary(level.group)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
-          <button onClick={() => loadVouchers(level.group, level.item)} className="hover:underline hover:text-zinc-900">Enter: Vouchers</button>
+          <button onClick={() => { if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, monthIndex); loadVouchers(level.group, level.item, from, to); } else loadVouchers(level.group, level.item); }} className="hover:underline hover:text-zinc-900">Enter: Vouchers</button>
         </div>
       </div>
     );
@@ -501,7 +520,7 @@ export default function StockGroupSummary() {
       </div>
 
       <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => navigate(-1)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
+        <button onClick={() => backToMonthly(level.group, level.item)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
         <button onClick={() => backToMonthly(level.group, level.item)} className="hover:underline hover:text-zinc-900">F4: Stock Group</button>
       </div>
     </div>

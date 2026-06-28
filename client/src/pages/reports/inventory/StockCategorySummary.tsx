@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
 
+function fyMonthRange(fyStart: string, idx: number): { from: string; to: string } {
+  const d = new Date(fyStart + "T00:00:00");
+  const year = d.getFullYear() + Math.floor((d.getMonth() + idx) / 12);
+  const month = (d.getMonth() + idx) % 12;
+  const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return { from, to: `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}` };
+}
+
 const fmtAmount = (val: number | null | undefined) => {
   const n = Number(val) || 0;
   if (n === 0) return "";
@@ -65,7 +74,9 @@ export default function StockCategorySummary() {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
-  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const dmy = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); return m ? `${Number(m[3])}-${MON[Number(m[2])-1]}-${m[1].slice(2)}` : iso; };
+  const periodLabel = activeFY ? `${dmy(activeFY.start_date)} to ${dmy(activeFY.end_date)}` : "";
 
   const [level, setLevel] = React.useState<Level>({ step: "category" });
 
@@ -77,13 +88,15 @@ export default function StockCategorySummary() {
   React.useEffect(() => {
     if (!companyId) { setLoadingCategories(false); return; }
     setLoadingCategories(true);
-    (window as any).api.stockCategory.getAll(companyId).then((res: any) => {
-      if (res.success) {
-        const list = [...(res.stockCategories ?? [])].sort((a, b) => a.name.localeCompare(b.name));
-        setCategories(list);
-      }
-      setLoadingCategories(false);
-    });
+    (window as any).api.stockCategory.getAll(companyId)
+      .then((res: any) => {
+        if (res.success) {
+          const list = [...(res.stockCategories ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+          setCategories(list);
+        }
+        setLoadingCategories(false);
+      })
+      .catch(() => setLoadingCategories(false));
   }, [companyId]);
 
   // ── Level 2: Category Summary (items) ────────────────────────────────────
@@ -109,6 +122,7 @@ export default function StockCategorySummary() {
 
   // ── Level 3: Item Monthly Summary ────────────────────────────────────────
   const [months, setMonths] = React.useState<MonthRow[]>([]);
+  const [monthsOpening, setMonthsOpening] = React.useState<{ qty: number; value: number }>({ qty: 0, value: 0 });
   const [loadingMonths, setLoadingMonths] = React.useState(false);
   const [monthsError, setMonthsError] = React.useState<string | null>(null);
   const [monthIndex, setMonthIndex] = React.useState(0);
@@ -122,8 +136,12 @@ export default function StockCategorySummary() {
     (window as any).api.report
       .stockItemMonthly(companyId, fyId, item.item_id)
       .then((res: any) => {
-        if (res.success) setMonths(res.months ?? []);
-        else setMonthsError(res.error || "Failed to load monthly summary");
+        if (res.success) {
+          setMonths(res.months ?? []);
+          setMonthsOpening({ qty: res.opening_qty ?? 0, value: res.opening_value ?? 0 });
+        } else {
+          setMonthsError(res.error || "Failed to load monthly summary");
+        }
         setLoadingMonths(false);
       });
   }, [companyId, fyId]);
@@ -134,14 +152,14 @@ export default function StockCategorySummary() {
   const [voucherError, setVoucherError] = React.useState<string | null>(null);
   const [voucherIndex, setVoucherIndex] = React.useState(0);
 
-  const loadVouchers = React.useCallback((category: CategoryRow, item: ItemRow) => {
+  const loadVouchers = React.useCallback((category: CategoryRow, item: ItemRow, fromDate?: string, toDate?: string) => {
     if (!companyId || !fyId) return;
     setLevel({ step: "vouchers", category, item });
     setLoadingVouchers(true);
     setVoucherError(null);
     setVoucherIndex(0);
     (window as any).api.report
-      .stockItemVouchers(companyId, fyId, item.item_id, activeFY?.start_date, activeFY?.end_date)
+      .stockItemVouchers(companyId, fyId, item.item_id, fromDate ?? activeFY?.start_date, toDate ?? activeFY?.end_date)
       .then((res: any) => {
         if (res.success) setVoucherRows(res.rows ?? []);
         else setVoucherError(res.error || "Failed to load item vouchers");
@@ -183,12 +201,17 @@ export default function StockCategorySummary() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") { e.preventDefault(); setMonthIndex((p) => Math.min(months.length - 1, p + 1)); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); setMonthIndex((p) => Math.max(0, p - 1)); return; }
-      if (e.key === "Enter") { e.preventDefault(); loadVouchers(level.category, level.item); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, monthIndex); loadVouchers(level.category, level.item, from, to); }
+        else loadVouchers(level.category, level.item);
+        return;
+      }
       if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToSummary(level.category); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [level, months, monthIndex, loadVouchers, backToSummary]);
+  }, [level, months, monthIndex, loadVouchers, backToSummary, activeFY]);
 
   React.useEffect(() => {
     if (level.step !== "vouchers") return;
@@ -343,25 +366,36 @@ export default function StockCategorySummary() {
               ) : monthsError ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{monthsError}</td></tr>
               ) : (
-                months.map((row, idx) => {
-                  const isFocused = idx === monthIndex;
-                  return (
-                    <tr
-                      key={row.month}
-                      onClick={() => setMonthIndex(idx)}
-                      onDoubleClick={() => loadVouchers(level.category, level.item)}
-                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
-                    >
-                      <td className="px-3 py-1">{row.month}</td>
-                      <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.in_qty)}</td>
-                      <td className="px-3 py-1 text-right">{fmtAmount(row.in_value)}</td>
-                      <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.out_qty)}</td>
-                      <td className="px-3 py-1 text-right">{fmtAmount(row.out_value)}</td>
-                      <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.closing_qty)}</td>
-                      <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
-                    </tr>
-                  );
-                })
+                <>
+                  <tr className="border-b border-zinc-100 text-zinc-500 italic">
+                    <td className="px-3 py-1">Opening Balance</td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">—</td>
+                    <td className="px-3 py-1 text-right">—</td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">—</td>
+                    <td className="px-3 py-1 text-right">—</td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(monthsOpening.qty)}</td>
+                    <td className="px-3 py-1 text-right">{fmtAmount(monthsOpening.value)}</td>
+                  </tr>
+                  {months.map((row, idx) => {
+                    const isFocused = idx === monthIndex;
+                    return (
+                      <tr
+                        key={row.month}
+                        onClick={() => setMonthIndex(idx)}
+                        onDoubleClick={() => { if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, idx); loadVouchers(level.category, level.item, from, to); } else loadVouchers(level.category, level.item); }}
+                        className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                      >
+                        <td className="px-3 py-1">{row.month}</td>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.in_qty)}</td>
+                        <td className="px-3 py-1 text-right">{fmtAmount(row.in_value)}</td>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.out_qty)}</td>
+                        <td className="px-3 py-1 text-right">{fmtAmount(row.out_value)}</td>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.closing_qty)}</td>
+                        <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
+                      </tr>
+                    );
+                  })}
+                </>
               )}
             </tbody>
           </table>
@@ -379,7 +413,7 @@ export default function StockCategorySummary() {
 
         <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
           <button onClick={() => backToSummary(level.category)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
-          <button onClick={() => loadVouchers(level.category, level.item)} className="hover:underline hover:text-zinc-900">Enter: Vouchers</button>
+          <button onClick={() => { if (activeFY?.start_date) { const { from, to } = fyMonthRange(activeFY.start_date, monthIndex); loadVouchers(level.category, level.item, from, to); } else loadVouchers(level.category, level.item); }} className="hover:underline hover:text-zinc-900">Enter: Vouchers</button>
         </div>
       </div>
     );
@@ -480,7 +514,7 @@ export default function StockCategorySummary() {
       </div>
 
       <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => navigate(-1)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
+        <button onClick={() => backToMonthly(level.category, level.item)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
         <button onClick={() => backToMonthly(level.category, level.item)} className="hover:underline hover:text-zinc-900">F4: Stock Category</button>
       </div>
     </div>

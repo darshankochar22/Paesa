@@ -58,7 +58,7 @@ export default function StockItemVouchersTable({
   itemName, companyName, periodLabel, unit, rows, loading, error,
   selectedIndex, onSelectIndex, onOpenVoucher, footer,
 }: Props) {
-  const t = rows.reduce((a, r) => ({
+  const t = rows.filter(r => r.voucher_id !== null).reduce((a, r) => ({
     inQ: a.inQ + (Number(r.inwards_qty) || 0),   inV: a.inV + (Number(r.inwards_value) || 0),
     outQ: a.outQ + (Number(r.outwards_qty) || 0), outV: a.outV + (Number(r.outwards_value) || 0),
   }), { inQ: 0, inV: 0, outQ: 0, outV: 0 });

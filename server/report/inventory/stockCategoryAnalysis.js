@@ -100,7 +100,8 @@ const stockCategoryAnalysisItems = async (company_id, fy_id, category_id) => {
           AND COALESCE(v.is_post_dated, 0) = 0
         GROUP BY vse.stock_item_id
       ) mv ON mv.stock_item_id = si.item_id
-      WHERE si.company_id = ${company_id} AND si.is_active = 1 AND si.category_id = ${category_id}
+      WHERE si.company_id = ${company_id} AND si.is_active = 1
+        ${category_id != null ? sql`AND si.category_id = ${category_id}` : sql``}
       ORDER BY si.name ASC
     `);
 

@@ -61,7 +61,7 @@ function MonthlyChart({ months }: { months: MonthRow[] }) {
   const maxVal = Math.max(...values, 0.01);
 
   const points = months.map((m, i) => {
-    const x = PADL + (i / (months.length - 1)) * chartW;
+    const x = PADL + (months.length > 1 ? (i / (months.length - 1)) : 0.5) * chartW;
     const y = PADT + chartH - (m.closing_value / maxVal) * chartH;
     return { x, y, m };
   });

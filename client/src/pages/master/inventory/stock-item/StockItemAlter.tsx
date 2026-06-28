@@ -17,20 +17,13 @@ import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
 import OpeningBalanceAllocationModal from "./components/OpeningBalanceAllocationModal";
 import OtherStatutoryDetails from "./components/OtherStatutoryDetails";
 import type { FormData, PanelType } from "./types";
-import {
-  GST_APPLICABILITY_OPTIONS,
-  HSN_SAC_DETAILS_OPTIONS,
-  GST_RATE_DETAILS_OPTIONS,
-  TAXABILITY_TYPE_OPTIONS,
-  TYPE_OF_SUPPLY_OPTIONS,
-  YES_NO_OPTIONS
-} from "./consts";
 import { calculateGstDetails } from "./utils";
 import { useStockItemBom } from "./hooks/useStockItemBom";
 
 const inputCls =
-  "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent " +
-  "focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
+  "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+const selectCls =
+  "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
 interface StockItemAlterProps {
   initialItemId?: number;
@@ -202,6 +195,8 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
           excise_tariff_rate_per_unit: String(fullItem.excise_tariff_rate_per_unit ?? 0),
           vat_applicable: fullItem.vat_applicable ?? "Applicable",
           set_alter_vat_details: fullItem.vat_details === "Yes" ? "Yes" : "No",
+          vat_tax_rate: "",
+          vat_tax_type: "Unknown",
         });
         setBoms([]);
         setShowBomList(false);
@@ -422,57 +417,103 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-          <div className="px-6 py-4 border-b border-zinc-200 flex flex-col gap-1 shrink-0">
-            <FormRow label="Name" labelWidth="w-24" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={e => setVal("name", e.target.value)} placeholder="Enter item name" />
+          <div className="p-3 space-y-1 border-b border-zinc-100">
+            <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
+              <input autoFocus className={inputCls} value={form.name} onChange={e => setVal("name", e.target.value)} />
             </FormRow>
-            <FormRow label="(alias)" labelWidth="w-24" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={e => setVal("alias", e.target.value)} placeholder="Optional alias" style={{ color: "#aaa" }} />
+            <FormRow label="(alias)" labelWidth="w-20" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={form.alias} onChange={e => setVal("alias", e.target.value)} />
             </FormRow>
           </div>
 
           <div className="flex flex-1 min-h-0 overflow-hidden">
-            <div className="flex-1 min-w-0 border-r border-zinc-200 px-6 pt-4 pb-2 flex flex-col gap-0 overflow-y-auto">
-              <div className="cursor-pointer group" onClick={() => setShowPanel(p => p === "group" ? null : "group")}>
-                <FormRow label="Under" labelWidth="w-32" className="flex items-center min-h-[26px]">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span>
-                </FormRow>
-              </div>
-              <div className="cursor-pointer group" onClick={() => setShowPanel(p => p === "unit" ? null : "unit")}>
-                <FormRow label="Units" labelWidth="w-32" className="flex items-center min-h-[26px]">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span>
-                </FormRow>
-              </div>
-
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-4 mb-2">Additional Details</div>
-
-              <div className="cursor-pointer group" onClick={() => setShowPanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}>
-                <FormRow label="Maintain in batches" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span>
-                </FormRow>
-              </div>
-
-              {form.maintain_in_batches === "Yes" && (
-                <div className="cursor-pointer group pl-4" onClick={() => setShowPanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}>
-                  <FormRow label="Track date of manufacturing" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                    <span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span>
-                  </FormRow>
+            <div className="flex-1 min-w-0 overflow-y-auto flex flex-col gap-0">
+              {/* Under (group) */}
+              <div className="p-3 border-b border-zinc-100 bg-zinc-50/20">
+                <div
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
+                  onClick={() => setShowPanel(p => p === "group" ? null : "group")}
+                >
+                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">Under</span>
+                  <span className="text-zinc-400 mr-2 shrink-0">:</span>
+                  <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
+                    {selectedGroupLabel}
+                  </span>
                 </div>
-              )}
+              </div>
 
-              {form.maintain_in_batches === "Yes" && (
-                <div className="cursor-pointer group pl-4" onClick={() => setShowPanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}>
-                  <FormRow label="Use expiry dates" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                    <span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span>
-                  </FormRow>
+              {/* Units */}
+              <div className="p-3 border-b border-zinc-100 bg-zinc-50/20">
+                <div
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
+                  onClick={() => setShowPanel(p => p === "unit" ? null : "unit")}
+                >
+                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">Units</span>
+                  <span className="text-zinc-400 mr-2 shrink-0">:</span>
+                  <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
+                    {selectedUnitLabel}
+                  </span>
                 </div>
-              )}
+              </div>
 
-              {form.unit_id && (
-                <FormRow label="Set components (BOM)" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <div className="flex items-center gap-1.5">
+              <div className="p-3 border-b border-zinc-100 space-y-1">
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Additional Details</div>
+
+                <FormRow label="Maintain in batches" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <select
+                    className={selectCls}
+                    value={form.maintain_in_batches}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setForm(f => f ? {
+                        ...f,
+                        maintain_in_batches: val,
+                        track_date_of_manufacturing: val !== "Yes" ? "No" : f.track_date_of_manufacturing,
+                        use_expiry_dates: val !== "Yes" ? "No" : f.use_expiry_dates,
+                        track_batches: val === "Yes",
+                        track_expiry: val === "Yes" && f.use_expiry_dates === "Yes",
+                        allocations: val !== "Yes" ? [] : f.allocations,
+                      } : null);
+                    }}
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </FormRow>
+
+                {form.maintain_in_batches === "Yes" && (
+                  <FormRow label="Track date of manufacturing" labelWidth="w-52" className="flex items-center min-h-[26px] pl-4">
                     <select
-                      className="bg-transparent text-sm outline-none border-b border-zinc-300 focus:border-zinc-600 cursor-pointer font-mono"
+                      className={selectCls}
+                      value={form.track_date_of_manufacturing}
+                      onChange={e => setVal("track_date_of_manufacturing", e.target.value)}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </FormRow>
+                )}
+
+                {form.maintain_in_batches === "Yes" && (
+                  <FormRow label="Use expiry dates" labelWidth="w-52" className="flex items-center min-h-[26px] pl-4">
+                    <select
+                      className={selectCls}
+                      value={form.use_expiry_dates}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setForm(f => f ? { ...f, use_expiry_dates: val, track_expiry: val === "Yes" } : null);
+                      }}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </FormRow>
+                )}
+
+                <FormRow label="Set components (BOM)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <div className="flex items-center gap-2">
+                    <select
+                      className={selectCls}
                       value={form.has_bom ? "Yes" : "No"}
                       onChange={handleBomToggle}
                     >
@@ -480,15 +521,20 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
                       <option value="Yes">Yes</option>
                     </select>
                     {form.has_bom && boms.length > 0 && (
-                      <span className="text-xs text-zinc-400 font-sans">({boms.length} BOM{boms.length > 1 ? "s" : ""})</span>
+                      <span className="text-xs text-zinc-400">({boms.length} BOM{boms.length > 1 ? "s" : ""})</span>
                     )}
                   </div>
                 </FormRow>
-              )}
 
-              <div className="cursor-pointer group" onClick={() => setShowPanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}>
-                <FormRow label="Enable cost tracking" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span>
+                <FormRow label="Enable cost tracking" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <select
+                    className={selectCls}
+                    value={form.enable_cost_tracking}
+                    onChange={e => setVal("enable_cost_tracking", e.target.value)}
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
                 </FormRow>
               </div>
             </div>
@@ -498,6 +544,7 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
               setVal={setVal}
               setActivePanel={setShowPanel}
               gstClassifications={gstClassifications}
+              onOpenOtherStatutory={() => setShowOtherStatutory(true)}
             />
           </div>
 
@@ -577,44 +624,6 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
             onCreateNew={() => navigate("/master/create/unit")}
           />
         )}
-        {showPanel === "gst_applicable" && (
-          <ListSidePanel
-            title="GST Applicability"
-            items={GST_APPLICABILITY_OPTIONS}
-            selected={form.gst_applicable}
-            onSelect={val => {
-              setForm(f => {
-                if (!f) return null;
-                return {
-                  ...f,
-                  gst_applicable: val || "Not Applicable",
-                  ...(val !== "Applicable" ? {
-                    hsn_sac_details: "as_per_company",
-                    hsn_sac: "",
-                    hsn_sac_description: "",
-                    hsn_classification_id: "",
-                    gst_rate_details: "as_per_company",
-                    rate_classification_id: "",
-                    taxability_type: "",
-                    gst_rate: "0",
-                    type_of_supply: "Goods",
-                  } : {})
-                };
-              });
-              setShowPanel(null);
-            }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
-        {showPanel === "hsn_sac_details" && (
-          <ListSidePanel
-            title="HSN/SAC Details"
-            items={HSN_SAC_DETAILS_OPTIONS}
-            selected={form.hsn_sac_details}
-            onSelect={val => { setVal("hsn_sac_details", val || "as_per_company"); setShowPanel(null); }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
         {showPanel === "hsn_classification" && (
           <ListSidePanel
             title="GST Classifications"
@@ -624,15 +633,6 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
             onClose={() => setShowPanel(null)}
             showCreate
             onCreateNew={() => navigate("/master/create/gst-classification")}
-          />
-        )}
-        {showPanel === "gst_rate_details" && (
-          <ListSidePanel
-            title="GST Rate Details"
-            items={GST_RATE_DETAILS_OPTIONS}
-            selected={form.gst_rate_details}
-            onSelect={val => { setVal("gst_rate_details", val || "as_per_company"); setShowPanel(null); }}
-            onClose={() => setShowPanel(null)}
           />
         )}
         {showPanel === "rate_classification" && (
@@ -646,88 +646,6 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
             onCreateNew={() => navigate("/master/create/gst-classification")}
           />
         )}
-        {showPanel === "taxability_type" && (
-          <ListSidePanel
-            title="Taxability Type"
-            items={TAXABILITY_TYPE_OPTIONS}
-            selected={form.taxability_type}
-            onSelect={val => { setVal("taxability_type", val || "Taxable"); setShowPanel(null); }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
-        {showPanel === "type_of_supply" && (
-          <ListSidePanel
-            title="Type of Supply"
-            items={TYPE_OF_SUPPLY_OPTIONS}
-            selected={form.type_of_supply}
-            onSelect={val => { setVal("type_of_supply", val || "Goods"); setShowPanel(null); }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
-        {showPanel === "maintain_in_batches" && (
-          <ListSidePanel
-            title="Maintain in batches"
-            items={YES_NO_OPTIONS}
-            selected={form.maintain_in_batches}
-            onSelect={val => {
-              setForm(f => f ? {
-                ...f,
-                maintain_in_batches: val || "No",
-                track_date_of_manufacturing: val !== "Yes" ? "No" : f.track_date_of_manufacturing,
-                use_expiry_dates: val !== "Yes" ? "No" : f.use_expiry_dates,
-                track_batches: val === "Yes",
-                track_expiry: val === "Yes" && f.use_expiry_dates === "Yes",
-                allocations: val !== "Yes" ? [] : f.allocations,
-              } : null);
-              setShowPanel(null);
-            }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
-        {showPanel === "track_date_of_manufacturing" && (
-          <ListSidePanel
-            title="Track date of manufacturing"
-            items={YES_NO_OPTIONS}
-            selected={form.track_date_of_manufacturing}
-            onSelect={val => { setVal("track_date_of_manufacturing", val || "No"); setShowPanel(null); }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
-        {showPanel === "use_expiry_dates" && (
-          <ListSidePanel
-            title="Use expiry dates"
-            items={YES_NO_OPTIONS}
-            selected={form.use_expiry_dates}
-            onSelect={val => {
-              setForm(f => f ? { ...f, use_expiry_dates: val || "No", track_expiry: val === "Yes" } : null);
-              setShowPanel(null);
-            }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
-        {showPanel === "enable_cost_tracking" && (
-          <ListSidePanel
-            title="Enable cost tracking"
-            items={YES_NO_OPTIONS}
-            selected={form.enable_cost_tracking}
-            onSelect={val => { setVal("enable_cost_tracking", val || "No"); setShowPanel(null); }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
-        {showPanel === "set_alter_statutory" && (
-          <ListSidePanel
-            title="Set/Alter other Statutory details"
-            items={YES_NO_OPTIONS}
-            selected={form.set_alter_statutory}
-            onSelect={val => {
-              setVal("set_alter_statutory", val || "No");
-              if (val === "Yes") { setShowPanel(null); setShowOtherStatutory(true); }
-              else setShowPanel(null);
-            }}
-            onClose={() => setShowPanel(null)}
-          />
-        )}
-
         <RightActionPanel actions={alterActions} />
       </div>
 
@@ -783,6 +701,8 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
             excise_tariff_rate_per_unit: form.excise_tariff_rate_per_unit,
             vat_applicable: form.vat_applicable,
             set_alter_vat_details: form.set_alter_vat_details,
+            vat_tax_rate: form.vat_tax_rate,
+            vat_tax_type: form.vat_tax_type,
           }}
           onAccept={(data) => {
             setForm(f => f ? {
@@ -797,6 +717,8 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
               excise_tariff_rate_per_unit: data.excise_tariff_rate_per_unit,
               vat_applicable: data.vat_applicable,
               set_alter_vat_details: data.set_alter_vat_details,
+              vat_tax_rate: data.vat_tax_rate,
+              vat_tax_type: data.vat_tax_type,
             } : null);
             setShowOtherStatutory(false);
           }}

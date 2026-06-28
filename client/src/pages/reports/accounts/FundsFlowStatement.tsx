@@ -58,24 +58,22 @@ export default function FundsFlowStatement() {
 
   // Generate month ranges for the FY
   const monthRanges = useMemo(() => {
-    if (!activeFY?.start_date) return [];
-    const startYear = new Date(activeFY.start_date).getFullYear();
-    const years = [
-      startYear, startYear, startYear, startYear, startYear, startYear,
-      startYear, startYear, startYear, startYear + 1, startYear + 1, startYear + 1
-    ];
-    const months = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
-    const monthNames = [
-      "April", "May", "June", "July", "August", "September",
-      "October", "November", "December", "January", "February", "March"
-    ];
-    return months.map((m, idx) => {
-      const yr = years[idx];
-      const startDate = `${yr}-${String(m).padStart(2, "0")}-01`;
-      const lastDay = new Date(yr, m, 0).getDate();
-      const endDate = `${yr}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-      return { name: monthNames[idx], startDate, endDate };
-    });
+    if (!activeFY?.start_date || !activeFY?.end_date) return [];
+    const fyStart = new Date(activeFY.start_date);
+    const fyEnd   = new Date(activeFY.end_date);
+    const ranges: { name: string; startDate: string; endDate: string }[] = [];
+    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    let cur = new Date(fyStart.getFullYear(), fyStart.getMonth(), 1);
+    while (cur <= fyEnd) {
+      const yr = cur.getFullYear();
+      const mo = cur.getMonth(); // 0-indexed
+      const startDate = `${yr}-${String(mo + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(yr, mo + 1, 0).getDate();
+      const endDate = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      ranges.push({ name: monthNames[mo], startDate, endDate });
+      cur = new Date(yr, mo + 1, 1);
+    }
+    return ranges;
   }, [activeFY]);
 
   // Load Monthly Summary — each month's working capital comes straight from the
@@ -189,7 +187,7 @@ export default function FundsFlowStatement() {
   // Keyboard navigation
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
-      const maxRows = viewMode === "monthly" ? monthlyData.length : 0;
+      const maxRows = viewMode === "monthly" ? monthlyData.length : (detailData ? (detailData.sources.length + detailData.applications.length) : 0);
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setFocusedIndex((prev) => Math.min(prev + 1, maxRows - 1));
@@ -395,7 +393,7 @@ export default function FundsFlowStatement() {
             setSelectedMonth(null);
             setFocusedIndex(0);
           }}
-          className="text-cyan-600 hover:underline font-bold text-[10px] uppercase mb-1"
+          className="text-zinc-700 hover:underline font-bold text-[10px] uppercase mb-1"
         >
           ◀ Back to Monthly Summary
         </button>

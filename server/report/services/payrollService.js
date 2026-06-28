@@ -194,6 +194,7 @@ const getPayrollReport = async (company_id, fy_id, reportTypeArg = 'payslip', pa
               LEFT JOIN ${attendanceTypes} at
                 ON at.attendance_type_id = ave.attendance_type_id
               WHERE av.company_id = ${company_id}
+                AND av.fy_id = ${fy_id}
               GROUP BY ave.employee_id, ave.attendance_type_id`
         ).catch(() => []);
 

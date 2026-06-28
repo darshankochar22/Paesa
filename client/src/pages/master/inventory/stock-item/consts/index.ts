@@ -38,6 +38,8 @@ export const INITIAL_FORM_STATE: FormData = {
   excise_tariff_rate_per_unit: "0",
   vat_applicable: "Applicable",
   set_alter_vat_details: "No",
+  vat_tax_rate: "",
+  vat_tax_type: "Unknown",
 };
 
 export const GST_APPLICABILITY_OPTIONS = [

@@ -188,6 +188,7 @@ export function VoucherTypeFormBody({
   const isAuto = method === "Automatic" || method === "Multi-user Auto";
   const isManualOverride = method === "Automatic (Manual Override)";
   const isManual = method === "Manual";
+  const showAdditionalNumbering = method !== "Manual" && method !== "None";
 
   return (
     <>
@@ -271,32 +272,34 @@ export function VoucherTypeFormBody({
                       {NUMBERING_BEHAVIOURS.map((b) => <option key={b}>{b}</option>)}
                     </select>
                   </FormRow>
-                  <FormRow label="Set/Alter additional numbering details" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                    <div className="flex items-center gap-2">
-                      <YesNoSelect
-                        value={config.set_alter_additional_numbering}
-                        onChange={(v) => {
-                          setC("set_alter_additional_numbering")(v);
-                          if (v === "Yes") setShowNumberingPopup(true);
-                        }}
-                      />
-                      {config.set_alter_additional_numbering === "Yes" && (
-                        <button
-                          type="button"
-                          onClick={() => setShowNumberingPopup(true)}
-                          className="text-[11px] text-zinc-500 hover:text-zinc-900 underline font-sans"
-                        >
-                          Edit details
-                        </button>
-                      )}
-                    </div>
-                  </FormRow>
                   {config.numbering_behaviour === "Retain Original Voucher No." && (
                     <FormRow label="Show unused vch nos. in transactions" labelWidth="w-56" className="flex items-center min-h-[26px]">
                       <YesNoSelect value={config.show_unused_numbers} onChange={setC("show_unused_numbers")} />
                     </FormRow>
                   )}
                 </>
+              )}
+              {showAdditionalNumbering && (
+                <FormRow label="Set/Alter additional numbering details" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                  <div className="flex items-center gap-2">
+                    <YesNoSelect
+                      value={config.set_alter_additional_numbering}
+                      onChange={(v) => {
+                        setC("set_alter_additional_numbering")(v);
+                        if (v === "Yes") setShowNumberingPopup(true);
+                      }}
+                    />
+                    {config.set_alter_additional_numbering === "Yes" && (
+                      <button
+                        type="button"
+                        onClick={() => setShowNumberingPopup(true)}
+                        className="text-[11px] text-zinc-500 hover:text-zinc-900 underline font-sans"
+                      >
+                        Edit details
+                      </button>
+                    )}
+                  </div>
+                </FormRow>
               )}
               {(isManualOverride || isManual) && (
                 <FormRow label="Prevent creating duplicate Voucher Nos." labelWidth="w-56" className="flex items-center min-h-[26px]">

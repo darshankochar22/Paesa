@@ -22,10 +22,12 @@ export default function CostCentreSummaryLayout() {
     return p.get("category_name") || null;
   }, [location.search]);
 
+  const asOnDate = activeFY?.end_date ?? null;
+
   React.useEffect(() => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) { setLoading(false); return; }
     setLoading(true);
-    (window as any).api.report.costCentreReport(selectedCompany.company_id, activeFY.fy_id)
+    (window as any).api.report.costCentreReport(selectedCompany.company_id, activeFY.fy_id, asOnDate)
       .then((res: any) => {
         if (res?.success) {
           setRawRows(res.rows || []);
@@ -35,11 +37,11 @@ export default function CostCentreSummaryLayout() {
       })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [selectedCompany?.company_id, activeFY?.fy_id]);
+  }, [selectedCompany?.company_id, activeFY?.fy_id, asOnDate]);
 
   const filteredRows = React.useMemo(() => {
     if (!categoryFilter) return rawRows;
-    return rawRows.filter(r => r.category === categoryFilter);
+    return rawRows.filter(r => (r.category ?? "General") === categoryFilter);
   }, [rawRows, categoryFilter]);
 
   React.useEffect(() => {

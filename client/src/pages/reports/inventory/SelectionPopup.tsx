@@ -158,7 +158,7 @@ export default function SelectionPopup({
 
         <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600">
           <button onClick={onCancel} className="hover:text-zinc-900">Q: Quit</button>
-          <button onClick={() => onAccept(index)} className="hover:text-zinc-900">Enter: Accept</button>
+          <button onClick={() => !loading && items.length > 0 && onAccept(index)} className={loading || items.length === 0 ? "text-zinc-300 cursor-default" : "hover:text-zinc-900"}>Enter: Accept</button>
         </div>
       </div>
     </div>

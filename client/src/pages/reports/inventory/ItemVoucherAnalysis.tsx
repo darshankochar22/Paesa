@@ -62,10 +62,11 @@ export default function ItemVoucherAnalysis({
   itemName, companyName, periodLabel, rows, loading, error,
   selectedIndex, onSelectIndex, onOpenVoucher, footer,
 }: Props) {
-  const totPurchQty = rows.reduce((s, r) => s + (Number(r.inwards_qty)    || 0), 0);
-  const totPurchVal = rows.reduce((s, r) => s + (Number(r.inwards_value)  || 0), 0);
-  const totSalesQty = rows.reduce((s, r) => s + (Number(r.outwards_qty)   || 0), 0);
-  const totSalesVal = rows.reduce((s, r) => s + (Number(r.outwards_value) || 0), 0);
+  const movementRows = rows.filter(r => r.voucher_id !== null);
+  const totPurchQty = movementRows.reduce((s, r) => s + (Number(r.inwards_qty)    || 0), 0);
+  const totPurchVal = movementRows.reduce((s, r) => s + (Number(r.inwards_value)  || 0), 0);
+  const totSalesQty = movementRows.reduce((s, r) => s + (Number(r.outwards_qty)   || 0), 0);
+  const totSalesVal = movementRows.reduce((s, r) => s + (Number(r.outwards_value) || 0), 0);
   const finalCQty   = rows.length ? rows[rows.length - 1].closing_qty   : 0;
   const finalCVal   = rows.length ? rows[rows.length - 1].closing_value : 0;
 

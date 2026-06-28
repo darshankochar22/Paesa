@@ -50,21 +50,13 @@ export interface FormData {
   excise_tariff_rate_per_unit: string;
   vat_applicable: string;
   set_alter_vat_details: string;
+  vat_tax_rate: string;
+  vat_tax_type: string;
 }
 
 export type PanelType =
   | "group"
   | "unit"
-  | "gst_applicable"
-  | "hsn_sac_details"
-  | "gst_rate_details"
   | "hsn_classification"
   | "rate_classification"
-  | "taxability_type"
-  | "type_of_supply"
-  | "maintain_in_batches"
-  | "track_date_of_manufacturing"
-  | "use_expiry_dates"
-  | "enable_cost_tracking"
-  | "set_alter_statutory"
   | null;

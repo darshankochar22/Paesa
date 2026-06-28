@@ -50,8 +50,8 @@ module.exports = {
               g.name AS group_name,
               l.opening_balance,
               l.opening_balance_type,
-              SUM(CASE WHEN ve.type = 'Debit' THEN ve.amount ELSE 0 END) as total_debit,
-              SUM(CASE WHEN ve.type = 'Credit' THEN ve.amount ELSE 0 END) as total_credit
+              SUM(CASE WHEN ve.type = 'Dr' THEN ve.amount ELSE 0 END) as total_debit,
+              SUM(CASE WHEN ve.type = 'Cr' THEN ve.amount ELSE 0 END) as total_credit
             FROM ledgers l
             LEFT JOIN groups g ON l.group_id = g.group_id
             LEFT JOIN voucher_entries ve ON ve.ledger_id = l.ledger_id

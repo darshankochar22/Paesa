@@ -1,11 +1,17 @@
+import { FormRow } from "@/components/ui";
 import type { FormData, PanelType } from "../types";
-import { HSN_SAC_DETAILS_LABELS, GST_RATE_DETAILS_LABELS } from "../consts";
+
+const inputCls =
+  "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+const selectCls =
+  "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
 interface GSTStatutoryDetailsProps {
   form: FormData;
   setVal: (key: keyof FormData, value: any) => void;
   setActivePanel: (panel: PanelType) => void;
   gstClassifications: any[];
+  onOpenOtherStatutory: () => void;
 }
 
 export default function GSTStatutoryDetails({
@@ -13,273 +19,242 @@ export default function GSTStatutoryDetails({
   setVal,
   setActivePanel,
   gstClassifications,
+  onOpenOtherStatutory,
 }: GSTStatutoryDetailsProps) {
-  
+
   const selectedHsnClsName = gstClassifications.find(
     c => String(c.gc_id) === form.hsn_classification_id
-  )?.name || "Select...";
+  )?.name || "—";
 
   const selectedRateClsName = gstClassifications.find(
     c => String(c.gc_id) === form.rate_classification_id
-  )?.name || "Select...";
+  )?.name || "—";
+
+  const handleGstApplicabilityChange = (val: string) => {
+    setVal("gst_applicable", val);
+    if (val !== "Applicable") {
+      setVal("hsn_sac_details", "as_per_company");
+      setVal("hsn_sac", "");
+      setVal("hsn_sac_description", "");
+      setVal("hsn_classification_id", "");
+      setVal("gst_rate_details", "as_per_company");
+      setVal("rate_classification_id", "");
+      setVal("taxability_type", "");
+      setVal("gst_rate", "0");
+      setVal("type_of_supply", "Goods");
+    }
+  };
 
   return (
-    <div className="flex-1 min-w-0 px-6 pt-4 pb-2 overflow-y-auto flex flex-col gap-1.5 font-mono select-none">
+    <div className="flex-1 min-w-0 px-6 pt-4 pb-2 overflow-y-auto flex flex-col gap-0 select-none border-l border-zinc-100">
       <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Statutory Details</div>
 
-      {/* GST applicability */}
-      <div
-        className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
-        onClick={() => setActivePanel("gst_applicable")}
-      >
-        <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-0">GST applicability</span>
-        <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-        <div className="flex-1">
-          <span className="text-xs text-zinc-955 font-bold">{form.gst_applicable}</span>
-        </div>
-      </div>
+      <FormRow label="GST applicability" labelWidth="w-52" className="flex items-center min-h-[26px]">
+        <select
+          className={selectCls}
+          value={form.gst_applicable}
+          onChange={e => handleGstApplicabilityChange(e.target.value)}
+        >
+          <option value="Applicable">Applicable</option>
+          <option value="Not Applicable">Not Applicable</option>
+        </select>
+      </FormRow>
 
-      {form.gst_applicable === "Applicable" ? (
+      {form.gst_applicable === "Applicable" && (
         <>
-          {/* HSN/SAC & Related Details Header */}
-          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-2 mb-1 pl-0">HSN/SAC & Related Details</div>
-
-          {/* HSN/SAC Details */}
-          <div
-            className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
-            onClick={() => setActivePanel("hsn_sac_details")}
-          >
-            <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-4">HSN/SAC Details</span>
-            <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-            <div className="flex-1">
-              <span className="text-xs text-zinc-955 font-bold">
-                {HSN_SAC_DETAILS_LABELS[form.hsn_sac_details] || form.hsn_sac_details}
-              </span>
-            </div>
+          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-3 mb-1">
+            HSN/SAC &amp; Related Details
           </div>
 
-          {/* HSN: As per Company/Stock Group - Source of details */}
+          <FormRow label="HSN/SAC Details" labelWidth="w-52" className="flex items-center min-h-[26px]">
+            <select
+              className={selectCls}
+              value={form.hsn_sac_details}
+              onChange={e => setVal("hsn_sac_details", e.target.value)}
+            >
+              <option value="as_per_company">As per Company/Stock Group</option>
+              <option value="specify_here">Specify Details Here</option>
+              <option value="use_classification">Use GST Classification</option>
+              <option value="specify_in_voucher">Specify in Voucher</option>
+            </select>
+          </FormRow>
+
           {form.hsn_sac_details === "as_per_company" && (
-            <>
-              <div className="flex items-center min-h-[22px]">
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Source of details</span>
-                <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
-                <div className="flex-1 text-xs text-zinc-400">Not Available</div>
-              </div>
-            </>
+            <FormRow label="Source of details" labelWidth="w-52" className="flex items-center min-h-[26px]">
+              <span className="text-sm text-zinc-400 italic px-1.5">Not Available</span>
+            </FormRow>
           )}
 
-          {/* HSN: Specify Details Here */}
           {form.hsn_sac_details === "specify_here" && (
             <>
-              <div className="flex items-center min-h-[22px]">
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">HSN/SAC</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-                <div className="flex-1">
-                  <input
-                    className="w-full bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 font-mono text-zinc-955"
-                    value={form.hsn_sac}
-                    onChange={e => setVal("hsn_sac", e.target.value)}
-                    placeholder="Code"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center min-h-[22px]">
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Description</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-                <div className="flex-1">
-                  <input
-                    className="w-full bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 font-mono text-zinc-955"
-                    value={form.hsn_sac_description}
-                    onChange={e => setVal("hsn_sac_description", e.target.value)}
-                    placeholder="Description"
-                  />
-                </div>
-              </div>
+              <FormRow label="HSN/SAC" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <input
+                  className={inputCls}
+                  value={form.hsn_sac}
+                  onChange={e => setVal("hsn_sac", e.target.value)}
+                  placeholder="Code"
+                />
+              </FormRow>
+              <FormRow label="Description" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <input
+                  className={inputCls}
+                  value={form.hsn_sac_description}
+                  onChange={e => setVal("hsn_sac_description", e.target.value)}
+                  placeholder="Description"
+                />
+              </FormRow>
             </>
           )}
 
-          {/* HSN: Use GST Classification */}
-          {form.hsn_sac_details === "use_classification" && (
-            <>
-              <div
-                className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
-                onClick={() => setActivePanel("hsn_classification")}
-              >
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Classification</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-xs text-zinc-955 font-bold truncate">
+          {form.hsn_sac_details === "use_classification" && (() => {
+            const cls = gstClassifications.find(c => String(c.gc_id) === form.hsn_classification_id);
+            return (
+              <>
+                <FormRow label="Classification" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <button
+                    type="button"
+                    className="flex-1 text-left text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 px-1.5 py-0.5 border border-transparent hover:border-zinc-200 hover:bg-zinc-50 rounded transition-colors"
+                    onClick={() => setActivePanel("hsn_classification")}
+                  >
                     {selectedHsnClsName}
-                  </span>
-                </div>
-              </div>
-              {(() => {
-                const cls = gstClassifications.find(c => String(c.gc_id) === form.hsn_classification_id);
-                return (
-                  <>
-                    <div className="flex items-center min-h-[22px]">
-                      <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">HSN/SAC</span>
-                      <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
-                      <div className="flex-1 text-xs text-zinc-400">{cls?.hsn_sac_code || ""}</div>
-                    </div>
-                    <div className="flex items-center min-h-[22px]">
-                      <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Description</span>
-                      <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
-                      <div className="flex-1 text-xs text-zinc-400">{cls?.description || ""}</div>
-                    </div>
-                  </>
-                );
-              })()}
-            </>
-          )}
+                  </button>
+                </FormRow>
+                <FormRow label="HSN/SAC" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-500 px-1.5">{cls?.hsn_sac_code || "—"}</span>
+                </FormRow>
+                <FormRow label="Description" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-500 px-1.5">{cls?.description || "—"}</span>
+                </FormRow>
+              </>
+            );
+          })()}
 
-          {/* GST Rate & Related Details Header */}
-          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-2 mb-1 pl-0">GST Rate & Related Details</div>
-
-          {/* GST Rate Details */}
-          <div
-            className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
-            onClick={() => setActivePanel("gst_rate_details")}
-          >
-            <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-4">GST Rate Details</span>
-            <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-            <div className="flex-1">
-              <span className="text-xs text-zinc-955 font-bold">
-                {GST_RATE_DETAILS_LABELS[form.gst_rate_details] || form.gst_rate_details}
-              </span>
-            </div>
+          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-3 mb-1">
+            GST Rate &amp; Related Details
           </div>
 
-          {/* Rate: As per Company/Stock Group - Source of details + read-only fields */}
+          <FormRow label="GST Rate Details" labelWidth="w-52" className="flex items-center min-h-[26px]">
+            <select
+              className={selectCls}
+              value={form.gst_rate_details}
+              onChange={e => setVal("gst_rate_details", e.target.value)}
+            >
+              <option value="as_per_company">As per Company/Stock Group</option>
+              <option value="specify_here">Specify Details Here</option>
+              <option value="use_classification">Use GST Classification</option>
+              <option value="specify_in_voucher">Specify in Voucher</option>
+            </select>
+          </FormRow>
+
           {form.gst_rate_details === "as_per_company" && (
             <>
-              <div className="flex items-center min-h-[22px]">
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Source of details</span>
-                <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
-                <div className="flex-1 text-xs text-zinc-400">Not Available</div>
-              </div>
-              <div className="flex items-center min-h-[22px]">
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Taxability Type</span>
-                <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
-                <div className="flex-1 text-xs text-zinc-400">&nbsp;</div>
-              </div>
-              <div className="flex items-center min-h-[22px]">
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">GST Rate</span>
-                <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
-                <div className="flex-1 text-xs text-zinc-400">0 %</div>
-              </div>
+              <FormRow label="Source of details" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <span className="text-sm text-zinc-400 italic px-1.5">Not Available</span>
+              </FormRow>
+              <FormRow label="Taxability Type" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <span className="text-sm text-zinc-400 px-1.5">&nbsp;</span>
+              </FormRow>
+              <FormRow label="GST Rate" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <span className="text-sm text-zinc-400 px-1.5">0 %</span>
+              </FormRow>
             </>
           )}
 
-          {/* Rate: Specify Details Here */}
           {form.gst_rate_details === "specify_here" && (
             <>
-              <div
-                className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
-                onClick={() => setActivePanel("taxability_type")}
-              >
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Taxability</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-xs text-zinc-950 font-bold">{form.taxability_type || "Select..."}</span>
-                </div>
-              </div>
-
+              <FormRow label="Taxability" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={form.taxability_type || "Taxable"}
+                  onChange={e => setVal("taxability_type", e.target.value)}
+                >
+                  <option value="Taxable">Taxable</option>
+                  <option value="Exempt">Exempt</option>
+                  <option value="Nil Rated">Nil Rated</option>
+                  <option value="Non-GST">Non-GST</option>
+                </select>
+              </FormRow>
               {form.taxability_type === "Taxable" && (
-                <div className="flex items-center min-h-[22px]">
-                  <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">GST Rate</span>
-                  <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-                  <div className="flex-1 flex items-center">
-                    <input
-                      className="w-16 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 text-right tabular-nums font-mono text-zinc-955"
-                      type="number" min="0" max="100" step="0.01"
-                      value={form.gst_rate}
-                      onChange={e => setVal("gst_rate", e.target.value)}
-                      placeholder="0"
-                    />
-                    <span className="text-xs text-zinc-800 ml-1 font-sans">%</span>
-                  </div>
-                </div>
+                <FormRow label="GST Rate" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input
+                    className="w-20 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded text-right tabular-nums"
+                    type="number" min="0" max="100" step="0.01"
+                    value={form.gst_rate}
+                    onChange={e => setVal("gst_rate", e.target.value)}
+                    placeholder="0"
+                  />
+                  <span className="text-sm text-zinc-500 ml-1">%</span>
+                </FormRow>
               )}
             </>
           )}
 
-          {/* Rate: Use GST Classification */}
-          {form.gst_rate_details === "use_classification" && (
-            <>
-              <div
-                className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
-                onClick={() => setActivePanel("rate_classification")}
-              >
-                <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Classification</span>
-                <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-xs text-zinc-950 font-bold truncate">
+          {form.gst_rate_details === "use_classification" && (() => {
+            const cls = gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id);
+            return (
+              <>
+                <FormRow label="Classification" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <button
+                    type="button"
+                    className="flex-1 text-left text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 px-1.5 py-0.5 border border-transparent hover:border-zinc-200 hover:bg-zinc-50 rounded transition-colors"
+                    onClick={() => setActivePanel("rate_classification")}
+                  >
                     {selectedRateClsName}
-                  </span>
-                </div>
-              </div>
-              {(() => {
-                const cls = gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id);
-                return (
-                  <>
-                    <div className="flex items-center min-h-[22px]">
-                      <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">Taxability Type</span>
-                      <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
-                      <div className="flex-1 text-xs text-zinc-400">{cls?.taxability || ""}</div>
-                    </div>
-                    <div className="flex items-center min-h-[22px]">
-                      <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-8">GST Rate</span>
-                      <span className="w-4 shrink-0 text-zinc-300 text-xs text-center">:</span>
-                      <div className="flex-1 text-xs text-zinc-400">{cls ? `${Number(cls.igst_rate)} %` : ""}</div>
-                    </div>
-                  </>
-                );
-              })()}
-            </>
-          )}
+                  </button>
+                </FormRow>
+                <FormRow label="Taxability Type" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-500 px-1.5">{cls?.taxability || "—"}</span>
+                </FormRow>
+                <FormRow label="GST Rate" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <span className="text-sm text-zinc-500 px-1.5">{cls ? `${Number(cls.igst_rate)} %` : "—"}</span>
+                </FormRow>
+              </>
+            );
+          })()}
 
-          {/* Type of Supply */}
-          <div
-            className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
-            onClick={() => setActivePanel("type_of_supply")}
-          >
-            <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-0">Type of Supply</span>
-            <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-            <div className="flex-1">
-              <span className="text-xs text-zinc-955 font-bold">{form.type_of_supply}</span>
-            </div>
-          </div>
+          <FormRow label="Type of Supply" labelWidth="w-52" className="flex items-center min-h-[26px]">
+            <select
+              className={selectCls}
+              value={form.type_of_supply}
+              onChange={e => setVal("type_of_supply", e.target.value)}
+            >
+              <option value="Goods">Goods</option>
+              <option value="Services">Services</option>
+              <option value="Capital Goods">Capital Goods</option>
+            </select>
+          </FormRow>
         </>
-      ) : null}
+      )}
 
-      {/* Set/Alter other Statutory details */}
-      <div
-        className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 py-0.5 rounded transition-colors"
-        onClick={() => setActivePanel("set_alter_statutory")}
-      >
-        <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-0">Set/Alter other Statutory details</span>
-        <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-        <div className="flex-1">
-          <span className="text-xs text-zinc-955 font-bold">{form.set_alter_statutory}</span>
-        </div>
-      </div>
+      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-3 mb-1">Other Details</div>
 
-      {/* Rate of Duty */}
-      <div className="flex items-center min-h-[22px]">
-        <span className="w-48 shrink-0 text-xs text-zinc-400 font-sans pl-0">Rate of Duty (eg 5)</span>
-        <span className="w-4 shrink-0 text-zinc-400 text-xs text-center">:</span>
-        <div className="flex-1">
+      <FormRow label="Set/Alter other Statutory details" labelWidth="w-52" className="flex items-center min-h-[26px]">
+        <select
+          className={selectCls}
+          value={form.set_alter_statutory}
+          onChange={e => {
+            const val = e.target.value;
+            setVal("set_alter_statutory", val);
+            if (val === "Yes") onOpenOtherStatutory();
+          }}
+        >
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+        </select>
+      </FormRow>
+
+      <FormRow label="Rate of Duty (eg 5)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+        <div className="flex items-center gap-1">
           <input
-            className="w-16 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 text-right tabular-nums font-mono text-zinc-955"
+            className="w-20 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded text-right tabular-nums"
             type="number" min="0" max="100" step="0.01"
             value={form.rate_of_duty}
             onChange={e => setVal("rate_of_duty", e.target.value)}
             placeholder="0"
           />
+          <span className="text-sm text-zinc-500">%</span>
         </div>
-      </div>
+      </FormRow>
     </div>
   );
 }

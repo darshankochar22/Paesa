@@ -63,13 +63,15 @@ export default function AgeingAnalysis() {
   React.useEffect(() => {
     if (!companyId) { setGroupListLoading(false); return; }
     setGroupListLoading(true);
-    (window as any).api.stockGroup.getAll(companyId).then((res: any) => {
-      const list: GroupRef[] = [...(res.stockGroups ?? [])]
-        .map((g: any) => ({ group_id: g.sg_id, group_name: g.name }))
-        .sort((a: GroupRef, b: GroupRef) => a.group_name.localeCompare(b.group_name));
-      setGroupList([{ group_id: PRIMARY_ID, group_name: "Primary" }, ...list]);
-      setGroupListLoading(false);
-    });
+    (window as any).api.stockGroup.getAll(companyId)
+      .then((res: any) => {
+        const list: GroupRef[] = [...(res.stockGroups ?? [])]
+          .map((g: any) => ({ group_id: g.sg_id, group_name: g.name }))
+          .sort((a: GroupRef, b: GroupRef) => a.group_name.localeCompare(b.group_name));
+        setGroupList([{ group_id: PRIMARY_ID, group_name: "Primary" }, ...list]);
+        setGroupListLoading(false);
+      })
+      .catch(() => setGroupListLoading(false));
   }, [companyId]);
 
   const filtered = React.useMemo(() =>
@@ -80,14 +82,19 @@ export default function AgeingAnalysis() {
 
   // ── Ageing report ─────────────────────────────────────────────────────────
   const [rows, setRows] = React.useState<RawRow[]>([]);
-  const [bands, setBands] = React.useState<number[]>([45, 90, 180]);
+  const [bands, setBands] = React.useState<number[]>([30, 60, 90]);
   const [reportAsAt, setReportAsAt] = React.useState<string | undefined>(asAt);
   const [loadingReport, setLoadingReport] = React.useState(false);
   const [reportErr, setReportErr] = React.useState<string | null>(null);
   const [rowIdx, setRowIdx] = React.useState(0);
 
+  // Sync reportAsAt when activeFY loads asynchronously
+  React.useEffect(() => {
+    if (asAt && !reportAsAt) setReportAsAt(asAt);
+  }, [asAt]);
+
   const loadReport = React.useCallback((group: GroupRef) => {
-    if (!companyId || !fyId) return;
+    if (!companyId || !fyId || !asAt) return;
     setLevel({ step: "report", group });
     setLoadingReport(true); setReportErr(null); setRowIdx(0);
     (window as any).api.report.stockAgeingAnalysis(companyId, fyId, group.group_id, asAt, fyStart).then((res: any) => {
@@ -141,6 +148,7 @@ export default function AgeingAnalysis() {
   }, [companyId, fyId, fyStart, months]);
 
   const backToSelect = React.useCallback(() => { setLevel({ step: "select" }); setRows([]); setSearch(""); }, []);
+  const backToMonthly = React.useCallback((group: GroupRef, item: RawRow) => { setLevel({ step: "monthly", group, item }); setVouchers([]); }, []);
 
   // ── Keyboard navigation ───────────────────────────────────────────────────
   React.useEffect(() => {
@@ -164,12 +172,12 @@ export default function AgeingAnalysis() {
         if (e.key === "ArrowDown") { e.preventDefault(); setVoucherIdx(p => Math.min(vouchers.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setVoucherIdx(p => Math.max(0, p - 1)); }
         else if (e.key === "Enter") { e.preventDefault(); const r = vouchers[voucherIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
-        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); loadMonthly(level.group, level.item); }
+        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToMonthly(level.group, level.item); }
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [level, filtered, selectIdx, rows, rowIdx, months, monthIdx, vouchers, voucherIdx, loadReport, loadMonthly, loadVouchers, backToSelect, navigate]);
+  }, [level, filtered, selectIdx, rows, rowIdx, months, monthIdx, vouchers, voucherIdx, loadReport, loadMonthly, loadVouchers, backToSelect, backToMonthly, navigate]);
 
   // ── Select Stock Group ────────────────────────────────────────────────────
   if (level.step === "select") {
@@ -235,7 +243,7 @@ export default function AgeingAnalysis() {
       rows={vouchers} loading={loadingVouchers} error={voucherErr}
       selectedIndex={voucherIdx} onSelectIndex={setVoucherIdx}
       onOpenVoucher={(r) => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
-      footer={<FooterBar><button onClick={() => loadMonthly(group, item)} className="hover:underline hover:text-zinc-900">Q: Back to Monthly Summary</button><span className="text-zinc-400">Enter: Open voucher</span></FooterBar>}
+      footer={<FooterBar><button onClick={() => backToMonthly(group, item)} className="hover:underline hover:text-zinc-900">Q: Back to Monthly Summary</button><span className="text-zinc-400">Enter: Open voucher</span></FooterBar>}
     />
   );
 }

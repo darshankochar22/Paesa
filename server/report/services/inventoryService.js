@@ -19,6 +19,7 @@ const {
   stockItems,
   stockGroups,
   godowns,
+  stockItemOpeningAllocations,
 } = require('../../db/schema');
 
 // ---------------------------------------------------------------------------
@@ -161,9 +162,20 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
                 g.state,
                 COUNT(DISTINCT vse.stock_item_id) AS item_count,
                 COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0)
-                  - COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0) AS net_qty,
+                  - COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0)
+                  + COALESCE((
+                      SELECT SUM(oa.quantity)
+                      FROM ${stockItemOpeningAllocations} oa
+                      WHERE oa.godown_id = g.godown_id
+                    ), 0) AS net_qty,
                 COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0)
-                  - COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0) AS net_value
+                  - COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0)
+                  + COALESCE((
+                      SELECT SUM(oa.quantity * COALESCE(si.opening_rate, 0))
+                      FROM ${stockItemOpeningAllocations} oa
+                      LEFT JOIN ${stockItems} si ON si.item_id = oa.item_id
+                      WHERE oa.godown_id = g.godown_id
+                    ), 0) AS net_value
               FROM ${godowns} g
               LEFT JOIN ${voucherStockEntries} vse ON vse.godown_id = g.godown_id
               LEFT JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
@@ -229,7 +241,7 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
                       AND v3.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) AND v3.is_cancelled = 0
                       AND COALESCE(v3.is_optional, 0) = 0 AND COALESCE(v3.is_post_dated, 0) = 0), 0) AS closing_qty,
                 MAX(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN v.date ELSE NULL END) AS last_inward_date,
-                CAST(julianday('now') - julianday(MAX(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN v.date ELSE NULL END)) AS INTEGER) AS days_since_inward
+                CAST(julianday(${as_on_date ?? 'now'}) - julianday(MAX(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN v.date ELSE NULL END)) AS INTEGER) AS days_since_inward
               FROM ${stockItems} si
               LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
               LEFT JOIN ${voucherStockEntries} vse ON vse.stock_item_id = si.item_id

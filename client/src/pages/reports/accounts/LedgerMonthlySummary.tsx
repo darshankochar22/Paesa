@@ -46,7 +46,7 @@ export default function LedgerMonthlySummaryLayout() {
   const [focusedMonth, setFocusedMonth] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!ledgerId || !selectedCompany?.company_id || !activeFY?.fy_id) return;
+    if (!ledgerId || !selectedCompany?.company_id || !activeFY?.fy_id) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     (window as any).api.report
@@ -91,6 +91,9 @@ export default function LedgerMonthlySummaryLayout() {
     return <div className="p-4 text-xs font-mono text-zinc-600">{error}</div>;
   }
   if (!data) return null;
+
+  const totalDebit = data.rows.reduce((s, r) => s + (r.debit || 0), 0);
+  const totalCredit = data.rows.reduce((s, r) => s + (r.credit || 0), 0);
 
   // Chart: simple bar chart of closing balance per month, no extra deps.
   const values = data.rows.map((r) => Math.abs(closingValue(r.closingDr, r.closingCr)));
@@ -165,7 +168,11 @@ export default function LedgerMonthlySummaryLayout() {
 
       <div className="border-t-2 border-double border-zinc-400 bg-white px-3 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
         <span>Grand Total</span>
-        <span>{closingLabel(data.closingDr, data.closingCr)}</span>
+        <div className="flex gap-6">
+          <span className="w-24 text-right">{totalDebit ? fmt(totalDebit) : ""}</span>
+          <span className="w-24 text-right">{totalCredit ? fmt(totalCredit) : ""}</span>
+          <span className="w-28 text-right">{closingLabel(data.closingDr, data.closingCr)}</span>
+        </div>
       </div>
 
       {/* Monthly trend chart, matching the bar chart at the bottom of the real screen */}

@@ -77,7 +77,7 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
         )
       GROUP BY l.ledger_id, l.name, vbr.bill_name
       HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
-         AND total_amount > 0.01
+         AND ABS(total_amount) > 0.01
       ORDER BY l.name ASC, MAX(v.date) DESC
     `
   );
