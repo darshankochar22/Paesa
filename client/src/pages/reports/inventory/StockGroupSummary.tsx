@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
+import StockBarChart, { type ChartBar } from "./StockBarChart";
 
 const fmtAmount = (val: number | null | undefined) => {
   const n = Number(val) || 0;
@@ -109,6 +110,7 @@ export default function StockGroupSummary() {
 
   // ── Level 3: Item Monthly Summary ────────────────────────────────────────
   const [months, setMonths] = React.useState<MonthRow[]>([]);
+  const [monthsOpening, setMonthsOpening] = React.useState<{ qty: number; value: number }>({ qty: 0, value: 0 });
   const [loadingMonths, setLoadingMonths] = React.useState(false);
   const [monthsError, setMonthsError] = React.useState<string | null>(null);
   const [monthIndex, setMonthIndex] = React.useState(0);
@@ -122,8 +124,10 @@ export default function StockGroupSummary() {
     (window as any).api.report
       .stockItemMonthly(companyId, fyId, item.item_id)
       .then((res: any) => {
-        if (res.success) setMonths(res.months ?? []);
-        else setMonthsError(res.error || "Failed to load monthly summary");
+        if (res.success) {
+          setMonths(res.months ?? []);
+          setMonthsOpening({ qty: res.opening_qty ?? 0, value: res.opening_value ?? 0 });
+        } else setMonthsError(res.error || "Failed to load monthly summary");
         setLoadingMonths(false);
       });
   }, [companyId, fyId]);
@@ -306,6 +310,10 @@ export default function StockGroupSummary() {
     const totOutVal = months.reduce((s, r) => s + (Number(r.out_value) || 0), 0);
     const lastClosingQty = months.length ? months[months.length - 1].closing_qty : 0;
     const lastClosingVal = months.length ? months[months.length - 1].closing_value : 0;
+    const monthChartBars: ChartBar[] = months.map((r) => ({
+      label: r.month.length > 4 ? r.month.slice(0, 3) : r.month,
+      value: r.closing_qty,
+    }));
 
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -343,7 +351,17 @@ export default function StockGroupSummary() {
               ) : monthsError ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{monthsError}</td></tr>
               ) : (
-                months.map((row, idx) => {
+                <>
+                <tr className="border-b border-zinc-100 italic text-zinc-700">
+                  <td className="px-3 py-1">Opening Balance</td>
+                  <td className="px-3 py-1 text-right border-l border-zinc-100" />
+                  <td className="px-3 py-1 text-right" />
+                  <td className="px-3 py-1 text-right border-l border-zinc-100" />
+                  <td className="px-3 py-1 text-right" />
+                  <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(monthsOpening.qty)}</td>
+                  <td className="px-3 py-1 text-right">{fmtAmount(monthsOpening.value)}</td>
+                </tr>
+                {months.map((row, idx) => {
                   const isFocused = idx === monthIndex;
                   return (
                     <tr
@@ -361,11 +379,14 @@ export default function StockGroupSummary() {
                       <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
                     </tr>
                   );
-                })
+                })}
+                </>
               )}
             </tbody>
           </table>
         </div>
+
+        {monthChartBars.length > 0 && <StockBarChart bars={monthChartBars} selectedIndex={monthIndex} />}
 
         <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
           <span className="flex-1">Grand Total</span>
