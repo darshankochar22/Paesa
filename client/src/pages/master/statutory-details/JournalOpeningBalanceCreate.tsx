@@ -228,8 +228,9 @@ export default function JournalOpeningBalanceCreate({
 
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await window.api.voucher.create(payload as any);
+      const res = await window.api.voucher.create(
+        payload as Parameters<typeof window.api.voucher.create>[0]
+      );
       if (res?.success) {
         setSuccess(successLabel);
         setTimeout(() => navigate("/master/create"), 400);
