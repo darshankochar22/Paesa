@@ -11,8 +11,8 @@ import {
 } from "@/components/ui";
 import RightPanel from "@/components/RightPanel.tsx";
 import type { TaxUnitType } from "@/types/entities";
+import { ExciseDetailsPopup, EMPTY_TARIFF, type Tariff } from "./exciseDetailsPopups";
 
-const REGISTRATION_TYPES = ["Dealer", "Importer", "Manufacturer"];
 
 const activeClass = "bg-zinc-100 border-zinc-800 text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs uppercase";
 const inactiveClass = "border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border hover:border-zinc-200 w-64 font-mono font-bold text-xs uppercase";
@@ -21,166 +21,6 @@ const getSelectCls = (isActive: boolean) =>
 const getInputCls = (isActive: boolean) =>
   `${isActive ? activeClass : inactiveClass}`;
 
-function ExciseDetailsPopup({
-  unitName,
-  registrationType,
-  setRegistrationType,
-  eccNumber,
-  setEccNumber,
-  setAlterTariff,
-  setSetAlterTariff,
-  setAlterRule11,
-  setSetAlterRule11,
-  onClose,
-}: {
-  unitName: string;
-  registrationType: string;
-  setRegistrationType: (v: string) => void;
-  eccNumber: string;
-  setEccNumber: (v: string) => void;
-  setAlterTariff: boolean;
-  setSetAlterTariff: (v: boolean) => void;
-  setAlterRule11: boolean;
-  setSetAlterRule11: (v: boolean) => void;
-  onClose: () => void;
-}) {
-  const [popupActiveField, setPopupActiveField] = useState("registrationType");
-  const POPUP_FIELDS = ["registrationType", "eccNumber", "setAlterTariff", "setAlterRule11"];
-  const regTypeRef = useRef<HTMLSelectElement>(null);
-  const eccRef = useRef<HTMLInputElement>(null);
-  const tariffRef = useRef<HTMLSelectElement>(null);
-  const rule11Ref = useRef<HTMLSelectElement>(null);
-
-  useEffect(() => {
-    const refMap: Record<string, React.RefObject<HTMLInputElement | HTMLSelectElement | null>> = {
-      registrationType: regTypeRef,
-      eccNumber: eccRef,
-      setAlterTariff: tariffRef,
-      setAlterRule11: rule11Ref,
-    };
-    refMap[popupActiveField]?.current?.focus();
-  }, [popupActiveField]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const idx = POPUP_FIELDS.indexOf(popupActiveField);
-      if (idx === -1) return;
-
-      if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
-        e.preventDefault();
-        if (idx === POPUP_FIELDS.length - 1) {
-          onClose();
-        } else {
-          setPopupActiveField(POPUP_FIELDS[idx + 1]);
-        }
-        return;
-      }
-      if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
-        e.preventDefault();
-        if (idx > 0) {
-          setPopupActiveField(POPUP_FIELDS[idx - 1]);
-        }
-        return;
-      }
-
-      if (popupActiveField === "setAlterTariff" || popupActiveField === "setAlterRule11") {
-        const key = e.key.toLowerCase();
-        if (key === "y" || key === "n") {
-          e.preventDefault();
-          const val = key === "y";
-          if (popupActiveField === "setAlterTariff") {
-            setSetAlterTariff(val);
-          } else {
-            setSetAlterRule11(val);
-          }
-          if (idx < POPUP_FIELDS.length - 1) {
-            setPopupActiveField(POPUP_FIELDS[idx + 1]);
-          } else {
-            onClose();
-          }
-        }
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [popupActiveField, onClose, setSetAlterTariff, setSetAlterRule11]);
-
-  return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 font-mono text-[11px]">
-      <div className="bg-white border-4 border-double border-zinc-400 shadow-2xl w-[560px] p-5">
-        <div className="text-center font-bold text-xs pb-3 border-b border-zinc-200 uppercase tracking-wide">
-          Excise Details
-          <span className="text-zinc-500 text-[10px] italic ml-1">({registrationType} Unit)</span>
-        </div>
-
-        <div className="py-4 space-y-2 relative">
-          <FormRow label="Unit name" labelWidth="w-56">
-            <span className="font-bold text-zinc-950 uppercase px-2 py-0.5">{unitName || "KI"}</span>
-          </FormRow>
-
-          <FormRow label="Registration type" labelWidth="w-56">
-            <select
-              ref={regTypeRef}
-              className={getSelectCls(popupActiveField === "registrationType")}
-              value={registrationType}
-              onChange={(e) => setRegistrationType(e.target.value)}
-              onFocus={() => setPopupActiveField("registrationType")}
-            >
-              {REGISTRATION_TYPES.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </FormRow>
-
-          <FormRow label="ECC number" labelWidth="w-56">
-            <input
-              ref={eccRef}
-              className={getInputCls(popupActiveField === "eccNumber")}
-              value={eccNumber}
-              onChange={(e) => setEccNumber(e.target.value)}
-              onFocus={() => setPopupActiveField("eccNumber")}
-            />
-          </FormRow>
-
-          <FormRow label="Set/alter excise tariff details" labelWidth="w-56">
-            <select
-              ref={tariffRef}
-              className={getSelectCls(popupActiveField === "setAlterTariff")}
-              value={setAlterTariff ? "Yes" : "No"}
-              onChange={(e) => setSetAlterTariff(e.target.value === "Yes")}
-              onFocus={() => setPopupActiveField("setAlterTariff")}
-            >
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </FormRow>
-
-          <FormRow label="Set/alter Rule 11 book details" labelWidth="w-56">
-            <select
-              ref={rule11Ref}
-              className={getSelectCls(popupActiveField === "setAlterRule11")}
-              value={setAlterRule11 ? "Yes" : "No"}
-              onChange={(e) => setSetAlterRule11(e.target.value === "Yes")}
-              onFocus={() => setPopupActiveField("setAlterRule11")}
-            >
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </FormRow>
-        </div>
-
-        <div className="border-t border-zinc-200 pt-3 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="text-[11px] px-4 py-1 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none"
-          >
-            Ok
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const FIELDS = [
   "name",
@@ -189,8 +29,12 @@ const FIELDS = [
   "state",
   "pincode",
   "telephone",
+  "registeredFor",
   "setAlterExciseDetails",
 ];
+
+// "Registered for" — the statutory registration the tax unit is created under.
+const REGISTERED_FOR_OPTIONS = ["Excise"];
 
 export default function TaxAlter() {
   const navigate = useNavigate();
@@ -219,10 +63,14 @@ export default function TaxAlter() {
   });
 
   // Excise sub-details
+  const [registeredFor, setRegisteredFor] = useState("Excise");
   const [registrationType, setRegistrationType] = useState("Importer");
+  const [typeOfManufacturer, setTypeOfManufacturer] = useState("Regular");
   const [eccNumber, setEccNumber] = useState("");
   const [setAlterTariff, setSetAlterTariff] = useState(false);
+  const [tariff, setTariff] = useState<Tariff>({ ...EMPTY_TARIFF });
   const [setAlterRule11, setSetAlterRule11] = useState(false);
+  const [rule11Book, setRule11Book] = useState("");
 
   const [showExcisePopup, setShowExcisePopup] = useState(false);
 
@@ -238,6 +86,7 @@ export default function TaxAlter() {
   const stateRef = useRef<HTMLSelectElement>(null);
   const pincodeRef = useRef<HTMLInputElement>(null);
   const telephoneRef = useRef<HTMLInputElement>(null);
+  const registeredForRef = useRef<HTMLSelectElement>(null);
   const setAlterExciseDetailsRef = useRef<HTMLSelectElement>(null);
 
   const fetchTaxUnits = async () => {
@@ -287,10 +136,21 @@ export default function TaxAlter() {
       telephone: unit.telephone || "",
       setAlterExciseDetails: !!unit.set_alter_excise_details,
     });
+    setRegisteredFor(unit.registered_for || "Excise");
     setRegistrationType(unit.registration_type || "Importer");
+    setTypeOfManufacturer(unit.type_of_manufacturer || "Regular");
     setEccNumber(unit.ecc_number || "");
     setSetAlterTariff(!!unit.set_alter_excise_tariff);
+    setTariff({
+      name: unit.tariff_name || "",
+      hsn: unit.hsn_code || "",
+      uom: unit.reporting_uom || "Undefined",
+      valuationType: unit.valuation_type || "Undefined",
+      rate: unit.tariff_rate != null ? String(unit.tariff_rate) : "",
+      ratePerUnit: unit.tariff_rate_per_unit != null ? String(unit.tariff_rate_per_unit) : "",
+    });
     setSetAlterRule11(!!unit.set_alter_rule11_book);
+    setRule11Book(unit.rule11_book || "");
     setError(null);
     setSuccess(null);
     setActiveField("name");
@@ -326,12 +186,20 @@ export default function TaxAlter() {
       state: form.state || null,
       pincode: form.pincode || null,
       telephone: form.telephone || null,
-      registered_for: "Excise",
+      registered_for: registeredFor || "Excise",
       set_alter_excise_details: form.setAlterExciseDetails ? 1 : 0,
       registration_type: registrationType,
+      type_of_manufacturer: registrationType === "Manufacturer" ? typeOfManufacturer : null,
       ecc_number: eccNumber || null,
       set_alter_excise_tariff: setAlterTariff ? 1 : 0,
+      tariff_name: setAlterTariff ? tariff.name || null : null,
+      hsn_code: setAlterTariff ? tariff.hsn || null : null,
+      reporting_uom: setAlterTariff ? tariff.uom || null : null,
+      valuation_type: setAlterTariff ? tariff.valuationType || null : null,
+      tariff_rate: setAlterTariff ? Number(tariff.rate) || 0 : 0,
+      tariff_rate_per_unit: setAlterTariff ? Number(tariff.ratePerUnit) || 0 : 0,
       set_alter_rule11_book: setAlterRule11 ? 1 : 0,
+      rule11_book: setAlterRule11 ? rule11Book || null : null,
     };
 
     try {
@@ -475,6 +343,7 @@ export default function TaxAlter() {
       state: stateRef,
       pincode: pincodeRef,
       telephone: telephoneRef,
+      registeredFor: registeredForRef,
       setAlterExciseDetails: setAlterExciseDetailsRef,
     };
     refMap[activeField]?.current?.focus();
@@ -673,7 +542,10 @@ export default function TaxAlter() {
             <div className="py-2" />
 
             <FormRow label="Registered for" labelWidth="w-56">
-              <span className="font-bold text-zinc-950 px-2 py-0.5">Excise</span>
+              <select ref={registeredForRef} className={getSelectCls(activeField === "registeredFor")}
+                value={registeredFor} onChange={(e) => setRegisteredFor(e.target.value)} onFocus={() => setActiveField("registeredFor")}>
+                {REGISTERED_FOR_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
             </FormRow>
 
             <div className="py-2" />
@@ -726,15 +598,22 @@ export default function TaxAlter() {
 
       {showExcisePopup && (
         <ExciseDetailsPopup
+          companyId={companyId}
           unitName={form.name}
           registrationType={registrationType}
           setRegistrationType={setRegistrationType}
+          typeOfManufacturer={typeOfManufacturer}
+          setTypeOfManufacturer={setTypeOfManufacturer}
           eccNumber={eccNumber}
           setEccNumber={setEccNumber}
           setAlterTariff={setAlterTariff}
           setSetAlterTariff={setSetAlterTariff}
+          tariff={tariff}
+          setTariff={setTariff}
           setAlterRule11={setAlterRule11}
           setSetAlterRule11={setSetAlterRule11}
+          rule11Book={rule11Book}
+          setRule11Book={setRule11Book}
           onClose={() => setShowExcisePopup(false)}
         />
       )}
