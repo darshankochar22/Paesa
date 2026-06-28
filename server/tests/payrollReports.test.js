@@ -301,3 +301,45 @@ describe("Payroll Report Service — Payment Advice (#128)", () => {
     expect(row.net_pay).toBe(26000); // 30000 - 4000
   });
 });
+
+describe("Payroll Report Service — Employees Without Email IDs (#129)", () => {
+  let companyId;
+  let fyId;
+
+  beforeAll(async () => {
+    await setupTestDB();
+    const company = await createTestCompany();
+    companyId = company.company_id;
+    fyId = company.fy_id;
+
+    await employeeService.create({
+      company_id: companyId, name: "Has Email", date_of_joining: "2026-04-01",
+      email: "has@test.com",
+    });
+    await employeeService.create({
+      company_id: companyId, name: "No Email", date_of_joining: "2026-04-01",
+      designation: "Peon", department: "Ops",
+    });
+    await employeeService.create({
+      company_id: companyId, name: "Blank Email", date_of_joining: "2026-04-01",
+      email: "   ",
+    });
+  });
+
+  it("lists only employees with a missing or blank email", async () => {
+    const res = await payrollReportService.employeesWithoutEmail(companyId, fyId);
+    expect(res.success).toBe(true);
+    const names = res.rows.map((r) => r.emp_name);
+    expect(names).toContain("No Email");
+    expect(names).toContain("Blank Email"); // whitespace-only counts as missing
+    expect(names).not.toContain("Has Email");
+  });
+
+  it("carries designation and department for each flagged employee", async () => {
+    const res = await payrollReportService.employeesWithoutEmail(companyId, fyId);
+    const row = res.rows.find((r) => r.emp_name === "No Email");
+    expect(row).toBeDefined();
+    expect(row.designation).toBe("Peon");
+    expect(row.department).toBe("Ops");
+  });
+});
