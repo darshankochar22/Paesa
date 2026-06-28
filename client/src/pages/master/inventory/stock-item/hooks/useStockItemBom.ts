@@ -17,7 +17,11 @@ export function useStockItemBom(
       has_bom: yes,
       bom_name: yes ? f.bom_name : ""
     }));
-    if (!yes) setBoms([]);
+    if (!yes) {
+      setBoms([]);
+    } else {
+      setShowBomList(true);
+    }
   };
 
   const handleBomSelect = (name: string) => {

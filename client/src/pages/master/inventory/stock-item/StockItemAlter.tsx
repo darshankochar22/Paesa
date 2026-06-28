@@ -669,6 +669,8 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
         <BomComponentsModal
           bomName={currentBomName}
           stockItemName={form.name}
+          stockItems={stockItems}
+          godowns={godowns}
           onClose={handleBomComponentsClose}
           onAccept={(entry) => handleBomAccept(entry, executeSave)}
         />

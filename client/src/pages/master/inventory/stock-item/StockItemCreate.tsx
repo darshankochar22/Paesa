@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel, FormRow, MasterFormFooter } from "@/components/ui";
 import type { StockGroupType, UnitType, GodownType } from "@/types/api";
+import type { StockItemType } from "@/types/entities/StockItem";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
 import ListSidePanel from "./components/ListSidePanel";
@@ -30,6 +31,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [units, setUnits] = useState<UnitType[]>([]);
   const [godowns, setGodowns] = useState<GodownType[]>([]);
+  const [stockItems, setStockItems] = useState<StockItemType[]>([]);
   const [gstClassifications, setGstClassifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
     window.api.stockGroup.getAll(cid).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
     window.api.unit.getAll(cid).then(r => { if (r.success) setUnits(r.units ?? []); });
     window.api.godown.getAll(cid).then(r => { if (r.success) setGodowns(r.godowns ?? []); });
+    window.api.stockItem.getAll(cid).then(r => { if (r.success) setStockItems(r.stockItems ?? []); });
     window.api.gstClassification.getAll(cid).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
   }, [selectedCompany]);
 
@@ -498,6 +501,8 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
         <BomComponentsModal
           bomName={currentBomName}
           stockItemName={form.name}
+          stockItems={stockItems}
+          godowns={godowns}
           onClose={handleBomComponentsClose}
           onAccept={(entry) => handleBomAccept(entry, executeSave)}
         />
