@@ -112,6 +112,16 @@ export default function ExciseBookForm({
     nameRef.current?.focus();
   }, []);
 
+  // Field visibility by numbering method (mirrors TallyPrime Excise Book):
+  //  • Starting number / Width of numerical part / Prefill with zero — every
+  //    method except Manual.
+  //  • Prevent duplicates — only methods that allow manual entry, i.e. Manual
+  //    and Automatic (Manual Override).
+  const isManual = numberingMethod === "Manual";
+  const showNumberingFields = !isManual;
+  const showPreventDuplicates =
+    isManual || numberingMethod === "Automatic (Manual Override)";
+
   const handleSubmit = async () => {
     if (!name.trim()) {
       setError("Name is required.");
@@ -200,28 +210,34 @@ export default function ExciseBookForm({
                   ))}
                 </Select>
               </Row>
-              <Row label="Prevent duplicates">
-                <YesNoSelect value={preventDuplicates} onChange={setPreventDuplicates} />
-              </Row>
-              <Row label="Starting number">
-                <input
-                  type="number"
-                  className={`${inputCls} w-32`}
-                  value={startingNumber}
-                  onChange={(e) => setStartingNumber(Number(e.target.value))}
-                />
-              </Row>
-              <Row label="Width of numerical part">
-                <input
-                  type="number"
-                  className={`${inputCls} w-32`}
-                  value={width}
-                  onChange={(e) => setWidth(Number(e.target.value))}
-                />
-              </Row>
-              <Row label="Prefill with zero">
-                <YesNoSelect value={prefillZero} onChange={setPrefillZero} />
-              </Row>
+              {showPreventDuplicates && (
+                <Row label="Prevent duplicates">
+                  <YesNoSelect value={preventDuplicates} onChange={setPreventDuplicates} />
+                </Row>
+              )}
+              {showNumberingFields && (
+                <>
+                  <Row label="Starting number">
+                    <input
+                      type="number"
+                      className={`${inputCls} w-32`}
+                      value={startingNumber}
+                      onChange={(e) => setStartingNumber(Number(e.target.value))}
+                    />
+                  </Row>
+                  <Row label="Width of numerical part">
+                    <input
+                      type="number"
+                      className={`${inputCls} w-32`}
+                      value={width}
+                      onChange={(e) => setWidth(Number(e.target.value))}
+                    />
+                  </Row>
+                  <Row label="Prefill with zero">
+                    <YesNoSelect value={prefillZero} onChange={setPrefillZero} />
+                  </Row>
+                </>
+              )}
               <Row label="Used for">
                 <div className="relative">
                   <input
