@@ -10,6 +10,7 @@ import type { GeneralInfoData } from "@/components/payroll/GeneralInfoSection";
 import type { BankDetailsData } from "@/components/payroll/BankDetailsSection";
 import type { StatutoryDetailsData } from "@/components/payroll/StatutoryDetailsSection";
 import type { EmployeeGroupType, EmployeeType } from "@/types/entities/Employee";
+import SalaryDetailsModal, { type SalaryRow, fyStartISO } from "@/components/payroll/SalaryDetailsModal";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24";
@@ -37,6 +38,9 @@ export default function EmployeeCreate() {
   const [groups, setGroups] = useState<EmployeeGroupType[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<EmployeeGroupType | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [salaryRows, setSalaryRows] = useState<SalaryRow[]>([]);
+  const [salaryEffectiveFrom, setSalaryEffectiveFrom] = useState(fyStartISO());
 
   useEffect(() => {
     if (!companyId) return;
@@ -125,12 +129,28 @@ export default function EmployeeCreate() {
 
       const result = await window.api.employee.create(payload);
       if (result.success) {
+        // Persist the salary structure if salary details were defined.
+        const newEmployeeId = result.employee?.employee_id;
+        if (base.define_salary_details === 1 && salaryRows.length > 0 && newEmployeeId) {
+          await window.api.salaryStructure.createBulk(
+            companyId!,
+            newEmployeeId,
+            salaryEffectiveFrom,
+            salaryRows.map((r) => ({
+              pay_head_id: r.pay_head_id,
+              amount: parseFloat(r.rate) || 0,
+              calculation_mode: r.calculation_type || "Flat Rate",
+            }))
+          );
+        }
         setSuccess(`Employee "${base.name}" created.`);
         setBase(INITIAL_BASE);
         setGeneral(INITIAL_GENERAL);
         setBank(INITIAL_BANK);
         setStatutory({ applicable_tax_regime: "New Tax Regime" });
         setProvideBank("No");
+        setSalaryRows([]);
+        setSalaryEffectiveFrom(fyStartISO());
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create employee.");
@@ -140,7 +160,7 @@ export default function EmployeeCreate() {
     } finally {
       setLoading(false);
     }
-  }, [base, general, bank, statutory, provideBank, companyId]);
+  }, [base, general, bank, statutory, provideBank, companyId, salaryRows, salaryEffectiveFrom]);
 
   useMasterShortcuts({
     onAccept: handleSubmit,
@@ -225,11 +245,29 @@ export default function EmployeeCreate() {
               <input type="date" className={inputCls} value={base.date_of_joining || ""} onChange={setBaseField("date_of_joining")} />
             </FormRow>
             <FormRow label="Define Salary Details" labelWidth="w-44" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={base.define_salary_details ? "Yes" : "No"} onChange={setBaseField("define_salary_details")}>
+              <select
+                className={selectCls}
+                value={base.define_salary_details ? "Yes" : "No"}
+                onChange={(e) => {
+                  const yes = e.target.value === "Yes";
+                  setBase(f => ({ ...f, define_salary_details: yes ? 1 : 0 }));
+                  if (yes) setShowSalaryModal(true);
+                  else setSalaryRows([]);
+                }}
+              >
                 <option>No</option>
                 <option>Yes</option>
               </select>
             </FormRow>
+            {base.define_salary_details === 1 && salaryRows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowSalaryModal(true)}
+                className="ml-44 text-xs text-zinc-500 underline hover:text-zinc-900"
+              >
+                {salaryRows.length} pay head{salaryRows.length !== 1 ? "s" : ""} defined — click to edit
+              </button>
+            )}
           </div>
           <div className="flex-1" />
         </div>
@@ -259,6 +297,26 @@ export default function EmployeeCreate() {
         submitLabel="Create"
         loading={loading}
       />
+
+      {showSalaryModal && (
+        <SalaryDetailsModal
+          name={base.name}
+          under={selectedGroup?.name || "Primary"}
+          companyId={companyId}
+          effectiveFrom={salaryEffectiveFrom}
+          initialRows={salaryRows}
+          onAccept={(rows, eff) => {
+            setSalaryRows(rows);
+            setSalaryEffectiveFrom(eff);
+            setShowSalaryModal(false);
+            if (rows.length === 0) setBase(f => ({ ...f, define_salary_details: 0 }));
+          }}
+          onClose={() => {
+            setShowSalaryModal(false);
+            if (salaryRows.length === 0) setBase(f => ({ ...f, define_salary_details: 0 }));
+          }}
+        />
+      )}
     </div>
   );
 }
