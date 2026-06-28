@@ -11,9 +11,6 @@ const companyTdsDetailsController = require('../companyTdsDetails/companyTdsDeta
 const companyTcsDetailsController = require('../companyTcsDetails/companyTcsDetailsController');
 const companyPanCinDetailsController = require('../companyPanCinDetails/companyPanCinDetailsController');
 const serviceTaxDetailsController = require('../serviceTaxDetails/serviceTaxDetailsController');
-const cenvatOpeningBalanceController = require('../cenvatOpeningBalance/cenvatOpeningBalanceController');
-const plaOpeningBalanceController = require('../plaOpeningBalance/plaOpeningBalanceController');
-const exciseOpeningBalanceController = require('../exciseOpeningBalance/exciseOpeningBalanceController');
 const exciseRegistrationDetailsController = require('../exciseRegistrationDetails/exciseRegistrationDetailsController');
 const exciseBookController = require('../exciseBook/exciseBookController');
 const vatRegistrationDetailsController = require('../vatRegistrationDetails/vatRegistrationDetailsController');
@@ -81,12 +78,6 @@ function register() {
 
   ipcMain.handle('serviceTaxDetails:get', serviceTaxDetailsController.get);
   ipcMain.handle('serviceTaxDetails:save', serviceTaxDetailsController.save);
-  ipcMain.handle('cenvatOpeningBalance:get', cenvatOpeningBalanceController.get);
-  ipcMain.handle('cenvatOpeningBalance:save', cenvatOpeningBalanceController.save);
-  ipcMain.handle('plaOpeningBalance:get', plaOpeningBalanceController.get);
-  ipcMain.handle('plaOpeningBalance:save', plaOpeningBalanceController.save);
-  ipcMain.handle('exciseOpeningBalance:get', exciseOpeningBalanceController.get);
-  ipcMain.handle('exciseOpeningBalance:save', exciseOpeningBalanceController.save);
 
   ipcMain.handle('exciseRegistrationDetails:get', exciseRegistrationDetailsController.get);
   ipcMain.handle('exciseRegistrationDetails:save', exciseRegistrationDetailsController.save);

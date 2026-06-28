@@ -31,7 +31,7 @@ export const DEFAULT_GST_DETAILS: CompanyGSTDetails = {
   createHSNSummaryFor: "All Sections",
   minimumHSNLength: 4,
   showGSTAdvances: false,
-  updateGSTStatus: false,
+  updateGSTStatus: true,
   gstReturnsConfigured: false,
   effectiveDate: "1-Apr-26",
   downloadGSTRegistration: "",

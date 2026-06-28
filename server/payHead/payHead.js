@@ -39,6 +39,7 @@ const init = async (db) => {
     ['leave_without_pay', 'TEXT'],
     ['production_type', 'TEXT'],
     ['opening_balance', 'REAL DEFAULT 0'],
+    ['opening_balance_type', "TEXT DEFAULT 'Dr'"],
     ['it_component', 'TEXT'],
     ['it_calculation_basis', 'TEXT'],
     ['it_deduct_tds_across_periods', 'INTEGER DEFAULT 0'],

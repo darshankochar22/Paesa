@@ -8,9 +8,6 @@ import type { CompanyTCSDetails } from '../entities/CompanyTCSDetails';
 import type { CompanyPanCinDetails } from '../entities/CompanyPanCinDetails';
 import type { PayrollStatutoryDetails } from '../entities/PayrollStatutoryDetails';
 import type { ServiceTaxDetails } from '../entities/ServiceTaxDetails';
-import type { CenvatOpeningBalance } from '../entities/CenvatOpeningBalance';
-import type { PlaOpeningBalance } from '../entities/PlaOpeningBalance';
-import type { ExciseOpeningBalance } from '../entities/ExciseOpeningBalance';
 import type { ExciseRegistrationDetails } from '../entities/ExciseRegistrationDetails';
 import type { VATRegistrationDetails } from '../entities/VATRegistrationDetails';
 import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
@@ -30,21 +27,6 @@ export interface MasterDataAPI {
   serviceTaxDetails: {
     get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: ServiceTaxDetails | null; error?: string }>;
     save: (data: ServiceTaxDetails & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
-  };
-
-  cenvatOpeningBalance: {
-    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CenvatOpeningBalance | null; error?: string }>;
-    save: (data: CenvatOpeningBalance & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
-  };
-
-  plaOpeningBalance: {
-    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: PlaOpeningBalance | null; error?: string }>;
-    save: (data: PlaOpeningBalance & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
-  };
-
-  exciseOpeningBalance: {
-    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: ExciseOpeningBalance | null; error?: string }>;
-    save: (data: ExciseOpeningBalance & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
   };
 
   exciseRegistrationDetails: {

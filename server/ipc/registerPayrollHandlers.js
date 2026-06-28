@@ -44,6 +44,7 @@ function register() {
 
   ipcMain.handle('payHead:create', payHeadController.create);
   ipcMain.handle('payHead:getAll', payHeadController.getAll);
+  ipcMain.handle('payHead:getTotalOpeningBalance', payHeadController.getTotalOpeningBalance);
   ipcMain.handle('payHead:getById', payHeadController.getById);
   ipcMain.handle('payHead:update', payHeadController.update);
   ipcMain.handle('payHead:delete', payHeadController.delete);

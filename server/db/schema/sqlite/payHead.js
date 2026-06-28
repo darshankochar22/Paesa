@@ -27,6 +27,7 @@ const payHeads = sqliteTable('pay_heads', {
   leaveWithoutPay: text('leave_without_pay'),
   productionType: text('production_type'),
   openingBalance: real('opening_balance').default(0),
+  openingBalanceType: text('opening_balance_type').default('Dr'),
   itComponent: text('it_component'),
   itCalculationBasis: text('it_calculation_basis'),
   itDeductTdsAcrossPeriods: integer('it_deduct_tds_across_periods').default(0),

@@ -3,6 +3,7 @@ const payHeadService = require('../payHead/payHeadService');
 module.exports = {
   create: async (event, data) => payHeadService.create(data),
   getAll: async (event, company_id) => payHeadService.getAll(company_id),
+  getTotalOpeningBalance: async (event, company_id) => payHeadService.getTotalOpeningBalance(company_id),
   getById: async (event, id) => payHeadService.getById(id),
   update: async (event, data) => payHeadService.update(data),
   delete: async (event, id) => payHeadService.delete(id),

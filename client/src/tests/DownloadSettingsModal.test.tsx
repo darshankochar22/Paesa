@@ -64,7 +64,7 @@ describe("DownloadSettingsModal Component Tests", () => {
     expect(handleClose).toHaveBeenCalled();
   });
 
-  it("should navigate options list and save selection on Enter key", async () => {
+  it("should add a single return type and save it on End of List", async () => {
     const handleSave = vi.fn();
     const handleClose = vi.fn();
     const user = userEvent.setup();
@@ -80,19 +80,64 @@ describe("DownloadSettingsModal Component Tests", () => {
       />
     );
 
-    // Keyboard events:
-    // 1. Press Enter to select the current GST registration (Chhattisgarh Registration) and move to Return Type
+    // Chhattisgarh is already selected, so the registration list is anchored on
+    // "End of List" — Enter finishes that field and moves to Return Type.
     await user.keyboard("{Enter}");
-
-    // The dropdown panel should switch to "Types of Return"
     expect(screen.getByText("Types of Return")).toBeInTheDocument();
 
-    // 2. Press ArrowDown to select "GSTR-1" (1st index of GSTR-1, GSTR-2A, GSTR-2B, GSTR-3B after All Returns)
+    // ArrowDown off "All Returns" onto "GSTR-1", Enter adds it (multi-select stays open).
     await user.keyboard("{ArrowDown}");
+    await user.keyboard("{Enter}");
 
-    // 3. Press Enter to save
+    // Enter again lands on "End of List", committing the selection and closing.
     await user.keyboard("{Enter}");
 
     expect(handleSave).toHaveBeenCalledWith("Chhattisgarh Registration", "GSTR-1");
+    expect(handleClose).toHaveBeenCalled();
+  });
+
+  it("should support multi-selecting several return types", async () => {
+    const handleSave = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <DownloadSettingsModal
+        isOpen={true}
+        registrations={registrations}
+        initialRegistration="Chhattisgarh Registration"
+        initialReturnType="All Returns"
+        onSave={handleSave}
+        onClose={() => {}}
+      />
+    );
+
+    // Finish the GST Registration field → Return Type.
+    await user.keyboard("{Enter}");
+
+    // Add GSTR-1, then GSTR-2A. After each pick the list re-anchors on "End of List".
+    await user.keyboard("{ArrowDown}"); // All Returns -> GSTR-1
+    await user.keyboard("{Enter}");     // add GSTR-1
+    await user.keyboard("{ArrowDown}"); // End of List -> GSTR-2A
+    await user.keyboard("{Enter}");     // add GSTR-2A
+    await user.keyboard("{Enter}");     // End of List -> commit
+
+    expect(handleSave).toHaveBeenCalledWith("Chhattisgarh Registration", "GSTR-1, GSTR-2A");
+  });
+
+  it("should default GST Registration to All Registrations when none preselected", () => {
+    render(
+      <DownloadSettingsModal
+        isOpen={true}
+        registrations={registrations}
+        initialRegistration=""
+        initialReturnType="All Returns"
+        onSave={() => {}}
+        onClose={() => {}}
+      />
+    );
+
+    // The active GST Registration field shows the "All Registrations" default,
+    // and it also heads the options list.
+    expect(screen.getAllByText("All Registrations").length).toBeGreaterThan(0);
   });
 });

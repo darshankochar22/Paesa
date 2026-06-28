@@ -36,6 +36,7 @@ const payHeads = pgTable('pay_heads', {
   leaveWithoutPay: text('leave_without_pay'),
   productionType: text('production_type'),
   openingBalance: numeric('opening_balance', { precision: 18, scale: 4 }).default('0'),
+  openingBalanceType: text('opening_balance_type').default('Dr'),
   itComponent: text('it_component'),
   itCalculationBasis: text('it_calculation_basis'),
   itDeductTdsAcrossPeriods: boolean('it_deduct_tds_across_periods').default(false),

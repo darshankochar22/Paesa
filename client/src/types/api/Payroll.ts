@@ -13,6 +13,7 @@ export interface PayrollAPI {
   payHead: {
     create: (data: Partial<PayHeadType>) => Promise<{ success: boolean; payHead: PayHeadType; error?: string }>;
     getAll: (company_id: number) => Promise<{ success: boolean; payHeads: PayHeadType[]; error?: string }>;
+    getTotalOpeningBalance: (company_id: number) => Promise<{ success: boolean; totalDr: number; totalCr: number; netBalance: number; balanceType: string; error?: string }>;
     getById: (id: number) => Promise<{ success: boolean; payHead: PayHeadType; error?: string }>;
     update: (data: Partial<PayHeadType>) => Promise<{ success: boolean; payHead: PayHeadType; error?: string }>;
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;

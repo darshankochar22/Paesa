@@ -40,6 +40,7 @@ export interface PayHeadType {
   leave_without_pay?: string;
   production_type?: string;
   opening_balance?: number;
+  opening_balance_type?: string;
   it_component?: string;
   it_calculation_basis?: string;
   it_deduct_tds_across_periods?: number;

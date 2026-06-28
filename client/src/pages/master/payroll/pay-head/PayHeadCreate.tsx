@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
@@ -42,6 +42,8 @@ export default function PayHeadCreate() {
   const [leave_without_pay, setLeaveWithoutPay] = useState("Not Applicable");
   const [production_type, setProductionType] = useState("Not Applicable");
   const [opening_balance, setOpeningBalance] = useState(0);
+  const [opening_balance_type, setOpeningBalanceType] = useState("Dr");
+  const [totalOpeningBalance, setTotalOpeningBalance] = useState<{ totalDr: number; totalCr: number; netBalance: number; balanceType: string } | null>(null);
   const [registration_number, setRegistrationNumber] = useState("");
   const [contribute_min_rs2, setContributeMinRs2] = useState("No");
 
@@ -58,6 +60,15 @@ export default function PayHeadCreate() {
 
   const [slabs, setSlabs] = useState<PayHeadSlabLineType[]>([]);
   const [formulaLines, setFormulaLines] = useState<PayHeadFormulaLineType[]>([]);
+
+  const loadTotalOpeningBalance = useCallback(() => {
+    if (!companyId) return;
+    window.api.payHead.getTotalOpeningBalance(companyId).then((res) => {
+      if (res.success) setTotalOpeningBalance({ totalDr: res.totalDr, totalCr: res.totalCr, netBalance: res.netBalance, balanceType: res.balanceType });
+    });
+  }, [companyId]);
+
+  useEffect(() => { loadTotalOpeningBalance(); }, [loadTotalOpeningBalance]);
 
   const trueVal = (v: string) => v === "Yes" ? 1 : 0;
 
@@ -148,6 +159,7 @@ export default function PayHeadCreate() {
         leave_without_pay: calculation_type === "On Attendance" ? leave_without_pay : undefined,
         production_type: calculation_type === "On Production" ? production_type : undefined,
         opening_balance: !isComputedType(calculation_type) ? opening_balance : 0,
+        opening_balance_type: !isComputedType(calculation_type) ? opening_balance_type : "Dr",
         registration_number: statutory_pay_type === "Professional Tax" ? registration_number.trim() : undefined,
         contribute_min_rs2: statutory_pay_type === "EDLI Admin Charges (A/c No. 22)" ? trueVal(contribute_min_rs2) : 0,
         it_component: itEnabled ? it_component : undefined,
@@ -176,6 +188,8 @@ export default function PayHeadCreate() {
         setSuccess(`Pay Head "${name}" created.`);
         setName(""); setAlias(""); setPayslipDisplayName("");
         setSlabs([]); setFormulaLines([]); setGratuitySlabs([]);
+        setOpeningBalance(0); setOpeningBalanceType("Dr");
+        loadTotalOpeningBalance();
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create pay head.");
@@ -186,7 +200,7 @@ export default function PayHeadCreate() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, alias, pay_head_type, statutory_pay_type, income_type, under_group, affects_net_salary, payslip_display_name, use_for_gratuity, set_alter_income_tax, calculation_type, calculation_period, percentage_or_amount, rounding_method, rounding_limit, compute_method, leave_without_pay, production_type, opening_balance, registration_number, contribute_min_rs2, it_component, it_calculation_basis, it_deduct_tds_across_periods, gratuity_days_per_month, gratuitySlabs, slabs, formulaLines, companyId]);
+  }, [name, alias, pay_head_type, statutory_pay_type, income_type, under_group, affects_net_salary, payslip_display_name, use_for_gratuity, set_alter_income_tax, calculation_type, calculation_period, percentage_or_amount, rounding_method, rounding_limit, compute_method, leave_without_pay, production_type, opening_balance, opening_balance_type, registration_number, contribute_min_rs2, it_component, it_calculation_basis, it_deduct_tds_across_periods, gratuity_days_per_month, gratuitySlabs, slabs, formulaLines, companyId, loadTotalOpeningBalance]);
 
   useMasterShortcuts({
     onAccept: handleSubmit,
@@ -336,13 +350,23 @@ export default function PayHeadCreate() {
               {!isComputedType(calculation_type) && (
                 <div className="p-3 border-t border-zinc-100 space-y-1.5">
                   <FormRow label="Opening Balance ( on 1-Apr-26 )" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                    <input
-                      type="number"
-                      step="0.01"
-                      className={`${inputCls} text-right max-w-[140px]`}
-                      value={opening_balance}
-                      onChange={e => setOpeningBalance(e.target.value === "" ? 0 : Number(e.target.value))}
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        className={`${inputCls} text-right max-w-[140px]`}
+                        value={opening_balance}
+                        onChange={e => setOpeningBalance(e.target.value === "" ? 0 : Number(e.target.value))}
+                      />
+                      <select
+                        className="bg-transparent text-sm outline-none px-1.5 py-0.5 border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 transition-colors bg-white/50 rounded w-16"
+                        value={opening_balance_type}
+                        onChange={e => setOpeningBalanceType(e.target.value)}
+                      >
+                        <option value="Dr">Dr</option>
+                        <option value="Cr">Cr</option>
+                      </select>
+                    </div>
                   </FormRow>
                 </div>
               )}
@@ -364,11 +388,26 @@ export default function PayHeadCreate() {
         </div>
 
         <div className="w-56 border-l border-zinc-200 flex flex-col shrink-0 bg-zinc-50/25 p-3">
-          <div className="w-full border border-zinc-200 rounded shrink-0 bg-white shadow-sm">
+          <div className="w-full border border-zinc-200 rounded shrink-0 bg-white">
             <div className="text-center text-[10px] font-bold border-b border-zinc-100 py-1 bg-zinc-50 text-zinc-500 uppercase tracking-wider">Total Opening Balance</div>
-            <div className="h-14 flex items-center justify-center text-sm font-semibold tabular-nums text-zinc-800">
-              {opening_balance ? opening_balance.toFixed(2) : "0.00"}
-            </div>
+            {(() => {
+              // Live preview: current entry's Dr/Cr folded into the saved totals.
+              const entryDr = opening_balance_type === "Dr" ? Math.abs(opening_balance) : 0;
+              const entryCr = opening_balance_type === "Cr" ? Math.abs(opening_balance) : 0;
+              const dr = (totalOpeningBalance?.totalDr ?? 0) + entryDr;
+              const cr = (totalOpeningBalance?.totalCr ?? 0) + entryCr;
+              const diff = dr - cr;
+              return (
+                <div className="text-[11px] font-mono tabular-nums text-zinc-800">
+                  <div className="flex justify-between px-3 py-1"><span className="text-zinc-500">Dr</span><span className="font-semibold">{dr.toFixed(2)}</span></div>
+                  <div className="flex justify-between px-3 py-1 border-b border-zinc-100"><span className="text-zinc-500">Cr</span><span className="font-semibold">{cr.toFixed(2)}</span></div>
+                  <div className="flex justify-between px-3 py-1.5 font-bold border-t border-zinc-900">
+                    <span>Difference</span>
+                    <span>{Math.abs(diff).toFixed(2)} {diff >= 0 ? "Dr" : "Cr"}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 

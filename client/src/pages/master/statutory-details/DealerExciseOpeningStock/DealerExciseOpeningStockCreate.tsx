@@ -19,6 +19,15 @@ import type { StockItemType } from "@/types/entities/StockItem";
 import type { UnitType } from "@/types/entities/Unit";
 import type { GodownType } from "@/types/entities/Godown";
 
+interface GodownAllocation {
+  godown_id: number | null;
+  godown_name: string;
+  actualRaw: string;
+  billedRaw: string;
+  rateRaw: string;
+  discPercentRaw: string;
+}
+
 interface StockRow {
   id: number;
   stockItem: StockItemType | null;
@@ -28,14 +37,6 @@ interface StockRow {
   discPercentRaw: string;
   unit: UnitType | null;
   godownAllocations: GodownAllocation[];
-}
-
-interface GodownAllocation {
-  godown_id: number | null;
-  godown_name: string;
-  actualRaw: string;
-  billedRaw: string;
-  rateRaw: string;
 }
 
 let rowSeq = 1;
@@ -56,13 +57,26 @@ const inr = (n: number) =>
     maximumFractionDigits: 2,
   });
 
+/** Tally-style quantity: integer or 2dp, suffixed with the unit symbol — e.g. "2 nos". */
+const qty = (n: number, unit?: string) => {
+  if (!n) return "";
+  const num = Number.isInteger(n) ? String(n) : n.toFixed(2);
+  return unit ? `${num} ${unit}` : num;
+};
+
 const rowAmount = (r: StockRow): number => {
-  const qty = Number(r.billedQtyRaw || r.quantityRaw) || 0;
+  const q = Number(r.billedQtyRaw || r.quantityRaw) || 0;
   const rate = Number(r.rateRaw) || 0;
   const disc = Number(r.discPercentRaw) || 0;
-  const gross = qty * rate;
+  const gross = q * rate;
   return gross - (gross * disc) / 100;
 };
+
+const focusSel = (sel: string) =>
+  setTimeout(
+    () => (document.querySelector(sel) as HTMLInputElement | null)?.focus(),
+    40
+  );
 
 export default function DealerExciseOpeningStockCreate() {
   const navigate = useNavigate();
@@ -76,12 +90,14 @@ export default function DealerExciseOpeningStockCreate() {
     return new Date().getFullYear();
   }, [activeFY]);
   const openingDate = `${fyStartYear}-04-01`;
+  const asOnLabel = `1-Apr-${String(fyStartYear).slice(-2)}`;
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // header
+  const [voucherNo, setVoucherNo] = useState("");
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
   const [partyLedger, setPartyLedger] = useState<LedgerType | null>(null);
   const [partyBalance, setPartyBalance] = useState<string>("");
@@ -142,13 +158,31 @@ export default function DealerExciseOpeningStockCreate() {
     })();
   }, [companyId]);
 
+  // auto voucher number (voucher_type Purchase, like the screenshots' "No. 12")
+  useEffect(() => {
+    if (!companyId || !fyId) return;
+    (async () => {
+      try {
+        const res = await window.api.voucher.getNextNumber(
+          companyId,
+          fyId,
+          "Purchase"
+        );
+        if (res?.success && res.voucher_number)
+          setVoucherNo(String(res.voucher_number));
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [companyId, fyId]);
+
   // ── party selection ───────────────────────────────────────────────────
   const handlePartySelect = useCallback(
     async (led: LedgerType) => {
       setPartyLedger(led);
       setPartyPanelOpen(false);
       setPartySearch("");
-      // current balance
+      // current balance (formatted label, e.g. "5,26,490.00 Dr")
       if (companyId && fyId && led.ledger_id != null) {
         try {
           const res = await window.api.voucher.getLedgerBalance(
@@ -161,8 +195,8 @@ export default function DealerExciseOpeningStockCreate() {
           /* ignore balance errors */
         }
       }
-      // open Party Details popup (prefilled from chosen ledger)
-      setPartyDetailsOpen(true);
+      // Purchase-voucher flow: Receipt Details first, then Party Details.
+      setReceiptOpen(true);
     },
     [companyId, fyId]
   );
@@ -174,39 +208,28 @@ export default function DealerExciseOpeningStockCreate() {
   }, []);
 
   // ── stock-item selection ──────────────────────────────────────────────
-  const stockItemsForPanel = useMemo(
-    () =>
-      allStockItems.map((it) => ({
-        ...it,
-        ledger_id: undefined,
-      })),
-    [allStockItems]
-  );
-
   const handleItemSelect = useCallback(
     (item: StockItemType) => {
       const targetId = itemPanelRow;
       setItemPanelRow(null);
       setItemSearch("");
       if (targetId == null) return;
-      const unit =
-        allUnits.find((u) => u.unit_id === item.unit_id) ?? null;
+      const unit = allUnits.find((u) => u.unit_id === item.unit_id) ?? null;
       setRows((prev) => {
         const next = prev.map((r) =>
           r.id === targetId ? { ...r, stockItem: item, unit } : r
         );
-        // ensure there is always one trailing blank row
+        // always keep one trailing blank row
         if (next.every((r) => r.stockItem)) next.push(blankRow());
         return next;
       });
+      focusSel(`[data-qty="${targetId}"]`);
     },
     [itemPanelRow, allUnits]
   );
 
   const updateRow = (id: number, patch: Partial<StockRow>) =>
-    setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-    );
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
   const removeRow = (id: number) =>
     setRows((prev) => {
@@ -214,21 +237,74 @@ export default function DealerExciseOpeningStockCreate() {
       return next.length ? next : [blankRow()];
     });
 
-  // ── godown allocation popup save ──────────────────────────────────────
+  // advance focus to the next row's item field (item flow: item→qty→billed→rate→next)
+  const advanceToNextRow = useCallback((rowId: number) => {
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.id === rowId);
+      const nextRow = prev[idx + 1];
+      if (nextRow) {
+        focusSel(`[data-item="${nextRow.id}"]`);
+        return prev;
+      }
+      const appended = [...prev, blankRow()];
+      focusSel(`[data-item="${appended[appended.length - 1].id}"]`);
+      return appended;
+    });
+  }, []);
+
+  // after Rate entry: open Item (Godown) Allocations if multiple godowns,
+  // else default-allocate the single godown and move on — mirrors TallyPrime.
+  const handleRateEnter = useCallback(
+    (row: StockRow) => {
+      if (!row.stockItem) return;
+      const q = Number(row.billedQtyRaw || row.quantityRaw) || 0;
+      if (q <= 0) {
+        advanceToNextRow(row.id);
+        return;
+      }
+      if (allGodowns.length > 1) {
+        setGodownRowId(row.id);
+        return;
+      }
+      if (allGodowns.length === 1) {
+        updateRow(row.id, {
+          godownAllocations: [
+            {
+              godown_id: allGodowns[0].godown_id ?? null,
+              godown_name: allGodowns[0].name,
+              actualRaw: row.quantityRaw,
+              billedRaw: row.billedQtyRaw || row.quantityRaw,
+              rateRaw: row.rateRaw,
+              discPercentRaw: row.discPercentRaw,
+            },
+          ],
+        });
+      }
+      advanceToNextRow(row.id);
+    },
+    [allGodowns, advanceToNextRow]
+  );
+
   const godownRow = rows.find((r) => r.id === godownRowId) ?? null;
 
   // ── totals ────────────────────────────────────────────────────────────
-  const totalActual = rows.reduce(
-    (s, r) => s + (Number(r.quantityRaw) || 0),
-    0
-  );
+  const unitSymbol = useMemo(() => {
+    const r = rows.find((row) => row.unit?.symbol);
+    return r?.unit?.symbol ?? "";
+  }, [rows]);
+  const totalActual = rows.reduce((s, r) => s + (Number(r.quantityRaw) || 0), 0);
   const totalBilled = rows.reduce(
     (s, r) => s + (Number(r.billedQtyRaw || r.quantityRaw) || 0),
     0
   );
   const grandTotal = rows.reduce((s, r) => s + rowAmount(r), 0);
-
   const filledRows = rows.filter((r) => r.stockItem && rowAmount(r) > 0);
+
+  // GST Registration label, e.g. "Chhattisgarh Registration" (party state, else company state)
+  const gstRegistration = useMemo(() => {
+    const state = partyDetails?.state || selectedCompany?.state;
+    return state ? `${state} Registration` : "♦ Not Applicable";
+  }, [partyDetails, selectedCompany]);
 
   // ── save ──────────────────────────────────────────────────────────────
   const quit = useCallback(() => navigate("/master/create"), [navigate]);
@@ -252,22 +328,43 @@ export default function DealerExciseOpeningStockCreate() {
       return;
     }
 
-    const stockEntries = filledRows.map((r) => {
-      const qty = Number(r.billedQtyRaw || r.quantityRaw) || 0;
-      const allocations = r.godownAllocations.filter((a) => a.godown_id != null);
-      return {
-        stock_item_id: r.stockItem!.item_id,
-        item_name: r.stockItem!.name,
-        godown_id: allocations.length === 1 ? allocations[0].godown_id : null,
-        unit_id: r.unit?.unit_id ?? r.stockItem!.unit_id ?? null,
-        quantity: qty,
-        rate: Number(r.rateRaw) || 0,
-        discount_amount: (() => {
-          const gross = qty * (Number(r.rateRaw) || 0);
-          const disc = Number(r.discPercentRaw) || 0;
-          return (gross * disc) / 100;
-        })(),
-      };
+    // Expand each item into one stock entry per godown allocation (TallyPrime
+    // splits an item across godowns into separate stock lines). Falls back to a
+    // single line when there are no explicit allocations.
+    const stockEntries = filledRows.flatMap((r) => {
+      const baseRate = Number(r.rateRaw) || 0;
+      const disc = Number(r.discPercentRaw) || 0;
+      const unitId = r.unit?.unit_id ?? r.stockItem!.unit_id ?? null;
+      const allocs = r.godownAllocations.filter(
+        (a) => a.godown_id != null && (Number(a.billedRaw || a.actualRaw) || 0) > 0
+      );
+      if (allocs.length) {
+        return allocs.map((a) => {
+          const q = Number(a.billedRaw || a.actualRaw) || 0;
+          const rate = Number(a.rateRaw) || baseRate;
+          return {
+            stock_item_id: r.stockItem!.item_id,
+            item_name: r.stockItem!.name,
+            godown_id: a.godown_id,
+            unit_id: unitId,
+            quantity: q,
+            rate,
+            discount_amount: (q * rate * disc) / 100,
+          };
+        });
+      }
+      const q = Number(r.billedQtyRaw || r.quantityRaw) || 0;
+      return [
+        {
+          stock_item_id: r.stockItem!.item_id,
+          item_name: r.stockItem!.name,
+          godown_id: allGodowns.length === 1 ? allGodowns[0].godown_id : null,
+          unit_id: unitId,
+          quantity: q,
+          rate: baseRate,
+          discount_amount: (q * baseRate * disc) / 100,
+        },
+      ];
     });
 
     const total = grandTotal;
@@ -345,6 +442,7 @@ export default function DealerExciseOpeningStockCreate() {
     narration,
     partyDetails,
     receiptDetails,
+    allGodowns,
     navigate,
   ]);
 
@@ -364,7 +462,7 @@ export default function DealerExciseOpeningStockCreate() {
         e.preventDefault();
         quit();
       }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      if (e.altKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
         handleSubmit();
       }
@@ -383,16 +481,43 @@ export default function DealerExciseOpeningStockCreate() {
   ]);
 
   const actions = [
-    { key: "F6", label: "Receipt Details", onClick: () => setReceiptOpen(true) },
-    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
-    { key: "Esc", label: "Quit", onClick: quit },
+    {
+      key: "F6",
+      label: "Receipt Details",
+      onClick: () => setReceiptOpen(true),
+    },
+    {
+      key: "F4",
+      label: "Party Details",
+      onClick: () => partyLedger && setPartyDetailsOpen(true),
+      disabled: !partyLedger,
+    },
+    { key: "A", label: "Accept", onClick: handleSubmit, disabled: filledRows.length === 0 },
+    { key: "Q", label: "Quit", onClick: quit },
   ];
+
+  // ── small presentational helpers (read-only label : value) ─────────────
+  const InfoRow = ({
+    label,
+    value,
+    valueClass = "",
+  }: {
+    label: string;
+    value: string;
+    valueClass?: string;
+  }) => (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="w-36 text-zinc-600 shrink-0">{label}</span>
+      <span className="text-zinc-600 shrink-0">:</span>
+      <span className={`text-black ${valueClass}`}>{value}</span>
+    </div>
+  );
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar
         title="Dealer Excise Opening Stock Creation"
-        subtitle={`As on 1-Apr-${String(fyStartYear).slice(-2)}`}
+        subtitle={`As on ${asOnLabel}`}
       />
 
       {error && (
@@ -409,12 +534,22 @@ export default function DealerExciseOpeningStockCreate() {
       <div className="flex-1 flex min-h-0">
         {/* main column */}
         <div className="flex-1 flex flex-col min-h-0">
-          {/* header fields + right read-only strip */}
-          <div className="flex border-b border-zinc-300 shrink-0">
-            <div className="flex-1 flex flex-col gap-1 px-3 py-2">
+          {/* header: left field block + right read-only context (Tally img-01) */}
+          <div className="flex border-b border-black shrink-0 px-3 py-2 gap-8">
+            {/* left field block */}
+            <div className="flex-1 flex flex-col gap-1">
+              {/* voucher type + auto number */}
+              <div className="flex items-center gap-2 pb-1">
+                <span className="text-sm font-semibold text-black">Purchase</span>
+                <span className="text-sm text-zinc-500">No.</span>
+                <span className="text-sm font-semibold text-black tabular-nums">
+                  {voucherNo || "…"}
+                </span>
+              </div>
+
               {/* Supplier Invoice No. */}
               <div className="flex items-center gap-2">
-                <span className="w-40 text-sm text-black shrink-0">
+                <span className="w-36 text-sm text-black shrink-0">
                   Supplier Invoice No.
                 </span>
                 <span className="text-sm text-black shrink-0">:</span>
@@ -428,7 +563,7 @@ export default function DealerExciseOpeningStockCreate() {
 
               {/* Party A/c name */}
               <div className="flex items-center gap-2">
-                <span className="w-40 text-sm text-black shrink-0">
+                <span className="w-36 text-sm text-black shrink-0">
                   Party A/c name
                 </span>
                 <span className="text-sm text-black shrink-0">:</span>
@@ -447,21 +582,12 @@ export default function DealerExciseOpeningStockCreate() {
                     setPartySearch("");
                   }}
                 />
-                {partyLedger && (
-                  <button
-                    type="button"
-                    onClick={() => setPartyDetailsOpen(true)}
-                    className="text-[10px] px-2 py-0.5 border border-zinc-400 text-black hover:bg-zinc-100"
-                  >
-                    Party Details
-                  </button>
-                )}
               </div>
 
               {/* Current balance */}
               {partyLedger && (
                 <div className="flex items-center gap-2">
-                  <span className="w-40 text-sm text-zinc-600 shrink-0">
+                  <span className="w-36 text-sm text-zinc-600 shrink-0 pl-4">
                     Current balance
                   </span>
                   <span className="text-sm text-zinc-600 shrink-0">:</span>
@@ -473,7 +599,7 @@ export default function DealerExciseOpeningStockCreate() {
 
               {/* Purchase ledger */}
               <div className="flex items-center gap-2">
-                <span className="w-40 text-sm text-black shrink-0">
+                <span className="w-36 text-sm text-black shrink-0">
                   Purchase ledger
                 </span>
                 <span className="text-sm text-black shrink-0">:</span>
@@ -496,28 +622,19 @@ export default function DealerExciseOpeningStockCreate() {
             </div>
 
             {/* right read-only context strip */}
-            <div className="w-64 border-l border-zinc-300 px-3 py-2 flex flex-col gap-1 bg-zinc-50">
-              <div className="flex justify-between text-xs">
-                <span className="text-zinc-600">GST Registration</span>
-                <span className="text-black font-medium">
-                  {partyDetails?.state ?? selectedCompany?.name ?? "—"}
-                </span>
+            <div className="w-80 flex flex-col gap-1 shrink-0">
+              <div className="text-right text-sm text-black pb-1">
+                As on <span className="font-semibold">{asOnLabel}</span>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-zinc-600">Tax Unit</span>
-                <span className="text-black font-medium">♦ Not Applicable</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-zinc-600">Status</span>
-                <span className="text-black font-semibold">
-                  Excise Opening Stock
-                </span>
-              </div>
+              <InfoRow label="GST Registration" value={gstRegistration} />
+              <InfoRow label="Tax Unit" value="♦ Not Applicable" />
+              <InfoRow
+                label="Status"
+                value="Excise Opening Stock"
+                valueClass="italic font-medium"
+              />
             </div>
           </div>
-
-          {/* separator */}
-          <div className="border-b border-black shrink-0" />
 
           {/* item grid header — two-line like Purchase voucher */}
           <div className="border-b border-black shrink-0 bg-white">
@@ -567,6 +684,7 @@ export default function DealerExciseOpeningStockCreate() {
               >
                 <div className="flex-1 flex items-center gap-1">
                   <input
+                    data-item={row.id}
                     type="text"
                     readOnly
                     className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black cursor-pointer"
@@ -581,7 +699,7 @@ export default function DealerExciseOpeningStockCreate() {
                       setItemSearch("");
                     }}
                   />
-                  {row.stockItem && (
+                  {row.stockItem && allGodowns.length > 0 && (
                     <button
                       type="button"
                       tabIndex={-1}
@@ -607,6 +725,7 @@ export default function DealerExciseOpeningStockCreate() {
                 <div className="w-44 flex">
                   <div className="flex-1 text-right pr-1">
                     <input
+                      data-qty={row.id}
                       type="text"
                       inputMode="decimal"
                       className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
@@ -622,10 +741,16 @@ export default function DealerExciseOpeningStockCreate() {
                               : row.billedQtyRaw,
                         })
                       }
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        focusSel(`[data-billed="${row.id}"]`);
+                      }}
                     />
                   </div>
                   <div className="flex-1 text-right pr-1">
                     <input
+                      data-billed={row.id}
                       type="text"
                       inputMode="decimal"
                       className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
@@ -634,20 +759,29 @@ export default function DealerExciseOpeningStockCreate() {
                       onChange={(e) =>
                         updateRow(row.id, { billedQtyRaw: e.target.value })
                       }
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        focusSel(`[data-rate="${row.id}"]`);
+                      }}
                     />
                   </div>
                 </div>
 
                 <div className="w-20 text-right pr-1">
                   <input
+                    data-rate={row.id}
                     type="text"
                     inputMode="decimal"
                     className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                     value={row.rateRaw}
                     disabled={!row.stockItem}
-                    onChange={(e) =>
-                      updateRow(row.id, { rateRaw: e.target.value })
-                    }
+                    onChange={(e) => updateRow(row.id, { rateRaw: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      handleRateEnter(row);
+                    }}
                   />
                 </div>
 
@@ -675,7 +809,7 @@ export default function DealerExciseOpeningStockCreate() {
             ))}
 
             {/* filler rows */}
-            {Array.from({ length: Math.max(0, 5 - rows.length) }).map((_, i) => (
+            {Array.from({ length: Math.max(0, 6 - rows.length) }).map((_, i) => (
               <div
                 key={`f-${i}`}
                 className="flex border-b border-zinc-50 min-h-[24px] px-3"
@@ -688,10 +822,10 @@ export default function DealerExciseOpeningStockCreate() {
             <div className="flex-1 text-sm font-semibold text-black" />
             <div className="w-44 flex">
               <div className="flex-1 text-right pr-1 text-sm font-semibold text-black tabular-nums">
-                {totalActual > 0 ? totalActual.toFixed(2) : ""}
+                {qty(totalActual, unitSymbol)}
               </div>
               <div className="flex-1 text-right pr-1 text-sm font-semibold text-black tabular-nums">
-                {totalBilled > 0 ? totalBilled.toFixed(2) : ""}
+                {qty(totalBilled, unitSymbol)}
               </div>
             </div>
             <div className="w-20" />
@@ -705,9 +839,7 @@ export default function DealerExciseOpeningStockCreate() {
           {/* narration */}
           <div className="border-t border-zinc-200 px-3 py-2 shrink-0 bg-white">
             <div className="flex items-start gap-2">
-              <span className="text-sm text-black shrink-0 pt-0.5">
-                Narration
-              </span>
+              <span className="text-sm text-black shrink-0 pt-0.5">Narration</span>
               <span className="text-sm text-black shrink-0 pt-0.5">:</span>
               <textarea
                 className="flex-1 text-sm border border-zinc-400 px-1 py-0.5 outline-none focus:border-black resize-none h-12"
@@ -773,7 +905,7 @@ export default function DealerExciseOpeningStockCreate() {
         <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
           <LedgerListPanel
             title="List of Stock Items"
-            items={stockItemsForPanel}
+            items={allStockItems}
             searchTerm={itemSearch}
             onSearchChange={setItemSearch}
             onSelect={(it) => handleItemSelect(it as StockItemType)}
@@ -805,7 +937,7 @@ export default function DealerExciseOpeningStockCreate() {
         />
       )}
 
-      {/* Receipt Details popup */}
+      {/* Receipt Details popup → then Party Details (Purchase-voucher flow) */}
       {receiptOpen && (
         <ReceiptDetailsPopup
           initialDetails={receiptDetails}
@@ -813,11 +945,12 @@ export default function DealerExciseOpeningStockCreate() {
           onSave={(d) => {
             setReceiptDetails(d);
             setReceiptOpen(false);
+            if (partyLedger && !partyDetails) setPartyDetailsOpen(true);
           }}
         />
       )}
 
-      {/* Godown allocation popup */}
+      {/* Item (Godown) Allocations popup */}
       {godownRow && (
         <GodownAllocationPopup
           row={godownRow}
@@ -825,7 +958,9 @@ export default function DealerExciseOpeningStockCreate() {
           onClose={() => setGodownRowId(null)}
           onSave={(allocs) => {
             updateRow(godownRow.id, { godownAllocations: allocs });
+            const savedId = godownRow.id;
             setGodownRowId(null);
+            advanceToNextRow(savedId);
           }}
         />
       )}
@@ -833,7 +968,7 @@ export default function DealerExciseOpeningStockCreate() {
   );
 }
 
-// ── Godown (Item) Allocations popup ───────────────────────────────────────
+// ── Item (Godown) Allocations popup ────────────────────────────────────────
 function GodownAllocationPopup({
   row,
   godowns,
@@ -848,6 +983,7 @@ function GodownAllocationPopup({
   const defaultActual = row.quantityRaw || "";
   const defaultBilled = row.billedQtyRaw || row.quantityRaw || "";
   const defaultRate = row.rateRaw || "";
+  const defaultDisc = row.discPercentRaw || "";
 
   const [allocs, setAllocs] = useState<GodownAllocation[]>(
     row.godownAllocations.length
@@ -859,14 +995,13 @@ function GodownAllocationPopup({
             actualRaw: defaultActual,
             billedRaw: defaultBilled,
             rateRaw: defaultRate,
+            discPercentRaw: defaultDisc,
           },
         ]
   );
 
   const set = (idx: number, patch: Partial<GodownAllocation>) =>
-    setAllocs((prev) =>
-      prev.map((a, i) => (i === idx ? { ...a, ...patch } : a))
-    );
+    setAllocs((prev) => prev.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
 
   const addRow = () =>
     setAllocs((prev) => [
@@ -877,24 +1012,28 @@ function GodownAllocationPopup({
         actualRaw: "",
         billedRaw: "",
         rateRaw: defaultRate,
+        discPercentRaw: defaultDisc,
       },
     ]);
 
   const removeRow = (idx: number) =>
     setAllocs((prev) => prev.filter((_, i) => i !== idx));
 
-  const totalActual = allocs.reduce(
-    (s, a) => s + (Number(a.actualRaw) || 0),
-    0
-  );
+  const allocAmount = (a: GodownAllocation) => {
+    const q = Number(a.billedRaw || a.actualRaw) || 0;
+    const rate = Number(a.rateRaw) || 0;
+    const disc = Number(a.discPercentRaw) || 0;
+    const gross = q * rate;
+    return gross - (gross * disc) / 100;
+  };
+
+  const totalActual = allocs.reduce((s, a) => s + (Number(a.actualRaw) || 0), 0);
   const totalBilled = allocs.reduce(
-    (s, a) => s + (Number(a.billedRaw) || 0),
+    (s, a) => s + (Number(a.billedRaw || a.actualRaw) || 0),
     0
   );
-  const totalAmount = allocs.reduce(
-    (s, a) => s + (Number(a.billedRaw) || 0) * (Number(a.rateRaw) || 0),
-    0
-  );
+  const totalAmount = allocs.reduce((s, a) => s + allocAmount(a), 0);
+  const unitSymbol = row.unit?.symbol ?? "";
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -912,14 +1051,12 @@ function GodownAllocationPopup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allocs]);
 
-  const unitSymbol = row.unit?.symbol ?? "";
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white border border-black shadow-xl w-[760px] flex flex-col">
+      <div className="bg-white border border-black shadow-xl w-[820px] flex flex-col">
         <div className="bg-black text-white px-3 py-1 flex justify-between items-center select-none">
           <span className="text-sm font-bold">
-            Item Allocations for {row.stockItem?.name ?? "Item"}
+            Item Allocations for&nbsp;&nbsp;{row.stockItem?.name ?? "Item"}
           </span>
           <button
             onClick={onClose}
@@ -929,7 +1066,7 @@ function GodownAllocationPopup({
           </button>
         </div>
 
-        {/* header */}
+        {/* header — two-line, mirrors the main grid */}
         <div className="border-b border-black bg-white">
           <div className="flex px-3 py-0.5">
             <div className="flex-1 text-sm font-semibold text-black">Godown</div>
@@ -941,6 +1078,9 @@ function GodownAllocationPopup({
             </div>
             <div className="w-10 text-center text-sm font-semibold text-black">
               per
+            </div>
+            <div className="w-16 text-right text-sm font-semibold text-black">
+              Disc %
             </div>
             <div className="w-28 text-right text-sm font-semibold text-black">
               Amount
@@ -959,97 +1099,101 @@ function GodownAllocationPopup({
             </div>
             <div className="w-24" />
             <div className="w-10" />
+            <div className="w-16" />
             <div className="w-28" />
             <div className="w-6" />
           </div>
         </div>
 
         <div className="max-h-[50vh] overflow-y-auto">
-          {allocs.map((a, idx) => {
-            const amt = (Number(a.billedRaw) || 0) * (Number(a.rateRaw) || 0);
-            return (
-              <div
-                key={idx}
-                className="flex items-center border-b border-zinc-100 px-3 py-0.5"
-              >
-                <div className="flex-1 pr-2">
-                  <select
-                    className="w-full text-sm border border-zinc-400 px-1 py-0 outline-none focus:border-black bg-white"
-                    value={a.godown_id ?? ""}
-                    onChange={(e) => {
-                      const gid = e.target.value ? Number(e.target.value) : null;
-                      const g = godowns.find((x) => x.godown_id === gid);
-                      set(idx, {
-                        godown_id: gid,
-                        godown_name: g?.name ?? "",
-                      });
-                    }}
-                  >
-                    <option value="">Select Godown</option>
-                    {godowns.map((g) => (
-                      <option key={g.godown_id} value={g.godown_id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="w-40 flex">
-                  <div className="flex-1 text-right pr-1">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="w-full text-right text-sm border border-transparent focus:border-black outline-none px-1"
-                      value={a.actualRaw}
-                      onChange={(e) =>
-                        set(idx, {
-                          actualRaw: e.target.value,
-                          billedRaw:
-                            a.billedRaw === "" || a.billedRaw === a.actualRaw
-                              ? e.target.value
-                              : a.billedRaw,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex-1 text-right pr-1">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="w-full text-right text-sm border border-transparent focus:border-black outline-none px-1"
-                      value={a.billedRaw || a.actualRaw}
-                      onChange={(e) => set(idx, { billedRaw: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="w-24 text-right pr-1">
+          {allocs.map((a, idx) => (
+            <div
+              key={idx}
+              className="flex items-center border-b border-zinc-100 px-3 py-0.5"
+            >
+              <div className="flex-1 pr-2">
+                <select
+                  className="w-full text-sm border border-zinc-400 px-1 py-0 outline-none focus:border-black bg-white"
+                  value={a.godown_id ?? ""}
+                  onChange={(e) => {
+                    const gid = e.target.value ? Number(e.target.value) : null;
+                    const g = godowns.find((x) => x.godown_id === gid);
+                    set(idx, { godown_id: gid, godown_name: g?.name ?? "" });
+                  }}
+                >
+                  <option value="">Select Godown</option>
+                  {godowns.map((g) => (
+                    <option key={g.godown_id} value={g.godown_id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-40 flex">
+                <div className="flex-1 text-right pr-1">
                   <input
                     type="text"
                     inputMode="decimal"
                     className="w-full text-right text-sm border border-transparent focus:border-black outline-none px-1"
-                    value={a.rateRaw}
-                    onChange={(e) => set(idx, { rateRaw: e.target.value })}
+                    value={a.actualRaw}
+                    onChange={(e) =>
+                      set(idx, {
+                        actualRaw: e.target.value,
+                        billedRaw:
+                          a.billedRaw === "" || a.billedRaw === a.actualRaw
+                            ? e.target.value
+                            : a.billedRaw,
+                      })
+                    }
                   />
                 </div>
-                <div className="w-10 text-center text-xs text-zinc-500">
-                  {unitSymbol}
-                </div>
-                <div className="w-28 text-right text-sm font-semibold text-black tabular-nums">
-                  {amt > 0 ? inr(amt) : ""}
-                </div>
-                <div className="w-6 text-center">
-                  {allocs.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRow(idx)}
-                      className="text-xs text-zinc-400 hover:text-black"
-                    >
-                      &times;
-                    </button>
-                  )}
+                <div className="flex-1 text-right pr-1">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full text-right text-sm border border-transparent focus:border-black outline-none px-1"
+                    value={a.billedRaw || a.actualRaw}
+                    onChange={(e) => set(idx, { billedRaw: e.target.value })}
+                  />
                 </div>
               </div>
-            );
-          })}
+              <div className="w-24 text-right pr-1">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="w-full text-right text-sm border border-transparent focus:border-black outline-none px-1"
+                  value={a.rateRaw}
+                  onChange={(e) => set(idx, { rateRaw: e.target.value })}
+                />
+              </div>
+              <div className="w-10 text-center text-xs text-zinc-500">
+                {unitSymbol}
+              </div>
+              <div className="w-16 text-right pr-1">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="w-full text-right text-sm border border-transparent focus:border-black outline-none px-1"
+                  value={a.discPercentRaw}
+                  onChange={(e) => set(idx, { discPercentRaw: e.target.value })}
+                />
+              </div>
+              <div className="w-28 text-right text-sm font-semibold text-black tabular-nums">
+                {allocAmount(a) > 0 ? inr(allocAmount(a)) : ""}
+              </div>
+              <div className="w-6 text-center">
+                {allocs.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeRow(idx)}
+                    className="text-xs text-zinc-400 hover:text-black"
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="px-3 py-1 border-b border-zinc-100">
@@ -1067,21 +1211,22 @@ function GodownAllocationPopup({
           <div className="flex-1 text-xs text-zinc-700 font-semibold">Total</div>
           <div className="w-40 flex">
             <div className="flex-1 text-right pr-1 text-sm font-semibold text-black tabular-nums">
-              {totalActual > 0 ? totalActual.toFixed(2) : ""}
+              {qty(totalActual, unitSymbol)}
             </div>
             <div className="flex-1 text-right pr-1 text-sm font-semibold text-black tabular-nums">
-              {totalBilled > 0 ? totalBilled.toFixed(2) : ""}
+              {qty(totalBilled, unitSymbol)}
             </div>
           </div>
           <div className="w-24" />
           <div className="w-10" />
+          <div className="w-16" />
           <div className="w-28 text-right text-sm font-semibold text-black tabular-nums">
             {totalAmount > 0 ? inr(totalAmount) : ""}
           </div>
           <div className="w-6" />
         </div>
 
-        <div className="border-t border-black px-3 py-2 flex justify-between items-center bg-zinc-50">
+        <div className="border-t border-black px-3 py-2 flex justify-between items-center bg-white">
           <span className="text-[10px] text-zinc-600">
             Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close
           </span>

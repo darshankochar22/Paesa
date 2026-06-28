@@ -79,6 +79,7 @@ module.exports = {
           leaveWithoutPay: data.leave_without_pay || null,
           productionType: data.production_type || null,
           openingBalance: data.opening_balance || 0,
+          openingBalanceType: data.opening_balance_type || 'Dr',
           itComponent: data.it_component || null,
           itCalculationBasis: data.it_calculation_basis || null,
           itDeductTdsAcrossPeriods: data.it_deduct_tds_across_periods ?? 0,
@@ -103,6 +104,34 @@ module.exports = {
               AND ${payHeads.isActive} = 1`
       );
       return { success: true, payHeads: rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Aggregate opening balances across all pay heads → Dr total, Cr total, and
+  // the net difference with its side. Mirrors ledgerService.getTotalOpeningBalance
+  // so the "Total Opening Balance" box matches TallyPrime / the Ledger screen.
+  getTotalOpeningBalance: async (company_id) => {
+    try {
+      const rows = await db.all(
+        sql`SELECT
+              COALESCE(SUM(CASE WHEN ${payHeads.openingBalanceType} = 'Dr' THEN ABS(${payHeads.openingBalance}) ELSE 0 END), 0) AS total_dr,
+              COALESCE(SUM(CASE WHEN ${payHeads.openingBalanceType} = 'Cr' THEN ABS(${payHeads.openingBalance}) ELSE 0 END), 0) AS total_cr
+            FROM ${payHeads}
+            WHERE ${payHeads.companyId} = ${company_id} AND ${payHeads.isActive} = 1`
+      );
+      const row = rows[0] || {};
+      const totalDr = Number(row.total_dr) || 0;
+      const totalCr = Number(row.total_cr) || 0;
+      const net = totalDr - totalCr;
+      return {
+        success: true,
+        totalDr,
+        totalCr,
+        netBalance: Math.abs(net),
+        balanceType: net >= 0 ? 'Dr' : 'Cr',
+      };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -149,6 +178,7 @@ module.exports = {
           leaveWithoutPay: data.leave_without_pay ?? current.leave_without_pay,
           productionType: data.production_type ?? current.production_type,
           openingBalance: data.opening_balance ?? current.opening_balance,
+          openingBalanceType: data.opening_balance_type ?? current.opening_balance_type,
           itComponent: data.it_component ?? current.it_component,
           itCalculationBasis: data.it_calculation_basis ?? current.it_calculation_basis,
           itDeductTdsAcrossPeriods: data.it_deduct_tds_across_periods ?? current.it_deduct_tds_across_periods,

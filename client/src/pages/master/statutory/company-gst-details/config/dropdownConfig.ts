@@ -18,7 +18,7 @@ export const TALLY_FIELDS_CONFIG: Record<string, TallyFieldConfig> = {
   },
   gstRateDetails: {
     type: "dropdown",
-    title: "GST Rate Details",
+    title: "List of Actions",
     options: [
       "Not Defined",
       "Specify Details Here",

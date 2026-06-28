@@ -36,6 +36,7 @@ interface FormData {
   leave_without_pay: string;
   production_type: string;
   opening_balance: number;
+  opening_balance_type: string;
   registration_number: string;
   contribute_min_rs2: string;
   it_component: string;
@@ -58,6 +59,14 @@ export default function PayHeadAlter() {
   void _slabs; void _formulaLines;
   const [showITPopup, setShowITPopup] = useState(false);
   const [showGratuityPopup, setShowGratuityPopup] = useState(false);
+  const [totalOpeningBalance, setTotalOpeningBalance] = useState<{ totalDr: number; totalCr: number; netBalance: number; balanceType: string } | null>(null);
+
+  useEffect(() => {
+    if (!companyId) return;
+    window.api.payHead.getTotalOpeningBalance(companyId).then((res) => {
+      if (res.success) setTotalOpeningBalance({ totalDr: res.totalDr, totalCr: res.totalCr, netBalance: res.netBalance, balanceType: res.balanceType });
+    });
+  }, [companyId, selected]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -94,6 +103,7 @@ export default function PayHeadAlter() {
       leave_without_pay: ph.leave_without_pay || "Not Applicable",
       production_type: ph.production_type || "Not Applicable",
       opening_balance: ph.opening_balance ?? 0,
+      opening_balance_type: ph.opening_balance_type ?? "Dr",
       registration_number: ph.registration_number || "",
       contribute_min_rs2: boolVal(ph.contribute_min_rs2),
       it_component: ph.it_component || "Not Applicable",
@@ -207,6 +217,7 @@ export default function PayHeadAlter() {
         leave_without_pay: form.calculation_type === "On Attendance" ? form.leave_without_pay : undefined,
         production_type: form.calculation_type === "On Production" ? form.production_type : undefined,
         opening_balance: !isComputedType(form.calculation_type) ? form.opening_balance : 0,
+        opening_balance_type: !isComputedType(form.calculation_type) ? form.opening_balance_type : "Dr",
         registration_number: form.statutory_pay_type === "Professional Tax" ? form.registration_number.trim() : undefined,
         contribute_min_rs2: form.statutory_pay_type === "EDLI Admin Charges (A/c No. 22)" ? trueVal(form.contribute_min_rs2) : 0,
         it_component: itEnabled ? form.it_component : undefined,
@@ -530,7 +541,18 @@ export default function PayHeadAlter() {
 
               {!isComputedType(form.calculation_type) && (
                 <FormRow label="Opening Balance ( on 1-Apr-26 )" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <input type="number" step="0.01" disabled={isPredefined} className={`${inputCls} text-right max-w-[140px] ${dis()}`} value={form.opening_balance} onChange={setNumber("opening_balance")} />
+                  <div className="flex items-center gap-2">
+                    <input type="number" step="0.01" disabled={isPredefined} className={`${inputCls} text-right max-w-[140px] ${dis()}`} value={form.opening_balance} onChange={setNumber("opening_balance")} />
+                    <select
+                      disabled={isPredefined}
+                      className={`bg-transparent text-sm outline-none px-1.5 py-0.5 border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 transition-colors bg-white/50 rounded w-16 ${dis()}`}
+                      value={form.opening_balance_type}
+                      onChange={setField("opening_balance_type")}
+                    >
+                      <option value="Dr">Dr</option>
+                      <option value="Cr">Cr</option>
+                    </select>
+                  </div>
                 </FormRow>
               )}
             </div>
@@ -548,6 +570,27 @@ export default function PayHeadAlter() {
           )}
 
           <div className="flex-1" />
+        </div>
+
+        <div className="w-56 border-l border-zinc-200 flex flex-col shrink-0 bg-zinc-50/25 p-3">
+          <div className="w-full border border-zinc-200 rounded shrink-0 bg-white">
+            <div className="text-center text-[10px] font-bold border-b border-zinc-100 py-1 bg-zinc-50 text-zinc-500 uppercase tracking-wider">Total Opening Balance</div>
+            {(() => {
+              const dr = totalOpeningBalance?.totalDr ?? 0;
+              const cr = totalOpeningBalance?.totalCr ?? 0;
+              const diff = dr - cr;
+              return (
+                <div className="text-[11px] font-mono tabular-nums text-zinc-800">
+                  <div className="flex justify-between px-3 py-1"><span className="text-zinc-500">Dr</span><span className="font-semibold">{dr.toFixed(2)}</span></div>
+                  <div className="flex justify-between px-3 py-1 border-b border-zinc-100"><span className="text-zinc-500">Cr</span><span className="font-semibold">{cr.toFixed(2)}</span></div>
+                  <div className="flex justify-between px-3 py-1.5 font-bold border-t border-zinc-900">
+                    <span>Difference</span>
+                    <span>{Math.abs(diff).toFixed(2)} {diff >= 0 ? "Dr" : "Cr"}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
 
         <RightActionPanel actions={alterActions} />

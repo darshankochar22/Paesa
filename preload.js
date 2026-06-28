@@ -386,6 +386,7 @@ contextBridge.exposeInMainWorld('api', {
     payHead: {
         create:         (data)       => invoke('payHead:create', data),
         getAll:         (company_id) => invoke('payHead:getAll', company_id),
+        getTotalOpeningBalance: (company_id) => invoke('payHead:getTotalOpeningBalance', company_id),
         getById:        (id)         => invoke('payHead:getById', id),
         update:         (data)       => invoke('payHead:update', data),
         delete:         (id)         => invoke('payHead:delete', id),
@@ -463,18 +464,6 @@ contextBridge.exposeInMainWorld('api', {
     serviceTaxDetails: {
         get:  (company_id) => invoke('serviceTaxDetails:get', company_id),
         save: (data)       => invoke('serviceTaxDetails:save', data),
-    },
-    cenvatOpeningBalance: {
-        get:  (company_id) => invoke('cenvatOpeningBalance:get', company_id),
-        save: (data)       => invoke('cenvatOpeningBalance:save', data),
-    },
-    plaOpeningBalance: {
-        get:  (company_id) => invoke('plaOpeningBalance:get', company_id),
-        save: (data)       => invoke('plaOpeningBalance:save', data),
-    },
-    exciseOpeningBalance: {
-        get:  (company_id) => invoke('exciseOpeningBalance:get', company_id),
-        save: (data)       => invoke('exciseOpeningBalance:save', data),
     },
     exciseRegistrationDetails: {
         get:  (company_id) => invoke('exciseRegistrationDetails:get', company_id),
