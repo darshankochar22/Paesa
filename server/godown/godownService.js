@@ -68,6 +68,7 @@ module.exports = {
           city: data.city || null,
           state: data.state || null,
           pincode: data.pincode || null,
+          exciseTaxUnit: data.excise_tax_unit || 'Not Applicable',
           isPrimary: data.parent_godown_id ? 0 : 1,
           isMainLocation: 0,
           allowStorageOfMaterials: data.allow_storage_of_materials ?? 1,
@@ -148,6 +149,7 @@ module.exports = {
           city: data.city ?? current.city,
           state: data.state ?? current.state,
           pincode: data.pincode ?? current.pincode,
+          exciseTaxUnit: data.excise_tax_unit ?? current.excise_tax_unit,
           allowStorageOfMaterials:
             data.allow_storage_of_materials ?? current.allow_storage_of_materials,
           updatedAt: sql`datetime('now')`,

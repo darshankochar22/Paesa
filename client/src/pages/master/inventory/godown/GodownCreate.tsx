@@ -10,6 +10,7 @@ interface FormData {
   name: string;
   alias: string;
   parent_godown_id: string;
+  excise_tax_unit: string;
   allow_storage_of_materials: string;
   address: string;
   city: string;
@@ -21,6 +22,7 @@ const INITIAL: FormData = {
   name: "",
   alias: "",
   parent_godown_id: "",
+  excise_tax_unit: "Not Applicable",
   allow_storage_of_materials: "1",
   address: "",
   city: "",
@@ -76,6 +78,7 @@ export default function GodownCreate() {
         city: form.city.trim() || undefined,
         state: form.state.trim() || undefined,
         pincode: form.pincode.trim() || undefined,
+        excise_tax_unit: form.excise_tax_unit.trim() || "Not Applicable",
       });
       if (result.success) {
         const updated = await window.api.godown.getAll(selectedCompany!.company_id!);
@@ -172,6 +175,10 @@ export default function GodownCreate() {
               <span className="text-zinc-600 mr-2 shrink-0">:</span>
               <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900">{selectedGodownLabel}</span>
             </div>
+
+            <FormRow label="Excise Tax unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={form.excise_tax_unit} onChange={setField("excise_tax_unit")} placeholder="Not Applicable" />
+            </FormRow>
 
             <FormRow label="Allow Storage of Materials" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <select className={selectCls} value={form.allow_storage_of_materials} onChange={setField("allow_storage_of_materials")}>

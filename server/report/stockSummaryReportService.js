@@ -427,6 +427,9 @@ module.exports = {
   },
 
   // ── Godown Summary: closing stock per item for a single godown ────────────
+  // Closing = per-godown opening allocation + inwards − outwards. The opening
+  // allocation (stock_item_opening_allocations) is the ONLY source for items
+  // that have an opening balance in a godown but no vouchers (e.g. Burari).
   godownItems: async (company_id, fy_id, godown_id, as_on_date) => {
     try {
       const godownRows = await db.all(
@@ -435,7 +438,8 @@ module.exports = {
       const godown_name = godownRows.length ? godownRows[0].name : '';
       const dateCond = as_on_date ? sql` AND v.date <= ${as_on_date}` : sql``;
 
-      const rows = await db.all(
+      // Per-item voucher movement (inwards − outwards) for this godown.
+      const moveRows = await db.all(
         sql`SELECT
               vse.stock_item_id AS item_id,
               si.name           AS item_name,
@@ -443,11 +447,11 @@ module.exports = {
               SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
                        THEN vse.quantity ELSE 0 END)
               - SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                       THEN vse.quantity ELSE 0 END) AS closing_qty,
+                       THEN vse.quantity ELSE 0 END) AS move_qty,
               SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
                        THEN vse.amount ELSE 0 END)
               - SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                       THEN vse.amount ELSE 0 END) AS closing_value
+                       THEN vse.amount ELSE 0 END) AS move_value
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
             LEFT JOIN ${stockItems} si ON si.item_id = vse.stock_item_id
@@ -458,23 +462,53 @@ module.exports = {
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
               AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
-            GROUP BY vse.stock_item_id, si.name, u.name
-            HAVING closing_qty <> 0 OR closing_value <> 0
-            ORDER BY si.name ASC`
+            GROUP BY vse.stock_item_id, si.name, u.name`
       );
 
-      const result = rows.map(r => {
-        const closing_qty = Number(r.closing_qty) || 0;
-        const closing_value = Number(r.closing_value) || 0;
-        return {
-          item_id: r.item_id,
-          item_name: r.item_name,
-          unit_name: r.unit_name || '',
-          closing_qty,
-          rate: closing_qty ? closing_value / closing_qty : 0,
-          closing_value,
-        };
-      });
+      // Per-item opening allocation for this godown.
+      const openRows = await db.all(
+        sql`SELECT
+              soa.item_id AS item_id,
+              si.name     AS item_name,
+              u.name      AS unit_name,
+              SUM(COALESCE(soa.quantity, 0)) AS open_qty,
+              SUM(COALESCE(soa.amount, 0))   AS open_value
+            FROM stock_item_opening_allocations soa
+            INNER JOIN ${stockItems} si ON si.item_id = soa.item_id
+            LEFT JOIN ${units} u ON u.unit_id = si.unit_id
+            WHERE si.company_id = ${company_id}
+              AND soa.godown_id = ${godown_id}
+            GROUP BY soa.item_id, si.name, u.name`
+      );
+
+      const byItem = new Map();
+      const seed = (id, name, unit) => {
+        if (!byItem.has(id)) byItem.set(id, { item_id: id, item_name: name, unit_name: unit || '', qty: 0, value: 0 });
+        return byItem.get(id);
+      };
+      for (const r of openRows) {
+        const e = seed(r.item_id, r.item_name, r.unit_name);
+        e.qty += Number(r.open_qty) || 0;
+        e.value += Number(r.open_value) || 0;
+      }
+      for (const r of moveRows) {
+        const e = seed(r.item_id, r.item_name, r.unit_name);
+        e.qty += Number(r.move_qty) || 0;
+        e.value += Number(r.move_value) || 0;
+      }
+
+      const result = [...byItem.values()]
+        .filter(e => e.qty !== 0 || e.value !== 0)
+        .map(e => ({
+          item_id: e.item_id,
+          item_name: e.item_name,
+          unit_name: e.unit_name,
+          closing_qty: e.qty,
+          rate: e.qty ? e.value / e.qty : 0,
+          closing_value: e.value,
+        }))
+        .sort((a, b) => (a.item_name || '').localeCompare(b.item_name || ''));
+
       return { success: true, godown_name, rows: result };
     } catch (err) {
       return { success: false, error: err.message };
@@ -493,6 +527,15 @@ module.exports = {
       );
       const item_name = itemRows.length ? itemRows[0].name : '';
 
+      // Per-godown opening allocation seeds the running balance.
+      const openRows = await db.all(
+        sql`SELECT SUM(COALESCE(quantity, 0)) AS open_qty, SUM(COALESCE(amount, 0)) AS open_value
+            FROM stock_item_opening_allocations
+            WHERE item_id = ${item_id} AND godown_id = ${godown_id}`
+      );
+      const opening_qty = openRows.length ? Number(openRows[0].open_qty) || 0 : 0;
+      const opening_value = openRows.length ? Number(openRows[0].open_value) || 0 : 0;
+
       const entries = await db.all(
         sql`SELECT v.date, v.voucher_type, vse.quantity, vse.amount
             FROM ${voucherStockEntries} vse
@@ -507,7 +550,7 @@ module.exports = {
       );
 
       const MONTH_NAMES = ['April','May','June','July','August','September','October','November','December','January','February','March'];
-      let runningQty = 0, runningValue = 0;
+      let runningQty = opening_qty, runningValue = opening_value;
       const months = MONTH_NAMES.map((name, idx) => {
         let m = idx + 4, y = startYear;
         if (m > 12) { m -= 12; y = startYear + 1; }
@@ -523,7 +566,7 @@ module.exports = {
         runningValue += in_value - out_value;
         return { month: name, in_qty, in_value, out_qty, out_value, closing_qty: runningQty, closing_value: runningValue };
       });
-      return { success: true, item_name, months };
+      return { success: true, item_name, opening: { qty: opening_qty, value: opening_value }, months };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -534,6 +577,17 @@ module.exports = {
     try {
       const dateFrom = from_date ? sql` AND v.date >= ${from_date}` : sql``;
       const dateTo   = to_date   ? sql` AND v.date <= ${to_date}`   : sql``;
+
+      // Per-godown opening allocation — seeds the running balance and is shown
+      // as the leading "Opening Balance" row (matches the report screenshots).
+      const openRows = await db.all(
+        sql`SELECT SUM(COALESCE(quantity, 0)) AS open_qty, SUM(COALESCE(amount, 0)) AS open_value
+            FROM stock_item_opening_allocations
+            WHERE item_id = ${item_id} AND godown_id = ${godown_id}`
+      );
+      const opening_qty = openRows.length ? Number(openRows[0].open_qty) || 0 : 0;
+      const opening_value = openRows.length ? Number(openRows[0].open_value) || 0 : 0;
+
       const rows = await db.all(
         sql`SELECT
               v.voucher_id     AS voucher_id,
@@ -557,7 +611,7 @@ module.exports = {
             ORDER BY v.date ASC, v.voucher_id ASC`
       );
 
-      let runningQty = 0, runningValue = 0;
+      let runningQty = opening_qty, runningValue = opening_value;
       const result = rows.map(r => {
         const isInward = INWARD_TYPES.includes(r.voucher_type);
         const qty = Number(r.qty) || 0;
@@ -575,7 +629,7 @@ module.exports = {
           closing_qty: runningQty, closing_value: runningValue,
         };
       });
-      return { success: true, rows: result };
+      return { success: true, opening: { qty: opening_qty, value: opening_value }, rows: result };
     } catch (err) {
       return { success: false, error: err.message };
     }

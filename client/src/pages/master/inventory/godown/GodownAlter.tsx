@@ -86,6 +86,7 @@ interface FormData {
   name: string;
   alias: string;
   parent_godown_id: string;
+  excise_tax_unit: string;
   allow_storage_of_materials: string;
   address: string;
   city: string;
@@ -119,6 +120,7 @@ export default function GodownAlter() {
       name: g.name ?? "",
       alias: g.alias ?? "",
       parent_godown_id: g.parent_godown_id ? String(g.parent_godown_id) : "",
+      excise_tax_unit: g.excise_tax_unit ?? "Not Applicable",
       allow_storage_of_materials: String(g.allow_storage_of_materials ?? 1),
       address: g.address ?? "",
       city: g.city ?? "",
@@ -160,6 +162,7 @@ export default function GodownAlter() {
         name: form.name.trim(),
         alias: form.alias.trim() || null,
         parent_godown_id: form.parent_godown_id ? Number(form.parent_godown_id) : null,
+        excise_tax_unit: form.excise_tax_unit.trim() || "Not Applicable",
         allow_storage_of_materials: Number(form.allow_storage_of_materials),
         address: form.address.trim() || null,
         city: form.city.trim() || null,
@@ -296,6 +299,10 @@ export default function GodownAlter() {
               >
                 {selectedGodownLabel}
               </button>
+            </FormRow>
+
+            <FormRow label="Excise Tax unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={form.excise_tax_unit} onChange={set("excise_tax_unit")} placeholder="Not Applicable" />
             </FormRow>
 
             <FormRow label="Allow Storage of Materials" labelWidth="w-56" className="flex items-center min-h-[26px]">

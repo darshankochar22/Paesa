@@ -10,6 +10,7 @@ const init = async (db) => {
       city                        TEXT,
       state                       TEXT,
       pincode                     TEXT,
+      excise_tax_unit             TEXT DEFAULT 'Not Applicable',
       is_primary                  INTEGER DEFAULT 0,
       is_main_location            INTEGER DEFAULT 0,
       allow_storage_of_materials  INTEGER DEFAULT 1,
@@ -19,6 +20,12 @@ const init = async (db) => {
       updated_at                  TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  // Additive migration for existing DBs — godown can be flagged as an Excise Tax unit
+  // (the "Excise Units" half of the Godowns / Excise Units report, issue #109).
+  try {
+    await db.execute(`ALTER TABLE godowns ADD COLUMN excise_tax_unit TEXT DEFAULT 'Not Applicable'`);
+  } catch (e) { /* column already exists */ }
 };
 
 module.exports = { init };

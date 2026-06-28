@@ -11,6 +11,7 @@ const godowns = pgTable('godowns', {
   city: text('city'),
   state: text('state'),
   pincode: text('pincode'),
+  exciseTaxUnit: text('excise_tax_unit').default('Not Applicable'),
   isPrimary: boolean('is_primary').notNull().default(false),
   isMainLocation: boolean('is_main_location').notNull().default(false),
   allowStorageOfMaterials: boolean('allow_storage_of_materials').notNull().default(true),

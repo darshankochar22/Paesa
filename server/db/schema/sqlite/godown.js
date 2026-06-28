@@ -11,6 +11,7 @@ const godowns = sqliteTable('godowns', {
   city: text('city'),
   state: text('state'),
   pincode: text('pincode'),
+  exciseTaxUnit: text('excise_tax_unit').default('Not Applicable'),
   isPrimary: integer('is_primary').default(0),
   isMainLocation: integer('is_main_location').default(0),
   allowStorageOfMaterials: integer('allow_storage_of_materials').default(1),

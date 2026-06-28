@@ -8,6 +8,7 @@ export interface GodownType {
   city?: string;
   state?: string;
   pincode?: string;
+  excise_tax_unit?: string;
   is_primary?: number;
   is_main_location?: number;
   allow_storage_of_materials?: number;

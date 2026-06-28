@@ -2,6 +2,9 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
+import StockBarChart, { type ChartBar } from "./StockBarChart";
+
+interface Opening { qty: number; value: number; }
 
 const fmtAmount = (val: number | null | undefined) => {
   const n = Number(val) || 0;
@@ -106,6 +109,7 @@ export default function GodownSummary() {
 
   // ── Level 3: Godown Monthly Summary ──────────────────────────────────────
   const [months, setMonths] = React.useState<MonthRow[]>([]);
+  const [monthsOpening, setMonthsOpening] = React.useState<Opening>({ qty: 0, value: 0 });
   const [loadingMonths, setLoadingMonths] = React.useState(false);
   const [monthsError, setMonthsError] = React.useState<string | null>(null);
   const [monthIndex, setMonthIndex] = React.useState(0);
@@ -119,14 +123,17 @@ export default function GodownSummary() {
     (window as any).api.report
       .godownItemMonthly(companyId, fyId, godown.godown_id, item.item_id)
       .then((res: any) => {
-        if (res.success) setMonths(res.months ?? []);
-        else setMonthsError(res.error || "Failed to load monthly summary");
+        if (res.success) {
+          setMonths(res.months ?? []);
+          setMonthsOpening(res.opening ?? { qty: 0, value: 0 });
+        } else setMonthsError(res.error || "Failed to load monthly summary");
         setLoadingMonths(false);
       });
   }, [companyId, fyId]);
 
   // ── Level 4: Godown Vouchers ─────────────────────────────────────────────
   const [voucherRows, setVoucherRows] = React.useState<VoucherRow[]>([]);
+  const [voucherOpening, setVoucherOpening] = React.useState<Opening>({ qty: 0, value: 0 });
   const [loadingVouchers, setLoadingVouchers] = React.useState(false);
   const [voucherError, setVoucherError] = React.useState<string | null>(null);
   const [voucherIndex, setVoucherIndex] = React.useState(0);
@@ -140,8 +147,10 @@ export default function GodownSummary() {
     (window as any).api.report
       .godownVouchers(companyId, fyId, godown.godown_id, item.item_id, activeFY?.start_date, activeFY?.end_date)
       .then((res: any) => {
-        if (res.success) setVoucherRows(res.rows ?? []);
-        else setVoucherError(res.error || "Failed to load godown vouchers");
+        if (res.success) {
+          setVoucherRows(res.rows ?? []);
+          setVoucherOpening(res.opening ?? { qty: 0, value: 0 });
+        } else setVoucherError(res.error || "Failed to load godown vouchers");
         setLoadingVouchers(false);
       });
   }, [companyId, fyId, activeFY]);
@@ -306,6 +315,10 @@ export default function GodownSummary() {
     const totOutVal = months.reduce((s, r) => s + (Number(r.out_value) || 0), 0);
     const lastClosingQty = months.length ? months[months.length - 1].closing_qty : 0;
     const lastClosingVal = months.length ? months[months.length - 1].closing_value : 0;
+    const monthChartBars: ChartBar[] = months.map((r) => ({
+      label: r.month.length > 4 ? r.month.slice(0, 3) : r.month,
+      value: r.closing_qty,
+    }));
 
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -346,7 +359,19 @@ export default function GodownSummary() {
               ) : monthsError ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{monthsError}</td></tr>
               ) : (
-                months.map((row, idx) => {
+                <>
+                {(monthsOpening.qty !== 0 || monthsOpening.value !== 0) && (
+                  <tr className="border-b border-zinc-100 italic text-zinc-700">
+                    <td className="px-3 py-1">Opening Balance</td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100" />
+                    <td className="px-3 py-1 text-right" />
+                    <td className="px-3 py-1 text-right border-l border-zinc-100" />
+                    <td className="px-3 py-1 text-right" />
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(monthsOpening.qty)}</td>
+                    <td className="px-3 py-1 text-right">{fmtAmount(monthsOpening.value)}</td>
+                  </tr>
+                )}
+                {months.map((row, idx) => {
                   const isFocused = idx === monthIndex;
                   return (
                     <tr
@@ -364,11 +389,14 @@ export default function GodownSummary() {
                       <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
                     </tr>
                   );
-                })
+                })}
+                </>
               )}
             </tbody>
           </table>
         </div>
+
+        {monthChartBars.length > 0 && <StockBarChart bars={monthChartBars} selectedIndex={monthIndex} />}
 
         <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
           <span className="flex-1">Grand Total</span>
@@ -391,12 +419,14 @@ export default function GodownSummary() {
   // ═══════════════════════════════════════════════════════════════════════
   // LEVEL 4 — Godown Vouchers (matches screenshot 6)
   // ═══════════════════════════════════════════════════════════════════════
-  const totalInQty = voucherRows.reduce((s, r) => s + (Number(r.inwards_qty) || 0), 0);
-  const totalInValue = voucherRows.reduce((s, r) => s + (Number(r.inwards_value) || 0), 0);
+  const hasOpening = voucherOpening.qty !== 0 || voucherOpening.value !== 0;
+  // Opening balance is shown as a leading Inwards row, so it counts toward the Inwards total.
+  const totalInQty = voucherOpening.qty + voucherRows.reduce((s, r) => s + (Number(r.inwards_qty) || 0), 0);
+  const totalInValue = voucherOpening.value + voucherRows.reduce((s, r) => s + (Number(r.inwards_value) || 0), 0);
   const totalOutQty = voucherRows.reduce((s, r) => s + (Number(r.outwards_qty) || 0), 0);
   const totalOutValue = voucherRows.reduce((s, r) => s + (Number(r.outwards_value) || 0), 0);
-  const finalClosingQty = voucherRows.length ? voucherRows[voucherRows.length - 1].closing_qty : 0;
-  const finalClosingValue = voucherRows.length ? voucherRows[voucherRows.length - 1].closing_value : 0;
+  const finalClosingQty = voucherRows.length ? voucherRows[voucherRows.length - 1].closing_qty : voucherOpening.qty;
+  const finalClosingValue = voucherRows.length ? voucherRows[voucherRows.length - 1].closing_value : voucherOpening.value;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -439,10 +469,25 @@ export default function GodownSummary() {
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">Loading vouchers...</td></tr>
             ) : voucherError ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-600">{voucherError}</td></tr>
-            ) : voucherRows.length === 0 ? (
+            ) : voucherRows.length === 0 && !hasOpening ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
             ) : (
-              voucherRows.map((row, idx) => {
+              <>
+              {hasOpening && (
+                <tr className="border-b border-zinc-100 italic text-zinc-700">
+                  <td className="px-3 py-1 whitespace-nowrap">{formatDate(activeFY?.start_date)}</td>
+                  <td className="px-3 py-1">Opening Balance</td>
+                  <td className="px-3 py-1" />
+                  <td className="px-3 py-1 text-right" />
+                  <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(voucherOpening.qty)}</td>
+                  <td className="px-3 py-1 text-right">{fmtAmount(voucherOpening.value)}</td>
+                  <td className="px-3 py-1 text-right border-l border-zinc-100" />
+                  <td className="px-3 py-1 text-right" />
+                  <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(voucherOpening.qty)}</td>
+                  <td className="px-3 py-1 text-right">{fmtAmount(voucherOpening.value)}</td>
+                </tr>
+              )}
+              {voucherRows.map((row, idx) => {
                 const isFocused = idx === voucherIndex;
                 return (
                   <tr
@@ -463,7 +508,8 @@ export default function GodownSummary() {
                     <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
                   </tr>
                 );
-              })
+              })}
+              </>
             )}
           </tbody>
         </table>
