@@ -161,6 +161,13 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
     [checkLedgerGroup]
   );
 
+  /** Party ledger — Sundry Debtors / Sundry Creditors. Drives bill-wise allocation. */
+  const checkIsParty = useCallback(
+    (ledger: LedgerType | null): boolean =>
+      checkLedgerGroup(ledger, ["sundry debtors", "sundry creditors"]),
+    [checkLedgerGroup]
+  );
+
   return {
     allLedgers,
     allGroups,
@@ -179,5 +186,6 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
     checkIsCashOrBank,
     checkIsCash,
     checkIsBank,
+    checkIsParty,
   };
 }

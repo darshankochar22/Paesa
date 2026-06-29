@@ -11,6 +11,7 @@ export interface ParticularRow {
     bill_type: "New Ref" | "Agst Ref" | "Advance" | "On Account";
     amount: number;
     credit_period?: string;
+    due_date?: string;
   }[];
 }
 

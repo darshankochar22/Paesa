@@ -111,6 +111,13 @@ statutory_details?: {
   sgst_rate?: number;
   igst_rate?: number;
   type_of_duty_tax?: string;
+  duty_head?: string;
+  gst_tax_type?: string;
+  service_tax_head?: string;
+  nature_of_goods?: string;
+  valuation_type?: string;
+  rate_per_unit?: number;
+  rounding_limit?: number;
   percentage_of_calculation?: number;
   statutory_details?: string;
 };

@@ -217,6 +217,14 @@ const init = async (db) => {
   try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN gst_rate_source TEXT DEFAULT 'As per Company/Group'`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN taxability_type TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN type_of_supply TEXT DEFAULT 'Services'`); } catch (err) {}
+  // Duties & Taxes (#154) per-duty-type sub-fields.
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN duty_head TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN gst_tax_type TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN service_tax_head TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN nature_of_goods TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN valuation_type TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN rate_per_unit REAL DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN rounding_limit REAL DEFAULT 0`); } catch (err) {}
 
   // Service Tax registration details
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN service_tax_registration_number TEXT`); } catch (err) {}

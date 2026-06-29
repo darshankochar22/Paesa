@@ -277,6 +277,9 @@ module.exports = {
             instrumentDate: nullify(data.bank_details.instrument_date) || null,
             bankName: nullify(data.bank_details.bank_name) || null,
             branch: nullify(data.bank_details.branch) || null,
+            accountNumber: nullify(data.bank_details.account_number) || null,
+            ifscCode: nullify(data.bank_details.ifsc_code) || null,
+            paymentGateway: nullify(data.bank_details.payment_gateway) || null,
             amount: nullify(data.bank_details.amount) || 0,
           });
         }

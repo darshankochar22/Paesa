@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { ParticularRow, ActiveField } from "../hooks/useVoucherForm";
+import BillRefLines from "./BillRefLines";
 
 interface Props {
   rows: ParticularRow[];
@@ -172,19 +173,11 @@ export default function ParticularsTable({
                       Current Bal: {row.ledgerBalance}
                     </span>
                   )}
-                  {/* Bill-wise / cost-centre allocation indicators */}
-                  {(row.billReferences?.length || row.costCentres?.length) ? (
-                    <span className="text-[9px] text-zinc-400 font-sans select-none flex gap-2">
-                      {row.billReferences?.length ? (
-                        <span className="text-teal-600">
-                          ✓ {row.billReferences.length} bill ref{row.billReferences.length > 1 ? "s" : ""}
-                        </span>
-                      ) : null}
-                      {row.costCentres?.length ? (
-                        <span className="text-blue-600">
-                          ✓ {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
-                        </span>
-                      ) : null}
+                  {/* Bill-wise breakup + cost-centre indicator */}
+                  <BillRefLines billReferences={row.billReferences} dcType={row.type} />
+                  {row.costCentres?.length ? (
+                    <span className="text-[10px] text-zinc-500 font-sans select-none">
+                      {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
                     </span>
                   ) : null}
                 </div>

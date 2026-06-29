@@ -107,6 +107,9 @@ const init = async (db) => {
       instrument_date   TEXT,
       bank_name         TEXT,
       branch            TEXT,
+      account_number    TEXT,
+      ifsc_code         TEXT,
+      payment_gateway   TEXT,
       amount            REAL DEFAULT 0
     )
   `);
@@ -232,6 +235,18 @@ const init = async (db) => {
 
   try {
     await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN cheque_range TEXT`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN account_number TEXT`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN ifsc_code TEXT`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN payment_gateway TEXT`);
   } catch (err) {}
 
   try {

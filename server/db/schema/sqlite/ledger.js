@@ -156,6 +156,14 @@ const ledgerStatutoryDetails = sqliteTable('ledger_statutory_details', {
   hsnSacSource: text('hsn_sac_source').default('As per Company/Group'),
   taxabilityType: text('taxability_type'),
   typeOfSupply: text('type_of_supply').default('Services'),
+  // Duties & Taxes (#154) per-duty-type sub-fields.
+  dutyHead: text('duty_head'),
+  gstTaxType: text('gst_tax_type'),
+  serviceTaxHead: text('service_tax_head'),
+  natureOfGoods: text('nature_of_goods'),
+  valuationType: text('valuation_type'),
+  ratePerUnit: real('rate_per_unit').default(0),
+  roundingLimit: real('rounding_limit').default(0),
 });
 
 module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails };

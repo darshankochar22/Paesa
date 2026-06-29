@@ -103,4 +103,58 @@ describe("Groups & Ledgers Services Tests", () => {
       expect(ids).not.toContain(customLedgerId);
     });
   });
+
+  describe("Duties & Taxes statutory sub-fields (#154)", () => {
+    let dutyLedgerId;
+
+    it("persists all Duty/Tax sub-fields on create and reads them back", async () => {
+      const groups = await groupService.getAll(companyId);
+      const dt = groups.groups.find(g => g.name === "Duties & Taxes");
+      expect(dt).toBeDefined();
+
+      const res = await ledgerService.create({
+        company_id: companyId,
+        group_id: dt.group_id,
+        name: "GST Cess Payable",
+        statutory_details: {
+          type_of_duty_tax: "GST",
+          gst_tax_type: "Cess",
+          valuation_type: "Based on Quantity",
+          rate_per_unit: 12.5,
+          duty_head: "Basic Excise Duty",
+          service_tax_head: "Service Tax",
+          nature_of_goods: "Any",
+          percentage_of_calculation: 18,
+          statutory_details: "Upward Rounding",
+          rounding_limit: 1,
+        },
+      });
+      expect(res.success).toBe(true);
+      dutyLedgerId = res.ledger.ledger_id;
+
+      const sd = (await ledgerService.getById(dutyLedgerId)).ledger.statutory_details;
+      expect(sd).toBeTruthy();
+      expect(sd.type_of_duty_tax).toBe("GST");
+      expect(sd.gst_tax_type).toBe("Cess");
+      expect(sd.valuation_type).toBe("Based on Quantity");
+      expect(sd.rate_per_unit).toBe(12.5);
+      expect(sd.duty_head).toBe("Basic Excise Duty");
+      expect(sd.service_tax_head).toBe("Service Tax");
+      expect(sd.nature_of_goods).toBe("Any");
+      expect(sd.percentage_of_calculation).toBe(18);
+      expect(sd.statutory_details).toBe("Upward Rounding");
+      expect(sd.rounding_limit).toBe(1);
+    });
+
+    it("updates the Duty/Tax sub-fields", async () => {
+      const res = await ledgerService.update({
+        ledger_id: dutyLedgerId,
+        statutory_details: { type_of_duty_tax: "TDS", nature_of_goods: "Rent" },
+      });
+      expect(res.success).toBe(true);
+      const sd = (await ledgerService.getById(dutyLedgerId)).ledger.statutory_details;
+      expect(sd.type_of_duty_tax).toBe("TDS");
+      expect(sd.nature_of_goods).toBe("Rent");
+    });
+  });
 });

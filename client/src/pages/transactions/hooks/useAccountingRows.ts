@@ -53,7 +53,8 @@ export function useAccountingRows({
 
   const [paymentEntryMode, setPaymentEntryMode] = useState<"single" | "double">(initialPaymentEntryMode);
   const [paymentDoubleRows, setPaymentDoubleRows] = useState<ParticularRow[]>(
-    () => initialPaymentDoubleRows ?? [makeParticularRow("Cr"), makeParticularRow("Dr")]
+    // Payment shows Dr (paid account) above Cr (bank/cash), matching TallyPrime.
+    () => initialPaymentDoubleRows ?? [makeParticularRow("Dr"), makeParticularRow("Cr")]
   );
 
   const [journalEntryMode, setJournalEntryMode] = useState<"single" | "double">(initialJournalEntryMode);
@@ -309,7 +310,7 @@ export function useAccountingRows({
     setJournalRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setContraDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setReceiptDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
-    setPaymentDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
+    setPaymentDoubleRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
     setAttendanceEntries([makeAttendanceRow()]);
     setPayrollEntries([makePayrollRow()]);
     setContraEntryMode("double");

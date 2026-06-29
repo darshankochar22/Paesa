@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 
-const TRANSACTION_TYPES = ["Cheque", "e-Fund Transfer", "Card", "Cash", "Others"] as const;
+const TRANSACTION_TYPES = [
+  "ATM",
+  "Card",
+  "Cheque",
+  "ECS",
+  "e-Fund Transfer",
+  "Electronic Cheque",
+  "Electronic DD/PO",
+  "Cash",
+  "Others",
+] as const;
 
 interface BankDetails {
   ledger_id: number;
@@ -9,6 +19,9 @@ interface BankDetails {
   instrument_number: string;
   instrument_date: string;
   bank_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
+  payment_gateway?: string;
   amount: number;
 }
 
@@ -20,6 +33,32 @@ interface Props {
   onClose: () => void;
   onSave: (details: BankDetails) => void;
   allowCash?: boolean;
+}
+
+// Shared "label : input" row used across the allocation form.
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm italic text-black w-44 shrink-0">{label}</span>
+      <span className="text-sm text-black">:</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 bg-white"
+      />
+    </div>
+  );
 }
 
 export default function BankAllocationPopup({
@@ -38,6 +77,9 @@ export default function BankAllocationPopup({
     instrument_number: "",
     instrument_date: new Date().toISOString().split("T")[0],
     bank_name: "",
+    account_number: "",
+    ifsc_code: "",
+    payment_gateway: "",
     amount,
   });
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +93,9 @@ export default function BankAllocationPopup({
         instrument_number: initialDetails.instrument_number ?? "",
         instrument_date: initialDetails.instrument_date ?? new Date().toISOString().split("T")[0],
         bank_name: initialDetails.bank_name ?? "",
+        account_number: initialDetails.account_number ?? "",
+        ifsc_code: initialDetails.ifsc_code ?? "",
+        payment_gateway: initialDetails.payment_gateway ?? "",
         amount: initialDetails.amount ?? amount,
       });
     } else {
@@ -91,23 +136,21 @@ export default function BankAllocationPopup({
 
   const isCheque = form.transaction_type === "Cheque";
   const isCash = form.transaction_type === "Cash";
+  const isEFund = form.transaction_type === "e-Fund Transfer";
   const availableTypes = allowCash ? TRANSACTION_TYPES : TRANSACTION_TYPES.filter((t) => t !== "Cash");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[480px] flex flex-col max-h-[85vh] overflow-hidden">
+      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[900px] max-w-[95vw] flex flex-col max-h-[85vh] overflow-hidden">
 
-        {/* Header */}
-        <div className="bg-zinc-900 px-4 py-2 text-white flex justify-between items-center select-none">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider">Bank Allocations</span>
-            <span className="text-[10px] text-zinc-400 font-mono">Ledger: {ledgerName}</span>
-          </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white font-bold text-sm">&times;</button>
-        </div>
-
-        {/* Title & Amount */}
-        <div className="bg-white border-b border-zinc-200 px-4 py-3 text-center">
+        {/* Header — white (no black bar) */}
+        <div className="relative bg-white border-b border-zinc-200 px-4 py-3 text-center select-none">
+          <button
+            onClick={onClose}
+            className="absolute right-3 top-2 text-black hover:opacity-60 font-bold text-base leading-none"
+          >
+            &times;
+          </button>
           <div className="text-sm text-black">
             Bank Allocations for: <span className="font-bold">{ledgerName}</span>
           </div>
@@ -127,7 +170,7 @@ export default function BankAllocationPopup({
               <select
                 value={form.transaction_type}
                 onChange={(e) => set("transaction_type", e.target.value)}
-                className="bg-transparent outline-none border border-zinc-300 px-1 py-0.5 text-sm text-black w-36"
+                className="bg-transparent outline-none border border-zinc-300 px-1 py-0.5 text-sm text-black w-44"
               >
                 {availableTypes.map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -139,60 +182,56 @@ export default function BankAllocationPopup({
         </div>
 
         {/* Form Fields */}
-        <div className="p-4 flex-1 overflow-y-auto space-y-3 min-h-0">
+        <div className="p-4 flex-1 overflow-y-auto min-h-0">
           {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-1.5 rounded flex justify-between items-center">
+            <div className="mb-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-1.5 rounded flex justify-between items-center">
               <span>• {error}</span>
               <button onClick={() => setError(null)} className="font-bold">&times;</button>
             </div>
           )}
 
-          {isCheque && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm italic text-black w-28 shrink-0">Cheque range</span>
-              <span className="text-sm text-black">:</span>
-              <input
-                type="text"
-                value={form.cheque_range ?? ""}
-                onChange={(e) => set("cheque_range", e.target.value)}
-                className="flex-1 text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 bg-white"
-              />
+          {isEFund ? (
+            /* e-Fund Transfer — A/c No. · IFS Code · Bank/Payment Gateway · Inst No. · Inst Date */
+            <div className="grid grid-cols-2 gap-x-10 gap-y-3">
+              <Field label="A/c No." value={form.account_number ?? ""} onChange={(v) => set("account_number", v)} />
+              <Field label="IFS Code" value={form.ifsc_code ?? ""} onChange={(v) => set("ifsc_code", v)} />
+              <Field label="Inst No." value={form.instrument_number} onChange={(v) => set("instrument_number", v)} />
+              <Field label="Inst Date" type="date" value={form.instrument_date} onChange={(v) => set("instrument_date", v)} />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {isCheque && (
+                <Field label="Cheque range" value={form.cheque_range ?? ""} onChange={(v) => set("cheque_range", v)} />
+              )}
+              {isCash && (
+                <Field label="Bank Name" value={form.bank_name ?? ""} onChange={(v) => set("bank_name", v)} />
+              )}
+              <div className="flex items-center gap-2">
+                <span className="text-sm italic text-black w-44 shrink-0">
+                  {isCash ? "Ref No." : "Inst No."}
+                </span>
+                <span className="text-sm text-black">:</span>
+                <input
+                  type="text"
+                  value={form.instrument_number}
+                  onChange={(e) => set("instrument_number", e.target.value)}
+                  className="text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 w-40 bg-white"
+                />
+                <span className="text-sm italic text-black ml-6 shrink-0">Inst Date</span>
+                <span className="text-sm text-black">:</span>
+                <input
+                  type="date"
+                  value={form.instrument_date}
+                  onChange={(e) => set("instrument_date", e.target.value)}
+                  className="text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 w-40 bg-white"
+                />
+              </div>
             </div>
           )}
 
-          {isCash && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm italic text-black w-28 shrink-0">Bank Name</span>
-              <span className="text-sm text-black">:</span>
-              <input
-                type="text"
-                value={form.bank_name ?? ""}
-                onChange={(e) => set("bank_name", e.target.value)}
-                className="flex-1 text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 bg-white"
-                placeholder="Enter bank name"
-              />
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm italic text-black w-28 shrink-0">
-              {isCheque ? "Inst No." : isCash ? "Ref No." : "Inst No."}
-            </span>
-            <span className="text-sm text-black">:</span>
-            <input
-              type="text"
-              value={form.instrument_number}
-              onChange={(e) => set("instrument_number", e.target.value)}
-              className="text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 w-32 bg-white"
-            />
-            <span className="text-sm italic text-black ml-4 shrink-0">Inst Date</span>
-            <span className="text-sm text-black">:</span>
-            <input
-              type="date"
-              value={form.instrument_date}
-              onChange={(e) => set("instrument_date", e.target.value)}
-              className="text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 w-32 bg-white"
-            />
+          {/* Bank Payment Gateway — always shown, for every transaction type */}
+          <div className="mt-3">
+            <Field label="Bank Payment Gateway" value={form.payment_gateway ?? ""} onChange={(v) => set("payment_gateway", v)} />
           </div>
         </div>
 

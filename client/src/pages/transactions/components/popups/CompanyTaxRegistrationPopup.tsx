@@ -22,15 +22,20 @@ export default function CompanyTaxRegistrationPopup({
   onSelect,
 }: Props) {
   const options: RegistrationOption[] = [
-    ...gstRegistrations.map((r: any) => ({
-      key: `gst-${r.gst_id}`,
-      label: r.legal_name ?? r.trade_name ?? r.name ?? `Registration #${r.gst_id}`,
-      taxRegNo: r.gstin ?? "",
-      taxType: "GST",
-      state: r.state_id ?? r.state ?? "",
-      kind: "gst" as const,
-      raw: r,
-    })),
+    ...gstRegistrations.map((r: any) => {
+      const state = r.state_id ?? r.state ?? "";
+      return {
+        key: `gst-${r.gst_id}`,
+        label: state
+          ? `${state} Registration`
+          : (r.legal_name ?? r.trade_name ?? r.name ?? `Registration #${r.gst_id}`),
+        taxRegNo: r.gstin ?? "",
+        taxType: "GST",
+        state,
+        kind: "gst" as const,
+        raw: r,
+      };
+    }),
     ...taxUnits.map((t: any) => ({
       key: `tax-${t.tax_unit_id}`,
       label: t.name ?? "",

@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { ParticularRow, ActiveField } from "../hooks/useVoucherForm";
+import BillRefLines from "./BillRefLines";
 
 interface Props {
   rows: ParticularRow[];
@@ -138,18 +139,10 @@ export default function VoucherDoubleEntryTable({
                       Bal: {row.ledgerBalance}
                     </span>
                   )}
-                  {(row.billReferences?.length || row.costCentres?.length) ? (
-                    <span className="text-[9px] text-gray-500 select-none flex gap-2">
-                      {row.billReferences?.length ? (
-                        <span className="text-teal-600">
-                          {row.billReferences.length} bill ref{row.billReferences.length > 1 ? "s" : ""}
-                        </span>
-                      ) : null}
-                      {row.costCentres?.length ? (
-                        <span className="text-blue-600">
-                          {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
-                        </span>
-                      ) : null}
+                  <BillRefLines billReferences={row.billReferences} dcType={row.type} />
+                  {row.costCentres?.length ? (
+                    <span className="text-[10px] text-zinc-500 select-none">
+                      {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
                     </span>
                   ) : null}
                 </div>

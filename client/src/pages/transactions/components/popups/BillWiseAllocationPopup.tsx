@@ -35,6 +35,9 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+// Due date / credit days only apply to references that track a credit period.
+const hasDueDate = (t: BillReference["bill_type"]) => t === "New Ref" || t === "Agst Ref";
+
 function formatDateDisplay(dateStr: string | undefined): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -49,7 +52,7 @@ function addDays(dateStr: string, days: number): string {
 }
 
 function formatCurrency(n: number) {
-  return `\u20b9${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function BillWiseAllocationPopup({
@@ -171,17 +174,18 @@ export default function BillWiseAllocationPopup({
     };
 
     if (type === "On Account") {
+      // No name, no due date — the whole amount sits on account.
       base.bill_name = "On Account";
-      base.credit_period = "";
-      base.due_date = "";
     } else if (type === "New Ref") {
-      base.bill_name = "New Ref";
+      // User types the new reference name; carries a credit period.
+      base.bill_name = "";
       base.credit_period = shouldAutoFill ? String(defaultCreditPeriod) : "";
       base.due_date = shouldAutoFill ? addDays(voucherDate, defaultCreditPeriod) : "";
     } else if (type === "Advance") {
-      base.credit_period = shouldAutoFill ? String(defaultCreditPeriod) : "";
-      base.due_date = shouldAutoFill ? addDays(voucherDate, defaultCreditPeriod) : "";
+      // Advance: user types a reference name, but advances carry no due date.
+      base.bill_name = "";
     } else if (type === "Agst Ref") {
+      // Settle against an existing pending bill.
       if (pendingBills.length > 0) {
         const first = pendingBills[0];
         base.bill_name = first.bill_name;
@@ -219,7 +223,7 @@ export default function BillWiseAllocationPopup({
           updated = getDefaultRow(value as BillReference["bill_type"], row.amount);
         }
 
-        if (field === "credit_period" && updated.bill_type !== "On Account") {
+        if (field === "credit_period" && hasDueDate(updated.bill_type)) {
           const days = parseInt(value);
           if (!isNaN(days) && days > 0) {
             updated.due_date = addDays(voucherDate, days);
@@ -273,19 +277,16 @@ export default function BillWiseAllocationPopup({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[720px] flex flex-col max-h-[85vh] overflow-hidden">
+      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[1000px] max-w-[95vw] flex flex-col max-h-[88vh] overflow-hidden">
 
-        {/* Header */}
-        <div className="bg-zinc-900 px-4 py-2 text-white flex justify-between items-center select-none">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider">Bill-wise Details</span>
-            <span className="text-[10px] text-zinc-400 font-mono">{ledgerName}</span>
-          </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white font-bold text-sm">&times;</button>
-        </div>
-
-        {/* Title bar */}
-        <div className="bg-white border-b border-zinc-200 px-4 py-2 text-center select-none">
+        {/* Header — white (no black bar) */}
+        <div className="relative bg-white border-b border-zinc-200 px-4 py-3 text-center select-none">
+          <button
+            onClick={onClose}
+            className="absolute right-3 top-2 text-black hover:opacity-60 font-bold text-base leading-none"
+          >
+            &times;
+          </button>
           <div className="text-sm font-semibold text-zinc-900">
             Bill-wise Details for : <span className="font-bold">{ledgerName}</span>
           </div>
@@ -305,13 +306,13 @@ export default function BillWiseAllocationPopup({
           <div className="flex gap-4">
             <span>
               Allocated:{" "}
-              <span className="font-mono text-emerald-700">
+              <span className="font-mono text-zinc-900">
                 {formatCurrency(allocated)}
               </span>
             </span>
             <span>
               Remaining:{" "}
-              <span className={`font-mono ${Math.abs(remaining) < 0.01 ? "text-zinc-500" : remaining > 0 ? "text-zinc-700" : "text-rose-600"}`}>
+              <span className={`font-mono ${Math.abs(remaining) < 0.01 ? "text-zinc-500" : "text-black font-bold"}`}>
                 {formatCurrency(remaining)}
               </span>
             </span>
@@ -321,7 +322,7 @@ export default function BillWiseAllocationPopup({
         {/* Table */}
         <div className="p-4 flex-1 overflow-y-auto space-y-3 min-h-0">
           {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-2 rounded flex justify-between items-center">
+            <div className="bg-zinc-100 border border-zinc-400 text-black font-semibold text-xs px-3 py-2 rounded flex justify-between items-center">
               <span>&bull; {error}</span>
               <button onClick={() => setError(null)} className="font-bold">&times;</button>
             </div>
@@ -360,24 +361,8 @@ export default function BillWiseAllocationPopup({
                   {/* Name */}
                   <div className="col-span-3 relative">
                     {row.bill_type === "On Account" ? (
-                      <input
-                        type="text"
-                        value="On Account"
-                        disabled
-                        className="text-xs px-2 py-1 border border-zinc-300 rounded outline-none w-full disabled:bg-zinc-50 disabled:text-zinc-500 font-semibold"
-                      />
-                    ) : row.bill_type === "New Ref" ? (
-                      <select
-                        ref={(el) => { nameInputRefs.current[i] = el; }}
-                        value={row.bill_name || "New Ref"}
-                        onChange={(e) => handleChange(i, "bill_name", e.target.value)}
-                        className="text-xs px-1.5 py-1 border border-zinc-300 rounded outline-none focus:border-zinc-800 bg-white w-full font-medium"
-                      >
-                        <option value="Advance">Advance</option>
-                        <option value="Agst Ref">Agst Ref</option>
-                        <option value="New Ref">New Ref</option>
-                        <option value="On Account">On Account</option>
-                      </select>
+                      // On Account carries no reference name.
+                      <span className="text-xs text-zinc-400 py-1 inline-block">&mdash;</span>
                     ) : row.bill_type === "Agst Ref" ? (
                       <div className="relative" ref={(el) => { agstDropdownRefs.current[i] = el; }}>
                         <input
@@ -391,8 +376,8 @@ export default function BillWiseAllocationPopup({
                         />
                         {activeAgstRow === i && (
                           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-300 rounded shadow-xl z-30 max-h-48 overflow-y-auto">
-                            <div className="bg-blue-800 text-white text-[10px] font-bold px-2 py-1 sticky top-0">Pending Bills</div>
-                            <div className="grid grid-cols-5 bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200">
+                            <div className="bg-zinc-100 text-zinc-900 text-[10px] font-bold px-2 py-1 sticky top-0 border-b border-zinc-300">Pending Bills</div>
+                            <div className="grid grid-cols-5 bg-zinc-50 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200">
                               <div className="col-span-1">Name</div>
                               <div className="col-span-1 text-center">Bill Date</div>
                               <div className="col-span-1 text-center">Due Date</div>
@@ -426,6 +411,7 @@ export default function BillWiseAllocationPopup({
                         )}
                       </div>
                     ) : (
+                      // New Ref / Advance — type the reference name.
                       <input
                         ref={(el) => { nameInputRefs.current[i] = el; }}
                         type="text"
@@ -437,11 +423,9 @@ export default function BillWiseAllocationPopup({
                     )}
                   </div>
 
-                  {/* Due Date / Credit Days */}
+                  {/* Due Date / Credit Days — only for New Ref & Agst Ref */}
                   <div className="col-span-3 flex flex-col items-center gap-0.5">
-                    {row.bill_type === "On Account" ? (
-                      <span className="text-xs text-zinc-400 py-1">&mdash;</span>
-                    ) : (
+                    {hasDueDate(row.bill_type) ? (
                       <>
                         <input
                           type="text"
@@ -456,6 +440,8 @@ export default function BillWiseAllocationPopup({
                           </span>
                         )}
                       </>
+                    ) : (
+                      <span className="text-xs text-zinc-400 py-1">&mdash;</span>
                     )}
                   </div>
 
@@ -478,7 +464,7 @@ export default function BillWiseAllocationPopup({
                   {/* Remove */}
                   <div className="col-span-1 text-center">
                     <button onClick={() => handleRemove(i)}
-                      className="text-zinc-400 hover:text-rose-600 text-sm font-bold font-sans">&times;</button>
+                      className="text-zinc-400 hover:text-black text-sm font-bold font-sans">&times;</button>
                   </div>
                 </div>
               ))}

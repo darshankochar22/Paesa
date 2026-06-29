@@ -45,6 +45,9 @@ export interface StatutoryDetails {
   gst_tax_type?: string;
   service_tax_head?: string;
   nature_of_goods?: string;
+  valuation_type?: string;
+  rate_per_unit?: number;
+  rounding_limit?: number;
   percentage_of_calculation?: number;
   statutory_details?: string;
   additional_gst_details: number;
@@ -187,6 +190,13 @@ export const EMPTY_STATUTORY: StatutoryDetails = {
   sgst_rate: 0,
   igst_rate: 0,
   type_of_duty_tax: "",
+  duty_head: "",
+  gst_tax_type: "",
+  service_tax_head: "",
+  nature_of_goods: "",
+  valuation_type: "",
+  rate_per_unit: 0,
+  rounding_limit: 0,
   percentage_of_calculation: 0,
   statutory_details: "",
   additional_gst_details: 0,
@@ -950,6 +960,13 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           sgst_rate: Number(statutoryForm.sgst_rate) || 0,
           igst_rate: Number(statutoryForm.igst_rate) || 0,
           type_of_duty_tax: statutoryForm.type_of_duty_tax || undefined,
+          duty_head: statutoryForm.duty_head?.trim() || undefined,
+          gst_tax_type: statutoryForm.gst_tax_type || undefined,
+          service_tax_head: statutoryForm.service_tax_head || undefined,
+          nature_of_goods: statutoryForm.nature_of_goods?.trim() || undefined,
+          valuation_type: statutoryForm.valuation_type || undefined,
+          rate_per_unit: Number(statutoryForm.rate_per_unit) || 0,
+          rounding_limit: Number(statutoryForm.rounding_limit) || 0,
           percentage_of_calculation: Number(statutoryForm.percentage_of_calculation) || 0,
           statutory_details: statutoryForm.statutory_details || undefined,
           include_in_assessable_value_calculation:

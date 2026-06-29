@@ -134,6 +134,9 @@ const voucherBankDetails = pgTable('voucher_bank_details', {
   instrumentDate: date('instrument_date'),
   bankName: text('bank_name'),
   branch: text('branch'),
+  accountNumber: text('account_number'),
+  ifscCode: text('ifsc_code'),
+  paymentGateway: text('payment_gateway'),
   amount: numeric('amount', { precision: 18, scale: 2 }).default('0'),
 });
 

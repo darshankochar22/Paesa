@@ -125,6 +125,18 @@ const ledgerStatutoryDetails = pgTable('ledger_statutory_details', {
   includeInAssessableValueCalculation: text('include_in_assessable_value_calculation').default('Not Applicable'),
   appropriateTo: text('appropriate_to').default('Goods'),
   methodOfCalculation: text('method_of_calculation').default('Based on Quantity'),
+  gstRateSource: text('gst_rate_source').default('As per Company/Group'),
+  hsnSacSource: text('hsn_sac_source').default('As per Company/Group'),
+  taxabilityType: text('taxability_type'),
+  typeOfSupply: text('type_of_supply').default('Services'),
+  // Duties & Taxes (#154) per-duty-type sub-fields.
+  dutyHead: text('duty_head'),
+  gstTaxType: text('gst_tax_type'),
+  serviceTaxHead: text('service_tax_head'),
+  natureOfGoods: text('nature_of_goods'),
+  valuationType: text('valuation_type'),
+  ratePerUnit: numeric('rate_per_unit', { precision: 18, scale: 4 }).default('0'),
+  roundingLimit: numeric('rounding_limit', { precision: 18, scale: 4 }).default('0'),
 });
 
 module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails };

@@ -735,6 +735,7 @@ export function useVoucherForm(
     checkIsCashOrBank: ledgers.checkIsCashOrBank,
     checkIsCash: ledgers.checkIsCash,
     checkIsBank: ledgers.checkIsBank,
+    checkIsParty: ledgers.checkIsParty,
     checkLedgerGroup: ledgers.checkLedgerGroup,
     negativeStockWarnings: rows.negativeStockWarnings,
     companyId,

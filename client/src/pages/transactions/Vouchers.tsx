@@ -4,7 +4,7 @@ import { useCompany } from "../../context/CompanyContext";
 
 import { useVoucherForm } from "./hooks/useVoucherForm";
 import type { BatchAllocation } from "./types";
-import { AlertBanner } from "../../components/ui";
+import { AlertBanner, PageTitleBar } from "../../components/ui";
 import { Button } from "@/components/shadcn/button";
 import { cn } from "@/lib/utils";
 import CompanyTaxRegistrationPopup from "./components/popups/CompanyTaxRegistrationPopup";
@@ -824,11 +824,15 @@ export default function Vouchers() {
           });
           return;
         }
-        proceedToNextRow(idx);
-        return;
+        // Non-bank: only party ledgers (Sundry Debtors/Creditors) or bill-wise
+        // ledgers continue to the bill-wise popup; anything else just advances.
+        if (!(form.checkIsParty(ledger) || ledger.is_bill_wise === 1)) {
+          proceedToNextRow(idx);
+          return;
+        }
       }
 
-      if (ledger.is_bill_wise === 1) {
+      if (form.checkIsParty(ledger) || ledger.is_bill_wise === 1) {
         form.setActiveAllocation({
           type: "billWise",
           rowId: id,
@@ -851,7 +855,61 @@ export default function Vouchers() {
         proceedToNextRow(idx);
       }
     },
-    [effectiveVoucherType, form.paymentEntryMode, form.receiptEntryMode, form.checkIsBank, form.checkIsCash, form.bankDetails, form.cashDenominations, form.setActiveAllocation, proceedToNextRow]
+    [effectiveVoucherType, form.paymentEntryMode, form.receiptEntryMode, form.checkIsBank, form.checkIsParty, form.checkIsCash, form.bankDetails, form.cashDenominations, form.setActiveAllocation, proceedToNextRow]
+  );
+
+  // In a double-entry voucher the 2nd row's amount auto-fills to the balancing
+  // figure the moment its ledger is picked — so the user never presses Enter in
+  // the amount field, and Bank Allocations (which only opens from that Enter via
+  // handleAmountConfirm) is skipped. Detect a bank ledger picked here and open
+  // it anyway, using the same balancing amount (row state updates async).
+  const handleLedgerSelectWithAllocation = useCallback(
+    (item: any) => {
+      const field = form.activeField;
+      form.handleLedgerPanelSelect(item);
+
+      if (field?.type !== "particular" || !form.checkIsBank(item)) return;
+
+      const dbl =
+        effectiveVoucherType === "Contra"
+          ? form.contraDoubleRows
+          : effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double"
+          ? form.receiptDoubleRows
+          : effectiveVoucherType === "Payment" && form.paymentEntryMode === "double"
+          ? form.paymentDoubleRows
+          : null;
+      if (!dbl) return;
+
+      const idx = dbl.findIndex((r) => r.id === field.rowId);
+      const row = dbl[idx];
+      if (!row) return;
+
+      const drTotal = dbl.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const crTotal = dbl.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const existing = Number(row.amountRaw) || 0;
+      const amount =
+        existing > 0
+          ? existing
+          : Math.abs(row.type === "Dr" ? crTotal - drTotal : drTotal - crTotal);
+
+      // First row has no balancing figure yet → let the user type it (Enter then
+      // opens Bank Allocations through the normal path).
+      if (amount <= 0.01) return;
+
+      handleAmountConfirm({ ...row, ledger: item, amountRaw: String(amount) }, idx);
+    },
+    [
+      form.activeField,
+      form.handleLedgerPanelSelect,
+      form.checkIsBank,
+      form.contraDoubleRows,
+      form.receiptDoubleRows,
+      form.paymentDoubleRows,
+      form.receiptEntryMode,
+      form.paymentEntryMode,
+      effectiveVoucherType,
+      handleAmountConfirm,
+    ]
   );
 
   // ─── Allocation save handlers ────────────────────────────────────────
@@ -1404,16 +1462,18 @@ const handleSaveExciseDetails = useCallback(
       )}
 
       {/* ── Title bar ── */}
-      <div className="flex items-center justify-between px-3 py-1 border-b border-black bg-white shrink-0">
-        <span className="text-sm font-semibold text-black">{effectiveVoucherType === "Attendance" ? "Attendance Voucher Creation" : effectiveVoucherType === "Payroll" ? "Payroll Voucher Creation" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) ? "Inventory Voucher Creation" : "Accounting Voucher Creation"}</span>
-        <span className="text-sm text-black">{selectedCompany?.name ?? ""}</span>
-        <button
-          onClick={() => navigate("/")}
-          className="text-black text-sm font-bold hover:opacity-60 leading-none"
-        >
-          ✕
-        </button>
-      </div>
+      <PageTitleBar
+        title={effectiveVoucherType === "Attendance" ? "Attendance Voucher Creation" : effectiveVoucherType === "Payroll" ? "Payroll Voucher Creation" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) ? "Inventory Voucher Creation" : "Accounting Voucher Creation"}
+        subtitle={selectedCompany?.name ?? ""}
+        actions={
+          <button
+            onClick={() => navigate("/")}
+            className="text-white text-sm font-bold hover:opacity-60 leading-none"
+          >
+            ✕
+          </button>
+        }
+      />
     {/* ── GST Registration / Tax Unit ── */}
     {["Sales", "Purchase", "Contra", "Payment", "Journal", "Receipt","Credit Note","Debit Note"].includes(effectiveVoucherType) && (
       <div className="flex justify-center gap-2 px-3 py-1 border-b border-zinc-200 bg-white shrink-0 text-sm">
@@ -1428,7 +1488,9 @@ const handleSaveExciseDetails = useCallback(
         <div className="font-semibold text-black">
           <div>
             {form.gstRegistration
-              ? (form.gstRegistration.legal_name ?? form.gstRegistration.trade_name ?? form.gstRegistration.name ?? form.gstRegistration.gstin)
+              ? (form.gstRegistration.state_id
+                  ? `${form.gstRegistration.state_id} Registration`
+                  : (form.gstRegistration.legal_name ?? form.gstRegistration.trade_name ?? form.gstRegistration.name ?? form.gstRegistration.gstin))
             : "♦ Not Applicable"}
           </div>
           {["Sales", "Purchase"].includes(effectiveVoucherType) && (
@@ -1680,7 +1742,7 @@ const handleSaveExciseDetails = useCallback(
             items={panelItems}
             searchTerm={panelSearchTerm}
             onSearchChange={handlePanelSearchChange}
-            onSelect={form.handleLedgerPanelSelect}
+            onSelect={handleLedgerSelectWithAllocation}
             onClose={form.handleFieldBlur}
             onCreateNew={() =>
               form.activeField?.type === "stockItem"

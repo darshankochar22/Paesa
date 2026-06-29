@@ -119,6 +119,9 @@ const voucherBankDetails = sqliteTable('voucher_bank_details', {
   instrumentDate: text('instrument_date'),
   bankName: text('bank_name'),
   branch: text('branch'),
+  accountNumber: text('account_number'),
+  ifscCode: text('ifsc_code'),
+  paymentGateway: text('payment_gateway'),
   amount: real('amount').default(0),
 });
 

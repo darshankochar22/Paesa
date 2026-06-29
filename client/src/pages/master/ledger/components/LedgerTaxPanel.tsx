@@ -197,8 +197,11 @@ export default function LedgerTaxPanel({
   );
 }
 
-const DUTY_TAX_TYPES = ["CENVAT", "GST", "Krishi Kalyan Cess", "Others", "Service Tax", "Swachh Bharat Cess", "TCS", "TDS", "VAT"];
-const TYPES_NO_PERCENTAGE = new Set(["GST", "Krishi Kalyan Cess", "Service Tax", "Swachh Bharat Cess", "TCS", "TDS"]);
+const DUTY_TAX_TYPES = ["CENVAT", "CST", "GST", "Krishi Kalyan Cess", "Others", "Service Tax", "Swachh Bharat Cess", "TCS", "TDS", "VAT"];
+// Rounding method is offered for these types only (not Others/TCS/TDS) — per #154 screenshots.
+const ROUNDING_TYPES = new Set(["CENVAT", "CST", "GST", "Krishi Kalyan Cess", "Service Tax", "Swachh Bharat Cess", "VAT"]);
+// Base types that show "Percentage of calculation"; GST is decided by its tax type below.
+const PERCENTAGE_TYPES = new Set(["CENVAT", "CST", "Others", "VAT"]);
 
 export function DutyTaxSection({
   statutoryForm,
@@ -211,7 +214,20 @@ export function DutyTaxSection({
   setStatutoryForm?: React.Dispatch<React.SetStateAction<StatutoryDetails>>;
 }) {
   const dutyType = statutoryForm.type_of_duty_tax || "Others";
-  const showPercentage = !TYPES_NO_PERCENTAGE.has(dutyType);
+  const gstTaxType = statutoryForm.gst_tax_type || "IGST";
+  const valuationType = statutoryForm.valuation_type || "Any";
+  const roundingMethod = statutoryForm.statutory_details || "Not Applicable";
+
+  const isGstCess = dutyType === "GST" && gstTaxType === "Cess";
+  // Quantity-based cess is charged per unit, not as a percentage.
+  const showRatePerUnit = isGstCess && valuationType === "Based on Quantity";
+  const showPercentage =
+    !showRatePerUnit && (PERCENTAGE_TYPES.has(dutyType) || dutyType === "GST");
+  const showRounding = ROUNDING_TYPES.has(dutyType);
+  const showRoundingLimit = showRounding && roundingMethod !== "Not Applicable";
+  // CENVAT uses a slightly different helper than the rest (per screenshots).
+  const percentageHelper =
+    dutyType === "CENVAT" ? "(To use as common ledger, set as 0%)" : "(0% for common ledger)";
 
   return (
     <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
@@ -223,19 +239,33 @@ export function DutyTaxSection({
 
       {dutyType === "CENVAT" && (
         <FormRow label="Duty Head" labelWidth="w-52" className="flex items-center min-h-[26px]">
-          <input className={inputCls} value={statutoryForm.duty_head || ""} onChange={setStatutoryField("duty_head")} />
+          <input className={inputCls} list="cenvat-duty-heads" value={statutoryForm.duty_head || ""} onChange={setStatutoryField("duty_head")} />
+          <datalist id="cenvat-duty-heads">
+            <option value="Basic Excise Duty" />
+          </datalist>
         </FormRow>
       )}
 
       {dutyType === "GST" && (
-        <FormRow label="Tax type" labelWidth="w-52" className="flex items-center min-h-[26px]">
-          <select className={selectCls} value={statutoryForm.gst_tax_type || "IGST"} onChange={setStatutoryField("gst_tax_type")}>
-            <option value="IGST">IGST</option>
-            <option value="GST">GST</option>
-            <option value="SGST/UTGST">SGST/UTGST</option>
-            <option value="Cess">Cess</option>
-          </select>
-        </FormRow>
+        <>
+          <FormRow label="Tax type" labelWidth="w-52" className="flex items-center min-h-[26px]">
+            <select className={selectCls} value={gstTaxType} onChange={setStatutoryField("gst_tax_type")}>
+              <option value="IGST">IGST</option>
+              <option value="CGST">CGST</option>
+              <option value="SGST/UTGST">SGST/UTGST</option>
+              <option value="Cess">Cess</option>
+            </select>
+          </FormRow>
+          {isGstCess && (
+            <FormRow label="Valuation type" labelWidth="w-52" className="flex items-center min-h-[26px]">
+              <select className={selectCls} value={valuationType} onChange={setStatutoryField("valuation_type")}>
+                <option value="Any">Any</option>
+                <option value="Based on Quantity">Based on Quantity</option>
+                <option value="Based on Value">Based on Value</option>
+              </select>
+            </FormRow>
+          )}
+        </>
       )}
 
       {dutyType === "Service Tax" && (
@@ -249,9 +279,32 @@ export function DutyTaxSection({
         </FormRow>
       )}
 
-      {(dutyType === "TCS" || dutyType === "TDS") && (
+      {dutyType === "TCS" && (
         <FormRow label="Nature of goods/contract/license/lease" labelWidth="w-52" className="flex items-center min-h-[26px]">
           <input className={inputCls} value={statutoryForm.nature_of_goods || ""} onChange={setStatutoryField("nature_of_goods")} />
+        </FormRow>
+      )}
+
+      {dutyType === "TDS" && (
+        <FormRow label="Nature of payment" labelWidth="w-52" className="flex items-center min-h-[26px]">
+          <input className={inputCls} value={statutoryForm.nature_of_goods || ""} onChange={setStatutoryField("nature_of_goods")} />
+        </FormRow>
+      )}
+
+      {showRatePerUnit && (
+        <FormRow label="Rate per unit" labelWidth="w-52" className="flex items-center min-h-[26px]">
+          <div className="flex flex-col gap-0.5">
+            <input
+              type="number"
+              step="0.01"
+              className={`${inputCls} text-right max-w-[100px]`}
+              value={statutoryForm.rate_per_unit ?? 0}
+              onChange={setStatutoryNumber("rate_per_unit")}
+            />
+            {(statutoryForm.rate_per_unit ?? 0) === 0 && (
+              <span className="text-[10px] text-zinc-400 px-1">(0% for common ledger)</span>
+            )}
+          </div>
         </FormRow>
       )}
 
@@ -266,20 +319,36 @@ export function DutyTaxSection({
               onChange={setStatutoryNumber("percentage_of_calculation")}
             />
             {(statutoryForm.percentage_of_calculation ?? 0) === 0 && (
-              <span className="text-[10px] text-zinc-400 px-1">(To use as common ledger, set as 0%)</span>
+              <span className="text-[10px] text-zinc-400 px-1">{percentageHelper}</span>
             )}
           </div>
         </FormRow>
       )}
 
-      <FormRow label="Rounding method" labelWidth="w-52" className="flex items-center min-h-[26px]">
-        <select className={selectCls} value={statutoryForm.statutory_details || ""} onChange={setStatutoryField("statutory_details")}>
-          <option value=""></option>
-          <option value="Downward Rounding">Downward Rounding</option>
-          <option value="Normal Rounding">Normal Rounding</option>
-          <option value="Upward Rounding">Upward Rounding</option>
-        </select>
-      </FormRow>
+      {showRounding && (
+        <>
+          <FormRow label="Rounding method" labelWidth="w-52" className="flex items-center min-h-[26px]">
+            <select className={selectCls} value={roundingMethod} onChange={setStatutoryField("statutory_details")}>
+              <option value="Not Applicable">Not Applicable</option>
+              <option value="Downward Rounding">Downward Rounding</option>
+              <option value="Normal Rounding">Normal Rounding</option>
+              <option value="Upward Rounding">Upward Rounding</option>
+            </select>
+          </FormRow>
+
+          {showRoundingLimit && (
+            <FormRow label="Rounding limit" labelWidth="w-52" className="flex items-center min-h-[26px]">
+              <input
+                type="number"
+                step="0.01"
+                className={`${inputCls} text-right max-w-[100px]`}
+                value={statutoryForm.rounding_limit ?? 0}
+                onChange={setStatutoryNumber("rounding_limit")}
+              />
+            </FormRow>
+          )}
+        </>
+      )}
     </div>
   );
 }
