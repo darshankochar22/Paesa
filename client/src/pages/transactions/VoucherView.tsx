@@ -55,6 +55,7 @@ interface PayrollEntry {
 
 interface BillReference {
   bill_id: number;
+  ledger_id: number;
   bill_name: string;
   bill_type: string;
   amount: number;
@@ -278,6 +279,43 @@ function ReadOnlyParticularsTable({ entries }: { entries: { ledger_name: string;
         </div>
       </div>
     </>
+  );
+}
+
+function ReadOnlyBillReferences({
+  bills,
+  ledgerNames,
+}: {
+  bills: BillReference[];
+  ledgerNames: Record<number, string>;
+}) {
+  // Group bill-wise allocations under their party ledger (Sundry Debtors/Creditors).
+  const byLedger = bills.reduce<Record<number, BillReference[]>>((acc, b) => {
+    (acc[b.ledger_id] ??= []).push(b);
+    return acc;
+  }, {});
+
+  return (
+    <div className="border-b border-gray-300 shrink-0 bg-gray-50">
+      <div className="px-3 py-0.5 border-b border-gray-200 text-xs font-semibold text-gray-700">
+        Bill-wise Details
+      </div>
+      {Object.entries(byLedger).map(([lid, rows]) => (
+        <div key={lid} className="px-3 py-1">
+          <div className="text-xs font-semibold text-black">
+            {ledgerNames[Number(lid)] || `Ledger #${lid}`}
+          </div>
+          {rows.map((b) => (
+            <div key={b.bill_id} className="flex items-center min-h-[20px] pl-4 text-xs text-black">
+              <div className="w-28 text-gray-600">{b.bill_type || "—"}</div>
+              <div className="flex-1 font-medium">{b.bill_name || "—"}</div>
+              {b.due_date && <div className="w-32 text-gray-600">Due: {formatDate(b.due_date)}</div>}
+              <div className="w-32 text-right font-bold">{formatAmount(b.amount)}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -580,6 +618,11 @@ export default function VoucherView() {
     ? voucher.entries.filter(e => e.ledger_name !== mainLedger.ledger_name && e.ledger_name !== voucher.party_name)
     : [];
 
+  const ledgerNames = voucher.entries.reduce<Record<number, string>>((acc, e) => {
+    if (e.ledger_id) acc[e.ledger_id] = e.ledger_name;
+    return acc;
+  }, {});
+
   const { date: dateStr, day: dayStr } = formatDateBox(voucher.date);
   const showDoubleEntryTable = (!isSingleEntry && !isSalesPurchase && hasEntries) ||
     (isSingleEntry && voucher.entries.length <= 2 && hasEntries);
@@ -683,6 +726,10 @@ export default function VoucherView() {
 
           {showDoubleEntryTable && (
             <ReadOnlyDoubleEntryTable entries={voucher.entries} balances={balances} />
+          )}
+
+          {voucher.bill_references?.length > 0 && (
+            <ReadOnlyBillReferences bills={voucher.bill_references} ledgerNames={ledgerNames} />
           )}
 
           {voucher.payroll_entries?.length > 0 && (
