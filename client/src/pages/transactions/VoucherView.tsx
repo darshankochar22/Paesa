@@ -322,12 +322,19 @@ function ReadOnlyBillReferences({
 function ReadOnlyDoubleEntryTable({
   entries,
   balances,
+  bills = [],
 }: {
   entries: VoucherEntry[];
   balances: Record<number, string>;
+  bills?: BillReference[];
 }) {
   const drTotal = entries.filter(e => e.type === "Dr").reduce((s, e) => s + e.amount, 0);
   const crTotal = entries.filter(e => e.type === "Cr").reduce((s, e) => s + e.amount, 0);
+  // Bill-wise allocations grouped under their party ledger, rendered inline (Tally-style).
+  const billsByLedger = bills.reduce<Record<number, BillReference[]>>((acc, b) => {
+    (acc[b.ledger_id] ??= []).push(b);
+    return acc;
+  }, {});
 
   return (
     <>
@@ -359,6 +366,14 @@ function ReadOnlyDoubleEntryTable({
                   </span>
                 </div>
               )}
+              {(billsByLedger[entry.ledger_id] ?? []).map((b) => (
+                <div key={b.bill_id} className="pl-6 flex items-baseline text-xs text-black">
+                  <span className="text-gray-700">{b.bill_type || "—"}</span>
+                  <span className="ml-2 font-medium">{b.bill_name || "—"}</span>
+                  <span className="ml-6 tabular-nums font-semibold">{formatAmount(b.amount)}</span>
+                  <span className="ml-1 text-gray-700">{entry.type}</span>
+                </div>
+              ))}
             </div>
           );
         })}
@@ -725,10 +740,11 @@ export default function VoucherView() {
           )}
 
           {showDoubleEntryTable && (
-            <ReadOnlyDoubleEntryTable entries={voucher.entries} balances={balances} />
+            <ReadOnlyDoubleEntryTable entries={voucher.entries} balances={balances} bills={voucher.bill_references} />
           )}
 
-          {voucher.bill_references?.length > 0 && (
+          {/* Single-entry vouchers still list bill-wise refs separately; double-entry shows them inline above. */}
+          {voucher.bill_references?.length > 0 && !showDoubleEntryTable && (
             <ReadOnlyBillReferences bills={voucher.bill_references} ledgerNames={ledgerNames} />
           )}
 
