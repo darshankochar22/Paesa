@@ -58,6 +58,7 @@ export default function CashBankSummaryLayout() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = React.useState<number>(0);
+  const [tob, setTob] = React.useState<{ totalDr: number; totalCr: number; netBalance: number; balanceType: string } | null>(null);
 
   const fetchSummary = React.useCallback(async () => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
@@ -159,6 +160,16 @@ export default function CashBankSummaryLayout() {
     fetchSummary();
   }, [fetchSummary]);
 
+  // Company-wide Total Opening Balance (same source as the Ledger master screen).
+  React.useEffect(() => {
+    if (!selectedCompany?.company_id) return;
+    (window as any).api.ledger.getTotalOpeningBalance(selectedCompany.company_id).then((res: any) => {
+      if (res?.success) {
+        setTob({ totalDr: res.totalDr, totalCr: res.totalCr, netBalance: res.netBalance, balanceType: res.balanceType });
+      }
+    });
+  }, [selectedCompany?.company_id]);
+
   const handleDrilldown = React.useCallback(
     (row: FlattenedRow) => {
       if (row.type === "parent-group" || row.type === "child-group") {
@@ -254,6 +265,18 @@ export default function CashBankSummaryLayout() {
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
+      {/* Total Opening Balance — company-wide, like the Ledger master screen */}
+      <div className="flex justify-end px-4 pt-2 pb-1 shrink-0">
+        <div className="w-52 border border-black text-[11px]">
+          <div className="text-center font-bold border-b border-black py-0.5">Total Opening Balance</div>
+          <div className="px-2 py-1">
+            <div className="text-right tabular-nums font-semibold">{tob ? `${fmtTotal(tob.totalDr)} Dr` : "0.00 Dr"}</div>
+            <div className="text-right tabular-nums font-semibold">{tob ? `${fmtTotal(tob.totalCr)} Cr` : "0.00 Cr"}</div>
+            <div className="text-[10px] italic text-black/60 border-t border-black/20 mt-0.5 pt-0.5">Difference</div>
+            <div className="text-right tabular-nums font-bold">{tob ? `${fmtTotal(tob.netBalance)} ${tob.balanceType}` : "—"}</div>
+          </div>
+        </div>
+      </div>
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
           <thead className="sticky top-0 bg-white border-b border-black z-10 text-black select-none">
