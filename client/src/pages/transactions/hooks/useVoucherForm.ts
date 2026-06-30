@@ -14,7 +14,9 @@ export type { ParticularRow, StockEntryRow, ActiveField, ActiveAllocation } from
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useVoucherForm(
-  resolveEffectiveType?: (type: string) => string
+  resolveEffectiveType?: (type: string) => string,
+  editVoucherId?: number | null,
+  onSaved?: () => void,
 ) {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -102,8 +104,9 @@ export function useVoucherForm(
 
   useEffect(() => {
     ledgers.fetchContextData();
-    fetchNextNumber();
-  }, [ledgers.fetchContextData, fetchNextNumber]);
+    // In edit mode the voucher number comes from the saved voucher, not a fresh one.
+    if (!editVoucherId) fetchNextNumber();
+  }, [ledgers.fetchContextData, fetchNextNumber, editVoucherId]);
 
   // ── Ledger balance sync ────────────────────────────────────────────────────
 
@@ -138,9 +141,11 @@ export function useVoucherForm(
   useEffect(() => {
     if (prevVoucherType.current !== meta.voucherType) {
       prevVoucherType.current = meta.voucherType;
-      resetFormRef.current?.();
+      // In edit mode the type is set once from the saved voucher — don't wipe the
+      // hydrated rows.
+      if (!editVoucherId) resetFormRef.current?.();
     }
-  }, [meta.voucherType]);
+  }, [meta.voucherType, editVoucherId]);
 
   // ── Validate ───────────────────────────────────────────────────────────────
 
@@ -541,14 +546,24 @@ export function useVoucherForm(
                 }))
             : undefined,
         };
-        res = await window.api.voucher.create(payload);
+        if (editVoucherId) {
+          res = await window.api.voucher.update({ ...payload, voucher_id: editVoucherId });
+        } else {
+          res = await window.api.voucher.create(payload);
+        }
       }
 
       if (res.success) {
         const savedNumber = meta.voucherNumber;
-        resetForm();
-        meta.setSuccess(`Voucher No. ${savedNumber} saved successfully.`);
-        ledgers.fetchContextData();
+        if (editVoucherId) {
+          meta.setSuccess(`Voucher No. ${savedNumber} updated successfully.`);
+          ledgers.fetchContextData();
+          onSaved?.();
+        } else {
+          resetForm();
+          meta.setSuccess(`Voucher No. ${savedNumber} saved successfully.`);
+          ledgers.fetchContextData();
+        }
       } else {
         meta.setError(res.error || "Failed to save voucher.");
       }
@@ -557,7 +572,7 @@ export function useVoucherForm(
     } finally {
       meta.setIsSubmitting(false);
     }
-  }, [validate, companyId, fyId, effectiveVoucherType, meta, rows, ledgers.fetchContextData]);
+  }, [validate, companyId, fyId, effectiveVoucherType, meta, rows, ledgers.fetchContextData, editVoucherId, onSaved]);
 
   // ── resetForm ──────────────────────────────────────────────────────────────
 
@@ -577,6 +592,7 @@ export function useVoucherForm(
     setVoucherType: meta.setVoucherType,
     voucherNumber: meta.voucherNumber,
     voucherNumberLoading: meta.voucherNumberLoading,
+    setVoucherNumber: meta.setVoucherNumber,
     date: meta.date,
     setDate: meta.setDate,
     dateDisplay: meta.dateDisplay,

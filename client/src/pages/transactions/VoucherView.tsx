@@ -6,6 +6,7 @@ import { Button } from "@/components/shadcn/button";
 import { Badge } from "@/components/shadcn/badge";
 import { cn } from "@/lib/utils";
 import { exportElementToPdf } from "@/lib/exportDomPdf";
+import { EDITABLE_VOUCHER_TYPES } from "./hooks/hydrateVoucherForm";
 
 interface VoucherEntry {
   entry_id: number;
@@ -772,6 +773,15 @@ export default function VoucherView() {
           <span className="underline">Q</span>: Quit
         </Button>
         <div className="flex items-center gap-3">
+          {!voucher.is_cancelled && EDITABLE_VOUCHER_TYPES.has(voucher.voucher_type) && (
+            <Button
+              onClick={() => navigate(`/transactions/voucher/${voucher.voucher_id}/edit`)}
+              size="xs"
+              className="h-auto rounded-none text-sm px-3 py-0.5 bg-black text-white hover:bg-zinc-800"
+            >
+              <span className="underline">E</span>: Alter
+            </Button>
+          )}
           <Button
             onClick={handleExportPdf}
             disabled={exporting}

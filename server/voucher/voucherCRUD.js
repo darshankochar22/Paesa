@@ -962,13 +962,18 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       await db
         .update(vouchers)
         .set({
+          voucherNumber: nullify(data.voucher_number) ?? current.voucher_number,
           date: data.date ?? current.date,
+          status: nullify(data.status) ?? current.status,
+          supplierInvoiceNo: nullify(data.supplier_invoice_no) ?? nullify(current.supplier_invoice_no),
+          supplierInvoiceDate: nullify(data.supplier_invoice_date) ?? nullify(current.supplier_invoice_date),
           referenceNumber: nullify(data.reference_number) ?? nullify(current.reference_number),
           referenceDate: nullify(data.reference_date) ?? nullify(current.reference_date),
           narration: nullify(data.narration) ?? nullify(current.narration),
           partyLedgerId: nullify(data.party_ledger_id) ?? nullify(current.party_ledger_id),
           partyName: nullify(data.party_name) ?? nullify(current.party_name),
           placeOfSupply: nullify(data.place_of_supply) ?? nullify(current.place_of_supply),
+          isPostDated: data.is_post_dated !== undefined ? (data.is_post_dated ? 1 : 0) : current.is_post_dated,
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(vouchers.voucherId, data.voucher_id));
@@ -1091,6 +1096,213 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           }
         }
       }
+
+      // ── Inventory + remaining detail sub-tables (mirror create()) ──────────
+      // These were previously NOT updated, so editing stock lines / bank / tax
+      // details silently dropped them. Each is replace-on-send (delete then
+      // re-insert) and guarded by `!== undefined` so a partial update preserves
+      // anything the caller omitted.
+      if (data.stock_entries !== undefined) {
+        // Batch + per-item excise rows FK-reference stock_entry_id, so clear them first.
+        await db.delete(voucherBatches).where(eq(voucherBatches.voucherId, data.voucher_id));
+        await db.delete(voucherItemExcise).where(eq(voucherItemExcise.voucherId, data.voucher_id));
+        await db.delete(voucherStockEntries).where(eq(voucherStockEntries.voucherId, data.voucher_id));
+        if (data.stock_entries && data.stock_entries.length > 0) {
+          for (const item of data.stock_entries) {
+            const insertedStock = await db
+              .insert(voucherStockEntries)
+              .values({
+                voucherId: data.voucher_id,
+                stockItemId: nullify(item.stock_item_id),
+                itemName: nullify(item.item_name) || null,
+                godownId: nullify(item.godown_id) || null,
+                unitId: nullify(item.unit_id) || null,
+                quantity: item.quantity,
+                rate: item.rate,
+                amount: item.quantity * item.rate,
+                additionalAmount: nullify(item.additional_amount) || 0,
+                discountAmount: nullify(item.discount_amount) || 0,
+                hsnCode: nullify(item.hsn_code) || null,
+                gstRate: nullify(item.gst_rate) || 0,
+                cgstAmount: nullify(item.cgst_amount) || 0,
+                sgstAmount: nullify(item.sgst_amount) || 0,
+                igstAmount: nullify(item.igst_amount) || 0,
+                isSource: item.is_source ? 1 : 0,
+              })
+              .returning({ id: voucherStockEntries.stockEntryId });
+
+            const batchList = Array.isArray(item.batches) ? item.batches : (item.batch ? [item.batch] : []);
+            for (const b of batchList) {
+              if (!b || (!b.batch_number && !b.godown)) continue;
+              await db.insert(voucherBatches).values({
+                voucherId: data.voucher_id,
+                stockEntryId: Number(insertedStock[0].id),
+                batchNumber: nullify(b.batch_number) || null,
+                mfgDate: nullify(b.mfg_date) || null,
+                expiryDate: nullify(b.expiry_date) || null,
+                quantity: b.quantity || item.quantity,
+                rate: b.rate || item.rate,
+                godown: nullify(b.godown) || null,
+                actualQuantity: b.actual_quantity ?? b.quantity ?? 0,
+                discPercent: b.disc_percent ?? 0,
+                orderNo: nullify(b.order_no) || null,
+                dueOn: nullify(b.due_on) || null,
+                componentOf: nullify(b.component_of) || null,
+                considerAsScrap: nullify(b.consider_as_scrap) || null,
+              });
+            }
+
+            const ie = item.excise_item_details;
+            if (ie) {
+              await db.insert(voucherItemExcise).values({
+                voucherId: data.voucher_id,
+                stockEntryId: Number(insertedStock[0].id),
+                salesInvoiceNumber: nullify(ie.sales_invoice_number) || null,
+                salesInvoiceDate: nullify(ie.sales_invoice_date) || null,
+                exciseSalesInvoice: nullify(ie.excise_sales_invoice) || null,
+                rateOfDuty: nullify(ie.rate_of_duty) || null,
+                ratePerUnit: nullify(ie.rate_per_unit) || null,
+                supplierDutyAmount: nullify(ie.supplier_duty_amount) || null,
+                mfgrImporterDutyAmount: nullify(ie.mfgr_importer_duty_amount) || null,
+              });
+            }
+          }
+        }
+      }
+
+      if (data.bank_details !== undefined) {
+        await db.delete(voucherBankDetails).where(eq(voucherBankDetails.voucherId, data.voucher_id));
+        if (data.bank_details) {
+          await db.insert(voucherBankDetails).values({
+            voucherId: data.voucher_id,
+            ledgerId: nullify(data.bank_details.ledger_id),
+            transactionType: nullify(data.bank_details.transaction_type) || 'Cheque',
+            chequeRange: nullify(data.bank_details.cheque_range) || null,
+            instrumentNumber: nullify(data.bank_details.instrument_number) || null,
+            instrumentDate: nullify(data.bank_details.instrument_date) || null,
+            bankName: nullify(data.bank_details.bank_name) || null,
+            branch: nullify(data.bank_details.branch) || null,
+            accountNumber: nullify(data.bank_details.account_number) || null,
+            ifscCode: nullify(data.bank_details.ifsc_code) || null,
+            paymentGateway: nullify(data.bank_details.payment_gateway) || null,
+            amount: nullify(data.bank_details.amount) || 0,
+          });
+        }
+      }
+
+      if (data.cash_denominations !== undefined) {
+        await db.delete(voucherCashDenominations).where(eq(voucherCashDenominations.voucherId, data.voucher_id));
+        const cd = data.cash_denominations;
+        if (cd) {
+          const ledgerId = cd.ledger_id || (cd.entries && cd.entries[0]?.ledger_id) || null;
+          for (const entry of (cd.entries || [])) {
+            await db.insert(voucherCashDenominations).values({
+              voucherId: data.voucher_id,
+              ledgerId,
+              denomination: String(entry.denomination),
+              quantity: entry.quantity || 0,
+              amount: entry.amount || 0,
+            });
+          }
+          if (cd.others && cd.others > 0) {
+            await db.insert(voucherCashDenominations).values({
+              voucherId: data.voucher_id,
+              ledgerId,
+              denomination: 'Others',
+              quantity: 0,
+              amount: cd.others,
+            });
+          }
+        }
+      }
+
+      if (data.credit_note_details !== undefined) {
+        await db.delete(voucherCreditNoteDetails).where(eq(voucherCreditNoteDetails.voucherId, data.voucher_id));
+        if (data.credit_note_details) {
+          const cn = data.credit_note_details;
+          await db.insert(voucherCreditNoteDetails).values({
+            voucherId: data.voucher_id,
+            trackingNo: nullify(cn.tracking_no) || null,
+            dispatchDocNo: nullify(cn.dispatch_doc_no) || null,
+            dispatchedThrough: nullify(cn.dispatched_through) || null,
+            destination: nullify(cn.destination) || null,
+            carrierName: nullify(cn.carrier_name) || null,
+            billOfLadingNo: nullify(cn.bill_of_lading_no) || null,
+            billOfLadingDate: nullify(cn.bill_of_lading_date) || null,
+            motorVehicleNo: nullify(cn.motor_vehicle_no) || null,
+            originalInvoiceNo: nullify(cn.original_invoice_no) || null,
+            originalInvoiceDate: nullify(cn.original_invoice_date) || null,
+            reasonForIssuingNote: nullify(cn.reason_for_issuing_note) || null,
+            supplierNoteNo: nullify(cn.supplier_note_no) || null,
+            supplierNoteDate: nullify(cn.supplier_note_date) || null,
+            natureOfReturn: nullify(cn.nature_of_return) || null,
+          });
+        }
+      }
+
+      if (data.debit_note_details !== undefined) {
+        await db.delete(voucherDebitNoteDetails).where(eq(voucherDebitNoteDetails.voucherId, data.voucher_id));
+        if (data.debit_note_details) {
+          const dn = data.debit_note_details;
+          await db.insert(voucherDebitNoteDetails).values({
+            voucherId: data.voucher_id,
+            trackingNo: nullify(dn.tracking_no) || null,
+            dispatchDocNo: nullify(dn.dispatch_doc_no) || null,
+            dispatchedThrough: nullify(dn.dispatched_through) || null,
+            destination: nullify(dn.destination) || null,
+            carrierName: nullify(dn.carrier_name) || null,
+            billOfLadingNo: nullify(dn.bill_of_lading_no) || null,
+            billOfLadingDate: nullify(dn.bill_of_lading_date) || null,
+            motorVehicleNo: nullify(dn.motor_vehicle_no) || null,
+            originalInvoiceNo: nullify(dn.original_invoice_no) || null,
+            originalInvoiceDate: nullify(dn.original_invoice_date) || null,
+            dateTimeOfInvoice: nullify(dn.date_time_of_invoice) || null,
+            dateTimeOfRemoval: nullify(dn.date_time_of_removal) || null,
+            reasonForIssuingNote: nullify(dn.reason_for_issuing_note) || null,
+            supplierNoteNo: nullify(dn.supplier_note_no) || null,
+            supplierNoteDate: nullify(dn.supplier_note_date) || null,
+            natureOfReturn: nullify(dn.nature_of_return) || null,
+          });
+        }
+      }
+
+      if (data.vat_details !== undefined) {
+        await db.delete(voucherVatDetails).where(eq(voucherVatDetails.voucherId, data.voucher_id));
+        if (data.vat_details) {
+          await db.insert(voucherVatDetails).values({
+            voucherId: data.voucher_id,
+            dateTime: nullify(data.vat_details.date_time) || null,
+            pointOfSale: nullify(data.vat_details.point_of_sale) || null,
+          });
+        }
+      }
+
+      if (data.order_details !== undefined) {
+        await db.delete(voucherOrderDetails).where(eq(voucherOrderDetails.voucherId, data.voucher_id));
+        if (data.order_details) {
+          const od = data.order_details;
+          await db.insert(voucherOrderDetails).values({
+            voucherId: data.voucher_id,
+            orderNos: nullify(od.order_nos) || null,
+            orderDate: nullify(od.order_date) || null,
+            modeTermsOfPayment: nullify(od.mode_terms_of_payment) || null,
+            otherReferences: nullify(od.other_references) || null,
+            termsOfDelivery: nullify(od.terms_of_delivery) || null,
+            challanNos: nullify(od.challan_nos) || null,
+            dispatchedThrough: nullify(od.dispatched_through) || null,
+            destination: nullify(od.destination) || null,
+            carrierName: nullify(od.carrier_name) || null,
+            billOfLadingNo: nullify(od.bill_of_lading_no) || null,
+            billOfLadingDate: nullify(od.bill_of_lading_date) || null,
+            motorVehicleNo: nullify(od.motor_vehicle_no) || null,
+            sourceGodownId: nullify(od.source_godown_id) || null,
+          });
+        }
+      }
+
+      // Entry amounts / ledgers may have changed — refresh stored ledger closing
+      // balances exactly as create() and cancel() do (was previously missing).
+      await recalculateLedgerBalances(data.voucher_id, current.company_id, current.fy_id);
 
       const updated = await db.all(
         sql`SELECT * FROM ${vouchers} WHERE ${vouchers.voucherId} = ${data.voucher_id}`

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 
 import { useVoucherForm } from "./hooks/useVoucherForm";
+import { hydrateVoucherForm } from "./hooks/hydrateVoucherForm";
 import type { BatchAllocation } from "./types";
 import { makeStockRow } from "./utils/rowFactories";
 import { AlertBanner, PageTitleBar } from "../../components/ui";
@@ -303,7 +304,35 @@ export default function Vouchers() {
     (type: string) => voucherTypeParentMap[type] || type,
     [voucherTypeParentMap]
   );
-  const form = useVoucherForm(resolveEffectiveVoucherType);
+
+  // Edit mode: /transactions/voucher/:id/edit re-uses this entry screen, hydrated from
+  // the saved voucher, and saves via voucher.update instead of create.
+  const { id: editIdParam } = useParams<{ id: string }>();
+  const editVoucherId = editIdParam ? Number(editIdParam) : null;
+
+  const form = useVoucherForm(
+    resolveEffectiveVoucherType,
+    editVoucherId,
+    editVoucherId ? () => navigate(`/transactions/voucher/${editVoucherId}`) : undefined,
+  );
+
+  // Load the voucher once master data (ledgers/items) is ready, then populate the form.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (!editVoucherId || hydratedRef.current) return;
+    if (form.ledgersLoading || !(form.allLedgers && form.allLedgers.length)) return;
+    hydratedRef.current = true;
+    (async () => {
+      try {
+        const res = await window.api.voucher.getById(editVoucherId);
+        if (res.success && res.voucher) hydrateVoucherForm(form, res.voucher);
+        else form.setError(res.error || "Failed to load voucher for editing.");
+      } catch (e: any) {
+        form.setError(e?.message || "Failed to load voucher for editing.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editVoucherId, form.ledgersLoading, form.allLedgers]);
 
   const effectiveVoucherType = resolveEffectiveVoucherType(form.voucherType);
 
@@ -1741,7 +1770,7 @@ const handleSaveVatDetails = useCallback(
 
       {/* ── Title bar ── */}
       <PageTitleBar
-        title={effectiveVoucherType === "Attendance" ? "Attendance Voucher Creation" : effectiveVoucherType === "Payroll" ? "Payroll Voucher Creation" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) ? "Inventory Voucher Creation" : "Accounting Voucher Creation"}
+        title={`${effectiveVoucherType === "Attendance" ? "Attendance" : effectiveVoucherType === "Payroll" ? "Payroll" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) ? "Inventory" : "Accounting"} Voucher ${editVoucherId ? "Alteration" : "Creation"}`}
         subtitle={selectedCompany?.name ?? ""}
         actions={
           <button

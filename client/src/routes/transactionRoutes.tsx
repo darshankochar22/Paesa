@@ -11,6 +11,7 @@ export const transactionRoutes: RouteConfig[] = [
   { path: "/transactions/vouchers", element: <Vouchers /> },
   { path: "/transactions/voucher-list", element: <VoucherList /> },
   { path: "/transactions/voucher/:id", element: <VoucherView /> },
+  { path: "/transactions/voucher/:id/edit", element: <Vouchers /> },
   { path: "/transactions/daybook", element: <Daybook /> },
   { path: "/utilities/banking", element: <Banking /> },
   { path: "/utilities/copilot", element: <Copilot /> },
