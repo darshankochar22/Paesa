@@ -651,7 +651,41 @@ export default function SalesVoucher({
         </div>
       </div>
 
+      {/* Provide GST/e-Way Bill details */}
+      {!hideAdditionalLedgers && <SalesGstEwayRow form={form} />}
+
       {!hideVatDetails && <SalesVATDetails form={form} />}
+    </div>
+  );
+}
+
+function SalesGstEwayRow({ form }: { form: any }) {
+  const [provide, setProvide] = useState<"Yes" | "No">("No");
+  return (
+    <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
+      <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
+      <span className="text-sm text-black">:</span>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setProvide("Yes")}
+          className={`text-sm px-2 py-0 border ${provide === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          onClick={() => setProvide("No")}
+          className={`text-sm px-2 py-0 border ${provide === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+        >
+          No
+        </button>
+      </div>
+      {form.placeOfSupply !== undefined && (
+        <span className="ml-6 text-sm text-black/60">
+          Place of Supply : {form.placeOfSupply || "—"}
+        </span>
+      )}
     </div>
   );
 }

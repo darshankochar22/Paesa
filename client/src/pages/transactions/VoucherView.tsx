@@ -716,6 +716,11 @@ export default function VoucherView() {
             </div>
           )}
 
+          {/* Place of Supply — stored per-voucher, shown for trade vouchers */}
+          {["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucher.voucher_type) && voucher.place_of_supply && (
+            <ReadOnlyFieldRow label="Place of Supply" value={voucher.place_of_supply} />
+          )}
+
           {voucher.party_name && (
             <ReadOnlyFieldRow label="Party A/c name" value={voucher.party_name} />
           )}
@@ -769,7 +774,16 @@ export default function VoucherView() {
             <ReadOnlyPayrollTable entries={voucher.payroll_entries} />
           )}
 
-          {/* Narration — only thing left at the bottom now */}
+          {/* Provide GST/e-Way Bill details — trade vouchers only */}
+          {["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucher.voucher_type) && (
+            <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
+              <span className="text-sm text-black shrink-0">Provide GST/e-Way Bill details</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <span className="text-sm font-semibold text-black">No</span>
+            </div>
+          )}
+
+          {/* Narration */}
           <div className="flex items-center border-t border-gray-300 shrink-0 px-3 py-1.5 bg-white">
             <span className="text-sm text-black shrink-0">Narration:</span>
             <span className="flex-1 text-sm text-black ml-2">{voucher.narration || "—"}</span>

@@ -1,14 +1,31 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import StockBarChart from "@/pages/reports/inventory/StockBarChart";
 
 const fmtAmount = (val: number) =>
   val === 0 ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+
+const fmtTotal = (val: number) =>
+  new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "";
   try {
     return new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return dateStr;
+  }
+};
+
+const formatFyDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    const day = d.getDate();
+    const mon = d.toLocaleDateString("en-IN", { month: "short" });
+    const yr = String(d.getFullYear()).slice(2);
+    return `${day}-${mon}-${yr}`;
   } catch {
     return dateStr;
   }
@@ -259,8 +276,18 @@ export default function PurchaseRegisterLayout() {
     );
   }
 
-  const totalVouchersSum = monthRows.reduce((s, r) => s + (Number(r.total_vouchers) || 0), 0);
-  const totalCancelledSum = monthRows.reduce((s, r) => s + (Number(r.cancelled) || 0), 0);
+  const totalDebitSum = monthRows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
+  const totalCreditSum = monthRows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
+  const finalClosing = monthRows.length > 0 ? (Number(monthRows[monthRows.length - 1].closing_balance) || 0) : 0;
+
+  const fyStart = activeFY?.start_date ? formatFyDate(activeFY.start_date) : "";
+  const fyEnd = activeFY?.end_date ? formatFyDate(activeFY.end_date) : "";
+  const fyLabel = fyStart && fyEnd ? `${fyStart} to ${fyEnd}` : periodLabel;
+
+  const chartBars = monthRows.map((r) => ({
+    label: r.month.substring(0, 3),
+    value: Number(r.debit) || 0,
+  }));
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
@@ -268,43 +295,47 @@ export default function PurchaseRegisterLayout() {
         <table className="w-full border-collapse text-[11px] font-mono select-none">
           <thead className="sticky top-0 bg-white text-black border-b border-black z-10">
             <tr className="bg-white">
-              <th rowSpan={5} className="border-b border-r border-black px-3 py-1.5 text-left font-bold w-[50%] align-bottom">
+              <th rowSpan={5} className="border-r border-black px-3 py-1 text-left font-bold w-[40%] align-bottom">
                 Particulars
               </th>
-              <th colSpan={2} className="px-3 py-0.5 text-right font-normal italic">
+              <th colSpan={3} className="px-3 py-0.5 text-right font-normal italic text-black/70 text-[10px]">
                 Purchase
               </th>
             </tr>
             <tr className="bg-white">
-              <th colSpan={2} className="px-3 py-0.5 text-right font-bold text-black">
+              <th colSpan={3} className="px-3 py-0.5 text-right font-bold text-black">
                 {selectedCompany?.name || "—"}
               </th>
             </tr>
             <tr className="bg-white">
-              <th colSpan={2} className="px-3 py-0.5 text-right font-normal text-black">
-                {periodLabel}
+              <th colSpan={3} className="px-3 py-0.5 text-right font-normal text-black/70 text-[10px]">
+                {fyLabel}
               </th>
             </tr>
-            <tr className="bg-white border-t border-black/10">
-              <th colSpan={2} className="px-3 py-1 text-center font-bold border-b border-black/10">
+            <tr className="bg-white border-t border-black/20">
+              <th colSpan={2} className="px-3 py-0.5 text-center font-bold border-b border-black/20 border-r border-black/20">
                 Transactions
+              </th>
+              <th rowSpan={2} className="px-3 py-1 text-right font-bold w-[22%] align-bottom">
+                Closing Balance
               </th>
             </tr>
             <tr className="bg-white border-b border-black">
-              <th className="border-r border-black px-3 py-1 text-right font-bold w-[25%]">Total Vouchers</th>
-              <th className="px-3 py-1 text-right font-bold w-[25%]">(cancelled )</th>
+              <th className="border-r border-black/20 px-3 py-1 text-right font-bold w-[20%]">Debit</th>
+              <th className="border-r border-black/20 px-3 py-1 text-right font-bold w-[20%]">Credit</th>
             </tr>
           </thead>
           <tbody>
             {monthRows.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-black/60 italic">
+                <td colSpan={4} className="px-4 py-8 text-center text-black/60 italic">
                   No records found.
                 </td>
               </tr>
             ) : (
               monthRows.map((row, idx) => {
                 const isFocused = idx === focusedMonthIndex;
+                const closing = Number(row.closing_balance) || 0;
                 return (
                   <tr
                     key={row.month}
@@ -316,28 +347,38 @@ export default function PurchaseRegisterLayout() {
                   >
                     <td className="border-r border-black/10 px-3 py-1.5 text-left">{row.month}</td>
                     <td className="border-r border-black/10 px-3 py-1.5 text-right font-mono">
-                      {row.total_vouchers ? row.total_vouchers.toLocaleString("en-IN") : ""}
+                      {fmtAmount(Number(row.debit) || 0)}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono text-black/60">
-                      {row.cancelled && row.cancelled > 0 ? `(${row.cancelled} )` : ""}
+                    <td className="border-r border-black/10 px-3 py-1.5 text-right font-mono">
+                      {fmtAmount(Number(row.credit) || 0)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono">
+                      {closing !== 0 ? `${fmtAmount(closing)} Dr` : ""}
                     </td>
                   </tr>
                 );
               })
             )}
-
-            <tr className="border-t-2 border-b-2 border-black bg-white font-bold text-black">
-              <td className="border-r border-black px-3 py-2 text-left">Grand Total</td>
-              <td className="border-r border-black px-3 py-2 text-right font-mono">
-                {totalVouchersSum > 0 ? totalVouchersSum : ""}
-              </td>
-              <td className="px-3 py-2 text-right font-mono text-black/60">
-                {totalCancelledSum > 0 ? `(${totalCancelledSum} )` : ""}
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>
+
+      {/* Grand Total row */}
+      <div className="border-t-2 border-b border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black select-none shrink-0">
+        <span className="w-[40%] border-r border-black/20">Grand Total</span>
+        <span className="w-[20%] text-right pr-3 border-r border-black/20">
+          {totalDebitSum !== 0 ? fmtTotal(totalDebitSum) : ""}
+        </span>
+        <span className="w-[20%] text-right pr-3 border-r border-black/20">
+          {totalCreditSum !== 0 ? fmtTotal(totalCreditSum) : ""}
+        </span>
+        <span className="flex-1 text-right pr-1">
+          {finalClosing !== 0 ? `${fmtTotal(finalClosing)} Dr` : ""}
+        </span>
+      </div>
+
+      {/* Bar chart */}
+      <StockBarChart bars={chartBars} height={80} selectedIndex={focusedMonthIndex} />
     </div>
   );
 }
