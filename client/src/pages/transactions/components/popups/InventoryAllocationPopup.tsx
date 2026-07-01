@@ -4,6 +4,7 @@ import type { StockItemType, GodownType, UnitType } from "@/types/api";
 import type { BatchAllocation, InventoryAllocationItem } from "../../types";
 import BatchAllocationPopup from "./BatchAllocationPopup";
 import CostCentreAllocationPopup from "./CostCentreAllocationPopup";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 // TallyPrime "Inventory Allocations for : <ledger>" sub-screen. Opened when an
 // inventory-affecting ledger (Purchase/Sales A/c) is selected in a Journal /
@@ -190,42 +191,33 @@ export default function InventoryAllocationPopup({
     onSave(items);
   }, [items, onSave]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (batchFor || costFor) return;   // child popups handle their own keys
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleAccept(); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [batchFor, costFor, onClose, handleAccept]);
+  // Shell handles Esc / Alt+A; suppress both while a child popup (batch / cost
+  // centre) is open so its own keys don't also close/accept this parent.
+  const shellClose = () => { if (!batchFor && !costFor) onClose(); };
+  const shellAccept = () => { if (!batchFor && !costFor) handleAccept(); };
 
   const cell = "shrink-0";
   const W = { name: "flex-1 min-w-[160px]", qty: "w-40", rate: "w-24", per: "w-10", amount: "w-28", del: "w-5" };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 pt-12 select-none">
-      <div className="bg-white border border-black shadow-2xl w-[720px] flex flex-col max-h-[88vh]">
-        {/* Header */}
-        <div className="relative border-b border-black px-4 py-2">
-          <span className="absolute left-3 top-2 text-[9px] font-bold uppercase tracking-wider text-zinc-400">Inventory Allocations</span>
-          <button onClick={onClose} className="absolute right-3 top-1.5 text-zinc-500 hover:text-black font-bold text-sm">&times;</button>
-          <div className="text-center text-sm">
-            Inventory Allocations for : <span className="font-bold">{ledgerName}</span>
-          </div>
-        </div>
-
-        <div className="p-4 flex-1 overflow-y-auto min-h-0 space-y-3">
+    <>
+      <VoucherPopupShell
+        title="Inventory Allocations"
+        headerRight={<span>for : <span className="font-bold text-black">{ledgerName}</span></span>}
+        onClose={shellClose}
+        onAccept={shellAccept}
+      >
+        <div className="space-y-3">
           {error && (
-            <div className="border border-zinc-400 text-zinc-900 text-xs px-3 py-2 flex justify-between items-center font-semibold">
+            <div className="border border-black text-black text-xs px-3 py-2 flex justify-between items-center font-bold">
               <span>• {error}</span>
               <button onClick={() => setError(null)} className="font-bold">&times;</button>
             </div>
           )}
 
-          <div className="border border-zinc-300">
+          <div className="border border-gray-300">
             {/* Header row 1 */}
-            <div className="flex bg-zinc-100 px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 gap-2">
+            <div className="flex bg-white px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-black gap-2 select-none">
               <div className={`${cell} ${W.name}`}>Name of Item</div>
               <div className={`${cell} ${W.qty} text-center`}>Quantity</div>
               <div className={`${cell} ${W.rate} text-right`}>Rate</div>
@@ -234,7 +226,7 @@ export default function InventoryAllocationPopup({
               <div className={`${cell} ${W.del}`} />
             </div>
             {/* Header row 2 */}
-            <div className="flex bg-zinc-100 border-b border-zinc-300 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-zinc-500 gap-2">
+            <div className="flex bg-white border-b border-gray-400 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-600 gap-2 select-none">
               <div className={`${cell} ${W.name}`} />
               <div className={`${cell} ${W.qty} flex gap-1`}>
                 <div className="flex-1 text-right">Actual</div>
@@ -247,12 +239,12 @@ export default function InventoryAllocationPopup({
             </div>
 
             {/* Item rows */}
-            <div className="divide-y divide-zinc-100">
+            <div className="divide-y divide-gray-200">
               {items.map((it, i) => (
                 <div key={i}>
                   <div className="flex items-center px-3 py-1.5 gap-2 text-xs">
                     <button type="button" onClick={() => editItem(i)}
-                      className={`${cell} ${W.name} text-left font-semibold text-zinc-900 hover:underline`}>
+                      className={`${cell} ${W.name} text-left font-semibold text-black hover:underline`}>
                       {it.item_name}
                     </button>
                     <div className={`${cell} ${W.qty} flex gap-1 font-mono`}>
@@ -260,16 +252,16 @@ export default function InventoryAllocationPopup({
                       <div className="flex-1 text-right">{it.quantity || ""} {it.unit_symbol ?? ""}</div>
                     </div>
                     <div className={`${cell} ${W.rate} text-right font-mono`}>{num(it.rate)}</div>
-                    <div className={`${cell} ${W.per} text-center font-mono text-zinc-600`}>{it.unit_symbol ?? ""}</div>
+                    <div className={`${cell} ${W.per} text-center font-mono text-gray-600`}>{it.unit_symbol ?? ""}</div>
                     <div className={`${cell} ${W.amount} text-right font-mono font-semibold`}>{num(it.amount)}</div>
                     <div className={`${cell} ${W.del} text-center`}>
-                      <button type="button" onClick={() => removeItem(i)} className="text-zinc-400 hover:text-zinc-900 text-sm font-bold">&times;</button>
+                      <button type="button" onClick={() => removeItem(i)} className="text-gray-400 hover:text-black text-sm font-bold">&times;</button>
                     </div>
                   </div>
                   {/* Cost centre sub-lines */}
                   {it.cost_centres?.length ? (
-                    <div className="pl-4 pb-1.5 text-[10px] text-zinc-600 leading-tight">
-                      <div className="italic text-zinc-500">Primary Cost Category</div>
+                    <div className="pl-4 pb-1.5 text-[10px] text-gray-600 leading-tight">
+                      <div className="italic text-gray-500">Primary Cost Category</div>
                       {it.cost_centres.map((cc, ci) => (
                         <div key={ci} className="flex justify-between pr-16">
                           <span className="pl-3 font-semibold">{cc.cost_centre_name ?? ccNames[cc.cost_centre_id] ?? `#${cc.cost_centre_id}`}</span>
@@ -290,21 +282,21 @@ export default function InventoryAllocationPopup({
                     placeholder="Select item…"
                     onChange={(e) => { setSearch(e.target.value); setShowList(true); }}
                     onFocus={() => setShowList(true)}
-                    className="w-full text-xs px-1.5 py-1 border border-zinc-300 outline-none focus:border-zinc-800"
+                    className="w-full text-xs px-1.5 py-1 border border-gray-400 outline-none focus:border-black bg-white"
                     autoComplete="off"
                   />
                   {showList && dropdownPos && createPortal(
                     <div
                       ref={dropdownRef}
                       style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
-                      className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
+                      className="bg-white border border-gray-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
                     >
-                      <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0">List of Stock Items</div>
+                      <div className="bg-white text-black text-[10px] font-bold px-2 py-1 border-b border-gray-300 sticky top-0">List of Stock Items</div>
                       {filtered.length === 0 ? (
-                        <div className="px-2 py-2 text-[11px] text-zinc-500 italic">No items</div>
+                        <div className="px-2 py-2 text-[11px] text-gray-500 italic">No items</div>
                       ) : filtered.map((s) => (
                         <button key={(s as any).item_id} type="button" onClick={() => pickItem(s)}
-                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
                           {s.name}
                         </button>
                       ))}
@@ -321,7 +313,7 @@ export default function InventoryAllocationPopup({
             </div>
 
             {/* Totals row */}
-            <div className="flex items-center px-3 py-2 bg-zinc-100 border-t-2 border-zinc-300 gap-2 font-bold text-xs font-mono">
+            <div className="flex items-center px-3 py-2 border-t border-black gap-2 font-bold text-xs font-mono">
               <div className={`${cell} ${W.name}`} />
               <div className={`${cell} ${W.qty} flex gap-1`}>
                 <div className="flex-1 text-right">{totalActual || ""}</div>
@@ -334,17 +326,7 @@ export default function InventoryAllocationPopup({
             </div>
           </div>
         </div>
-
-        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center">
-          <span className="text-[10px] text-zinc-500">Alt+A: Accept · Esc: Close</span>
-          <div className="flex gap-2">
-            <button onClick={onClose}
-              className="text-xs px-3 py-1.5 border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">Cancel</button>
-            <button onClick={handleAccept}
-              className="text-xs px-5 py-1.5 bg-zinc-900 text-white hover:bg-zinc-700 font-semibold">Accept</button>
-          </div>
-        </div>
-      </div>
+      </VoucherPopupShell>
 
       {/* Item Allocations (godown / batch) — reused as-is. Batch column shown only
           for items that maintain batches (showBatch), godown-only otherwise. */}
@@ -380,6 +362,6 @@ export default function InventoryAllocationPopup({
           onSave={handleCostSave}
         />
       )}
-    </div>
+    </>
   );
 }

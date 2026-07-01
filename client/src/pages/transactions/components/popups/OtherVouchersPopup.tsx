@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 const PRIMARY_VOUCHER_TYPES = [
   { key: "Contra", label: "Contra" },
@@ -44,17 +44,6 @@ export default function OtherVouchersPopup({
   onSelect,
   voucherTypeChildren,
 }: Props) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
-
   const renderTypeItems = (items: { key: string; label: string }[]) => {
     return items.map((t) => {
       const children = voucherTypeChildren[t.key];
@@ -63,10 +52,10 @@ export default function OtherVouchersPopup({
         <div key={t.key}>
           <button
             onClick={() => onSelect(t.key)}
-            className={`w-full text-left px-3 py-2 text-sm rounded transition-colors ${
+            className={`w-full text-left px-3 py-2 text-sm transition-colors ${
               voucherType === t.key
-                ? "bg-zinc-100 font-semibold text-black"
-                : "text-black hover:bg-zinc-50"
+                ? "bg-gray-100 font-bold text-black"
+                : "text-black hover:bg-gray-50"
             }`}
           >
             {t.label}
@@ -76,10 +65,10 @@ export default function OtherVouchersPopup({
               <button
                 key={child}
                 onClick={() => onSelect(child)}
-                className={`w-full text-left pl-6 pr-3 py-1.5 text-sm rounded transition-colors ${
+                className={`w-full text-left pl-6 pr-3 py-1.5 text-sm transition-colors ${
                   voucherType === child
-                    ? "bg-zinc-100 font-semibold text-black"
-                    : "text-zinc-600 hover:bg-zinc-50"
+                    ? "bg-gray-100 font-bold text-black"
+                    : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 {child}
@@ -91,42 +80,18 @@ export default function OtherVouchersPopup({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[360px] flex flex-col max-h-[85vh] overflow-hidden">
-        <div className="bg-zinc-900 px-4 py-2 text-white flex justify-between items-center select-none">
-          <span className="text-xs font-bold uppercase tracking-wider">
-            Other Vouchers
-          </span>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-white font-bold text-sm"
-          >
-            &times;
-          </button>
+    <VoucherPopupShell title="Other Vouchers" onClose={onClose}>
+      <div className="max-w-md">
+        <div className="px-3 pb-1 text-sm font-bold text-black border-b border-gray-400 select-none">
+          Primary Vouchers
         </div>
+        <div className="py-1">{renderTypeItems(PRIMARY_VOUCHER_TYPES)}</div>
 
-        <div className="p-2 flex-1 overflow-y-auto min-h-0">
-          <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-            Primary Vouchers
-          </div>
-          {renderTypeItems(PRIMARY_VOUCHER_TYPES)}
-
-          <div className="px-3 py-1 mt-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 border-t border-zinc-200 pt-3">
-            Other Vouchers
-          </div>
-          {renderTypeItems(OTHER_VOUCHER_TYPES)}
+        <div className="px-3 pb-1 mt-4 text-sm font-bold text-black border-b border-gray-400 select-none">
+          Other Vouchers
         </div>
-
-        <div className="border-t border-zinc-200 px-3 py-2 bg-zinc-50 flex justify-between items-center select-none">
-          <span className="text-[10px] text-zinc-500">Esc: Close</span>
-          <button
-            onClick={onClose}
-            className="text-xs px-3 py-1.5 border border-zinc-300 rounded text-zinc-700 bg-white hover:bg-zinc-100 font-semibold"
-          >
-            Close
-          </button>
-        </div>
+        <div className="py-1">{renderTypeItems(OTHER_VOUCHER_TYPES)}</div>
       </div>
-    </div>
+    </VoucherPopupShell>
   );
 }

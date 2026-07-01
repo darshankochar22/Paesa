@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { BatchAllocation } from "../../types";
 import NewNumberPopup from "./NewNumberPopup";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 // Stock Item Allocations sub-screen for order-tracking vouchers (Purchase/Sales
 // Order, Receipt Note, Delivery Note). Tally layout: each allocation is a
@@ -307,15 +308,10 @@ export default function OrderItemAllocationPopup({
     saveAllocations(kept);
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (newNumber) return; // let the New Number popup own the keyboard
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, handleSave, newNumber]);
+  // Esc / Alt+A are handled by VoucherPopupShell; these wrappers keep the old
+  // guard — the New Number popup owns the keyboard while it is open.
+  const guardedClose = () => { if (newNumber) return; onClose(); };
+  const guardedAccept = () => { if (newNumber) return; handleSave(); };
 
   const enter = (fn: () => void) => (e: React.KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); fn(); }
@@ -326,33 +322,33 @@ export default function OrderItemAllocationPopup({
     godown: "w-24", batch: "w-28", qty: "w-14", rate: "w-16",
     per: "w-8", disc: "w-12", amount: "w-20", del: "w-4",
   };
-  const inputCls = "text-xs px-1 py-0.5 border border-zinc-300 w-full outline-none focus:border-zinc-800";
-  const optNew = "block w-full text-right text-[11px] px-2 py-1 hover:bg-zinc-100 font-semibold border-b border-zinc-50";
-  const optSpecial = "block w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100";
+  const inputCls = "text-xs px-1 py-0.5 border border-gray-400 bg-white w-full outline-none focus:border-black";
+  const smallInputCls = "text-[11px] px-1 py-0.5 border border-gray-400 bg-white outline-none focus:border-black font-mono";
+  const listHeadCls = "bg-white text-black font-bold border-b border-gray-300";
+  const optNew = "block w-full text-right text-[11px] px-2 py-1 hover:bg-gray-100 font-semibold border-b border-gray-100";
+  const optSpecial = "block w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/25 pt-10 select-none">
-      <div className={`bg-white border border-black shadow-2xl ${showBatch ? "w-[720px]" : "w-[560px]"} flex flex-col max-h-[88vh]`}>
-        {/* Header — centred "Item Allocations for : <item>" (Tally) */}
-        <div className="relative border-b border-black px-4 py-2">
-          <span className="absolute left-3 top-2 text-[9px] font-bold uppercase tracking-wider text-zinc-400">Stock Item Allocations</span>
-          <button onClick={onClose} className="absolute right-3 top-1.5 text-zinc-500 hover:text-black font-bold text-sm">&times;</button>
-          <div className="text-center text-sm">
-            Item Allocations for : <span className="font-bold">{itemName}</span>
-          </div>
-        </div>
-
-        <div className="p-4 flex-1 overflow-y-auto min-h-0 space-y-3">
+    <>
+      <VoucherPopupShell
+        title="Stock Item Allocations"
+        headerRight={
+          <span>Item Allocations for : <span className="font-bold text-black">{itemName}</span></span>
+        }
+        onClose={guardedClose}
+        onAccept={guardedAccept}
+      >
+        <div className="space-y-3">
           {error && (
-            <div className="border border-zinc-400 text-zinc-900 text-xs px-3 py-2 flex justify-between items-center font-semibold">
+            <div className="border border-gray-400 text-black text-xs px-3 py-2 flex justify-between items-center font-semibold">
               <span>• {error}</span>
               <button onClick={() => setError(null)} className="font-bold">&times;</button>
             </div>
           )}
 
-          <div className="border border-zinc-300">
+          <div className="border border-gray-300">
             {/* Column headers (two rows) */}
-            <div className="flex bg-zinc-100 px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 gap-2">
+            <div className="flex px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-700 gap-2">
               <div className={`${cell} ${W.godown}`}>Godown</div>
               {showBatch && <div className={`${cell} ${W.batch} text-center`}>Batch / Lot No.</div>}
               <div className={`${cell} ${W.qty} text-right`}>Actual</div>
@@ -363,7 +359,7 @@ export default function OrderItemAllocationPopup({
               <div className={`${cell} ${W.amount} text-right`}>Amount</div>
               <div className={`${cell} ${W.del}`} />
             </div>
-            <div className="flex bg-zinc-100 border-b border-zinc-300 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-zinc-500 gap-2">
+            <div className="flex border-b border-gray-300 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-500 gap-2">
               <div className={`${cell} ${W.godown}`} />
               {showBatch && (
                 <div className={`${cell} ${W.batch} flex gap-1`}>
@@ -385,10 +381,10 @@ export default function OrderItemAllocationPopup({
               {rows.map((row, i) => {
                 const showOrder = hasTracking(row);
                 return (
-                  <div key={i} className="border-b border-zinc-100">
+                  <div key={i} className="border-b border-gray-200">
                     {/* Tracking No. / Order No. / Due on */}
                     <div className="flex items-center px-3 pt-1.5 gap-2 text-[11px]">
-                      <span className="italic text-zinc-600 shrink-0">Tracking No. :</span>
+                      <span className="italic text-gray-600 shrink-0">Tracking No. :</span>
                       <div data-oa-dd className="relative shrink-0" ref={(el) => { trackAnchorRefs.current[i] = el; }}>
                         <input
                           type="text"
@@ -399,23 +395,23 @@ export default function OrderItemAllocationPopup({
                           onChange={(e) => update(i, { tracking_no: e.target.value })}
                           onKeyDown={enter(() => afterTracking(i, (row.tracking_no || "").trim()))}
                           placeholder="New Number…"
-                          className="w-28 text-[11px] px-1 py-0.5 border border-zinc-300 outline-none focus:border-zinc-800 font-mono bg-yellow-50"
+                          className={`w-28 ${smallInputCls}`}
                         />
                         {openTrackRow === i && trackPos && createPortal(
                           <div
                             ref={trackDropdownRef}
                             style={{ position: "fixed", top: trackPos.top, left: trackPos.left, width: trackPos.width }}
-                            className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-52 overflow-y-auto"
+                            className="bg-white border border-gray-400 shadow-xl z-[60] max-h-52 overflow-y-auto"
                           >
-                            <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Tracking Numbers</div>
-                            <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-0.5 border-b border-zinc-200">
+                            <div className={`${listHeadCls} text-[10px] px-2 py-0.5`}>List of Tracking Numbers</div>
+                            <div className="flex text-[9px] font-bold text-gray-600 px-2 py-0.5 border-b border-gray-200">
                               <div className="flex-1">Number</div><div className="w-16">Godown</div><div className="w-12 text-right">Balance</div>
                             </div>
-                            <button type="button" onMouseDown={(e) => { e.preventDefault(); endOfList(i); }} className={optSpecial + " border-b border-zinc-50"}>{EOL}</button>
-                            <button type="button" onMouseDown={(e) => { e.preventDefault(); afterTracking(i, NA); }} className={optSpecial + " border-b border-zinc-50"}>{NA}</button>
+                            <button type="button" onMouseDown={(e) => { e.preventDefault(); endOfList(i); }} className={optSpecial + " border-b border-gray-100"}>{EOL}</button>
+                            <button type="button" onMouseDown={(e) => { e.preventDefault(); afterTracking(i, NA); }} className={optSpecial + " border-b border-gray-100"}>{NA}</button>
                             <button type="button" onMouseDown={(e) => { e.preventDefault(); setOpenTrackRow(null); setNewNumber({ row: i, field: "tracking" }); }} className={optNew}>New Number</button>
                             {sessionTracking.filter((t) => t.no !== row.tracking_no).map((t) => (
-                              <button key={t.no} type="button" onMouseDown={(e) => { e.preventDefault(); afterTracking(i, t.no); }} className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50">
+                              <button key={t.no} type="button" onMouseDown={(e) => { e.preventDefault(); afterTracking(i, t.no); }} className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
                                 <div className="flex-1 font-semibold">{t.no}</div><div className="w-16 truncate">{t.godown}</div><div className="w-12 text-right font-mono">{t.balance || ""}</div>
                               </button>
                             ))}
@@ -426,7 +422,7 @@ export default function OrderItemAllocationPopup({
 
                       {showOrder && (
                         <>
-                          <span className="italic text-zinc-600 shrink-0 ml-3">Order No.:</span>
+                          <span className="italic text-gray-600 shrink-0 ml-3">Order No.:</span>
                           <div data-oa-dd className="relative shrink-0" ref={(el) => { orderAnchorRefs.current[i] = el; }}>
                             <input
                               type="text"
@@ -436,22 +432,22 @@ export default function OrderItemAllocationPopup({
                               onChange={(e) => update(i, { order_no: e.target.value })}
                               onKeyDown={enter(() => { setOpenOrderRow(null); focusSel(`[data-oa-due="${i}"]`); })}
                               placeholder="New Number…"
-                              className="w-24 text-[11px] px-1 py-0.5 border border-zinc-300 outline-none focus:border-zinc-800 font-mono"
+                              className={`w-24 ${smallInputCls}`}
                             />
                             {openOrderRow === i && orderPos && createPortal(
                               <div
                                 ref={orderDropdownRef}
                                 style={{ position: "fixed", top: orderPos.top, left: orderPos.left, width: orderPos.width }}
-                                className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-52 overflow-y-auto"
+                                className="bg-white border border-gray-400 shadow-xl z-[60] max-h-52 overflow-y-auto"
                               >
-                                <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Orders</div>
-                                <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-0.5 border-b border-zinc-200">
+                                <div className={`${listHeadCls} text-[10px] px-2 py-0.5`}>List of Orders</div>
+                                <div className="flex text-[9px] font-bold text-gray-600 px-2 py-0.5 border-b border-gray-200">
                                   <div className="flex-1">Order No.</div><div className="w-14">Godown</div><div className="w-14">Due On</div><div className="w-12 text-right">Balance</div>
                                 </div>
-                                <button type="button" onMouseDown={(e) => { e.preventDefault(); update(i, { order_no: NA }); setOpenOrderRow(null); focusSel(`[data-oa-due="${i}"]`); }} className={optSpecial + " border-b border-zinc-50"}>{NA}</button>
+                                <button type="button" onMouseDown={(e) => { e.preventDefault(); update(i, { order_no: NA }); setOpenOrderRow(null); focusSel(`[data-oa-due="${i}"]`); }} className={optSpecial + " border-b border-gray-100"}>{NA}</button>
                                 <button type="button" onMouseDown={(e) => { e.preventDefault(); setOpenOrderRow(null); setNewNumber({ row: i, field: "order" }); }} className={optNew}>New Number</button>
                                 {sessionOrders.filter((o) => o.no !== row.order_no).map((o) => (
-                                  <button key={o.no} type="button" onMouseDown={(e) => { e.preventDefault(); update(i, { order_no: o.no }); setOpenOrderRow(null); focusSel(`[data-oa-due="${i}"]`); }} className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50">
+                                  <button key={o.no} type="button" onMouseDown={(e) => { e.preventDefault(); update(i, { order_no: o.no }); setOpenOrderRow(null); focusSel(`[data-oa-due="${i}"]`); }} className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
                                     <div className="flex-1 font-semibold">{o.no}</div><div className="w-14 truncate">{o.godown}</div><div className="w-14">{o.due}</div><div className="w-12 text-right font-mono">{o.balance || ""}</div>
                                   </button>
                                 ))}
@@ -460,7 +456,7 @@ export default function OrderItemAllocationPopup({
                             )}
                           </div>
 
-                          <span className="italic text-zinc-600 shrink-0 ml-3">Due on</span>
+                          <span className="italic text-gray-600 shrink-0 ml-3">Due on</span>
                           <input
                             type="text"
                             data-oa-due={i}
@@ -468,7 +464,7 @@ export default function OrderItemAllocationPopup({
                             onChange={(e) => update(i, { due_on: e.target.value })}
                             onKeyDown={enter(() => focusSel(`[data-oa-godown="${i}"]`))}
                             placeholder="2-Apr-27 / 500 Days / 2 Years"
-                            className="w-40 text-[11px] px-1 py-0.5 border border-zinc-300 outline-none focus:border-zinc-800 font-mono"
+                            className={`w-40 ${smallInputCls}`}
                           />
                         </>
                       )}
@@ -490,19 +486,19 @@ export default function OrderItemAllocationPopup({
                           <div
                             ref={godownDropdownRef}
                             style={{ position: "fixed", top: godownPos.top, left: godownPos.left, width: godownPos.width }}
-                            className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
+                            className="bg-white border border-gray-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
                           >
-                            <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5 flex justify-between">
+                            <div className={`${listHeadCls} text-[10px] px-2 py-0.5 flex justify-between`}>
                               <span>List of Godowns</span>
-                              <span className="opacity-70">Create</span>
+                              <span className="text-gray-500">Create</span>
                             </div>
                             {godowns.map((g) => (
                               <button key={g.godown_id ?? g.name} type="button"
                                 onMouseDown={(e) => { e.preventDefault(); update(i, { godown: g.name }); setOpenGodownRow(null); focusSel(showBatch ? `[data-oa-batch="${i}"]` : `[data-oa-actual="${i}"]`); }}
-                                className="flex w-full items-center text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50">
+                                className="flex w-full items-center text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
                                 <div className="flex-1 font-semibold">{g.name}</div>
-                                <div className="w-16 italic text-zinc-500">&#9670; Primary</div>
-                                <div className="w-14 text-right font-mono text-zinc-600">{fmtQty(g.godown_id != null ? godownBal[g.godown_id] : undefined, unitSymbol)}</div>
+                                <div className="w-16 italic text-gray-500">&#9670; Primary</div>
+                                <div className="w-14 text-right font-mono text-gray-600">{fmtQty(g.godown_id != null ? godownBal[g.godown_id] : undefined, unitSymbol)}</div>
                               </button>
                             ))}
                           </div>,
@@ -544,10 +540,10 @@ export default function OrderItemAllocationPopup({
                             <div
                               ref={batchDropdownRef}
                               style={{ position: "fixed", top: batchPos.top, left: batchPos.left, width: batchPos.width }}
-                              className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-44 overflow-y-auto"
+                              className="bg-white border border-gray-400 shadow-xl z-[60] max-h-44 overflow-y-auto"
                             >
-                              <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0">List of Active Batches</div>
-                              <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200">
+                              <div className={`${listHeadCls} text-[10px] px-2 py-1 sticky top-0`}>List of Active Batches</div>
+                              <div className="flex text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-200">
                                 <div className="flex-1">Name</div>
                                 <div className="w-16">Expiry</div>
                                 <div className="w-14 text-right">Balance</div>
@@ -556,20 +552,20 @@ export default function OrderItemAllocationPopup({
                               {isInward && (
                                 <button type="button"
                                   onMouseDown={(e) => { e.preventDefault(); setOpenListRow(null); setNewNumber({ row: i, field: "batch" }); }}
-                                  className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                                  className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
                                   New Number
                                 </button>
                               )}
                               {/* Any — no specific lot. */}
                               <button type="button"
                                 onMouseDown={(e) => { e.preventDefault(); update(i, { batch_number: "Any" }); setOpenListRow(null); focusSel(`[data-oa-actual="${i}"]`); }}
-                                className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50">
+                                className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
                                 <div className="flex-1 font-semibold">&#9670; Any</div>
                               </button>
                               {activeBatches.map((b) => (
                                 <button key={b.name} type="button"
                                   onMouseDown={(e) => { e.preventDefault(); update(i, { batch_number: b.name, mfg_date: b.mfg_date ?? undefined, expiry_date: b.expiry_date ?? undefined }); setOpenListRow(null); focusSel(`[data-oa-actual="${i}"]`); }}
-                                  className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50">
+                                  className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
                                   <div className="flex-1 font-semibold">{b.name}</div>
                                   <div className="w-16 font-mono">{fmtDate(b.expiry_date)}</div>
                                   <div className="w-14 text-right font-mono">{b.balance}</div>
@@ -579,7 +575,7 @@ export default function OrderItemAllocationPopup({
                               {typedBatches.map((n) => (
                                 <button key={`t-${n}`} type="button"
                                   onMouseDown={(e) => { e.preventDefault(); update(i, { batch_number: n }); setOpenListRow(null); focusSel(`[data-oa-actual="${i}"]`); }}
-                                  className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50">
+                                  className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
                                   <div className="flex-1 font-semibold">{n}</div>
                                 </button>
                               ))}
@@ -614,7 +610,7 @@ export default function OrderItemAllocationPopup({
                           className={`${inputCls} text-right font-mono`} />
                       </div>
                       {/* per */}
-                      <div className={`${cell} ${W.per} text-center text-[11px] text-zinc-600 pt-1 font-mono`}>{unitSymbol ?? ""}</div>
+                      <div className={`${cell} ${W.per} text-center text-[11px] text-gray-600 pt-1 font-mono`}>{unitSymbol ?? ""}</div>
                       {/* Disc % — Enter completes the row and starts the next allocation. */}
                       <div className={`${cell} ${W.disc}`}>
                         <input type="number" step="any" data-oa-disc={i}
@@ -627,7 +623,7 @@ export default function OrderItemAllocationPopup({
                       <div className={`${cell} ${W.amount} text-right text-xs font-mono font-semibold pt-1`}>{num(lineAmount(row))}</div>
                       {/* Remove */}
                       <div className={`${cell} ${W.del} text-center pt-0.5`}>
-                        <button type="button" onClick={() => removeRow(i)} className="text-zinc-400 hover:text-zinc-900 text-sm font-bold">&times;</button>
+                        <button type="button" onClick={() => removeRow(i)} className="text-gray-400 hover:text-black text-sm font-bold">&times;</button>
                       </div>
                     </div>
                   </div>
@@ -635,8 +631,8 @@ export default function OrderItemAllocationPopup({
               })}
             </div>
 
-            {/* Totals */}
-            <div className="flex items-center px-3 py-2 bg-zinc-100 border-t-2 border-zinc-300 gap-2 font-bold text-xs font-mono">
+            {/* Totals — bold + 1px black top border, no fill */}
+            <div className="flex items-center px-3 py-2 border-t border-black gap-2 font-bold text-xs font-mono">
               <div className={`${cell} ${W.godown}`} />
               {showBatch && <div className={`${cell} ${W.batch}`} />}
               <div className={`${cell} ${W.qty} text-right`}>{totalActual || ""}</div>
@@ -651,21 +647,13 @@ export default function OrderItemAllocationPopup({
 
           <div className="flex justify-between items-center">
             <button onClick={addRow}
-              className="text-[10px] uppercase tracking-wide font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 px-2.5 py-1 hover:bg-zinc-50">
+              className="text-[10px] uppercase tracking-wide font-bold text-gray-700 hover:text-black border border-gray-400 px-2.5 py-1 hover:bg-gray-100">
               + Add Allocation
             </button>
-            <span className="text-xs font-mono font-semibold text-zinc-900">Total: {totalBilled} {unitSymbol ?? ""}</span>
+            <span className="text-xs font-mono font-semibold text-black">Total: {totalBilled} {unitSymbol ?? ""}</span>
           </div>
         </div>
-
-        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center">
-          <span className="text-[10px] text-zinc-500">Alt+A: Accept · Esc: Close</span>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="text-xs px-3 py-1.5 border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">Cancel</button>
-            <button onClick={handleSave} className="text-xs px-5 py-1.5 bg-zinc-900 text-white hover:bg-zinc-700 font-semibold">Accept</button>
-          </div>
-        </div>
-      </div>
+      </VoucherPopupShell>
 
       {newNumber && (
         <NewNumberPopup
@@ -682,6 +670,6 @@ export default function OrderItemAllocationPopup({
           }}
         />
       )}
-    </div>
+    </>
   );
 }

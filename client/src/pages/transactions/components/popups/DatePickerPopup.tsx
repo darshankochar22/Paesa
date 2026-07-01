@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 interface Props {
   initialDate: string;
@@ -77,10 +78,10 @@ export default function DatePickerPopup({
   }, [selectedDate, onConfirm, onClose]);
 
   // FIX #10 — arrow keys update BOTH highlightedDay AND selectedDate so
-  // pressing Enter immediately after navigating always confirms the right day
+  // pressing Enter immediately after navigating always confirms the right day.
+  // Escape + Alt+A are handled by VoucherPopupShell.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
       if (e.key === "Enter") { e.preventDefault(); handleConfirm(); return; }
       if (e.key === "PageUp") { e.preventDefault(); handlePrevMonth(); return; }
       if (e.key === "PageDown") { e.preventDefault(); handleNextMonth(); return; }
@@ -130,7 +131,7 @@ export default function DatePickerPopup({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose, handleConfirm, handlePrevMonth, handleNextMonth, daysInMonth, viewYear, viewMonth]);
+  }, [handleConfirm, handlePrevMonth, handleNextMonth, daysInMonth, viewYear, viewMonth]);
 
   // Build the calendar grid weeks
   const renderCalendar = () => {
@@ -147,14 +148,14 @@ export default function DatePickerPopup({
           // Previous month overflow
           const prevDay = daysInPrevMonth - firstWeekday + col + 1;
           week.push(
-            <div key={`prev-${col}`} className="h-8 w-8 flex items-center justify-center text-xs text-zinc-400">
+            <div key={`prev-${col}`} className="h-8 w-8 flex items-center justify-center text-xs text-gray-400">
               {prevDay}
             </div>
           );
         } else if (dayCounter > daysInMonth) {
           // Next month overflow
           week.push(
-            <div key={`next-${nextMonthDay}`} className="h-8 w-8 flex items-center justify-center text-xs text-zinc-400">
+            <div key={`next-${nextMonthDay}`} className="h-8 w-8 flex items-center justify-center text-xs text-gray-400">
               {nextMonthDay++}
             </div>
           );
@@ -167,14 +168,14 @@ export default function DatePickerPopup({
           week.push(
             <div
               key={`day-${d}`}
-              className={`h-8 w-8 flex items-center justify-center text-xs cursor-pointer rounded transition-colors ${
+              className={`h-8 w-8 flex items-center justify-center text-xs cursor-pointer ${
                 isHi
-                  ? "bg-zinc-900 text-white font-bold"
+                  ? "bg-black text-white font-bold"
                   : isSel
-                  ? "bg-blue-600 text-white font-bold"
+                  ? "border border-black text-black font-bold"
                   : isTod
-                  ? "bg-blue-100 text-blue-700 font-bold border border-blue-300"
-                  : "hover:bg-zinc-100 text-zinc-800"
+                  ? "text-black font-bold underline"
+                  : "hover:bg-gray-100 text-gray-800"
               }`}
               onClick={() => selectDay(d)}
               onMouseEnter={() => setHighlightedDay(d - 1)}
@@ -198,107 +199,57 @@ export default function DatePickerPopup({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
-      onClick={onClose}
+    <VoucherPopupShell
+      size="compact"
+      title={`${label} Selection`}
+      headerRight={
+        <span className="font-bold text-black">
+          {selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+        </span>
+      }
+      onClose={onClose}
+      onAccept={handleConfirm}
+      hint="↑↓←→ Navigate · PgUp/PgDn: Month · Enter: Accept · Esc: Cancel"
     >
-      <div
-        className="bg-white rounded-lg shadow-2xl border border-zinc-200 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="bg-zinc-900 text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider flex justify-between items-center">
-          <span>{label} Selection</span>
-          <button
-            onClick={onClose}
-            className="text-sm font-bold hover:text-zinc-300 transition-colors"
-          >
-            &times;
-          </button>
+      {/* Month / Year navigation */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={handlePrevMonth}
+          className="p-1 hover:bg-gray-100"
+          aria-label="Previous month"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="text-sm font-bold text-black">
+          {MONTH_NAMES[viewMonth]} {viewYear}
         </div>
-
-        <div className="p-4">
-          {/* Month / Year navigation */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={handlePrevMonth}
-              className="p-1 hover:bg-zinc-100 rounded transition-colors"
-              aria-label="Previous month"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div className="text-sm font-bold text-zinc-800">
-              {MONTH_NAMES[viewMonth]} {viewYear}
-            </div>
-            <button
-              onClick={handleNextMonth}
-              className="p-1 hover:bg-zinc-100 rounded transition-colors"
-              aria-label="Next month"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Day name headers */}
-          <div className="grid grid-cols-7 mb-2">
-            {DAY_NAMES.map((day) => (
-              <div
-                key={day}
-                className="h-8 flex items-center justify-center text-[10px] font-bold text-zinc-500 uppercase"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar grid */}
-          <div className="flex flex-col">{renderCalendar()}</div>
-
-          {/* Selected date display + actions */}
-          <div className="mt-4 pt-3 border-t border-zinc-200">
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-zinc-600">
-                Selected:{" "}
-                <span className="font-bold text-zinc-900">
-                  {selectedDate.toLocaleDateString("en-IN", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={onClose}
-                  className="px-3 py-1 text-xs text-zinc-600 hover:bg-zinc-100 rounded transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="px-4 py-1 text-xs bg-zinc-900 text-white hover:bg-zinc-800 rounded transition-colors font-semibold"
-                >
-                  Accept
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Keyboard hints */}
-        <div className="px-4 py-2 bg-zinc-50 border-t border-zinc-200">
-          <div className="text-[10px] text-zinc-500 flex justify-between">
-            <span>↑↓←→ Navigate</span>
-            <span>PgUp/Dn: Month</span>
-            <span>Enter: Accept</span>
-            <span>Esc: Cancel</span>
-          </div>
-        </div>
+        <button
+          onClick={handleNextMonth}
+          className="p-1 hover:bg-gray-100"
+          aria-label="Next month"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
-    </div>
+
+      {/* Day name headers */}
+      <div className="grid grid-cols-7 mb-2 border-b border-gray-300">
+        {DAY_NAMES.map((day) => (
+          <div
+            key={day}
+            className="h-8 flex items-center justify-center text-[10px] font-bold text-gray-600 uppercase"
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="flex flex-col">{renderCalendar()}</div>
+    </VoucherPopupShell>
   );
 }

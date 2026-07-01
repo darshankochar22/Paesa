@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 export interface DispatchDetails {
   delivery_note_nos?: string;
@@ -22,6 +23,9 @@ interface Props {
   variant?: "jobWork";
 }
 
+const inputCls =
+  "flex-1 min-w-0 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black";
+
 export default function DispatchDetailsPopup({
   initialDetails,
   onClose,
@@ -42,16 +46,6 @@ export default function DispatchDetailsPopup({
     nature_of_processing: initialDetails?.nature_of_processing ?? "",
   });
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
-
   const set = (field: keyof DispatchDetails, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -62,236 +56,214 @@ export default function DispatchDetailsPopup({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white border border-black shadow-xl w-[800px] flex flex-col">
-        {/* Header */}
-        <div className="bg-white text-black px-3 py-1 flex justify-center items-center select-none border-b border-black">
-          <span className="text-sm font-bold">Dispatch Details</span>
-        </div>
-
-        {variant === "jobWork" ? (
-          /* Job Work In/Out Order layout */
-          <div className="p-4 space-y-2">
-            {/* Row 1: Dispatched through | Mode/Terms of Payment */}
-            <div className="flex gap-8">
-              <div className="flex items-center gap-2 flex-1">
-                <span className="w-36 text-sm text-black shrink-0">Dispatched through</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
-                  value={form.dispatched_through ?? ""}
-                  onChange={(e) => set("dispatched_through", e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div className="flex items-center gap-2 flex-1">
-                <span className="w-44 text-sm text-black shrink-0">Mode/Terms of Payment</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                  value={form.mode_terms_of_payment ?? ""}
-                  onChange={(e) => set("mode_terms_of_payment", e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-48 text-sm text-black shrink-0">Destination</span>
+    <VoucherPopupShell
+      title="Dispatch Details"
+      onClose={onClose}
+      onAccept={handleSave}
+    >
+      {variant === "jobWork" ? (
+        /* Job Work In/Out Order layout */
+        <div className="max-w-[960px] space-y-3">
+          {/* Row 1: Dispatched through | Mode/Terms of Payment */}
+          <div className="flex gap-8">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="w-36 text-sm text-black shrink-0">Dispatched through</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className={inputCls}
+                value={form.dispatched_through ?? ""}
+                onChange={(e) => set("dispatched_through", e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-1">
+              <span className="w-44 text-sm text-black shrink-0">Mode/Terms of Payment</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className={inputCls}
+                value={form.mode_terms_of_payment ?? ""}
+                onChange={(e) => set("mode_terms_of_payment", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-48 text-sm text-black shrink-0">Destination</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.destination ?? ""}
+              onChange={(e) => set("destination", e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-48 text-sm text-black shrink-0">Carrier Name/Agent</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.carrier_name ?? ""}
+              onChange={(e) => set("carrier_name", e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-48 text-sm text-black shrink-0">Bill of Lading/LR-RR No.</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.bill_of_lading_no ?? ""}
+              onChange={(e) => set("bill_of_lading_no", e.target.value)}
+            />
+            <span className="text-sm text-black shrink-0 ml-4">Date</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="date"
+              className="w-36 shrink-0 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              value={form.bill_of_lading_date ?? ""}
+              onChange={(e) => set("bill_of_lading_date", e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-48 text-sm text-black shrink-0">Motor Vehicle No.</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.motor_vehicle_no ?? ""}
+              onChange={(e) => set("motor_vehicle_no", e.target.value)}
+            />
+          </div>
+
+          {/* Process Instruction section — white sub-header, bold + divider */}
+          <div className="mt-6 pb-1 border-b border-gray-300 text-sm font-bold text-black">
+            Process Instruction
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-48 text-sm text-black shrink-0">Duration of Process</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.duration_of_process ?? ""}
+              onChange={(e) => set("duration_of_process", e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-48 text-sm text-black shrink-0">Nature of Processing</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.nature_of_processing ?? ""}
+              onChange={(e) => set("nature_of_processing", e.target.value)}
+            />
+          </div>
+        </div>
+      ) : (
+        /* Default (Sales / Delivery Note) layout */
+        <div className="max-w-[960px] flex gap-8">
+          {/* Left column */}
+          <div className="w-56 shrink-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm text-black shrink-0">Delivery Note No(s)</span>
+              <span className="text-sm text-black shrink-0">:</span>
+            </div>
+            <input
+              type="text"
+              className="w-full text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              value={form.delivery_note_nos ?? ""}
+              onChange={(e) => set("delivery_note_nos", e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          {/* Right column */}
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="w-48 text-right text-sm text-black shrink-0">Dispatch Doc No.</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className={inputCls}
+                value={form.dispatch_doc_no ?? ""}
+                onChange={(e) => set("dispatch_doc_no", e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-48 text-right text-sm text-black shrink-0">Dispatched through</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className={inputCls}
+                value={form.dispatched_through ?? ""}
+                onChange={(e) => set("dispatched_through", e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-48 text-right text-sm text-black shrink-0">Destination</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className={inputCls}
                 value={form.destination ?? ""}
                 onChange={(e) => set("destination", e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-48 text-sm text-black shrink-0">Carrier Name/Agent</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Carrier Name/Agent</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className={inputCls}
                 value={form.carrier_name ?? ""}
                 onChange={(e) => set("carrier_name", e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-48 text-sm text-black shrink-0">Bill of Lading/LR-RR No.</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Bill of Lading/LR-RR No.</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className={inputCls}
                 value={form.bill_of_lading_no ?? ""}
                 onChange={(e) => set("bill_of_lading_no", e.target.value)}
               />
-              <span className="text-sm text-black shrink-0 ml-4">Date</span>
+              <span className="text-sm text-black shrink-0">Date</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="date"
-                className="w-36 shrink-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="w-36 shrink-0 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black"
                 value={form.bill_of_lading_date ?? ""}
                 onChange={(e) => set("bill_of_lading_date", e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-48 text-sm text-black shrink-0">Motor Vehicle No.</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Motor Vehicle No.</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className={inputCls}
                 value={form.motor_vehicle_no ?? ""}
                 onChange={(e) => set("motor_vehicle_no", e.target.value)}
               />
             </div>
-
-            {/* Process Instruction section */}
-            <div className="pt-1 border-t border-black text-center text-sm font-bold text-black">
-              Process Instruction
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-48 text-sm text-black shrink-0">Duration of Process</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input
-                type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                value={form.duration_of_process ?? ""}
-                onChange={(e) => set("duration_of_process", e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-48 text-sm text-black shrink-0">Nature of Processing</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input
-                type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                value={form.nature_of_processing ?? ""}
-                onChange={(e) => set("nature_of_processing", e.target.value)}
-              />
-            </div>
-          </div>
-        ) : (
-          /* Default (Sales / Delivery Note) layout */
-          <div className="p-4 flex gap-8">
-            {/* Left column */}
-            <div className="w-56 shrink-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-black shrink-0">Delivery Note No(s)</span>
-                <span className="text-sm text-black shrink-0">:</span>
-              </div>
-              <input
-                type="text"
-                className="w-full text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
-                value={form.delivery_note_nos ?? ""}
-                onChange={(e) => set("delivery_note_nos", e.target.value)}
-                autoFocus
-              />
-            </div>
-
-            {/* Right column */}
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="w-48 text-right text-sm text-black shrink-0">Dispatch Doc No.</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                  value={form.dispatch_doc_no ?? ""}
-                  onChange={(e) => set("dispatch_doc_no", e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="w-48 text-right text-sm text-black shrink-0">Dispatched through</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                  value={form.dispatched_through ?? ""}
-                  onChange={(e) => set("dispatched_through", e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="w-48 text-right text-sm text-black shrink-0">Destination</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                  value={form.destination ?? ""}
-                  onChange={(e) => set("destination", e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="w-48 text-right text-sm text-black shrink-0">Carrier Name/Agent</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                  value={form.carrier_name ?? ""}
-                  onChange={(e) => set("carrier_name", e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="w-48 text-right text-sm text-black shrink-0">Bill of Lading/LR-RR No.</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                  value={form.bill_of_lading_no ?? ""}
-                  onChange={(e) => set("bill_of_lading_no", e.target.value)}
-                />
-                <span className="text-sm text-black shrink-0">Date</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="date"
-                  className="w-36 shrink-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                  value={form.bill_of_lading_date ?? ""}
-                  onChange={(e) => set("bill_of_lading_date", e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="w-48 text-right text-sm text-black shrink-0">Motor Vehicle No.</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                  value={form.motor_vehicle_no ?? ""}
-                  onChange={(e) => set("motor_vehicle_no", e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="border-t border-black px-3 py-2 flex justify-between items-center bg-gray-50">
-          <span className="text-[10px] text-gray-600">Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close</span>
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="text-xs px-3 py-1 border border-black text-black hover:bg-gray-100"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="text-xs px-4 py-1 bg-black text-white hover:bg-gray-800"
-            >
-              Accept
-            </button>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </VoucherPopupShell>
   );
 }

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCompany } from "../../../../context/CompanyContext";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 interface PendingBill {
   bill_name: string;
@@ -151,17 +152,6 @@ export default function BillWiseAllocationPopup({
   const allocated = allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
   const remaining = totalAmount - allocated;
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") { e.preventDefault(); onClose(); }
-    if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allocations, remaining, onClose]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
-
   const getDefaultRow = (type: BillReference["bill_type"], amount: number): BillReference => {
     const shouldAutoFill = checkCreditDays === 1 && defaultCreditPeriod > 0;
     const base: BillReference = {
@@ -274,234 +264,205 @@ export default function BillWiseAllocationPopup({
   };
 
   const wefLabel = formatDateDisplay(voucherDate);
+  const inputCls = "text-xs px-2 py-1 bg-white border border-gray-400 outline-none focus:border-black";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[1000px] max-w-[95vw] flex flex-col max-h-[88vh] overflow-hidden">
-
-        {/* Header — white (no black bar) */}
-        <div className="relative bg-white border-b border-zinc-200 px-4 py-3 text-center select-none">
-          <button
-            onClick={onClose}
-            className="absolute right-3 top-2 text-black hover:opacity-60 font-bold text-base leading-none"
-          >
-            &times;
-          </button>
-          <div className="text-sm font-semibold text-zinc-900">
-            Bill-wise Details for : <span className="font-bold">{ledgerName}</span>
-          </div>
-          <div className="text-xs font-semibold text-zinc-700 mt-0.5">
-            Up to: {formatCurrency(totalAmount)} {dcType}
-          </div>
+    <VoucherPopupShell
+      title={`Bill-wise Details for : ${ledgerName}`}
+      headerRight={<span>Up to: <span className="font-bold text-black">{formatCurrency(totalAmount)} {dcType}</span></span>}
+      onClose={onClose}
+      onAccept={handleSave}
+    >
+      {/* Info bar */}
+      <div className="border-b border-gray-300 pb-2 mb-3 flex justify-between items-center text-xs font-semibold text-gray-700">
+        <div>
+          Total:{" "}
+          <span className="font-mono text-black text-sm">
+            {formatCurrency(totalAmount)} {dcType}
+          </span>
         </div>
-
-        {/* Info bar */}
-        <div className="bg-zinc-50 border-b border-zinc-200 px-4 py-2 flex justify-between items-center text-xs font-semibold text-zinc-700">
-          <div>
-            Total:{" "}
-            <span className="font-mono text-zinc-900 text-sm">
-              {formatCurrency(totalAmount)} {dcType}
+        <div className="flex gap-4">
+          <span>
+            Allocated:{" "}
+            <span className="font-mono text-black">
+              {formatCurrency(allocated)}
             </span>
-          </div>
-          <div className="flex gap-4">
-            <span>
-              Allocated:{" "}
-              <span className="font-mono text-zinc-900">
-                {formatCurrency(allocated)}
-              </span>
+          </span>
+          <span>
+            Remaining:{" "}
+            <span className={`font-mono ${Math.abs(remaining) < 0.01 ? "text-gray-500" : "text-black font-bold"}`}>
+              {formatCurrency(remaining)}
             </span>
-            <span>
-              Remaining:{" "}
-              <span className={`font-mono ${Math.abs(remaining) < 0.01 ? "text-zinc-500" : "text-black font-bold"}`}>
-                {formatCurrency(remaining)}
-              </span>
-            </span>
-          </div>
+          </span>
         </div>
+      </div>
 
-        {/* Table */}
-        <div className="p-4 flex-1 overflow-y-auto space-y-3 min-h-0">
-          {error && (
-            <div className="bg-zinc-100 border border-zinc-400 text-black font-semibold text-xs px-3 py-2 rounded flex justify-between items-center">
-              <span>&bull; {error}</span>
-              <button onClick={() => setError(null)} className="font-bold">&times;</button>
+      <div className="space-y-3">
+        {error && (
+          <div className="border border-gray-400 border-l-2 border-l-black text-black font-semibold text-xs px-3 py-2 flex justify-between items-center">
+            <span>&bull; {error}</span>
+            <button onClick={() => setError(null)} className="font-bold">&times;</button>
+          </div>
+        )}
+
+        <div className="border border-gray-300">
+          {/* Column headers */}
+          <div className="grid grid-cols-12 bg-white border-b border-gray-400 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-black gap-1">
+            <div className="col-span-2">Type of Ref</div>
+            <div className="col-span-3">Name</div>
+            <div className="col-span-3 text-center leading-tight">
+              Due Date, or<br/>Credit Days<br/><span className="normal-case text-[9px] text-gray-600">(wef: {wefLabel})</span>
             </div>
-          )}
+            <div className="col-span-2 text-right">Amount</div>
+            <div className="col-span-1 text-center">Dr/Cr</div>
+            <div className="col-span-1" />
+          </div>
 
-          <div className="border border-zinc-200 rounded-lg overflow-hidden">
-            {/* Column headers */}
-            <div className="grid grid-cols-12 bg-zinc-100 border-b border-zinc-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 gap-1">
-              <div className="col-span-2">Type of Ref</div>
-              <div className="col-span-3">Name</div>
-              <div className="col-span-3 text-center leading-tight">
-                Due Date, or<br/>Credit Days<br/><span className="normal-case text-[9px] text-zinc-500">(wef: {wefLabel})</span>
-              </div>
-              <div className="col-span-2 text-right">Amount</div>
-              <div className="col-span-1 text-center">Dr/Cr</div>
-              <div className="col-span-1" />
-            </div>
+          <div className="divide-y divide-gray-200">
+            {allocations.map((row, i) => (
+              <div key={i} className="grid grid-cols-12 items-start px-3 py-2 bg-white gap-1">
+                {/* Type of Ref */}
+                <div className="col-span-2">
+                  <select
+                    value={row.bill_type}
+                    onChange={(e) => handleChange(i, "bill_type", e.target.value)}
+                    className={`${inputCls} px-1.5 w-full font-medium`}
+                  >
+                    <option value="New Ref">New Ref</option>
+                    <option value="Agst Ref">Agst Ref</option>
+                    <option value="Advance">Advance</option>
+                    <option value="On Account">On Account</option>
+                  </select>
+                </div>
 
-            <div className="divide-y divide-zinc-100">
-              {allocations.map((row, i) => (
-                <div key={i} className="grid grid-cols-12 items-start px-3 py-2 bg-white gap-1">
-                  {/* Type of Ref */}
-                  <div className="col-span-2">
-                    <select
-                      value={row.bill_type}
-                      onChange={(e) => handleChange(i, "bill_type", e.target.value)}
-                      className="text-xs px-1.5 py-1 border border-zinc-300 rounded outline-none focus:border-zinc-800 bg-white w-full font-medium"
-                    >
-                      <option value="New Ref">New Ref</option>
-                      <option value="Agst Ref">Agst Ref</option>
-                      <option value="Advance">Advance</option>
-                      <option value="On Account">On Account</option>
-                    </select>
-                  </div>
-
-                  {/* Name */}
-                  <div className="col-span-3 relative">
-                    {row.bill_type === "On Account" ? (
-                      // On Account carries no reference name.
-                      <span className="text-xs text-zinc-400 py-1 inline-block">&mdash;</span>
-                    ) : row.bill_type === "Agst Ref" ? (
-                      <div className="relative" ref={(el) => { agstDropdownRefs.current[i] = el; }}>
-                        <input
-                          ref={(el) => { nameInputRefs.current[i] = el; }}
-                          type="text"
-                          value={row.bill_name}
-                          readOnly
-                          onFocus={() => setActiveAgstRow(i)}
-                          placeholder={loadingBills ? "Loading..." : "Select bill"}
-                          className="text-xs px-2 py-1 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold cursor-pointer"
-                        />
-                        {activeAgstRow === i && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-300 rounded shadow-xl z-30 max-h-48 overflow-y-auto">
-                            <div className="bg-zinc-100 text-zinc-900 text-[10px] font-bold px-2 py-1 sticky top-0 border-b border-zinc-300">Pending Bills</div>
-                            <div className="grid grid-cols-5 bg-zinc-50 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200">
-                              <div className="col-span-1">Name</div>
-                              <div className="col-span-1 text-center">Bill Date</div>
-                              <div className="col-span-1 text-center">Due Date</div>
-                              <div className="col-span-1 text-right">Balance</div>
-                              <div className="col-span-1 text-right">Final Balance</div>
-                            </div>
-                            {pendingBills.length === 0 ? (
-                              <div className="text-xs text-zinc-500 px-2 py-2 text-center">No pending bills</div>
-                            ) : (
-                              pendingBills.map((bill) => (
-                                <button
-                                  key={bill.bill_name}
-                                  onClick={() => handleSelectPendingBill(i, bill)}
-                                  className="grid grid-cols-5 w-full text-left text-[10px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 last:border-0"
-                                >
-                                  <div className="col-span-1 font-semibold">{bill.bill_name}</div>
-                                  <div className="col-span-1 text-center">{formatDateDisplay(bill.bill_date)}</div>
-                                  <div className="col-span-1 text-center">{formatDateDisplay(bill.due_date)}</div>
-                                  <div className="col-span-1 text-right font-mono">{formatCurrency(bill.balance)}</div>
-                                  <div className="col-span-1 text-right font-mono">{formatCurrency(bill.final_balance)}</div>
-                                </button>
-                              ))
-                            )}
-                            <button
-                              onClick={() => setActiveAgstRow(null)}
-                              className="w-full text-[10px] text-zinc-500 py-1 hover:bg-zinc-50 border-t border-zinc-200"
-                            >
-                              Close
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      // New Ref / Advance — type the reference name.
+                {/* Name */}
+                <div className="col-span-3 relative">
+                  {row.bill_type === "On Account" ? (
+                    // On Account carries no reference name.
+                    <span className="text-xs text-gray-400 py-1 inline-block">&mdash;</span>
+                  ) : row.bill_type === "Agst Ref" ? (
+                    <div className="relative" ref={(el) => { agstDropdownRefs.current[i] = el; }}>
                       <input
                         ref={(el) => { nameInputRefs.current[i] = el; }}
                         type="text"
                         value={row.bill_name}
-                        onChange={(e) => handleChange(i, "bill_name", e.target.value)}
-                        placeholder="Ref name"
-                        className="text-xs px-2 py-1 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold"
+                        readOnly
+                        onFocus={() => setActiveAgstRow(i)}
+                        placeholder={loadingBills ? "Loading..." : "Select bill"}
+                        className={`${inputCls} w-full font-semibold cursor-pointer`}
                       />
-                    )}
-                  </div>
-
-                  {/* Due Date / Credit Days — only for New Ref & Agst Ref */}
-                  <div className="col-span-3 flex flex-col items-center gap-0.5">
-                    {hasDueDate(row.bill_type) ? (
-                      <>
-                        <input
-                          type="text"
-                          value={row.credit_period ?? ""}
-                          onChange={(e) => handleChange(i, "credit_period", e.target.value)}
-                          placeholder="Days"
-                          className="text-xs px-2 py-1 border border-zinc-300 rounded outline-none focus:border-zinc-800 text-center w-20 font-mono font-medium"
-                        />
-                        {row.due_date && (
-                          <span className="text-[10px] text-zinc-500 font-mono">
-                            ( {formatDateDisplay(row.due_date)} )
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-xs text-zinc-400 py-1">&mdash;</span>
-                    )}
-                  </div>
-
-                  {/* Amount */}
-                  <div className="col-span-2">
+                      {activeAgstRow === i && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-400 shadow-xl z-30 max-h-48 overflow-y-auto">
+                          <div className="bg-white text-black text-[10px] font-bold px-2 py-1 sticky top-0 border-b border-gray-400">Pending Bills</div>
+                          <div className="grid grid-cols-5 bg-white text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-300">
+                            <div className="col-span-1">Name</div>
+                            <div className="col-span-1 text-center">Bill Date</div>
+                            <div className="col-span-1 text-center">Due Date</div>
+                            <div className="col-span-1 text-right">Balance</div>
+                            <div className="col-span-1 text-right">Final Balance</div>
+                          </div>
+                          {pendingBills.length === 0 ? (
+                            <div className="text-xs text-gray-500 px-2 py-2 text-center">No pending bills</div>
+                          ) : (
+                            pendingBills.map((bill) => (
+                              <button
+                                key={bill.bill_name}
+                                onClick={() => handleSelectPendingBill(i, bill)}
+                                className="grid grid-cols-5 w-full text-left text-[10px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 last:border-0"
+                              >
+                                <div className="col-span-1 font-semibold">{bill.bill_name}</div>
+                                <div className="col-span-1 text-center">{formatDateDisplay(bill.bill_date)}</div>
+                                <div className="col-span-1 text-center">{formatDateDisplay(bill.due_date)}</div>
+                                <div className="col-span-1 text-right font-mono">{formatCurrency(bill.balance)}</div>
+                                <div className="col-span-1 text-right font-mono">{formatCurrency(bill.final_balance)}</div>
+                              </button>
+                            ))
+                          )}
+                          <button
+                            onClick={() => setActiveAgstRow(null)}
+                            className="w-full text-[10px] text-gray-500 py-1 hover:bg-gray-50 border-t border-gray-300"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // New Ref / Advance — type the reference name.
                     <input
-                      type="number"
-                      step="0.01"
-                      value={row.amount || ""}
-                      onChange={(e) => handleChange(i, "amount", Number(e.target.value) || 0)}
-                      className="text-xs px-2 py-1 border border-zinc-300 rounded outline-none focus:border-zinc-800 text-right w-full font-mono font-semibold"
+                      ref={(el) => { nameInputRefs.current[i] = el; }}
+                      type="text"
+                      value={row.bill_name}
+                      onChange={(e) => handleChange(i, "bill_name", e.target.value)}
+                      placeholder="Ref name"
+                      className={`${inputCls} w-full font-semibold`}
                     />
-                  </div>
-
-                  {/* Dr/Cr */}
-                  <div className="col-span-1 text-center text-xs font-bold text-zinc-700 py-1">
-                    {dcType}
-                  </div>
-
-                  {/* Remove */}
-                  <div className="col-span-1 text-center">
-                    <button onClick={() => handleRemove(i)}
-                      className="text-zinc-400 hover:text-black text-sm font-bold font-sans">&times;</button>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
 
-            {/* Total row */}
-            <div className="grid grid-cols-12 items-center px-3 py-2 bg-zinc-50 border-t border-zinc-200 gap-1">
-              <div className="col-span-8" />
-              <div className="col-span-2 text-right text-xs font-bold font-mono text-zinc-900">
-                {formatCurrency(allocated)}
+                {/* Due Date / Credit Days — only for New Ref & Agst Ref */}
+                <div className="col-span-3 flex flex-col items-center gap-0.5">
+                  {hasDueDate(row.bill_type) ? (
+                    <>
+                      <input
+                        type="text"
+                        value={row.credit_period ?? ""}
+                        onChange={(e) => handleChange(i, "credit_period", e.target.value)}
+                        placeholder="Days"
+                        className={`${inputCls} text-center w-20 font-mono font-medium`}
+                      />
+                      {row.due_date && (
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          ( {formatDateDisplay(row.due_date)} )
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-400 py-1">&mdash;</span>
+                  )}
+                </div>
+
+                {/* Amount */}
+                <div className="col-span-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={row.amount || ""}
+                    onChange={(e) => handleChange(i, "amount", Number(e.target.value) || 0)}
+                    className={`${inputCls} text-right w-full font-mono font-semibold`}
+                  />
+                </div>
+
+                {/* Dr/Cr */}
+                <div className="col-span-1 text-center text-xs font-bold text-gray-700 py-1">
+                  {dcType}
+                </div>
+
+                {/* Remove */}
+                <div className="col-span-1 text-center">
+                  <button onClick={() => handleRemove(i)}
+                    className="text-gray-400 hover:text-black text-sm font-bold font-sans">&times;</button>
+                </div>
               </div>
-              <div className="col-span-1 text-center text-xs font-bold text-zinc-700">{dcType}</div>
-              <div className="col-span-1" />
+            ))}
+          </div>
+
+          {/* Total row */}
+          <div className="grid grid-cols-12 items-center px-3 py-2 bg-white border-t border-black gap-1 font-bold">
+            <div className="col-span-8" />
+            <div className="col-span-2 text-right text-xs font-mono text-black">
+              {formatCurrency(allocated)}
             </div>
-          </div>
-
-          <button onClick={handleAdd}
-            className="text-[10px] uppercase tracking-wider font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 rounded px-2.5 py-1 hover:bg-zinc-50 flex items-center gap-1 select-none">
-            + Add Split Row
-          </button>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center select-none">
-          <span className="text-[10px] text-zinc-500">Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close</span>
-          <div className="flex gap-2">
-            <button onClick={onClose}
-              className="text-xs px-3 py-1.5 border border-zinc-300 rounded text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">
-              Cancel
-            </button>
-            <button onClick={handleSave}
-              className="text-xs px-5 py-1.5 rounded bg-zinc-950 text-white hover:bg-zinc-800 font-semibold shadow-sm active:scale-95">
-              Accept
-            </button>
+            <div className="col-span-1 text-center text-xs text-black">{dcType}</div>
+            <div className="col-span-1" />
           </div>
         </div>
+
+        <button onClick={handleAdd}
+          className="text-[10px] uppercase tracking-wider font-bold text-gray-600 hover:text-black border border-gray-400 px-2.5 py-1 hover:bg-gray-100 flex items-center gap-1 select-none">
+          + Add Split Row
+        </button>
       </div>
-    </div>
+    </VoucherPopupShell>
   );
 }

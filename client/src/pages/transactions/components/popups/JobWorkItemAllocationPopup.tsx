@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { JobWorkItemAllocationRow, ComponentAllocationRow } from "../../types";
 import ComponentsAllocationPopup from "./ComponentsAllocationPopup";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 interface Props {
   itemName: string;
@@ -130,57 +131,51 @@ export default function JobWorkItemAllocationPopup({
     })));
   };
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (compPopupData) return; // Let child handle keys
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleAccept(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [rows, compPopupData]);
+  // Shell handles Esc / Alt+A; suppress both while the nested Components popup
+  // is open so its own keys don't also close/accept this parent.
+  const shellClose = () => { if (!compPopupData) onClose(); };
+  const shellAccept = () => { if (!compPopupData) handleAccept(); };
 
-  const inputCls = "text-xs px-1 py-0.5 border border-zinc-300 w-full outline-none focus:border-zinc-800";
+  const inputCls = "text-xs px-1 py-0.5 border border-gray-400 w-full outline-none focus:border-black bg-white";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 pt-10 select-none">
-      <div className="bg-white border border-black shadow-2xl w-[680px] flex flex-col max-h-[85vh]">
-
-        {/* Title */}
-        <div className="relative border-b border-black px-4 py-2 bg-white">
-          <span className="absolute left-3 top-2 text-[9px] font-bold uppercase tracking-wider text-zinc-400">Item Allocations</span>
-          <button onClick={onClose} className="absolute right-3 top-1.5 text-zinc-500 hover:text-black font-bold text-sm">&times;</button>
-        </div>
-
+    <>
+      <VoucherPopupShell
+        title="Item Allocations"
+        headerRight={<span className="font-bold text-black">{itemName}</span>}
+        onClose={shellClose}
+        onAccept={shellAccept}
+        bodyClassName="p-0"
+      >
         {/* Info block */}
-        <div className="px-4 pt-2 pb-1 text-xs space-y-0.5 border-b border-zinc-200">
+        <div className="px-6 pt-3 pb-2 text-xs space-y-0.5 border-b border-gray-300 select-none">
           <div className="flex gap-2">
-            <span className="w-44 text-zinc-600 shrink-0">Item Allocations for</span>
+            <span className="w-44 text-gray-600 shrink-0">Item Allocations for</span>
             <span className="font-bold">{itemName}</span>
           </div>
           {orderNo && (
             <div className="flex gap-2">
-              <span className="w-44 text-zinc-600 shrink-0">For Order Number</span>
+              <span className="w-44 text-gray-600 shrink-0">For Order Number</span>
               <span className="font-semibold">{orderNo}</span>
             </div>
           )}
           <div className="flex items-center gap-2 py-0.5">
-            <span className="w-44 text-zinc-600 shrink-0">Track Components</span>
+            <span className="w-44 text-gray-600 shrink-0">Track Components</span>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowTrackDD((v) => !v)}
-                className="text-xs px-2 py-0.5 border border-zinc-400 bg-yellow-100 font-bold min-w-[52px] text-left"
+                className="text-xs px-2 py-0.5 border border-gray-400 bg-white font-bold min-w-[52px] text-left focus:border-black"
               >
                 {trackComponents}
               </button>
               {showTrackDD && (
-                <div className="absolute left-0 top-full mt-0.5 w-20 bg-white border border-zinc-400 shadow-xl z-50">
-                  <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">Track Components</div>
+                <div className="absolute left-0 top-full mt-0.5 w-20 bg-white border border-gray-400 shadow-xl z-50">
+                  <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 border-b border-gray-300">Track Components</div>
                   {(["Yes", "No"] as const).map((opt) => (
                     <button key={opt} type="button"
                       onMouseDown={(e) => { e.preventDefault(); setTrackComponents(opt); setShowTrackDD(false); }}
-                      className={`block w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 ${opt === trackComponents ? "font-bold" : ""}`}>
+                      className={`block w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 ${opt === trackComponents ? "font-bold" : ""}`}>
                       {opt === trackComponents ? `♦ ${opt}` : opt}
                     </button>
                   ))}
@@ -191,7 +186,7 @@ export default function JobWorkItemAllocationPopup({
         </div>
 
         {/* Column headers */}
-        <div className="flex items-center border-b border-zinc-300 bg-zinc-100 px-4 py-1 gap-2 text-[10px] font-bold uppercase tracking-wide text-zinc-600">
+        <div className="flex items-center border-b border-gray-300 bg-white px-6 py-1 gap-2 text-[10px] font-bold uppercase tracking-wide text-black select-none">
           <div className="w-24 shrink-0">Godown</div>
           <div className="w-24 text-right shrink-0">Quantity</div>
           <div className="w-24 text-right shrink-0">Rate</div>
@@ -200,24 +195,24 @@ export default function JobWorkItemAllocationPopup({
         </div>
 
         {/* Rows */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div>
           {rows.map((row, idx) => (
-            <div key={row.id} className="border-b border-zinc-100">
+            <div key={row.id} className="border-b border-gray-200">
               {/* Due on sub-header */}
-              <div className="px-4 pt-1 text-[10px] italic text-zinc-500 flex items-center gap-1">
+              <div className="px-6 pt-1 text-[10px] italic text-gray-600 flex items-center gap-1">
                 <span>Due on :</span>
                 <input
                   type="date"
                   value={row.due_on}
                   onChange={(e) => update(row.id, { due_on: e.target.value })}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-jw-godown="${idx}"]`); }}}
-                  className="text-[10px] border-b border-zinc-300 outline-none bg-transparent ml-0.5"
+                  className="text-[10px] border-b border-gray-400 outline-none bg-white ml-0.5 focus:border-black"
                   title={fmtDate(row.due_on)}
                 />
               </div>
 
               {/* Data row */}
-              <div className="flex items-center px-4 pb-1 gap-2">
+              <div className="flex items-center px-6 pb-1 gap-2">
                 {/* Godown */}
                 <div className="w-24 shrink-0 relative" ref={(el) => { godownAnchorRefs.current[row.id] = el; }}>
                   <input
@@ -235,9 +230,9 @@ export default function JobWorkItemAllocationPopup({
                   {row.showGodownDD && godownPos && createPortal(
                     <div
                       style={{ position: "fixed", top: godownPos.top, left: godownPos.left, width: godownPos.width }}
-                      className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-40 overflow-y-auto"
+                      className="bg-white border border-gray-400 shadow-xl z-[60] max-h-40 overflow-y-auto"
                     >
-                      <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Godowns</div>
+                      <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 border-b border-gray-300">List of Godowns</div>
                       {allGodowns
                         .filter((g) => !row.godown || g.name.toLowerCase().includes(row.godown.toLowerCase()))
                         .map((g: any) => (
@@ -247,7 +242,7 @@ export default function JobWorkItemAllocationPopup({
                               update(row.id, { godown: g.name, showGodownDD: false });
                               focusEl(`[data-jw-qty="${idx}"]`);
                             }}
-                            className="block w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                            className="block w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
                             {g.name}
                           </button>
                         ))}
@@ -312,7 +307,7 @@ export default function JobWorkItemAllocationPopup({
                 </div>
 
                 {/* per */}
-                <div className="w-10 shrink-0 text-center text-[11px] text-zinc-600 font-mono">{unitSymbol}</div>
+                <div className="w-10 shrink-0 text-center text-[11px] text-gray-600 font-mono">{unitSymbol}</div>
 
                 {/* Amount */}
                 <div className="flex-1 text-right text-xs font-mono font-semibold">
@@ -322,8 +317,8 @@ export default function JobWorkItemAllocationPopup({
 
               {/* Components indicator (if trackComponents=Yes and filled) */}
               {trackComponents === "Yes" && (row.components?.length ?? 0) > 0 && (
-                <div className="px-4 pb-1 flex items-center gap-2">
-                  <span className="text-[10px] text-zinc-500 italic">
+                <div className="px-6 pb-1 flex items-center gap-2">
+                  <span className="text-[10px] text-gray-600 italic">
                     {row.components!.length} component{row.components!.length > 1 ? "s" : ""} allocated
                   </span>
                   <button
@@ -332,7 +327,7 @@ export default function JobWorkItemAllocationPopup({
                       hasOpenedCompRef.current[row.id] = true;
                       setCompPopupData({ rowId: row.id, forGodown: row.godown, quantity: Number(row.quantity) || 0 });
                     }}
-                    className="text-[10px] underline text-zinc-600 hover:text-black"
+                    className="text-[10px] underline text-gray-600 hover:text-black"
                   >
                     Edit
                   </button>
@@ -340,30 +335,17 @@ export default function JobWorkItemAllocationPopup({
               )}
             </div>
           ))}
-
-          {Array.from({ length: Math.max(0, 4 - rows.length) }).map((_, i) => (
-            <div key={`ef-${i}`} className="min-h-[52px] border-b border-zinc-50 px-4" />
-          ))}
         </div>
 
         {/* Totals */}
-        <div className="flex items-center border-t border-zinc-300 bg-zinc-100 px-4 py-1 gap-2 font-bold text-xs font-mono">
+        <div className="flex items-center border-t border-black px-6 py-1 gap-2 font-bold text-xs font-mono">
           <div className="w-24 shrink-0" />
           <div className="w-24 shrink-0 text-right">{totalQty > 0 ? totalQty : ""}</div>
           <div className="w-24 shrink-0" />
           <div className="w-10 shrink-0" />
           <div className="flex-1 text-right">{totalAmount > 0 ? num(totalAmount) : ""}</div>
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center">
-          <span className="text-[10px] text-zinc-500">Alt+A: Accept · Esc: Close</span>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="text-xs px-3 py-1.5 border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">Cancel</button>
-            <button onClick={handleAccept} className="text-xs px-5 py-1.5 bg-zinc-900 text-white hover:bg-zinc-700 font-semibold">Accept</button>
-          </div>
-        </div>
-      </div>
+      </VoucherPopupShell>
 
       {/* Components Allocation popup (nested) */}
       {compPopupData && (
@@ -392,6 +374,6 @@ export default function JobWorkItemAllocationPopup({
           }}
         />
       )}
-    </div>
+    </>
   );
 }

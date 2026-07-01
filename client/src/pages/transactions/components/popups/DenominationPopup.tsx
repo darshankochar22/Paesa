@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 const DENOMINATIONS = [500, 200, 100, 50, 20, 10, 5, 2, 1];
 
@@ -87,72 +88,56 @@ export default function DenominationPopup({
     });
   }, [isValidForAccept, difference, quantities, others, computedTotal, ledgerId, onSave]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose, handleSave]);
-
   const formattedAmount = amount.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[420px] flex flex-col max-h-[85vh] overflow-hidden">
-
-        {/* Header */}
-        <div className="bg-zinc-900 px-4 py-2 text-white flex justify-between items-center select-none">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider">Cash Denominations</span>
-            <span className="text-[10px] text-zinc-400 font-mono">Ledger: {ledgerName}</span>
+    <VoucherPopupShell
+      title="Cash Denominations"
+      headerRight={
+        <span>
+          {ledgerName} &middot; Denominations For:{" "}
+          <span className="font-bold text-black">{formattedAmount}</span>
+        </span>
+      }
+      onClose={onClose}
+      onAccept={handleSave}
+      hint={
+        hasAnyInput && !isValidForAccept
+          ? "Balance denominations to accept"
+          : undefined
+      }
+    >
+      <div className="max-w-md">
+        {error && (
+          <div className="border border-black text-black text-sm font-bold px-3 py-2 mb-4 flex justify-between items-center">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="font-bold px-1">&times;</button>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white font-bold text-sm">&times;</button>
-        </div>
-
-        {/* Title & Amount */}
-        <div className="bg-white border-b border-zinc-200 px-4 py-3 text-center">
-          <div className="text-sm text-black font-semibold">
-            {ledgerName}
-          </div>
-          <div className="text-sm text-black mt-1">
-            Denominations For: {formattedAmount}
-          </div>
-        </div>
+        )}
 
         {/* Table Header */}
-        <div className="px-4 py-0">
-          <div className="grid grid-cols-2 border-b border-zinc-300 py-1 text-sm font-semibold text-black">
-            <div>Denominations</div>
-            <div className="text-right">Amount</div>
-          </div>
+        <div className="grid grid-cols-2 border-b border-black py-2 text-sm font-bold text-black">
+          <div>Denominations</div>
+          <div className="text-right">Amount</div>
         </div>
 
         {/* Denominations List */}
-        <div className="px-4 flex-1 overflow-y-auto min-h-0 space-y-0.5 py-1">
-          {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-1.5 rounded flex justify-between items-center">
-              <span>• {error}</span>
-              <button onClick={() => setError(null)} className="font-bold">&times;</button>
-            </div>
-          )}
-
+        <div className="divide-y divide-gray-200">
           {DENOMINATIONS.map((denom) => {
             const qty = quantities[String(denom)] || 0;
             const amt = denom * qty;
             return (
-              <div key={denom} className="grid grid-cols-2 items-center text-sm">
-                <div className="flex items-center gap-1">
+              <div key={denom} className="grid grid-cols-2 items-center text-sm py-1">
+                <div className="flex items-center gap-2">
                   <span className="text-black w-10 text-right">{denom}</span>
                   <span className="text-black">X</span>
                   <input
                     type="number"
                     min={0}
-                    className="w-14 text-sm border border-zinc-300 px-1 py-0.5 outline-none focus:border-zinc-800 bg-white text-right"
+                    className="w-16 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white text-right"
                     value={qty || ""}
                     onChange={(e) => handleQtyChange(denom, e.target.value)}
                   />
@@ -163,58 +148,38 @@ export default function DenominationPopup({
               </div>
             );
           })}
+        </div>
 
-          <div className="grid grid-cols-2 items-center text-sm pt-1 border-t border-zinc-200">
-            <div className="text-black">Others</div>
-            <div className="text-right">
-              <input
-                type="number"
-                min={0}
-                className="w-24 text-sm border border-zinc-300 px-1 py-0.5 outline-none focus:border-zinc-800 bg-white text-right"
-                value={others || ""}
-                onChange={(e) => {
-                  setError(null);
-                  setOthers(Math.max(0, Number(e.target.value) || 0));
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 items-center text-sm font-semibold pt-1 border-t border-zinc-300">
-            <div className="text-black">Total</div>
-            <div className="text-right font-mono text-black">
-              {computedTotal > 0 ? computedTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}
-            </div>
-          </div>
-
-          <div className={`grid grid-cols-2 items-center text-sm pt-0.5 ${!isValidForAccept && hasAnyInput ? "text-red-700" : "text-black"}`}>
-            <div className="text-black">Difference</div>
-            <div className="text-right font-mono">
-              {difference.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </div>
+        <div className="grid grid-cols-2 items-center text-sm py-2 border-t border-gray-400">
+          <div className="text-black">Others</div>
+          <div className="text-right">
+            <input
+              type="number"
+              min={0}
+              className="w-24 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white text-right"
+              value={others || ""}
+              onChange={(e) => {
+                setError(null);
+                setOthers(Math.max(0, Number(e.target.value) || 0));
+              }}
+            />
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center select-none">
-          <span className="text-[10px] text-zinc-500">
-            {hasAnyInput && !isValidForAccept
-              ? "Balance denominations to accept"
-              : "Alt+A: Accept  ·  Esc: Close"}
-          </span>
-          <div className="flex gap-2">
-            <button onClick={onClose}
-              className="text-xs px-3 py-1.5 border border-zinc-300 rounded text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">
-              Cancel
-            </button>
-            <button onClick={handleSave}
-              disabled={!isValidForAccept}
-              className="text-xs px-5 py-1.5 rounded bg-zinc-950 text-white hover:bg-zinc-800 disabled:bg-zinc-300 disabled:text-zinc-500 font-semibold shadow-sm active:scale-95">
-              Accept
-            </button>
+        <div className="grid grid-cols-2 items-center text-sm font-bold py-2 border-t border-black">
+          <div className="text-black">Total</div>
+          <div className="text-right font-mono text-black">
+            {computedTotal > 0 ? computedTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}
+          </div>
+        </div>
+
+        <div className={`grid grid-cols-2 items-center text-sm py-1 ${!isValidForAccept && hasAnyInput ? "font-bold" : ""}`}>
+          <div className="text-black">Difference</div>
+          <div className="text-right font-mono text-black">
+            {difference.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </div>
         </div>
       </div>
-    </div>
+    </VoucherPopupShell>
   );
 }

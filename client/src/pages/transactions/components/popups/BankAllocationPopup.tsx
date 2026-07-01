@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 const TRANSACTION_TYPES = [
   "ATM",
@@ -49,13 +50,13 @@ function Field({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm italic text-black w-44 shrink-0">{label}</span>
+      <span className="text-sm text-black w-44 shrink-0">{label}</span>
       <span className="text-sm text-black">:</span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex-1 text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 bg-white"
+        className="flex-1 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
       />
     </div>
   );
@@ -107,15 +108,6 @@ export default function BankAllocationPopup({
     onSave(form);
   }, [form, onSave]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose, handleSave]);
-
   const set = (field: keyof BankDetails, value: any) => {
     setError(null);
     setForm((prev) => {
@@ -140,52 +132,43 @@ export default function BankAllocationPopup({
   const availableTypes = allowCash ? TRANSACTION_TYPES : TRANSACTION_TYPES.filter((t) => t !== "Cash");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[900px] max-w-[95vw] flex flex-col max-h-[85vh] overflow-hidden">
-
-        {/* Header — white (no black bar) */}
-        <div className="relative bg-white border-b border-zinc-200 px-4 py-3 text-center select-none">
-          <button
-            onClick={onClose}
-            className="absolute right-3 top-2 text-black hover:opacity-60 font-bold text-base leading-none"
-          >
-            &times;
-          </button>
-          <div className="text-sm text-black">
-            Bank Allocations for: <span className="font-bold">{ledgerName}</span>
+    <VoucherPopupShell
+      title={`Bank Allocations for: ${ledgerName}`}
+      headerRight={
+        <span>
+          For: <span className="font-bold text-black">{formattedAmount}</span>
+        </span>
+      }
+      onClose={onClose}
+      onAccept={handleSave}
+      hint={`Alt+A: Accept · Esc: Close${isCash && allowCash ? " → Will open Denomination" : ""}`}
+    >
+      <div className="max-w-[960px]">
+        {/* Transaction Type table */}
+        <div className="grid grid-cols-2 border-b border-gray-400 py-2 text-sm font-bold text-black">
+          <div>Transaction Type</div>
+          <div className="text-right">Amount</div>
+        </div>
+        <div className="grid grid-cols-2 border-b border-gray-200 py-2 text-sm items-center">
+          <div>
+            <select
+              value={form.transaction_type}
+              onChange={(e) => set("transaction_type", e.target.value)}
+              className="bg-white outline-none border border-gray-400 focus:border-black px-1 py-0.5 text-sm text-black w-44"
+            >
+              {availableTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
           </div>
-          <div className="text-sm text-black font-semibold mt-1">
-            For: {formattedAmount}
-          </div>
+          <div className="text-right font-mono text-black">{formattedAmount}</div>
         </div>
 
-        {/* Transaction Type Table */}
-        <div className="px-4 py-0">
-          <div className="grid grid-cols-2 border-b border-zinc-300 py-1 text-sm font-semibold text-black">
-            <div>Transaction Type</div>
-            <div className="text-right">Amount</div>
-          </div>
-          <div className="grid grid-cols-2 border-b border-zinc-200 py-1 text-sm items-center bg-yellow-50">
-            <div>
-              <select
-                value={form.transaction_type}
-                onChange={(e) => set("transaction_type", e.target.value)}
-                className="bg-transparent outline-none border border-zinc-300 px-1 py-0.5 text-sm text-black w-44"
-              >
-                {availableTypes.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div className="text-right font-mono text-black">{formattedAmount}</div>
-          </div>
-        </div>
-
-        {/* Form Fields */}
-        <div className="p-4 flex-1 overflow-y-auto min-h-0">
+        {/* Form fields */}
+        <div className="pt-4">
           {error && (
-            <div className="mb-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-1.5 rounded flex justify-between items-center">
-              <span>• {error}</span>
+            <div className="mb-3 border border-black text-black text-xs font-bold px-3 py-2 flex justify-between items-center">
+              <span>{error}</span>
               <button onClick={() => setError(null)} className="font-bold">&times;</button>
             </div>
           )}
@@ -207,7 +190,7 @@ export default function BankAllocationPopup({
                 <Field label="Bank Name" value={form.bank_name ?? ""} onChange={(v) => set("bank_name", v)} />
               )}
               <div className="flex items-center gap-2">
-                <span className="text-sm italic text-black w-44 shrink-0">
+                <span className="text-sm text-black w-44 shrink-0">
                   {isCash ? "Ref No." : "Inst No."}
                 </span>
                 <span className="text-sm text-black">:</span>
@@ -215,15 +198,15 @@ export default function BankAllocationPopup({
                   type="text"
                   value={form.instrument_number}
                   onChange={(e) => set("instrument_number", e.target.value)}
-                  className="text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 w-40 bg-white"
+                  className="text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black w-40 bg-white"
                 />
-                <span className="text-sm italic text-black ml-6 shrink-0">Inst Date</span>
+                <span className="text-sm text-black ml-6 shrink-0">Inst Date</span>
                 <span className="text-sm text-black">:</span>
                 <input
                   type="date"
                   value={form.instrument_date}
                   onChange={(e) => set("instrument_date", e.target.value)}
-                  className="text-sm border border-zinc-300 px-2 py-1 outline-none focus:border-zinc-800 w-40 bg-white"
+                  className="text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black w-40 bg-white"
                 />
               </div>
             </div>
@@ -234,24 +217,7 @@ export default function BankAllocationPopup({
             <Field label="Bank Payment Gateway" value={form.payment_gateway ?? ""} onChange={(v) => set("payment_gateway", v)} />
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center select-none">
-          <span className="text-[10px] text-zinc-500">
-            Alt+A: Accept &nbsp;·&nbsp; Esc: Close{isCash && allowCash ? " → Will open Denomination" : ""}
-          </span>
-          <div className="flex gap-2">
-            <button onClick={onClose}
-              className="text-xs px-3 py-1.5 border border-zinc-300 rounded text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">
-              Cancel
-            </button>
-            <button onClick={handleSave}
-              className="text-xs px-5 py-1.5 rounded bg-zinc-950 text-white hover:bg-zinc-800 font-semibold shadow-sm active:scale-95">
-              Accept
-            </button>
-          </div>
-        </div>
       </div>
-    </div>
+    </VoucherPopupShell>
   );
 }

@@ -1,3 +1,5 @@
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+
 interface RegistrationOption {
   key: string;
   label: string;
@@ -48,62 +50,41 @@ export default function CompanyTaxRegistrationPopup({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 pt-24">
-      <div className="w-[680px] bg-white border border-gray-400 shadow-xl">
-
-        {/* Header */}
-        <div className="bg-zinc-800 text-white text-sm font-semibold px-3 py-1 flex justify-between items-center">
-          <span>Change Company/Tax Registration</span>
-          <button onClick={onClose} className="text-white hover:opacity-70 text-xs">✕</button>
-        </div>
-
+    <VoucherPopupShell title="Change Company/Tax Registration" onClose={onClose}>
+      <div className="max-w-3xl">
         {/* Column headers */}
-        <div className="flex text-xs font-bold text-black bg-zinc-200 border-b border-zinc-400 px-2 py-1">
-          <div className="w-[220px] shrink-0">Name</div>
-          <div className="w-[160px] shrink-0">Tax Registration No.</div>
-          <div className="w-[80px] shrink-0">Tax Type</div>
+        <div className="flex text-xs font-bold text-black bg-gray-100 border-b border-gray-400 px-2 py-1.5">
+          <div className="w-[260px] shrink-0">Name</div>
+          <div className="w-[180px] shrink-0">Tax Registration No.</div>
+          <div className="w-[100px] shrink-0">Tax Type</div>
           <div className="w-[160px] shrink-0">State</div>
         </div>
 
-        {/* Rows */}
-        <div className="max-h-96 overflow-y-auto">
+        {/* Not Applicable */}
+        <div
+          className="flex px-2 py-1.5 text-sm hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+          onClick={() => onSelect(null)}
+        >
+          <div className="w-[260px] shrink-0">♦ Not Applicable</div>
+          <div className="w-[180px] shrink-0" />
+          <div className="w-[100px] shrink-0" />
+          <div className="w-[160px] shrink-0" />
+        </div>
 
-          {/* Not Applicable */}
+        {/* Registration rows */}
+        {options.map((opt) => (
           <div
-            className="flex px-2 py-1 text-sm hover:bg-orange-200 cursor-pointer border-b border-gray-100"
-            onClick={() => onSelect(null)}
+            key={opt.key}
+            className="flex px-2 py-1.5 text-sm hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+            onClick={() => onSelect(opt)}
           >
-            <div className="w-[220px] shrink-0">♦ Not Applicable</div>
-            <div className="w-[160px] shrink-0" />
-            <div className="w-[80px] shrink-0" />
-            <div className="w-[160px] shrink-0" />
+            <div className="w-[260px] shrink-0 truncate text-black">{opt.label}</div>
+            <div className="w-[180px] shrink-0 italic text-gray-600 truncate">{opt.taxRegNo}</div>
+            <div className="w-[100px] shrink-0 italic text-gray-600">{opt.taxType}</div>
+            <div className="w-[160px] shrink-0 text-gray-600 truncate">{opt.state}</div>
           </div>
-
-          {/* Registration rows */}
-          {options.map((opt) => (
-            <div
-              key={opt.key}
-              className="flex px-2 py-1 text-sm hover:bg-orange-200 cursor-pointer border-b border-gray-100"
-              onClick={() => onSelect(opt)}
-            >
-              <div className="w-[220px] shrink-0 truncate">{opt.label}</div>
-              <div className="w-[160px] shrink-0 italic text-zinc-600 truncate">{opt.taxRegNo}</div>
-              <div className="w-[80px] shrink-0 italic text-zinc-600">{opt.taxType}</div>
-              <div className="w-[160px] shrink-0 text-zinc-600 truncate">{opt.state}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-300 px-3 py-1 flex justify-end">
-          <button
-            onClick={onClose}
-            className="text-xs border border-gray-400 px-3 py-1 hover:bg-gray-100"
-          >
-            Esc: Cancel
-          </button>
-        </div>
+        ))}
       </div>
-    </div>
+    </VoucherPopupShell>
   );
 }

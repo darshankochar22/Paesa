@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { BatchAllocation } from "../../types";
 import NewNumberPopup from "./NewNumberPopup";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 // Stock Item Allocations sub-screen (TallyPrime "Batch / Lot" allocation).
 // Splits a line quantity across one or more godown + batch rows, each with
@@ -339,36 +340,43 @@ export default function BatchAllocationPopup({
     })));
   }, [rows, remaining, totalBilled, totalQuantity, unitSymbol, trackMfg, trackExpiry, rate, quantityDriven, showBatch, onSave, trackingNo, orderNo, dueOn]);
 
+  // Esc / Alt+A themselves are handled by VoucherPopupShell — these wrappers
+  // preserve the old guards: nested popups own the keyboard; Esc with a side
+  // panel open closes the panel, not the popup; open dropdowns swallow keys.
+  const guardedClose = () => {
+    if (batchNumberRow !== null || trackingNewNumber || orderNewNumber) return;
+    if (activePanel) { closePanel(); return; }
+    if (showTrackingList || showOrderList) return;
+    onClose();
+  };
+  const guardedAccept = () => {
+    if (batchNumberRow !== null || trackingNewNumber || orderNewNumber) return;
+    if (activePanel) { closePanel(); return; }
+    if (showTrackingList || showOrderList) return;
+    handleSave();
+  };
+
+  // Side-panel keyboard navigation (arrows + Enter). Esc/Alt+A live in the shell.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (batchNumberRow !== null || trackingNewNumber || orderNewNumber) return;
-
-      // Panel keyboard nav
-      if (activePanel) {
-        if (e.key === "Escape") { e.preventDefault(); closePanel(); return; }
-        if (e.key === "ArrowDown") { e.preventDefault(); setPanelHi((p) => Math.min(p + 1, panelLength - 1)); return; }
-        if (e.key === "ArrowUp") { e.preventDefault(); setPanelHi((p) => Math.max(p - 1, 0)); return; }
-        if (e.key === "Enter" && activePanelRow !== null) {
-          e.preventDefault();
-          if (activePanel === "godown") {
-            if (panelHi === 0) { pickGodown(activePanelRow, ""); }
-            else { const g = godownPanelItems[panelHi - 1]; if (g) pickGodown(activePanelRow, g.name); }
-          } else {
-            const b = batchPanelItems[panelHi]; if (b) pickBatch(activePanelRow, b);
-          }
-          return;
+      if (!activePanel) return;
+      if (e.key === "ArrowDown") { e.preventDefault(); setPanelHi((p) => Math.min(p + 1, panelLength - 1)); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setPanelHi((p) => Math.max(p - 1, 0)); return; }
+      if (e.key === "Enter" && activePanelRow !== null) {
+        e.preventDefault();
+        if (activePanel === "godown") {
+          if (panelHi === 0) { pickGodown(activePanelRow, ""); }
+          else { const g = godownPanelItems[panelHi - 1]; if (g) pickGodown(activePanelRow, g.name); }
+        } else {
+          const b = batchPanelItems[panelHi]; if (b) pickBatch(activePanelRow, b);
         }
-        return;
       }
-
-      if (showTrackingList || showOrderList) return;
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, handleSave, batchNumberRow, trackingNewNumber, orderNewNumber, activePanel, activePanelRow, panelHi,
-      panelLength, godownPanelItems, batchPanelItems, showTrackingList, showOrderList]);
+  }, [batchNumberRow, trackingNewNumber, orderNewNumber, activePanel, activePanelRow, panelHi,
+      panelLength, godownPanelItems, batchPanelItems]);
 
   const cell = "shrink-0";
   const W = {
@@ -381,36 +389,33 @@ export default function BatchAllocationPopup({
     amount: "w-24",
     del: "w-5",
   };
-  const inputCls = "text-xs px-1.5 py-1 border border-zinc-300 w-full outline-none focus:border-zinc-800";
+  const inputCls = "text-xs px-1.5 py-1 border border-gray-400 bg-white w-full outline-none focus:border-black";
+  const listHeadCls = "bg-white text-black border-b border-gray-300";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 pt-12 select-none">
-      {/* Outer flex: [main popup] [side panel] */}
-      <div className="flex items-start">
-
-        {/* ── Main popup ── */}
-        <div className={`bg-white border border-black shadow-2xl ${showBatch ? "w-[760px]" : "w-[560px]"} flex flex-col max-h-[88vh]`}>
-
-          {/* Header */}
-          <div className="relative border-b border-black px-4 py-2 shrink-0">
-            <span className="absolute left-3 top-2 text-[9px] font-bold uppercase tracking-wider text-zinc-400">Stock Item Allocations</span>
-            <button onClick={onClose} className="absolute right-3 top-1.5 text-zinc-500 hover:text-black font-bold text-sm">&times;</button>
-            <div className="text-center text-sm">
-              Item Allocations for : <span className="font-bold">{itemName}</span>
-            </div>
-          </div>
-
-          <div className="p-4 flex-1 overflow-y-auto min-h-0 space-y-3">
+    <>
+      <VoucherPopupShell
+        title="Stock Item Allocations"
+        headerRight={
+          <span>Item Allocations for : <span className="font-bold text-black">{itemName}</span></span>
+        }
+        onClose={guardedClose}
+        onAccept={guardedAccept}
+        bodyClassName="p-0"
+      >
+        {/* Body flex: [allocation table] [side picker panel] */}
+        <div className="flex h-full min-h-0">
+          <div className="flex-1 min-w-0 overflow-y-auto px-6 py-4 space-y-3">
             {error && (
-              <div className="border border-zinc-400 text-zinc-900 text-xs px-3 py-2 flex justify-between items-center font-semibold">
+              <div className="border border-gray-400 text-black text-xs px-3 py-2 flex justify-between items-center font-semibold">
                 <span>• {error}</span>
                 <button onClick={() => setError(null)} className="font-bold">&times;</button>
               </div>
             )}
 
-            <div className="border border-zinc-300">
+            <div className="border border-gray-300">
               {/* Header row 1 */}
-              <div className="flex bg-zinc-100 px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 gap-2">
+              <div className="flex px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-700 gap-2">
                 <div className={`${cell} ${W.godown}`}>Godown</div>
                 {showBatch && <div className={`${cell} ${W.batch} text-center`}>Batch / Lot No.</div>}
                 <div className={`${cell} ${W.qty} text-center`}>Quantity</div>
@@ -421,7 +426,7 @@ export default function BatchAllocationPopup({
                 <div className={`${cell} ${W.del}`} />
               </div>
               {/* Header row 2 — sub-columns */}
-              <div className="flex bg-zinc-100 border-b border-zinc-300 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-zinc-500 gap-2">
+              <div className="flex border-b border-gray-300 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-500 gap-2">
                 <div className={`${cell} ${W.godown}`} />
                 {showBatch && (
                   <div className={`${cell} ${W.batch} flex gap-1`}>
@@ -443,25 +448,25 @@ export default function BatchAllocationPopup({
               {/* Order-tracking header — Tracking No. / Order No. / Due on (Tally).
                   Order No. + Due on show for batch items. Each list has only the
                   default (◆ Not Applicable) + New Number + existing entries. */}
-              <div className="flex items-center bg-white px-3 py-1.5 text-[11px] border-b border-zinc-100 gap-4">
+              <div className="flex items-center bg-white px-3 py-1.5 text-[11px] border-b border-gray-200 gap-4">
                 {/* Tracking No. */}
                 <div className="flex items-center gap-1 relative" ref={trackingRef}>
-                  <span className="italic text-zinc-600 shrink-0">Tracking No.</span>
-                  <span className="text-zinc-400">:</span>
+                  <span className="italic text-gray-600 shrink-0">Tracking No.</span>
+                  <span className="text-gray-400">:</span>
                   <button
                     type="button"
                     onClick={() => { setShowOrderList(false); setShowTrackingList((s) => !s); }}
-                    className="min-w-[90px] text-left font-semibold text-zinc-900 border-b border-dashed border-zinc-300 hover:border-zinc-800 px-1"
+                    className="min-w-[90px] text-left font-semibold text-black border-b border-dashed border-gray-400 hover:border-black px-1"
                   >
                     {trackingNo}
                   </button>
                   {showTrackingList && (
-                    <div className="absolute left-0 top-full mt-1 w-[400px] bg-white border border-zinc-400 shadow-xl z-40 max-h-56 overflow-y-auto">
-                      <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center">
+                    <div className="absolute left-0 top-full mt-1 w-[400px] bg-white border border-gray-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                      <div className={`${listHeadCls} text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center`}>
                         <span>List of Tracking Numbers</span>
-                        <button type="button" onClick={() => { setShowTrackingList(false); setTrackingNewNumber(true); }} className="hover:underline font-semibold">New Number</button>
+                        <button type="button" onClick={() => { setShowTrackingList(false); setTrackingNewNumber(true); }} className="underline font-semibold text-black hover:text-gray-700">New Number</button>
                       </div>
-                      <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200 gap-1">
+                      <div className="flex text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-200 gap-1">
                         <div className="flex-1">Name</div>
                         <div className="w-16">Batch</div>
                         <div className="w-16">Godown</div>
@@ -469,12 +474,12 @@ export default function BatchAllocationPopup({
                         <div className="w-14 text-right">Balance</div>
                       </div>
                       <button type="button" onClick={() => selectTracking(NOT_APPLICABLE)}
-                        className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                        className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
                         {NOT_APPLICABLE}
                       </button>
                       {trackingList.map((t) => (
                         <button key={t.name} type="button" onClick={() => selectTracking(t.name)}
-                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 gap-1">
+                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 gap-1">
                           <div className="flex-1 font-semibold">{t.name}</div>
                           <div className="w-16 font-mono truncate">{t.batch ?? ""}</div>
                           <div className="w-16 font-mono truncate">{t.godown ?? ""}</div>
@@ -489,22 +494,22 @@ export default function BatchAllocationPopup({
                 {/* Order No. — batch items only */}
                 {showBatch && (
                   <div className="flex items-center gap-1 relative" ref={orderRef}>
-                    <span className="italic text-zinc-600 shrink-0">Order No.</span>
-                    <span className="text-zinc-400">:</span>
+                    <span className="italic text-gray-600 shrink-0">Order No.</span>
+                    <span className="text-gray-400">:</span>
                     <button
                       type="button"
                       onClick={() => { setShowTrackingList(false); setShowOrderList((s) => !s); }}
-                      className="min-w-[90px] text-left font-semibold text-zinc-900 border-b border-dashed border-zinc-300 hover:border-zinc-800 px-1"
+                      className="min-w-[90px] text-left font-semibold text-black border-b border-dashed border-gray-400 hover:border-black px-1"
                     >
                       {orderNo}
                     </button>
                     {showOrderList && (
-                      <div className="absolute left-0 top-full mt-1 w-[400px] bg-white border border-zinc-400 shadow-xl z-40 max-h-56 overflow-y-auto">
-                        <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center">
+                      <div className="absolute left-0 top-full mt-1 w-[400px] bg-white border border-gray-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                        <div className={`${listHeadCls} text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center`}>
                           <span>List of Orders</span>
-                          <button type="button" onClick={() => { setShowOrderList(false); setOrderNewNumber(true); }} className="hover:underline font-semibold">New Number</button>
+                          <button type="button" onClick={() => { setShowOrderList(false); setOrderNewNumber(true); }} className="underline font-semibold text-black hover:text-gray-700">New Number</button>
                         </div>
-                        <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200 gap-1">
+                        <div className="flex text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-200 gap-1">
                           <div className="flex-1">Name</div>
                           <div className="w-16">Batch</div>
                           <div className="w-16">Godown</div>
@@ -512,12 +517,12 @@ export default function BatchAllocationPopup({
                           <div className="w-14 text-right">Balance</div>
                         </div>
                         <button type="button" onClick={() => selectOrder(NOT_APPLICABLE)}
-                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
                           {NOT_APPLICABLE}
                         </button>
                         {orderList.map((o) => (
                           <button key={o.name} type="button" onClick={() => selectOrder(o.name)}
-                            className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 gap-1">
+                            className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 gap-1">
                             <div className="flex-1 font-semibold">{o.name}</div>
                             <div className="w-16 font-mono truncate">{o.batch ?? ""}</div>
                             <div className="w-16 font-mono truncate">{o.godown ?? ""}</div>
@@ -533,21 +538,21 @@ export default function BatchAllocationPopup({
                 {/* Due on — shown once an order is chosen */}
                 {showBatch && orderNo !== NOT_APPLICABLE && (
                   <div className="flex items-center gap-1">
-                    <span className="italic text-zinc-600 shrink-0">Due on</span>
-                    <span className="text-zinc-400">:</span>
+                    <span className="italic text-gray-600 shrink-0">Due on</span>
+                    <span className="text-gray-400">:</span>
                     <input
                       type="text"
                       value={dueOn}
                       onChange={(e) => setDueOn(e.target.value)}
                       placeholder="e.g. 5 Days"
-                      className="w-24 text-xs border border-zinc-300 px-1 py-0.5 outline-none focus:border-zinc-800 font-mono"
+                      className="w-24 text-xs border border-gray-400 bg-white px-1 py-0.5 outline-none focus:border-black font-mono"
                     />
                   </div>
                 )}
               </div>
 
               {/* Data rows */}
-              <div className="divide-y divide-zinc-100">
+              <div className="divide-y divide-gray-200">
                 {rows.map((row, i) => {
                   const baseIso = (trackMfg && row.mfg_date) ? row.mfg_date : voucherDate;
                   const godownActive = activePanel === "godown" && activePanelRow === i;
@@ -559,13 +564,13 @@ export default function BatchAllocationPopup({
                       <div className={`${cell} ${W.godown}`}>
                         <button
                           type="button"
-                          className={`${inputCls} bg-white text-left truncate ${godownActive ? "border-zinc-800 bg-zinc-50" : ""}`}
+                          className={`${inputCls} text-left truncate ${godownActive ? "border-black" : ""}`}
                           onClick={() => {
                             if (godownActive) { closePanel(); }
                             else { setActivePanel("godown"); setActivePanelRow(i); setGodownSearch(""); }
                           }}
                         >
-                          {row.godown || <span className="text-zinc-400">Location…</span>}
+                          {row.godown || <span className="text-gray-400">Location…</span>}
                         </button>
                       </div>
 
@@ -578,7 +583,7 @@ export default function BatchAllocationPopup({
                             onChange={(e) => update(i, { batch_number: e.target.value })}
                             onFocus={() => { setActivePanel("batch"); setActivePanelRow(i); }}
                             placeholder="Batch / Lot No.…"
-                            className={`${inputCls} font-semibold ${batchActive ? "border-zinc-800 bg-zinc-50" : ""}`}
+                            className={`${inputCls} font-semibold ${batchActive ? "border-black" : ""}`}
                           />
                           {(trackMfg || trackExpiry) && (
                             <div className="flex gap-1 mt-1">
@@ -645,7 +650,7 @@ export default function BatchAllocationPopup({
                       </div>
 
                       {/* per */}
-                      <div className={`${cell} ${W.per} text-center text-[11px] text-zinc-600 pt-1.5 font-mono`}>
+                      <div className={`${cell} ${W.per} text-center text-[11px] text-gray-600 pt-1.5 font-mono`}>
                         {unitSymbol ?? ""}
                       </div>
 
@@ -668,15 +673,15 @@ export default function BatchAllocationPopup({
 
                       {/* Remove */}
                       <div className={`${cell} ${W.del} text-center pt-1`}>
-                        <button type="button" onClick={() => removeRow(i)} className="text-zinc-400 hover:text-zinc-900 text-sm font-bold">&times;</button>
+                        <button type="button" onClick={() => removeRow(i)} className="text-gray-400 hover:text-black text-sm font-bold">&times;</button>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Totals row */}
-              <div className="flex items-center px-3 py-2 bg-zinc-100 border-t-2 border-zinc-300 gap-2 font-bold text-xs font-mono">
+              {/* Totals row — bold + 1px black top border, no fill */}
+              <div className="flex items-center px-3 py-2 border-t border-black gap-2 font-bold text-xs font-mono">
                 <div className={`${cell} ${W.godown}`} />
                 {showBatch && <div className={`${cell} ${W.batch}`} />}
                 <div className={`${cell} ${W.qty} flex gap-1`}>
@@ -693,157 +698,147 @@ export default function BatchAllocationPopup({
 
             <div className="flex justify-between items-center">
               <button onClick={addRow}
-                className="text-[10px] uppercase tracking-wide font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 px-2.5 py-1 hover:bg-zinc-50">
+                className="text-[10px] uppercase tracking-wide font-bold text-gray-700 hover:text-black border border-gray-400 px-2.5 py-1 hover:bg-gray-100">
                 + Add Batch
               </button>
               {quantityDriven ? (
-                <span className="text-xs font-mono font-semibold text-zinc-900">
+                <span className="text-xs font-mono font-semibold text-black">
                   Total: {totalBilled} {unitSymbol ?? ""}
                 </span>
               ) : (
-                <span className={`text-xs font-mono font-semibold ${Math.abs(remaining) < 0.0001 ? "text-zinc-500" : "text-zinc-900"}`}>
+                <span className={`text-xs font-mono font-semibold ${Math.abs(remaining) < 0.0001 ? "text-gray-500" : "text-black"}`}>
                   Remaining: {remaining} {unitSymbol ?? ""}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center shrink-0">
-            <span className="text-[10px] text-zinc-500">Alt+A: Accept · Esc: Close</span>
-            <div className="flex gap-2">
-              <button onClick={onClose}
-                className="text-xs px-3 py-1.5 border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">Cancel</button>
-              <button onClick={handleSave}
-                className="text-xs px-5 py-1.5 bg-zinc-900 text-white hover:bg-zinc-700 font-semibold">Accept</button>
-            </div>
-          </div>
-        </div>
+          {/* ── Side panel: List of Godowns or List of Active Batches ── */}
+          {activePanel !== null && (
+            <div className="w-64 shrink-0 border-l border-gray-300 flex flex-col bg-white">
 
-        {/* ── Side panel: List of Godowns or List of Active Batches ── */}
-        {activePanel !== null && (
-          <div className="w-60 border border-black border-l-0 flex flex-col bg-white max-h-[88vh]" style={{ marginTop: 0 }}>
-
-            {activePanel === "godown" ? (
-              <>
-                {/* Godown panel header */}
-                <div className="bg-black text-white text-xs font-bold px-2 py-1 flex justify-between items-center shrink-0">
-                  <span>List of Godowns</span>
-                  <button onClick={closePanel} className="text-white hover:text-zinc-300 font-bold leading-none">&times;</button>
-                </div>
-
-                {/* Search */}
-                <div className="border-b border-zinc-300 shrink-0">
-                  <input
-                    ref={godownSearchRef}
-                    type="text"
-                    className="w-full text-xs outline-none px-2 py-1 bg-white"
-                    value={godownSearch}
-                    onChange={(e) => setGodownSearch(e.target.value)}
-                    placeholder="Search..."
-                  />
-                </div>
-
-                {/* Create */}
-                <div
-                  className="px-2 py-1 text-xs cursor-pointer hover:bg-zinc-100 border-b border-zinc-200 text-black select-none font-semibold"
-                  onClick={closePanel}
-                >
-                  Create
-                </div>
-
-                {/* Godown items */}
-                <div ref={panelListRef} className="flex-1 overflow-y-auto min-h-0">
-                  {/* Any */}
-                  <div
-                    data-panel-item
-                    className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center justify-between ${panelHi === 0 ? "bg-[#f0c040] font-semibold" : "hover:bg-zinc-50"}`}
-                    onClick={() => activePanelRow !== null && pickGodown(activePanelRow, "")}
-                    onMouseEnter={() => setPanelHi(0)}
-                  >
-                    <span>&#9670; Any</span>
+              {activePanel === "godown" ? (
+                <>
+                  {/* Godown panel header */}
+                  <div className={`${listHeadCls} text-xs font-bold px-2 py-1 flex justify-between items-center shrink-0`}>
+                    <span>List of Godowns</span>
+                    <button onClick={closePanel} className="text-gray-500 hover:text-black font-bold leading-none">&times;</button>
                   </div>
 
-                  {filteredGodowns.map((g, idx) => (
-                    <div
-                      key={g.godown_id ?? g.name}
-                      data-panel-item
-                      className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center justify-between ${panelHi === idx + 1 ? "bg-[#f0c040] font-semibold" : "hover:bg-zinc-50"}`}
-                      onClick={() => activePanelRow !== null && pickGodown(activePanelRow, g.name)}
-                      onMouseEnter={() => setPanelHi(idx + 1)}
-                    >
-                      <span className="truncate">{g.name}</span>
-                      <span className="text-zinc-500 text-[10px] shrink-0 ml-2">&#9670; {parentName(g)}</span>
-                    </div>
-                  ))}
+                  {/* Search */}
+                  <div className="border-b border-gray-300 shrink-0">
+                    <input
+                      ref={godownSearchRef}
+                      type="text"
+                      className="w-full text-xs outline-none px-2 py-1 bg-white"
+                      value={godownSearch}
+                      onChange={(e) => setGodownSearch(e.target.value)}
+                      placeholder="Search..."
+                    />
+                  </div>
 
-                  {filteredGodowns.length === 0 && (
-                    <div className="px-2 py-2 text-xs text-zinc-400 italic">No godowns</div>
-                  )}
-                </div>
-
-                <div className="border-t border-zinc-200 px-2 py-1 text-[10px] text-zinc-500 select-none bg-zinc-50 shrink-0">
-                  ↑↓ Navigate &nbsp;·&nbsp; Enter Select
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Batch panel header — "New Number" on the right */}
-                <div className="bg-black text-white text-xs font-bold px-2 py-1 flex justify-between items-center shrink-0">
-                  <span>List of Active Batches</span>
-                  {/* New Number — always available (Tally shows it for outward too). */}
-                  <button
-                    type="button"
-                    title={isInward ? "Create a new lot" : "Type a batch number to issue"}
-                    className="text-white hover:text-zinc-300 font-semibold text-[10px] underline"
-                    onClick={() => {
-                      if (activePanelRow !== null) {
-                        setBatchNumberRow(activePanelRow);
-                        closePanel();
-                      }
-                    }}
+                  {/* Create */}
+                  <div
+                    className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none font-semibold"
+                    onClick={closePanel}
                   >
-                    New Number
-                  </button>
-                </div>
+                    Create
+                  </div>
 
-                {/* Column headers */}
-                <div className="flex px-2 py-1 border-b border-zinc-300 bg-zinc-100 text-[9px] font-bold uppercase tracking-wide text-zinc-600 shrink-0">
-                  <div className="flex-1">Name</div>
-                  <div className="w-16 text-center">Expiry</div>
-                  <div className="w-14 text-right">Balance</div>
-                </div>
-
-                {/* Items — New Number (header) + existing batches only, no "Any". */}
-                <div ref={panelListRef} className="flex-1 overflow-y-auto min-h-0">
-                  {filteredBatches.map((b, idx) => (
+                  {/* Godown items */}
+                  <div ref={panelListRef} className="flex-1 overflow-y-auto min-h-0">
+                    {/* Any */}
                     <div
-                      key={b.name}
                       data-panel-item
-                      className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center ${panelHi === idx ? "bg-[#f0c040] font-semibold" : "hover:bg-zinc-50"}`}
-                      onClick={() => activePanelRow !== null && pickBatch(activePanelRow, b)}
-                      onMouseEnter={() => setPanelHi(idx)}
+                      className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center justify-between ${panelHi === 0 ? "bg-gray-200 font-semibold" : "hover:bg-gray-50"}`}
+                      onClick={() => activePanelRow !== null && pickGodown(activePanelRow, "")}
+                      onMouseEnter={() => setPanelHi(0)}
                     >
-                      <span className="flex-1 font-mono truncate">{b.name}</span>
-                      <span className="w-16 text-center font-mono text-zinc-600">{fmtDate(b.expiry_date)}</span>
-                      <span className="w-14 text-right font-mono text-zinc-600">
-                        {b.balance ? `${b.balance}${unitSymbol ? ` ${unitSymbol}` : ""}` : ""}
-                      </span>
+                      <span>&#9670; Any</span>
                     </div>
-                  ))}
 
-                  {filteredBatches.length === 0 && (
-                    <div className="px-2 py-2 text-xs text-zinc-400 italic">No batches yet</div>
-                  )}
-                </div>
+                    {filteredGodowns.map((g, idx) => (
+                      <div
+                        key={g.godown_id ?? g.name}
+                        data-panel-item
+                        className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center justify-between ${panelHi === idx + 1 ? "bg-gray-200 font-semibold" : "hover:bg-gray-50"}`}
+                        onClick={() => activePanelRow !== null && pickGodown(activePanelRow, g.name)}
+                        onMouseEnter={() => setPanelHi(idx + 1)}
+                      >
+                        <span className="truncate">{g.name}</span>
+                        <span className="text-gray-500 text-[10px] shrink-0 ml-2">&#9670; {parentName(g)}</span>
+                      </div>
+                    ))}
 
-                <div className="border-t border-zinc-200 px-2 py-1 text-[10px] text-zinc-500 select-none bg-zinc-50 shrink-0">
-                  ↑↓ Navigate &nbsp;·&nbsp; Enter Select
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+                    {filteredGodowns.length === 0 && (
+                      <div className="px-2 py-2 text-xs text-gray-400 italic">No godowns</div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-200 px-2 py-1 text-[10px] text-gray-500 select-none shrink-0">
+                    ↑↓ Navigate &nbsp;·&nbsp; Enter Select
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Batch panel header — "New Number" on the right */}
+                  <div className={`${listHeadCls} text-xs font-bold px-2 py-1 flex justify-between items-center shrink-0`}>
+                    <span>List of Active Batches</span>
+                    {/* New Number — always available (Tally shows it for outward too). */}
+                    <button
+                      type="button"
+                      title={isInward ? "Create a new lot" : "Type a batch number to issue"}
+                      className="text-black hover:text-gray-700 font-semibold text-[10px] underline"
+                      onClick={() => {
+                        if (activePanelRow !== null) {
+                          setBatchNumberRow(activePanelRow);
+                          closePanel();
+                        }
+                      }}
+                    >
+                      New Number
+                    </button>
+                  </div>
+
+                  {/* Column headers */}
+                  <div className="flex px-2 py-1 border-b border-gray-300 text-[9px] font-bold uppercase tracking-wide text-gray-600 shrink-0">
+                    <div className="flex-1">Name</div>
+                    <div className="w-16 text-center">Expiry</div>
+                    <div className="w-14 text-right">Balance</div>
+                  </div>
+
+                  {/* Items — New Number (header) + existing batches only, no "Any". */}
+                  <div ref={panelListRef} className="flex-1 overflow-y-auto min-h-0">
+                    {filteredBatches.map((b, idx) => (
+                      <div
+                        key={b.name}
+                        data-panel-item
+                        className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center ${panelHi === idx ? "bg-gray-200 font-semibold" : "hover:bg-gray-50"}`}
+                        onClick={() => activePanelRow !== null && pickBatch(activePanelRow, b)}
+                        onMouseEnter={() => setPanelHi(idx)}
+                      >
+                        <span className="flex-1 font-mono truncate">{b.name}</span>
+                        <span className="w-16 text-center font-mono text-gray-600">{fmtDate(b.expiry_date)}</span>
+                        <span className="w-14 text-right font-mono text-gray-600">
+                          {b.balance ? `${b.balance}${unitSymbol ? ` ${unitSymbol}` : ""}` : ""}
+                        </span>
+                      </div>
+                    ))}
+
+                    {filteredBatches.length === 0 && (
+                      <div className="px-2 py-2 text-xs text-gray-400 italic">No batches yet</div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-200 px-2 py-1 text-[10px] text-gray-500 select-none shrink-0">
+                    ↑↓ Navigate &nbsp;·&nbsp; Enter Select
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </VoucherPopupShell>
 
       {/* New Number popup — tracking numbers (shared component, same everywhere) */}
       {trackingNewNumber && (
@@ -878,6 +873,6 @@ export default function BatchAllocationPopup({
           }}
         />
       )}
-    </div>
+    </>
   );
 }

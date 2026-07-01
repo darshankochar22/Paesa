@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import NewNumberPopup from "./NewNumberPopup";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 export interface OrderDetails {
   order_nos?: string;
@@ -60,164 +61,146 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
     return () => document.removeEventListener("mousedown", onDown);
   }, [showOrderList]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
-
   const labelCls = "w-48 text-right text-sm text-black shrink-0";
   const dispLabel = "w-44 text-left text-sm text-black shrink-0";
-  const inputCls = "flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black";
+  const inputCls = "flex-1 min-w-0 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white border border-black shadow-xl w-[820px] flex flex-col">
-        {/* Section: Order Details */}
-        <div className="bg-white text-black px-3 py-1 flex justify-center items-center select-none border-b border-black">
-          <span className="text-sm font-bold">Order Details</span>
-        </div>
-
-        <div className="p-4 flex gap-8">
-          {/* Left — Order No(s) + Date */}
-          <div className="w-56 shrink-0 space-y-2">
-            <div data-od-dd className="relative">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-black shrink-0">Order No(s)</span>
-                <span className="text-sm text-black shrink-0">:</span>
-              </div>
-              <input
-                type="text"
-                className="w-full text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
-                value={form.order_nos ?? ""}
-                onFocus={() => setShowOrderList(true)}
-                onChange={(e) => set("order_nos", e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") setShowOrderList(false); }}
-                autoFocus
-              />
-              {showOrderList && (
-                <div className="absolute left-0 top-full mt-0.5 w-full bg-white border border-zinc-400 shadow-xl z-40">
-                  <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Orders</div>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); setShowOrderList(false); setShowNewNumber(true); }}
-                    className="block w-full text-right text-sm px-2 py-1 hover:bg-zinc-100 font-semibold border-b border-zinc-50"
-                  >
-                    New Number
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); set("order_nos", "♦ Not Applicable"); setShowOrderList(false); }}
-                    className="block w-full text-left text-sm px-2 py-1 hover:bg-zinc-100"
-                  >
-                    &#9670; Not Applicable
-                  </button>
-                  {createdOrders.filter((o) => o !== form.order_nos).map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); set("order_nos", o); setShowOrderList(false); }}
-                      className="block w-full text-left text-sm px-2 py-1 hover:bg-zinc-100 border-t border-zinc-50 font-semibold"
-                    >
-                      {o}
-                    </button>
-                  ))}
+    <>
+      <VoucherPopupShell
+        title="Order Details"
+        onClose={onClose}
+        onAccept={handleSave}
+      >
+        <div className="max-w-[960px]">
+          <div className="flex gap-8">
+            {/* Left — Order No(s) + Date */}
+            <div className="w-56 shrink-0 space-y-3">
+              <div data-od-dd className="relative">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm text-black shrink-0">Order No(s)</span>
+                  <span className="text-sm text-black shrink-0">:</span>
                 </div>
-              )}
+                <input
+                  type="text"
+                  className="w-full text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                  value={form.order_nos ?? ""}
+                  onFocus={() => setShowOrderList(true)}
+                  onChange={(e) => set("order_nos", e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setShowOrderList(false); }}
+                  autoFocus
+                />
+                {showOrderList && (
+                  <div className="absolute left-0 top-full mt-0.5 w-full bg-white border border-gray-400 shadow-xl z-40">
+                    <div className="bg-white text-black text-[10px] font-bold px-2 py-1 border-b border-gray-300">List of Orders</div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); setShowOrderList(false); setShowNewNumber(true); }}
+                      className="block w-full text-right text-sm px-2 py-1 hover:bg-gray-100 font-semibold border-b border-gray-100"
+                    >
+                      New Number
+                    </button>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); set("order_nos", "♦ Not Applicable"); setShowOrderList(false); }}
+                      className="block w-full text-left text-sm px-2 py-1 hover:bg-gray-100"
+                    >
+                      &#9670; Not Applicable
+                    </button>
+                    {createdOrders.filter((o) => o !== form.order_nos).map((o) => (
+                      <button
+                        key={o}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); set("order_nos", o); setShowOrderList(false); }}
+                        className="block w-full text-left text-sm px-2 py-1 hover:bg-gray-100 border-t border-gray-100 font-semibold"
+                      >
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-black shrink-0">Date</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={form.order_date ?? ""}
+                  onChange={(e) => set("order_date", e.target.value)}
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-black shrink-0">Date</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input
-                type="date"
-                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                value={form.order_date ?? ""}
-                onChange={(e) => set("order_date", e.target.value)}
-              />
+
+            {/* Right */}
+            <div className="flex-1 min-w-0 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className={labelCls}>Mode/Terms of Payment</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.mode_terms_of_payment ?? ""} onChange={(e) => set("mode_terms_of_payment", e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={labelCls}>Other References</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.other_references ?? ""} onChange={(e) => set("other_references", e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={labelCls}>Terms of Delivery</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.terms_of_delivery ?? ""} onChange={(e) => set("terms_of_delivery", e.target.value)} />
+              </div>
             </div>
           </div>
 
-          {/* Right */}
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className={labelCls}>Mode/Terms of Payment</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.mode_terms_of_payment ?? ""} onChange={(e) => set("mode_terms_of_payment", e.target.value)} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={labelCls}>Other References</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.other_references ?? ""} onChange={(e) => set("other_references", e.target.value)} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={labelCls}>Terms of Delivery</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.terms_of_delivery ?? ""} onChange={(e) => set("terms_of_delivery", e.target.value)} />
+          {/* Section: Dispatch / Receipt Details — white sub-header, bold + divider */}
+          <div className="mt-6 pb-1 border-b border-gray-300 text-sm font-bold text-black select-none">
+            {receiptVariant ? "Receipt Details" : "Dispatch Details"}
+          </div>
+
+          <div className="pt-4">
+            <div className="w-[620px] max-w-full space-y-3">
+              <div className="flex items-center gap-2">
+                <span className={dispLabel}>{receiptVariant ? "Receipt Doc No." : "Dispatch Doc No."}</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.challan_nos ?? ""} onChange={(e) => set("challan_nos", e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={dispLabel}>Dispatched through</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.dispatched_through ?? ""} onChange={(e) => set("dispatched_through", e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={dispLabel}>Destination</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.destination ?? ""} onChange={(e) => set("destination", e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={dispLabel}>Carrier Name/Agent</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.carrier_name ?? ""} onChange={(e) => set("carrier_name", e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={dispLabel}>Bill of Lading/LR-RR No.</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.bill_of_lading_no ?? ""} onChange={(e) => set("bill_of_lading_no", e.target.value)} />
+                <span className="text-sm text-black shrink-0">Date</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input
+                  type="date"
+                  className="w-36 shrink-0 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                  value={form.bill_of_lading_date ?? ""}
+                  onChange={(e) => set("bill_of_lading_date", e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={dispLabel}>Motor Vehicle No.</span>
+                <span className="text-sm text-black shrink-0">:</span>
+                <input type="text" className={inputCls} value={form.motor_vehicle_no ?? ""} onChange={(e) => set("motor_vehicle_no", e.target.value)} />
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Section: Dispatch / Receipt Details */}
-        <div className="bg-white text-black px-3 py-1 flex justify-center items-center select-none border-y border-gray-300">
-          <span className="text-sm font-bold">{receiptVariant ? "Receipt Details" : "Dispatch Details"}</span>
-        </div>
-
-        <div className="p-4">
-          <div className="w-[620px] space-y-2">
-            <div className="flex items-center gap-2">
-              <span className={dispLabel}>{receiptVariant ? "Receipt Doc No." : "Dispatch Doc No."}</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.challan_nos ?? ""} onChange={(e) => set("challan_nos", e.target.value)} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={dispLabel}>Dispatched through</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.dispatched_through ?? ""} onChange={(e) => set("dispatched_through", e.target.value)} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={dispLabel}>Destination</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.destination ?? ""} onChange={(e) => set("destination", e.target.value)} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={dispLabel}>Carrier Name/Agent</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.carrier_name ?? ""} onChange={(e) => set("carrier_name", e.target.value)} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={dispLabel}>Bill of Lading/LR-RR No.</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.bill_of_lading_no ?? ""} onChange={(e) => set("bill_of_lading_no", e.target.value)} />
-              <span className="text-sm text-black shrink-0">Date</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input
-                type="date"
-                className="w-36 shrink-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                value={form.bill_of_lading_date ?? ""}
-                onChange={(e) => set("bill_of_lading_date", e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={dispLabel}>Motor Vehicle No.</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input type="text" className={inputCls} value={form.motor_vehicle_no ?? ""} onChange={(e) => set("motor_vehicle_no", e.target.value)} />
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-black px-3 py-2 flex justify-between items-center bg-gray-50">
-          <span className="text-[10px] text-gray-600">Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close</span>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="text-xs px-3 py-1 border border-black text-black hover:bg-gray-100">Cancel</button>
-            <button onClick={handleSave} className="text-xs px-4 py-1 bg-black text-white hover:bg-gray-800">Accept</button>
-          </div>
-        </div>
-      </div>
+      </VoucherPopupShell>
 
       {showNewNumber && (
         <NewNumberPopup
@@ -231,6 +214,6 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
           }}
         />
       )}
-    </div>
+    </>
   );
 }

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { INDIAN_STATES } from "../../../../constants/states";
 import LedgerListPanel from "../LedgerListPanel";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 export interface PartyDetails {
   supplier_name?: string;
@@ -38,6 +39,9 @@ const GST_REGISTRATION_TYPES = [
   "Deemed Export",
   "UIN Holders",
 ];
+
+const inputCls =
+  "flex-1 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black";
 
 export default function PartyDetailsPopup({
   partyLedger,
@@ -90,174 +94,170 @@ export default function PartyDetailsPopup({
     setLedgerSearchTerm("");
   }, []);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (showLedgerPanel) return;
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, showLedgerPanel]);
+  // While the ledger picker is open, Esc / Cancel should close the picker,
+  // not the whole popup (preserves the previous guarded-Escape behavior).
+  const handleClose = () => {
+    if (showLedgerPanel) {
+      setShowLedgerPanel(false);
+      setLedgerSearchTerm("");
+    } else {
+      onClose();
+    }
+  };
+
+  const handleAccept = () => {
+    if (!showLedgerPanel) handleSave();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 flex items-center justify-center bg-black/50">
-        <div className="bg-white border border-black shadow-xl w-[560px] flex flex-col">
-          <div className="bg-black text-white px-3 py-1 flex justify-between items-center select-none">
-            <span className="text-sm font-bold">Party Details</span>
-            <button onClick={onClose} className="text-white hover:text-gray-300 font-bold text-sm leading-none">&times;</button>
+    <>
+      <VoucherPopupShell
+        title="Party Details"
+        headerRight={partyLedger?.name}
+        onClose={handleClose}
+        onAccept={handleAccept}
+      >
+        <div className="max-w-[640px] space-y-3">
+          {natureOfReturnLabel && (
+            <div className="flex items-center gap-2 pb-3 border-b border-gray-300">
+              <span className="w-44 text-sm text-black shrink-0">{natureOfReturnLabel}</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className={inputCls}
+                value={form.nature_of_return ?? ""}
+                onChange={(e) => set("nature_of_return", e.target.value)}
+                autoFocus
+              />
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="w-44 text-sm text-black shrink-0">{buyerLabel}</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.supplier_name ?? ""}
+              onChange={(e) => set("supplier_name", e.target.value)}
+              onFocus={() => { setShowLedgerPanel(true); setLedgerSearchTerm(""); }}
+              autoFocus={!natureOfReturnLabel}
+            />
           </div>
 
-          <div className="p-4 space-y-3 max-h-[80vh] overflow-y-auto">
-            {natureOfReturnLabel && (
-              <div className="flex items-center gap-2 pb-2 border-b border-gray-300">
-                <span className="w-44 text-sm text-black shrink-0">{natureOfReturnLabel}</span>
-                <span className="text-sm text-black shrink-0">:</span>
-                <input
-                  type="text"
-                  className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
-                  value={form.nature_of_return ?? ""}
-                  onChange={(e) => set("nature_of_return", e.target.value)}
-                  autoFocus
-                />
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <span className="w-36 text-sm text-black shrink-0">{buyerLabel}</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input
-                type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
-                value={form.supplier_name ?? ""}
-                onChange={(e) => set("supplier_name", e.target.value)}
-                onFocus={() => { setShowLedgerPanel(true); setLedgerSearchTerm(""); }}
-                autoFocus={!natureOfReturnLabel}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-36 text-sm text-black shrink-0">Address Type</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <select
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-white"
-                value={form.address_type ?? "Primary"}
-                onChange={(e) => set("address_type", e.target.value)}
-              >
-                <option value="Primary">♦ Primary</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-36 text-sm text-black shrink-0">Mailing Name</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input
-                type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                value={form.mailing_name ?? ""}
-                onChange={(e) => set("mailing_name", e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-start gap-2">
-              <span className="w-36 text-sm text-black shrink-0 pt-0.5">Address</span>
-              <span className="text-sm text-black shrink-0 pt-0.5">:</span>
-              <textarea
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black resize-none h-16"
-                value={form.address ?? ""}
-                onChange={(e) => set("address", e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-36 text-sm text-black shrink-0">State</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <select
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-white"
-                value={form.state ?? ""}
-                onChange={(e) => set("state", e.target.value)}
-              >
-                <option value="">Select State</option>
-                {INDIAN_STATES.map((s: string) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-36 text-sm text-black shrink-0">Country</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input
-                type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                value={form.country ?? ""}
-                onChange={(e) => set("country", e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-              <span className="w-36 text-sm text-black shrink-0">GST Registration type</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <select
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-white"
-                value={form.gst_registration_type ?? "Regular"}
-                onChange={(e) => set("gst_registration_type", e.target.value)}
-              >
-                {GST_REGISTRATION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-36 text-sm text-black shrink-0">GSTIN/UIN</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <input
-                type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black uppercase"
-                value={form.gstin ?? ""}
-                onChange={(e) => set("gstin", e.target.value.toUpperCase())}
-                maxLength={15}
-                placeholder="Optional"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-              <span className="w-36 text-sm text-black shrink-0">Place of Supply</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <select
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-white"
-                value={form.place_of_supply ?? ""}
-                onChange={(e) => set("place_of_supply", e.target.value)}
-              >
-                <option value="">Select State</option>
-                {INDIAN_STATES.map((s: string) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="w-44 text-sm text-black shrink-0">Address Type</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <select
+              className={inputCls}
+              value={form.address_type ?? "Primary"}
+              onChange={(e) => set("address_type", e.target.value)}
+            >
+              <option value="Primary">♦ Primary</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
 
-          <div className="border-t border-black px-3 py-2 flex justify-between items-center bg-gray-50">
-            <span className="text-[10px] text-gray-600">Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close</span>
-            <div className="flex gap-2">
-              <button onClick={onClose} className="text-xs px-3 py-1 border border-black text-black hover:bg-gray-100">Cancel</button>
-              <button onClick={handleSave} className="text-xs px-4 py-1 bg-black text-white hover:bg-gray-800">Accept</button>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="w-44 text-sm text-black shrink-0">Mailing Name</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.mailing_name ?? ""}
+              onChange={(e) => set("mailing_name", e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-start gap-2">
+            <span className="w-44 text-sm text-black shrink-0 pt-0.5">Address</span>
+            <span className="text-sm text-black shrink-0 pt-0.5">:</span>
+            <textarea
+              className={`${inputCls} resize-none h-16`}
+              value={form.address ?? ""}
+              onChange={(e) => set("address", e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-44 text-sm text-black shrink-0">State</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <select
+              className={inputCls}
+              value={form.state ?? ""}
+              onChange={(e) => set("state", e.target.value)}
+            >
+              <option value="">Select State</option>
+              {INDIAN_STATES.map((s: string) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-44 text-sm text-black shrink-0">Country</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={inputCls}
+              value={form.country ?? ""}
+              onChange={(e) => set("country", e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-3 border-t border-gray-300">
+            <span className="w-44 text-sm text-black shrink-0">GST Registration type</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <select
+              className={inputCls}
+              value={form.gst_registration_type ?? "Regular"}
+              onChange={(e) => set("gst_registration_type", e.target.value)}
+            >
+              {GST_REGISTRATION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-44 text-sm text-black shrink-0">GSTIN/UIN</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <input
+              type="text"
+              className={`${inputCls} uppercase`}
+              value={form.gstin ?? ""}
+              onChange={(e) => set("gstin", e.target.value.toUpperCase())}
+              maxLength={15}
+              placeholder="Optional"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-3 border-t border-gray-300">
+            <span className="w-44 text-sm text-black shrink-0">Place of Supply</span>
+            <span className="text-sm text-black shrink-0">:</span>
+            <select
+              className={inputCls}
+              value={form.place_of_supply ?? ""}
+              onChange={(e) => set("place_of_supply", e.target.value)}
+            >
+              <option value="">Select State</option>
+              {INDIAN_STATES.map((s: string) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
         </div>
-      </div>
+      </VoucherPopupShell>
 
       {showLedgerPanel && (
-        <LedgerListPanel
-          title="List of Ledger Accounts"
-          items={allLedgers}
-          searchTerm={ledgerSearchTerm}
-          onSearchChange={setLedgerSearchTerm}
-          onSelect={handleLedgerSelect}
-          onClose={() => { setShowLedgerPanel(false); setLedgerSearchTerm(""); }}
-          onCreateNew={onCreateLedger}
-          createLabel="Create"
-          height="h-screen"
-        />
+        <div className="fixed inset-y-0 right-0 z-[60] shadow-2xl">
+          <LedgerListPanel
+            title="List of Ledger Accounts"
+            items={allLedgers}
+            searchTerm={ledgerSearchTerm}
+            onSearchChange={setLedgerSearchTerm}
+            onSelect={handleLedgerSelect}
+            onClose={() => { setShowLedgerPanel(false); setLedgerSearchTerm(""); }}
+            onCreateNew={onCreateLedger}
+            createLabel="Create"
+            height="h-screen"
+          />
+        </div>
       )}
-    </div>
+    </>
   );
 }

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 export interface CreditNoteDetails {
   tracking_no?: string;
@@ -37,16 +38,6 @@ export default function CreditNoteDetailsPopup({
     original_invoice_date: initialDetails?.original_invoice_date ?? "",
   });
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
-
   const set = (field: keyof CreditNoteDetails, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -56,16 +47,14 @@ export default function CreditNoteDetailsPopup({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white border border-black shadow-xl w-[800px] flex flex-col">
-
-        {/* Header */}
-        <div className="bg-white text-black px-3 py-1 flex justify-center items-center select-none border-b border-black">
-          <span className="text-sm font-bold">Receipt Details</span>
-        </div>
-
-        {/* Form Content — two-column layout matching Tally */}
-        <div className="p-4 flex gap-8">
+    <VoucherPopupShell
+      title="Receipt Details"
+      onClose={onClose}
+      onAccept={handleSave}
+    >
+      <div className="max-w-3xl">
+        {/* Two-column layout matching Tally */}
+        <div className="flex gap-8">
           {/* Left column */}
           <div className="w-56 shrink-0">
             <div className="flex items-center gap-2 mb-1">
@@ -74,7 +63,7 @@ export default function CreditNoteDetailsPopup({
             </div>
             <input
               type="text"
-              className="w-full text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
+              className="w-full text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
               value={form.tracking_no ?? ""}
               onChange={(e) => set("tracking_no", e.target.value)}
               autoFocus
@@ -88,7 +77,7 @@ export default function CreditNoteDetailsPopup({
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
                 value={form.dispatch_doc_no ?? ""}
                 onChange={(e) => set("dispatch_doc_no", e.target.value)}
               />
@@ -99,7 +88,7 @@ export default function CreditNoteDetailsPopup({
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
                 value={form.dispatched_through ?? ""}
                 onChange={(e) => set("dispatched_through", e.target.value)}
               />
@@ -110,7 +99,7 @@ export default function CreditNoteDetailsPopup({
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
                 value={form.destination ?? ""}
                 onChange={(e) => set("destination", e.target.value)}
               />
@@ -121,7 +110,7 @@ export default function CreditNoteDetailsPopup({
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
                 value={form.carrier_name ?? ""}
                 onChange={(e) => set("carrier_name", e.target.value)}
               />
@@ -132,7 +121,7 @@ export default function CreditNoteDetailsPopup({
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
                 value={form.bill_of_lading_no ?? ""}
                 onChange={(e) => set("bill_of_lading_no", e.target.value)}
               />
@@ -140,7 +129,7 @@ export default function CreditNoteDetailsPopup({
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="date"
-                className="w-36 shrink-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="w-36 shrink-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
                 value={form.bill_of_lading_date ?? ""}
                 onChange={(e) => set("bill_of_lading_date", e.target.value)}
               />
@@ -151,7 +140,7 @@ export default function CreditNoteDetailsPopup({
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
                 value={form.motor_vehicle_no ?? ""}
                 onChange={(e) => set("motor_vehicle_no", e.target.value)}
               />
@@ -160,18 +149,17 @@ export default function CreditNoteDetailsPopup({
         </div>
 
         {/* Section: Original Invoice Details */}
-        <div className="bg-white text-black px-3 py-1 flex justify-center items-center select-none border-y border-gray-300">
-          <span className="text-sm font-bold">Original Invoice Details</span>
+        <div className="mt-6 pb-1 border-b border-gray-400 select-none">
+          <span className="text-sm font-bold text-black">Original Invoice Details</span>
         </div>
 
-        {/* Original Invoice Details content */}
-        <div className="p-4 flex gap-6">
+        <div className="pt-4 flex gap-6">
           <div className="w-1/2 flex items-center gap-2">
             <span className="text-sm text-black shrink-0">Original Invoice No.</span>
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="text"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
               value={form.original_invoice_no ?? ""}
               onChange={(e) => set("original_invoice_no", e.target.value)}
             />
@@ -181,32 +169,13 @@ export default function CreditNoteDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="date"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
               value={form.original_invoice_date ?? ""}
               onChange={(e) => set("original_invoice_date", e.target.value)}
             />
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-black px-3 py-2 flex justify-between items-center bg-gray-50">
-          <span className="text-[10px] text-gray-600">Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close</span>
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="text-xs px-3 py-1 border border-black text-black hover:bg-gray-100"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="text-xs px-4 py-1 bg-black text-white hover:bg-gray-800"
-            >
-              Accept
-            </button>
-          </div>
-        </div>
       </div>
-    </div>
+    </VoucherPopupShell>
   );
 }
