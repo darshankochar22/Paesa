@@ -248,15 +248,10 @@ export function useVoucherForm(
 
     if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
       if (!rows.partyLedger) return "Party A/c Name is required.";
-<<<<<<< Updated upstream
       // Delivery Note / Receipt Note / Rejection In / Rejection Out are non-accounting
       // inventory vouchers in Tally — no Sales/Purchase ledger is posted, so unlike
       // Sales/Purchase/Credit Note/Debit Note it is never required here.
       const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType);
-=======
-      // Rejection In/Out have no Sales/Purchase ledger — Ledger Account + items only.
-      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note"].includes(effectiveVoucherType);
->>>>>>> Stashed changes
       if (needsLedger && !rows.salesPurchaseLedger) {
         const baseLabel = effectiveVoucherType === "Credit Note" ? "Sales" : effectiveVoucherType === "Debit Note" ? "Purchase" : effectiveVoucherType;
         return `${baseLabel} Ledger is required.`;

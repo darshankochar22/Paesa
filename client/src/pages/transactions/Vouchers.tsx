@@ -467,12 +467,7 @@ export default function Vouchers() {
       const allFilled = (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out")
         ? form.stockEntries.every((s) => !s.stockItem || (s.quantityRaw !== "" && s.rateRaw !== ""))
         : true;
-<<<<<<< Updated upstream
       const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType);
-=======
-      // Rejection In/Out have no Sales/Purchase ledger — Ledger Account + items only.
-      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note"].includes(effectiveVoucherType);
->>>>>>> Stashed changes
       return (
         !!form.partyLedger &&
         (!needsLedger || !!form.salesPurchaseLedger) &&
@@ -668,13 +663,9 @@ export default function Vouchers() {
   const handleAccept = useCallback(() => {
     // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
-<<<<<<< Updated upstream
       // Delivery Note, Receipt Note, Rejection In & Rejection Out are non-accounting
       // inventory vouchers — no bill-wise prompt (no voucher_entries row is ever
       // created for the party ledger, so a bill reference would be orphaned).
-=======
-      // Delivery Note / Receipt Note / Rejection In / Rejection Out are non-accounting inventory vouchers — no bill-wise prompt.
->>>>>>> Stashed changes
       ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0

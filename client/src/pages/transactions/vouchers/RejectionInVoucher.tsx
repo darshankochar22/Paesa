@@ -11,11 +11,6 @@ interface Props {
   partyAddressLabel?: string;
 }
 
-<<<<<<< Updated upstream
-export default function RejectionInVoucher({ handleAmountConfirm: _ignored, ...props }: Props) {
-  // Non-accounting inventory voucher — no Sales Ledger row (Tally posts nothing here).
-  return <StockTransferVoucherBody {...props} />;
-=======
 /**
  * TallyPrime "Rejections In" inventory voucher body. Two-column header —
  * Ledger Account (party picker) + Customer's Name and Address — over the
@@ -233,5 +228,4 @@ export default function RejectionInVoucher({
       </div>
     </div>
   );
->>>>>>> Stashed changes
 }
