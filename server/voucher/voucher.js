@@ -325,6 +325,11 @@ const init = async (db) => {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN applicable_upto TEXT`);
   } catch (err) {}
 
+  // Selected Voucher Type Class ("Name of Class") — stored by name on the voucher row.
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN voucher_class TEXT`);
+  } catch (err) {}
+
   try {
     await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN cheque_range TEXT`);
   } catch (err) {}

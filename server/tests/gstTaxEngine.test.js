@@ -7,6 +7,7 @@ const { setupTestDB, createTestCompany, db } = require("./helpers");
 const { gstHsnRates } = require("../db/schema");
 const ledgerService = require("../ledger/ledgerService");
 const voucherController = require("../voucher/voucherController");
+const voucherTypeService = require("../voucherType/voucherTypeService");
 
 const ledgerId = (res) => res.ledger?.ledger_id ?? res.ledger_id ?? res.id;
 
@@ -165,5 +166,138 @@ describe("GST tax engine — Duties & Taxes ledger resolution", () => {
     // Exactly one CGST row remains — the stale 900 entry from create() wasn't
     // left behind alongside the recomputed 1800 one.
     expect(entriesRes.rows.filter((r) => Number(r.ledger_id) === Number(outputCgstId)).length).toBe(1);
+  });
+});
+
+// Voucher Type Class ("Name of Class" → "Use Class for GST Details") — a class's
+// explicitly mapped ledgers must win over the normal auto-resolve/auto-create lookup,
+// and a voucher with no class selected must be byte-identical to today's behavior.
+describe("GST tax engine — Voucher Type Class ledger override", () => {
+  let companyId, fyId, partyId, salesId, salesVtId;
+  let autoCgstId, autoSgstId, classCgstId, classSgstId;
+  const CLASS_NAME = "GST Sales Class";
+
+  beforeAll(async () => {
+    await setupTestDB();
+    const company = await createTestCompany("GST Voucher Class Test Co");
+    companyId = company.company_id;
+    const fyResult = await db.execute(
+      `SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`,
+      [companyId]
+    );
+    fyId = fyResult.rows[0].fy_id;
+
+    const groupRes = await db.execute(
+      `SELECT group_id FROM groups WHERE company_id = ? AND name = 'Duties & Taxes'`,
+      [companyId]
+    );
+    const dutiesGroupId = groupRes.rows[0].group_id;
+
+    // The ledgers the engine would auto-resolve when no class is involved.
+    autoCgstId = ledgerId(await ledgerService.create({
+      company_id: companyId, name: "Auto CGST @9%", group_id: dutiesGroupId,
+      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "CGST" },
+    }));
+    autoSgstId = ledgerId(await ledgerService.create({
+      company_id: companyId, name: "Auto SGST @9%", group_id: dutiesGroupId,
+      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "SGST/UTGST" },
+    }));
+    // Distinct ledgers ONLY reachable via the Class mapping — untagged, so the normal
+    // ledger_statutory_details lookup would never pick them on its own.
+    classCgstId = ledgerId(await ledgerService.create({
+      company_id: companyId, name: "Class-Mapped CGST", group_id: dutiesGroupId,
+    }));
+    classSgstId = ledgerId(await ledgerService.create({
+      company_id: companyId, name: "Class-Mapped SGST", group_id: dutiesGroupId,
+    }));
+
+    const party = await ledgerService.create({
+      company_id: companyId, name: "Voucher Class Customer",
+      gstin: "27ABCDE1234F1Z5", state: "Maharashtra", country: "India", registration_type: "Regular",
+    });
+    partyId = ledgerId(party);
+    salesId = ledgerId(await ledgerService.create({ company_id: companyId, name: "Voucher Class Sales A/c" }));
+
+    await db.insert(gstHsnRates).values({
+      companyId, hsnCode: "8472", effectiveFrom: "2026-01-01",
+      gstRate: 18, cgstRate: 9, sgstRate: 9, igstRate: 18,
+    });
+
+    // Find the predefined "Sales" voucher type seeded for this company, and attach a
+    // Class to it via voucher_type_configs.voucher_classes.
+    const vtRes = await voucherTypeService.getAll(companyId);
+    salesVtId = vtRes.voucherTypes.find((vt) => vt.name === "Sales").vt_id;
+    const configRes = await voucherTypeService.updateConfig({
+      voucher_type_id: salesVtId,
+      voucher_classes: [{
+        id: "vc-test-1",
+        name: CLASS_NAME,
+        use_for_gst_details: "Yes",
+        cgst_ledger_id: classCgstId,
+        sgst_ledger_id: classSgstId,
+        igst_ledger_id: null,
+      }],
+    });
+    expect(configRes.success).toBe(true);
+  });
+
+  const createSalesVoucher = (voucher_class) => voucherController.create(null, {
+    company_id: companyId, fy_id: fyId, voucher_type: "Sales", date: "2026-04-10",
+    status: "Regular", reference_number: `INV-CLS-${Date.now()}-${Math.random()}`, place_of_supply: "Maharashtra",
+    party_ledger_id: partyId, party_name: "Voucher Class Customer",
+    is_accounting_voucher: 1, is_invoice: 1, is_inventory_voucher: 1, is_order_voucher: 0, is_post_dated: 0,
+    voucher_class: voucher_class || null,
+    entries: [
+      { ledger_id: partyId, ledger_name: "Voucher Class Customer", type: "Dr", amount: 11800, currency: "INR" },
+      { ledger_id: salesId, ledger_name: "Voucher Class Sales A/c", type: "Cr", amount: 11800, currency: "INR" },
+    ],
+    stock_entries: [
+      { item_name: "Gadget", quantity: 10, rate: 1000, hsn_code: "8472" },
+    ],
+  });
+
+  it("posts to the Class-mapped ledgers when a Class with Use Class for GST Details=Yes is selected", async () => {
+    const res = await createSalesVoucher(CLASS_NAME);
+    expect(res.success).toBe(true);
+
+    const entriesRes = await db.execute(
+      `SELECT ledger_id, amount FROM voucher_entries WHERE voucher_id = ?`,
+      [res.voucher.voucher_id]
+    );
+    const entries = entriesRes.rows;
+
+    const classCgst = entries.find((e) => Number(e.ledger_id) === Number(classCgstId));
+    const classSgst = entries.find((e) => Number(e.ledger_id) === Number(classSgstId));
+    expect(classCgst).toBeTruthy();
+    expect(classSgst).toBeTruthy();
+    expect(classCgst.amount).toBe(900);
+    expect(classSgst.amount).toBe(900);
+
+    // The auto-resolved ledgers were NOT used for this voucher.
+    expect(entries.find((e) => Number(e.ledger_id) === Number(autoCgstId))).toBeFalsy();
+    expect(entries.find((e) => Number(e.ledger_id) === Number(autoSgstId))).toBeFalsy();
+
+    // The voucher row remembers which Class was used.
+    const voucherRow = await db.execute(
+      `SELECT voucher_class FROM vouchers WHERE voucher_id = ?`,
+      [res.voucher.voucher_id]
+    );
+    expect(voucherRow.rows[0].voucher_class).toBe(CLASS_NAME);
+  });
+
+  it("falls back to normal auto-resolution when no Class is selected (regression guard)", async () => {
+    const res = await createSalesVoucher(null);
+    expect(res.success).toBe(true);
+
+    const entriesRes = await db.execute(
+      `SELECT ledger_id, amount FROM voucher_entries WHERE voucher_id = ?`,
+      [res.voucher.voucher_id]
+    );
+    const entries = entriesRes.rows;
+
+    expect(entries.find((e) => Number(e.ledger_id) === Number(autoCgstId))?.amount).toBe(900);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(autoSgstId))?.amount).toBe(900);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(classCgstId))).toBeFalsy();
+    expect(entries.find((e) => Number(e.ledger_id) === Number(classSgstId))).toBeFalsy();
   });
 });

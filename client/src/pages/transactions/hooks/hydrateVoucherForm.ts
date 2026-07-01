@@ -45,6 +45,7 @@ export function hydrateVoucherForm(form: any, v: any) {
   form.setSupplierInvoiceNo?.(v.supplier_invoice_no || "");
   form.setSupplierInvoiceDate?.(v.supplier_invoice_date || "");
   if (v.place_of_supply) form.setPlaceOfSupply?.(v.place_of_supply);
+  form.setVoucherClass?.(v.voucher_class || "");
   form.setStatus?.(v.is_post_dated ? "Post-Dated" : "Regular");
 
   // Detail sub-screens round-trip in their stored (snake_case) shape.

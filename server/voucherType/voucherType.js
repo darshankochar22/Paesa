@@ -69,7 +69,8 @@ const init = async (db) => {
       prefill_with_zero                    INTEGER DEFAULT 0,
       restart_numbering                    TEXT DEFAULT '[]',
       prefix_details                       TEXT DEFAULT '[]',
-      suffix_details                       TEXT DEFAULT '[]'
+      suffix_details                       TEXT DEFAULT '[]',
+      voucher_classes                      TEXT DEFAULT '[]'
     )
   `);
 
@@ -92,7 +93,9 @@ const init = async (db) => {
     { name: 'prefill_with_zero', spec: 'INTEGER DEFAULT 0' },
     { name: 'restart_numbering', spec: "TEXT DEFAULT '[]'" },
     { name: 'prefix_details', spec: "TEXT DEFAULT '[]'" },
-    { name: 'suffix_details', spec: "TEXT DEFAULT '[]'" }
+    { name: 'suffix_details', spec: "TEXT DEFAULT '[]'" },
+    // Name of Class — named GST-ledger-mapping classes per voucher type.
+    { name: 'voucher_classes', spec: "TEXT DEFAULT '[]'" }
   ];
 
   for (const col of columnsToAdd_config) {

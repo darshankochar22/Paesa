@@ -6,6 +6,7 @@ import { useVoucherForm } from "./hooks/useVoucherForm";
 import { hydrateVoucherForm } from "./hooks/hydrateVoucherForm";
 import { formatDateDisplay } from "./hooks/useVoucherMeta";
 import type { BatchAllocation, InventoryAllocationItem } from "./types";
+import type { VoucherClassRow } from "@/types/entities/VoucherType";
 import { makeStockRow } from "./utils/rowFactories";
 import { AlertBanner, PageTitleBar } from "../../components/ui";
 import { Button } from "@/components/shadcn/button";
@@ -318,6 +319,8 @@ export default function Vouchers() {
 
   const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
   const [voucherTypeParentMap, setVoucherTypeParentMap] = useState<Record<string, string>>({});
+  const [voucherTypeIdByName, setVoucherTypeIdByName] = useState<Record<string, number>>({});
+  const [availableVoucherClasses, setAvailableVoucherClasses] = useState<VoucherClassRow[]>([]);
   const [showTaxRegistrationPopup, setShowTaxRegistrationPopup] = useState(false);
 
   const resolveEffectiveVoucherType = useCallback(
@@ -1926,7 +1929,9 @@ const handleSaveVatDetails = useCallback(
       if (res.success && res.voucherTypes) {
         const childrenMap: Record<string, string[]> = {};
         const parentMap: Record<string, string> = {};
+        const idMap: Record<string, number> = {};
         for (const vt of res.voucherTypes) {
+          if (vt.name && vt.vt_id) idMap[vt.name] = vt.vt_id;
           // Predefined types ARE the base buttons (Contra/Payment/Receipt/...). Skip them.
           if (vt.is_predefined) continue;
           // Nest a custom voucher type under its explicit parent, else under its
@@ -1942,9 +1947,24 @@ const handleSaveVatDetails = useCallback(
         }
         setVoucherTypeChildren(childrenMap);
         setVoucherTypeParentMap(parentMap);
+        setVoucherTypeIdByName(idMap);
       }
     }).catch(() => {});
   }, [selectedCompany]);
+
+  // Load the selected voucher type's Name-of-Class list (if any), so a "Class" selector
+  // can be shown next to it — matches TallyPrime's behaviour of hiding the Class field
+  // entirely when no classes are defined for that voucher type.
+  useEffect(() => {
+    const vtId = voucherTypeIdByName[effectiveVoucherType];
+    if (!vtId) { setAvailableVoucherClasses([]); return; }
+    let active = true;
+    window.api.voucherType.getConfig(vtId).then((res) => {
+      if (!active) return;
+      setAvailableVoucherClasses(res.success && res.config?.voucher_classes ? res.config.voucher_classes : []);
+    }).catch(() => { if (active) setAvailableVoucherClasses([]); });
+    return () => { active = false; };
+  }, [effectiveVoucherType, voucherTypeIdByName]);
 
   const handleTypeKey = useCallback(
     (type: string) => {
@@ -1954,9 +1974,10 @@ const handleSaveVatDetails = useCallback(
       } else {
         setSubDropdownType(null);
         form.setVoucherType(type);
+        form.setVoucherClass("");
       }
     },
-    [voucherTypeChildren, form.setVoucherType]
+    [voucherTypeChildren, form.setVoucherType, form.setVoucherClass]
   );
 
   useEffect(() => {
@@ -2124,6 +2145,21 @@ const handleSaveVatDetails = useCallback(
         </div>
         <span className="text-sm text-black ml-3">No.</span>
         <span className="text-sm font-bold text-black ml-2 mr-6">{form.voucherNumber}</span>
+        {availableVoucherClasses.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-black">Class</span>
+            <select
+              className="text-sm border border-black px-1 py-0 outline-none bg-white"
+              value={form.voucherClass}
+              onChange={(e) => form.setVoucherClass(e.target.value)}
+            >
+              <option value="">Not Applicable</option>
+              {availableVoucherClasses.map((c) => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex-1" />
         {form.status === "Post-Dated" && (
           <span className="text-xs text-black border border-black px-2 py-0 mr-4">

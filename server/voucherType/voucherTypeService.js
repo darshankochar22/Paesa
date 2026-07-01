@@ -33,6 +33,7 @@ const normalizeConfig = (config) => {
     restart_numbering: parseRows(config.restart_numbering),
     prefix_details: parseRows(config.prefix_details),
     suffix_details: parseRows(config.suffix_details),
+    voucher_classes: parseRows(config.voucher_classes),
   };
 };
 
@@ -188,6 +189,7 @@ module.exports = {
           restartNumbering: serializeRows(data.restart_numbering),
           prefixDetails: serializeRows(data.prefix_details),
           suffixDetails: serializeRows(data.suffix_details),
+          voucherClasses: serializeRows(data.voucher_classes),
         });
 
       const voucherType = await findVoucherTypeRow(sql`${voucherTypes.vtId} = ${vt_id}`);
@@ -227,7 +229,7 @@ module.exports = {
                 vtc.track_additional_cost_for_purchase, vtc.default_title_to_print,
                 vtc.use_for_pos_invoicing, vtc.default_bank_id, vtc.declaration, vtc.set_alter_declaration,
                 vtc.starting_number, vtc.width_of_numerical_part, vtc.prefill_with_zero,
-                vtc.restart_numbering, vtc.prefix_details, vtc.suffix_details
+                vtc.restart_numbering, vtc.prefix_details, vtc.suffix_details, vtc.voucher_classes
             FROM ${voucherTypes} vt
             LEFT JOIN ${voucherTypeConfigs} vtc ON vt.vt_id = vtc.voucher_type_id
             WHERE vt.vt_id = ${id}`
@@ -281,6 +283,7 @@ module.exports = {
           restartNumbering: data.restart_numbering !== undefined ? serializeRows(data.restart_numbering) : c.restart_numbering,
           prefixDetails: data.prefix_details !== undefined ? serializeRows(data.prefix_details) : c.prefix_details,
           suffixDetails: data.suffix_details !== undefined ? serializeRows(data.suffix_details) : c.suffix_details,
+          voucherClasses: data.voucher_classes !== undefined ? serializeRows(data.voucher_classes) : c.voucher_classes,
         })
         .where(eq(voucherTypeConfigs.voucherTypeId, data.voucher_type_id));
 

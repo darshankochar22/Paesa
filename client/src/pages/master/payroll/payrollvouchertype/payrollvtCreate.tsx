@@ -66,6 +66,7 @@ export default function PayrollvtCreate() {
         restart_numbering:              config.restart_numbering,
         prefix_details:                 config.prefix_details,
         suffix_details:                 config.suffix_details,
+        voucher_classes:                config.voucher_classes,
       };
       const result = await window.api.voucherType.create(payload);
 
@@ -131,6 +132,7 @@ export default function PayrollvtCreate() {
           setShowCategoryPanel={setShowCategoryPanel}
           categories={PAYROLL_CATEGORIES}
           nameAutoFocus
+          companyId={companyId}
         />
         <RightActionPanel actions={voucherActions} />
       </div>

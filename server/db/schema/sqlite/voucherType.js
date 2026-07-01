@@ -54,6 +54,8 @@ const voucherTypeConfigs = sqliteTable('voucher_type_configs', {
   restartNumbering: text('restart_numbering').default('[]'),
   prefixDetails: text('prefix_details').default('[]'),
   suffixDetails: text('suffix_details').default('[]'),
+  // Name of Class (#GST class) — array of { id, name, use_for_gst_details, cgst_ledger_id, sgst_ledger_id, igst_ledger_id }.
+  voucherClasses: text('voucher_classes').default('[]'),
 });
 
 module.exports = { voucherTypes, voucherTypeConfigs };

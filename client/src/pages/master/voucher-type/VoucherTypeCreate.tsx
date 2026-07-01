@@ -62,6 +62,7 @@ export default function VoucherTypeCreate() {
         restart_numbering:              config.restart_numbering,
         prefix_details:                 config.prefix_details,
         suffix_details:                 config.suffix_details,
+        voucher_classes:                config.voucher_classes,
       };
       const result = await window.api.voucherType.create(payload);
 
@@ -126,6 +127,7 @@ export default function VoucherTypeCreate() {
           showCategoryPanel={showCategoryPanel}
           setShowCategoryPanel={setShowCategoryPanel}
           nameAutoFocus
+          companyId={companyId}
         />
         <RightActionPanel actions={voucherActions} />
       </div>
