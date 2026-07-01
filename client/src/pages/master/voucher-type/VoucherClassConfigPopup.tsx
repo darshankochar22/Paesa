@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
 import type { LedgerType } from "@/types/entities/Ledger";
+import type { GroupType } from "@/types/entities/Group";
 import type { VoucherClassRow } from "@/types/entities/VoucherType";
 import { YesNoSelect, type YN } from "./VoucherTypeFormBody";
+
+const isUnderDutiesAndTaxes = (groupId: number | undefined, groups: GroupType[]): boolean => {
+  let current = groups.find((g) => g.group_id === groupId);
+  while (current) {
+    if (current.name.toLowerCase().trim() === "duties & taxes") return true;
+    current = groups.find((g) => g.group_id === current!.parent_group_id);
+  }
+  return false;
+};
 
 interface Props {
   companyId: number;
@@ -25,12 +35,16 @@ export default function VoucherClassConfigPopup({
     let active = true;
     (async () => {
       try {
-        const res = await window.api.ledger.getAll(companyId);
+        const [ledgerRes, groupRes] = await Promise.all([
+          window.api.ledger.getAll(companyId),
+          window.api.group.getAll(companyId),
+        ]);
         if (!active) return;
-        if (res.success) {
-          setDutyLedgers((res.ledgers ?? []).filter((l) => l.ledger_type === "Duties & Taxes"));
+        if (ledgerRes.success && groupRes.success) {
+          const groups = groupRes.groups ?? [];
+          setDutyLedgers((ledgerRes.ledgers ?? []).filter((l) => isUnderDutiesAndTaxes(l.group_id, groups)));
         } else {
-          setError(res.error || "Failed to load ledgers.");
+          setError(ledgerRes.error || groupRes.error || "Failed to load ledgers.");
         }
       } catch {
         if (active) setError("Error loading ledgers.");
