@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { BatchAllocation } from "../../types";
 
 // Material In / Out (job work) Stock Item Allocations — order-tracked godown rows.
@@ -63,6 +64,34 @@ export default function MaterialInAllocationPopup({
   const [newNumberField, setNewNumberField] = useState<"order" | "batch">("order");
   const [newNumberValue, setNewNumberValue] = useState("");
   const orderRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Anchors for the Order/Batch list popups, portaled to <body> with fixed
+  // coordinates below — rows sit inside a scrollable (overflow-y-auto) body, so
+  // plain absolute-positioned dropdowns get clipped by that ancestor.
+  const orderAnchorRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const batchAnchorRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [orderPos, setOrderPos] = useState<{ top: number; left: number } | null>(null);
+  const [batchPos, setBatchPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (openOrderList === null && openBatchList === null) return;
+    const reposition = () => {
+      if (openOrderList !== null && orderAnchorRefs.current[openOrderList]) {
+        const r = orderAnchorRefs.current[openOrderList]!.getBoundingClientRect();
+        setOrderPos({ top: r.bottom + 2, left: r.left });
+      } else setOrderPos(null);
+      if (openBatchList !== null && batchAnchorRefs.current[openBatchList]) {
+        const r = batchAnchorRefs.current[openBatchList]!.getBoundingClientRect();
+        setBatchPos({ top: r.bottom + 2, left: r.left });
+      } else setBatchPos(null);
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [openOrderList, openBatchList]);
 
   const update = (i: number, patch: Partial<BatchAllocation>) => {
     setError(null);
@@ -192,14 +221,14 @@ export default function MaterialInAllocationPopup({
                 <div className="flex items-center gap-2 text-xs italic text-zinc-700">
                   <div className="flex-1 min-w-0 flex items-center gap-2">
                     <span className="shrink-0">Order No.:</span>
-                    <div className="relative">
+                    <div className="relative" ref={(el) => { orderAnchorRefs.current[i] = el; }}>
                       <button ref={(el) => { orderRefs.current[i] = el; }} type="button" onClick={() => setOpenOrderList(openOrderList === i ? null : i)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setOpenOrderList(i); } }} className={`${cell} w-28 text-left not-italic bg-white truncate`}>
                         {row.order_no || NOT_APPLICABLE}
                       </button>
-                      {openOrderList === i && (
+                      {openOrderList === i && orderPos && createPortal(
                         <>
                           <div className="fixed inset-0 z-20" onClick={() => setOpenOrderList(null)} />
-                          <div className="absolute left-0 top-full mt-0.5 z-30 w-[640px] bg-white border border-zinc-500 shadow-xl not-italic">
+                          <div style={{ position: "fixed", top: orderPos.top, left: orderPos.left }} className="z-30 w-[640px] bg-white border border-zinc-500 shadow-xl not-italic">
                             <div className="bg-zinc-800 text-white text-[11px] font-bold px-2 py-1 flex justify-between items-center">
                               <span>List of Orders</span>
                               <button type="button" onClick={() => { setNewNumberValue(""); setNewNumberField("order"); setNewNumberRow(i); setOpenOrderList(null); }} className="hover:underline">New Number</button>
@@ -218,7 +247,8 @@ export default function MaterialInAllocationPopup({
                               ))}
                             </div>
                           </div>
-                        </>
+                        </>,
+                        document.body
                       )}
                     </div>
                     {hasOrder && (
@@ -258,14 +288,14 @@ export default function MaterialInAllocationPopup({
                   {showBatch && (
                     <div className={BATCH}>
                       {/* Batch/Lot No. — opens List of Active Batches */}
-                      <div className="relative">
+                      <div className="relative" ref={(el) => { batchAnchorRefs.current[i] = el; }}>
                         <button type="button" onClick={() => setOpenBatchList(openBatchList === i ? null : i)} className={`${cell} w-full text-left bg-yellow-50 font-semibold truncate ${row.batch_number ? "" : "text-zinc-400 font-normal"}`}>
                           {row.batch_number || "New Number…"}
                         </button>
-                        {openBatchList === i && (
+                        {openBatchList === i && batchPos && createPortal(
                           <>
                             <div className="fixed inset-0 z-20" onClick={() => setOpenBatchList(null)} />
-                            <div className="absolute left-0 top-full mt-0.5 z-30 w-72 bg-white border border-zinc-500 shadow-xl">
+                            <div style={{ position: "fixed", top: batchPos.top, left: batchPos.left }} className="z-30 w-72 bg-white border border-zinc-500 shadow-xl">
                               <div className="bg-zinc-800 text-white text-[11px] font-bold px-2 py-1 flex justify-between items-center">
                                 <span>List of Active Batches</span>
                                 <button type="button" onClick={() => { setNewNumberValue(""); setNewNumberField("batch"); setNewNumberRow(i); setOpenBatchList(null); }} className="hover:underline">New Number</button>
@@ -282,7 +312,8 @@ export default function MaterialInAllocationPopup({
                                 ))}
                               </div>
                             </div>
-                          </>
+                          </>,
+                          document.body
                         )}
                       </div>
                       {(trackMfg || trackExpiry) && (

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { BatchAllocation } from "../../types";
 import NewNumberPopup from "./NewNumberPopup";
 
@@ -101,6 +102,21 @@ export default function OrderItemAllocationPopup({
   const [created, setCreated] = useState<{ tracking: string[]; order: string[]; batch: string[] }>({ tracking: [], order: [], batch: [] });
   const [error, setError] = useState<string | null>(null);
   const listRefs = useRef<(HTMLDivElement | null)[]>([]);
+  // Anchors for the four row-level dropdowns (Tracking/Order/Godown/Batch), each
+  // portaled to <body> with fixed coordinates below — the allocations list sits
+  // inside a scrollable (overflow-y-auto) body, so plain absolute dropdowns get
+  // clipped by that ancestor instead of floating over the popup.
+  const trackAnchorRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const orderAnchorRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const godownAnchorRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const trackDropdownRef = useRef<HTMLDivElement | null>(null);
+  const orderDropdownRef = useRef<HTMLDivElement | null>(null);
+  const godownDropdownRef = useRef<HTMLDivElement | null>(null);
+  const batchDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [trackPos, setTrackPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [orderPos, setOrderPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [godownPos, setGodownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [batchPos, setBatchPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Existing lots (with balances) for the "List of Active Batches".
   useEffect(() => {
@@ -119,22 +135,32 @@ export default function OrderItemAllocationPopup({
       .catch(() => {});
   }, [companyId, itemId]);
 
-  // Close the batch list on an outside click.
+  // Close the batch list on an outside click. Checks the portaled dropdown ref
+  // too, since it no longer lives inside the anchor's DOM subtree once portaled.
   useEffect(() => {
     if (openListRow === null) return;
     const onDown = (e: MouseEvent) => {
       const el = listRefs.current[openListRow];
-      if (el && !el.contains(e.target as Node)) setOpenListRow(null);
+      const target = e.target as Node;
+      if (el && !el.contains(target) && !batchDropdownRef.current?.contains(target)) setOpenListRow(null);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [openListRow]);
 
-  // Close the Tracking / Order / Godown dropdowns on an outside click.
+  // Close the Tracking / Order / Godown dropdowns on an outside click. The
+  // dropdowns are portaled to <body>, so `closest("[data-oa-dd]")` alone won't
+  // catch clicks inside them — check each dropdown ref directly as well.
   useEffect(() => {
     if (openTrackRow === null && openOrderRow === null && openGodownRow === null) return;
     const onDown = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest("[data-oa-dd]")) {
+      const target = e.target as Node;
+      if (
+        !(target as HTMLElement).closest("[data-oa-dd]") &&
+        !trackDropdownRef.current?.contains(target) &&
+        !orderDropdownRef.current?.contains(target) &&
+        !godownDropdownRef.current?.contains(target)
+      ) {
         setOpenTrackRow(null);
         setOpenOrderRow(null);
         setOpenGodownRow(null);
@@ -143,6 +169,37 @@ export default function OrderItemAllocationPopup({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [openTrackRow, openOrderRow, openGodownRow]);
+
+  // Recompute the portaled dropdowns' fixed positions whenever one opens, and
+  // while the popup's scrollable body (or the window) moves it.
+  useEffect(() => {
+    if (openTrackRow === null && openOrderRow === null && openGodownRow === null && openListRow === null) return;
+    const reposition = () => {
+      if (openTrackRow !== null && trackAnchorRefs.current[openTrackRow]) {
+        const r = trackAnchorRefs.current[openTrackRow]!.getBoundingClientRect();
+        setTrackPos({ top: r.bottom + 2, left: r.left, width: 224 });
+      } else setTrackPos(null);
+      if (openOrderRow !== null && orderAnchorRefs.current[openOrderRow]) {
+        const r = orderAnchorRefs.current[openOrderRow]!.getBoundingClientRect();
+        setOrderPos({ top: r.bottom + 2, left: r.left, width: 256 });
+      } else setOrderPos(null);
+      if (openGodownRow !== null && godownAnchorRefs.current[openGodownRow]) {
+        const r = godownAnchorRefs.current[openGodownRow]!.getBoundingClientRect();
+        setGodownPos({ top: r.bottom + 2, left: r.left, width: 256 });
+      } else setGodownPos(null);
+      if (openListRow !== null && listRefs.current[openListRow]) {
+        const r = listRefs.current[openListRow]!.getBoundingClientRect();
+        setBatchPos({ top: r.bottom + 4, left: r.left, width: 256 });
+      } else setBatchPos(null);
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [openTrackRow, openOrderRow, openGodownRow, openListRow]);
 
   const billed = (r: BatchAllocation) => Number(r.quantity) || 0;
   const actual = (r: BatchAllocation) => Number(r.actual_quantity ?? r.quantity) || 0;
@@ -332,7 +389,7 @@ export default function OrderItemAllocationPopup({
                     {/* Tracking No. / Order No. / Due on */}
                     <div className="flex items-center px-3 pt-1.5 gap-2 text-[11px]">
                       <span className="italic text-zinc-600 shrink-0">Tracking No. :</span>
-                      <div data-oa-dd className="relative shrink-0">
+                      <div data-oa-dd className="relative shrink-0" ref={(el) => { trackAnchorRefs.current[i] = el; }}>
                         <input
                           type="text"
                           data-oa-track={i}
@@ -344,8 +401,12 @@ export default function OrderItemAllocationPopup({
                           placeholder="New Number…"
                           className="w-28 text-[11px] px-1 py-0.5 border border-zinc-300 outline-none focus:border-zinc-800 font-mono bg-yellow-50"
                         />
-                        {openTrackRow === i && (
-                          <div className="absolute left-0 top-full mt-0.5 w-56 bg-white border border-zinc-400 shadow-xl z-40 max-h-52 overflow-y-auto">
+                        {openTrackRow === i && trackPos && createPortal(
+                          <div
+                            ref={trackDropdownRef}
+                            style={{ position: "fixed", top: trackPos.top, left: trackPos.left, width: trackPos.width }}
+                            className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-52 overflow-y-auto"
+                          >
                             <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Tracking Numbers</div>
                             <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-0.5 border-b border-zinc-200">
                               <div className="flex-1">Number</div><div className="w-16">Godown</div><div className="w-12 text-right">Balance</div>
@@ -358,14 +419,15 @@ export default function OrderItemAllocationPopup({
                                 <div className="flex-1 font-semibold">{t.no}</div><div className="w-16 truncate">{t.godown}</div><div className="w-12 text-right font-mono">{t.balance || ""}</div>
                               </button>
                             ))}
-                          </div>
+                          </div>,
+                          document.body
                         )}
                       </div>
 
                       {showOrder && (
                         <>
                           <span className="italic text-zinc-600 shrink-0 ml-3">Order No.:</span>
-                          <div data-oa-dd className="relative shrink-0">
+                          <div data-oa-dd className="relative shrink-0" ref={(el) => { orderAnchorRefs.current[i] = el; }}>
                             <input
                               type="text"
                               data-oa-order={i}
@@ -376,8 +438,12 @@ export default function OrderItemAllocationPopup({
                               placeholder="New Number…"
                               className="w-24 text-[11px] px-1 py-0.5 border border-zinc-300 outline-none focus:border-zinc-800 font-mono"
                             />
-                            {openOrderRow === i && (
-                              <div className="absolute left-0 top-full mt-0.5 w-64 bg-white border border-zinc-400 shadow-xl z-40 max-h-52 overflow-y-auto">
+                            {openOrderRow === i && orderPos && createPortal(
+                              <div
+                                ref={orderDropdownRef}
+                                style={{ position: "fixed", top: orderPos.top, left: orderPos.left, width: orderPos.width }}
+                                className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-52 overflow-y-auto"
+                              >
                                 <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Orders</div>
                                 <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-0.5 border-b border-zinc-200">
                                   <div className="flex-1">Order No.</div><div className="w-14">Godown</div><div className="w-14">Due On</div><div className="w-12 text-right">Balance</div>
@@ -389,7 +455,8 @@ export default function OrderItemAllocationPopup({
                                     <div className="flex-1 font-semibold">{o.no}</div><div className="w-14 truncate">{o.godown}</div><div className="w-14">{o.due}</div><div className="w-12 text-right font-mono">{o.balance || ""}</div>
                                   </button>
                                 ))}
-                              </div>
+                              </div>,
+                              document.body
                             )}
                           </div>
 
@@ -410,7 +477,7 @@ export default function OrderItemAllocationPopup({
                     {/* Data line */}
                     <div className="flex items-start px-3 py-1.5 gap-2">
                       {/* Godown — opens the "List of Godowns" panel */}
-                      <div data-oa-dd className={`${cell} ${W.godown} relative`}>
+                      <div data-oa-dd className={`${cell} ${W.godown} relative`} ref={(el) => { godownAnchorRefs.current[i] = el; }}>
                         <input
                           type="text" data-oa-godown={i}
                           value={row.godown ?? ""}
@@ -419,8 +486,12 @@ export default function OrderItemAllocationPopup({
                           onKeyDown={enter(() => { setOpenGodownRow(null); focusSel(showBatch ? `[data-oa-batch="${i}"]` : `[data-oa-actual="${i}"]`); })}
                           placeholder="Location" className={inputCls}
                         />
-                        {openGodownRow === i && (
-                          <div className="absolute left-0 top-full mt-0.5 w-64 bg-white border border-zinc-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                        {openGodownRow === i && godownPos && createPortal(
+                          <div
+                            ref={godownDropdownRef}
+                            style={{ position: "fixed", top: godownPos.top, left: godownPos.left, width: godownPos.width }}
+                            className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
+                          >
                             <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5 flex justify-between">
                               <span>List of Godowns</span>
                               <span className="opacity-70">Create</span>
@@ -434,7 +505,8 @@ export default function OrderItemAllocationPopup({
                                 <div className="w-14 text-right font-mono text-zinc-600">{fmtQty(g.godown_id != null ? godownBal[g.godown_id] : undefined, unitSymbol)}</div>
                               </button>
                             ))}
-                          </div>
+                          </div>,
+                          document.body
                         )}
                       </div>
 
@@ -468,8 +540,12 @@ export default function OrderItemAllocationPopup({
                               </div>
                             </div>
                           )}
-                          {openListRow === i && (
-                            <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-zinc-400 shadow-xl z-30 max-h-44 overflow-y-auto">
+                          {openListRow === i && batchPos && createPortal(
+                            <div
+                              ref={batchDropdownRef}
+                              style={{ position: "fixed", top: batchPos.top, left: batchPos.left, width: batchPos.width }}
+                              className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-44 overflow-y-auto"
+                            >
                               <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0">List of Active Batches</div>
                               <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200">
                                 <div className="flex-1">Name</div>
@@ -507,7 +583,8 @@ export default function OrderItemAllocationPopup({
                                   <div className="flex-1 font-semibold">{n}</div>
                                 </button>
                               ))}
-                            </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       )}

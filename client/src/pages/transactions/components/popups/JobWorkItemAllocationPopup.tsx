@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { JobWorkItemAllocationRow, ComponentAllocationRow } from "../../types";
 import ComponentsAllocationPopup from "./ComponentsAllocationPopup";
 
@@ -88,6 +89,30 @@ export default function JobWorkItemAllocationPopup({
 
   const update = (id: number, patch: Partial<AllocRow>) =>
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, ...patch } : r));
+
+  // Godown dropdown anchors, portaled to <body> with fixed coordinates below —
+  // rows sit inside a scrollable (overflow-y-auto) body, so a plain
+  // absolute-positioned dropdown gets clipped by that ancestor.
+  const godownAnchorRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const [godownPos, setGodownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const openGodownRowId = rows.find((r) => r.showGodownDD)?.id ?? null;
+
+  useEffect(() => {
+    if (openGodownRowId === null) { setGodownPos(null); return; }
+    const reposition = () => {
+      const el = godownAnchorRefs.current[openGodownRowId];
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setGodownPos({ top: r.bottom + 2, left: r.left, width: 176 });
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [openGodownRowId]);
 
   const totalQty = rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
   const totalAmount = rows.reduce((s, r) => s + r.amount, 0);
@@ -194,7 +219,7 @@ export default function JobWorkItemAllocationPopup({
               {/* Data row */}
               <div className="flex items-center px-4 pb-1 gap-2">
                 {/* Godown */}
-                <div className="w-24 shrink-0 relative">
+                <div className="w-24 shrink-0 relative" ref={(el) => { godownAnchorRefs.current[row.id] = el; }}>
                   <input
                     type="text"
                     data-jw-godown={idx}
@@ -207,8 +232,11 @@ export default function JobWorkItemAllocationPopup({
                     placeholder="Location"
                     className={inputCls}
                   />
-                  {row.showGodownDD && (
-                    <div className="absolute left-0 top-full mt-0.5 w-44 bg-white border border-zinc-400 shadow-xl z-40 max-h-40 overflow-y-auto">
+                  {row.showGodownDD && godownPos && createPortal(
+                    <div
+                      style={{ position: "fixed", top: godownPos.top, left: godownPos.left, width: godownPos.width }}
+                      className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-40 overflow-y-auto"
+                    >
                       <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Godowns</div>
                       {allGodowns
                         .filter((g) => !row.godown || g.name.toLowerCase().includes(row.godown.toLowerCase()))
@@ -223,7 +251,8 @@ export default function JobWorkItemAllocationPopup({
                             {g.name}
                           </button>
                         ))}
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
 
