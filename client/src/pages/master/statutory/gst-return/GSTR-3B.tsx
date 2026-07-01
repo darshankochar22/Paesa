@@ -33,6 +33,16 @@ function taxTotal(t: TaxAmount) {
   return t.iamt + t.camt + t.samt + t.cess;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function periodLabelFor(month: string, year: string) {
+  const m = Number(month);
+  const y = Number(year);
+  const lastDay = new Date(y, m, 0).getDate();
+  const yy = String(y).slice(-2);
+  return `1-${MONTHS[m - 1]}-${yy} to ${lastDay}-${MONTHS[m - 1]}-${yy}`;
+}
+
 export default function GSTR3BView() {
   const { selectedCompany, activeFY } = useCompany();
   const location = useLocation();
@@ -136,8 +146,9 @@ export default function GSTR3BView() {
   // 4 ITC
   const s4A_itc_avl_impg: TaxAmount  = gstr3bData?.itc_elg?.itc_avl?.[0] ?? ZERO; // import of goods
   const s4A_itc_avl_imps: TaxAmount  = gstr3bData?.itc_elg?.itc_avl?.[1] ?? ZERO; // import of services
-  const s4A_itc_avl_isrc: TaxAmount  = gstr3bData?.itc_elg?.itc_avl?.[2] ?? ZERO; // inward supplies ISD
-  const s4A_itc_avl_ohh: TaxAmount   = gstr3bData?.itc_elg?.itc_avl?.[3] ?? ZERO; // all other ITC
+  const s4A_itc_avl_isrc: TaxAmount  = gstr3bData?.itc_elg?.itc_avl?.[2] ?? ZERO; // inward supplies liable to reverse charge
+  const s4A_itc_avl_isd: TaxAmount   = gstr3bData?.itc_elg?.itc_avl?.[3] ?? ZERO; // inward supplies from ISD
+  const s4A_itc_avl_ohh: TaxAmount   = gstr3bData?.itc_elg?.itc_avl?.[4] ?? ZERO; // all other ITC
   const s4B_itc_rev: TaxAmount        = gstr3bData?.itc_elg?.itc_rev?.[0] ?? ZERO;
   const s4D1_itc_reclaim: TaxAmount   = gstr3bData?.itc_elg?.itc_inelg?.[0] ?? ZERO;
   const s4D2_itc_inelg: TaxAmount     = gstr3bData?.itc_elg?.itc_inelg?.[1] ?? ZERO;
@@ -145,10 +156,10 @@ export default function GSTR3BView() {
   // Net ITC (A - B)
   const s4C: TaxAmount = {
     txval: 0,
-    iamt: (s4A_itc_avl_impg.iamt + s4A_itc_avl_imps.iamt + s4A_itc_avl_isrc.iamt + s4A_itc_avl_ohh.iamt) - s4B_itc_rev.iamt,
-    camt: (s4A_itc_avl_impg.camt + s4A_itc_avl_imps.camt + s4A_itc_avl_isrc.camt + s4A_itc_avl_ohh.camt) - s4B_itc_rev.camt,
-    samt: (s4A_itc_avl_impg.samt + s4A_itc_avl_imps.samt + s4A_itc_avl_isrc.samt + s4A_itc_avl_ohh.samt) - s4B_itc_rev.samt,
-    cess: (s4A_itc_avl_impg.cess + s4A_itc_avl_imps.cess + s4A_itc_avl_isrc.cess + s4A_itc_avl_ohh.cess) - s4B_itc_rev.cess,
+    iamt: (s4A_itc_avl_impg.iamt + s4A_itc_avl_imps.iamt + s4A_itc_avl_isrc.iamt + s4A_itc_avl_isd.iamt + s4A_itc_avl_ohh.iamt) - s4B_itc_rev.iamt,
+    camt: (s4A_itc_avl_impg.camt + s4A_itc_avl_imps.camt + s4A_itc_avl_isrc.camt + s4A_itc_avl_isd.camt + s4A_itc_avl_ohh.camt) - s4B_itc_rev.camt,
+    samt: (s4A_itc_avl_impg.samt + s4A_itc_avl_imps.samt + s4A_itc_avl_isrc.samt + s4A_itc_avl_isd.samt + s4A_itc_avl_ohh.samt) - s4B_itc_rev.samt,
+    cess: (s4A_itc_avl_impg.cess + s4A_itc_avl_imps.cess + s4A_itc_avl_isrc.cess + s4A_itc_avl_isd.cess + s4A_itc_avl_ohh.cess) - s4B_itc_rev.cess,
   };
 
   // 5 Exempt / Nil / Non-GST
@@ -160,6 +171,19 @@ export default function GSTR3BView() {
 
   // Total vouchers from top summary
   const totalVouchers: number = gstr3bData?.total_vouchers ?? 0;
+
+  // Footer total = total outward liability (section 3.1, incl. reverse charge inward)
+  const liabilityRows = [s31_osup_det, s31_osup_zero, s31_osup_nil_exmp, s31_isup_rev, s31_osup_nongst];
+  const footerTotal: TaxAmount = liabilityRows.reduce(
+    (acc, r) => ({
+      txval: acc.txval + r.txval,
+      iamt:  acc.iamt  + r.iamt,
+      camt:  acc.camt  + r.camt,
+      samt:  acc.samt  + r.samt,
+      cess:  acc.cess  + r.cess,
+    }),
+    { ...ZERO }
+  );
 
   // ── Row definitions ─────────────────────────────────────────────────────────
 
@@ -188,7 +212,7 @@ export default function GSTR3BView() {
     { type: "data",    label: "(1) Import of Goods",                                                    data: s4A_itc_avl_impg, indent: 2 },
     { type: "data",    label: "(2) Import of Services",                                                 data: s4A_itc_avl_imps, indent: 2 },
     { type: "data",    label: "(3) Inward supplies liable to reverse charge (other than 1 & 2 above)",  data: s4A_itc_avl_isrc, indent: 2 },
-    { type: "data",    label: "(4) Inward supplies from ISD",                                           data: s4A_itc_avl_isrc, indent: 2 },
+    { type: "data",    label: "(4) Inward supplies from ISD",                                           data: s4A_itc_avl_isd,  indent: 2 },
     { type: "data",    label: "(5) All other ITC",                                                      data: s4A_itc_avl_ohh,  indent: 2 },
     { type: "subsection", label: "B. Input Tax Credit Reversed" },
     { type: "data",    label: "(1) As per rules 38, 42 & 43 of CGST Rules and section 17(5)",           data: s4B_itc_rev, indent: 2 },
@@ -226,7 +250,7 @@ export default function GSTR3BView() {
       }
       rightSubtitle={
         <>
-          <div>1-Apr-26 to 30-Apr-26</div>
+          <div>{periodLabelFor(selectedMonth, selectedYear)}</div>
           <div className="font-normal text-black-700">Last online GST activity: No Activity Found</div>
         </>
       }
@@ -355,12 +379,12 @@ export default function GSTR3BView() {
           <TableFooter className="bg-transparent">
             <TableRow className="border-t border-gray-300 hover:bg-transparent font-bold">
               <TableCell className="px-2 py-1">Total</TableCell>
-              <TableCell className="px-2 py-1 text-right"></TableCell>
-              <TableCell className="px-2 py-1 text-right"></TableCell>
-              <TableCell className="px-2 py-1 text-right"></TableCell>
-              <TableCell className="px-2 py-1 text-right"></TableCell>
-              <TableCell className="px-2 py-1 text-right"></TableCell>
-              <TableCell className="px-2 py-1 text-right"></TableCell>
+              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.txval)}</TableCell>
+              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.iamt)}</TableCell>
+              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.camt)}</TableCell>
+              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.samt)}</TableCell>
+              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.cess)}</TableCell>
+              <TableCell className="px-2 py-1 text-right">{fmt(taxTotal(footerTotal))}</TableCell>
             </TableRow>
           </TableFooter>
         </Table>

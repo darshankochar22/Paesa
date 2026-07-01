@@ -47,17 +47,26 @@ const getGSTR1Reconciliation = async (company_id, fy_id) => {
   try {
     const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
 
-    // Fetch sales vouchers
+    // Books side: outward documents with tax totalled from the stock lines
+    // (the voucher row itself carries no tax aggregate columns).
     const rawVouchers = await db.all(
-      sql`SELECT v.*, l.gstin as party_gstin
+      sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.reference_number,
+                 l.gstin AS party_gstin, l.registration_type AS party_reg_type,
+                 COALESCE(SUM(vse.amount), 0) AS taxable_amount,
+                 COALESCE(SUM(vse.igst_amount), 0) AS igst,
+                 COALESCE(SUM(vse.cgst_amount), 0) AS cgst,
+                 COALESCE(SUM(vse.sgst_amount), 0) AS sgst,
+                 COALESCE(SUM(vse.amount + vse.cgst_amount + vse.sgst_amount + vse.igst_amount), 0) AS invoice_amount
           FROM ${vouchers} v
+          LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
           LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
           WHERE v.company_id = ${company_id}
             AND v.fy_id = ${fy_id}
             AND v.is_cancelled = 0
             AND v.date >= ${fyStartDate}
             AND v.date <= ${fyEndDate}
-            AND v.voucher_type IN ('Sales', 'Credit Note', 'Debit Note')`
+            AND v.voucher_type IN ('Sales', 'Credit Note', 'Debit Note')
+          GROUP BY v.voucher_id`
     );
 
     const keys = [
@@ -76,6 +85,8 @@ const getGSTR1Reconciliation = async (company_id, fy_id) => {
     let reconciledCount = 0;
     let unreconciledCount = 0;
 
+    // Portal side: GSTR-1 has no import path yet, so books-only documents are
+    // honestly reported as Unreconciled (matches the 2A books-only behaviour).
     for (const v of rawVouchers) {
       const isCreditDebit = v.voucher_type === 'Credit Note' || v.voucher_type === 'Debit Note';
       const hasGstin = !!v.party_gstin;
@@ -89,22 +100,15 @@ const getGSTR1Reconciliation = async (company_id, fy_id) => {
 
       const row = return_view[category];
       row.vch_count++;
-      row.taxable_amount += v.taxable_amount || 0;
-      row.igst += v.igst_amount || 0;
-      row.cgst += v.cgst_amount || 0;
-      row.sgst += v.sgst_amount || 0;
-      row.cess += v.cess_amount || 0;
-      row.tax_amount += (v.igst_amount || 0) + (v.cgst_amount || 0) + (v.sgst_amount || 0) + (v.cess_amount || 0);
-      row.invoice_amount += v.effective_amount || v.amount || 0;
+      row.taxable_amount += Number(v.taxable_amount) || 0;
+      row.igst += Number(v.igst) || 0;
+      row.cgst += Number(v.cgst) || 0;
+      row.sgst += Number(v.sgst) || 0;
+      row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
+      row.invoice_amount += Number(v.invoice_amount) || 0;
 
-      // Simulate some books vs portal reconciliation status
-      if (v.voucher_id % 7 === 0) {
-        row.status = "Unreconciled";
-        unreconciledCount++;
-      } else {
-        row.status = "Reconciled";
-        reconciledCount++;
-      }
+      row.status = "Unreconciled";
+      unreconciledCount++;
     }
 
     return {
@@ -128,17 +132,26 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
   try {
     const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
 
-    // Fetch purchase vouchers
+    // Books side: inward documents with tax totalled from the stock lines
+    // (the voucher row itself carries no tax aggregate columns).
     const rawVouchers = await db.all(
-      sql`SELECT v.*, l.gstin as party_gstin
+      sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.reference_number,
+                 l.gstin AS party_gstin,
+                 COALESCE(SUM(vse.amount), 0) AS taxable_amount,
+                 COALESCE(SUM(vse.igst_amount), 0) AS igst,
+                 COALESCE(SUM(vse.cgst_amount), 0) AS cgst,
+                 COALESCE(SUM(vse.sgst_amount), 0) AS sgst,
+                 COALESCE(SUM(vse.amount + vse.cgst_amount + vse.sgst_amount + vse.igst_amount), 0) AS invoice_amount
           FROM ${vouchers} v
+          LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
           LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
           WHERE v.company_id = ${company_id}
             AND v.fy_id = ${fy_id}
             AND v.is_cancelled = 0
             AND v.date >= ${fyStartDate}
             AND v.date <= ${fyEndDate}
-            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')`
+            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')
+          GROUP BY v.voucher_id`
     );
 
     const keys = [
@@ -153,8 +166,6 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
 
     let reconciledCount = 0;
     let unreconciledCount = 0;
-
-    let totalImportedTax = 0;
 
     // Real reconciliation logic against imported GSTR-2B data
     const importedRows = await db.all(
@@ -178,16 +189,17 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
     }
 
     for (const v of rawVouchers) {
-      // Direct everything to itc_available_other for standard purchases
-      const row = return_view["itc_available_other"];
+      // Purchases feed "All other ITC"; purchase returns (Debit Notes) feed the
+      // Part-B reversal row — mirrors how the portal 2B statement buckets them.
+      const bucket = v.voucher_type === 'Debit Note' ? 'itc_available_reversal' : 'itc_available_other';
+      const row = return_view[bucket];
       row.vch_count++;
-      row.taxable_amount += v.taxable_amount || 0;
-      row.igst += v.igst_amount || 0;
-      row.cgst += v.cgst_amount || 0;
-      row.sgst += v.sgst_amount || 0;
-      row.cess += v.cess_amount || 0;
-      row.tax_amount += (v.igst_amount || 0) + (v.cgst_amount || 0) + (v.sgst_amount || 0) + (v.cess_amount || 0);
-      row.invoice_amount += v.effective_amount || v.amount || 0;
+      row.taxable_amount += Number(v.taxable_amount) || 0;
+      row.igst += Number(v.igst) || 0;
+      row.cgst += Number(v.cgst) || 0;
+      row.sgst += Number(v.sgst) || 0;
+      row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
+      row.invoice_amount += Number(v.invoice_amount) || 0;
 
       // Reconciliation: match GSTIN and Invoice Number
       const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
@@ -220,16 +232,18 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
 
 const importGSTR2B = async (company_id, fy_id, return_period, payload) => {
   try {
-    // Upsert
-    await db.execute(sql`
-      DELETE FROM gstr2b_imports 
-      WHERE company_id = ${company_id} AND return_period = ${return_period}
-    `);
-    
-    await db.execute(sql`
-      INSERT INTO gstr2b_imports (company_id, fy_id, return_period, payload_json)
-      VALUES (${company_id}, ${fy_id}, ${return_period}, ${JSON.stringify(payload)})
-    `);
+    // Upsert — db.execute delegates to the raw libsql client (string + params),
+    // NOT the drizzle sql template.
+    await db.execute(
+      `DELETE FROM gstr2b_imports WHERE company_id = ? AND return_period = ?`,
+      [company_id, return_period]
+    );
+
+    await db.execute(
+      `INSERT INTO gstr2b_imports (company_id, fy_id, return_period, payload_json)
+       VALUES (?, ?, ?, ?)`,
+      [company_id, fy_id, return_period, JSON.stringify(payload)]
+    );
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -324,17 +338,26 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
   try {
     const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
 
-    // Fetch purchase vouchers
+    // Books side: inward documents with tax totalled from the stock lines
+    // (the voucher row itself carries no tax aggregate columns).
     const rawVouchers = await db.all(
-      sql`SELECT v.*, l.gstin as party_gstin
+      sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.reference_number,
+                 l.gstin AS party_gstin,
+                 COALESCE(SUM(vse.amount), 0) AS taxable_amount,
+                 COALESCE(SUM(vse.igst_amount), 0) AS igst,
+                 COALESCE(SUM(vse.cgst_amount), 0) AS cgst,
+                 COALESCE(SUM(vse.sgst_amount), 0) AS sgst,
+                 COALESCE(SUM(vse.amount + vse.cgst_amount + vse.sgst_amount + vse.igst_amount), 0) AS invoice_amount
           FROM ${vouchers} v
+          LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
           LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
           WHERE v.company_id = ${company_id}
             AND v.fy_id = ${fy_id}
             AND v.is_cancelled = 0
             AND v.date >= ${fyStartDate}
             AND v.date <= ${fyEndDate}
-            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')`
+            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')
+          GROUP BY v.voucher_id`
     );
 
     const keys = [
@@ -347,10 +370,28 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
       return_view[k] = ZERO_ROW();
     });
 
+    // Supplier-filed status comes from imported GSTR-2B portal data: an invoice
+    // present in the 2B statement has been filed (uploaded) by the supplier.
+    const portalInvoices = new Map();
+    try {
+      const importedRows = await db.all(
+        sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`
+      );
+      for (const row of importedRows) {
+        try {
+          const payload = JSON.parse(row.payload_json);
+          for (const p of payload.b2b || []) {
+            for (const inv of p.inv || []) {
+              portalInvoices.set(`${p.ctin}-${inv.inum}`.toUpperCase(), inv);
+            }
+          }
+        } catch (_) { /* skip malformed import */ }
+      }
+    } catch (_) { /* no imports yet — books-only view */ }
+
     let totalCount = 0;
     let filedUploaded = 0;
-    let filedReady = 0;
-    let filedRequired = 0;
+    let yetFiled = 0;
 
     for (const v of rawVouchers) {
       const isCreditDebit = v.voucher_type === 'Credit Note' || v.voucher_type === 'Debit Note';
@@ -358,21 +399,19 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
       const row = return_view[category];
 
       row.vch_count++;
-      row.taxable_amount += v.taxable_amount || 0;
-      row.igst += v.igst_amount || 0;
-      row.cgst += v.cgst_amount || 0;
-      row.sgst += v.sgst_amount || 0;
-      row.cess += v.cess_amount || 0;
-      row.tax_amount += (v.igst_amount || 0) + (v.cgst_amount || 0) + (v.sgst_amount || 0) + (v.cess_amount || 0);
-      row.invoice_amount += v.effective_amount || v.amount || 0;
+      row.taxable_amount += Number(v.taxable_amount) || 0;
+      row.igst += Number(v.igst) || 0;
+      row.cgst += Number(v.cgst) || 0;
+      row.sgst += Number(v.sgst) || 0;
+      row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
+      row.invoice_amount += Number(v.invoice_amount) || 0;
 
       totalCount++;
-      if (v.voucher_id % 3 === 0) {
+      const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
+      if (portalInvoices.has(key)) {
         filedUploaded++;
-      } else if (v.voucher_id % 3 === 1) {
-        filedReady++;
       } else {
-        filedRequired++;
+        yetFiled++;
       }
     }
 
@@ -383,14 +422,14 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
         voucher_status: {
           total_vouchers: totalCount,
           filed: {
-            total: filedUploaded + filedReady + filedRequired,
-            action_required: filedRequired,
-            ready_for_upload: filedReady,
+            total: filedUploaded,
+            action_required: 0,
+            ready_for_upload: 0,
             uploaded: filedUploaded
           },
           yet_filed: {
-            total: 0,
-            action_required: 0,
+            total: yetFiled,
+            action_required: yetFiled,
             ready_for_upload: 0,
             uploaded: 0
           }
@@ -420,8 +459,9 @@ const getChallanReconciliation = async (company_id, fy_id) => {
             AND v.voucher_type = 'Payment'`
     );
 
+    // Challan identifiers (CPIN/CIN/BRN) live on the GST portal; until a challan
+    // import exists they are honestly blank instead of fabricated.
     const challans = rawVouchers.map((v, idx) => {
-      const idCode = 10000 + v.voucher_id;
       return {
         date: v.date,
         particulars: v.party_name || "GST Tax Payment",
@@ -431,15 +471,15 @@ const getChallanReconciliation = async (company_id, fy_id) => {
         payment_period_from: fyStartDate,
         payment_period_to: fyEndDate,
         type_of_payment: "Tax Payment",
-        mode_of_payment: "e-Payment",
-        bank_name: "State Bank of India",
-        cpin: `CPIN-${idCode}`,
-        cin: `CIN-${idCode}`,
-        brn_utr: `UTR-${idCode}`,
-        instrument_number: `INS-${idCode}`,
+        mode_of_payment: "",
+        bank_name: "",
+        cpin: "",
+        cin: "",
+        brn_utr: "",
+        instrument_number: "",
         instrument_date: v.date,
         payment_date: v.date,
-        amount: v.effective_amount || v.amount || 0
+        amount: v.amount || 0
       };
     });
 

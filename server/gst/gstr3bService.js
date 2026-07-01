@@ -71,8 +71,11 @@ const generateGSTR3B = async (company_id, fy_id, return_period) => {
       uin_details: [ZERO()]
     };
 
+    // itc_avl follows the GSTN positional order:
+    // [0] Import of Goods, [1] Import of Services, [2] Inward supplies liable
+    // to reverse charge, [3] Inward supplies from ISD, [4] All other ITC.
     const itc_elg = {
-      itc_avl: [ZERO(), ZERO(), ZERO(), ZERO()],
+      itc_avl: [ZERO(), ZERO(), ZERO(), ZERO(), ZERO()],
       itc_rev: [ZERO()],
       itc_inelg: [ZERO(), ZERO()]
     };
@@ -187,7 +190,7 @@ const generateGSTR3B = async (company_id, fy_id, return_period) => {
       }
 
       if (taxLines.length === 0 && stockEntries.length > 0) {
-        const allZero = stockEntries.every(s => (s.gstRate || 0) === 0);
+        const allZero = stockEntries.every(s => (s.gst_rate || 0) === 0);
         if (allZero) {
           isExempt = true;
         }
@@ -266,7 +269,7 @@ const generateGSTR3B = async (company_id, fy_id, return_period) => {
           inward_sup.isup_details[0].txval += voucherTax.txval;
         } else {
           const isImport = partyStateCode === '97' || partyStateCode === '96' || voucher.place_of_supply === 'Import';
-          const isService = stockEntries.length > 0 && stockEntries.every(s => s.itemName && s.itemName.toLowerCase().includes("service"));
+          const isService = stockEntries.length > 0 && stockEntries.every(s => s.item_name && s.item_name.toLowerCase().includes("service"));
 
           if (isImport) {
             if (isService) {
@@ -283,10 +286,10 @@ const generateGSTR3B = async (company_id, fy_id, return_period) => {
               itc_elg.itc_rev[0].samt += Math.abs(voucherTax.samt);
               itc_elg.itc_rev[0].cess += Math.abs(voucherTax.cess);
             } else {
-              itc_elg.itc_avl[3].iamt += voucherTax.iamt;
-              itc_elg.itc_avl[3].camt += voucherTax.camt;
-              itc_elg.itc_avl[3].samt += voucherTax.samt;
-              itc_elg.itc_avl[3].cess += voucherTax.cess;
+              itc_elg.itc_avl[4].iamt += voucherTax.iamt;
+              itc_elg.itc_avl[4].camt += voucherTax.camt;
+              itc_elg.itc_avl[4].samt += voucherTax.samt;
+              itc_elg.itc_avl[4].cess += voucherTax.cess;
             }
           }
         }

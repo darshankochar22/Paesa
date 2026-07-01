@@ -138,6 +138,91 @@ describe("GST Reports engine", () => {
     expect(res.payload.voucher_status.unreconciled).toBeGreaterThanOrEqual(1);
   });
 
+  it("GSTR-1 reconciliation totals real stock-line tax into B2B (books side)", async () => {
+    const res = await reconciliationService.getGSTR1Reconciliation(companyId, fyId);
+    expect(res.success).toBe(true);
+    const b2b = res.payload.return_view.b2b;
+    expect(b2b.vch_count).toBe(1);
+    expect(b2b.taxable_amount).toBe(10000);
+    expect(b2b.cgst).toBe(900);
+    expect(b2b.sgst).toBe(900);
+    expect(b2b.tax_amount).toBe(1800);
+    expect(b2b.invoice_amount).toBe(11800);
+    // No GSTR-1 portal import path exists — books documents are honestly Unreconciled.
+    expect(b2b.status).toBe("Unreconciled");
+    expect(res.payload.voucher_status.unreconciled).toBe(1);
+    expect(res.payload.voucher_status.reconciled).toBe(0);
+  });
+
+  it("GSTR-2B reconciliation totals real stock-line tax and matches imported portal invoices", async () => {
+    // Before import: books-only, everything Unreconciled with real amounts.
+    let res = await reconciliationService.getGSTR2BReconciliation(companyId, fyId);
+    expect(res.success).toBe(true);
+    let itc = res.payload.return_view.itc_available_other;
+    expect(itc.vch_count).toBe(1);
+    expect(itc.taxable_amount).toBe(5000);
+    expect(itc.cgst).toBe(450);
+    expect(itc.sgst).toBe(450);
+    expect(itc.tax_amount).toBe(900);
+    expect(itc.invoice_amount).toBe(5900);
+    expect(res.payload.voucher_status.unreconciled).toBe(1);
+
+    // Import a 2B statement containing the supplier invoice → it reconciles.
+    const imp = await reconciliationService.importGSTR2B(companyId, fyId, "042026", {
+      b2b: [{ ctin: "29ABCDE1234F1Z5", inv: [{ inum: "PINV-1", val: 5900 }] }],
+    });
+    expect(imp.success).toBe(true);
+
+    res = await reconciliationService.getGSTR2BReconciliation(companyId, fyId);
+    expect(res.success).toBe(true);
+    itc = res.payload.return_view.itc_available_other;
+    expect(itc.status).toBe("Reconciled");
+    expect(res.payload.voucher_status.reconciled).toBe(1);
+    expect(res.payload.voucher_status.unreconciled).toBe(0);
+  });
+
+  it("IMS inward supplies derives supplier-filed status from imported 2B data", async () => {
+    const res = await reconciliationService.getIMSInwardSupplies(companyId, fyId);
+    expect(res.success).toBe(true);
+    const b2b = res.payload.return_view.b2b;
+    expect(b2b.vch_count).toBe(1);
+    expect(b2b.taxable_amount).toBe(5000);
+    expect(b2b.tax_amount).toBe(900);
+    // The 2B import from the previous test marks the invoice as supplier-filed.
+    expect(res.payload.voucher_status.filed.uploaded).toBe(1);
+    expect(res.payload.voucher_status.yet_filed.total).toBe(0);
+  });
+
+  it("GSTR-3B payload keeps the 5-slot GSTN itc_avl order and books ITC in All-other-ITC", async () => {
+    const gstr3bService = require("../gst/gstr3bService");
+    // Deterministic tax lines for the report layer (the engine has no HSN masters here).
+    const salesRow = await db.execute(`SELECT voucher_id FROM vouchers WHERE company_id = ? AND voucher_type = 'Sales'`, [companyId]);
+    const purchaseRow = await db.execute(`SELECT voucher_id FROM vouchers WHERE company_id = ? AND voucher_type = 'Purchase'`, [companyId]);
+    const salesVid = salesRow.rows[0].voucher_id;
+    const purchaseVid = purchaseRow.rows[0].voucher_id;
+    for (const [vid, base] of [[salesVid, 10000], [purchaseVid, 5000]]) {
+      for (const t of ["CGST", "SGST"]) {
+        await db.execute(
+          `INSERT INTO gst_voucher_tax_lines (voucher_id, hsn_code, assessable_value, tax_type, rate, amount) VALUES (?, ?, ?, ?, 9, ?)`,
+          [vid, "8471", base, t, base * 0.09]
+        );
+      }
+    }
+
+    const res = await gstr3bService.generateGSTR3B(companyId, fyId, "042026");
+    expect(res.success).toBe(true);
+    const p = res.payload;
+    expect(p.itc_elg.itc_avl).toHaveLength(5);
+    // Outward: sales 10000 taxable, CGST+SGST 900 each.
+    expect(p.sup_details.osup_det.txval).toBe(10000);
+    expect(p.sup_details.osup_det.camt).toBe(900);
+    expect(p.sup_details.osup_det.samt).toBe(900);
+    // Inward domestic purchase lands in All other ITC — slot [4], not the old [3].
+    expect(p.itc_elg.itc_avl[4].camt).toBe(450);
+    expect(p.itc_elg.itc_avl[4].samt).toBe(450);
+    expect(p.itc_elg.itc_avl[3]).toEqual({ txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 }); // ISD slot present and empty
+  });
+
   it("Track GST Return Activities reports real filing status from books", async () => {
     const res = await reconciliationService.getReturnActivities(companyId, fyId);
     expect(res.success).toBe(true);

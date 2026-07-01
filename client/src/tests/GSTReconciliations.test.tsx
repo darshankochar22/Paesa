@@ -76,7 +76,8 @@ describe('GSTR-1 Reconciliation Report', () => {
     }, { timeout: 3000 });
     await waitFor(() => {
       expect(screen.getByText('B2B Invoices - 4A, 4B, 4C, 6B, 6C')).toBeInTheDocument();
-      expect(screen.getByText('59,000.00')).toBeInTheDocument();
+      // Appears in the B2B data row AND the populated grand-total footer.
+      expect(screen.getAllByText('59,000.00').length).toBeGreaterThanOrEqual(2);
     }, { timeout: 3000 });
   });
 
@@ -132,8 +133,9 @@ describe('GSTR-2B Reconciliation Report', () => {
       expect(window.api.gst.getGSTR2BReconciliation).toHaveBeenCalled();
     }, { timeout: 3000 });
     await waitFor(() => {
-      // The "Return View" section header is rendered once !loading
-      expect(screen.getByText('Reconciled')).toBeInTheDocument();
+      // Summary label + per-row status badge both say "Reconciled".
+      expect(screen.getAllByText('Reconciled').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Input Tax Credit Available - Part A')).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 

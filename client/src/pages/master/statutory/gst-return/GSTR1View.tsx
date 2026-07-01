@@ -16,6 +16,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { EmptyState } from "@/components/blocks/EmptyState";
 import { cn } from "@/lib/utils";
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function periodLabelFor(month: string, year: string) {
+  const m = Number(month);
+  const y = Number(year);
+  const lastDay = new Date(y, m, 0).getDate();
+  const yy = String(y).slice(-2);
+  return `1-${MONTHS[m - 1]}-${yy} to ${lastDay}-${MONTHS[m - 1]}-${yy}`;
+}
+
 export default function GSTR1View() {
   const { selectedCompany, activeFY } = useCompany();
   const location = useLocation();
@@ -121,8 +131,8 @@ export default function GSTR1View() {
 
   // Summaries calculation
   const b2bData = useMemo(() => {
-    if (!gstr1Data || !gstr1Data.b2b) return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 };
-    let count = 0, txval = 0, iamt = 0, camt = 0, samt = 0, val = 0;
+    if (!gstr1Data || !gstr1Data.b2b) return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
+    let count = 0, txval = 0, iamt = 0, camt = 0, samt = 0, csamt = 0, val = 0;
     gstr1Data.b2b.forEach((party: any) => {
       party.inv.forEach((inv: any) => {
         count++;
@@ -132,15 +142,16 @@ export default function GSTR1View() {
           iamt += itm.itm_det.iamt || 0;
           camt += itm.itm_det.camt || 0;
           samt += itm.itm_det.samt || 0;
+          csamt += itm.itm_det.csamt || 0;
         });
       });
     });
-    return { count, txval, iamt, camt, samt, val };
+    return { count, txval, iamt, camt, samt, csamt, val };
   }, [gstr1Data]);
 
   const b2clData = useMemo(() => {
-    if (!gstr1Data || !gstr1Data.b2cl) return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 };
-    let count = 0, txval = 0, iamt = 0, camt = 0, samt = 0, val = 0;
+    if (!gstr1Data || !gstr1Data.b2cl) return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
+    let count = 0, txval = 0, iamt = 0, camt = 0, samt = 0, csamt = 0, val = 0;
     gstr1Data.b2cl.forEach((stateGroup: any) => {
       stateGroup.inv.forEach((inv: any) => {
         count++;
@@ -150,29 +161,31 @@ export default function GSTR1View() {
           iamt += itm.itm_det.iamt || 0;
           camt += itm.itm_det.camt || 0;
           samt += itm.itm_det.samt || 0;
+          csamt += itm.itm_det.csamt || 0;
         });
       });
     });
-    return { count, txval, iamt, camt, samt, val };
+    return { count, txval, iamt, camt, samt, csamt, val };
   }, [gstr1Data]);
 
   const b2csData = useMemo(() => {
-    if (!gstr1Data || !gstr1Data.b2cs) return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 };
-    let count = 0, txval = 0, iamt = 0, camt = 0, samt = 0, val = 0;
+    if (!gstr1Data || !gstr1Data.b2cs) return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
+    let count = 0, txval = 0, iamt = 0, camt = 0, samt = 0, csamt = 0, val = 0;
     gstr1Data.b2cs.forEach((item: any) => {
       count++;
       txval += item.txval;
       iamt += item.iamt || 0;
       camt += item.camt || 0;
       samt += item.samt || 0;
-      val += item.txval + (item.iamt || 0) + (item.camt || 0) + (item.samt || 0);
+      csamt += item.csamt || 0;
+      val += item.txval + (item.iamt || 0) + (item.camt || 0) + (item.samt || 0) + (item.csamt || 0);
     });
-    return { count, txval, iamt, camt, samt, val };
+    return { count, txval, iamt, camt, samt, csamt, val };
   }, [gstr1Data]);
 
   const cdnrData = useMemo(() => {
-    if (!gstr1Data || !gstr1Data.cdnr) return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 };
-    let count = 0, txval = 0, iamt = 0, camt = 0, samt = 0, val = 0;
+    if (!gstr1Data || !gstr1Data.cdnr) return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
+    let count = 0, txval = 0, iamt = 0, camt = 0, samt = 0, csamt = 0, val = 0;
     gstr1Data.cdnr.forEach((party: any) => {
       party.nt.forEach((note: any) => {
         count++;
@@ -182,35 +195,49 @@ export default function GSTR1View() {
           iamt += itm.itm_det.iamt || 0;
           camt += itm.itm_det.camt || 0;
           samt += itm.itm_det.samt || 0;
+          csamt += itm.itm_det.csamt || 0;
         });
       });
     });
-    return { count, txval, iamt, camt, samt, val };
+    return { count, txval, iamt, camt, samt, csamt, val };
   }, [gstr1Data]);
 
   const rows = [
     { label: "B2B Invoices - 4A, 4B, 4C, 6B, 6C", data: b2bData, bold: true },
     { label: "B2C (Large) Invoices - 5A, 5B", data: b2clData },
-    { label: "Exports Invoices - 6A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
+    { label: "Exports Invoices - 6A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
     { label: "Credit or Debit Notes (Registered) - 9B", data: cdnrData },
-    { label: "Credit or Debit Notes (Unregistered) - 9B", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Amended B2B Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Amended B2C (Large) Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Amended Exports Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Amended Credit or Debit Notes (Registered) - 9C", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Amended Credit or Debit Notes (Unregistered) - 9C", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
+    { label: "Credit or Debit Notes (Unregistered) - 9B", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Amended B2B Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Amended B2C (Large) Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Amended Exports Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Amended Credit or Debit Notes (Registered) - 9C", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Amended Credit or Debit Notes (Unregistered) - 9C", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
     { label: "B2C (Small) Invoices - 7", data: b2csData },
-    { label: "Nil Rated Invoices - 8A, 8B, 8C, 8D", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Amendment B2C (Small) Invoices - 10", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Tax Liability (Advances Received) - 11A(1), 11A(2)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Adjustment of Advances - 11B(1), 11B(2)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Amended Tax Liability (Advances Received) - 11A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Amendment of Adjusted Advances - 11B", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "HSN Summary - 12 (B2B - B2C Supplies)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
-    { label: "Document Summary - 13", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, val: 0 } },
+    { label: "Nil Rated Invoices - 8A, 8B, 8C, 8D", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Amendment B2C (Small) Invoices - 10", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Tax Liability (Advances Received) - 11A(1), 11A(2)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Adjustment of Advances - 11B(1), 11B(2)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Amended Tax Liability (Advances Received) - 11A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Amendment of Adjusted Advances - 11B", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "HSN Summary - 12 (B2B - B2C Supplies)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "Document Summary - 13", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
   ];
 
   const totalVouchers = b2bData.count + b2clData.count + b2csData.count + cdnrData.count;
+
+  const grandTotal = [b2bData, b2clData, b2csData, cdnrData].reduce(
+    (acc, d) => ({
+      count: acc.count + d.count,
+      txval: acc.txval + d.txval,
+      iamt:  acc.iamt  + d.iamt,
+      camt:  acc.camt  + d.camt,
+      samt:  acc.samt  + d.samt,
+      csamt: acc.csamt + d.csamt,
+      val:   acc.val   + d.val,
+    }),
+    { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 }
+  );
 
   return (
     <TallyReportLayout
@@ -238,7 +265,7 @@ export default function GSTR1View() {
       }
       rightSubtitle={
         <>
-          <div>1-Apr-26 to 30-Apr-26</div>
+          <div>{periodLabelFor(selectedMonth, selectedYear)}</div>
           <div className="font-normal text-black-700">Last online GST activity: No Activity Found</div>
         </>
       }
@@ -332,8 +359,8 @@ export default function GSTR1View() {
                   <TableCell className="px-2 py-0.5 text-right">{row.data.iamt ? row.data.iamt.toFixed(2) : ""}</TableCell>
                   <TableCell className="px-2 py-0.5 text-right">{row.data.camt ? row.data.camt.toFixed(2) : ""}</TableCell>
                   <TableCell className="px-2 py-0.5 text-right">{row.data.samt ? row.data.samt.toFixed(2) : ""}</TableCell>
-                  <TableCell className="px-2 py-0.5 text-right"></TableCell>
-                  <TableCell className="px-2 py-0.5 text-right">{(row.data.iamt + row.data.camt + row.data.samt) ? (row.data.iamt + row.data.camt + row.data.samt).toFixed(2) : ""}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-right">{row.data.csamt ? row.data.csamt.toFixed(2) : ""}</TableCell>
+                  <TableCell className="px-2 py-0.5 text-right">{(row.data.iamt + row.data.camt + row.data.samt + row.data.csamt) ? (row.data.iamt + row.data.camt + row.data.samt + row.data.csamt).toFixed(2) : ""}</TableCell>
                   <TableCell className="px-2 py-0.5 text-right">{row.data.val ? row.data.val.toFixed(2) : ""}</TableCell>
                 </TableRow>
               );
@@ -344,14 +371,14 @@ export default function GSTR1View() {
           <TableFooter className="bg-transparent">
             <TableRow className="border-t border-gray-300 hover:bg-transparent font-bold">
               <TableCell className="px-2 py-1 text-center pr-4">Total</TableCell>
-              <TableCell className="w-20 px-2 py-1 text-center"></TableCell>
-              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
-              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
-              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
-              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
-              <TableCell className="w-20 px-2 py-1 text-right"></TableCell>
-              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
-              <TableCell className="w-24 px-2 py-1 text-right"></TableCell>
+              <TableCell className="w-20 px-2 py-1 text-center">{grandTotal.count || ""}</TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right">{grandTotal.txval ? grandTotal.txval.toFixed(2) : ""}</TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right">{grandTotal.iamt ? grandTotal.iamt.toFixed(2) : ""}</TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right">{grandTotal.camt ? grandTotal.camt.toFixed(2) : ""}</TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right">{grandTotal.samt ? grandTotal.samt.toFixed(2) : ""}</TableCell>
+              <TableCell className="w-20 px-2 py-1 text-right">{grandTotal.csamt ? grandTotal.csamt.toFixed(2) : ""}</TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right">{(grandTotal.iamt + grandTotal.camt + grandTotal.samt + grandTotal.csamt) ? (grandTotal.iamt + grandTotal.camt + grandTotal.samt + grandTotal.csamt).toFixed(2) : ""}</TableCell>
+              <TableCell className="w-24 px-2 py-1 text-right">{grandTotal.val ? grandTotal.val.toFixed(2) : ""}</TableCell>
             </TableRow>
           </TableFooter>
         </Table>
