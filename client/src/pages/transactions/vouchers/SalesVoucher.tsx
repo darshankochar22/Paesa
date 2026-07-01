@@ -323,6 +323,7 @@ export default function SalesVoucher({
             ledger={form.partyLedger}
             balance={form.partyBalance}
             form={form}
+            onEnterCommit={() => setTimeout(() => (document.querySelector('[data-field-type="salesPurchase"]') as HTMLElement)?.focus(), 50)}
           />
           <FieldRow
             label="Sales ledger"
@@ -330,6 +331,7 @@ export default function SalesVoucher({
             ledger={form.salesPurchaseLedger}
             balance={form.salesPurchaseBalance}
             form={form}
+            onEnterCommit={() => setTimeout(() => (document.querySelector('[data-stock-item="1"]') as HTMLElement)?.focus(), 50)}
           />
         </div>
       
@@ -472,6 +474,11 @@ export default function SalesVoucher({
                     onChange={(e) =>
                       form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value } as any)
                     }
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      focusStockRate(idx);
+                    }}
                   />
                 </div>
               </div>
@@ -510,6 +517,11 @@ export default function SalesVoucher({
                   onChange={(e) =>
                     form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value } as any)
                   }
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    proceedToNextStockRow(idx);
+                  }}
                 />
               </div>
 

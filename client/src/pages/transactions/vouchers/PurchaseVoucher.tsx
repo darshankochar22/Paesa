@@ -326,9 +326,15 @@ export default function PurchaseVoucher({
           <span className="text-sm text-black shrink-0">:</span>
           <input
             type="text"
+            data-field-type="supplierInvoiceNo"
             className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black w-36"
             value={form.supplierInvoiceNo}
             onChange={(e) => form.setSupplierInvoiceNo(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              setTimeout(() => (document.querySelector('[data-field-type="supplierInvoiceDate"]') as HTMLElement)?.focus(), 50);
+            }}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -336,9 +342,15 @@ export default function PurchaseVoucher({
           <span className="text-sm text-black shrink-0">:</span>
           <input
             type="date"
+            data-field-type="supplierInvoiceDate"
             className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
             value={form.supplierInvoiceDate}
             onChange={(e) => form.setSupplierInvoiceDate(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              setTimeout(() => (document.querySelector('[data-field-type="party"]') as HTMLElement)?.focus(), 50);
+            }}
           />
         </div>
       </div>
@@ -351,6 +363,7 @@ export default function PurchaseVoucher({
           ledger={form.partyLedger}
           balance={form.partyBalance}
           form={form}
+          onEnterCommit={() => setTimeout(() => (document.querySelector('[data-field-type="salesPurchase"]') as HTMLElement)?.focus(), 50)}
         />
       </div>
 
@@ -362,6 +375,7 @@ export default function PurchaseVoucher({
           ledger={form.salesPurchaseLedger}
           balance={form.salesPurchaseBalance}
           form={form}
+          onEnterCommit={() => setTimeout(() => (document.querySelector('[data-stock-item="1"]') as HTMLElement)?.focus(), 50)}
         />
       </div>
 
@@ -466,6 +480,11 @@ export default function PurchaseVoucher({
                     onChange={(e) =>
                       form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value })
                     }
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      focusStockRate(idx);
+                    }}
                   />
                 </div>
               </div>
@@ -503,6 +522,11 @@ export default function PurchaseVoucher({
                   onChange={(e) =>
                     form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
                   }
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    proceedToNextStockRow(idx);
+                  }}
                 />
               </div>
 

@@ -7,9 +7,10 @@ interface FieldRowProps {
   ledger: any;
   balance: string;
   form: ReturnType<typeof useVoucherForm>;
+  onEnterCommit?: () => void;
 }
 
-export default function FieldRow({ label, fieldType, ledger, balance, form }: FieldRowProps) {
+export default function FieldRow({ label, fieldType, ledger, balance, form, onEnterCommit }: FieldRowProps) {
   const isActive = form.activeField?.type === fieldType;
   const st = isActive ? form.ledgerSearchTerm : "";
 
@@ -20,12 +21,18 @@ export default function FieldRow({ label, fieldType, ledger, balance, form }: Fi
         <span className="text-sm text-black mr-2 shrink-0">:</span>
         <input
           type="text"
+          data-field-type={fieldType}
           className="w-64 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
           value={isActive ? st : (ledger?.name ?? "")}
           onFocus={() => form.handleFieldFocus({ type: fieldType })}
           onChange={(e) => {
             form.setLedgerSearchTerm(e.target.value);
             form.handleFieldFocus({ type: fieldType });
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || isActive) return;
+            e.preventDefault();
+            onEnterCommit?.();
           }}
           autoComplete="off"
         />
