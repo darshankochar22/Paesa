@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { StockItemType, GodownType, UnitType } from "@/types/api";
 import type { BatchAllocation, InventoryAllocationItem } from "../../types";
 import BatchAllocationPopup from "./BatchAllocationPopup";
@@ -48,6 +49,11 @@ export default function InventoryAllocationPopup({
   const [error, setError] = useState<string | null>(null);
   const [ccNames, setCcNames] = useState<Record<number, string>>({});
   const listRef = useRef<HTMLDivElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  // Portaled to <body> with fixed coordinates (below) — the "Select item…" row
+  // sits inside a scrollable (overflow-y-auto) body, so a plain absolute-positioned
+  // dropdown gets clipped by that ancestor instead of floating over the popup.
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Cost-centre names, for enriching allocations so the main voucher can show them.
   useEffect(() => {
@@ -64,10 +70,36 @@ export default function InventoryAllocationPopup({
   useEffect(() => {
     if (!showList) return;
     const onDown = (e: MouseEvent) => {
-      if (listRef.current && !listRef.current.contains(e.target as Node)) setShowList(false);
+      const target = e.target as Node;
+      if (
+        listRef.current && !listRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
+        setShowList(false);
+      }
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
+  }, [showList]);
+
+  // Recompute the portaled dropdown's position whenever it opens, and while the
+  // popup's scrollable body (or the window) moves it — otherwise the list would
+  // float in a stale spot instead of tracking the "Select item…" row.
+  useEffect(() => {
+    if (!showList) { setDropdownPos(null); return; }
+    const reposition = () => {
+      const el = listRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setDropdownPos({ top: r.bottom + 4, left: r.left, width: 280 });
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
   }, [showList]);
 
   const totalActual = items.reduce((s, i) => s + (Number(i.actual_quantity) || 0), 0);
@@ -261,8 +293,12 @@ export default function InventoryAllocationPopup({
                     className="w-full text-xs px-1.5 py-1 border border-zinc-300 outline-none focus:border-zinc-800"
                     autoComplete="off"
                   />
-                  {showList && (
-                    <div className="absolute left-3 top-full mt-1 w-[280px] bg-white border border-zinc-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                  {showList && dropdownPos && createPortal(
+                    <div
+                      ref={dropdownRef}
+                      style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+                      className="bg-white border border-zinc-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
+                    >
                       <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0">List of Stock Items</div>
                       {filtered.length === 0 ? (
                         <div className="px-2 py-2 text-[11px] text-zinc-500 italic">No items</div>
@@ -272,7 +308,8 @@ export default function InventoryAllocationPopup({
                           {s.name}
                         </button>
                       ))}
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
                 <div className={`${cell} ${W.qty}`} />
