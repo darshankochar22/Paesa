@@ -18,6 +18,16 @@ const {
 
 const MONTH_NAMES = ['April','May','June','July','August','September','October','November','December','January','February','March'];
 
+// Attendance vouchers live in attendance_vouchers, not the main vouchers table
+// (see fetchAttendanceVoucherRows in voucherCRUD.js), so every query below needs
+// an explicit branch to surface them alongside the other 23 voucher types.
+const { fetchAttendanceVoucherRows } = require('../../voucher/voucherCRUD');
+
+const resolveFyRange = async (fy_id) => {
+  const fyRows = await db.all(sql`SELECT start_date, end_date FROM financial_years WHERE fy_id = ${fy_id}`);
+  return fyRows[0] || null;
+};
+
 /** Statistics - count of active masters (Types of Accounts) and count of entered vouchers by type (Types of Vouchers). */
 const statistics = async (company_id, fy_id) => {
   try {
@@ -68,6 +78,21 @@ const statistics = async (company_id, fy_id) => {
         vouchersData.push({ vch_type: row.vch_type, count: row.count || 0 });
       }
     }
+
+    // Attendance isn't in the main vouchers table — count it separately, scoped
+    // to the financial year the same way the regular counts are, and merge into
+    // (rather than duplicate) any zero-count placeholder row already added above.
+    const fyRange = await resolveFyRange(fy_id);
+    const attendanceRows = fyRange
+      ? await fetchAttendanceVoucherRows(company_id, fy_id, fyRange.start_date, fyRange.end_date)
+      : [];
+    const existingAttendanceRow = vouchersData.find(v => v.vch_type === 'Attendance');
+    if (existingAttendanceRow) {
+      existingAttendanceRow.count = attendanceRows.length;
+    } else {
+      vouchersData.push({ vch_type: 'Attendance', count: attendanceRows.length });
+    }
+
     vouchersData.sort((a, b) => a.vch_type.localeCompare(b.vch_type));
 
     return {
@@ -99,11 +124,17 @@ const statisticsVoucherMonthly = async (company_id, fy_id, voucher_type) => {
     if (fyRows.length === 0) return { success: false, error: 'Financial year not found' };
     const startYear = new Date(fyRows[0].start_date).getFullYear();
 
-    const voucherRows = await db.all(
-      sql`SELECT date, is_cancelled, COALESCE(is_optional, 0) AS is_optional, COALESCE(is_post_dated, 0) AS is_post_dated
-          FROM ${vouchers}
-          WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND voucher_type = ${voucher_type}`
-    );
+    // Attendance vouchers live in attendance_vouchers, not the main table — pull
+    // the date list from there so this type buckets by month like the other 23.
+    const voucherRows = voucher_type === 'Attendance'
+      ? (await fetchAttendanceVoucherRows(company_id, fy_id)).map(a => ({
+          date: a.date, is_cancelled: 0, is_optional: 0, is_post_dated: 0,
+        }))
+      : await db.all(
+          sql`SELECT date, is_cancelled, COALESCE(is_optional, 0) AS is_optional, COALESCE(is_post_dated, 0) AS is_post_dated
+              FROM ${vouchers}
+              WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND voucher_type = ${voucher_type}`
+        );
 
     const rows = MONTH_NAMES.map((name, idx) => {
       let m = idx + 4, y = startYear;
@@ -124,6 +155,23 @@ const statisticsVoucherMonthly = async (company_id, fy_id, voucher_type) => {
  *  Each row is one voucher; particulars + Dr/Cr taken from its primary (first) accounting entry. */
 const statisticsVoucherDayList = async (company_id, fy_id, voucher_type, from_date, to_date) => {
   try {
+    // Attendance vouchers live in attendance_vouchers, not the main table —
+    // reuse the shared Day Book mapper (negated voucher_id, non-accounting) and
+    // shape it into this report's row contract instead of querying voucherEntries.
+    if (voucher_type === 'Attendance') {
+      const attendanceRows = await fetchAttendanceVoucherRows(company_id, fy_id, from_date || null, to_date || null);
+      const rows = attendanceRows.map(a => ({
+        voucher_id: a.voucher_id,
+        date: a.date,
+        particulars: a.party_name || '',
+        voucher_type: a.voucher_type,
+        voucher_number: a.voucher_number,
+        debit: 0,
+        credit: 0,
+      }));
+      return { success: true, rows };
+    }
+
     const dateFrom = from_date ? sql` AND v.date >= ${from_date}` : sql``;
     const dateTo   = to_date   ? sql` AND v.date <= ${to_date}`   : sql``;
 

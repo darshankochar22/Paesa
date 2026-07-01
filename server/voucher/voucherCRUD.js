@@ -84,6 +84,8 @@ async function fetchAttendanceVoucherRows(company_id, fy_id, from = null, to = n
 }
 
 module.exports = {
+  fetchAttendanceVoucherRows,
+
   create: async (data) => {
     try {
       if (data.voucher_type === 'Payroll') {
@@ -727,6 +729,61 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
 
   getById: async (id) => {
     try {
+      // Attendance vouchers live in attendance_vouchers, not the main vouchers
+      // table — Day Book / Statistics Voucher Register expose them with a
+      // negated id (see fetchAttendanceVoucherRows) so a normal `vouchers`
+      // lookup never matches. Route those to attendanceService and reshape the
+      // result into the same envelope VoucherView expects.
+      if (Number(id) < 0) {
+        const attendanceService = require('../attendance/attendanceService');
+        const res = await attendanceService.getById(-Number(id));
+        if (!res.success) return res;
+        const v = res.voucher;
+        return {
+          success: true,
+          voucher: {
+            voucher_id: -Number(v.attendance_voucher_id),
+            company_id: v.company_id,
+            voucher_type: 'Attendance',
+            voucher_number: v.voucher_number,
+            date: v.date,
+            status: 'Regular',
+            supplier_invoice_no: null,
+            supplier_invoice_date: null,
+            reference_number: null,
+            reference_date: null,
+            narration: v.narration,
+            party_name: null,
+            party_ledger_id: null,
+            place_of_supply: null,
+            is_invoice: 0,
+            is_accounting_voucher: 0,
+            is_inventory_voucher: 0,
+            is_order_voucher: 0,
+            is_cancelled: 0,
+            is_optional: 0,
+            is_post_dated: 0,
+            created_at: v.created_at,
+            updated_at: v.updated_at,
+            entries: [],
+            stock_entries: [],
+            payroll_entries: [],
+            attendance_entries: v.entries,
+            bill_references: [],
+            bank_details: null,
+            cost_centres: [],
+            cash_denominations: [],
+            receipt_details: null,
+            party_details: null,
+            dispatch_details: null,
+            credit_note_details: null,
+            debit_note_details: null,
+            vat_details: null,
+            order_details: null,
+          },
+        };
+      }
+
       const voucherRows = await db.all(
         sql`SELECT * FROM ${vouchers} WHERE ${vouchers.voucherId} = ${id}`
       );

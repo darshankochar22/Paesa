@@ -354,9 +354,8 @@ useEffect(() => {
   // Tries the edit route first; adjust the path to match your router setup.
   // Common patterns: /transactions/vouchers/edit/:id  OR  /transactions/voucher/:id/edit
 const openVoucher = useCallback((voucherId: number) => {
-  // Attendance vouchers appear with a negative id (stored in a separate table) and
-  // aren't editable from the Day Book yet — don't navigate to a non-existent voucher.
-  if (voucherId < 0) return;
+  // Attendance vouchers appear with a negative id (stored in a separate table) —
+  // VoucherView/voucher.getById resolves negative ids back to attendanceService.
   navigate(`/transactions/voucher/${voucherId}`);
 }, [navigate]);
 

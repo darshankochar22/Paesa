@@ -54,6 +54,16 @@ interface PayrollEntry {
   amount: number;
 }
 
+interface AttendanceEntry {
+  entry_id: number;
+  employee_id: number;
+  employee_name: string;
+  employee_number: string;
+  attendance_type_id: number;
+  attendance_type_name: string;
+  value: number;
+}
+
 interface BillReference {
   bill_id: number;
   ledger_id: number;
@@ -154,6 +164,7 @@ interface Voucher {
   entries: VoucherEntry[];
   stock_entries: StockEntry[];
   payroll_entries: PayrollEntry[];
+  attendance_entries?: AttendanceEntry[];
   bill_references: BillReference[];
   bank_details: BankDetails | null;
   cost_centres: CostCentreEntry[];
@@ -445,6 +456,32 @@ function ReadOnlyPayrollTable({ entries }: { entries: PayrollEntry[] }) {
   );
 }
 
+function ReadOnlyAttendanceTable({ entries }: { entries: AttendanceEntry[] }) {
+  return (
+    <>
+      <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
+        <div className="w-20 text-sm font-semibold text-black">Emp. Code</div>
+        <div className="flex-1 text-sm font-semibold text-black">Employee Name</div>
+        <div className="flex-1 text-sm font-semibold text-black">Attendance/Production Type</div>
+        <div className="w-32 text-right text-sm font-semibold text-black">Value</div>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {entries.map((a) => (
+          <div key={a.entry_id} className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
+            <div className="w-20 text-sm text-black">{a.employee_number || "—"}</div>
+            <div className="flex-1 text-sm text-black font-semibold">{a.employee_name || "—"}</div>
+            <div className="flex-1 text-sm text-black">{a.attendance_type_name || "—"}</div>
+            <div className="w-32 text-right text-sm font-bold text-black">{formatQty(a.value)}</div>
+          </div>
+        ))}
+        {Array.from({ length: Math.max(0, 5 - entries.length) }).map((_, i) => (
+          <div key={`ae-${i}`} className="flex border-b border-gray-50 min-h-[22px] px-3" />
+        ))}
+      </div>
+    </>
+  );
+}
+
 function FKeyPanel({ voucherType }: { voucherType: string }) {
   const top = [
     ["F2", "Date"],
@@ -550,7 +587,11 @@ export default function VoucherView() {
     if (!voucher) return;
     if (!window.confirm(`Permanently delete voucher ${voucher.voucher_number}?`)) return;
     try {
-      const res = await window.api.voucher.delete(voucher.voucher_id);
+      // Attendance vouchers live in their own table under a negated id — route
+      // the delete to the matching API instead of the main voucher one.
+      const res = voucher.voucher_type === "Attendance"
+        ? await window.api.attendance.delete(Math.abs(voucher.voucher_id))
+        : await window.api.voucher.delete(voucher.voucher_id);
       if (res.success) navigate(-1);
       else setError(res.error || "Failed to delete");
     } catch (e: any) {
@@ -774,6 +815,10 @@ export default function VoucherView() {
             <ReadOnlyPayrollTable entries={voucher.payroll_entries} />
           )}
 
+          {voucher.attendance_entries && voucher.attendance_entries.length > 0 && (
+            <ReadOnlyAttendanceTable entries={voucher.attendance_entries} />
+          )}
+
           {/* Provide GST/e-Way Bill details — trade vouchers only */}
           {["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucher.voucher_type) && (
             <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
@@ -821,7 +866,7 @@ export default function VoucherView() {
           >
             <span className="underline">P</span>: {exporting ? "Exporting…" : "Export PDF"}
           </Button>
-          {!voucher.is_cancelled && (
+          {!voucher.is_cancelled && voucher.voucher_type !== "Attendance" && (
             <Button
               onClick={handleCancel}
               variant="outline"
