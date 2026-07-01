@@ -258,12 +258,27 @@ const computeVoucherTaxLines = async (db, payload) => {
     place_of_supply,
     stock_entries = [],
     entries = [],
-    voucher_type
+    voucher_type,
+    voucher_class_gst_ledgers = null
   } = payload;
 
   if (!company_id) {
     throw new Error("company_id is required for GST calculation");
   }
+
+  // When a Voucher Type Class with "Use Class for GST Details" = Yes is selected, its
+  // explicitly mapped ledger wins over the normal auto-resolve/auto-create lookup. No
+  // class (the default) falls straight through to resolveTaxLedgerId, unchanged.
+  const resolveOrOverride = async (tax_type, { createIfMissing = true } = {}) => {
+    const overrideId = voucher_class_gst_ledgers?.[`${tax_type.toLowerCase()}_ledger_id`];
+    if (overrideId) {
+      const rows = await db.all(
+        sql`SELECT ledger_id, name FROM ${ledgers} WHERE ${ledgers.ledgerId} = ${overrideId} LIMIT 1`
+      );
+      if (rows.length > 0) return { id: rows[0].ledger_id, name: rows[0].name };
+    }
+    return resolveTaxLedgerId(db, company_id, tax_type, { createIfMissing });
+  };
 
   // 1. Resolve Company State
   const companyGstRows = await db.all(
@@ -372,9 +387,10 @@ const computeVoucherTaxLines = async (db, payload) => {
   const partyEntryType = isPurchase ? 'Cr' : 'Dr';
 
   // Strip prior tax postings by resolved ledger id (not fragile name matching) so
-  // re-saving/altering a voucher doesn't duplicate or orphan tax entries.
+  // re-saving/altering a voucher doesn't duplicate or orphan tax entries. Uses the same
+  // override-aware resolution so a class-mapped ledger from a prior save is stripped too.
   const existingTaxLedgers = await Promise.all(
-    ["CGST", "SGST", "IGST", "CESS"].map(t => resolveTaxLedgerId(db, company_id, t))
+    ["CGST", "SGST", "IGST"].map(t => resolveOrOverride(t, { createIfMissing: false })).concat([resolveTaxLedgerId(db, company_id, "CESS")])
   );
   const existingTaxLedgerIds = existingTaxLedgers.filter(Boolean).map(l => Number(l.id));
   const finalEntries = entries.filter(e => !existingTaxLedgerIds.includes(Number(e.ledger_id)));
@@ -382,7 +398,7 @@ const computeVoucherTaxLines = async (db, payload) => {
   // Inject CGST, SGST, IGST lines
   if (!isInterState) {
     if (totalCGST > 0) {
-      const cgstLedger = await resolveTaxLedgerId(db, company_id, "CGST", { createIfMissing: true });
+      const cgstLedger = await resolveOrOverride("CGST");
       finalEntries.push({
         ledger_id: cgstLedger.id,
         ledger_name: cgstLedger.name,
@@ -393,7 +409,7 @@ const computeVoucherTaxLines = async (db, payload) => {
       });
     }
     if (totalSGST > 0) {
-      const sgstLedger = await resolveTaxLedgerId(db, company_id, "SGST", { createIfMissing: true });
+      const sgstLedger = await resolveOrOverride("SGST");
       finalEntries.push({
         ledger_id: sgstLedger.id,
         ledger_name: sgstLedger.name,
@@ -405,7 +421,7 @@ const computeVoucherTaxLines = async (db, payload) => {
     }
   } else {
     if (totalIGST > 0) {
-      const igstLedger = await resolveTaxLedgerId(db, company_id, "IGST", { createIfMissing: true });
+      const igstLedger = await resolveOrOverride("IGST");
       finalEntries.push({
         ledger_id: igstLedger.id,
         ledger_name: igstLedger.name,

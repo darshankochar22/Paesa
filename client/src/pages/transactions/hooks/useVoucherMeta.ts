@@ -62,6 +62,8 @@ export function useVoucherMeta({
   const [referenceNumber, setReferenceNumber] = useState<string>(initialReferenceNumber);
   const [referenceDate, setReferenceDate] = useState<string>(todayStr());
   const [placeOfSupply, setPlaceOfSupply] = useState<string>(initialPlaceOfSupply);
+  // Selected Voucher Type Class ("Name of Class") — "" means none selected.
+  const [voucherClass, setVoucherClass] = useState<string>("");
 
   // ── Submission state ──────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,6 +112,7 @@ export function useVoucherMeta({
     setVatDetails(null);
     setOrderDetails(null);
     setSourceGodown(null);
+    setVoucherClass("");
   }, []);
 
   return {
@@ -141,6 +144,8 @@ export function useVoucherMeta({
     setReferenceDate,
     placeOfSupply,
     setPlaceOfSupply,
+    voucherClass,
+    setVoucherClass,
     // submission
     isSubmitting,
     setIsSubmitting,

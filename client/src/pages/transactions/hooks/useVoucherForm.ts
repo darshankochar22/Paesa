@@ -565,6 +565,7 @@ export function useVoucherForm(
           reference_number: meta.referenceNumber || null,
           reference_date: meta.referenceDate || null,
           place_of_supply: meta.placeOfSupply !== "Select" ? meta.placeOfSupply : null,
+          voucher_class: meta.voucherClass || null,
           narration: meta.narration || null,
           party_ledger_id: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.ledger_id ?? null : null,
           party_name: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.name ?? null : null,
@@ -716,6 +717,8 @@ export function useVoucherForm(
     setReferenceDate: meta.setReferenceDate,
     placeOfSupply: meta.placeOfSupply,
     setPlaceOfSupply: meta.setPlaceOfSupply,
+    voucherClass: meta.voucherClass,
+    setVoucherClass: meta.setVoucherClass,
 
     // ── Master data
     allGstRegistrations,

@@ -177,6 +177,7 @@ export default function PayrollvtAlter() {
           restart_numbering:              c.restart_numbering ?? [],
           prefix_details:                 c.prefix_details ?? [],
           suffix_details:                 c.suffix_details ?? [],
+          voucher_classes:                c.voucher_classes ?? [],
         });
       } else {
         setConfig({ ...INITIAL_CONFIG });
@@ -236,6 +237,7 @@ export default function PayrollvtAlter() {
         restart_numbering:              config.restart_numbering,
         prefix_details:                 config.prefix_details,
         suffix_details:                 config.suffix_details,
+        voucher_classes:                config.voucher_classes,
       };
       const configRes = await window.api.voucherType.updateConfig(configPayload);
       if (!configRes.success) { setError(configRes.error || "Failed to update config."); return; }
@@ -350,6 +352,7 @@ export default function PayrollvtAlter() {
           categories={PAYROLL_CATEGORIES}
           lockIdentity={isPredefined}
           nameAutoFocus={!isPredefined}
+          companyId={companyId}
         />
         <RightActionPanel actions={alterActions} />
       </div>

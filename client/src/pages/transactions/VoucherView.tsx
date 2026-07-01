@@ -22,9 +22,12 @@ interface VoucherEntry {
 interface StockBatch {
   batch_id: number;
   batch_number: string;
+  mfg_date?: string | null;
   expiry_date: string;
   quantity: number;
+  actual_quantity?: number;
   rate: number;
+  godown?: string | null;
 }
 
 interface StockEntry {
@@ -41,6 +44,8 @@ interface StockEntry {
   sgst_amount: number;
   igst_amount: number;
   is_source: number;
+  godown_name?: string | null;
+  unit_symbol?: string | null;
   batches: StockBatch[];
 }
 
@@ -136,6 +141,12 @@ interface NoteDetails {
   motor_vehicle_no: string;
   original_invoice_no: string;
   original_invoice_date: string;
+  reason_for_issuing_note: string | null;
+}
+
+interface OrderDetails {
+  source_godown_name: string | null;
+  order_nos: string | null;
 }
 
 interface Voucher {
@@ -159,6 +170,7 @@ interface Voucher {
   is_cancelled: number;
   is_optional: number;
   is_post_dated: number;
+  applicable_upto: string | null;
   created_at: string;
   updated_at: string;
   entries: VoucherEntry[];
@@ -174,6 +186,7 @@ interface Voucher {
   dispatch_details: DispatchDetails | null;
   credit_note_details: NoteDetails | null;
   debit_note_details: NoteDetails | null;
+  order_details?: OrderDetails | null;
 }
 
 const formatDate = (d: string | null) => {
@@ -212,12 +225,148 @@ function ReadOnlyFieldRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ReadOnlyStockTable({ entries }: { entries: StockEntry[] }) {
+/** Column layout per voucher type — mirrors the `config` object each Create
+ *  form (StockTransferVoucherBody / PhysicalStockVoucher) passes at entry time,
+ *  so the view never drifts from what was actually shown while typing it. */
+type StockTableVariant = "default" | "withGodown" | "actualBilled" | "physicalStock";
+
+const STOCK_TABLE_VARIANT: Record<string, StockTableVariant> = {
+  "Delivery Note": "withGodown",
+  "Rejection In": "withGodown",
+  "Rejection Out": "withGodown",
+  "Job Work Out Order": "withGodown",
+  "Receipt Note": "actualBilled",
+  "Sales Order": "actualBilled",
+  "Purchase Order": "actualBilled",
+  "Physical Stock": "physicalStock",
+};
+
+function BatchSummaryLine({ batches }: { batches: StockBatch[] }) {
+  if (!batches?.length) return null;
+  return (
+    <div className="px-6 py-1 bg-gray-50 border-b border-gray-100 text-[10px] text-gray-500 flex gap-4">
+      {batches.map((b) => (
+        <span key={b.batch_id}>
+          Batch: <strong>{b.batch_number}</strong>
+          {b.expiry_date && <> | Expiry: {formatDate(b.expiry_date)}</>}
+          {b.quantity ? <> | Qty: {formatQty(b.quantity)}</> : null}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ReadOnlyStockTable({ entries, variant = "default" }: { entries: StockEntry[]; variant?: StockTableVariant }) {
   const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
+
+  if (variant === "actualBilled") {
+    // Actual/Billed mirror the same value — the Create form's "Billed" input
+    // isn't persisted separately today (see plan notes), so both columns read
+    // the one quantity that IS stored, matching what Tally shows when there's
+    // no batch-level split.
+    return (
+      <>
+        <div className="border-b border-gray-300 shrink-0 bg-white">
+          <div className="flex px-3 py-0.5">
+            <div className="flex-1 text-sm font-semibold text-black">Name of Item</div>
+            <div className="w-32 text-center text-sm font-semibold text-black">Quantity</div>
+            <div className="w-20 text-right text-sm font-semibold text-black">Rate</div>
+            <div className="w-10 text-center text-sm font-semibold text-black">per</div>
+            <div className="w-16 text-right text-sm font-semibold text-black">Disc %</div>
+            <div className="w-28 text-right text-sm font-semibold text-black">Amount</div>
+          </div>
+          <div className="flex px-3 pb-0.5 text-[10px] text-gray-500">
+            <div className="flex-1" />
+            <div className="w-32 flex"><div className="flex-1 text-center">Actual</div><div className="flex-1 text-center">Billed</div></div>
+            <div className="w-20" /><div className="w-10" /><div className="w-16" /><div className="w-28" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {entries.map((item) => {
+            const base = (item.quantity || 0) * (item.rate || 0);
+            const discPercent = base > 0 && item.discount_amount ? (item.discount_amount / base) * 100 : 0;
+            return (
+              <div key={item.stock_entry_id}>
+                <div className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
+                  <div className="flex-1 text-sm text-black font-semibold">{item.item_name || "—"}</div>
+                  <div className="w-32 flex">
+                    <div className="flex-1 text-right text-sm text-black">{formatQty(item.quantity)}</div>
+                    <div className="flex-1 text-right text-sm text-black">{formatQty(item.quantity)}</div>
+                  </div>
+                  <div className="w-20 text-right text-sm text-black">{formatAmount(item.rate)}</div>
+                  <div className="w-10 text-center text-sm text-black">{item.unit_symbol || ""}</div>
+                  <div className="w-16 text-right text-sm text-black">{discPercent ? discPercent.toFixed(2) : ""}</div>
+                  <div className="w-28 text-right text-sm font-bold text-black">{formatAmount(item.amount)}</div>
+                </div>
+                <BatchSummaryLine batches={item.batches} />
+              </div>
+            );
+          })}
+          {Array.from({ length: Math.max(0, 5 - entries.length) }).map((_, i) => (
+            <div key={`sf-${i}`} className="flex border-b border-gray-50 min-h-[22px] px-3" />
+          ))}
+          {total > 0 && (
+            <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
+              <div className="flex-1 text-xs text-gray-700">Subtotal</div>
+              <div className="w-32" /><div className="w-20" /><div className="w-10" /><div className="w-16" />
+              <div className="w-28 text-right text-sm font-bold text-black">{formatAmount(total)}</div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  if (variant === "physicalStock") {
+    // No Rate column — Physical Stock never captures one; Amount is the
+    // stock ledger's computed value, per PhysicalStockVoucher.tsx.
+    return (
+      <>
+        <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
+          <div className="flex-1 text-sm font-semibold text-black">Name of Item</div>
+          <div className="w-28 text-sm font-semibold text-black">Godown</div>
+          <div className="w-24 text-sm font-semibold text-black">Batch / Lot</div>
+          <div className="w-24 text-sm font-semibold text-black">Mfg Date</div>
+          <div className="w-24 text-sm font-semibold text-black">Expiry Date</div>
+          <div className="w-20 text-right text-sm font-semibold text-black">Quantity</div>
+          <div className="w-28 text-right text-sm font-semibold text-black">Amount</div>
+        </div>
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {entries.map((item) => {
+            const batch = item.batches?.[0];
+            return (
+              <div key={item.stock_entry_id} className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
+                <div className="flex-1 text-sm text-black font-semibold">{item.item_name || "—"}</div>
+                <div className="w-28 text-sm text-black">{item.godown_name || "—"}</div>
+                <div className="w-24 text-sm text-black">{batch?.batch_number || ""}</div>
+                <div className="w-24 text-sm text-black">{batch?.mfg_date ? formatDate(batch.mfg_date) : ""}</div>
+                <div className="w-24 text-sm text-black">{batch?.expiry_date ? formatDate(batch.expiry_date) : ""}</div>
+                <div className="w-20 text-right text-sm text-black">{formatQty(item.quantity)}</div>
+                <div className="w-28 text-right text-sm font-bold text-black">{formatAmount(item.amount)}</div>
+              </div>
+            );
+          })}
+          {Array.from({ length: Math.max(0, 5 - entries.length) }).map((_, i) => (
+            <div key={`sf-${i}`} className="flex border-b border-gray-50 min-h-[22px] px-3" />
+          ))}
+          {total > 0 && (
+            <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
+              <div className="flex-1 text-xs text-gray-700">Subtotal</div>
+              <div className="w-28" /><div className="w-24" /><div className="w-24" /><div className="w-24" /><div className="w-20" />
+              <div className="w-28 text-right text-sm font-bold text-black">{formatAmount(total)}</div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  const withGodown = variant === "withGodown";
   return (
     <>
       <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
         <div className="flex-1 text-sm font-semibold text-black">Name of Item</div>
+        {withGodown && <div className="w-28 text-sm font-semibold text-black">Godown</div>}
         <div className="w-24 text-right text-sm font-semibold text-black">Quantity</div>
         <div className="w-32 text-right text-sm font-semibold text-black">Rate per</div>
         <div className="w-32 text-right text-sm font-semibold text-black">Amount</div>
@@ -227,21 +376,12 @@ function ReadOnlyStockTable({ entries }: { entries: StockEntry[] }) {
           <div key={item.stock_entry_id}>
             <div className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
               <div className="flex-1 text-sm text-black font-semibold">{item.item_name || "—"}</div>
+              {withGodown && <div className="w-28 text-sm text-black">{item.godown_name || "—"}</div>}
               <div className="w-24 text-right text-sm text-black">{formatQty(item.quantity)}</div>
               <div className="w-32 text-right text-sm text-black">{formatAmount(item.rate)}</div>
               <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(item.amount)}</div>
             </div>
-            {item.batches?.length > 0 && (
-              <div className="px-6 py-1 bg-gray-50 border-b border-gray-100 text-[10px] text-gray-500 flex gap-4">
-                {item.batches.map(b => (
-                  <span key={b.batch_id}>
-                    Batch: <strong>{b.batch_number}</strong>
-                    {b.expiry_date && <> | Expiry: {formatDate(b.expiry_date)}</>}
-                    {b.quantity ? <> | Qty: {formatQty(b.quantity)}</> : null}
-                  </span>
-                ))}
-              </div>
-            )}
+            <BatchSummaryLine batches={item.batches} />
           </div>
         ))}
         {Array.from({ length: Math.max(0, 5 - entries.length) }).map((_, i) => (
@@ -250,12 +390,62 @@ function ReadOnlyStockTable({ entries }: { entries: StockEntry[] }) {
         {total > 0 && (
           <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
             <div className="flex-1 text-xs text-gray-700">Subtotal</div>
+            {withGodown && <div className="w-28" />}
             <div className="w-24 text-right pr-1" />
             <div className="w-32 text-right pr-1" />
             <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(total)}</div>
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+/** Stock Journal / Manufacturing Journal: the Create form is a dual pane
+ *  (Source/Consumption left, Destination/Production right) with its own Godown
+ *  column + subtotal per side (StockJournalVoucher.tsx / ManufacturingJournalVoucher.tsx).
+ *  is_source already tags each saved line, so the split needs no backend change. */
+function ReadOnlySplitSection({ title, entries }: { title: string; entries: StockEntry[] }) {
+  const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
+  return (
+    <div className="border-b border-gray-300 shrink-0">
+      <div className="bg-zinc-900 text-white text-xs font-bold uppercase tracking-wider text-center py-1">{title}</div>
+      <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
+        <div className="flex-1 text-sm font-semibold text-black">Name of Item</div>
+        <div className="w-28 text-sm font-semibold text-black">Godown</div>
+        <div className="w-24 text-right text-sm font-semibold text-black">Quantity</div>
+        <div className="w-24 text-right text-sm font-semibold text-black">Rate</div>
+        <div className="w-32 text-right text-sm font-semibold text-black">Amount</div>
+      </div>
+      {entries.length === 0 ? (
+        <div className="px-3 py-2 text-sm text-gray-400 italic">No items</div>
+      ) : (
+        entries.map((item) => (
+          <div key={item.stock_entry_id} className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
+            <div className="flex-1 text-sm text-black font-semibold">{item.item_name || "—"}</div>
+            <div className="w-28 text-sm text-black">{item.godown_name || "—"}</div>
+            <div className="w-24 text-right text-sm text-black">{formatQty(item.quantity)}</div>
+            <div className="w-24 text-right text-sm text-black">{formatAmount(item.rate)}</div>
+            <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(item.amount)}</div>
+          </div>
+        ))
+      )}
+      <div className="flex px-3 py-0.5 bg-white">
+        <div className="flex-1 text-xs text-gray-700">Subtotal</div>
+        <div className="w-28" /><div className="w-24" /><div className="w-24" />
+        <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(total)}</div>
+      </div>
+    </div>
+  );
+}
+
+function ReadOnlySplitStockTable({ entries }: { entries: StockEntry[] }) {
+  const source = entries.filter((e) => e.is_source === 1);
+  const destination = entries.filter((e) => e.is_source !== 1);
+  return (
+    <>
+      <ReadOnlySplitSection title="Source (Consumption)" entries={source} />
+      <ReadOnlySplitSection title="Destination (Production)" entries={destination} />
     </>
   );
 }
@@ -560,7 +750,7 @@ export default function VoucherView() {
   useEffect(() => {
     if (!voucher || !selectedCompany?.company_id || !activeFY?.fy_id) return;
     const uniqueLedgerIds = Array.from(
-      new Set(voucher.entries.map(e => e.ledger_id).filter(Boolean))
+      new Set([...voucher.entries.map(e => e.ledger_id), voucher.party_ledger_id].filter(Boolean))
     );
     if (uniqueLedgerIds.length === 0) return;
 
@@ -662,10 +852,19 @@ export default function VoucherView() {
   const hasEntries = voucher.entries.length > 0;
   const hasStock = voucher.stock_entries.length > 0;
   const isSalesPurchase = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucher.voucher_type);
-  const isSingleEntry = ["Receipt", "Payment", "Contra", "Journal"].includes(voucher.voucher_type);
-  const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(voucher.voucher_type);
+  const isSingleEntry = ["Receipt", "Payment", "Contra", "Journal", "Reversing Journal", "Memorandum"].includes(voucher.voucher_type);
+  const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal", "Sales Order", "Purchase Order", "Job Work In Order", "Job Work Out Order"].includes(voucher.voucher_type);
   const isPayrollVoucher = voucher.voucher_type === "Payroll";
   const isAttendanceVoucher = voucher.voucher_type === "Attendance";
+  const isReceiptNote = voucher.voucher_type === "Receipt Note";
+  const isSplitStock = ["Stock Journal", "Manufacturing Journal"].includes(voucher.voucher_type);
+  const stockTableVariant = STOCK_TABLE_VARIANT[voucher.voucher_type] ?? "default";
+  const sourceGodownRowLabel = voucher.voucher_type === "Material In" ? "Source Godown"
+    : voucher.voucher_type === "Material Out" ? "Destination Godown"
+    : null;
+  const noteDetails = voucher.voucher_type === "Credit Note" ? voucher.credit_note_details
+    : voucher.voucher_type === "Debit Note" ? voucher.debit_note_details
+    : null;
 
   const getTitle = () => {
     if (isAttendanceVoucher) return "Attendance Voucher Alteration (Secondary)";
@@ -762,8 +961,50 @@ export default function VoucherView() {
             <ReadOnlyFieldRow label="Place of Supply" value={voucher.place_of_supply} />
           )}
 
+          {/* Reference No. / Date — Receipt Note shows this above Party, matching create (StockTransferVoucherBody showReferenceRow). */}
+          {isReceiptNote && (voucher.reference_number || voucher.reference_date) && (
+            <div className="flex items-center border-b border-gray-300 shrink-0 px-3 py-1 bg-white gap-6">
+              {voucher.reference_number && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-black shrink-0">Reference No.</span>
+                  <span className="text-sm text-black shrink-0">:</span>
+                  <span className="text-sm font-semibold text-black">{voucher.reference_number}</span>
+                </div>
+              )}
+              {voucher.reference_date && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-black shrink-0">Date</span>
+                  <span className="text-sm text-black shrink-0">:</span>
+                  <span className="text-sm font-semibold text-black">{formatDate(voucher.reference_date)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {voucher.party_name && (
             <ReadOnlyFieldRow label="Party A/c name" value={voucher.party_name} />
+          )}
+
+          {/* Current balance — Receipt Note shows this Tally-style sub-row under Party. */}
+          {isReceiptNote && voucher.party_ledger_id != null && balances[voucher.party_ledger_id] && (
+            <div className="border-b border-gray-300 shrink-0 px-3 py-0.5">
+              <span className="text-sm italic text-black">Current balance : {balances[voucher.party_ledger_id]}</span>
+            </div>
+          )}
+
+          {/* Source/Destination Godown header — Material In/Out (order_details.source_godown_name). */}
+          {sourceGodownRowLabel && voucher.order_details?.source_godown_name && (
+            <ReadOnlyFieldRow label={sourceGodownRowLabel} value={voucher.order_details.source_godown_name} />
+          )}
+
+          {/* Order No. — Sales Order / Purchase Order / Job Work In Order (order_details.order_nos). */}
+          {["Sales Order", "Purchase Order", "Job Work In Order"].includes(voucher.voucher_type) && voucher.order_details?.order_nos && (
+            <ReadOnlyFieldRow label="Order no." value={voucher.order_details.order_nos} />
+          )}
+
+          {/* Applicable Upto — Reversing Journal (a real vouchers.applicable_upto column). */}
+          {voucher.voucher_type === "Reversing Journal" && voucher.applicable_upto && (
+            <ReadOnlyFieldRow label="Applicable Upto" value={formatDate(voucher.applicable_upto)} />
           )}
 
           {isSalesPurchase && mainLedger && (
@@ -775,7 +1016,11 @@ export default function VoucherView() {
 
           {(hasStock || hasEntries) && <div className="border-b border-gray-300 shrink-0" />}
 
-          {hasStock && <ReadOnlyStockTable entries={voucher.stock_entries} />}
+          {hasStock && (
+            isSplitStock
+              ? <ReadOnlySplitStockTable entries={voucher.stock_entries} />
+              : <ReadOnlyStockTable entries={voucher.stock_entries} variant={stockTableVariant} />
+          )}
 
           {isSalesPurchase && additionalEntries.length > 0 && (
             <div className="border-b border-gray-300 shrink-0">
@@ -819,12 +1064,21 @@ export default function VoucherView() {
             <ReadOnlyAttendanceTable entries={voucher.attendance_entries} />
           )}
 
-          {/* Provide GST/e-Way Bill details — trade vouchers only */}
-          {["Sales", "Purchase", "Credit Note", "Debit Note"].includes(voucher.voucher_type) && (
-            <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
-              <span className="text-sm text-black shrink-0">Provide GST/e-Way Bill details</span>
-              <span className="text-sm text-black shrink-0">:</span>
-              <span className="text-sm font-semibold text-black">No</span>
+          {/* Reason for issuing note / original invoice ref — the real data the
+              Create form's "Provide GST Details" popup captures (GstNoteAdditionalDetailsPopup).
+              Only Credit Note / Debit Note carry this table; nothing renders for plain
+              Sales/Purchase since there's no equivalent persisted field to show. */}
+          {noteDetails && (noteDetails.reason_for_issuing_note || noteDetails.original_invoice_no || noteDetails.original_invoice_date) && (
+            <div className="border-t border-gray-200 shrink-0 bg-white">
+              {noteDetails.reason_for_issuing_note && (
+                <ReadOnlyFieldRow label="Reason for issuing note" value={noteDetails.reason_for_issuing_note} />
+              )}
+              {noteDetails.original_invoice_no && (
+                <ReadOnlyFieldRow label="Original Invoice No." value={noteDetails.original_invoice_no} />
+              )}
+              {noteDetails.original_invoice_date && (
+                <ReadOnlyFieldRow label="Original Invoice Date" value={formatDate(noteDetails.original_invoice_date)} />
+              )}
             </div>
           )}
 

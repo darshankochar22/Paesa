@@ -9,6 +9,16 @@ export interface NumberingAffixRow {
   particulars: string;
 }
 
+// Name of Class rows — a named GST-ledger-mapping class per voucher type.
+export interface VoucherClassRow {
+  id: string;
+  name: string;
+  use_for_gst_details: "Yes" | "No";
+  cgst_ledger_id: number | null;
+  sgst_ledger_id: number | null;
+  igst_ledger_id: number | null;
+}
+
 export interface VoucherTypeConfig {
   config_id?: number;
   voucher_type_id?: number;
@@ -30,6 +40,7 @@ export interface VoucherTypeConfig {
   restart_numbering?: NumberingRestartRow[];
   prefix_details?: NumberingAffixRow[];
   suffix_details?: NumberingAffixRow[];
+  voucher_classes?: VoucherClassRow[];
 }
 
 export interface VoucherTypeType {
