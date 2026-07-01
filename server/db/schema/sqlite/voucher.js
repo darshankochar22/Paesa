@@ -26,6 +26,8 @@ const vouchers = sqliteTable('vouchers', {
   isPostDated: integer('is_post_dated').default(0),
   // Reversing Journal: date up to which the (non-posting) entry is applicable.
   applicableUpto: text('applicable_upto'),
+  // Selected Voucher Type Class ("Name of Class") name, if any.
+  voucherClass: text('voucher_class'),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 });

@@ -22,7 +22,14 @@ const {
   ledgers,
   payHeads,
   companies,
+  voucherTypes,
+  voucherTypeConfigs,
 } = require('../db/schema');
+
+// Non-accounting inventory-only voucher types never post a voucher_entries row
+// for the party ledger, so a bill reference against them would be orphaned
+// (no accounting entry to settle) and corrupts bill-wise outstanding reports.
+const NON_ACCOUNTING_INVENTORY_TYPES = ['Delivery Note', 'Receipt Note', 'Rejection In', 'Rejection Out', 'Material In', 'Material Out'];
 
 const { generateVoucherNumber, getNextVoucherNumber } = require('./voucherNumbering');
 const {
@@ -82,6 +89,41 @@ async function fetchAttendanceVoucherRows(company_id, fy_id, from = null, to = n
     };
   });
 }
+
+// Resolves a Voucher Type Class's mapped CGST/SGST/IGST ledgers ("Name of Class" →
+// "Use Class for GST Details" = Yes). Returns null when no class is selected, the class
+// can't be found, or GST-details use is off for it — the gstTaxEngine then falls through
+// to its normal auto-resolve/auto-create behavior, so voucher without a class are unaffected.
+const resolveVoucherClassGstLedgers = async (company_id, voucher_type, class_name) => {
+  if (!class_name) return null;
+  try {
+    const vtRows = await db.all(
+      sql`SELECT vt_id FROM ${voucherTypes}
+          WHERE ${voucherTypes.companyId} = ${company_id} AND LOWER(${voucherTypes.name}) = LOWER(${voucher_type})
+          LIMIT 1`
+    );
+    if (vtRows.length === 0) return null;
+
+    const configRows = await db.all(
+      sql`SELECT voucher_classes FROM ${voucherTypeConfigs}
+          WHERE ${voucherTypeConfigs.voucherTypeId} = ${vtRows[0].vt_id} LIMIT 1`
+    );
+    if (configRows.length === 0) return null;
+
+    let classes = [];
+    try { classes = JSON.parse(configRows[0].voucher_classes || '[]'); } catch (_) { classes = []; }
+    const cls = Array.isArray(classes) ? classes.find((c) => c.name === class_name) : null;
+    if (!cls || cls.use_for_gst_details !== 'Yes') return null;
+
+    return {
+      cgst_ledger_id: cls.cgst_ledger_id || null,
+      sgst_ledger_id: cls.sgst_ledger_id || null,
+      igst_ledger_id: cls.igst_ledger_id || null,
+    };
+  } catch (_) {
+    return null;
+  }
+};
 
 module.exports = {
   fetchAttendanceVoucherRows,
@@ -167,6 +209,7 @@ module.exports = {
           }
 
         if (['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(data.voucher_type)) {
+          data.voucher_class_gst_ledgers = await resolveVoucherClassGstLedgers(data.company_id, data.voucher_type, data.voucher_class);
           const computed = await gstTaxEngine.computeVoucherTaxLines(db, data);
           data.entries = computed.entries;
           data.stock_entries = computed.stock_entries;
@@ -215,6 +258,7 @@ module.exports = {
             isOptional: data.is_optional ? 1 : 0,
             isPostDated: data.is_post_dated ? 1 : 0,
             applicableUpto: nullify(data.applicable_upto) || null,
+            voucherClass: nullify(data.voucher_class) || null,
           })
           .returning({ id: vouchers.voucherId });
 
@@ -334,7 +378,7 @@ module.exports = {
           }
         }
 
-        if (data.bill_references && data.bill_references.length > 0) {
+        if (data.bill_references && data.bill_references.length > 0 && !NON_ACCOUNTING_INVENTORY_TYPES.includes(data.voucher_type)) {
           for (const bill of data.bill_references) {
             await db.insert(voucherBillReferences).values({
               voucherId: voucher_id,
@@ -793,8 +837,14 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       const entries = await db.all(
         sql`SELECT * FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${id}`
       );
+      // Joined so VoucherView can show Godown/per (unit) columns the way each
+      // Create form does — vse.* alone only carries the bare godown_id/unit_id.
       const stockItems = await db.all(
-        sql`SELECT * FROM ${voucherStockEntries} WHERE ${voucherStockEntries.voucherId} = ${id}`
+        sql`SELECT vse.*, g.name AS godown_name, u.symbol AS unit_symbol
+            FROM ${voucherStockEntries} vse
+            LEFT JOIN godowns g ON g.godown_id = vse.godown_id
+            LEFT JOIN units u ON u.unit_id = vse.unit_id
+            WHERE vse.voucher_id = ${id}`
       );
       const bills = await db.all(
         sql`SELECT * FROM ${voucherBillReferences} WHERE ${voucherBillReferences.voucherId} = ${id}`
@@ -1091,14 +1141,17 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       ) {
         try {
           const gstTaxEngine = require('../gst/gstTaxEngine');
+          const companyId = data.company_id || current.company_id;
+          const voucherClass = data.voucher_class !== undefined ? data.voucher_class : current.voucher_class;
           const computed = await gstTaxEngine.computeVoucherTaxLines(db, {
-            company_id: data.company_id || current.company_id,
+            company_id: companyId,
             date: data.date || current.date,
             party_ledger_id: data.party_ledger_id !== undefined ? data.party_ledger_id : current.party_ledger_id,
             place_of_supply: data.place_of_supply !== undefined ? data.place_of_supply : current.place_of_supply,
             stock_entries: data.stock_entries,
             entries: data.entries,
             voucher_type: voucherType,
+            voucher_class_gst_ledgers: await resolveVoucherClassGstLedgers(companyId, voucherType, voucherClass),
           });
           data.entries = computed.entries;
           data.stock_entries = computed.stock_entries;
@@ -1131,6 +1184,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           placeOfSupply: nullify(data.place_of_supply) ?? nullify(current.place_of_supply),
           isPostDated: data.is_post_dated !== undefined ? (data.is_post_dated ? 1 : 0) : current.is_post_dated,
           applicableUpto: nullify(data.applicable_upto) ?? nullify(current.applicable_upto),
+          voucherClass: nullify(data.voucher_class) ?? nullify(current.voucher_class),
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(vouchers.voucherId, data.voucher_id));
@@ -1174,7 +1228,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
 
       if (data.bill_references !== undefined) {
         await db.delete(voucherBillReferences).where(eq(voucherBillReferences.voucherId, data.voucher_id));
-        if (data.bill_references && data.bill_references.length > 0) {
+        if (data.bill_references && data.bill_references.length > 0 && !NON_ACCOUNTING_INVENTORY_TYPES.includes(voucherType)) {
           for (const bill of data.bill_references) {
             await db.insert(voucherBillReferences).values({
               voucherId: data.voucher_id,

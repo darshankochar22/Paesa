@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { FormRow } from "@/components/ui";
-import type { NumberingRestartRow, NumberingAffixRow } from "@/types/entities/VoucherType";
+import type { NumberingRestartRow, NumberingAffixRow, VoucherClassRow } from "@/types/entities/VoucherType";
 import AdditionalNumberingPopup from "./AdditionalNumberingPopup";
+import VoucherClassConfigPopup from "./VoucherClassConfigPopup";
 
 // ─── Shared field tokens (black / white / zinc only) ───────────────────────────
 const inputCls =
@@ -67,6 +68,7 @@ export interface VTConfig {
   restart_numbering: NumberingRestartRow[];
   prefix_details: NumberingAffixRow[];
   suffix_details: NumberingAffixRow[];
+  voucher_classes: VoucherClassRow[];
 }
 
 export const INITIAL_FORM: VTForm = {
@@ -96,6 +98,7 @@ export const INITIAL_CONFIG: VTConfig = {
   restart_numbering: [],
   prefix_details: [],
   suffix_details: [],
+  voucher_classes: [],
 };
 
 export const toInt = (v: YN) => (v === "Yes" ? 1 : 0);
@@ -172,6 +175,7 @@ export function VoucherTypeFormBody({
   lockIdentity = false,
   nameAutoFocus = false,
   categories,
+  companyId,
 }: {
   form: VTForm;
   setForm: React.Dispatch<React.SetStateAction<VTForm>>;
@@ -187,11 +191,33 @@ export function VoucherTypeFormBody({
   lockIdentity?: boolean;
   nameAutoFocus?: boolean;
   categories?: string[];
+  /** Needed to fetch Duties & Taxes ledgers for the Name of Class GST mapping popup. */
+  companyId?: number;
 }) {
   const setF = (key: keyof VTForm) => (v: string) => setForm((f) => ({ ...f, [key]: v }));
   const setC = (key: keyof VTConfig) => (v: YN) => setConfig((c) => ({ ...c, [key]: v }));
 
   const [showNumberingPopup, setShowNumberingPopup] = useState(false);
+
+  // ── Name of Class ──────────────────────────────────────────────────────────
+  const [newClassName, setNewClassName] = useState("");
+  const [confirmingClassName, setConfirmingClassName] = useState<string | null>(null);
+  const [editingClassId, setEditingClassId] = useState<string | null>(null);
+
+  const editingClass = config.voucher_classes.find((c) => c.id === editingClassId) ?? null;
+
+  const addClass = (name: string) => {
+    const id = `vc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const row = { id, name, use_for_gst_details: "No" as YN, cgst_ledger_id: null, sgst_ledger_id: null, igst_ledger_id: null };
+    setConfig((c) => ({ ...c, voucher_classes: [...c.voucher_classes, row] }));
+    setConfirmingClassName(null);
+    setNewClassName("");
+    setEditingClassId(id);
+  };
+
+  const removeClass = (id: string) => {
+    setConfig((c) => ({ ...c, voucher_classes: c.voucher_classes.filter((cls) => cls.id !== id) }));
+  };
 
   const nameRef = useRef<HTMLInputElement>(null);
   const aliasRef = useRef<HTMLInputElement>(null);
@@ -355,6 +381,67 @@ export function VoucherTypeFormBody({
             {/* ── Name of Class ── */}
             <div className="flex-1 min-w-0 overflow-hidden p-3 space-y-1.5">
               <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Name of Class</div>
+
+              <div className="space-y-1">
+                {config.voucher_classes.map((cls) => (
+                  <div
+                    key={cls.id}
+                    onClick={() => setEditingClassId(cls.id)}
+                    className="flex items-center justify-between px-1.5 py-1 rounded border border-transparent hover:border-zinc-200 hover:bg-white/50 cursor-pointer group"
+                  >
+                    <span className="text-sm text-zinc-800 truncate">{cls.name}</span>
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {cls.use_for_gst_details === "Yes" && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider border border-zinc-400 text-zinc-600 rounded px-1">GST</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeClass(cls.id); }}
+                        className="text-zinc-300 hover:text-zinc-900 font-bold text-sm opacity-0 group-hover:opacity-100 px-1"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {confirmingClassName !== null ? (
+                <div className="flex items-center gap-2 px-1.5 py-1 border border-zinc-300 rounded bg-white/70">
+                  <span className="text-xs text-zinc-600 flex-1 truncate">
+                    Create Class &lsquo;{confirmingClassName}&rsquo;?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => addClass(confirmingClassName)}
+                    className="text-[10px] font-bold uppercase tracking-wider text-zinc-700 hover:text-zinc-950 border border-zinc-300 rounded px-1.5 py-0.5"
+                  >
+                    Enter
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingClassName(null)}
+                    className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-700 px-1"
+                  >
+                    Esc
+                  </button>
+                </div>
+              ) : (
+                <input
+                  className={nameInputCls}
+                  value={newClassName}
+                  placeholder="type name…"
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    const name = newClassName.trim();
+                    if (!name) return;
+                    if (config.voucher_classes.some((c) => c.name.toLowerCase() === name.toLowerCase())) return;
+                    setConfirmingClassName(name);
+                  }}
+                />
+              )}
             </div>
 
           </div>
@@ -394,6 +481,21 @@ export function VoucherTypeFormBody({
             })
           }
           onClose={() => setShowNumberingPopup(false)}
+        />
+      )}
+
+      {editingClass && companyId && (
+        <VoucherClassConfigPopup
+          companyId={companyId}
+          voucherClass={editingClass}
+          onClose={() => setEditingClassId(null)}
+          onSave={(updated) => {
+            setConfig((c) => ({
+              ...c,
+              voucher_classes: c.voucher_classes.map((cls) => (cls.id === updated.id ? updated : cls)),
+            }));
+            setEditingClassId(null);
+          }}
         />
       )}
     </>
