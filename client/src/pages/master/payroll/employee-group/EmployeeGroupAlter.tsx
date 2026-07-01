@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, MasterSelectionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
 import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
-import type { EmployeeGroupType } from "@/types/entities/Employee";
+import type { EmployeeGroupType, EmployeeCategoryType } from "@/types/entities/Employee";
 import SalaryDetailsModal, { type SalaryRow, fyStartISO } from "@/components/payroll/SalaryDetailsModal";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -15,8 +15,9 @@ export default function EmployeeGroupAlter() {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
   const [groups, setGroups] = useState<EmployeeGroupType[]>([]);
+  const [categories, setCategories] = useState<EmployeeCategoryType[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<EmployeeGroupType | null>(null);
-  const [form, setForm] = useState<{ name: string; alias: string; parent_group_id: number | null }>({ name: "", alias: "", parent_group_id: null });
+  const [form, setForm] = useState<{ name: string; alias: string; employee_category_id: number | null; parent_group_id: number | null }>({ name: "", alias: "", employee_category_id: null, parent_group_id: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -34,9 +35,16 @@ export default function EmployeeGroupAlter() {
   }, [companyId]);
   useEffect(() => { loadGroups(); }, [loadGroups]);
 
+  useEffect(() => {
+    if (!companyId) return;
+    window.api.employeeCategory.getAll(companyId).then((res) => {
+      if (res.success) setCategories(res.employeeCategories ?? []);
+    });
+  }, [companyId]);
+
   const handleSelectGroup = (g: EmployeeGroupType) => {
     setSelectedGroup(g);
-    setForm({ name: g.name, alias: g.alias || "", parent_group_id: g.parent_group_id ?? null });
+    setForm({ name: g.name, alias: g.alias || "", employee_category_id: g.employee_category_id ?? null, parent_group_id: g.parent_group_id ?? null });
     const parent = groups.find(p => p.employee_group_id === g.parent_group_id);
     setSelectedParent(parent || null);
     // Group-level salary defaults are not persisted (no backend store keyed by group),
@@ -61,7 +69,7 @@ export default function EmployeeGroupAlter() {
     if (!selectedGroup) return;
     setLoading(true); setError(null);
     try {
-      const res = await window.api.employeeGroup.update({ employee_group_id: selectedGroup.employee_group_id, name: form.name.trim(), alias: form.alias.trim() || undefined, parent_group_id: form.parent_group_id || undefined });
+      const res = await window.api.employeeGroup.update({ employee_group_id: selectedGroup.employee_group_id, name: form.name.trim(), alias: form.alias.trim() || undefined, employee_category_id: form.employee_category_id || undefined, parent_group_id: form.parent_group_id || undefined });
       if (res.success) {
         setSuccess(`Group "${form.name}" updated.`);
         await loadGroups();
@@ -160,6 +168,18 @@ export default function EmployeeGroupAlter() {
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white border-r border-zinc-100">
           <div className="p-3 space-y-1 max-w-2xl">
+            <FormRow label="Category" labelWidth="w-56">
+              <select
+                className={selectCls}
+                value={form.employee_category_id ?? ""}
+                onChange={(e) => setForm(f => ({ ...f, employee_category_id: e.target.value ? Number(e.target.value) : null }))}
+              >
+                <option value="">Not Applicable</option>
+                {categories.map(c => (
+                  <option key={c.employee_category_id} value={c.employee_category_id}>{c.name}</option>
+                ))}
+              </select>
+            </FormRow>
             <FormRow label="Name" required labelWidth="w-56"><input className={inputCls} value={form.name} onChange={setField("name")} /></FormRow>
             <FormRow label="(alias)" labelWidth="w-56"><input className={inputCls} value={form.alias} onChange={setField("alias")} /></FormRow>
             <div className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded" onClick={() => setShowGroupPanel(!showGroupPanel)}>

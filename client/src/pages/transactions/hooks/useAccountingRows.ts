@@ -1,8 +1,8 @@
 // hooks/useAccountingRows.ts
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { LedgerType } from "../../../types/api";
-import type { ParticularRow } from "../types";
-import { makeParticularRow, makeAttendanceRow, makePayrollRow } from "../utils/rowFactories";
+import type { ParticularRow, PayrollGroupRow, PayrollEmployeeRow, PayrollPayHeadRow } from "../types";
+import { makeParticularRow, makeAttendanceRow, makePayrollRow, makePayrollGroupRow, makePayrollEmployeeRow, makePayrollPayHeadRow } from "../utils/rowFactories";
 
 interface UseAccountingRowsOptions {
   initialParticulars?: ParticularRow[];
@@ -318,6 +318,7 @@ export function useAccountingRows({
     setPaymentDoubleRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
     setAttendanceEntries([makeAttendanceRow()]);
     setPayrollEntries([makePayrollRow()]);
+    setPayrollGroups([makePayrollGroupRow()]);
     setContraEntryMode("double");
     setReceiptEntryMode("double");
     setJournalEntryMode("double");
@@ -366,6 +367,85 @@ export function useAccountingRows({
 
   const handleRemovePayrollRow = useCallback((id: string) => {
     setPayrollEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
+  }, []);
+
+  // ── Payroll groups (category → employees → payheads) ──────────────────────
+  const [payrollGroups, setPayrollGroups] = useState<PayrollGroupRow[]>(
+    () => [makePayrollGroupRow()]
+  );
+
+  // Flat derived view used for form submission and validation
+  const payrollEntriesFromGroups = useMemo(() =>
+    payrollGroups.flatMap(g =>
+      g.employeeRows.flatMap(e =>
+        e.payHeadRows.map(ph => ({
+          id: ph.id,
+          employee: e.employee,
+          payHead: ph.payHead,
+          amountRaw: ph.amountRaw,
+          category: g.category,
+        }))
+      )
+    ), [payrollGroups]
+  );
+
+  const handleAddPayrollGroup = useCallback(() => {
+    setPayrollGroups(prev => [...prev, makePayrollGroupRow()]);
+  }, []);
+
+  const handleUpdatePayrollGroup = useCallback((groupId: string, updates: Partial<Omit<PayrollGroupRow, "id">>) => {
+    setPayrollGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...updates } : g));
+  }, []);
+
+  const handleAddPayrollEmployeeRow = useCallback((groupId: string) => {
+    setPayrollGroups(prev => prev.map(g => g.id === groupId
+      ? { ...g, employeeRows: [...g.employeeRows, makePayrollEmployeeRow()] }
+      : g
+    ));
+  }, []);
+
+  const handleUpdatePayrollEmployeeRow = useCallback((groupId: string, empRowId: string, updates: Partial<Omit<PayrollEmployeeRow, "id">>) => {
+    setPayrollGroups(prev => prev.map(g => g.id === groupId
+      ? { ...g, employeeRows: g.employeeRows.map(e => e.id === empRowId ? { ...e, ...updates } : e) }
+      : g
+    ));
+  }, []);
+
+  const handleAddPayrollPayHeadRow = useCallback((groupId: string, empRowId: string) => {
+    setPayrollGroups(prev => prev.map(g => g.id === groupId
+      ? { ...g, employeeRows: g.employeeRows.map(e => e.id === empRowId
+          ? { ...e, payHeadRows: [...e.payHeadRows, makePayrollPayHeadRow()] }
+          : e
+        )}
+      : g
+    ));
+  }, []);
+
+  const handleUpdatePayrollPayHeadRow = useCallback((groupId: string, empRowId: string, phRowId: string, updates: Partial<Omit<PayrollPayHeadRow, "id">>) => {
+    setPayrollGroups(prev => prev.map(g => g.id === groupId
+      ? { ...g, employeeRows: g.employeeRows.map(e => e.id === empRowId
+          ? { ...e, payHeadRows: e.payHeadRows.map(ph => ph.id === phRowId ? { ...ph, ...updates } : ph) }
+          : e
+        )}
+      : g
+    ));
+  }, []);
+
+  const handleRemovePayrollPayHeadRow = useCallback((groupId: string, empRowId: string, phRowId: string) => {
+    setPayrollGroups(prev => prev.map(g => g.id === groupId
+      ? { ...g, employeeRows: g.employeeRows.map(e => e.id === empRowId
+          ? { ...e, payHeadRows: e.payHeadRows.length > 1 ? e.payHeadRows.filter(ph => ph.id !== phRowId) : e.payHeadRows }
+          : e
+        )}
+      : g
+    ));
+  }, []);
+
+  const handleRemovePayrollEmployeeRow = useCallback((groupId: string, empRowId: string) => {
+    setPayrollGroups(prev => prev.map(g => g.id === groupId
+      ? { ...g, employeeRows: g.employeeRows.length > 1 ? g.employeeRows.filter(e => e.id !== empRowId) : g.employeeRows }
+      : g
+    ));
   }, []);
 
   return {
@@ -417,6 +497,17 @@ export function useAccountingRows({
     handleAddPayrollRow,
     handleUpdatePayrollRow,
     handleRemovePayrollRow,
+    payrollGroups,
+    setPayrollGroups,
+    payrollEntriesFromGroups,
+    handleAddPayrollGroup,
+    handleUpdatePayrollGroup,
+    handleAddPayrollEmployeeRow,
+    handleUpdatePayrollEmployeeRow,
+    handleAddPayrollPayHeadRow,
+    handleUpdatePayrollPayHeadRow,
+    handleRemovePayrollPayHeadRow,
+    handleRemovePayrollEmployeeRow,
     resetAccountingRows,
   };
 }

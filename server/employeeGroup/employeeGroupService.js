@@ -47,6 +47,7 @@ module.exports = {
         .insert(employeeGroups)
         .values({
           companyId: data.company_id,
+          employeeCategoryId: data.employee_category_id || null,
           name: data.name,
           alias: data.alias || null,
           parentGroupId: data.parent_group_id || null,
@@ -110,6 +111,7 @@ module.exports = {
         .set({
           name: data.name ?? current.name,
           alias: data.alias ?? current.alias,
+          employeeCategoryId: data.employee_category_id ?? current.employee_category_id,
           parentGroupId: data.parent_group_id ?? current.parent_group_id,
           updatedAt: sql`datetime('now')`,
         })

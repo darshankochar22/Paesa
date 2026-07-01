@@ -248,10 +248,15 @@ export function useVoucherForm(
 
     if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
       if (!rows.partyLedger) return "Party A/c Name is required.";
+<<<<<<< Updated upstream
       // Delivery Note / Receipt Note / Rejection In / Rejection Out are non-accounting
       // inventory vouchers in Tally — no Sales/Purchase ledger is posted, so unlike
       // Sales/Purchase/Credit Note/Debit Note it is never required here.
       const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType);
+=======
+      // Rejection In/Out have no Sales/Purchase ledger — Ledger Account + items only.
+      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note"].includes(effectiveVoucherType);
+>>>>>>> Stashed changes
       if (needsLedger && !rows.salesPurchaseLedger) {
         const baseLabel = effectiveVoucherType === "Credit Note" ? "Sales" : effectiveVoucherType === "Debit Note" ? "Purchase" : effectiveVoucherType;
         return `${baseLabel} Ledger is required.`;
@@ -323,7 +328,7 @@ export function useVoucherForm(
 
     if (effectiveVoucherType === "Payroll") {
       if (!rows.accountLedger) return "Account (cash/bank ledger) is required.";
-      const filled = rows.payrollEntries.filter(
+      const filled = rows.payrollEntriesFromGroups.filter(
         (r) => r.employee && r.payHead && Number(r.amountRaw) > 0
       );
       if (filled.length === 0) return "At least one Payroll entry with a positive amount is required.";
@@ -465,17 +470,49 @@ export function useVoucherForm(
         ];
       } else if (["Purchase Order", "Sales Order", "Job Work In Order", "Job Work Out Order"].includes(effectiveVoucherType)) {
         const filledItems = rows.stockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0);
-        stock_entries = filledItems.map((r) => ({
-          stock_item_id: r.stockItem!.item_id ?? null,
-          item_name: r.stockItem!.name,
-          godown_id: r.godown?.godown_id ?? null,
-          unit_id: r.unit?.unit_id ?? null,
-          quantity: Number(r.quantityRaw),
-          rate: Number(r.rateRaw),
-          amount: Number(r.amountRaw),
-          // Godown / Batch-Lot allocations captured in the Stock Item Allocations popup.
-          batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined,
-        }));
+        const isJobWork = effectiveVoucherType === "Job Work In Order" || effectiveVoucherType === "Job Work Out Order";
+        stock_entries = filledItems.map((r) => {
+          let batches: any[] | undefined;
+          if (isJobWork && r.jobWorkAllocations?.length) {
+            // Flatten jobWorkAllocations into voucher_batches rows.
+            // Main row: batch_number = "JW:<idx>"; component rows: component_of = item name,
+            // consider_as_scrap = "JW:<parentIdx>" to reconstruct the parent link on load.
+            batches = r.jobWorkAllocations.flatMap((alloc, allocIdx) => [
+              {
+                batch_number: `JW:${allocIdx}`,
+                due_on: alloc.due_on,
+                godown: alloc.godown,
+                quantity: alloc.quantity,
+                actual_quantity: alloc.quantity,
+                rate: alloc.rate,
+                order_no: meta.orderDetails?.order_nos ?? "",
+              },
+              ...(alloc.components ?? []).map((comp) => ({
+                batch_number: comp.batch_lot || "",
+                tracking_no: comp.track || "Pending to Issue",
+                due_on: comp.due_on,
+                godown: comp.godown,
+                quantity: comp.actual_qty,
+                actual_quantity: comp.as_per_bom,
+                rate: comp.rate,
+                component_of: comp.item_name,
+                consider_as_scrap: `JW:${allocIdx}`,
+              })),
+            ]);
+          } else if (r.batchAllocations?.length) {
+            batches = r.batchAllocations;
+          }
+          return {
+            stock_item_id: r.stockItem!.item_id ?? null,
+            item_name: r.stockItem!.name,
+            godown_id: r.godown?.godown_id ?? null,
+            unit_id: r.unit?.unit_id ?? null,
+            quantity: Number(r.quantityRaw),
+            rate: Number(r.rateRaw),
+            amount: Number(r.amountRaw),
+            batches,
+          };
+        });
       }
 
       // ── Collect bill references ──────────────────────────────────────────
@@ -600,12 +637,13 @@ export function useVoucherForm(
                 }
               : undefined,
           payroll_entries: effectiveVoucherType === "Payroll"
-            ? rows.payrollEntries
+            ? rows.payrollEntriesFromGroups
                 .filter((r) => r.employee && r.payHead && Number(r.amountRaw) > 0)
                 .map((r) => ({
                   employee_id: r.employee!.employee_id,
                   pay_head_id: r.payHead!.pay_head_id,
                   amount: Number(r.amountRaw),
+                  category_id: r.category?.cc_cat_id ?? null,
                 }))
             : undefined,
         };
@@ -745,6 +783,8 @@ export function useVoucherForm(
     allEmployees: ledgers.allEmployees,
     allAttendanceTypes: ledgers.allAttendanceTypes,
     allPayHeads: ledgers.allPayHeads,
+    allCostCategories: ledgers.allCostCategories,
+    allEmployeeCategories: ledgers.allEmployeeCategories,
     ledgersLoading: ledgers.ledgersLoading,
     fetchContextData: ledgers.fetchContextData,
 
@@ -759,6 +799,18 @@ export function useVoucherForm(
     handleAddPayrollRow: rows.handleAddPayrollRow,
     handleUpdatePayrollRow: rows.handleUpdatePayrollRow,
     handleRemovePayrollRow: rows.handleRemovePayrollRow,
+    // ── Payroll groups
+    payrollGroups: rows.payrollGroups,
+    setPayrollGroups: rows.setPayrollGroups,
+    payrollEntriesFromGroups: rows.payrollEntriesFromGroups,
+    handleAddPayrollGroup: rows.handleAddPayrollGroup,
+    handleUpdatePayrollGroup: rows.handleUpdatePayrollGroup,
+    handleAddPayrollEmployeeRow: rows.handleAddPayrollEmployeeRow,
+    handleUpdatePayrollEmployeeRow: rows.handleUpdatePayrollEmployeeRow,
+    handleAddPayrollPayHeadRow: rows.handleAddPayrollPayHeadRow,
+    handleUpdatePayrollPayHeadRow: rows.handleUpdatePayrollPayHeadRow,
+    handleRemovePayrollPayHeadRow: rows.handleRemovePayrollPayHeadRow,
+    handleRemovePayrollEmployeeRow: rows.handleRemovePayrollEmployeeRow,
     sourceStockEntries: rows.sourceStockEntries,
     setSourceStockEntries: rows.setSourceStockEntries,
     handleAddSourceStockRow: rows.handleAddSourceStockRow,

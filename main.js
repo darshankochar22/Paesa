@@ -45,6 +45,37 @@ ipcMain.handle("export:htmlToPdf", async (event, { html, defaultFileName } = {})
     }
 });
 
+// Same render as export:htmlToPdf but returns the PDF as base64 (no save dialog) —
+// used to attach the voucher PDF to a WhatsApp message.
+ipcMain.handle("export:htmlToPdfBase64", async (_event, { html } = {}) => {
+    if (!html || typeof html !== "string") {
+        return { success: false, error: "No HTML provided." };
+    }
+    let pdfWin = null;
+    let tmpPath = null;
+    try {
+        pdfWin = new BrowserWindow({
+            show: false,
+            webPreferences: { contextIsolation: true, nodeIntegration: false },
+        });
+        tmpPath = path.join(app.getPath("temp"), `vch-export-${Date.now()}.html`);
+        fs.writeFileSync(tmpPath, html, "utf8");
+        await pdfWin.loadFile(tmpPath);
+        await new Promise((r) => setTimeout(r, 200));
+        const pdfBuffer = await pdfWin.webContents.printToPDF({
+            printBackground: true,
+            pageSize: "A4",
+            margins: { marginType: "custom", top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 },
+        });
+        return { success: true, base64: pdfBuffer.toString("base64") };
+    } catch (err) {
+        return { success: false, error: err.message };
+    } finally {
+        if (pdfWin) pdfWin.destroy();
+        if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch (e) { /* best-effort temp cleanup */ } }
+    }
+});
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 1200,

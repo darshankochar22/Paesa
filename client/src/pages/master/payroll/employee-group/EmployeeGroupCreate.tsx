@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, MasterFormFooter, AlertBanner } from "@/components/ui";
 import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
-import type { EmployeeGroupType } from "@/types/entities/Employee";
+import type { EmployeeGroupType, EmployeeCategoryType } from "@/types/entities/Employee";
 import SalaryDetailsModal, { type SalaryRow, fyStartISO } from "@/components/payroll/SalaryDetailsModal";
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24";
@@ -11,10 +11,11 @@ const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border bord
 interface FormData {
   name: string;
   alias: string;
+  employee_category_id: number | null;
   parent_group_id: number | null;
 }
 
-const INITIAL: FormData = { name: "", alias: "", parent_group_id: null };
+const INITIAL: FormData = { name: "", alias: "", employee_category_id: null, parent_group_id: null };
 
 export default function EmployeeGroupCreate() {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export default function EmployeeGroupCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [groups, setGroups] = useState<EmployeeGroupType[]>([]);
+  const [categories, setCategories] = useState<EmployeeCategoryType[]>([]);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [selectedParent, setSelectedParent] = useState<EmployeeGroupType | null>(null);
   const [defineSalary, setDefineSalary] = useState(false);
@@ -36,6 +38,7 @@ export default function EmployeeGroupCreate() {
 
   const nameRef = useRef<HTMLInputElement>(null);
   const aliasRef = useRef<HTMLInputElement>(null);
+  const categoryRef = useRef<HTMLSelectElement>(null);
   const defineSalaryRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
@@ -46,6 +49,9 @@ export default function EmployeeGroupCreate() {
         const primary = res.employeeGroups.find((g: EmployeeGroupType) => g.name === "Primary");
         if (primary) { setSelectedParent(primary); setForm(f => ({ ...f, parent_group_id: primary.employee_group_id || null })); }
       }
+    });
+    window.api.employeeCategory.getAll(companyId).then((res) => {
+      if (res.success) setCategories(res.employeeCategories ?? []);
     });
   }, [companyId]);
 
@@ -67,6 +73,7 @@ export default function EmployeeGroupCreate() {
         company_id: companyId!,
         name: form.name.trim(),
         alias: form.alias.trim() || undefined,
+        employee_category_id: form.employee_category_id || undefined,
         parent_group_id: form.parent_group_id || undefined,
       });
       if (result.success) {
@@ -138,8 +145,23 @@ export default function EmployeeGroupCreate() {
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white border-r border-zinc-100">
           <div className="p-3 space-y-1 max-w-2xl">
+            <FormRow label="Category" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <select
+                autoFocus
+                ref={categoryRef}
+                className={selectCls}
+                value={form.employee_category_id ?? ""}
+                onChange={(e) => setForm(f => ({ ...f, employee_category_id: e.target.value ? Number(e.target.value) : null }))}
+                onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); nameRef.current?.focus(); }}
+              >
+                <option value="">Not Applicable</option>
+                {categories.map(c => (
+                  <option key={c.employee_category_id} value={c.employee_category_id}>{c.name}</option>
+                ))}
+              </select>
+            </FormRow>
             <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input autoFocus ref={nameRef} className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Management" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
+              <input ref={nameRef} className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Management" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input ref={aliasRef} className={inputCls} value={form.alias} onChange={setField("alias")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowGroupPanel(true); }} />

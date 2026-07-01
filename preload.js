@@ -507,6 +507,7 @@ contextBridge.exposeInMainWorld('api', {
     },
     pdf: {
         fromHtml: (html, defaultFileName) => invoke('export:htmlToPdf', { html, defaultFileName }),
+        toBase64: (html) => invoke('export:htmlToPdfBase64', { html }),
     },
     tally: {
         testConnection: (params)  => invoke('tally:testConnection', params),

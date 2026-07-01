@@ -19,6 +19,8 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
   const [allAttendanceTypes, setAllAttendanceTypes] = useState<any[]>([]);
   const [allPayHeads, setAllPayHeads] = useState<any[]>([]);
+  const [allCostCategories, setAllCostCategories] = useState<any[]>([]);
+  const [allEmployeeCategories, setAllEmployeeCategories] = useState<any[]>([]);
   const [ledgersLoading, setLedgersLoading] = useState(false);
 
   // ─── Data fetching ────────────────────────────────────────────────────────────
@@ -27,7 +29,7 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
     if (!companyId) return;
     setLedgersLoading(true);
     try {
-      const [ledRes, grpRes, itemRes, godRes, unitRes, empRes, attRes, phRes] = await Promise.all([
+      const [ledRes, grpRes, itemRes, godRes, unitRes, empRes, attRes, phRes, catRes, empCatRes] = await Promise.all([
         window.api.ledger.getAll(companyId),
         window.api.group.getAll(companyId),
         window.api.stockItem.getAll(companyId),
@@ -36,6 +38,8 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
         window.api.employee.getAll(companyId),
         window.api.attendanceType.getAll(companyId),
         window.api.payHead.getAll(companyId),
+        window.api.costCategory.getAll(companyId),
+        window.api.employeeCategory.getAll(companyId),
       ]);
       if (ledRes.success) setAllLedgers((ledRes as any).ledgers ?? []);
       if (grpRes.success) setAllGroups((grpRes as any).groups ?? []);
@@ -45,6 +49,8 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
       if (empRes.success) setAllEmployees((empRes as any).employees ?? []);
       if (attRes.success) setAllAttendanceTypes((attRes as any).attendanceTypes ?? []);
       if (phRes.success) setAllPayHeads((phRes as any).payHeads ?? []);
+      if (catRes.success) setAllCostCategories((catRes as any).categories ?? (catRes as any).costCategories ?? []);
+      if (empCatRes.success) setAllEmployeeCategories((empCatRes as any).employeeCategories ?? []);
 
       // Fetch stock balances
       try {
@@ -178,6 +184,8 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
     allEmployees,
     allAttendanceTypes,
     allPayHeads,
+    allCostCategories,
+    allEmployeeCategories,
     ledgersLoading,
     fetchContextData,
     fetchNextVoucherNumber,

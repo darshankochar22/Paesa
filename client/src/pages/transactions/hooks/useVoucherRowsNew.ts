@@ -155,7 +155,7 @@ export function useVoucherRows({
       return inv.destinationStockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
     }
     if (voucherType === "Payroll") {
-      return acct.payrollEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+      return acct.payrollEntriesFromGroups.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
     }
     return 0;
   }, [
@@ -258,6 +258,21 @@ export function useVoucherRows({
           acct.handleUpdatePayrollRow(activeField.rowId, { payHead });
           break;
         }
+        case "payrollCategory": {
+          const { groupId } = activeField as any;
+          acct.handleUpdatePayrollGroup(groupId, { category: item });
+          break;
+        }
+        case "payrollEmployee": {
+          const { groupId, empRowId } = activeField as any;
+          acct.handleUpdatePayrollEmployeeRow(groupId, empRowId, { employee: item });
+          break;
+        }
+        case "payrollPayHead": {
+          const { groupId, empRowId, phRowId } = activeField as any;
+          acct.handleUpdatePayrollPayHeadRow(groupId, empRowId, phRowId, { payHead: item });
+          break;
+        }
         default:
           break;
       }
@@ -291,6 +306,9 @@ export function useVoucherRows({
       acct.payrollEntries,
       acct.handleUpdateAttendanceRow,
       acct.handleUpdatePayrollRow,
+      acct.handleUpdatePayrollGroup,
+      acct.handleUpdatePayrollEmployeeRow,
+      acct.handleUpdatePayrollPayHeadRow,
     ]
   );
 
@@ -396,6 +414,18 @@ export function useVoucherRows({
     handleAddPayrollRow: acct.handleAddPayrollRow,
     handleUpdatePayrollRow: acct.handleUpdatePayrollRow,
     handleRemovePayrollRow: acct.handleRemovePayrollRow,
+    // ── payroll groups
+    payrollGroups: acct.payrollGroups,
+    setPayrollGroups: acct.setPayrollGroups,
+    payrollEntriesFromGroups: acct.payrollEntriesFromGroups,
+    handleAddPayrollGroup: acct.handleAddPayrollGroup,
+    handleUpdatePayrollGroup: acct.handleUpdatePayrollGroup,
+    handleAddPayrollEmployeeRow: acct.handleAddPayrollEmployeeRow,
+    handleUpdatePayrollEmployeeRow: acct.handleUpdatePayrollEmployeeRow,
+    handleAddPayrollPayHeadRow: acct.handleAddPayrollPayHeadRow,
+    handleUpdatePayrollPayHeadRow: acct.handleUpdatePayrollPayHeadRow,
+    handleRemovePayrollPayHeadRow: acct.handleRemovePayrollPayHeadRow,
+    handleRemovePayrollEmployeeRow: acct.handleRemovePayrollEmployeeRow,
     // ── search / active field
     ledgerSearchTerm,
     setLedgerSearchTerm,

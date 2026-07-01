@@ -16,12 +16,15 @@ export const EDITABLE_VOUCHER_TYPES = new Set([
   "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out",
   "Material In", "Material Out", "Stock Journal", "Manufacturing Journal",
   "Payroll",
+  "Purchase Order", "Sales Order", "Job Work In Order", "Job Work Out Order",
 ]);
 
 const ACCOUNTING = new Set(["Receipt", "Payment", "Contra", "Journal", "Reversing Journal"]);
 const SALES_LIKE = new Set(["Sales", "Purchase", "Credit Note", "Debit Note"]);
 const INVENTORY_ONLY = new Set(["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"]);
 const TRANSFER = new Set(["Stock Journal", "Manufacturing Journal"]);
+const ORDER_VOUCHERS = new Set(["Purchase Order", "Sales Order", "Job Work In Order", "Job Work Out Order"]);
+const JW_TYPES = new Set(["Job Work In Order", "Job Work Out Order"]);
 
 export function hydrateVoucherForm(form: any, v: any) {
   const byId = <T,>(arr: T[], key: string, id: any): T | null =>
@@ -30,8 +33,6 @@ export function hydrateVoucherForm(form: any, v: any) {
   const findItem = (id: any) => byId(form.allStockItems, "item_id", id);
   const findGodown = (id: any) => byId(form.allGodowns, "godown_id", id);
   const findUnit = (id: any) => byId(form.allUnits, "unit_id", id);
-  const findEmployee = (id: any) => byId(form.allEmployees, "employee_id", id);
-  const findPayHead = (id: any) => byId(form.allPayHeads, "pay_head_id", id);
 
   const type = v.voucher_type;
 
@@ -137,11 +138,63 @@ export function hydrateVoucherForm(form: any, v: any) {
   } else if (TRANSFER.has(type)) {
     form.setSourceStockEntries?.((v.stock_entries || []).filter((s: any) => s.is_source).map(mkStockRow));
     form.setDestinationStockEntries?.((v.stock_entries || []).filter((s: any) => !s.is_source).map(mkStockRow));
+  } else if (ORDER_VOUCHERS.has(type)) {
+    form.setPartyLedger?.(findLedger(v.party_ledger_id));
+    const isJW = JW_TYPES.has(type);
+    form.setStockEntries?.((v.stock_entries || []).map((s: any) => {
+      const base = mkStockRow(s);
+      if (!isJW) return base; // Purchase/Sales Order: batchAllocations already set by mkStockRow
+      // Job Work In/Out Order: reconstruct jobWorkAllocations from JW-encoded batches.
+      const allBatches: any[] = s.batches || [];
+      const mainBatches = allBatches
+        .filter((b: any) => /^JW:\d+$/.test(b.batch_number ?? ""))
+        .sort((a: any, b: any) => Number(a.batch_number.split(":")[1]) - Number(b.batch_number.split(":")[1]));
+      if (!mainBatches.length) return base; // no JW allocations saved → keep base
+      const compBatches = allBatches.filter(
+        (b: any) => b.component_of && b.consider_as_scrap && b.consider_as_scrap.startsWith("JW:")
+      );
+      const jobWorkAllocations = mainBatches.map((b: any) => ({
+        due_on: b.due_on ?? "",
+        godown: b.godown ?? "",
+        quantity: b.quantity ?? 0,
+        rate: b.rate ?? 0,
+        unit_symbol: (findUnit(s.unit_id) as any)?.symbol,
+        amount: (b.quantity ?? 0) * (b.rate ?? 0),
+        components: compBatches
+          .filter((c: any) => c.consider_as_scrap === b.batch_number)
+          .map((c: any) => ({
+            item_name: c.component_of ?? "",
+            track: (c.tracking_no === "Pending to Issue" || c.tracking_no === "Pending to Receive")
+              ? c.tracking_no as "Pending to Issue" | "Pending to Receive"
+              : "Pending to Issue" as const,
+            due_on: c.due_on ?? "",
+            godown: c.godown ?? "",
+            batch_lot: (c.batch_number && !/^JW:/.test(c.batch_number)) ? c.batch_number : undefined,
+            actual_qty: c.quantity ?? 0,
+            as_per_bom: c.actual_quantity ?? c.quantity ?? 0,
+            rate: c.rate ?? 0,
+            unit_symbol: undefined,
+            amount: (c.quantity ?? 0) * (c.rate ?? 0),
+          })),
+      }));
+      return { ...base, jobWorkAllocations, batchAllocations: [] };
+    }));
   } else if (type === "Payroll") {
     form.setAccountLedger?.(findLedger(v.party_ledger_id));
-    form.setPayrollEntries?.((v.payroll_entries || []).map((p: any) => ({
-      id: nextId(), employee: findEmployee(p.employee_id), payHead: findPayHead(p.pay_head_id),
-      amountRaw: String(p.amount ?? ""),
-    })));
+    // Group saved entries by employee for display (no category stored in backend)
+    const entries: any[] = v.payroll_entries || [];
+    const empMap = new Map<number, any[]>();
+    for (const p of entries) {
+      if (!empMap.has(p.employee_id)) empMap.set(p.employee_id, []);
+      empMap.get(p.employee_id)!.push(p);
+    }
+    const groups = empMap.size === 0
+      ? [{ id: nextId(), category: null, employeeRows: [{ id: nextId(), employee: null, payHeadRows: [{ id: nextId(), payHead: null, amountRaw: "" }] }] }]
+      : [{ id: nextId(), category: null, employeeRows: Array.from(empMap.entries()).map(([empId, phs]) => ({
+          id: nextId(),
+          employee: byId(form.allEmployees, "employee_id", empId),
+          payHeadRows: phs.map((p: any) => ({ id: nextId(), payHead: byId(form.allPayHeads, "pay_head_id", p.pay_head_id), amountRaw: String(p.amount ?? "") })),
+        })) }];
+    form.setPayrollGroups?.(groups);
   }
 }

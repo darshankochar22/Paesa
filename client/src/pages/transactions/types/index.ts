@@ -113,7 +113,10 @@ export type ActiveField =
   | { type: "stockGodown"; rowId: string }
   | { type: "employee"; rowId: string }
   | { type: "attendanceType"; rowId: string }
-  | { type: "payHead"; rowId: string };
+  | { type: "payHead"; rowId: string }
+  | { type: "payrollCategory"; groupId: string }
+  | { type: "payrollEmployee"; groupId: string; empRowId: string }
+  | { type: "payrollPayHead"; groupId: string; empRowId: string; phRowId: string };
 
 export type ActiveAllocation =
   | {
@@ -218,4 +221,23 @@ export interface PayrollEntryRow {
   employee: import("../../../types/entities/Employee").EmployeeType | null;
   payHead: import("../../../types/entities/Payroll").PayHeadType | null;
   amountRaw: string;
+  category?: import("../../../types/entities/CostCategory").CostCategoryType | null;
+}
+
+export interface PayrollPayHeadRow {
+  id: string;
+  payHead: import("../../../types/entities/Payroll").PayHeadType | null;
+  amountRaw: string;
+}
+
+export interface PayrollEmployeeRow {
+  id: string;
+  employee: import("../../../types/entities/Employee").EmployeeType | null;
+  payHeadRows: PayrollPayHeadRow[];
+}
+
+export interface PayrollGroupRow {
+  id: string;
+  category: import("../../../types/entities/CostCategory").CostCategoryType | null;
+  employeeRows: PayrollEmployeeRow[];
 }

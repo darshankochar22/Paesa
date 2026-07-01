@@ -47,7 +47,6 @@ import CreditNoteVoucher from "./vouchers/CreditNoteVoucher";
 import DebitNoteVoucher from "./vouchers/DebitNoteVoucher";
 import PhysicalStockVoucher from "./vouchers/PhysicalStockVoucher";
 import StockJournalVoucher from "./vouchers/StockJournalVoucher";
-import DeliveryNoteVoucher from "./vouchers/DeliveryNoteVoucher";
 import ReceiptNoteVoucher from "./vouchers/ReceiptNoteVoucher";
 import RejectionInVoucher from "./vouchers/RejectionInVoucher";
 import RejectionOutVoucher from "./vouchers/RejectionOutVoucher";
@@ -59,6 +58,7 @@ import PayrollVoucher from "./vouchers/PayrollVoucher";
 import PurchaseOrderVoucher from "./vouchers/PurchaseOrderVoucher";
 import SalesOrderVoucher from "./vouchers/SalesOrderVoucher";
 import JobWorkInOrderVoucher from "./vouchers/JobWorkInOrderVoucher";
+import JobWorkOutOrderVoucher from "./vouchers/JobWorkOutOrderVoucher";
 
 // Voucher types whose entry screen is titled "Inventory Voucher Creation" — they
 // share the centered company name + GST Registration header.
@@ -391,6 +391,7 @@ export default function Vouchers() {
   const hasAutoOpenedPurchaseOrder = useRef(false);
   const hasAutoOpenedSalesOrder = useRef(false);
   const hasAutoOpenedJobWorkIn = useRef(false);
+  const hasAutoOpenedJobWorkOut = useRef(false);
 
   const acceptRef = useRef<() => void>(() => {});
 
@@ -466,7 +467,12 @@ export default function Vouchers() {
       const allFilled = (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out")
         ? form.stockEntries.every((s) => !s.stockItem || (s.quantityRaw !== "" && s.rateRaw !== ""))
         : true;
+<<<<<<< Updated upstream
       const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType);
+=======
+      // Rejection In/Out have no Sales/Purchase ledger — Ledger Account + items only.
+      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note"].includes(effectiveVoucherType);
+>>>>>>> Stashed changes
       return (
         !!form.partyLedger &&
         (!needsLedger || !!form.salesPurchaseLedger) &&
@@ -529,8 +535,8 @@ export default function Vouchers() {
     if (effectiveVoucherType === "Payroll") {
       return (
         !!form.accountLedger &&
-        form.payrollEntries.some(
-          (r) => !!r.employee && !!r.payHead && Number(r.amountRaw) > 0
+        ((form as any).payrollEntriesFromGroups ?? form.payrollEntries).some(
+          (r: any) => !!r.employee && !!r.payHead && Number(r.amountRaw) > 0
         )
       );
     }
@@ -628,6 +634,10 @@ export default function Vouchers() {
       hasAutoOpenedJobWorkIn.current = true;
       setShowDispatchDetails(true);
     }
+    if (effectiveVoucherType === "Job Work Out Order" && form.partyLedger && !hasAutoOpenedJobWorkOut.current) {
+      hasAutoOpenedJobWorkOut.current = true;
+      setShowDispatchDetails(true);
+    }
   }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
@@ -649,6 +659,7 @@ export default function Vouchers() {
       hasAutoOpenedPurchaseOrder.current = false;
       hasAutoOpenedSalesOrder.current = false;
       hasAutoOpenedJobWorkIn.current = false;
+      hasAutoOpenedJobWorkOut.current = false;
     }
   }, [form.partyLedger]);
 
@@ -657,9 +668,13 @@ export default function Vouchers() {
   const handleAccept = useCallback(() => {
     // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
+<<<<<<< Updated upstream
       // Delivery Note, Receipt Note, Rejection In & Rejection Out are non-accounting
       // inventory vouchers — no bill-wise prompt (no voucher_entries row is ever
       // created for the party ledger, so a bill reference would be orphaned).
+=======
+      // Delivery Note / Receipt Note / Rejection In / Rejection Out are non-accounting inventory vouchers — no bill-wise prompt.
+>>>>>>> Stashed changes
       ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
@@ -679,8 +694,9 @@ export default function Vouchers() {
     }
 
     // ── Sales / Purchase / Credit Note / Debit Note: bank allocation for party ─
+    // Receipt Note & Rejection In/Out are inventory-only — no bank-allocation prompt.
     if (
-      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType) &&
+      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Material In", "Material Out"].includes(effectiveVoucherType) &&
       form.partyLedger &&
       form.checkIsBank(form.partyLedger) &&
       !form.bankDetails
@@ -743,6 +759,23 @@ export default function Vouchers() {
         amount: form.particularsTotal,
         dcType: "Cr",
         initialAllocations: [],
+      });
+      return;
+    }
+
+    // ── Payroll: bank allocation for the account ledger ──────────────────────
+    if (
+      effectiveVoucherType === "Payroll" &&
+      form.accountLedger &&
+      form.checkIsBank(form.accountLedger) &&
+      !form.bankDetails
+    ) {
+      form.setActiveAllocation({
+        type: "partyBankDetails",
+        ledgerId: form.accountLedger.ledger_id,
+        ledgerName: form.accountLedger.name,
+        amount: form.totalAmount,
+        initialDetails: form.bankDetails,
       });
       return;
     }
@@ -1225,6 +1258,32 @@ export default function Vouchers() {
       const field = form.activeField;
       form.handleLedgerPanelSelect(item);
 
+      // Payroll hierarchy auto-advance: category → first employee, employee → first
+      // pay head, pay head → its amount. Mirrors TallyPrime's cursor flow.
+      if (field?.type === "payrollCategory") {
+        const { groupId } = field as any;
+        setTimeout(() => {
+          const nodes = document.querySelectorAll(`[data-payroll-emp^="${groupId}-"]`);
+          (nodes[0] as HTMLInputElement | null)?.focus();
+        }, 50);
+        return;
+      }
+      if (field?.type === "payrollEmployee") {
+        const { groupId, empRowId } = field as any;
+        setTimeout(() => {
+          const nodes = document.querySelectorAll(`[data-payroll-ph^="${groupId}-${empRowId}-"]`);
+          (nodes[0] as HTMLInputElement | null)?.focus();
+        }, 50);
+        return;
+      }
+      if (field?.type === "payrollPayHead") {
+        const { groupId, empRowId, phRowId } = field as any;
+        setTimeout(() => {
+          (document.querySelector(`[data-payroll-amt="${groupId}-${empRowId}-${phRowId}"]`) as HTMLInputElement | null)?.focus();
+        }, 50);
+        return;
+      }
+
       // Attendance: pick employee → Attendance/Production Type field; pick type → Value.
       if (effectiveVoucherType === "Attendance" && (field?.type === "employee" || field?.type === "attendanceType")) {
         const idx = form.attendanceEntries.findIndex((r) => r.id === field.rowId);
@@ -1364,7 +1423,7 @@ export default function Vouchers() {
       // godown-only allocation (Godown + Tracking No.). Quantity & rate are entered
       // inside and written back on Accept.
       if (
-        ["Sales", "Purchase", "Credit Note", "Debit Note", "Receipt Note", "Delivery Note", "Purchase Order", "Sales Order"].includes(effectiveVoucherType) &&
+        ["Sales", "Purchase", "Credit Note", "Debit Note", "Receipt Note", "Delivery Note", "Rejection In", "Rejection Out", "Purchase Order", "Sales Order"].includes(effectiveVoucherType) &&
         field?.type === "stockItem" &&
         item?.item_id
       ) {
@@ -1778,10 +1837,22 @@ const handleSaveVatDetails = useCallback(
         return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
       }
       if (effectiveVoucherType === "Payroll") {
-        return form.allLedgers;
+        return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
       }
       // Account field is always cash/bank for all three single-entry types
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
+    }
+
+    if (af.type === "payrollCategory") {
+      return (form as any).allEmployeeCategories ?? [];
+    }
+
+    if (af.type === "payrollEmployee") {
+      return form.allEmployees;
+    }
+
+    if (af.type === "payrollPayHead") {
+      return form.allPayHeads;
     }
 
     if (af.type === "party") {
@@ -1799,13 +1870,13 @@ const handleSaveVatDetails = useCallback(
           ])
         );
       }
-      if (effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out") {
+      if (effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out") {
         return form.allLedgers;
       }
-      // Purchase Order / Sales Order / Delivery Note — Tally's "List of Ledger Accounts":
-      // parties (Sundry Debtors + Creditors), Bank Accounts, Bank OD A/c,
-      // Branch/Divisions, Cash.
-      if (effectiveVoucherType === "Purchase Order" || effectiveVoucherType === "Sales Order" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Receipt Note" || effectiveVoucherType === "Job Work In Order" || effectiveVoucherType === "Job Work Out Order") {
+      // Purchase Order / Sales Order / Delivery Note / Rejection In / Rejection Out —
+      // Tally's "List of Ledger Accounts": parties (Sundry Debtors + Creditors),
+      // Bank Accounts, Bank OD A/c, Branch/Divisions, Cash.
+      if (effectiveVoucherType === "Purchase Order" || effectiveVoucherType === "Sales Order" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Receipt Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Job Work In Order" || effectiveVoucherType === "Job Work Out Order") {
         return form.allLedgers.filter((l) =>
           form.checkLedgerGroup(l, [
             "sundry debtors",
@@ -1903,12 +1974,15 @@ const handleSaveVatDetails = useCallback(
     if (af.type === "employee") return "List of Employees";
     if (af.type === "attendanceType") return "List of Attendance / Production Types";
     if (af.type === "payHead") return "List of Pay Heads";
+    if (af.type === "payrollCategory") return "List of Categories";
+    if (af.type === "payrollEmployee") return "List of Employees";
+    if (af.type === "payrollPayHead") return "List of Pay Heads";
     if (af.type === "account") {
       if (effectiveVoucherType === "Journal") return "List of Ledger Accounts";
-      if (effectiveVoucherType === "Payroll") return "List of Ledger Accounts";
+      if (effectiveVoucherType === "Payroll") return "List of Cash / Bank Accounts";
       return "List of Cash / Bank Accounts";
     }
-    if (af.type === "party") return (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Purchase Order" || effectiveVoucherType === "Sales Order" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Job Work In Order" || effectiveVoucherType === "Job Work Out Order") ? "List of Ledger Accounts" : "List of Party Accounts";
+    if (af.type === "party") return (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Purchase Order" || effectiveVoucherType === "Sales Order" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Job Work In Order" || effectiveVoucherType === "Job Work Out Order") ? "List of Ledger Accounts" : "List of Party Accounts";
     if (af.type === "salesPurchase") return (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Purchase Order" || effectiveVoucherType === "Sales Order") ? "List of Ledger Accounts" : `List of ${form.voucherType} Ledgers`;
     return "List of Ledger Accounts";
   }, [form.activeField, effectiveVoucherType, form.receiptEntryMode, form.receiptDoubleRows]);
@@ -2341,7 +2415,7 @@ const handleSaveVatDetails = useCallback(
             />
           )}
           {effectiveVoucherType === "Job Work Out Order" && (
-            <DeliveryNoteVoucher
+            <JobWorkOutOrderVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
               focusStockQty={focusStockQty}
@@ -2444,14 +2518,17 @@ const handleSaveVatDetails = useCallback(
             onCreateNew={() => {
               const t = form.activeField?.type;
               if (t === "stockItem") navigate("/master/create/stock-item");
-              else if (t === "employee") navigate("/master/create/employee");
+              else if (t === "employee" || t === "payrollEmployee") navigate("/master/create/employee");
               else if (t === "attendanceType") navigate("/master/create/attendance-type");
+              else if (t === "payrollCategory") navigate("/master/create/employee-category");
               else navigate("/master/create/ledger");
             }}
             createLabel={
               form.activeField?.type === "stockItem" ? "Create Stock Item"
-                : form.activeField?.type === "employee" ? "Create Employee"
+                : (form.activeField?.type === "employee" || form.activeField?.type === "payrollEmployee") ? "Create Employee"
                 : form.activeField?.type === "attendanceType" ? "Create Attendance Type"
+                : form.activeField?.type === "payrollPayHead" ? "Create Pay Head"
+                : form.activeField?.type === "payrollCategory" ? "Create Category"
                 : "Create"
             }
             onEndOfList={
@@ -2465,7 +2542,30 @@ const handleSaveVatDetails = useCallback(
                 : undefined
             }
             onEnterEmpty={
-              form.activeField?.type === "stockGodown" && effectiveVoucherType === "Physical Stock"
+              // Payroll: blank Enter on a Pay Head → finish this employee, add & focus a new
+              // employee under the same category (drops the trailing empty pay-head row first).
+              form.activeField?.type === "payrollPayHead"
+                ? () => {
+                    const { groupId, empRowId, phRowId } = form.activeField as any;
+                    form.handleFieldBlur();
+                    form.handleRemovePayrollPayHeadRow?.(groupId, empRowId, phRowId);
+                    form.handleAddPayrollEmployeeRow?.(groupId);
+                    setTimeout(() => {
+                      const nodes = document.querySelectorAll(`[data-payroll-emp^="${groupId}-"]`);
+                      (nodes[nodes.length - 1] as HTMLInputElement | null)?.focus();
+                    }, 60);
+                  }
+                : // Payroll: blank Enter on an Employee → finish this category, add & focus a new group's category.
+                  form.activeField?.type === "payrollEmployee"
+                ? () => {
+                    form.handleFieldBlur();
+                    form.handleAddPayrollGroup?.();
+                    setTimeout(() => {
+                      const nodes = document.querySelectorAll(`[data-payroll-cat]`);
+                      (nodes[nodes.length - 1] as HTMLInputElement | null)?.focus();
+                    }, 60);
+                  }
+                : form.activeField?.type === "stockGodown" && effectiveVoucherType === "Physical Stock"
                 ? () => physicalStockGodownNewItem((form.activeField as any).rowId)
                 : (form.activeField?.type === "stockItem" && effectiveVoucherType === "Physical Stock")
                 ? physicalStockEndEntry
@@ -2490,12 +2590,11 @@ const handleSaveVatDetails = useCallback(
             }
             allUnits={form.activeField?.type === "stockItem" ? form.allUnits : undefined}
             columns={
-              form.activeField?.type === "employee"
+              (form.activeField?.type === "employee" || form.activeField?.type === "payrollEmployee")
                 ? [
                     { header: "Name", render: (e: any) => e.name, className: "flex-1 min-w-0" },
                     { header: "Emp No.", render: (e: any) => e.employee_code ?? "", className: "w-16 text-right font-mono" },
                     { header: "Group", render: (e: any) => e.group_name ?? e.designation ?? "", className: "w-24" },
-                    { header: "Category", render: (e: any) => e.category_name ?? "Primary Cost Category", className: "w-32 text-gray-600" },
                   ]
                 : form.activeField?.type === "attendanceType"
                 ? [

@@ -18,11 +18,11 @@ function collectCss(): string {
   return css;
 }
 
-export async function exportElementToPdf(el: HTMLElement, fileName: string): Promise<PdfExportResult> {
-  if (!el) return { success: false, error: "Nothing to export." };
-
+// Build a self-contained HTML document (element outerHTML + the app's live CSS)
+// so the main-process PDF printer renders it exactly as it appears on screen.
+function buildPrintHtml(el: HTMLElement): string {
   const css = collectCss();
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${css}
 /* Base context (the captured node inherits color/size from app root on screen). */
 html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; font-size: 14px; }
@@ -30,7 +30,21 @@ html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: 
 #__print_root__ { height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; }
 #__print_root__ * { overflow: visible !important; max-height: none !important; }
 </style></head><body><div id="__print_root__">${el.outerHTML}</div></body></html>`;
+}
 
+export async function exportElementToPdf(el: HTMLElement, fileName: string): Promise<PdfExportResult> {
+  if (!el) return { success: false, error: "Nothing to export." };
+  const html = buildPrintHtml(el);
   const safe = (fileName || "export").replace(/[\\/:*?"<>|]+/g, "_");
   return window.api.pdf.fromHtml(html, safe.endsWith(".pdf") ? safe : `${safe}.pdf`);
+}
+
+// Render the element to a PDF and return it as base64 (no save dialog) — used to
+// attach the voucher PDF to a WhatsApp message.
+export async function renderElementToPdfBase64(
+  el: HTMLElement
+): Promise<{ success: boolean; base64?: string; error?: string }> {
+  if (!el) return { success: false, error: "Nothing to export." };
+  const html = buildPrintHtml(el);
+  return (window.api.pdf as any).toBase64(html);
 }

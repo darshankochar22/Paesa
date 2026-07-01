@@ -1,5 +1,5 @@
 // utils/rowFactories.ts
-import type { ParticularRow, StockEntryRow } from "../types";
+import type { ParticularRow, StockEntryRow, PayrollPayHeadRow, PayrollEmployeeRow, PayrollGroupRow } from "../types";
 
 let idCounter = 0;
 export const nextId = () => `row_${++idCounter}_${Date.now()}`;
@@ -34,4 +34,22 @@ export const makePayrollRow = () => ({
   employee: null,
   payHead: null,
   amountRaw: "",
+});
+
+export const makePayrollPayHeadRow = (): PayrollPayHeadRow => ({
+  id: nextId(),
+  payHead: null,
+  amountRaw: "",
+});
+
+export const makePayrollEmployeeRow = (): PayrollEmployeeRow => ({
+  id: nextId(),
+  employee: null,
+  payHeadRows: [makePayrollPayHeadRow()],
+});
+
+export const makePayrollGroupRow = (): PayrollGroupRow => ({
+  id: nextId(),
+  category: null,
+  employeeRows: [makePayrollEmployeeRow()],
 });
