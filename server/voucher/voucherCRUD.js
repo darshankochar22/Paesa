@@ -24,6 +24,11 @@ const {
   companies,
 } = require('../db/schema');
 
+// Non-accounting inventory-only voucher types never post a voucher_entries row
+// for the party ledger, so a bill reference against them would be orphaned
+// (no accounting entry to settle) and corrupts bill-wise outstanding reports.
+const NON_ACCOUNTING_INVENTORY_TYPES = ['Delivery Note', 'Receipt Note', 'Rejection In', 'Rejection Out', 'Material In', 'Material Out'];
+
 const { generateVoucherNumber, getNextVoucherNumber } = require('./voucherNumbering');
 const {
   nullify,
@@ -334,7 +339,7 @@ module.exports = {
           }
         }
 
-        if (data.bill_references && data.bill_references.length > 0) {
+        if (data.bill_references && data.bill_references.length > 0 && !NON_ACCOUNTING_INVENTORY_TYPES.includes(data.voucher_type)) {
           for (const bill of data.bill_references) {
             await db.insert(voucherBillReferences).values({
               voucherId: voucher_id,
@@ -1174,7 +1179,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
 
       if (data.bill_references !== undefined) {
         await db.delete(voucherBillReferences).where(eq(voucherBillReferences.voucherId, data.voucher_id));
-        if (data.bill_references && data.bill_references.length > 0) {
+        if (data.bill_references && data.bill_references.length > 0 && !NON_ACCOUNTING_INVENTORY_TYPES.includes(voucherType)) {
           for (const bill of data.bill_references) {
             await db.insert(voucherBillReferences).values({
               voucherId: data.voucher_id,

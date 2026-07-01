@@ -654,14 +654,16 @@ export default function Vouchers() {
   const handleAccept = useCallback(() => {
     // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
-      // Delivery Note & Receipt Note are non-accounting inventory vouchers — no bill-wise prompt.
-      ["Sales", "Purchase", "Credit Note", "Debit Note", "Rejection In", "Rejection Out"].includes(effectiveVoucherType) &&
+      // Delivery Note, Receipt Note, Rejection In & Rejection Out are non-accounting
+      // inventory vouchers — no bill-wise prompt (no voucher_entries row is ever
+      // created for the party ledger, so a bill reference would be orphaned).
+      ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {
       // Credit Note (sales return) credits the customer → "Cr"; Debit Note
       // (purchase return) debits the supplier → "Dr".
-      const dcType = (effectiveVoucherType === "Sales" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Material Out") ? "Dr" : "Cr";
+      const dcType = (effectiveVoucherType === "Sales" || effectiveVoucherType === "Debit Note") ? "Dr" : "Cr";
       form.setActiveAllocation({
         type: "billWiseParty",
         ledgerId: form.partyLedger.ledger_id,
