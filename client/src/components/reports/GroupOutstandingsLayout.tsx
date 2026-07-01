@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { filterPartyGroups } from "@/lib/outstandingParties";
 
 const fmtDate = (d: string) => {
   if (!d) return "";
@@ -74,7 +75,8 @@ export default function GroupOutstandingsLayout() {
       const nameMap = new Map<number, string>();
       rawList.forEach((g: any) => nameMap.set(g.group_id, g.name));
 
-      const list: GroupMeta[] = rawList
+      // Only Sundry Debtors / Sundry Creditors (and sub-groups under them) are valid parties.
+      const list: GroupMeta[] = filterPartyGroups(rawList)
         .map((g: any) => ({
           group_id: g.group_id,
           name: g.name,

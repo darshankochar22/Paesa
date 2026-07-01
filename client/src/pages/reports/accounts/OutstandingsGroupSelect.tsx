@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { filterPartyGroups } from "@/lib/outstandingParties";
 
 export default function OutstandingsGroupSelect() {
   const navigate = useNavigate();
@@ -15,7 +16,8 @@ React.useEffect(() => {
   if (!selectedCompany?.company_id) return;
   (window as any).api.group.getAll(selectedCompany.company_id).then((res: any) => {
     if (res?.success) {
-      setGroups((res.groups || []).map((g: any) => ({ group_id: g.group_id, group_name: g.name })));
+      // Only Sundry Debtors / Sundry Creditors (and sub-groups under them) are valid parties.
+      setGroups(filterPartyGroups(res.groups || []).map((g: any) => ({ group_id: g.group_id, group_name: g.name })));
     }
   });
 }, [selectedCompany?.company_id]);

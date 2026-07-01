@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { filterPartyLedgers } from "@/lib/outstandingParties";
 
 /* ── Formatters ────────────────────────────────────────────────────── */
 const fmtDate = (d: string) => {
@@ -65,9 +66,14 @@ export default function LedgerOutstandingsLayout() {
   /* ── Load ledger picker ─────────────────────────────────────────── */
   React.useEffect(() => {
     if (!cid || ledgerId) return;
-    (window as any).api.ledger.getAll(cid).then((res: any) => {
-      const rawList = Array.isArray(res) ? res : (res?.ledgers ?? res?.data ?? []);
-      const list: LedgerMeta[] = rawList
+    // Restrict the picker to Sundry Debtors / Sundry Creditors parties (incl. sub-groups).
+    Promise.all([
+      (window as any).api.ledger.getAll(cid),
+      (window as any).api.group.getAll(cid),
+    ]).then(([ledRes, grpRes]: any[]) => {
+      const rawList = Array.isArray(ledRes) ? ledRes : (ledRes?.ledgers ?? ledRes?.data ?? []);
+      const groups = grpRes?.groups ?? (Array.isArray(grpRes) ? grpRes : []);
+      const list: LedgerMeta[] = filterPartyLedgers(rawList, groups)
         .map((l: any) => ({ ledger_id: l.ledger_id, name: l.name, group_name: l.group_name || "" }))
         .sort((a: LedgerMeta, b: LedgerMeta) => a.name.localeCompare(b.name));
       setLedgers(list);

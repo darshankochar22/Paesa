@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { filterPartyLedgers } from "@/lib/outstandingParties";
 
 export default function OutstandingsLedgerSelect() {
   const navigate = useNavigate();
@@ -12,11 +13,19 @@ export default function OutstandingsLedgerSelect() {
 
 React.useEffect(() => {
   inputRef.current?.focus();
-  if (!selectedCompany?.company_id) return;
-  (window as any).api.ledger.getAll(selectedCompany.company_id).then((res: any) => {
-    if (res?.success) {
-      setLedgers((res.ledgers || []).map((l: any) => ({ ledger_id: l.ledger_id, ledger_name: l.name })));
-    }
+  const cid = selectedCompany?.company_id;
+  if (!cid) return;
+  // Only ledgers created under Sundry Debtors / Sundry Creditors are valid parties,
+  // so we need the groups tree to resolve sub-groups too.
+  Promise.all([
+    (window as any).api.ledger.getAll(cid),
+    (window as any).api.group.getAll(cid),
+  ]).then(([ledRes, grpRes]: any[]) => {
+    if (!ledRes?.success) return;
+    const groups = grpRes?.success ? (grpRes.groups || []) : [];
+    setLedgers(
+      filterPartyLedgers(ledRes.ledgers || [], groups).map((l: any) => ({ ledger_id: l.ledger_id, ledger_name: l.name }))
+    );
   });
 }, [selectedCompany?.company_id]);
 
