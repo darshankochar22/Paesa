@@ -154,18 +154,19 @@ export default function InterestBillsLayout({ mode, fromDate: fromProp, toDate: 
         e.preventDefault();
         navigate(-1);
       } else if (e.key === "d" || e.key === "D") {
-        // Drill down key
+        // Drill down → the party's Ledger Interest Calculation
         const active = grouped[focusedIdx];
         if (active) {
-          navigate(
-            `/reports/accounts/interest-calculation-bill-wise?ledger_id=${active.ledger_id}&ledger_name=${encodeURIComponent(active.name)}`
-          );
+          const qs = new URLSearchParams({ ledger_id: String(active.ledger_id), ledger_name: active.name });
+          if (fromDate) qs.set("from_date", fromDate);
+          if (toDate) qs.set("to_date", toDate);
+          navigate(`/reports/accounts/interest-calculation-ledger-wise?${qs.toString()}`);
         }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [grouped, focusedIdx, loading, error, navigate]);
+  }, [grouped, focusedIdx, loading, error, navigate, fromDate, toDate]);
 
   const toggleExpand = (id: number) => {
     setExpanded((prev) => {
@@ -246,9 +247,10 @@ export default function InterestBillsLayout({ mode, fromDate: fromProp, toDate: 
                         toggleExpand(g.ledger_id);
                       }}
                       onDoubleClick={() => {
-                        navigate(
-                          `/reports/accounts/interest-calculation-bill-wise?ledger_id=${g.ledger_id}&ledger_name=${encodeURIComponent(g.name)}`
-                        );
+                        const qs = new URLSearchParams({ ledger_id: String(g.ledger_id), ledger_name: g.name });
+                        if (fromDate) qs.set("from_date", fromDate);
+                        if (toDate) qs.set("to_date", toDate);
+                        navigate(`/reports/accounts/interest-calculation-ledger-wise?${qs.toString()}`);
                       }}
                     >
                       <td className="px-3 py-1.5 flex items-center gap-1.5">

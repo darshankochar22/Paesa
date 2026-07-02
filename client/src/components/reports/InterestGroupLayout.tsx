@@ -110,7 +110,7 @@ export default function InterestGroupLayout({ fromDate: fromProp, toDate: toProp
     return (
       <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
         <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
-          <span className="font-bold">Interest Calculation — Group</span>
+          <span className="font-bold">Group Interest Calculations</span>
           <span className="ml-auto">Select a group to view interest</span>
         </div>
         <div className="px-3 py-1.5 border-b border-black/10 bg-white">
@@ -156,7 +156,7 @@ export default function InterestGroupLayout({ fromDate: fromProp, toDate: toProp
 
   return (
     <InterestGroupTable
-      title="Interest Calculation — Group"
+      title="Group Interest Calculations"
       groupName={groupName}
       drcr={drcr}
       fromDate={fromDate}

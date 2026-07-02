@@ -31,8 +31,8 @@ path noted where known.
 | ledger-outstandings / outstandings-ledger | LedgerOutstandingsLayout | `api.report.*` | |
 | group-outstandings / outstandings-group | GroupOutstandingsLayout | `api.report.*` | |
 | interest-receivable / -payable | InterestBillsLayout (mode) | `api.report.*` | |
-| interest-calculation-ledger-wise | InterestLedgerLayout | `api.report.*` | |
-| interest-calculation-bill-wise | InterestBillWiseLayout | `api.report.*` | |
+| interest-calculation-ledger-wise | InterestLedgerLayout | `api.report.ledgerInterest` | drills → Ledger Vouchers → Voucher |
+| interest-calculation-group-wise | InterestGroupLayout / InterestGroupTable | `api.report.groupInterest` | drills → Ledger Interest Calc |
 | contra/payment/receipt/sales/purchase/credit-note/debit-note/journal-register | *RegisterLayout (8) | `api.report.*Register` | month→voucher drill |
 | voucher-clarification | VoucherClarificationLayout | `api.report.voucherClarificationSummary` | |
 | cost-category-summary | CostCategorySummaryLayout | `api.report.*` | |

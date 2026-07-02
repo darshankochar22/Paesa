@@ -51,6 +51,8 @@ interface IntervalRow {
   rate: number;
   interest: number;
   days: number;
+  start_date: string;
+  end_date: string;
 }
 
 interface InterestLedgerLayoutProps {
@@ -96,6 +98,15 @@ export default function InterestLedgerLayout({ fromDate: fromProp, toDate: toPro
   const cid = selectedCompany?.company_id;
   const fyid = activeFY?.fy_id;
   const side: "Dr" | "Cr" = isCreditor ? "Cr" : "Dr";
+
+  // Drill into the ledger's vouchers (→ Voucher Alteration), carrying the period.
+  const drillToVouchers = React.useCallback(() => {
+    if (!ledgerId) return;
+    const qs = new URLSearchParams({ ledger_id: String(ledgerId) });
+    if (fromDate) qs.set("from_date", fromDate);
+    if (toDate) qs.set("to_date", toDate);
+    navigate(`/reports/accounts/ledger?${qs.toString()}`);
+  }, [navigate, ledgerId, fromDate, toDate]);
 
   /* ── Load ledger list ───────────────────────────────────────────── */
   React.useEffect(() => {
@@ -182,6 +193,9 @@ export default function InterestLedgerLayout({ fromDate: fromProp, toDate: toPro
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setFocused((p) => Math.max(0, p - 1));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (detailLen > 0) drillToVouchers();
       } else if (e.key === "Escape" || e.key === "Backspace") {
         e.preventDefault();
         setLedgerId(null);
@@ -193,7 +207,7 @@ export default function InterestLedgerLayout({ fromDate: fromProp, toDate: toPro
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ledgerId, detailLen]);
+  }, [ledgerId, detailLen, drillToVouchers]);
 
   /* ── Picker View ────────────────────────────────────────────────── */
   if (!ledgerId) {
@@ -322,7 +336,8 @@ export default function InterestLedgerLayout({ fromDate: fromProp, toDate: toPro
                         className={`border-b border-black/10 cursor-pointer select-none transition-colors ${
                           isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"
                         }`}
-                        onClick={() => setFocused(idx)}
+                        onClick={() => { setFocused(idx); drillToVouchers(); }}
+                        title="Drill down to Ledger Vouchers"
                       >
                         <td className="px-3 py-1.5 font-bold">{fmtDate(row.bill_date)}</td>
                         <td className="px-3 py-1.5">
@@ -373,37 +388,24 @@ export default function InterestLedgerLayout({ fromDate: fromProp, toDate: toPro
   }
 
   /* ── Balance view (ledgers set to "On Outstanding Balance") ─────── */
-  const totalDebit = intervalRows.reduce((s, r) => s + (r.balance >= 0 ? r.balance : 0), 0);
-  const totalCredit = intervalRows.reduce((s, r) => s + (r.balance < 0 ? Math.abs(r.balance) : 0), 0);
+  const balSide = (v: number): "Dr" | "Cr" => (v >= 0 ? "Dr" : "Cr");
   const finalBalance = intervalRows.length > 0 ? intervalRows[intervalRows.length - 1].balance : openingBalance;
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       {Header}
 
-      {/* Opening Balance Bar */}
-      <div className="bg-white border-b border-black/10 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-black">
-        <span>
-          <span className="font-bold text-black">Opening Balance:</span> {fmt(openingBalance)}{" "}
-          {openingBalance >= 0 ? "Dr" : "Cr"}
-        </span>
-        <span>
-          <span className="font-bold text-black">Total Interest Calculated:</span> {fmtTotal(totalInterest)}
-        </span>
-        <span className="text-black/60 ml-auto">| Press [Esc] or [Backspace] to choose another ledger</span>
-      </div>
-
-      {/* Main Table */}
+      {/* Main Table — Balance | From | To | Total Days | Rate % | Interest */}
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
           <thead className="sticky top-0 bg-white border-b border-black z-10 select-none">
             <tr>
-              <th className="px-3 py-1.5 text-left font-bold w-[25%]">Date range</th>
-              <th className="px-3 py-1.5 text-left font-bold w-[12%]">Rate / Style</th>
-              <th className="px-3 py-1.5 text-center font-bold w-[8%]">Days</th>
-              <th className="px-3 py-1.5 text-right font-bold w-[15%]">Debit Balance</th>
-              <th className="px-3 py-1.5 text-right font-bold w-[15%]">Credit Balance</th>
-              <th className="px-3 py-1.5 text-right font-bold w-[15%]">Interest</th>
+              <th className="px-3 py-1.5 text-right font-bold w-[20%]">Balance</th>
+              <th className="px-3 py-1.5 text-left font-bold w-[15%]">From</th>
+              <th className="px-3 py-1.5 text-left font-bold w-[15%]">To</th>
+              <th className="px-3 py-1.5 text-right font-bold w-[15%]">Total Days</th>
+              <th className="px-3 py-1.5 text-right font-bold w-[12%]">Rate %</th>
+              <th className="px-3 py-1.5 text-right font-bold w-[18%]">Interest</th>
             </tr>
           </thead>
           <tbody>
@@ -422,16 +424,17 @@ export default function InterestLedgerLayout({ fromDate: fromProp, toDate: toPro
                     className={`border-b border-black/10 cursor-pointer select-none transition-colors ${
                       isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"
                     }`}
-                    onClick={() => setFocused(idx)}
+                    onClick={() => { setFocused(idx); drillToVouchers(); }}
+                    title="Drill down to Ledger Vouchers"
                   >
-                    <td className="px-3 py-1.5 font-medium">{row.date_particulars}</td>
-                    <td className="px-3 py-1.5">
-                      {row.rate}% / {row.vch_type}
+                    <td className="px-3 py-1.5 text-right font-bold">{withSide(row.balance, balSide(row.balance))}</td>
+                    <td className="px-3 py-1.5">{fmtDate(row.start_date || row.date_particulars)}</td>
+                    <td className="px-3 py-1.5">{fmtDate(row.end_date)}</td>
+                    <td className="px-3 py-1.5 text-right">{row.days} days</td>
+                    <td className="px-3 py-1.5 text-right">{row.rate} %</td>
+                    <td className="px-3 py-1.5 text-right font-bold">
+                      {row.interest > 0 ? withSide(row.interest, balSide(row.balance)) : ""}
                     </td>
-                    <td className="px-3 py-1.5 text-center">{row.days}</td>
-                    <td className="px-3 py-1.5 text-right text-black">{row.balance >= 0 ? fmt(row.balance) : ""}</td>
-                    <td className="px-3 py-1.5 text-right text-black">{row.balance < 0 ? fmt(row.balance) : ""}</td>
-                    <td className="px-3 py-1.5 text-right font-bold text-black">{row.interest > 0 ? fmt(row.interest) : ""}</td>
                   </tr>
                 );
               })
@@ -442,12 +445,9 @@ export default function InterestLedgerLayout({ fromDate: fromProp, toDate: toPro
 
       {/* Footer Total */}
       <div className="border-t-2 border-double border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black select-none">
-        <span className="w-[25%]">Closing Balance: {fmt(finalBalance)} {finalBalance >= 0 ? "Dr" : "Cr"}</span>
-        <span className="w-[12%]" />
-        <span className="w-[8%] text-center">Totals</span>
-        <span className="w-[15%] text-right pr-3">{fmtTotal(totalDebit)}</span>
-        <span className="w-[15%] text-right pr-3">{fmtTotal(totalCredit)}</span>
-        <span className="w-[15%] text-right pr-3 text-black">{fmtTotal(totalInterest)}</span>
+        <span className="w-[20%] text-right pr-3">Closing: {fmt(finalBalance)} {balSide(finalBalance)}</span>
+        <span className="flex-1 text-left pl-3">Grand Total</span>
+        <span className="w-[18%] text-right pr-3">{fmtTotal(totalInterest)} {balSide(finalBalance)}</span>
       </div>
     </div>
   );

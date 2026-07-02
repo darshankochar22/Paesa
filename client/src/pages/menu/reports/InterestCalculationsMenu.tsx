@@ -8,7 +8,7 @@ export default function InterestCalculationsMenu() {
     { label: "Interest Receivable", route: "/reports/accounts/interest-receivable" },
     { label: "Interest Payable",    route: "/reports/accounts/interest-payable" },
     { label: "Ledger",              route: "/reports/accounts/interest-calculation-ledger-wise" },
-    { label: "Bill-wise",           route: "/reports/accounts/interest-calculation-bill-wise" },
+    { label: "Group",               route: "/reports/accounts/interest-calculation-group-wise" },
   ];
   return (
     <Card size="sm" className="w-72 mx-auto mt-10 text-xs">

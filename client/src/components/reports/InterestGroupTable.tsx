@@ -1,9 +1,10 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 
 /* ── Shared group-wise Interest Calculation table ──────────────────────
-   Used by Interest Receivable / Payable (fixed group) and the Groups report
-   (picked group). Matches TallyPrime's layout: Particulars | Closing Balance |
-   Interest, party ledgers under the group, each expandable to its bills.        */
+   Used by the Group Interest Calculations report. Matches TallyPrime's layout:
+   Particulars | Closing Balance | Interest, one row per party ledger. Drilling
+   a party (Enter / click) opens that ledger's Interest Calculation.             */
 
 const fmtDate = (d: string) => {
   if (!d) return "";
@@ -149,36 +150,27 @@ const withSide = (v: number, groupDrCr: "Dr" | "Cr") => (v === 0 ? "" : `${fmt(v
 export default function InterestGroupTable({
   title, groupName, drcr, fromDate, toDate, groups, totalPrincipal, totalInterest, onEscape,
 }: Props) {
+  const navigate = useNavigate();
   const [focusedIdx, setFocused] = React.useState(0);
-  const [expandedIds, setExpanded] = React.useState<Set<number>>(new Set());
-  const [expandedBills, setExpandedBills] = React.useState<Set<string>>(new Set());
 
-  const toggleBill = React.useCallback((key: string) => {
-    setExpandedBills((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  }, []);
-
-  const toggleExpand = React.useCallback((id: number) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
+  // Drill a party ledger → its Ledger Interest Calculation, carrying the period.
+  const drill = React.useCallback((g: GroupedLedger) => {
+    const qs = new URLSearchParams({ ledger_id: String(g.ledger_id), ledger_name: g.name });
+    if (fromDate) qs.set("from_date", fromDate);
+    if (toDate) qs.set("to_date", toDate);
+    navigate(`/reports/accounts/interest-calculation-ledger-wise?${qs.toString()}`);
+  }, [navigate, fromDate, toDate]);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") { e.preventDefault(); setFocused((p) => Math.min(groups.length - 1, p + 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setFocused((p) => Math.max(0, p - 1)); }
-      else if (e.key === "Enter") { e.preventDefault(); const g = groups[focusedIdx]; if (g) toggleExpand(g.ledger_id); }
+      else if (e.key === "Enter") { e.preventDefault(); const g = groups[focusedIdx]; if (g) drill(g); }
       else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); onEscape(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [groups, focusedIdx, toggleExpand, onEscape]);
+  }, [groups, focusedIdx, drill, onEscape]);
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
@@ -206,51 +198,17 @@ export default function InterestGroupTable({
               <tr><td colSpan={3} className="px-4 py-8 text-center text-black/50 italic">No interest transactions found.</td></tr>
             ) : groups.map((g, idx) => {
               const isFocused = focusedIdx === idx;
-              const isExpanded = expandedIds.has(g.ledger_id);
               return (
-                <React.Fragment key={g.ledger_id}>
-                  {/* Ledger (party) row */}
-                  <tr
-                    className={`border-b border-black/10 cursor-pointer select-none transition-colors ${isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"}`}
-                    onClick={() => { setFocused(idx); toggleExpand(g.ledger_id); }}
-                  >
-                    <td className="px-3 py-1.5 flex items-center gap-1.5">
-                      <span className="text-[9px] w-3 text-center text-black/50">{isExpanded ? "▾" : "▸"}</span>
-                      <span>{g.name}</span>
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-semibold">{withSide(g.total_principal, drcr)}</td>
-                    <td className="px-3 py-1.5 text-right font-bold">{withSide(g.total_interest === 0 ? 0 : (g.total_principal < 0 ? -g.total_interest : g.total_interest), drcr)}</td>
-                  </tr>
-
-                  {/* Expanded bill lines — click a bill to show its segment breakdown */}
-                  {isExpanded && g.bills.map((b, bi) => {
-                    const billKey = `${g.ledger_id}:${bi}`;
-                    const hasSegments = (b.segments?.length ?? 0) > 0;
-                    const billOpen = expandedBills.has(billKey);
-                    return (
-                      <React.Fragment key={bi}>
-                        <tr
-                          className={`border-b border-black/5 bg-black/[0.02] text-black/70 select-none ${hasSegments ? "cursor-pointer hover:bg-black/[0.05]" : ""}`}
-                          onClick={(e) => { e.stopPropagation(); if (hasSegments) toggleBill(billKey); }}
-                        >
-                          <td className="pl-8 pr-3 py-1 text-[10.5px]">
-                            {hasSegments && (
-                              <span className="text-[8px] text-black/40 mr-1">{billOpen ? "▾" : "▸"}</span>
-                            )}
-                            <span className="font-semibold text-black/80">{b.bill_ref}</span>
-                            {b.missing_due_date && <MissingDueDateMark />}
-                            <span className="text-black/40"> (Due {fmtDate(b.bill_due_date)} · {b.interest_rate}% {b.interest_style} · {b.days} days)</span>
-                          </td>
-                          <td className="px-3 py-1 text-right text-[10.5px]">{withSide(b.total_pending, drcr)}</td>
-                          <td className="px-3 py-1 text-right text-[10.5px] font-semibold">{withSide(b.total_pending < 0 ? -b.interest_amount : b.interest_amount, drcr)}</td>
-                        </tr>
-                        {billOpen && hasSegments && (
-                          <SegmentBreakdownRow segments={b.segments!} colSpan={3} />
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </React.Fragment>
+                <tr
+                  key={g.ledger_id}
+                  className={`border-b border-black/10 cursor-pointer select-none transition-colors ${isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"}`}
+                  onClick={() => { setFocused(idx); drill(g); }}
+                  title="Drill down to Ledger Interest Calculation"
+                >
+                  <td className="px-3 py-1.5">{g.name}</td>
+                  <td className="px-3 py-1.5 text-right font-semibold">{withSide(g.total_principal, drcr)}</td>
+                  <td className="px-3 py-1.5 text-right font-bold">{withSide(g.total_interest === 0 ? 0 : (g.total_principal < 0 ? -g.total_interest : g.total_interest), drcr)}</td>
+                </tr>
               );
             })}
           </tbody>
