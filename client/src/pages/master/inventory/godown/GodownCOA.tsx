@@ -167,15 +167,14 @@ export default function GodownCOA() {
           <div
             className="flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group"
             style={{ paddingLeft: depth * 20 + 8 }}
-            onClick={() =>
-              hasChildren
-                ? toggleGodown(gId)
-                : navigate(`/master/alter/godown`, { state: { godownId: gId } })
-            }
+            onClick={() => navigate(`/master/alter/godown`, { state: { godownId: gId } })}
           >
-            <span className="w-5 flex items-center justify-center text-zinc-400 shrink-0">
+            <span
+              className="w-5 flex items-center justify-center text-zinc-400 shrink-0"
+              onClick={(e) => { e.stopPropagation(); if (hasChildren) toggleGodown(gId); }}
+            >
               {hasChildren ? (
-                <span className="text-xs transition-transform duration-100">
+                <span className="text-xs transition-transform duration-100 hover:text-zinc-700">
                   {isExpanded ? "▼" : "▶"}
                 </span>
               ) : (

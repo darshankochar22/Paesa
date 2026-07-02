@@ -160,15 +160,18 @@ export default function StockGroupCOA() {
           <div
             className="flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group"
             style={{ paddingLeft: depth * 20 + 8 }}
-            onClick={() => { if (hasSubItems) toggleGroup(gId); }}
+            onClick={() => navigate(`/master/alter/stock-group`, { state: { groupId: gId } })}
           >
-            <span className="w-5 flex items-center justify-center text-zinc-400 shrink-0">
+            <span
+              className="w-5 flex items-center justify-center text-zinc-400 shrink-0"
+              onClick={(e) => { e.stopPropagation(); if (hasSubItems) toggleGroup(gId); }}
+            >
               {hasSubItems
-                ? <span className="text-xs transition-transform duration-100">{isExpanded ? "▼" : "▶"}</span>
+                ? <span className="text-xs transition-transform duration-100 hover:text-zinc-700">{isExpanded ? "▼" : "▶"}</span>
                 : <span className="text-[10px] opacity-30">•</span>}
             </span>
             <div className="flex-1 flex items-center justify-between pr-4">
-              <span className="font-semibold text-zinc-800 text-[13px]">{node.name}</span>
+              <span className="font-semibold text-zinc-800 text-[13px] group-hover:text-sky-800 transition-colors">{node.name}</span>
               <div className="flex items-center gap-3">
                 <span className="text-[9px] bg-zinc-100 text-zinc-500 font-medium px-1.5 py-0.5 rounded">Stock Group</span>
               </div>
