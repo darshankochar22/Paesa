@@ -13,6 +13,7 @@ import MovementAnalysisMenu from "../pages/menu/reports/MovementAnalysisMenu.tsx
 import ItemCostAnalysisMenu from "../pages/menu/reports/ItemCostAnalysisMenu.tsx";
 import ExceptionReports from "../pages/menu/reports/ExceptionReports.tsx";
 import PayrollReports from "../pages/menu/reports/PayrollReports.tsx";
+import PayrollStatutoryReportsMenu from "../pages/menu/reports/PayrollStatutoryReportsMenu.tsx";
 import JobWorkReports from "../pages/menu/reports/JobWorkReports.tsx";
 import AnalysisVerification from "../pages/menu/reports/AnalysisVerification.tsx";
 import OutStandingsMenu from "../pages/menu/reports/OutStandingsMenu.tsx";
@@ -118,6 +119,8 @@ export const reportRoutes: RouteConfig[] = [
   { path: "/reports/statements-of-inventory", element: <StatementsOfInventory /> },
   { path: "/reports/exception", element: <ExceptionReports /> },
   { path: "/reports/payroll-hr", element: <PayrollReports /> },
+  { path: "/reports/payroll-hr/statutory-reports", element: <PayrollStatutoryReportsMenu /> },
+  { path: "/reports/payroll-hr/payroll-register", element: <InventoryVoucherRegister voucherType="Payroll" title="Payroll Register" variant="accounting" subtitle="Payroll" /> },
   // Payroll report sub-pages (#125–#131)
   { path: "/reports/payroll-hr/pay-slip", element: <MultiPaySlipLayout /> },
   { path: "/reports/payroll-hr/pay-sheet", element: <PaySheetLayout /> },

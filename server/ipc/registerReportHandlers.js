@@ -116,6 +116,8 @@ function register() {
   ipcMain.handle('report:payrollStatement', reportController.payrollStatement);
   ipcMain.handle('report:employeePayHeadBreakup', reportController.employeePayHeadBreakup);
   ipcMain.handle('report:payHeadEmployeeBreakup', reportController.payHeadEmployeeBreakup);
+  ipcMain.handle('report:employeeProfile', reportController.employeeProfile);
+  ipcMain.handle('report:employeeHeadCount', reportController.employeeHeadCount);
   ipcMain.handle('report:paymentRegister', reportController.paymentRegister);
   ipcMain.handle('report:receiptRegister', reportController.receiptRegister);
   ipcMain.handle('report:journalRegister', reportController.journalRegister);

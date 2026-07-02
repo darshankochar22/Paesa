@@ -25,8 +25,10 @@ export default function PayrollReports() {
       items: ["Payroll Register", "Attendance Register"],
     },
     {
+      // "Expat Reports" (passport/visa expiry) intentionally omitted — the
+      // employees schema stores no passport/visa fields to report on.
       title: "EMPLOYEES",
-      items: ["Employee Profile", "Employee Head Count", "Expat Reports"],
+      items: ["Employee Profile", "Employee Head Count"],
     },
     {
       title: "",
@@ -49,7 +51,6 @@ export default function PayrollReports() {
       "Attendance Register": "/reports/payroll-hr/attendance-register",
       "Employee Profile": "/reports/payroll-hr/employee-profile",
       "Employee Head Count": "/reports/payroll-hr/employee-head-count",
-      "Expat Reports": "/reports/payroll-hr/expat-reports",
     };
     return routes[item] ?? null;
   };

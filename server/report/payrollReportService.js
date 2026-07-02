@@ -603,6 +603,45 @@ module.exports = {
     }
   },
 
+  /** Employee Profile — master details, one row per employee. */
+  employeeProfile: async (company_id, fy_id) => {
+    try {
+      const empRows = await getEmployees(company_id);
+      const rows = empRows.map((e, idx) => ({
+        id: idx + 1,
+        emp_name: e.name,
+        emp_code: e.employee_code || '—',
+        designation: e.designation || '—',
+        department: e.department || '—',
+        date_of_joining: e.date_of_joining || '—',
+        mobile: e.mobile || '—',
+        email: e.email || '—',
+        pan: e.pan || '—',
+        uan: e.uan || '—',
+      }));
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /** Employee Head Count — active employees per employee group. */
+  employeeHeadCount: async (company_id, fy_id) => {
+    try {
+      const rows = await db.all(sql`
+        SELECT COALESCE(eg.name, 'Primary') AS group_name, COUNT(*) AS head_count
+        FROM ${employees} e
+        LEFT JOIN employee_groups eg ON eg.employee_group_id = e.employee_group_id
+        WHERE e.company_id = ${company_id} AND e.is_active = 1
+        GROUP BY e.employee_group_id
+        ORDER BY group_name ASC
+      `);
+      return { success: true, rows: rows.map((r, idx) => ({ id: idx + 1, ...r })) };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
   /**
    * Gratuity — estimated gratuity accrued per employee.
    * Formula (Indian Payment of Gratuity Act): 15 days' last drawn salary per year of service.

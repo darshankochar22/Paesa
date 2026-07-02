@@ -376,6 +376,12 @@ module.exports = {
   payHeadEmployeeBreakup: async (event, { company_id, fy_id }) => {
     return await payrollReportService.payHeadEmployeeBreakup(company_id, fy_id);
   },
+  employeeProfile: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.employeeProfile(company_id, fy_id);
+  },
+  employeeHeadCount: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.employeeHeadCount(company_id, fy_id);
+  },
 
   paymentRegister: async (event, { company_id, fy_id }) => {
     return await paymentRegister(company_id, fy_id);

@@ -267,6 +267,8 @@ contextBridge.exposeInMainWorld('api', {
         payrollStatement:       (company_id, fy_id) => invoke('report:payrollStatement',       { company_id, fy_id }),
         employeePayHeadBreakup: (company_id, fy_id) => invoke('report:employeePayHeadBreakup', { company_id, fy_id }),
         payHeadEmployeeBreakup: (company_id, fy_id) => invoke('report:payHeadEmployeeBreakup', { company_id, fy_id }),
+        employeeProfile:        (company_id, fy_id) => invoke('report:employeeProfile', { company_id, fy_id }),
+        employeeHeadCount:      (company_id, fy_id) => invoke('report:employeeHeadCount', { company_id, fy_id }),
         journalRegister:   (company_id, fy_id) => invoke('report:journalRegister',   { company_id, fy_id }),
         debitNoteRegister:  (company_id, fy_id) => invoke('report:debitNoteRegister',  { company_id, fy_id }),
         creditNoteRegister: (company_id, fy_id) => invoke('report:creditNoteRegister', { company_id, fy_id }),
