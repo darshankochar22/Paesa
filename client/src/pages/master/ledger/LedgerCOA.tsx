@@ -7,177 +7,6 @@ interface TreeNode extends GroupType {
   children?: TreeNode[];
 }
 
-function LedgerDetailsGrid({ ledger }: { ledger: LedgerType }) {
-  const bank = (ledger as any).bank_details;
-  return (
-    <div className="max-w-2xl grid grid-cols-2 gap-x-8 gap-y-2.5 text-xs text-zinc-600">
-      {ledger.alias && (
-        <div className="flex border-b border-zinc-100 pb-1">
-          <span className="text-zinc-400 w-32 shrink-0 select-none">Alias</span>
-          <span className="text-zinc-800 font-medium">{ledger.alias}</span>
-        </div>
-      )}
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">Mailing Name</span>
-        <span className="text-zinc-800">{ledger.mailing_name || "—"}</span>
-      </div>
-      <div className="flex col-span-2 border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">Address</span>
-        <span className="text-zinc-800">
-          {[ledger.address1, ledger.address2, ledger.city, ledger.state, ledger.country, ledger.pincode]
-            .filter(Boolean)
-            .join(", ") || "—"}
-        </span>
-      </div>
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">Phone</span>
-        <span className="text-zinc-800">{ledger.phone || "—"}</span>
-      </div>
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">Email</span>
-        <span className="text-zinc-800 text-sky-700">{ledger.email || "—"}</span>
-      </div>
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">GSTIN</span>
-        <span className="text-zinc-800 font-medium">{ledger.gstin || "—"}</span>
-      </div>
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">PAN / IT No.</span>
-        <span className="text-zinc-800">{ledger.pan || "—"}</span>
-      </div>
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">Registration Type</span>
-        <span className="text-zinc-800">{ledger.registration_type || "Unregistered"}</span>
-      </div>
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">Bill-wise</span>
-        <span className="text-zinc-800">{ledger.is_bill_wise ? "Yes" : "No"}</span>
-      </div>
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">Inventory Values</span>
-        <span className="text-zinc-800">{ledger.maintain_inventory_values ? "Yes" : "No"}</span>
-      </div>
-      <div className="flex border-b border-zinc-100 pb-1">
-        <span className="text-zinc-400 w-32 shrink-0 select-none">Closing Balance</span>
-        <span className="text-zinc-800 font-semibold">
-          {Number(ledger.closing_balance).toFixed(2)}
-        </span>
-      </div>
-
-      {!!ledger.invoice_rounding && (
-        <>
-          <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Invoice Rounding Details</span>
-          </div>
-          <div className="flex border-b border-zinc-100 pb-1">
-            <span className="text-zinc-400 w-32 shrink-0 select-none">Invoice Rounding</span>
-            <span className="text-zinc-800">Yes</span>
-          </div>
-          {ledger.rounding_method && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">Rounding Method</span>
-              <span className="text-zinc-800">{ledger.rounding_method}</span>
-            </div>
-          )}
-          <div className="flex border-b border-zinc-100 pb-1">
-            <span className="text-zinc-400 w-32 shrink-0 select-none">Rounding Limit</span>
-            <span className="text-zinc-800">{Number(ledger.rounding_limit ?? 0).toFixed(2)}</span>
-          </div>
-        </>
-      )}
-
-      {bank && (
-        <>
-          <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Bank Details</span>
-          </div>
-          {bank.account_holder_name && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">A/c Holder's Name</span>
-              <span className="text-zinc-800">{bank.account_holder_name}</span>
-            </div>
-          )}
-          {bank.account_number && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">A/c No.</span>
-              <span className="text-zinc-800 font-medium tracking-wider">{bank.account_number}</span>
-            </div>
-          )}
-          {bank.ifsc_code && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">IFS Code</span>
-              <span className="text-zinc-800 font-medium">{bank.ifsc_code}</span>
-            </div>
-          )}
-          {bank.swift_code && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">SWIFT Code</span>
-              <span className="text-zinc-800">{bank.swift_code}</span>
-            </div>
-          )}
-          {bank.bank_name && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">Bank Name</span>
-              <span className="text-zinc-800 font-medium">{bank.bank_name}</span>
-            </div>
-          )}
-          {bank.branch_name && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">Branch</span>
-              <span className="text-zinc-800">{bank.branch_name}</span>
-            </div>
-          )}
-          {bank.od_limit > 0 && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">OD Limit</span>
-              <span className="text-zinc-800 font-semibold">{Number(bank.od_limit).toFixed(2)}</span>
-            </div>
-          )}
-          {bank.transaction_type && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">Transaction Type</span>
-              <span className="text-zinc-800">{bank.transaction_type}</span>
-            </div>
-          )}
-          <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Bank Configuration</span>
-          </div>
-          <div className="flex border-b border-zinc-100 pb-1">
-            <span className="text-zinc-400 w-32 shrink-0 select-none">Set/Alter range for Cheque Books</span>
-            <span className="text-zinc-800">{bank.bank_configuration === "Yes" ? "Yes" : "No"}</span>
-          </div>
-          {bank.bank_configuration === "Yes" && (
-            <>
-              {bank.cheque_book_start_no && (
-                <div className="flex border-b border-zinc-100 pb-1">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Cheque Book Start No</span>
-                  <span className="text-zinc-800">{bank.cheque_book_start_no}</span>
-                </div>
-              )}
-              {bank.cheque_book_end_no && (
-                <div className="flex border-b border-zinc-100 pb-1">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Cheque Book End No</span>
-                  <span className="text-zinc-800">{bank.cheque_book_end_no}</span>
-                </div>
-              )}
-            </>
-          )}
-          <div className="flex border-b border-zinc-100 pb-1">
-            <span className="text-zinc-400 w-32 shrink-0 select-none">Enable Cheque Printing</span>
-            <span className="text-zinc-800">{bank.enable_cheque_printing ? "Yes" : "No"}</span>
-          </div>
-          {bank.enable_cheque_printing && bank.cheque_printing_configuration && (
-            <div className="flex border-b border-zinc-100 pb-1">
-              <span className="text-zinc-400 w-32 shrink-0 select-none">Cheque Print Config</span>
-              <span className="text-zinc-800">{bank.cheque_printing_configuration}</span>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function LedgerCOA() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
@@ -194,7 +23,6 @@ export default function LedgerCOA() {
   const [showExceptionModal, setShowExceptionModal] = useState(false);
 
   const [expandedGroups, setExpandedGroups] = useState<Record<number, boolean>>({});
-  const [expandedLedgers, setExpandedLedgers] = useState<Record<number, boolean>>({});
 
   const companyId = selectedCompany?.company_id;
 
@@ -318,15 +146,10 @@ export default function LedgerCOA() {
 
   const collapseAll = () => {
     setExpandedGroups({});
-    setExpandedLedgers({});
   };
 
   const toggleGroup = (groupId: number) => {
     setExpandedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
-  };
-
-  const toggleLedger = (ledgerId: number) => {
-    setExpandedLedgers((prev) => ({ ...prev, [ledgerId]: !prev[ledgerId] }));
   };
 
   const renderTreeNode = (node: TreeNode, depth: number) => {
@@ -369,41 +192,22 @@ export default function LedgerCOA() {
             {childGroups.map((child) => renderTreeNode(child, depth + 1))}
             {activeLedgers.map((ledger) => {
               const ledgerId = ledger.ledger_id!;
-              const isLedgerExpanded = !!expandedLedgers[ledgerId];
               return (
-                <div key={ledgerId} className="flex flex-col">
-                  <div
-                    className={`flex items-center min-h-[26px] hover:bg-zinc-100/70 border-b border-zinc-100/30 cursor-pointer select-none group ${isLedgerExpanded ? "bg-zinc-50/50" : ""}`}
-                    style={{ paddingLeft: (depth + 1) * 20 + 8 }}
-                    onClick={() => toggleLedger(ledgerId)}
-                  >
-                    <span className="w-5 flex items-center justify-center text-sky-600/70 shrink-0 font-bold select-none text-[11px]">▫</span>
-                    <div className="flex-1 flex items-center justify-between pr-4">
-                      <span className="text-zinc-700 font-medium text-[13px] hover:text-sky-800 transition-colors">
-                        {ledger.name}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[12px] tabular-nums text-zinc-500">
-                          {Number(ledger.opening_balance) === 0 ? "—" : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || "Dr"}`}
-                        </span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate(`/master/alter/ledger`, { state: { ledgerId } }); }}
-                          className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
+                <div
+                  key={ledgerId}
+                  className="flex items-center min-h-[26px] hover:bg-zinc-100/70 border-b border-zinc-100/30 cursor-pointer select-none group"
+                  style={{ paddingLeft: (depth + 1) * 20 + 8 }}
+                  onClick={() => navigate(`/master/alter/ledger`, { state: { ledgerId } })}
+                >
+                  <span className="w-5 flex items-center justify-center text-sky-600/70 shrink-0 font-bold select-none text-[11px]">▫</span>
+                  <div className="flex-1 flex items-center justify-between pr-4">
+                    <span className="text-zinc-700 font-medium text-[13px] group-hover:text-sky-800 transition-colors">
+                      {ledger.name}
+                    </span>
+                    <span className="text-[12px] tabular-nums text-zinc-500">
+                      {Number(ledger.opening_balance) === 0 ? "—" : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || "Dr"}`}
+                    </span>
                   </div>
-
-                  {isLedgerExpanded && (
-                    <div
-                      className="bg-zinc-50/80 border-b border-zinc-200 py-3 px-6 shadow-inner"
-                      style={{ paddingLeft: (depth + 2) * 20 + 8 }}
-                    >
-                      <LedgerDetailsGrid ledger={ledger} />
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -485,42 +289,28 @@ export default function LedgerCOA() {
                   </div>
                   {flatLedgerList.map((ledger) => {
                     const ledgerId = ledger.ledger_id!;
-                    const isLedgerExpanded = !!expandedLedgers[ledgerId];
                     return (
-                      <div key={ledgerId} className="flex flex-col border-b border-zinc-100">
-                        <div
-                          className={`flex items-center min-h-[30px] hover:bg-zinc-50/70 cursor-pointer select-none group ${isLedgerExpanded ? "bg-zinc-50" : ""}`}
-                          onClick={() => toggleLedger(ledgerId)}
-                        >
-                          <div className="flex-1 px-4 py-1.5 flex items-center min-w-0">
-                            <span className="text-zinc-800 font-semibold text-[13px] hover:text-sky-800 transition-colors truncate">
-                              {ledger.name}
-                            </span>
-                            {ledger.alias && (
-                              <span className="text-[10px] text-zinc-400 font-normal ml-1.5 truncate">({ledger.alias})</span>
-                            )}
-                          </div>
-                          <div className="w-56 px-4 py-1.5 text-zinc-600 text-xs truncate border-l border-zinc-100/50">
-                            {(ledger as any).parentGroupName}
-                          </div>
-                          <div className="w-36 px-4 py-1.5 flex items-center justify-between border-l border-zinc-100/50">
-                            <span className="text-xs font-medium tabular-nums text-zinc-700 ml-auto">
-                              {Number(ledger.opening_balance) === 0 ? "—" : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || "Dr"}`}
-                            </span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); navigate(`/master/alter/ledger`, { state: { ledgerId } }); }}
-                              className="text-[9px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white shadow-sm ml-2.5 shrink-0"
-                            >
-                              Edit
-                            </button>
-                          </div>
+                      <div
+                        key={ledgerId}
+                        className="flex items-center min-h-[30px] hover:bg-zinc-50/70 border-b border-zinc-100 cursor-pointer select-none group"
+                        onClick={() => navigate(`/master/alter/ledger`, { state: { ledgerId } })}
+                      >
+                        <div className="flex-1 px-4 py-1.5 flex items-center min-w-0">
+                          <span className="text-zinc-800 font-semibold text-[13px] group-hover:text-sky-800 transition-colors truncate">
+                            {ledger.name}
+                          </span>
+                          {ledger.alias && (
+                            <span className="text-[10px] text-zinc-400 font-normal ml-1.5 truncate">({ledger.alias})</span>
+                          )}
                         </div>
-
-                        {isLedgerExpanded && (
-                          <div className="bg-zinc-50/80 border-t border-b border-zinc-200 py-3.5 px-8 shadow-inner">
-                            <LedgerDetailsGrid ledger={ledger} />
-                          </div>
-                        )}
+                        <div className="w-56 px-4 py-1.5 text-zinc-600 text-xs truncate border-l border-zinc-100/50">
+                          {(ledger as any).parentGroupName}
+                        </div>
+                        <div className="w-36 px-4 py-1.5 flex items-center border-l border-zinc-100/50">
+                          <span className="text-xs font-medium tabular-nums text-zinc-700 ml-auto">
+                            {Number(ledger.opening_balance) === 0 ? "—" : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || "Dr"}`}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
