@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { filterPartyGroups } from "@/lib/outstandingParties";
 
+/* ── Formatters ────────────────────────────────────────────────────── */
 const fmtDate = (d: string) => {
   if (!d) return "";
   const dt = new Date(d);
@@ -10,33 +11,34 @@ const fmtDate = (d: string) => {
   return `${dt.getDate()}-${dt.toLocaleString("en-IN", { month: "short" })}-${String(dt.getFullYear()).slice(-2)}`;
 };
 const fmt = (v: number) =>
-  v === 0 ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
+  !v ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
 const fmtTotal = (v: number) =>
   new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
 
+/* ── Types ─────────────────────────────────────────────────────────── */
 interface GroupMeta { group_id: number; name: string; parent?: string }
 interface BillEntry {
   bill: string;
   bill_date: string;
   due_date: string;
-  credit_period: string;
   overdue_days: number;
-  balance: number;
-  ageing: string;
+  debit: number;
+  credit: number;
 }
-interface LedgerRow {
-  ledger_id: number;
+interface OutRow {
+  type: "ledger" | "group";
+  ledger_id?: number;
+  group_id?: number;
   party: string;
-  total: number;
-  bills: BillEntry[];
+  debit: number;
+  credit: number;
+  bills?: BillEntry[];
 }
-interface AgeingTotals { "0-30": number; "31-60": number; "61-90": number; "90+": number }
 
 export default function GroupOutstandingsLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { selectedCompany, activeFY } = useCompany();
-
 
   const [groupId, setGroupId] = React.useState<number | null>(() => {
     const p = new URLSearchParams(location.search);
@@ -49,23 +51,25 @@ export default function GroupOutstandingsLayout() {
   });
 
   /* Picker state */
-  const [groups, setGroups]         = React.useState<GroupMeta[]>([]);
-  const [search, setSearch]         = React.useState("");
+  const [groups, setGroups]           = React.useState<GroupMeta[]>([]);
+  const [search, setSearch]           = React.useState("");
   const [pickerFocus, setPickerFocus] = React.useState(0);
 
   /* Data state */
-  const [rows, setRows]             = React.useState<LedgerRow[]>([]);
-  const [bucketTotals, setBuckets]  = React.useState<AgeingTotals>({ "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 });
-  const [as_on, setAsOn]            = React.useState("");
-  const [loading, setLoading]       = React.useState(false);
-  const [error, setError]           = React.useState<string | null>(null);
-  const [focusedIdx, setFocused]    = React.useState(0);
-  const [expandedIds, setExpanded]  = React.useState<Set<number>>(new Set());
+  const [rows, setRows]           = React.useState<OutRow[]>([]);
+  const [totalDebit, setTotDr]    = React.useState(0);
+  const [totalCredit, setTotCr]   = React.useState(0);
+  const [as_on, setAsOn]          = React.useState("");
+  const [loading, setLoading]     = React.useState(false);
+  const [error, setError]         = React.useState<string | null>(null);
+  const [focusedIdx, setFocused]  = React.useState(0);
+  const [expandedIds, setExpanded] = React.useState<Set<number>>(new Set());
 
-  const fromDate = activeFY?.start_date || "";
-  const toDate   = activeFY?.end_date   || "";
-  const cid      = selectedCompany?.company_id;
-  const fyid     = activeFY?.fy_id;
+  const fromDate    = activeFY?.start_date || "";
+  const toDate      = activeFY?.end_date   || "";
+  const cid         = selectedCompany?.company_id;
+  const fyid        = activeFY?.fy_id;
+  const companyName = (selectedCompany as any)?.name || (selectedCompany as any)?.company_name || "";
 
   /* ── Load group picker ──────────────────────────────────────────── */
   React.useEffect(() => {
@@ -74,13 +78,12 @@ export default function GroupOutstandingsLayout() {
       const rawList = Array.isArray(res) ? res : (res?.groups ?? res?.data ?? []);
       const nameMap = new Map<number, string>();
       rawList.forEach((g: any) => nameMap.set(g.group_id, g.name));
-
       // Only Sundry Debtors / Sundry Creditors (and sub-groups under them) are valid parties.
       const list: GroupMeta[] = filterPartyGroups(rawList)
         .map((g: any) => ({
           group_id: g.group_id,
           name: g.name,
-          parent: g.parent_group_id ? (nameMap.get(g.parent_group_id) || "") : ""
+          parent: g.parent_group_id ? (nameMap.get(g.parent_group_id) || "") : "",
         }))
         .sort((a: GroupMeta, b: GroupMeta) => a.name.localeCompare(b.name));
       setGroups(list);
@@ -92,11 +95,14 @@ export default function GroupOutstandingsLayout() {
     if (!groupId || !cid || !fyid) return;
     setLoading(true);
     setError(null);
+    setExpanded(new Set());
+    setFocused(0);
     (window as any).api.report.groupOutstandings(cid, fyid, groupId)
       .then((res: any) => {
         if (res?.success) {
           setRows(res.rows || []);
-          setBuckets(res.bucketTotals || { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 });
+          setTotDr(res.totalDebit || 0);
+          setTotCr(res.totalCredit || 0);
           setAsOn(res.as_on || "");
         } else {
           setError(res?.error || "Failed to load.");
@@ -106,8 +112,22 @@ export default function GroupOutstandingsLayout() {
       .finally(() => setLoading(false));
   }, [groupId, cid, fyid]);
 
-  /* ── Filtered group list ────────────────────────────────────────── */
   const filtered = groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()));
+
+  /* Open a row: ledger rows expand their bills; sub-group rows drill in. */
+  const openRow = React.useCallback((row: OutRow) => {
+    if (row.type === "group" && row.group_id) {
+      setGroupId(row.group_id);
+      setGroupName(row.party);
+    } else if (row.type === "ledger" && row.ledger_id != null) {
+      const id = row.ledger_id;
+      setExpanded(prev => {
+        const s = new Set(prev);
+        s.has(id) ? s.delete(id) : s.add(id);
+        return s;
+      });
+    }
+  }, []);
 
   /* ── Keyboard: picker ──────────────────────────────────────────── */
   React.useEffect(() => {
@@ -135,48 +155,37 @@ export default function GroupOutstandingsLayout() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") { e.preventDefault(); setFocused(p => Math.min(rows.length - 1, p + 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setFocused(p => Math.max(0, p - 1)); }
-      else if (e.key === "Enter") {
-        e.preventDefault();
-        const row = rows[focusedIdx];
-        if (row) setExpanded(prev => {
-          const s = new Set(prev);
-          if (s.has(row.ledger_id)) {
-            s.delete(row.ledger_id);
-          } else {
-            s.add(row.ledger_id);
-          }
-          return s;
-        });
-      } else if (e.key === "Escape" || e.key === "Backspace") {
+      else if (e.key === "Enter") { e.preventDefault(); if (rows[focusedIdx]) openRow(rows[focusedIdx]); }
+      else if (e.key === "Escape" || e.key === "Backspace") {
         e.preventDefault();
         setGroupId(null); setGroupName(""); setRows([]); setFocused(0); setExpanded(new Set());
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [groupId, rows, focusedIdx, navigate]);
+  }, [groupId, rows, focusedIdx, openRow]);
 
   /* ── Picker view ─────────────────────────────────────────────────── */
   if (!groupId) {
     return (
       <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-        <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+        <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
           <span className="font-bold">Group Outstandings</span>
           <span className="ml-auto">Select a group to view pending bills</span>
         </div>
-        <div className="px-3 py-1.5 border-b border-zinc-200 bg-white">
+        <div className="px-3 py-1.5 border-b border-black/10 bg-white">
           <input
             autoFocus
             type="text"
             placeholder="Type to search group..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPickerFocus(0); }}
-            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-black bg-white"
+            className="w-full text-[11px] font-mono border border-black px-2 py-1 rounded outline-none focus:border-black bg-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono">
-            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 select-none">
+            <thead className="sticky top-0 bg-white border-b border-black z-10 select-none">
               <tr>
                 <th className="px-3 py-1.5 text-left font-bold">Group Name</th>
                 <th className="px-3 py-1.5 text-left font-bold w-48">Under</th>
@@ -184,15 +193,15 @@ export default function GroupOutstandingsLayout() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={2} className="px-4 py-8 text-center text-zinc-400 italic">No groups found.</td></tr>
+                <tr><td colSpan={2} className="px-4 py-8 text-center text-black/60 italic">No groups found.</td></tr>
               ) : filtered.map((g, idx) => (
                 <tr
                   key={g.group_id}
-                  className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${pickerFocus === idx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                  className={`border-b border-black/10 cursor-pointer select-none transition-colors ${pickerFocus === idx ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"}`}
                   onClick={() => { setPickerFocus(idx); setGroupId(g.group_id); setGroupName(g.name); }}
                 >
                   <td className="px-3 py-1.5">{g.name}</td>
-                  <td className="px-3 py-1.5 text-zinc-500">{g.parent}</td>
+                  <td className="px-3 py-1.5 text-black/60">{g.parent}</td>
                 </tr>
               ))}
             </tbody>
@@ -202,81 +211,68 @@ export default function GroupOutstandingsLayout() {
     );
   }
 
-  if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">Loading Group Outstandings...</div>;
-  if (error)   return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">{error}</div>;
+  if (loading) return <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">Loading Group Outstandings...</div>;
+  if (error)   return <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">{error}</div>;
 
-  const grandTotal = rows.reduce((s, r) => s + r.total, 0);
-  const BUCKETS = ["0-30", "31-60", "61-90", "90+"] as const;
-
-  /* ── Drill-down view ─────────────────────────────────────────────── */
+  /* ── Drill-down view (Particulars | Pending Bills: Debit | Credit) ─── */
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       {/* Sub-header */}
-      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+      <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
         <span>Group : <span className="font-bold">{groupName}</span></span>
         <span>Details of : <span className="font-bold">Pending Bills</span></span>
-        <span className="ml-auto">
+        <span className="ml-auto text-right">
+          {companyName && <span className="font-bold">{companyName}</span>}
+          {companyName && "  ·  "}
           {as_on ? `As on ${fmtDate(as_on)}` : `${fmtDate(fromDate)} to ${fmtDate(toDate)}`}
         </span>
       </div>
 
-      {/* Ageing summary bar */}
-      <div className="bg-white border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
-        {BUCKETS.map(b => (
-          <span key={b}><span className="font-bold text-zinc-800">{b} days:</span> {fmt(bucketTotals[b]) || "0.00"}</span>
-        ))}
-      </div>
-
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 select-none">
-            <tr>
-              <th className="px-3 py-1.5 text-left font-bold">Party / Bill Ref</th>
-              <th className="px-3 py-1.5 text-left font-bold w-[11%]">Bill Date</th>
-              <th className="px-3 py-1.5 text-center font-bold w-[8%]">Credit Days</th>
-              <th className="px-3 py-1.5 text-left font-bold w-[11%]">Due On</th>
-              <th className="px-3 py-1.5 text-center font-bold w-[8%]">Overdue Days</th>
-              <th className="px-3 py-1.5 text-right font-bold w-[16%]">Balance</th>
-              <th className="px-3 py-1.5 text-center font-bold w-[8%]">Ageing</th>
+          <thead className="sticky top-0 bg-white z-10 select-none">
+            <tr className="border-b border-black/40">
+              <th className="px-3 py-1 text-left align-bottom font-bold" rowSpan={2}>Particulars</th>
+              <th className="px-3 py-1 text-center font-bold border-b border-black/40" colSpan={2}>Pending Bills</th>
+            </tr>
+            <tr className="border-b border-black">
+              <th className="px-3 py-1 text-right font-bold w-[20%]">Debit</th>
+              <th className="px-3 py-1 text-right font-bold w-[20%]">Credit</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">No pending bills for this group.</td></tr>
+              <tr><td colSpan={3} className="px-4 py-8 text-center text-black/60 italic">No pending bills for this group.</td></tr>
             ) : rows.map((row, idx) => {
               const isFocused = focusedIdx === idx;
-              const isExpanded = expandedIds.has(row.ledger_id);
+              const isGroup = row.type === "group";
+              const isExpanded = row.ledger_id != null && expandedIds.has(row.ledger_id);
               return (
-                <React.Fragment key={row.ledger_id}>
-                  {/* Ledger (party) header row */}
+                <React.Fragment key={`${row.type}-${row.ledger_id ?? row.group_id}`}>
+                  {/* Party / sub-group row */}
                   <tr
-                    className={`border-b border-zinc-200 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#e4e4e7] text-zinc-950" : "bg-white text-zinc-900"} font-bold`}
-                    onClick={() => setFocused(idx)}
-                    onDoubleClick={() => setExpanded(prev => {
-                      const s = new Set(prev);
-                      if (s.has(row.ledger_id)) {
-                        s.delete(row.ledger_id);
-                      } else {
-                        s.add(row.ledger_id);
-                      }
-                      return s;
-                    })}
+                    className={`border-b border-black/10 cursor-pointer select-none transition-colors ${isFocused ? "bg-black/10 text-black" : "hover:bg-black/[0.04] text-black"} font-semibold`}
+                    onClick={() => { setFocused(idx); openRow(row); }}
                   >
-                    <td className="px-3 py-1.5">{isExpanded ? "▾" : "▸"} {row.party}</td>
-                    <td colSpan={4} />
-                    <td className="px-3 py-1.5 text-right">{fmt(row.total)}</td>
-                    <td />
+                    <td className="px-3 py-1.5">
+                      {isGroup
+                        ? <span>{row.party} <span className="text-black/50">(sub-group)</span></span>
+                        : <span>{row.bills && row.bills.length > 0 ? (isExpanded ? "▾ " : "▸ ") : ""}{row.party}</span>}
+                    </td>
+                    <td className="px-3 py-1.5 text-right">{fmt(row.debit)}</td>
+                    <td className="px-3 py-1.5 text-right">{fmt(row.credit)}</td>
                   </tr>
-                  {/* Individual bill rows (expanded) */}
-                  {isExpanded && row.bills.map((b, bi) => (
-                    <tr key={bi} className="border-b border-zinc-100 bg-white text-zinc-700">
-                      <td className="px-3 py-1 pl-8">{b.bill}</td>
-                      <td className="px-3 py-1">{fmtDate(b.bill_date)}</td>
-                      <td className="px-3 py-1 text-center">{b.credit_period || ""}</td>
-                      <td className="px-3 py-1">{fmtDate(b.due_date)}</td>
-                      <td className={`px-3 py-1 text-center ${b.overdue_days > 0 ? "text-zinc-700 font-bold" : ""}`}>{b.overdue_days > 0 ? b.overdue_days : ""}</td>
-                      <td className="px-3 py-1 text-right">{fmt(b.balance)}</td>
-                      <td className="px-3 py-1 text-center text-zinc-400">{b.ageing}</td>
+
+                  {/* Bill lines (ledger rows only, when expanded) */}
+                  {isExpanded && row.bills?.map((b, bi) => (
+                    <tr key={bi} className="border-b border-black/[0.06] bg-white text-black/70">
+                      <td className="px-3 py-1 pl-8">
+                        {b.bill}
+                        {b.bill_date && <span className="text-black/40">  ·  {fmtDate(b.bill_date)}</span>}
+                        {b.overdue_days > 0 && <span className="text-black/60 font-semibold">  ·  overdue {b.overdue_days}d</span>}
+                      </td>
+                      <td className="px-3 py-1 text-right">{fmt(b.debit)}</td>
+                      <td className="px-3 py-1 text-right">{fmt(b.credit)}</td>
                     </tr>
                   ))}
                 </React.Fragment>
@@ -286,11 +282,11 @@ export default function GroupOutstandingsLayout() {
         </table>
       </div>
 
-      {/* Footer total */}
-      <div className="border-t-2 border-double border-zinc-400 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none">
+      {/* Grand Total */}
+      <div className="border-t border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black select-none">
         <span className="flex-1">Grand Total</span>
-        <span className="w-[16%] text-right pr-3">{fmtTotal(grandTotal)}</span>
-        <span className="w-[8%]" />
+        <span className="w-[20%] text-right">{fmtTotal(totalDebit)}</span>
+        <span className="w-[20%] text-right pr-3">{fmtTotal(totalCredit)}</span>
       </div>
     </div>
   );

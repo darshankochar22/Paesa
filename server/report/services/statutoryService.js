@@ -26,6 +26,7 @@ const {
   tcsNatureOfGoods,
 } = require('../../db/schema');
 const { getGstReport } = require('./gstReportService');
+const { getBillsWithSettlements, pendingAmount } = require('./billSettlementService');
 
 // ---------------------------------------------------------------------------
 // 11. getPartyAnalysis -- party-wise analysis
@@ -67,31 +68,57 @@ const getPartyAnalysis = async (company_id, fy_id, partyType = 'debtors', analys
       }
 
       case 'outstanding': {
-        const rows = await db.all(
-          sql`SELECT
-                l.ledger_id,
-                l.name AS party_name,
-                SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS outstanding,
-                COUNT(DISTINCT vbr.bill_name) AS bill_count,
-                MIN(v.date) AS first_bill_date,
-                MAX(v.date) AS last_bill_date
-              FROM ${voucherBillReferences} vbr
-              INNER JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
-              INNER JOIN ${ledgers} l ON l.ledger_id = vbr.ledger_id
+        // Party ledgers whose direct group is this predefined group.
+        const ledgerRows = await db.all(
+          sql`SELECT l.ledger_id AS ledger_id, l.name AS party_name
+              FROM ${ledgers} l
               INNER JOIN ${groups} g ON g.group_id = l.group_id
-              WHERE v.company_id = ${company_id}
-                AND v.fy_id = ${fy_id}
-                AND v.is_cancelled = 0
-                AND COALESCE(v.is_optional, 0) = 0
-                AND COALESCE(v.is_post_dated, 0) = 0
-                AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
+              WHERE l.company_id = ${company_id}
                 AND g.company_id = ${company_id}
-                AND g.name = ${groupName}
-              GROUP BY l.ledger_id, l.name
-              HAVING outstanding > 0.01
-              ORDER BY outstanding DESC`
+                AND g.name = ${groupName}`
         );
-        const total = rows.reduce((s, r) => s + (Number(r.outstanding) || 0), 0);
+        const nameById = new Map(ledgerRows.map((l) => [l.ledger_id, l.party_name]));
+        const ledgerIds = ledgerRows.map((l) => l.ledger_id);
+
+        if (ledgerIds.length === 0) {
+          return { success: true, rows: [], total: 0 };
+        }
+
+        // Pending amounts come from the shared bill-settlement engine (same
+        // New Ref/Advance origin + Agst Ref settlement grouping and floor-at-0
+        // math the Outstanding and Interest reports use) so partial-payment
+        // handling can't drift between reports.
+        const bills = await getBillsWithSettlements(company_id, fy_id, { ledger_ids: ledgerIds });
+
+        // Aggregate the per-bill pending amounts up to one row per ledger.
+        const byLedger = new Map();
+        for (const bill of bills) {
+          let agg = byLedger.get(bill.ledger_id);
+          if (!agg) {
+            agg = {
+              ledger_id: bill.ledger_id,
+              party_name: nameById.get(bill.ledger_id) || bill.party_name,
+              outstanding: 0,
+              bill_count: 0,
+              first_bill_date: null,
+              last_bill_date: null,
+            };
+            byLedger.set(bill.ledger_id, agg);
+          }
+          agg.outstanding += pendingAmount(bill, null);
+          agg.bill_count += 1;
+          // Earliest / latest voucher touching any of this ledger's bills.
+          const dates = [bill.bill_date, ...bill.settlements.map((s) => s.date)].filter(Boolean);
+          for (const d of dates) {
+            if (!agg.first_bill_date || d < agg.first_bill_date) agg.first_bill_date = d;
+            if (!agg.last_bill_date || d > agg.last_bill_date) agg.last_bill_date = d;
+          }
+        }
+
+        const rows = [...byLedger.values()]
+          .filter((r) => r.outstanding > 0.01)
+          .sort((a, b) => b.outstanding - a.outstanding);
+        const total = rows.reduce((s, r) => s + r.outstanding, 0);
         return { success: true, rows, total };
       }
 

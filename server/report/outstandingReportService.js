@@ -1,6 +1,7 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherBillReferences, vouchers, ledgers, groups, voucherEntries, voucherStockEntries, units } = require('../db/schema');
+const { getBillsWithSettlements, pendingAmount } = require('./services/billSettlementService');
 
 // ---------------------------------------------------------------------------
 // Outstanding Report Service  (READ-ONLY)
@@ -35,77 +36,75 @@ const bucketFor = (overdueDays) => {
 
 // Shared engine. groupName is the predefined group ('Sundry Debtors' /
 // 'Sundry Creditors') whose ledgers are the parties for this report.
+//
+// Pending amounts come from the shared bill-settlement engine
+// (services/billSettlementService) — the SAME New Ref/Advance origin +
+// Agst Ref settlement grouping and floor-at-0 pending math the Interest and
+// Ledger-Confirmation reports use — so partial-payment handling can't drift
+// between reports.
 const buildOutstanding = async (company_id, fy_id, groupName) => {
   // Today's date as the ageing reference point (ISO yyyy-mm-dd).
   const asOnDate = new Date().toISOString().slice(0, 10);
 
-  // Pending bills for every party ledger that belongs to the given group.
-  // Mirrors voucherService.getPendingBills, generalised across all ledgers in
-  // the group via a JOIN on ledgers -> groups (matched by group name).
-  const rows = await db.all(
-    sql`
-      SELECT
-        l.ledger_id              AS ledger_id,
-        l.name                   AS party_name,
-        vbr.bill_name            AS bill_name,
-        COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
-        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
-        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
-        SUM(
-          CASE
-            WHEN vbr.bill_type = 'Agst Ref' THEN -vbr.amount
-            ELSE vbr.amount
-          END
-        ) AS total_amount
-      FROM ${voucherBillReferences} vbr
-      JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
-      JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
-      JOIN ${groups} g   ON g.group_id = l.group_id
-      WHERE v.company_id = ${company_id}
-        AND v.fy_id = ${fy_id}
-        AND v.is_cancelled = 0
-        AND COALESCE(v.is_optional, 0) = 0
-        AND COALESCE(v.is_post_dated, 0) = 0
-        AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
-        AND l.is_bill_wise = 1
-        AND g.company_id = ${company_id}
-        AND g.name = ${groupName}
-        AND (
-          ${groupName === 'Sundry Creditors'
-            ? sql`v.voucher_type IN ('Purchase', 'Credit Note', 'Journal', 'Payment', 'Receipt')`
-            : sql`v.voucher_type IN ('Sales', 'Debit Note', 'Journal', 'Payment', 'Receipt')`}
-        )
-      GROUP BY l.ledger_id, l.name, vbr.bill_name
-      HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
-         AND ABS(total_amount) > 0.01
-      ORDER BY l.name ASC, MAX(v.date) DESC
-    `
-  );
-
-  // Per-bucket totals scaffold.
   const bucketTotals = AGEING_BUCKETS.reduce((acc, b) => { acc[b] = 0; return acc; }, {});
 
-  const resultRows = rows.map((row) => {
-    const balance = Number(row.total_amount) || 0;
-    // Overdue days: positive once the due date has passed. Bills with no due
-    // date or a future due date are treated as current (0 overdue days).
-    const overdueDays = row.due_date ? Math.max(0, dayDiff(row.due_date, asOnDate)) : 0;
-    const ageing = bucketFor(overdueDays);
+  // Party ledgers whose *direct* group is this predefined group and that carry
+  // bill-wise details — the same ledger set the old JOIN (ledgers -> groups by
+  // name, is_bill_wise = 1) selected.
+  const ledgerRows = await db.all(
+    sql`
+      SELECT l.ledger_id AS ledger_id
+      FROM ${ledgers} l
+      JOIN ${groups} g ON g.group_id = l.group_id
+      WHERE l.company_id = ${company_id}
+        AND g.company_id = ${company_id}
+        AND g.name = ${groupName}
+        AND l.is_bill_wise = 1
+    `
+  );
+  const ledgerIds = ledgerRows.map((r) => r.ledger_id);
+  if (ledgerIds.length === 0) {
+    return { rows: [], total: 0, bucketTotals, as_on: asOnDate };
+  }
 
-    bucketTotals[ageing] += balance;
+  const bills = await getBillsWithSettlements(company_id, fy_id, { ledger_ids: ledgerIds });
 
-    return {
-      ledger_id: row.ledger_id,
-      party: row.party_name,
-      bill: row.bill_name,
-      bill_date: row.bill_date,
-      due_date: row.due_date,
-      credit_period: row.credit_period,
-      overdue_days: overdueDays,
-      balance,
-      ageing,
-    };
-  });
+  const resultRows = bills
+    .map((bill) => {
+      const balance = pendingAmount(bill, null);
+      // Overdue days: positive once the due date has passed. Bills with no due
+      // date or a future due date are treated as current (0 overdue days).
+      const overdueDays = bill.due_date ? Math.max(0, dayDiff(bill.due_date, asOnDate)) : 0;
+      // Latest voucher touching the bill (origin or settlement) — drives the
+      // "most recent first" ordering the old MAX(v.date) DESC produced.
+      const lastActivity = bill.settlements.reduce(
+        (mx, s) => (s.date > mx ? s.date : mx),
+        bill.bill_date || ''
+      );
+      return {
+        ledger_id: bill.ledger_id,
+        party: bill.party_name,
+        bill: bill.bill_name,
+        bill_date: bill.bill_date,
+        due_date: bill.due_date,
+        credit_period: bill.credit_period,
+        overdue_days: overdueDays,
+        balance,
+        ageing: bucketFor(overdueDays),
+        _lastActivity: lastActivity,
+      };
+    })
+    .filter((r) => r.balance > 0.01)
+    .sort((a, b) => {
+      const byParty = String(a.party).localeCompare(String(b.party));
+      if (byParty !== 0) return byParty;
+      return a._lastActivity < b._lastActivity ? 1 : a._lastActivity > b._lastActivity ? -1 : 0;
+    });
+
+  for (const r of resultRows) {
+    bucketTotals[r.ageing] += r.balance;
+    delete r._lastActivity;
+  }
 
   const total = resultRows.reduce((s, r) => s + r.balance, 0);
 
@@ -288,30 +287,69 @@ const buildBillVouchers = async (company_id, fy_id, ledger_id, bill_name) => {
   }));
 };
 
-// Pending bills grouped by ledger for a group (used by Group Outstandings).
+// Group Outstandings, TallyPrime-style: every party under a group (recursively
+// through its sub-groups) as one Particulars row with a Debit / Credit split of
+// its net pending. Direct ledgers list individually (with their bills for inline
+// expansion); each direct sub-group rolls up its descendants into a single
+// drillable aggregate row.
+//
+// Balances are the raw Dr(+)/Cr(-) net off the party's entries — a Dr net lands
+// in the Debit column, a Cr net in the Credit column — and include On Account
+// amounts so a party's figure reconciles with its Ledger Outstandings total.
+const splitDrCr = (net) => (net >= 0
+  ? { debit: net, credit: 0 }
+  : { debit: 0, credit: -net });
+
 const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
   const asOnDate = new Date().toISOString().slice(0, 10);
+  const gid = Number(group_id);
+  const empty = { rows: [], totalDebit: 0, totalCredit: 0, as_on: asOnDate };
+
+  // Group hierarchy for the company — used to roll each ledger up to the direct
+  // sub-group (or "direct ledger") bucket under the selected group.
+  const allGroups = await db.all(
+    sql`SELECT group_id, name, parent_group_id FROM ${groups} WHERE company_id = ${company_id}`
+  );
+  const byId = new Map(allGroups.map((g) => [g.group_id, g]));
+  if (!byId.has(gid)) return empty;
+
+  // For a ledger's group, climb to the direct child of the selected group.
+  // Returns { direct: true } when the ledger sits straight under the selected
+  // group, else { childGroupId } naming the sub-group it belongs to.
+  const bucketOf = (ledgerGroupId) => {
+    let node = byId.get(ledgerGroupId);
+    const guard = new Set();
+    while (node && node.group_id !== gid && node.parent_group_id !== gid) {
+      if (guard.has(node.group_id)) return null;
+      guard.add(node.group_id);
+      node = byId.get(node.parent_group_id);
+    }
+    if (!node) return null;
+    return node.group_id === gid ? { direct: true } : { childGroupId: node.group_id };
+  };
+
+  // One signed-pending figure per (ledger, bill) for every ledger recursively
+  // under the selected group.
   const rows = await db.all(
     sql`
+      WITH RECURSIVE sub_groups AS (
+        SELECT group_id FROM ${groups} WHERE group_id = ${gid} AND company_id = ${company_id}
+        UNION ALL
+        SELECT g.group_id FROM ${groups} g
+        INNER JOIN sub_groups sg ON g.parent_group_id = sg.group_id
+        WHERE g.company_id = ${company_id}
+      )
       SELECT
         l.ledger_id              AS ledger_id,
         l.name                   AS party_name,
+        l.group_id               AS ledger_group_id,
         vbr.bill_name            AS bill_name,
         COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
-        MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
-        SUM(
-          CASE 
-            WHEN (g.name = 'Sundry Creditors' OR l.nature = 'Liabilities') THEN
-              CASE WHEN ve.entry_type = 'Dr' THEN -vbr.amount ELSE vbr.amount END
-            ELSE
-              CASE WHEN ve.entry_type = 'Cr' THEN -vbr.amount ELSE vbr.amount END
-          END
-        ) AS total_amount
+        SUM(CASE WHEN ve.entry_type = 'Dr' THEN vbr.amount ELSE -vbr.amount END) AS net_drcr
       FROM ${voucherBillReferences} vbr
       JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
-      JOIN ${groups} g   ON g.group_id = l.group_id
       LEFT JOIN (
         SELECT voucher_id, ledger_id, CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
         FROM ${voucherEntries}
@@ -322,38 +360,67 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
         AND v.is_cancelled = 0
         AND COALESCE(v.is_optional, 0) = 0
         AND COALESCE(v.is_post_dated, 0) = 0
-        AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
-        AND l.group_id = ${group_id}
+        AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref', 'On Account')
         AND l.company_id = ${company_id}
         AND l.is_bill_wise = 1
-      GROUP BY l.ledger_id, l.name, vbr.bill_name
-      HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
-         AND ABS(total_amount) > 0.01
-      ORDER BY l.name ASC, MAX(v.date) DESC
+        AND l.group_id IN (SELECT group_id FROM sub_groups)
+      GROUP BY l.ledger_id, l.name, l.group_id, vbr.bill_name
+      ORDER BY l.name ASC, bill_date ASC
     `
   );
 
-  const bucketTotals = AGEING_BUCKETS.reduce((acc, b) => { acc[b] = 0; return acc; }, {});
-
-  // Group rows by ledger
+  // Assemble per-ledger figures + bills.
   const ledgerMap = new Map();
-  rows.forEach((row) => {
-    const balance = Number(row.total_amount) || 0;
-    const overdueDays = row.due_date ? Math.max(0, dayDiff(row.due_date, asOnDate)) : 0;
-    const ageing = bucketFor(overdueDays);
-    bucketTotals[ageing] += balance;
-
-    if (!ledgerMap.has(row.ledger_id)) {
-      ledgerMap.set(row.ledger_id, { ledger_id: row.ledger_id, party: row.party_name, total: 0, bills: [] });
+  for (const r of rows) {
+    const net = Number(r.net_drcr) || 0;
+    let led = ledgerMap.get(r.ledger_id);
+    if (!led) {
+      led = { ledger_id: r.ledger_id, party: r.party_name, group_id: r.ledger_group_id, net: 0, bills: [] };
+      ledgerMap.set(r.ledger_id, led);
     }
-    const entry = ledgerMap.get(row.ledger_id);
-    entry.total += balance;
-    entry.bills.push({ bill: row.bill_name, bill_date: row.bill_date, due_date: row.due_date, credit_period: row.credit_period, overdue_days: overdueDays, balance, ageing });
-  });
+    led.net += net;
+    if (Math.abs(net) > 0.01) {
+      const overdueDays = r.due_date ? Math.max(0, dayDiff(r.due_date, asOnDate)) : 0;
+      led.bills.push({
+        bill: r.bill_name,
+        bill_date: r.bill_date,
+        due_date: r.due_date,
+        overdue_days: overdueDays,
+        ...splitDrCr(net),
+      });
+    }
+  }
 
-  const resultRows = Array.from(ledgerMap.values()).filter(r => Math.abs(r.total) > 0.01);
-  const total = resultRows.reduce((s, r) => s + r.total, 0);
-  return { rows: resultRows, total, bucketTotals, as_on: asOnDate };
+  // Split each ledger into a direct row or fold it into its sub-group aggregate.
+  const directLedgers = [];
+  const subGroupMap = new Map();
+  for (const led of ledgerMap.values()) {
+    if (Math.abs(led.net) <= 0.01 && led.bills.length === 0) continue;
+    const bucket = bucketOf(led.group_id);
+    if (!bucket) continue;
+    if (bucket.direct) {
+      directLedgers.push({ type: 'ledger', ledger_id: led.ledger_id, party: led.party, ...splitDrCr(led.net), bills: led.bills });
+    } else {
+      let agg = subGroupMap.get(bucket.childGroupId);
+      if (!agg) {
+        agg = { type: 'group', group_id: bucket.childGroupId, party: byId.get(bucket.childGroupId)?.name || '', net: 0 };
+        subGroupMap.set(bucket.childGroupId, agg);
+      }
+      agg.net += led.net;
+    }
+  }
+
+  const subGroupRows = [...subGroupMap.values()]
+    .filter((g) => Math.abs(g.net) > 0.01)
+    .map((g) => ({ type: 'group', group_id: g.group_id, party: g.party, ...splitDrCr(g.net) }));
+
+  const resultRows = [...directLedgers, ...subGroupRows]
+    .filter((r) => r.debit > 0.01 || r.credit > 0.01)
+    .sort((a, b) => String(a.party).localeCompare(String(b.party)));
+
+  const totalDebit = resultRows.reduce((s, r) => s + r.debit, 0);
+  const totalCredit = resultRows.reduce((s, r) => s + r.credit, 0);
+  return { rows: resultRows, totalDebit, totalCredit, as_on: asOnDate };
 };
 
 module.exports = {
@@ -389,9 +456,9 @@ module.exports = {
 
   groupOutstandings: async (company_id, fy_id, group_id) => {
     try {
-      const { rows, total, bucketTotals, as_on } =
+      const { rows, totalDebit, totalCredit, as_on } =
         await buildGroupOutstanding(company_id, fy_id, group_id);
-      return { success: true, as_on, rows, total, bucketTotals };
+      return { success: true, as_on, rows, totalDebit, totalCredit };
     } catch (err) {
       return { success: false, error: err.message };
     }
