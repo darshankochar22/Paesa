@@ -50,17 +50,40 @@ export default function InterestGroupLayout({ fromDate: fromProp, toDate: toProp
   const cid      = selectedCompany?.company_id;
   const fyid     = activeFY?.fy_id;
 
-  /* ── Load group picker (ALL groups, like Tally's Group Interest Calc) ── */
+  /* ── Load group picker ─────────────────────────────────────────────
+   * Like TallyPrime's Group Interest Calculation: show only the groups that
+   * are actually IN USE — a group that (directly or via any descendant) holds
+   * a ledger, plus that group's ancestor chain. Empty/unused predefined groups
+   * (Sales Accounts, Fixed Assets, Suspense, …) are hidden. */
   React.useEffect(() => {
     if (!cid || groupId) return;
-    (window as any).api.group.getAll(cid).then((res: any) => {
-      const rawList = Array.isArray(res) ? res : (res?.groups ?? res?.data ?? []);
+    Promise.all([
+      (window as any).api.group.getAll(cid),
+      (window as any).api.ledger.getAll(cid),
+    ]).then(([grpRes, ledRes]: any[]) => {
+      const rawList = Array.isArray(grpRes) ? grpRes : (grpRes?.groups ?? grpRes?.data ?? []);
+      const ledgerList = Array.isArray(ledRes) ? ledRes : (ledRes?.ledgers ?? ledRes?.data ?? []);
       const nameMap = new Map<number, string>();
-      rawList.forEach((g: any) => nameMap.set(g.group_id, g.name));
+      const byId = new Map<number, any>();
+      rawList.forEach((g: any) => { nameMap.set(g.group_id, g.name); byId.set(g.group_id, g); });
+
+      // Groups that hold a ledger, expanded up the parent chain to the root.
+      const inUse = new Set<number>();
+      ledgerList.forEach((l: any) => {
+        let cur = l.group_id != null ? byId.get(l.group_id) : undefined;
+        const seen = new Set<number>();
+        while (cur && !seen.has(cur.group_id)) {
+          inUse.add(cur.group_id);
+          seen.add(cur.group_id);
+          cur = cur.parent_group_id != null ? byId.get(cur.parent_group_id) : undefined;
+        }
+      });
+
       // partySide only tags the Sundry Debtors/Creditors subtrees; other groups
       // default to "Dr" here and the backend's `nature` corrects the display.
       const sides = partySide(rawList);
       const list: GroupMeta[] = rawList
+        .filter((g: any) => inUse.has(g.group_id))
         .map((g: any) => ({
           group_id: g.group_id,
           name: g.name,
