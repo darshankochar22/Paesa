@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { filterPartyGroups } from "@/lib/outstandingParties";
+import { OutstandingsRightPanel } from "./OutstandingsRightPanel";
 
 /* ── Formatters ────────────────────────────────────────────────────── */
 const fmtDate = (d: string) => {
@@ -63,7 +64,6 @@ export default function GroupOutstandingsLayout() {
   const [loading, setLoading]     = React.useState(false);
   const [error, setError]         = React.useState<string | null>(null);
   const [focusedIdx, setFocused]  = React.useState(0);
-  const [expandedIds, setExpanded] = React.useState<Set<number>>(new Set());
 
   const fromDate    = activeFY?.start_date || "";
   const toDate      = activeFY?.end_date   || "";
@@ -95,7 +95,6 @@ export default function GroupOutstandingsLayout() {
     if (!groupId || !cid || !fyid) return;
     setLoading(true);
     setError(null);
-    setExpanded(new Set());
     setFocused(0);
     (window as any).api.report.groupOutstandings(cid, fyid, groupId)
       .then((res: any) => {
@@ -114,20 +113,18 @@ export default function GroupOutstandingsLayout() {
 
   const filtered = groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()));
 
-  /* Open a row: ledger rows expand their bills; sub-group rows drill in. */
+  /* Open a row: sub-group rows drill deeper into the group tree; ledger rows
+   * drill through to that ledger's own Outstandings screen (Tally behaviour). */
   const openRow = React.useCallback((row: OutRow) => {
     if (row.type === "group" && row.group_id) {
       setGroupId(row.group_id);
       setGroupName(row.party);
     } else if (row.type === "ledger" && row.ledger_id != null) {
-      const id = row.ledger_id;
-      setExpanded(prev => {
-        const s = new Set(prev);
-        s.has(id) ? s.delete(id) : s.add(id);
-        return s;
-      });
+      navigate(
+        `/reports/accounts/outstandings-ledger?ledger_id=${row.ledger_id}&ledger_name=${encodeURIComponent(row.party)}`
+      );
     }
-  }, []);
+  }, [navigate]);
 
   /* ── Keyboard: picker ──────────────────────────────────────────── */
   React.useEffect(() => {
@@ -158,7 +155,7 @@ export default function GroupOutstandingsLayout() {
       else if (e.key === "Enter") { e.preventDefault(); if (rows[focusedIdx]) openRow(rows[focusedIdx]); }
       else if (e.key === "Escape" || e.key === "Backspace") {
         e.preventDefault();
-        setGroupId(null); setGroupName(""); setRows([]); setFocused(0); setExpanded(new Set());
+        setGroupId(null); setGroupName(""); setRows([]); setFocused(0);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -214,9 +211,32 @@ export default function GroupOutstandingsLayout() {
   if (loading) return <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">Loading Group Outstandings...</div>;
   if (error)   return <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">{error}</div>;
 
+  /* ── Right-panel actions (Tally F-keys). Wired: F4 Group → picker,
+   * Change View → Ledger Outstandings. The rest are greyed for parity. ── */
+  const panelItems = [
+    { key: "F2", label: "Period" },
+    { key: "F3", label: "Company" },
+    { key: "F4", label: "Group", onClick: () => { setGroupId(null); setGroupName(""); setRows([]); setFocused(0); } },
+    { key: "", label: "", spacer: true },
+    { key: "F5", label: "Ledger-wise" },
+    { key: "F6", label: "Ageing Method" },
+    { key: "F8", label: "Ledger-wise Bills" },
+    { key: "", label: "", spacer: true },
+    { key: "B", label: "Basis of Values" },
+    { key: "H", label: "Change View", onClick: () => navigate("/reports/accounts/outstandings-ledger") },
+    { key: "J", label: "Exception Reports" },
+    { key: "L", label: "Save View" },
+    { key: "", label: "", spacer: true },
+    { key: "E", label: "Apply Filter" },
+    { key: "C", label: "New Column" },
+    { key: "A", label: "Alter Column" },
+    { key: "N", label: "Auto Column" },
+  ];
+
   /* ── Drill-down view (Particulars | Pending Bills: Debit | Credit) ─── */
   return (
-    <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
+    <div className="flex h-full w-full bg-white font-mono overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Sub-header */}
       <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
         <span>Group : <span className="font-bold">{groupName}</span></span>
@@ -246,36 +266,20 @@ export default function GroupOutstandingsLayout() {
             ) : rows.map((row, idx) => {
               const isFocused = focusedIdx === idx;
               const isGroup = row.type === "group";
-              const isExpanded = row.ledger_id != null && expandedIds.has(row.ledger_id);
               return (
-                <React.Fragment key={`${row.type}-${row.ledger_id ?? row.group_id}`}>
-                  {/* Party / sub-group row */}
-                  <tr
-                    className={`border-b border-black/10 cursor-pointer select-none transition-colors ${isFocused ? "bg-black/10 text-black" : "hover:bg-black/[0.04] text-black"} font-semibold`}
-                    onClick={() => { setFocused(idx); openRow(row); }}
-                  >
-                    <td className="px-3 py-1.5">
-                      {isGroup
-                        ? <span>{row.party} <span className="text-black/50">(sub-group)</span></span>
-                        : <span>{row.bills && row.bills.length > 0 ? (isExpanded ? "▾ " : "▸ ") : ""}{row.party}</span>}
-                    </td>
-                    <td className="px-3 py-1.5 text-right">{fmt(row.debit)}</td>
-                    <td className="px-3 py-1.5 text-right">{fmt(row.credit)}</td>
-                  </tr>
-
-                  {/* Bill lines (ledger rows only, when expanded) */}
-                  {isExpanded && row.bills?.map((b, bi) => (
-                    <tr key={bi} className="border-b border-black/[0.06] bg-white text-black/70">
-                      <td className="px-3 py-1 pl-8">
-                        {b.bill}
-                        {b.bill_date && <span className="text-black/40">  ·  {fmtDate(b.bill_date)}</span>}
-                        {b.overdue_days > 0 && <span className="text-black/60 font-semibold">  ·  overdue {b.overdue_days}d</span>}
-                      </td>
-                      <td className="px-3 py-1 text-right">{fmt(b.debit)}</td>
-                      <td className="px-3 py-1 text-right">{fmt(b.credit)}</td>
-                    </tr>
-                  ))}
-                </React.Fragment>
+                <tr
+                  key={`${row.type}-${row.ledger_id ?? row.group_id}`}
+                  className={`border-b border-black/10 cursor-pointer select-none transition-colors ${isFocused ? "bg-black/10 text-black" : "hover:bg-black/[0.04] text-black"} font-semibold`}
+                  onClick={() => { setFocused(idx); openRow(row); }}
+                >
+                  <td className="px-3 py-1.5">
+                    {isGroup
+                      ? <span>{row.party} <span className="text-black/50">(sub-group)</span></span>
+                      : <span>{row.party}</span>}
+                  </td>
+                  <td className="px-3 py-1.5 text-right">{fmt(row.debit)}</td>
+                  <td className="px-3 py-1.5 text-right">{fmt(row.credit)}</td>
+                </tr>
               );
             })}
           </tbody>
@@ -288,6 +292,9 @@ export default function GroupOutstandingsLayout() {
         <span className="w-[20%] text-right">{fmtTotal(totalDebit)}</span>
         <span className="w-[20%] text-right pr-3">{fmtTotal(totalCredit)}</span>
       </div>
+      </div>
+
+      <OutstandingsRightPanel items={panelItems} />
     </div>
   );
 }

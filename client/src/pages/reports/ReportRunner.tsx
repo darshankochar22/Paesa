@@ -755,6 +755,8 @@ export function ReportRunner() {
           />
         )}
 
+        {/* Outstandings layouts render their own Tally-style action panel. */}
+        {!["ledger-outstandings", "outstandings-ledger", "group-outstandings", "outstandings-group"].includes(reportType) && (
         <ReportRightPanel
           onPeriodSelect={() => setIsPeriodOpen(true)}
           onCompanySelect={() => setIsCompanyOpen(true)}
@@ -795,6 +797,7 @@ export function ReportRunner() {
             navigate("/utilities/copilot", { state: { initialPrompt: prompt } });
           }}
         />
+        )}
       </div>
 
       {/* F2 Period Modal */}

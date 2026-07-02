@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { filterPartyLedgers } from "@/lib/outstandingParties";
+import { OutstandingsRightPanel } from "./OutstandingsRightPanel";
 
 /* ── Formatters ────────────────────────────────────────────────────── */
 const fmtDate = (d: string) => {
@@ -235,9 +236,30 @@ export default function LedgerOutstandingsLayout() {
   if (loading) return <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">Loading Ledger Outstandings...</div>;
   if (error)   return <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">{error}</div>;
 
+  /* ── Right-panel actions (Tally F-keys). Wired: F4 Ledger → picker,
+   * Change View → Group Outstandings. The rest are greyed for parity. ── */
+  const panelItems = [
+    { key: "F2", label: "Period" },
+    { key: "F3", label: "Company" },
+    { key: "F4", label: "Ledger", onClick: () => { setLedgerId(null); setLedgerName(""); setRows([]); setFocused(0); setExpandedBill(null); } },
+    { key: "", label: "", spacer: true },
+    { key: "F6", label: "Ageing Method" },
+    { key: "F9", label: "GST Outstandings" },
+    { key: "", label: "", spacer: true },
+    { key: "B", label: "Basis of Values" },
+    { key: "H", label: "Change View", onClick: () => navigate("/reports/accounts/outstandings-group") },
+    { key: "J", label: "Exception Reports" },
+    { key: "L", label: "Save View" },
+    { key: "", label: "", spacer: true },
+    { key: "E", label: "Apply Filter" },
+    { key: "B", label: "Settle Bills" },
+    { key: "S", label: "Contact" },
+  ];
+
   /* ── Drill-down view ─────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
+    <div className="flex h-full w-full bg-white font-mono overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Sub-header */}
       <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
         <span>Ledger : <span className="font-bold">{ledgerName}</span></span>
@@ -349,6 +371,9 @@ export default function LedgerOutstandingsLayout() {
           </tbody>
         </table>
       </div>
+      </div>
+
+      <OutstandingsRightPanel items={panelItems} />
     </div>
   );
 }
