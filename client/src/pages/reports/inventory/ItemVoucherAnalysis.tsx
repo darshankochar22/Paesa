@@ -98,7 +98,7 @@ export default function ItemVoucherAnalysis({
   const scope = groupName
     ? { label: "Under Group", value: groupName }
     : ledgerName
-      ? { label: `${direction === "outward" ? "Outwards" : "Inwards"} Under Ledger`, value: ledgerName }
+      ? { label: direction ? `${direction === "outward" ? "Outwards" : "Inwards"} Under Ledger` : "Under Ledger", value: ledgerName }
       : null;
 
   const tot = dataRows.reduce((a, r) => {

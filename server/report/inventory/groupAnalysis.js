@@ -148,4 +148,15 @@ const groupItemVouchers = async (company_id, fy_id, group_id, item_id) => {
   }
 };
 
-module.exports = { groupAnalysis, ledgerAnalysis, groupItemVouchers };
+/** Item Voucher Analysis under a single ledger (drill from Ledger Analysis). */
+const ledgerItemVouchers = async (company_id, fy_id, ledger_id, item_id) => {
+  try {
+    const itemRow = await db.all(sql`SELECT name FROM ${stockItems} WHERE item_id = ${item_id} AND company_id = ${company_id}`);
+    const rows = await partyItemVouchers(company_id, fy_id, sql`l.ledger_id = ${ledger_id}`, item_id);
+    return { success: true, item_name: itemRow.length ? itemRow[0].name : '', rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+module.exports = { groupAnalysis, ledgerAnalysis, groupItemVouchers, ledgerItemVouchers };
