@@ -1,10 +1,13 @@
 import * as React from "react";
 
 // TallyPrime "Item Voucher Analysis" — the voucher-level leaf of the Movement
-// Analysis drill chain. Filtered to a single stock item + ledger + direction.
+// Analysis drill chain. Reached filtered to a single stock item + ledger +
+// direction (Stock Group/Item Analysis) OR item + ledger group (Group Analysis).
 // Columns: Date | Particulars | Actual Qty | Billed Qty | Basic Rate |
 //          Basic Value | Addl. Cost | Total Value | Eff. Rate.
-// The selected row expands an italic voucher sub-line (date · type · number).
+// Rows are sectioned by voucher-type family (Purchases / Sales); a Credit/Debit
+// Note nets inside its family as a negative line. The selected row expands an
+// italic voucher sub-line (date · type · number).
 // Presentational only; parent owns selection + keyboard navigation.
 
 // ── Formatters (en-IN, Tally negatives as "(-)") ──────────────────────────
@@ -52,9 +55,11 @@ interface Props {
   itemName: string;
   companyName?: string;
   periodLabel?: string;
-  /** Ledger the vouchers are filtered under (header line). */
+  /** Ledger the vouchers are filtered under (single-direction drill). */
   ledgerName?: string;
-  /** "inward" → Purchases section, "outward" → Sales. Inferred per-row if omitted. */
+  /** Ledger group the vouchers are filtered under (Group Analysis drill). */
+  groupName?: string;
+  /** Header direction word for the ledger case ("Inwards"/"Outwards"). */
   direction?: "inward" | "outward";
   unit?: string;
   rows: VoucherRow[];
@@ -68,43 +73,39 @@ interface Props {
 
 const TH = "px-2 py-1 font-bold text-zinc-700 border-b border-zinc-300";
 
-/** One voucher row projected onto the 9-column Tally shape. Net of the opposite
- *  leg so a purchase-return (Debit Note) reads as a negative Purchases line. */
-function project(r: VoucherRow, dir: "inward" | "outward") {
+/** Section family by voucher-type: Sales family (Sales, Credit Note) vs Purchases. */
+const famOf = (r: VoucherRow): "inward" | "outward" =>
+  /credit note|sales|sale/i.test(r.voucher_type || "") ? "outward" : "inward";
+
+/** Project a row onto the 9-column shape, net of the opposite leg so a
+ *  purchase/sales return reads as a negative line inside its family. */
+function project(r: VoucherRow) {
   const inQ = Number(r.inwards_qty) || 0,  outQ = Number(r.outwards_qty) || 0;
   const inV = Number(r.inwards_value) || 0, outV = Number(r.outwards_value) || 0;
+  const dir = famOf(r);
   const qty   = dir === "inward" ? inQ - outQ : outQ - inQ;
   const basic = dir === "inward" ? inV - outV : outV - inV;
   const addl  = Number(r.addl_cost) || 0;
-  const total = basic + addl;
-  return {
-    qty,
-    basicRate: qty ? basic / qty : 0,
-    basicValue: basic,
-    addl,
-    total,
-    effRate: qty ? total / qty : 0,
-  };
+  return { qty, basicRate: qty ? basic / qty : 0, basicValue: basic, addl, total: basic + addl, effRate: qty ? (basic + addl) / qty : 0 };
 }
 
 export default function ItemVoucherAnalysis({
-  itemName, companyName, periodLabel, ledgerName, direction, unit,
+  itemName, companyName, periodLabel, ledgerName, groupName, direction, unit,
   rows, loading, error, selectedIndex, onSelectIndex, onOpenVoucher, footer,
 }: Props) {
   const dataRows = rows.filter(r => r.voucher_id !== null);
-  const dirOf = (r: VoucherRow): "inward" | "outward" =>
-    direction ?? ((Number(r.inwards_qty) || 0) !== 0 ? "inward" : "outward");
-  const sectionLabel = direction === "outward" ? "Sales" : direction === "inward" ? "Purchases"
-    : dataRows.length && dirOf(dataRows[0]) === "outward" ? "Sales" : "Purchases";
-  const ledgerLabel = direction === "outward" ? "Outwards Under Ledger" : "Inwards Under Ledger";
+
+  const scope = groupName
+    ? { label: "Under Group", value: groupName }
+    : ledgerName
+      ? { label: `${direction === "outward" ? "Outwards" : "Inwards"} Under Ledger`, value: ledgerName }
+      : null;
 
   const tot = dataRows.reduce((a, r) => {
-    const p = project(r, dirOf(r));
+    const p = project(r);
     a.qty += p.qty; a.basic += p.basicValue; a.addl += p.addl; a.total += p.total;
     return a;
   }, { qty: 0, basic: 0, addl: 0, total: 0 });
-  const totEffRate = tot.qty ? tot.total / tot.qty : 0;
-  const totBasicRate = tot.qty ? tot.basic / tot.qty : 0;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -114,12 +115,12 @@ export default function ItemVoucherAnalysis({
         <span className="font-bold text-sm">{companyName || "Company"}</span>
         <span />
       </div>
-      {/* Sub-header: stock item + ledger (left), period (right) */}
+      {/* Sub-header: stock item + scope (left), period (right) */}
       <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
         <div>
           <div><span className="text-zinc-500">Stock Item:</span> <span className="font-semibold">{itemName}</span></div>
-          {ledgerName && (
-            <div><span className="text-zinc-500">{ledgerLabel}:</span> <span className="font-semibold">{ledgerName}</span></div>
+          {scope && (
+            <div><span className="text-zinc-500">{scope.label}:</span> <span className="font-semibold">{scope.value}</span></div>
           )}
         </div>
         <span className="font-semibold">{periodLabel}</span>
@@ -149,17 +150,21 @@ export default function ItemVoucherAnalysis({
               <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-400 italic">No vouchers found.</td></tr>
             ) : (
               <>
-                {/* Section label (Purchases / Sales) */}
-                <tr>
-                  <td className="px-2 pt-2 pb-0.5" />
-                  <td colSpan={8} className="px-2 pt-2 pb-0.5 font-bold italic text-zinc-800">{sectionLabel}</td>
-                </tr>
                 {dataRows.map((r, idx) => {
-                  const dir = dirOf(r);
-                  const p = project(r, dir);
+                  const p = project(r);
                   const selected = idx === selectedIndex;
+                  const fam = famOf(r);
+                  const showSection = idx === 0 || famOf(dataRows[idx - 1]) !== fam;
                   return (
                     <React.Fragment key={r.voucher_id ?? `row-${idx}`}>
+                      {showSection && (
+                        <tr>
+                          <td className="px-2 pt-2 pb-0.5" />
+                          <td colSpan={8} className="px-2 pt-2 pb-0.5 font-bold italic text-zinc-800">
+                            {fam === "outward" ? "Sales" : "Purchases"}
+                          </td>
+                        </tr>
+                      )}
                       <tr
                         onClick={() => onSelectIndex(idx)}
                         onDoubleClick={() => r.voucher_id && onOpenVoucher?.(r)}
@@ -176,7 +181,6 @@ export default function ItemVoucherAnalysis({
                         <td className="px-2 py-1 text-right">{fmtVal(p.total)}</td>
                         <td className="px-2 py-1 text-right">{fmtRate(p.effRate, unit)}</td>
                       </tr>
-                      {/* Voucher sub-line for the focused row (date · type · number) */}
                       {selected && (
                         <tr className="text-zinc-500">
                           <td className="px-2 py-0.5" />
@@ -194,11 +198,11 @@ export default function ItemVoucherAnalysis({
                   <td className="px-2 py-1 text-right">Total</td>
                   <td className="px-2 py-1 text-right">{fmtQty(tot.qty, unit)}</td>
                   <td className="px-2 py-1 text-right">{fmtQty(tot.qty, unit)}</td>
-                  <td className="px-2 py-1 text-right">{fmtRate(totBasicRate, unit)}</td>
+                  <td className="px-2 py-1" />
                   <td className="px-2 py-1 text-right">{fmtVal(tot.basic)}</td>
                   <td className="px-2 py-1 text-right">{fmtVal(tot.addl)}</td>
                   <td className="px-2 py-1 text-right">{fmtVal(tot.total)}</td>
-                  <td className="px-2 py-1 text-right">{fmtRate(totEffRate, unit)}</td>
+                  <td className="px-2 py-1 text-right">{fmtRate(tot.qty ? tot.total / tot.qty : 0, unit)}</td>
                 </tr>
               </>
             )}

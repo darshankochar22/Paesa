@@ -81,12 +81,17 @@ export default function GroupAnalysis() {
     if (!companyId || !fyId) return;
     setLevel({ step: "vouchers", group, item });
     setLoadingV(true); setVErr(null); setVIdx(0);
-    (window as any).api.report.stockItemVouchers(companyId, fyId, item.item_id, activeFY?.start_date, activeFY?.end_date).then((res: any) => {
-      if (res.success) setVouchers(res.rows ?? []);
-      else setVErr(res.error || "Failed to load vouchers");
+    (window as any).api.report.groupItemVouchers(companyId, fyId, group.group_id, item.item_id).then((res: any) => {
+      if (res.success) {
+        // Group into Purchases then Sales sections (by voucher-type family), each chronological.
+        const fam = (vt: string) => (/credit note|sales|sale/i.test(vt || "") ? 1 : 0);
+        const sorted = [...(res.rows ?? [])].sort((a, b) =>
+          fam(a.voucher_type) - fam(b.voucher_type) || String(a.date).localeCompare(String(b.date)));
+        setVouchers(sorted);
+      } else setVErr(res.error || "Failed to load vouchers");
       setLoadingV(false);
     });
-  }, [companyId, fyId, activeFY]);
+  }, [companyId, fyId]);
 
   const backToSelect = React.useCallback(() => { setLevel({ step: "select" }); setItems([]); setSearch(""); }, []);
   const backToReport = React.useCallback((group: Group) => { setLevel({ step: "report", group }); setVouchers([]); }, []);
@@ -167,10 +172,17 @@ export default function GroupAnalysis() {
   return (
     <ItemVoucherAnalysis
       itemName={it.item_name} companyName={selectedCompany?.name} periodLabel={periodLabel}
+      groupName={g.name} unit={it.unit_name}
       rows={vouchers} loading={loadingV} error={vErr}
       selectedIndex={vIdx} onSelectIndex={setVIdx}
       onOpenVoucher={(r) => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
-      footer={<FooterBar><button onClick={() => backToReport(g)} className="hover:underline hover:text-zinc-900">Q: Back to Group</button><span className="text-zinc-400">Enter: Open voucher</span></FooterBar>}
+      footer={<FooterBar>
+        <button onClick={() => backToReport(g)} className="hover:underline hover:text-zinc-900">Q: Back to Group</button>
+        <span className="text-zinc-400">Enter: Alter</span>
+        <span className="text-zinc-400">A: Add Vch</span>
+        <span className="text-zinc-400">2: Duplicate Vch</span>
+        <span className="text-zinc-400">I: Insert Vch</span>
+      </FooterBar>}
     />
   );
 }

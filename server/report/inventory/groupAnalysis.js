@@ -1,6 +1,7 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { vouchers, stockItems, ledgers, voucherEntries, voucherStockEntries, units } = require('../../db/schema');
+const { entryDirection } = require('../services/stockMovement');
 
 const INWARD  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
 const OUTWARD = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
@@ -75,4 +76,76 @@ const ledgerAnalysis = async (company_id, fy_id, ledger_id) => {
   }
 };
 
-module.exports = { groupAnalysis, ledgerAnalysis };
+/**
+ * Item Voucher Analysis rows for a single stock item, restricted to vouchers
+ * whose accounting entries reference a ledger matching `ledgerFilter` (a ledger
+ * group or a single ledger). Each row = one voucher; `particulars` is the
+ * matching party ledger; legs carry goods direction (the frontend sections by
+ * voucher-type family and nets returns).
+ */
+const partyItemVouchers = async (company_id, fy_id, ledgerFilter, item_id) => {
+  const rows = await db.all(sql`
+    SELECT
+      v.voucher_id     AS voucher_id,
+      v.date           AS date,
+      v.voucher_type   AS voucher_type,
+      v.voucher_number AS voucher_number,
+      iv.qty           AS quantity,
+      iv.amount        AS amount,
+      iv.addl          AS additional_amount,
+      iv.is_source     AS is_source,
+      (SELECT l.name FROM ${voucherEntries} ve
+         INNER JOIN ${ledgers} l ON l.ledger_id = ve.ledger_id
+        WHERE ve.voucher_id = v.voucher_id AND ${ledgerFilter}
+        LIMIT 1) AS particulars
+    FROM (
+      SELECT vse.voucher_id AS voucher_id,
+             SUM(COALESCE(vse.quantity, 0))          AS qty,
+             SUM(COALESCE(vse.amount, 0))            AS amount,
+             SUM(COALESCE(vse.additional_amount, 0)) AS addl,
+             MAX(COALESCE(vse.is_source, 0))         AS is_source
+      FROM ${voucherStockEntries} vse
+      WHERE vse.stock_item_id = ${item_id}
+      GROUP BY vse.voucher_id
+    ) iv
+    INNER JOIN ${vouchers} v ON v.voucher_id = iv.voucher_id
+    WHERE v.company_id = ${company_id}
+      AND v.fy_id = ${fy_id}
+      AND v.is_cancelled = 0
+      AND COALESCE(v.is_optional, 0) = 0
+      AND COALESCE(v.is_post_dated, 0) = 0
+      AND EXISTS (
+        SELECT 1 FROM ${voucherEntries} ve
+        INNER JOIN ${ledgers} l ON l.ledger_id = ve.ledger_id
+        WHERE ve.voucher_id = v.voucher_id AND ${ledgerFilter})
+    ORDER BY v.date ASC, v.voucher_id ASC
+  `);
+
+  const out = [];
+  for (const r of rows) {
+    const dir = entryDirection(r.voucher_type, r.is_source);
+    if (!dir) continue;
+    const qty = Number(r.quantity) || 0, amt = Number(r.amount) || 0, addl = Number(r.additional_amount) || 0;
+    out.push({
+      voucher_id: r.voucher_id, date: r.date, particulars: r.particulars || '',
+      voucher_type: r.voucher_type, voucher_number: r.voucher_number,
+      inwards_qty:  dir === 'in'  ? qty : null, inwards_value:  dir === 'in'  ? amt : null,
+      outwards_qty: dir === 'out' ? qty : null, outwards_value: dir === 'out' ? amt : null,
+      addl_cost: addl, closing_qty: 0, closing_value: 0,
+    });
+  }
+  return out;
+};
+
+/** Item Voucher Analysis under a ledger group (drill from Group Analysis). */
+const groupItemVouchers = async (company_id, fy_id, group_id, item_id) => {
+  try {
+    const itemRow = await db.all(sql`SELECT name FROM ${stockItems} WHERE item_id = ${item_id} AND company_id = ${company_id}`);
+    const rows = await partyItemVouchers(company_id, fy_id, sql`l.group_id = ${group_id}`, item_id);
+    return { success: true, item_name: itemRow.length ? itemRow[0].name : '', rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+module.exports = { groupAnalysis, ledgerAnalysis, groupItemVouchers };
