@@ -163,7 +163,16 @@ module.exports = {
         )
         SELECT id FROM grp
       )`;
-      else if (dimension === 'stock-category' && selection_id) dimCond = sql` AND si.category_id = ${selection_id}`;
+      // Stock Category is hierarchical too — include the chosen category and all
+      // its descendants. Primary/"All Stock Categories" arrives as null → no filter.
+      else if (dimension === 'stock-category' && selection_id) dimCond = sql` AND si.category_id IN (
+        WITH RECURSIVE cat(id) AS (
+          SELECT ${selection_id}
+          UNION ALL
+          SELECT sc.sc_id FROM stock_categories sc INNER JOIN cat ON sc.parent_category_id = cat.id
+        )
+        SELECT id FROM cat
+      )`;
       else if (dimension === 'ledger'         && selection_id) dimCond = sql` AND v.party_ledger_id = ${selection_id}`;
       else if (dimension === 'group'          && selection_id) dimCond = sql` AND v.party_ledger_id IN (SELECT ledger_id FROM ledgers WHERE group_id = ${selection_id})`;
 

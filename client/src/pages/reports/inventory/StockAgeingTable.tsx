@@ -81,12 +81,13 @@ export default function StockAgeingTable({
   });
 
   // Section column groups, in render order: Total + 4 bands + Negative.
+  // Total and Negative Stock are Quantity-only (no Value sub-column), matching Tally.
   const groups = [
-    { key: "total", label: "Total", cell: (r: AgeRow) => r.total },
-    ...labels.map((label, i) => ({ key: `b${i}`, label, cell: (r: AgeRow) => r.buckets[i] })),
-    { key: "neg", label: "Negative Stock", cell: (r: AgeRow) => r.neg },
+    { key: "total", label: "Total", qtyOnly: true, cell: (r: AgeRow) => r.total },
+    ...labels.map((label, i) => ({ key: `b${i}`, label, qtyOnly: false, cell: (r: AgeRow) => r.buckets[i] })),
+    { key: "neg", label: "Negative Stock", qtyOnly: true, cell: (r: AgeRow) => r.neg },
   ];
-  const colCount = 2 + groups.length * 2;
+  const colCount = 2 + groups.reduce((n, g) => n + (g.qtyOnly ? 1 : 2), 0);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -118,14 +119,14 @@ export default function StockAgeingTable({
               <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom border-b border-zinc-300">Particulars</th>
               <th rowSpan={2} className="px-2 py-1 text-left font-bold align-bottom border-b border-l border-zinc-200 w-24">Expiry Date</th>
               {groups.map(g => (
-                <th key={g.key} colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200 whitespace-nowrap">{g.label}</th>
+                <th key={g.key} colSpan={g.qtyOnly ? 1 : 2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200 whitespace-nowrap">{g.label}</th>
               ))}
             </tr>
             <tr>
               {groups.map(g => (
                 <React.Fragment key={g.key}>
                   <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
-                  <th className="px-2 py-1 text-right font-bold w-28">Value</th>
+                  {!g.qtyOnly && <th className="px-2 py-1 text-right font-bold w-28">Value</th>}
                 </React.Fragment>
               ))}
             </tr>
@@ -151,7 +152,7 @@ export default function StockAgeingTable({
                   return (
                     <React.Fragment key={g.key}>
                       <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(c.qty, r.unit)}</td>
-                      <td className="px-2 py-1 text-right">{fmt(c.value)}</td>
+                      {!g.qtyOnly && <td className="px-2 py-1 text-right">{fmt(c.value)}</td>}
                     </React.Fragment>
                   );
                 })}
@@ -164,11 +165,12 @@ export default function StockAgeingTable({
                 <td className="px-3 py-1.5">Grand Total</td>
                 <td className="px-2 py-1.5 border-l border-zinc-200" />
                 {groups.map(g => {
+                  // Quantities span mixed units, so the grand total sums only the band Values.
                   const c = g.key === "total" ? totals.total : g.key === "neg" ? totals.neg : totals.buckets[Number(g.key.slice(1))];
                   return (
                     <React.Fragment key={g.key}>
-                      <td className="px-2 py-1.5 text-right border-l border-zinc-200">{fmtQty(c.qty)}</td>
-                      <td className="px-2 py-1.5 text-right">{fmt(c.value)}</td>
+                      <td className="px-2 py-1.5 text-right border-l border-zinc-200" />
+                      {!g.qtyOnly && <td className="px-2 py-1.5 text-right">{fmt(c.value)}</td>}
                     </React.Fragment>
                   );
                 })}

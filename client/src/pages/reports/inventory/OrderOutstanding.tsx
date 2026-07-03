@@ -51,7 +51,7 @@ const DIMS = (): Dim[] => [
     selectTitle: "Select Stock Group",    fieldLabel: "Name of Group",    listLabel: "List of Stock Groups",
     fetch: async (c) => (((await api().stockGroup.getAll(c)).stockGroups ?? []).map((g: any) => ({ id: g.sg_id, name: g.name }))) },
   { key: "stock-category", label: "Stock Category", summary: true, allLabel: "All Stock Categories",
-    selectTitle: "Select Stock Category", fieldLabel: "Name of Category", listLabel: "List of Stock Categories",
+    selectTitle: "Select Stock Category", fieldLabel: "Name of Stock Category", listLabel: "List of Stock Categories",
     fetch: async (c) => (((await api().stockCategory.getAll(c)).stockCategories ?? []).map((g: any) => ({ id: g.sc_id, name: g.name }))) },
   { key: "stock-item",     label: "Stock Item",     allLabel: "All Items",
     selectTitle: "Select Stock Item",     fieldLabel: "Name of Item",     listLabel: "List of Stock Items",
@@ -70,8 +70,9 @@ type Level =
   | { step: "select"; dim: Dim }
   | { step: "report"; dim: Dim; selection: Ref | null };
 
-// The root "Primary" group means "All Stock Groups" — no filter.
-const isPrimary = (dim: Dim, sel: Ref | null) => dim.key === "stock-group" && sel?.name === "Primary";
+// The root "Primary" group/category means "All …" — no filter.
+const isPrimary = (dim: Dim, sel: Ref | null) =>
+  (dim.key === "stock-group" || dim.key === "stock-category") && sel?.name === "Primary";
 
 export default function OrderOutstanding({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
