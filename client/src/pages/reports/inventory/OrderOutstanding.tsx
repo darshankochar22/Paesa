@@ -21,7 +21,7 @@ interface Row {
   date: string; order_no: string;
   party_name: string; party_ledger_id: number | null;
   stock_item_id: number | null;
-  item_name: string; ordered_qty: number; balance_qty: number; rate: number; value: number;
+  item_name: string; unit: string; ordered_qty: number; balance_qty: number; rate: number; value: number;
 }
 
 interface Dim {
@@ -46,10 +46,11 @@ const dmy = (iso: string | null) => {
 };
 const fmtNum = (v: number | null | undefined) =>
   !v ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
-const fmtQty = (v: number | null | undefined) => {
+const fmtQty = (v: number | null | undefined, unit?: string) => {
   const n = Number(v) || 0;
   if (n === 0) return "";
-  return n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  const num = n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  return unit ? `${num} ${unit}` : num;
 };
 const api = () => (window as any).api;
 
@@ -148,19 +149,27 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
 
   // Particulars summary — grouped by item or party. Rate only meaningful when a
   // single item backs the row, so party-grouped rows leave Rate blank.
-  interface SumRow { key: string; name: string; qty: number; value: number; rate: number; }
+  interface SumRow { key: string; name: string; qty: number; value: number; rate: number; unit: string; }
   const summary = React.useMemo<SumRow[]>(() => {
     const map = new Map<string, SumRow>();
     for (const r of rows) {
       const key = rowKey(r, groupBy);
-      const cur = map.get(key) ?? { key, name: rowName(r, groupBy), qty: 0, value: 0, rate: 0 };
+      const cur = map.get(key) ?? { key, name: rowName(r, groupBy), qty: 0, value: 0, rate: 0, unit: r.unit };
       cur.qty += r.balance_qty; cur.value += r.value;
+      // A row's unit is meaningful only while every line under it shares one unit.
+      if (cur.unit !== r.unit) cur.unit = "";
       map.set(key, cur);
     }
     return [...map.values()]
       .map(x => ({ ...x, rate: groupBy === "item" && x.qty ? x.value / x.qty : 0 }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [rows, groupBy]);
+
+  // Quantity is only summable across the report when every row shares one unit.
+  const totalUnit = React.useMemo(() => {
+    const units = new Set(summary.filter(r => r.qty).map(r => r.unit));
+    return units.size === 1 ? [...units][0] : null;
+  }, [summary]);
 
   // Order lines for the drilled Particulars row.
   const lineRows = React.useMemo(() =>
@@ -304,7 +313,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                   onDoubleClick={() => { setDrill({ key: r.key, name: r.name }); setRowIdx(0); }}
                   className={`border-b border-zinc-100 cursor-pointer ${i === sumIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
                   <td className="px-3 py-1">{r.name}</td>
-                  <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(r.qty)}</td>
+                  <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(r.qty, r.unit)}</td>
                   <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtNum(r.rate)}</td>
                   <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtNum(r.value)}</td>
                 </tr>
@@ -314,7 +323,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
         </div>
         <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
           <span className="flex-1">Grand Total</span>
-          <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtQty(grandQty)}</span>
+          <span className="w-32 text-right border-l border-zinc-300 pr-2">{totalUnit !== null ? fmtQty(grandQty, totalUnit) : ""}</span>
           <span className="w-28 border-l border-zinc-300" />
           <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtNum(grandVal)}</span>
         </div>
@@ -358,8 +367,8 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                 <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
                 <td className="px-2 py-1">{r.order_no}</td>
                 <td className="px-2 py-1">{groupBy === "item" ? (r.party_name || "—") : r.item_name}</td>
-                <td className="px-2 py-1 text-right w-28">{fmtQty(r.ordered_qty)}</td>
-                <td className="px-2 py-1 text-right w-28">{fmtQty(r.balance_qty)}</td>
+                <td className="px-2 py-1 text-right w-28">{fmtQty(r.ordered_qty, r.unit)}</td>
+                <td className="px-2 py-1 text-right w-28">{fmtQty(r.balance_qty, r.unit)}</td>
                 <td className="px-2 py-1 text-right w-24">{fmtNum(r.rate)}</td>
                 <td className="px-2 py-1 text-right w-28">{fmtNum(r.value)}</td>
               </tr>

@@ -23,6 +23,7 @@ const { transferAnalysis, transferItemVouchers } = require('./inventory/transfer
 const { costEstimation } = require('./inventory/costEstimation');
 const { itemCostAnalysis } = require('./inventory/itemCostAnalysis');
 const { jobWorkAnalysis } = require('./inventory/jobWorkAnalysis');
+const { reorderStatus: reorderStatusScoped } = require('./inventory/reorderStatus');
 const {
   jobWorkOrders,
   jobWorkComponents,
@@ -236,6 +237,9 @@ module.exports = {
   },
   reorderStatus: async (event, { company_id, fy_id }) => {
     return await advancedInventoryReportService.reorderStatus(company_id, fy_id);
+  },
+  reorderStatusScoped: async (event, { company_id, fy_id, scope_type, scope_id }) => {
+    return await reorderStatusScoped(company_id, fy_id, scope_type, scope_id);
   },
   orderOutstanding: async (event, { company_id, fy_id, type, dimension, selection_id }) => {
     return await advancedInventoryReportService.orderOutstanding(company_id, fy_id, type, dimension, selection_id);

@@ -185,6 +185,7 @@ module.exports = {
           v.party_ledger_id AS party_ledger_id,
           vse.stock_item_id AS stock_item_id,
           vse.item_name     AS item_name,
+          COALESCE(um.symbol, um2.symbol) AS unit,
           vse.quantity      AS ordered_qty,
           vse.rate          AS rate,
           (
@@ -201,6 +202,9 @@ module.exports = {
           ) AS fulfilled_qty
         FROM ${vouchers} v
         INNER JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id${dimJoin}
+        LEFT JOIN units um  ON um.unit_id  = vse.unit_id
+        LEFT JOIN ${stockItems} siu ON siu.item_id = vse.stock_item_id
+        LEFT JOIN units um2 ON um2.unit_id = siu.unit_id
         WHERE v.company_id   = ${company_id}
           AND v.fy_id        = ${fy_id}
           AND v.voucher_type = ${orderType}
@@ -220,6 +224,7 @@ module.exports = {
             party_ledger_id: r.party_ledger_id,
             stock_item_id: r.stock_item_id,
             item_name: r.item_name,
+            unit: r.unit || "",
             ordered_qty: ordered,
             balance_qty: balance,
             rate: r.rate || 0,

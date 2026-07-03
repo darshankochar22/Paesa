@@ -54,6 +54,7 @@ function register() {
   ipcMain.handle('report:stockAgeing', reportController.stockAgeing);
   ipcMain.handle('report:movementAnalysis', reportController.movementAnalysis);
   ipcMain.handle('report:reorderStatus', reportController.reorderStatus);
+  ipcMain.handle('report:reorderStatusScoped', reportController.reorderStatusScoped);
   ipcMain.handle('report:orderOutstanding', reportController.orderOutstanding);
   ipcMain.handle('report:billsPending', reportController.billsPending);
 
