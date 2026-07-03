@@ -19,7 +19,7 @@ const { stockAgeingAnalysis } = require('./inventory/ageingAnalysis');
 const { stockCategoryAnalysis, stockCategoryAnalysisItems } = require('./inventory/stockCategoryAnalysis');
 const { stockItemAnalysis } = require('./inventory/stockItemAnalysis');
 const { groupAnalysis, ledgerAnalysis, groupItemVouchers, ledgerItemVouchers } = require('./inventory/groupAnalysis');
-const { transferAnalysis } = require('./inventory/transferAnalysis');
+const { transferAnalysis, transferItemVouchers } = require('./inventory/transferAnalysis');
 const { costEstimation } = require('./inventory/costEstimation');
 const { itemCostAnalysis } = require('./inventory/itemCostAnalysis');
 const { jobWorkAnalysis } = require('./inventory/jobWorkAnalysis');
@@ -284,6 +284,9 @@ module.exports = {
   },
   transferAnalysis: async (event, { company_id, fy_id, voucher_type }) => {
     return await transferAnalysis(company_id, fy_id, voucher_type);
+  },
+  transferItemVouchers: async (event, { company_id, fy_id, voucher_type, item_id }) => {
+    return await transferItemVouchers(company_id, fy_id, voucher_type, item_id);
   },
   costEstimation: async (event, { company_id, fy_id, group_id }) => {
     return await costEstimation(company_id, fy_id, group_id);

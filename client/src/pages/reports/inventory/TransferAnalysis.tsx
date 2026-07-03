@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
 import MovementAnalysisTable, { type MovRow } from "./MovementAnalysisTable";
+import ItemVoucherAnalysis, { type VoucherRow } from "./ItemVoucherAnalysis";
 
 interface VoucherType { vt_id: number; name: string; parent_name?: string; }
 interface ItemRow {
@@ -13,7 +14,16 @@ interface ItemRow {
 
 type Level =
   | { step: "select" }
-  | { step: "report"; voucherType: string };
+  | { step: "report"; voucherType: string }
+  | { step: "vouchers"; voucherType: string; item: ItemRow };
+
+const FooterBar = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
+    {children}
+  </div>
+);
+
+const TRANSFER_LABELS = { inward: "Goods In (Production)", outward: "Goods Out (Consumption)" };
 
 export default function TransferAnalysis() {
   const navigate = useNavigate();
@@ -66,7 +76,25 @@ export default function TransferAnalysis() {
     });
   }, [companyId, fyId]);
 
+  // Item voucher analysis (Goods In / Goods Out)
+  const [vouchers, setVouchers] = React.useState<VoucherRow[]>([]);
+  const [loadingV, setLoadingV] = React.useState(false);
+  const [vErr, setVErr] = React.useState<string | null>(null);
+  const [vIdx, setVIdx] = React.useState(0);
+
+  const loadVouchers = React.useCallback((voucherType: string, item: ItemRow) => {
+    if (!companyId || !fyId) return;
+    setLevel({ step: "vouchers", voucherType, item });
+    setLoadingV(true); setVErr(null); setVIdx(0);
+    (window as any).api.report.transferItemVouchers(companyId, fyId, voucherType, item.item_id).then((res: any) => {
+      if (res.success) setVouchers(res.rows ?? []);
+      else setVErr(res.error || "Failed to load vouchers");
+      setLoadingV(false);
+    });
+  }, [companyId, fyId]);
+
   const backToSelect = React.useCallback(() => { setLevel({ step: "select" }); setItems([]); setSearch(""); }, []);
+  const backToReport = React.useCallback((voucherType: string) => { setLevel({ step: "report", voucherType }); setVouchers([]); }, []);
 
   // Keyboard nav — selection popup
   React.useEffect(() => {
@@ -82,15 +110,27 @@ export default function TransferAnalysis() {
   }, [level.step, filtered, selectIdx, loadReport, navigate]);
 
   React.useEffect(() => {
-    if (level.step !== "report") return;
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(items.length - 1, p + 1)); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
-      else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToSelect(); }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [level, items, rowIdx, backToSelect]);
+    if (level.step === "report") {
+      const h = (e: KeyboardEvent) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(items.length - 1, p + 1)); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
+        else if (e.key === "Enter") { e.preventDefault(); const it = items[rowIdx]; if (it) loadVouchers(level.voucherType, it); }
+        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToSelect(); }
+      };
+      window.addEventListener("keydown", h);
+      return () => window.removeEventListener("keydown", h);
+    }
+    if (level.step === "vouchers") {
+      const h = (e: KeyboardEvent) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); setVIdx(p => Math.min(vouchers.length - 1, p + 1)); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); setVIdx(p => Math.max(0, p - 1)); }
+        else if (e.key === "Enter") { e.preventDefault(); const r = vouchers[vIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
+        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToReport(level.voucherType); }
+      };
+      window.addEventListener("keydown", h);
+      return () => window.removeEventListener("keydown", h);
+    }
+  }, [level, items, rowIdx, vouchers, vIdx, loadVouchers, backToSelect, backToReport, navigate]);
 
   if (level.step === "select") {
     return (
@@ -114,18 +154,37 @@ export default function TransferAnalysis() {
     );
   }
 
-  const rows: MovRow[] = items.map(it => ({ id: it.item_id, name: it.item_name, unit: it.unit_name, leftQty: it.in_qty, leftValue: it.in_value, rightQty: it.out_qty, rightValue: it.out_value }));
+  if (level.step === "report") {
+    const vt = level.voucherType;
+    const rows: MovRow[] = items.map(it => ({ id: it.item_id, name: it.item_name, unit: it.unit_name, leftQty: it.in_qty, leftValue: it.in_value, rightQty: it.out_qty, rightValue: it.out_value }));
+    return (
+      <MovementAnalysisTable
+        title="Transfer Analysis" companyName={selectedCompany?.name} subtitle={vt}
+        periodLabel={periodLabel} leftLabel="Goods In (Production)" rightLabel="Goods Out (Consumption)" rows={rows}
+        loading={loading} error={err} emptyText="No transfers found for this voucher type."
+        selectedIndex={rowIdx} onSelectIndex={setRowIdx}
+        onActivate={(_r, i) => loadVouchers(vt, items[i])}
+        footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Voucher Type Selection</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
+      />
+    );
+  }
+
+  // ── Item Voucher Analysis (Goods In / Goods Out → voucher) ────────────────
+  const { voucherType: vt, item: it } = level;
   return (
-    <MovementAnalysisTable
-      title="Transfer Analysis" companyName={selectedCompany?.name} subtitle={level.voucherType}
-      periodLabel={periodLabel} leftLabel="Goods In (Production)" rightLabel="Goods Out (Consumption)" rows={rows}
-      loading={loading} error={err} emptyText="No transfers found for this voucher type."
-      selectedIndex={rowIdx} onSelectIndex={setRowIdx}
-      footer={
-        <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-          <button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Voucher Type Selection</button>
-        </div>
-      }
+    <ItemVoucherAnalysis
+      itemName={it.item_name} companyName={selectedCompany?.name} periodLabel={periodLabel}
+      transferName={vt} sectionMode="leg" sectionLabels={TRANSFER_LABELS} unit={it.unit_name}
+      rows={vouchers} loading={loadingV} error={vErr}
+      selectedIndex={vIdx} onSelectIndex={setVIdx}
+      onOpenVoucher={(r) => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
+      footer={<FooterBar>
+        <button onClick={() => backToReport(vt)} className="hover:underline hover:text-zinc-900">Q: Back</button>
+        <span className="text-zinc-400">Enter: Alter</span>
+        <span className="text-zinc-400">A: Add Vch</span>
+        <span className="text-zinc-400">2: Duplicate Vch</span>
+        <span className="text-zinc-400">I: Insert Vch</span>
+      </FooterBar>}
     />
   );
 }

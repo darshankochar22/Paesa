@@ -59,8 +59,13 @@ interface Props {
   ledgerName?: string;
   /** Ledger group the vouchers are filtered under (Group Analysis drill). */
   groupName?: string;
+  /** Transfer voucher type the vouchers are filtered under (Transfer Analysis drill). */
+  transferName?: string;
   /** Header direction word for the ledger case ("Inwards"/"Outwards"). */
   direction?: "inward" | "outward";
+  /** How rows are grouped into sections + the section labels. */
+  sectionMode?: "family" | "leg";
+  sectionLabels?: { inward: string; outward: string };
   unit?: string;
   rows: VoucherRow[];
   loading?: boolean;
@@ -73,16 +78,21 @@ interface Props {
 
 const TH = "px-2 py-1 font-bold text-zinc-700 border-b border-zinc-300";
 
-/** Section family by voucher-type: Sales family (Sales, Credit Note) vs Purchases. */
-const famOf = (r: VoucherRow): "inward" | "outward" =>
-  /credit note|sales|sale/i.test(r.voucher_type || "") ? "outward" : "inward";
+type SectionMode = "family" | "leg";
+
+/** Which section a row belongs to. "family": by voucher-type (Sales/Credit Note
+ *  → outward). "leg": by which leg carries the qty (transfer Goods In/Out). */
+const famOf = (r: VoucherRow, mode: SectionMode): "inward" | "outward" =>
+  mode === "leg"
+    ? ((Number(r.inwards_qty) || 0) !== 0 || (Number(r.inwards_value) || 0) !== 0 ? "inward" : "outward")
+    : (/credit note|sales|sale/i.test(r.voucher_type || "") ? "outward" : "inward");
 
 /** Project a row onto the 9-column shape, net of the opposite leg so a
  *  purchase/sales return reads as a negative line inside its family. */
-function project(r: VoucherRow) {
+function project(r: VoucherRow, mode: SectionMode) {
   const inQ = Number(r.inwards_qty) || 0,  outQ = Number(r.outwards_qty) || 0;
   const inV = Number(r.inwards_value) || 0, outV = Number(r.outwards_value) || 0;
-  const dir = famOf(r);
+  const dir = famOf(r, mode);
   const qty   = dir === "inward" ? inQ - outQ : outQ - inQ;
   const basic = dir === "inward" ? inV - outV : outV - inV;
   const addl  = Number(r.addl_cost) || 0;
@@ -90,19 +100,22 @@ function project(r: VoucherRow) {
 }
 
 export default function ItemVoucherAnalysis({
-  itemName, companyName, periodLabel, ledgerName, groupName, direction, unit,
+  itemName, companyName, periodLabel, ledgerName, groupName, transferName, direction,
+  sectionMode = "family", sectionLabels = { inward: "Purchases", outward: "Sales" }, unit,
   rows, loading, error, selectedIndex, onSelectIndex, onOpenVoucher, footer,
 }: Props) {
   const dataRows = rows.filter(r => r.voucher_id !== null);
 
   const scope = groupName
     ? { label: "Under Group", value: groupName }
-    : ledgerName
-      ? { label: direction ? `${direction === "outward" ? "Outwards" : "Inwards"} Under Ledger` : "Under Ledger", value: ledgerName }
-      : null;
+    : transferName
+      ? { label: "Under Transfer", value: transferName }
+      : ledgerName
+        ? { label: direction ? `${direction === "outward" ? "Outwards" : "Inwards"} Under Ledger` : "Under Ledger", value: ledgerName }
+        : null;
 
   const tot = dataRows.reduce((a, r) => {
-    const p = project(r);
+    const p = project(r, sectionMode);
     a.qty += p.qty; a.basic += p.basicValue; a.addl += p.addl; a.total += p.total;
     return a;
   }, { qty: 0, basic: 0, addl: 0, total: 0 });
@@ -151,17 +164,17 @@ export default function ItemVoucherAnalysis({
             ) : (
               <>
                 {dataRows.map((r, idx) => {
-                  const p = project(r);
+                  const p = project(r, sectionMode);
                   const selected = idx === selectedIndex;
-                  const fam = famOf(r);
-                  const showSection = idx === 0 || famOf(dataRows[idx - 1]) !== fam;
+                  const fam = famOf(r, sectionMode);
+                  const showSection = idx === 0 || famOf(dataRows[idx - 1], sectionMode) !== fam;
                   return (
                     <React.Fragment key={r.voucher_id ?? `row-${idx}`}>
                       {showSection && (
                         <tr>
                           <td className="px-2 pt-2 pb-0.5" />
                           <td colSpan={8} className="px-2 pt-2 pb-0.5 font-bold italic text-zinc-800">
-                            {fam === "outward" ? "Sales" : "Purchases"}
+                            {sectionLabels[fam]}
                           </td>
                         </tr>
                       )}

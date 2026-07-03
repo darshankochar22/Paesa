@@ -85,6 +85,7 @@ function register() {
   ipcMain.handle('report:groupItemVouchers', reportController.groupItemVouchers);
   ipcMain.handle('report:ledgerItemVouchers', reportController.ledgerItemVouchers);
   ipcMain.handle('report:transferAnalysis', reportController.transferAnalysis);
+  ipcMain.handle('report:transferItemVouchers', reportController.transferItemVouchers);
   ipcMain.handle('report:costEstimation', reportController.costEstimation);
   ipcMain.handle('report:itemCostAnalysis', reportController.itemCostAnalysis);
   ipcMain.handle('report:jobWorkAnalysis', reportController.jobWorkAnalysis);

@@ -239,6 +239,7 @@ contextBridge.exposeInMainWorld('api', {
         groupItemVouchers:            (company_id, fy_id, group_id, item_id)  => invoke('report:groupItemVouchers', { company_id, fy_id, group_id, item_id }),
         ledgerItemVouchers:           (company_id, fy_id, ledger_id, item_id) => invoke('report:ledgerItemVouchers', { company_id, fy_id, ledger_id, item_id }),
         transferAnalysis:             (company_id, fy_id, voucher_type) => invoke('report:transferAnalysis', { company_id, fy_id, voucher_type }),
+        transferItemVouchers:         (company_id, fy_id, voucher_type, item_id) => invoke('report:transferItemVouchers', { company_id, fy_id, voucher_type, item_id }),
         costEstimation:               (company_id, fy_id, group_id)     => invoke('report:costEstimation', { company_id, fy_id, group_id }),
         itemCostAnalysis:             (company_id, fy_id, mode, ref_id) => invoke('report:itemCostAnalysis', { company_id, fy_id, mode, ref_id }),
         jobWorkAnalysis:              (company_id, fy_id, cc_id)        => invoke('report:jobWorkAnalysis', { company_id, fy_id, cc_id }),
