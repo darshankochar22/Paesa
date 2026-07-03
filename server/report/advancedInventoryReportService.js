@@ -186,6 +186,9 @@ module.exports = {
           vse.stock_item_id AS stock_item_id,
           vse.item_name     AS item_name,
           COALESCE(um.symbol, um2.symbol) AS unit,
+          (SELECT COALESCE(NULLIF(vb0.due_on_date, ''), vb0.due_on)
+             FROM voucher_batches vb0
+            WHERE vb0.stock_entry_id = vse.stock_entry_id LIMIT 1) AS due_on,
           vse.quantity      AS ordered_qty,
           vse.rate          AS rate,
           (
@@ -225,6 +228,7 @@ module.exports = {
             stock_item_id: r.stock_item_id,
             item_name: r.item_name,
             unit: r.unit || "",
+            due_on: r.due_on || "",
             ordered_qty: ordered,
             balance_qty: balance,
             rate: r.rate || 0,

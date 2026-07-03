@@ -21,7 +21,7 @@ interface Row {
   date: string; order_no: string;
   party_name: string; party_ledger_id: number | null;
   stock_item_id: number | null;
-  item_name: string; unit: string; ordered_qty: number; balance_qty: number; rate: number; value: number;
+  item_name: string; unit: string; due_on: string; ordered_qty: number; balance_qty: number; rate: number; value: number;
 }
 
 interface Dim {
@@ -171,10 +171,12 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
     return units.size === 1 ? [...units][0] : null;
   }, [summary]);
 
-  // Order lines for the drilled Particulars row.
-  const lineRows = React.useMemo(() =>
-    drill ? rows.filter(r => rowKey(r, groupBy) === drill.key) : rows,
-    [rows, drill, groupBy]);
+  // Order lines for the drilled Particulars row — outstanding (positive balance)
+  // first, then over-received (negative), to match Tally's two sections.
+  const lineRows = React.useMemo(() => {
+    const base = drill ? rows.filter(r => rowKey(r, groupBy) === drill.key) : rows;
+    return [...base].sort((a, b) => (b.balance_qty > 0 ? 1 : 0) - (a.balance_qty > 0 ? 1 : 0));
+  }, [rows, drill, groupBy]);
 
   // Keyboard
   React.useEffect(() => {
@@ -335,55 +337,80 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
     );
   }
 
-  // ---- Order-line drill view -----------------------------------------------
-  const totals = lineRows.reduce((a, r) => ({ ordered: a.ordered + r.ordered_qty, balance: a.balance + r.balance_qty, value: a.value + r.value }), { ordered: 0, balance: 0, value: 0 });
+  // ---- Order Details drill: outstanding + over-received sections -----------
   const TH = "px-2 py-1 font-bold text-[10px] bg-zinc-100 border-b border-zinc-300";
+  const partyCol = groupBy === "item";        // item drill shows parties, party drill shows items
+  const posCount = lineRows.filter(r => r.balance_qty > 1e-9).length;
+  const sectionUnit = (rs: Row[]) => { const u = new Set(rs.filter(r => r.balance_qty).map(r => r.unit)); return u.size === 1 ? [...u][0] : ""; };
+  const sections = [
+    { label: mode === "purchase" ? "Purchase Orders Outstanding :" : "Sales Orders Outstanding :", rows: lineRows.slice(0, posCount), offset: 0 },
+    { label: mode === "purchase" ? "Goods received but Orders not Sent :" : "Goods delivered but Orders not received :", rows: lineRows.slice(posCount), offset: posCount },
+  ].filter(s => s.rows.length > 0);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-      <TitleBar title={reportTitle} />
-      <InfoBand context={`${entityLabel} › ${drill.name}`} />
+      <TitleBar title="Order Details" />
+      <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+        <div>
+          <div className="font-bold">{groupBy === "item" ? "Item" : level.dim.label}: {drill.name}</div>
+          <div className="italic text-zinc-600">{orderWord} Orders ({entityLabel})</div>
+        </div>
+        <span className="text-zinc-600">{periodLabel}</span>
+      </div>
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
           <thead className="sticky top-0 z-10">
             <tr>
-              <th className={`${TH} text-left`}>Date</th>
-              <th className={`${TH} text-left`}>Order Number</th>
-              <th className={`${TH} text-left`}>{groupBy === "item" ? "Party" : "Name of Item"}</th>
-              <th className={`${TH} text-right w-28`}>Ordered Qty</th>
-              <th className={`${TH} text-right w-28`}>Balance Qty</th>
+              <th className={`${TH} text-left w-20`}>Date</th>
+              <th className={`${TH} text-left w-24`}>Order No.</th>
+              <th className={`${TH} text-left`}>{partyCol ? "Name of Party" : "Name of Item"}</th>
+              <th className={`${TH} text-right w-24`}>Ordered Qty</th>
+              <th className={`${TH} text-right w-24`}>Balance Qty</th>
               <th className={`${TH} text-right w-24`}>Rate</th>
               <th className={`${TH} text-right w-28`}>Value</th>
+              <th className={`${TH} text-left w-24`}>Due on</th>
             </tr>
           </thead>
           <tbody>
             {lineRows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">No outstanding orders.</td></tr>
-            ) : lineRows.map((r, i) => (
-              <tr key={i} onClick={() => setRowIdx(i)}
-                onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
-                className={`border-b border-zinc-100 cursor-pointer ${i === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
-                <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
-                <td className="px-2 py-1">{r.order_no}</td>
-                <td className="px-2 py-1">{groupBy === "item" ? (r.party_name || "—") : r.item_name}</td>
-                <td className="px-2 py-1 text-right w-28">{fmtQty(r.ordered_qty, r.unit)}</td>
-                <td className="px-2 py-1 text-right w-28">{fmtQty(r.balance_qty, r.unit)}</td>
-                <td className="px-2 py-1 text-right w-24">{fmtNum(r.rate)}</td>
-                <td className="px-2 py-1 text-right w-28">{fmtNum(r.value)}</td>
-              </tr>
-            ))}
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400 italic">No outstanding orders.</td></tr>
+            ) : sections.map((sec) => {
+              const su = sectionUnit(sec.rows);
+              const sub = sec.rows.reduce((a, r) => ({ o: a.o + r.ordered_qty, b: a.b + r.balance_qty, v: a.v + r.value }), { o: 0, b: 0, v: 0 });
+              return (
+                <React.Fragment key={sec.label}>
+                  <tr><td colSpan={8} className="px-2 pt-2 pb-1 font-bold">{sec.label}</td></tr>
+                  {sec.rows.map((r, j) => {
+                    const gi = sec.offset + j;
+                    return (
+                      <tr key={gi} onClick={() => setRowIdx(gi)}
+                        onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
+                        className={`border-b border-zinc-100 cursor-pointer ${gi === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
+                        <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
+                        <td className="px-2 py-1">{r.order_no}</td>
+                        <td className="px-2 py-1">{partyCol ? (r.party_name || "—") : r.item_name}</td>
+                        <td className="px-2 py-1 text-right">{fmtQty(r.ordered_qty, r.unit)}</td>
+                        <td className="px-2 py-1 text-right">{fmtQty(r.balance_qty, r.unit)}</td>
+                        <td className="px-2 py-1 text-right">{fmtNum(r.rate)}</td>
+                        <td className="px-2 py-1 text-right">{fmtNum(r.value)}</td>
+                        <td className="px-2 py-1 whitespace-nowrap">{dmy(r.due_on)}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t border-zinc-300 font-bold">
+                    <td /><td /><td />
+                    <td className="px-2 py-1 text-right">{fmtQty(sub.o, su)}</td>
+                    <td className="px-2 py-1 text-right">{fmtQty(sub.b, su)}</td>
+                    <td />
+                    <td className="px-2 py-1 text-right">{fmtNum(sub.v)}</td>
+                    <td />
+                  </tr>
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
-      </div>
-
-      {/* Grand-total row — fixed widths mirror the numeric columns so it aligns */}
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-2 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
-        <span className="flex-1 pl-2">Grand Total</span>
-        <span className="w-28 text-right">{fmtQty(totals.ordered)}</span>
-        <span className="w-28 text-right">{fmtQty(totals.balance)}</span>
-        <span className="w-24" />
-        <span className="w-28 text-right">{fmtNum(totals.value)}</span>
       </div>
 
       <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
