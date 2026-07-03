@@ -54,6 +54,13 @@ const fmtQty = (v: number | null | undefined, unit?: string) => {
   const num = n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
   return unit ? `${num} ${unit}` : num;
 };
+// Signed quantity for the row breakup — Tally shows negatives as "(-)10 Pcs".
+const fmtSignedQty = (v: number | null | undefined, unit?: string) => {
+  const n = Number(v) || 0;
+  if (n === 0) return "";
+  const num = Math.abs(n).toLocaleString("en-IN", { maximumFractionDigits: 3 });
+  return `${n < 0 ? "(-)" : ""}${num}${unit ? ` ${unit}` : ""}`;
+};
 const api = () => (window as any).api;
 
 const DIMS = (): Dim[] => [
@@ -134,6 +141,22 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   // Which Particulars row is drilled open (null = summary view).
   const [drill, setDrill] = React.useState<{ key: string; name: string } | null>(null);
   const [sumIdx, setSumIdx] = React.useState(0);
+
+  // Order Details row breakup (expand-on-click): the vouchers behind an order line.
+  interface Move { voucher_id: number | null; date: string; voucher_type: string; voucher_number: string; qty: number; }
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const [moves, setMoves] = React.useState<Record<string, Move[]>>({});
+  const moveKey = (r: Row) => `${r.voucher_id}-${r.stock_item_id}`;
+  const toggleExpand = React.useCallback((r: Row) => {
+    const k = moveKey(r);
+    setExpanded(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+    if (moves[k] === undefined && r.voucher_id != null && companyId && fyId) {
+      api().report.orderMovements(companyId, fyId, mode, r.voucher_id, r.stock_item_id, r.order_no)
+        .then((res: any) => { if (res?.success) setMoves(m => ({ ...m, [k]: res.lines ?? [] })); });
+    }
+  }, [moves, companyId, fyId, mode]);
+  // Reset expansions whenever the underlying report data changes.
+  React.useEffect(() => { setExpanded(new Set()); setMoves({}); }, [rows, drill]);
 
   const groupBy: GroupBy = level.step === "report" ? level.dim.groupBy : "item";
   // "All Orders" skips the Particulars summary and shows Order Details directly.
@@ -397,8 +420,9 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                     const gi = sec.offset + j;
                     return (
                       <React.Fragment key={gi}>
-                        <tr onClick={() => setRowIdx(gi)}
+                        <tr onClick={() => { setRowIdx(gi); toggleExpand(r); }}
                           onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
+                          title="Click: show order breakup · Double-click: open voucher"
                           className={`cursor-pointer ${gi === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"} ${itemFixed ? "border-b border-zinc-100" : ""}`}>
                           <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
                           <td className="px-2 py-1">{r.order_no}</td>
@@ -410,11 +434,23 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                           <td className="px-2 py-1 whitespace-nowrap">{dmy(r.due_on)}</td>
                         </tr>
                         {!itemFixed && (
-                          <tr className={`border-b border-zinc-100 ${gi === rowIdx ? "bg-[#e4e4e7]" : ""}`}>
+                          <tr className={gi === rowIdx ? "bg-[#e4e4e7]" : ""}>
                             <td /><td />
                             <td className="px-2 pb-1 italic text-zinc-500">To: {r.party_name || "—"}</td>
                             <td colSpan={5} />
                           </tr>
+                        )}
+                        {/* Row breakup dropdown — order voucher + its fulfilments */}
+                        {expanded.has(moveKey(r)) && (moves[moveKey(r)] ?? []).map((m, mi) => (
+                          <tr key={`${gi}-m${mi}`} className="text-[10px] italic text-zinc-500">
+                            <td className="px-2 py-0.5 pl-6 whitespace-nowrap">{dmy(m.date)}</td>
+                            <td className="px-2 py-0.5">{m.voucher_number}</td>
+                            <td className="px-2 py-0.5">{m.voucher_type}&nbsp;&nbsp;{fmtSignedQty(m.qty, r.unit)}</td>
+                            <td colSpan={5} />
+                          </tr>
+                        ))}
+                        {expanded.has(moveKey(r)) && (
+                          <tr><td colSpan={8} className="border-b border-zinc-100" /></tr>
                         )}
                       </React.Fragment>
                     );

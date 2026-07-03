@@ -243,6 +243,46 @@ module.exports = {
     }
   },
 
+  // Order line breakup — the vouchers behind one outstanding order line, shown
+  // when the Order Details row is expanded: the order itself (+qty) plus every
+  // fulfilling voucher (Delivery/Receipt Note, invoice) matched by order_no +
+  // item (−qty). Mirrors Tally's row drop-down.
+  orderMovements: async (company_id, fy_id, type, voucher_id, stock_item_id, order_no) => {
+    try {
+      const orderType = type === 'sales' ? 'Sales Order' : 'Purchase Order';
+      const orderRows = await db.all(sql`
+        SELECT v.date AS date, v.voucher_type AS voucher_type, v.voucher_number AS voucher_number,
+               SUM(vse.quantity) AS qty
+        FROM ${vouchers} v
+        INNER JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
+        WHERE v.voucher_id = ${voucher_id} AND vse.stock_item_id = ${stock_item_id}
+        GROUP BY v.voucher_id
+      `);
+      const fulfilRows = await db.all(sql`
+        SELECT v.voucher_id AS voucher_id, v.date AS date, v.voucher_type AS voucher_type,
+               v.voucher_number AS voucher_number, SUM(vb.quantity) AS qty
+        FROM ${voucherBatches} vb
+        INNER JOIN ${vouchers} v             ON v.voucher_id       = vb.voucher_id
+        INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
+        WHERE v.company_id   = ${company_id}
+          AND v.fy_id        = ${fy_id}
+          AND vb.order_no     = ${order_no}
+          AND vse.stock_item_id = ${stock_item_id}
+          AND v.voucher_type <> ${orderType}
+          AND v.is_cancelled  = 0
+        GROUP BY v.voucher_id
+        ORDER BY v.date ASC, v.voucher_id ASC
+      `);
+      const lines = [
+        ...orderRows.map(r => ({ voucher_id, date: r.date, voucher_type: r.voucher_type, voucher_number: r.voucher_number, qty: r.qty || 0 })),
+        ...fulfilRows.map(r => ({ voucher_id: r.voucher_id, date: r.date, voucher_type: r.voucher_type, voucher_number: r.voucher_number, qty: -(r.qty || 0) })),
+      ];
+      return { success: true, lines };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
   // Bills Pending (Tally: tracking-number reconciliation).
   //  type 'sales'    → "Bills Made but Goods not Delivered":  Sales lines carrying
   //                    a tracking number, less any Delivery Note against that number.
