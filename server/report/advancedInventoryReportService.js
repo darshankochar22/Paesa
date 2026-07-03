@@ -273,9 +273,14 @@ module.exports = {
         GROUP BY v.voucher_id
         ORDER BY v.date ASC, v.voucher_id ASC
       `);
+      // A fulfilling voucher moving stock in the order's expected direction
+      // CONSUMES pending (−); the opposite direction (rejections/returns) ADDS
+      // it back (+). Purchase orders are filled inward, sales orders outward.
+      const INWARD = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In', 'Credit Note'];
+      const consumes = (vt) => (type === 'purchase' ? INWARD.includes(vt) : !INWARD.includes(vt));
       const lines = [
         ...orderRows.map(r => ({ voucher_id, date: r.date, voucher_type: r.voucher_type, voucher_number: r.voucher_number, qty: r.qty || 0 })),
-        ...fulfilRows.map(r => ({ voucher_id: r.voucher_id, date: r.date, voucher_type: r.voucher_type, voucher_number: r.voucher_number, qty: -(r.qty || 0) })),
+        ...fulfilRows.map(r => ({ voucher_id: r.voucher_id, date: r.date, voucher_type: r.voucher_type, voucher_number: r.voucher_number, qty: (consumes(r.voucher_type) ? -1 : 1) * (r.qty || 0) })),
       ];
       return { success: true, lines };
     } catch (err) {
