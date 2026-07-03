@@ -16,7 +16,6 @@ import { LAYOUT_ONLY_REPORTS, CURRENCY_FIELDS, DATE_FIELDS, NUMBER_FIELDS, SKIP_
 import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
 import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
 import StockItemSelectionLayout from "@/components/reports/StockSelectionLayout";
-import { StockQueryLayout } from "@/components/reports/StockQueryLayout";
 import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
 import { ProfitLossLayout } from "@/components/reports/ProfitnLossLayout";
 import GroupSummaryLayout from "@/components/reports/GroupSummaryLayout";
@@ -643,8 +642,6 @@ export function ReportRunner() {
         <BalanceSheetLayout />
          ):reportType === "stock-summary" ?(
         <StockSummaryLayout />
-        ):reportType === "stock-query" ?(
-        <StockQueryLayout />
         ):reportType === "stock-item" ?(
         <StockItemSelectionLayout />
         ):reportType === "profit-loss" ?(

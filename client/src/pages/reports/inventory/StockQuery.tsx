@@ -3,23 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
 
-// Issue #107 — Stock Query detail screen.
-// Flow: SelectionPopup → full-detail card view for a single stock item
-// Shows: Properties, Last Purchases, Last Sales, Godown/Batch, Category Items
+// Issue #156 — Statements of Inventory · Stock Query.
+// Flow: SelectionPopup (List of Stock Items) → single-item snapshot report.
+// Layout mirrors TallyPrime: two-column header + four quadrants
+// (Purchases, Sales, Godown/Batch Details, Items of Same Category).
+// Enter / double-click on a purchase or sales row drills to that voucher.
 
 interface StockItem { item_id: number; name: string; }
 
-interface QueryResult {
-  item: {
-    name: string; group_name: string; category_name: string; unit_name: string;
-    closing_qty: number; closing_value: number; last_sale_rate: number | null;
-  };
-  purchases: TxRow[];
-  sales:     TxRow[];
-  godownDetails: GodownRow[];
-  categoryItems: CatItemRow[];
+interface ItemHeader {
+  item_id: number;
+  name: string; group_name: string; category_name: string; unit_name: string;
+  closing_qty: number; closing_value: number; last_sale_rate: number | null;
+  cost_rate: number; costing_method: string; standard_cost: number;
+  part_no: string; std_selling_price: number | null; market_valuation_method: string;
 }
-
 interface TxRow {
   voucher_id: number | null;
   date: string; party_name: string;
@@ -28,72 +26,101 @@ interface TxRow {
 interface GodownRow { godown_id: number | null; godown_name: string; batch: string; qty: number; }
 interface CatItemRow { item_id: number; item_name: string; closing_qty: number; closing_value: number; last_sale_rate: number; }
 
+interface QueryResult {
+  item: ItemHeader;
+  purchases: TxRow[];
+  sales:     TxRow[];
+  godownDetails: GodownRow[];
+  categoryItems: CatItemRow[];
+}
+
+// ── Formatters ───────────────────────────────────────────────────────────
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const dmy = (iso: string) => {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   return m ? `${Number(m[3])}-${MON[Number(m[2]) - 1]}-${m[1].slice(2)}` : iso;
 };
 const fmtNum = (v: number | null | undefined) =>
-  !v ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+  v == null || v === 0 ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 const fmtQty = (v: number | null | undefined, unit?: string) => {
   const n = Number(v) || 0;
   if (n === 0) return "";
   const s = n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
   return unit ? `${s} ${unit}` : s;
 };
-
+const perUnit = (v: number | null | undefined, unit?: string) => {
+  if (v == null || v === 0) return "";
+  const s = fmtNum(v);
+  return unit ? `${s}/${unit}` : s;
+};
 const fmtDisc = (disc: number | null | undefined, rate: number, qty: number) => {
   const gross = (rate || 0) * (qty || 0);
   if (!disc || gross <= 0) return "";
   return `${((disc / gross) * 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}%`;
 };
 
-const TH = "px-2 py-1 text-left font-bold text-[10px] bg-zinc-100 border-b border-zinc-300";
-const TD = "px-2 py-1 text-[11px] border-b border-zinc-100";
+const TH  = "px-2 py-1 text-[10px] font-bold text-zinc-700 bg-zinc-100 border-b border-zinc-300";
+const TD  = "px-2 py-0.5 text-[11px] border-b border-zinc-100";
 const TDR = `${TD} text-right`;
 
-/** Purchases / Sales panel — summary line, table with Disc%, drill to voucher
- *  (double-click or the parent's keyboard cursor + Enter). */
-function TxPanel({ title, verb, rows, unit, onOpen, focusIdx = -1, onFocusRow }: {
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-center font-bold text-[11px] border-b border-zinc-400 pb-0.5 mb-1 uppercase tracking-wide">
+      {children}
+    </div>
+  );
+}
+
+// Two-column header row: "label : value"
+function HRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex text-[11px] leading-5">
+      <span className="w-40 shrink-0 text-zinc-500">{label}</span>
+      <span className="mr-2 text-zinc-400">:</span>
+      <span className="font-semibold text-zinc-900">{value || " "}</span>
+    </div>
+  );
+}
+
+/** Purchases / Sales panel — Last-on summary, table, drill to voucher. */
+function TxPanel({ title, verb, rows, unit, onOpen, focusIdx, onFocusRow }: {
   title: string; verb: string; rows: TxRow[]; unit?: string;
   onOpen: (voucherId: number) => void;
-  focusIdx?: number; onFocusRow?: (i: number) => void;
+  focusIdx: number; onFocusRow: (i: number) => void;
 }) {
   const last = rows[0];
   return (
-    <div className="flex-1 min-w-0">
-      <div className="font-bold text-[11px] border-b-2 border-zinc-900 pb-0.5 mb-1 uppercase tracking-wide">
-        {title}
-      </div>
-      <div className="text-[10px] text-zinc-500 font-mono mb-1">
+    <div className="flex-1 min-w-0 px-2">
+      <SectionTitle>{title}</SectionTitle>
+      <div className="text-[10px] text-zinc-600 font-mono mb-1 truncate">
         {last
-          ? `Last ${verb} on: ${dmy(last.date)} · ${last.party_name || "—"} · ${fmtQty(last.quantity, unit)} @ ${fmtNum(last.rate)}`
+          ? `Last ${verb} on: ${dmy(last.date)}   ${last.party_name || "—"}   ${fmtQty(last.quantity, unit)} @ ${perUnit(last.rate, unit)}`
           : `Last ${verb} on: —`}
       </div>
       <table className="w-full border-collapse text-[11px] font-mono">
         <thead>
           <tr>
-            <th className={TH}>Date</th>
-            <th className={TH}>Party</th>
-            <th className={`${TH} text-right`}>Qty</th>
-            <th className={`${TH} text-right`}>Rate</th>
-            <th className={`${TH} text-right`}>Disc %</th>
-            <th className={`${TH} text-right`}>Amount</th>
+            <th className={`${TH} text-left w-[16%]`}>Date</th>
+            <th className={`${TH} text-left w-[30%]`}>Party Name</th>
+            <th className={`${TH} text-right w-[14%]`}>Quantity</th>
+            <th className={`${TH} text-right w-[12%]`}>Rate</th>
+            <th className={`${TH} text-right w-[10%]`}>Disc %</th>
+            <th className={`${TH} text-right w-[18%]`}>Amount</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={6} className="px-2 py-2 text-zinc-400 italic">No {title.toLowerCase()}</td></tr>
+            <tr><td colSpan={6} className="px-2 py-2 text-zinc-400 italic text-[10px]">No {title.toLowerCase()}</td></tr>
           ) : rows.map((r, i) => (
             <tr
               key={i}
-              onClick={() => onFocusRow?.(i)}
+              onClick={() => onFocusRow(i)}
               onDoubleClick={() => r.voucher_id && onOpen(r.voucher_id)}
-              className={`${i === focusIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-100"} ${r.voucher_id ? "cursor-pointer" : ""}`}
-              title={r.voucher_id ? "Enter / double-click: open voucher" : undefined}
+              className={`${i === focusIdx ? "bg-zinc-200 font-bold" : "hover:bg-zinc-50"} ${r.voucher_id ? "cursor-pointer" : ""}`}
+              title={r.voucher_id ? "Enter / double-click: display voucher" : undefined}
             >
               <td className={TD}>{dmy(r.date)}</td>
-              <td className={`${TD} truncate max-w-[120px]`}>{r.party_name || "—"}</td>
+              <td className={`${TD} truncate max-w-0`}>{r.party_name || "—"}</td>
               <td className={TDR}>{fmtQty(r.quantity, unit)}</td>
               <td className={TDR}>{fmtNum(r.rate)}</td>
               <td className={TDR}>{fmtDisc(r.disc_amount, r.rate, r.quantity)}</td>
@@ -170,7 +197,7 @@ export default function StockQuery() {
   React.useEffect(() => {
     if (level.step !== "select") return;
     const h = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown")  { e.preventDefault(); setSelectIdx(p => Math.min(filtered.length - 1, p + 1)); }
+      if (e.key === "ArrowDown")      { e.preventDefault(); setSelectIdx(p => Math.min(filtered.length - 1, p + 1)); }
       else if (e.key === "ArrowUp")   { e.preventDefault(); setSelectIdx(p => Math.max(0, p - 1)); }
       else if (e.key === "Enter")     { e.preventDefault(); const it = filtered[selectIdx]; if (it) openDetail(it); }
       else if (e.key === "Escape")    { e.preventDefault(); navigate(-1); }
@@ -232,9 +259,11 @@ export default function StockQuery() {
     );
   }
 
-  // ── Render — detail card view ──────────────────────────────────────────
-  const it = data?.item;
+  // ── Render — detail report ─────────────────────────────────────────────
+  const it   = data?.item;
   const unit = it?.unit_name;
+  const godownTotal = (data?.godownDetails ?? []).reduce((s, g) => s + (g.qty || 0), 0);
+  const openVoucher = (id: number) => navigate(`/transactions/voucher/${id}`);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -245,112 +274,128 @@ export default function StockQuery() {
         <span />
       </div>
 
-      {/* Item name subtitle */}
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
-        <span className="font-semibold">Stock Item: {level.item.name}</span>
-        <span className="text-zinc-500 italic">Esc: Back to Selection</span>
-      </div>
-
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="py-8 text-center text-zinc-400 italic">Loading…</div>
         ) : err ? (
           <div className="py-8 text-center text-zinc-600">{err}</div>
-        ) : !data ? null : (
+        ) : !data || !it ? null : (
           <>
-            {/* ── Properties ── */}
-            <section>
-              <div className="font-bold text-[11px] border-b-2 border-zinc-900 pb-0.5 mb-1 uppercase tracking-wide">
-                Item Properties
+            {/* ── Two-column header ── */}
+            <div className="grid grid-cols-2 border-b-2 border-zinc-900">
+              <div className="border-r border-zinc-300 px-4 py-3 font-mono">
+                <HRow label="Name"           value={it.name} />
+                <HRow label="Group"          value={it.group_name} />
+                <HRow label="Closing Balance" value={fmtQty(it.closing_qty, unit) || "0"} />
+                <HRow label="Cost price"     value={perUnit(it.cost_rate, unit)} />
+                <HRow label="Costing method" value={it.costing_method} />
+                <HRow label="Standard cost"  value={perUnit(it.standard_cost, unit)} />
               </div>
-              <table className="border-collapse w-auto text-[11px] font-mono">
-                <tbody>
-                  {[
-                    ["Stock Group",   it?.group_name    ?? "—"],
-                    ["Category",      it?.category_name ?? "Not Applicable"],
-                    ["Base Unit",     it?.unit_name     ?? "—"],
-                    ["Closing Qty",   fmtQty(it?.closing_qty, unit) || "0"],
-                    ["Closing Value", fmtNum(it?.closing_value) || "0.00"],
-                    ["Last Sale Rate",it?.last_sale_rate != null ? fmtNum(it.last_sale_rate) : "—"],
-                  ].map(([label, val]) => (
-                    <tr key={label} className="border-b border-zinc-100">
-                      <td className="pr-8 py-0.5 text-zinc-500 font-semibold">{label}</td>
-                      <td className="py-0.5 font-mono font-semibold text-zinc-900">{val}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
+              <div className="px-4 py-3 font-mono">
+                <HRow label="Part No."                value={it.part_no || "Not Applicable"} />
+                <HRow label="Category"                value={it.category_name} />
+                <HRow label="Closing value"           value={fmtNum(it.closing_value) || "0.00"} />
+                <HRow label="Standard selling price"  value={perUnit(it.std_selling_price, unit)} />
+                <HRow label="Market valuation method" value={it.market_valuation_method} />
+              </div>
+            </div>
 
-            {/* ── Last 10 Purchases & Sales — ↑↓ + Enter or double-click → voucher ── */}
-            <section className="flex gap-4">
-              <TxPanel title="Last Purchases" verb="purchased" rows={data.purchases} unit={unit}
-                focusIdx={txIdx} onFocusRow={setTxIdx}
-                onOpen={(id) => navigate(`/transactions/voucher/${id}`)} />
-              <TxPanel title="Last Sales" verb="sold" rows={data.sales} unit={unit}
-                focusIdx={txIdx - data.purchases.length} onFocusRow={(i) => setTxIdx(i + data.purchases.length)}
-                onOpen={(id) => navigate(`/transactions/voucher/${id}`)} />
-            </section>
+            {/* ── Purchases + Sales ── */}
+            <div className="flex border-b-2 border-zinc-900 py-2">
+              <TxPanel
+                title="Purchases" verb="purchased" rows={data.purchases} unit={unit}
+                focusIdx={txIdx} onFocusRow={setTxIdx} onOpen={openVoucher}
+              />
+              <div className="w-px bg-zinc-300" />
+              <TxPanel
+                title="Sales" verb="sold" rows={data.sales} unit={unit}
+                focusIdx={txIdx - data.purchases.length}
+                onFocusRow={(i) => setTxIdx(i + data.purchases.length)}
+                onOpen={openVoucher}
+              />
+            </div>
 
-            {/* ── Godown / Batch details ── */}
-            {data.godownDetails.length > 0 && (
-              <section>
-                <div className="font-bold text-[11px] border-b-2 border-zinc-900 pb-0.5 mb-1 uppercase tracking-wide">
-                  Godown / Batch Details
-                </div>
+            {/* ── Godown/Batch + Items of Same Category ── */}
+            <div className="flex py-2">
+              {/* Godown / Batch */}
+              <div className="flex-1 px-2 border-r border-zinc-300">
+                <SectionTitle>Godown / Batch Details</SectionTitle>
                 <table className="w-full border-collapse text-[11px] font-mono">
                   <thead>
                     <tr>
-                      <th className={TH}>Godown</th>
-                      <th className={TH}>Batch</th>
+                      <th className={`${TH} text-left`}>Godown</th>
+                      <th className={`${TH} text-left`}>Batch</th>
                       <th className={`${TH} text-right`}>Quantity</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.godownDetails.map((r, i) => (
-                      <tr key={i} className="hover:bg-zinc-50 border-b border-zinc-100">
-                        <td className={TD}>{r.godown_name || "Main Location"}</td>
-                        <td className={TD}>{r.batch || "—"}</td>
-                        <td className={TDR}>{fmtQty(r.qty, unit)}</td>
-                      </tr>
-                    ))}
+                    {data.godownDetails.length === 0 ? (
+                      <tr><td colSpan={3} className="px-2 py-2 text-zinc-400 italic text-[10px]">No godown allocations</td></tr>
+                    ) : (
+                      <>
+                        {data.godownDetails.map((r, i) => (
+                          <tr key={i} className="hover:bg-zinc-50">
+                            <td className={TD}>{r.godown_name || "Main Location"}</td>
+                            <td className={TD}>{r.batch || "—"}</td>
+                            <td className={TDR}>{fmtQty(r.qty, unit)}</td>
+                          </tr>
+                        ))}
+                        <tr className="font-bold border-t border-zinc-900">
+                          <td className={TD}>Total</td>
+                          <td className={TD} />
+                          <td className={TDR}>{fmtQty(godownTotal, unit)}</td>
+                        </tr>
+                      </>
+                    )}
                   </tbody>
                 </table>
-              </section>
-            )}
+              </div>
 
-            {/* ── Category Items ── */}
-            {data.categoryItems.length > 1 && (
-              <section>
-                <div className="font-bold text-[11px] border-b-2 border-zinc-900 pb-0.5 mb-1 uppercase tracking-wide">
-                  Other Items in Category ({it?.category_name})
-                </div>
+              {/* Items of Same Category */}
+              <div className="flex-1 px-2">
+                <SectionTitle>Items of Same Category</SectionTitle>
                 <table className="w-full border-collapse text-[11px] font-mono">
                   <thead>
                     <tr>
-                      <th className={TH}>Item Name</th>
-                      <th className={`${TH} text-right`}>Closing Qty</th>
-                      <th className={`${TH} text-right`}>Closing Value</th>
-                      <th className={`${TH} text-right`}>Last Sale Rate</th>
+                      <th className={`${TH} text-left`}>Item Name</th>
+                      <th className={`${TH} text-right`}>Quantity</th>
+                      <th className={`${TH} text-right`}>Cost</th>
+                      <th className={`${TH} text-right`}>Sale Price</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.categoryItems
-                      .filter(r => r.item_id !== level.item.item_id)
-                      .map((r, i) => (
-                        <tr key={i} className="hover:bg-zinc-50 border-b border-zinc-100">
+                    {(() => {
+                      const others = data.categoryItems.filter(r => r.item_id !== it.item_id);
+                      if (others.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={4} className="px-2 py-2 text-zinc-400 italic text-[10px]">
+                              {it.category_name === "Not Applicable"
+                                ? "No category assigned"
+                                : "No other items in this category"}
+                            </td>
+                          </tr>
+                        );
+                      }
+                      return others.map((r) => (
+                        <tr
+                          key={r.item_id}
+                          onClick={() => openDetail({ item_id: r.item_id, name: r.item_name })}
+                          className="hover:bg-zinc-100 cursor-pointer"
+                          title="Open Stock Query for this item"
+                        >
                           <td className={TD}>{r.item_name}</td>
                           <td className={TDR}>{fmtQty(r.closing_qty, unit)}</td>
                           <td className={TDR}>{fmtNum(r.closing_value)}</td>
-                          <td className={TDR}>{r.last_sale_rate ? fmtNum(r.last_sale_rate) : "—"}</td>
+                          <td className={TDR}>{r.last_sale_rate ? fmtNum(r.last_sale_rate) : ""}</td>
                         </tr>
-                      ))
-                    }
+                      ));
+                    })()}
                   </tbody>
                 </table>
-              </section>
-            )}
+              </div>
+            </div>
           </>
         )}
       </div>

@@ -9,14 +9,53 @@ export interface NumberingAffixRow {
   particulars: string;
 }
 
-// Name of Class rows — a named GST-ledger-mapping class per voucher type. Each ledger's own
-// gst_tax_type (CGST/SGST/IGST/Cess, set on Ledger Create) decides its role — no separate
-// per-slot naming here.
+// Tax classifications set on an allocation row when "Set/Alter Tax Class?" is Yes.
+export interface TaxClassifications {
+  gst?: string;         // e.g. "Local Sales - Taxable", "Exports - Taxable"
+  service_tax?: string; // e.g. "Not Applicable"
+  excise?: string;      // e.g. "Undefined"
+  tcs?: string;         // Nature of Goods, e.g. "Not Applicable"
+}
+
+// One row of "Default Accounting Allocations for all items in Invoice".
+export interface ClassAllocationRow {
+  id: string;
+  ledger_id?: number;
+  ledger_name?: string;
+  set_alter_tax_class?: "Yes" | "No";    // Set/Alter Tax Class ? — Yes opens Tax classification details
+  tax_classifications?: TaxClassifications;
+  percentage?: number;                   // Percentage %
+  rounding_method?: string;              // Rounding Method
+  rounding_limit?: number;               // Rounding Limit
+  override_item_default?: "Yes" | "No";  // Override using Item Default ?
+}
+
+// One row of "Additional Accounting Entries (e.g. Taxes / Other charges) to be added in Invoice".
+export interface ClassAdditionalEntryRow {
+  id: string;
+  ledger_id?: number;
+  ledger_name?: string;
+  type_of_calculation?: string;          // Type of Calculation
+  value_basis?: number;                  // Value Basis
+  rounding_method?: string;              // Rounding Method
+  rounding_limit?: number;               // Rounding Limit
+  remove_if_zero?: "Yes" | "No";         // Remove if Zero ?
+}
+
+// Name of Class rows — a named class per voucher type. The Tally "Voucher Type Class" screen:
+// optional group restriction (exclude/include), default per-item accounting allocations, and
+// additional accounting entries (taxes / other charges). GST fields power the existing
+// GST-ledger-mapping used by invoicing. All persisted as JSON in voucher_type_configs.voucher_classes.
 export interface VoucherClassRow {
   id: string;
   name: string;
   use_for_gst_details: "Yes" | "No";
   gst_ledger_ids: number[];
+  // "Voucher Type Class" screen
+  exclude_groups?: number[];
+  include_groups?: number[];
+  default_allocations?: ClassAllocationRow[];
+  additional_entries?: ClassAdditionalEntryRow[];
 }
 
 export interface VoucherTypeConfig {

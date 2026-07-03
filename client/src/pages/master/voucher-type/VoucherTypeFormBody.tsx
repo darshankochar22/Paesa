@@ -214,7 +214,6 @@ export function VoucherTypeFormBody({
 
   // ── Name of Class ──────────────────────────────────────────────────────────
   const [newClassName, setNewClassName] = useState("");
-  const [confirmingClassName, setConfirmingClassName] = useState<string | null>(null);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
 
   const editingClass = config.voucher_classes.find((c) => c.id === editingClassId) ?? null;
@@ -223,7 +222,6 @@ export function VoucherTypeFormBody({
     const id = `vc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const row: VoucherClassRow = { id, name, use_for_gst_details: "No" as YN, gst_ledger_ids: [] };
     setConfig((c) => ({ ...c, voucher_classes: [...c.voucher_classes, row] }));
-    setConfirmingClassName(null);
     setNewClassName("");
     setEditingClassId(id);
   };
@@ -419,42 +417,20 @@ export function VoucherTypeFormBody({
                 ))}
               </div>
 
-              {confirmingClassName !== null ? (
-                <div className="flex items-center gap-2 px-1.5 py-1 border border-zinc-300 rounded bg-white/70">
-                  <span className="text-xs text-zinc-600 flex-1 truncate">
-                    Create Class &lsquo;{confirmingClassName}&rsquo;?
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => addClass(confirmingClassName)}
-                    className="text-[10px] font-bold uppercase tracking-wider text-zinc-700 hover:text-zinc-950 border border-zinc-300 rounded px-1.5 py-0.5"
-                  >
-                    Enter
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingClassName(null)}
-                    className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-700 px-1"
-                  >
-                    Esc
-                  </button>
-                </div>
-              ) : (
-                <input
-                  className={nameInputCls}
-                  value={newClassName}
-                  placeholder="type name…"
-                  onChange={(e) => setNewClassName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
-                    e.preventDefault();
-                    const name = newClassName.trim();
-                    if (!name) return;
-                    if (config.voucher_classes.some((c) => c.name.toLowerCase() === name.toLowerCase())) return;
-                    setConfirmingClassName(name);
-                  }}
-                />
-              )}
+              <input
+                className={nameInputCls}
+                value={newClassName}
+                placeholder="type name…"
+                onChange={(e) => setNewClassName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  const name = newClassName.trim();
+                  if (!name) return;
+                  if (config.voucher_classes.some((c) => c.name.toLowerCase() === name.toLowerCase())) return;
+                  addClass(name);
+                }}
+              />
             </div>
 
           </div>

@@ -221,6 +221,10 @@ async function stockQuery(company_id, fy_id, item_id) {
     });
   }
 
+  // ── 8. Derived header fields (Tally Stock Query layout) ──────────────────
+  // Not stored as masters — Tally shows sensible defaults / derived values.
+  const cost_rate = closing_qty > 0 ? avgCostRate : (avgCostRate || item.opening_rate || 0);
+
   return {
     success: true,
     item: {
@@ -232,6 +236,14 @@ async function stockQuery(company_id, fy_id, item_id) {
       closing_qty,
       closing_value,
       last_sale_rate: lastSaleRate,
+      // Header block — left column
+      cost_rate,                              // Cost price (per unit)
+      costing_method: 'Avg. Cost',
+      standard_cost: cost_rate,
+      // Header block — right column
+      part_no: '',
+      std_selling_price: lastSaleRate,        // Standard selling price
+      market_valuation_method: 'Avg. Price',
     },
     purchases,
     sales,
