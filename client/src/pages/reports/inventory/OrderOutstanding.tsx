@@ -8,9 +8,11 @@ import SelectionPopup from "./SelectionPopup";
 // Ledger / All Orders) → optional entity SelectionPopup → report.
 // Every dimension renders the SAME Tally report shape:
 //   Particulars | Pending Orders (Quantity · Rate · Value) + Grand Total.
-// "Particulars" groups by stock item (stock dimensions) or by party/ledger
-// (group / ledger / all). Enter/double-click drills a Particulars row into its
-// underlying order lines (balance qty = ordered − fulfilled).
+// "Particulars" ALWAYS lists stock items — the dimension (stock group/category/
+// item, group, ledger, all) only FILTERS which orders are counted (confirmed by
+// #176: Ledger=ABC Customers shows items Fan/Paracetamol, not the party).
+// Enter/double-click drills an item into its order lines (Order Details:
+// balance qty = ordered − fulfilled, split into outstanding vs over-received).
 
 type Mode = "sales" | "purchase";
 type GroupBy = "item" | "party";
@@ -64,13 +66,13 @@ const DIMS = (): Dim[] => [
   { key: "stock-item",     label: "Stock Item",     groupBy: "item", allLabel: "All Items",
     selectTitle: "Select Stock Item",     fieldLabel: "Name of Item",     listLabel: "List of Stock Items",     createPath: "/master/create/stock-item",
     fetch: async (c) => (((await api().stockItem.getAll(c)).stockItems ?? []).map((g: any) => ({ id: g.item_id, name: g.name }))) },
-  { key: "group",          label: "Group",          groupBy: "party", allLabel: "All Groups", groupStart: true,
+  { key: "group",          label: "Group",          groupBy: "item", allLabel: "All Groups", groupStart: true,
     selectTitle: "Select Group",          fieldLabel: "Name of Group",    listLabel: "List of Groups",          createPath: "/master/create/group",
     fetch: async (c) => (((await api().group.getAll(c)).groups ?? []).map((g: any) => ({ id: g.group_id, name: g.name }))) },
-  { key: "ledger",         label: "Ledger",         groupBy: "party", allLabel: "All Ledgers",
+  { key: "ledger",         label: "Ledger",         groupBy: "item", allLabel: "All Ledgers",
     selectTitle: "Select Ledger",         fieldLabel: "Name of Ledger",   listLabel: "List of Ledgers",         createPath: "/master/create/ledger",
     fetch: async (c) => (((await api().ledger.getAll(c)).ledgers ?? []).map((g: any) => ({ id: g.ledger_id, name: g.name }))) },
-  { key: "all",            label: "All Orders",     groupBy: "party", allLabel: "All Orders", groupStart: true, fetch: null },
+  { key: "all",            label: "All Orders",     groupBy: "item", allLabel: "All Orders", groupStart: true, fetch: null },
 ];
 
 type Level =
@@ -341,7 +343,10 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
 
   // ---- Order Details drill: outstanding + over-received sections -----------
   const TH = "px-2 py-1 font-bold text-[10px] bg-zinc-100 border-b border-zinc-300";
-  const partyCol = groupBy === "item";        // item drill shows parties, party drill shows items
+  // When the report is scoped to a party (Group/Ledger), the drill header reads
+  // "<party> (for <item> )"; otherwise it names the item ("Item: <item>").
+  const partyScoped = (level.dim.key === "group" || level.dim.key === "ledger") && !!level.selection;
+  const drillTitle = partyScoped ? `${entityLabel} (for ${drill.name} )` : `Item: ${drill.name}`;
   const posCount = lineRows.filter(r => r.balance_qty > 1e-9).length;
   const sectionUnit = (rs: Row[]) => { const u = new Set(rs.filter(r => r.balance_qty).map(r => r.unit)); return u.size === 1 ? [...u][0] : ""; };
   const sections = [
@@ -354,8 +359,8 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
       <TitleBar title="Order Details" />
       <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
         <div>
-          <div className="font-bold">{groupBy === "item" ? "Item" : level.dim.label}: {drill.name}</div>
-          <div className="italic text-zinc-600">{orderWord} Orders ({entityLabel})</div>
+          <div className="font-bold">{drillTitle}</div>
+          <div className="italic text-zinc-600">{orderWord} Orders (All Orders)</div>
         </div>
         <span className="text-zinc-600">{periodLabel}</span>
       </div>
@@ -366,7 +371,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
             <tr>
               <th className={`${TH} text-left w-20`}>Date</th>
               <th className={`${TH} text-left w-24`}>Order No.</th>
-              <th className={`${TH} text-left`}>{partyCol ? "Name of Party" : "Name of Item"}</th>
+              <th className={`${TH} text-left`}>Name of Party</th>
               <th className={`${TH} text-right w-24`}>Ordered Qty</th>
               <th className={`${TH} text-right w-24`}>Balance Qty</th>
               <th className={`${TH} text-right w-24`}>Rate</th>
@@ -391,7 +396,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                         className={`border-b border-zinc-100 cursor-pointer ${gi === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
                         <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
                         <td className="px-2 py-1">{r.order_no}</td>
-                        <td className="px-2 py-1">{partyCol ? (r.party_name || "—") : r.item_name}</td>
+                        <td className="px-2 py-1">{r.party_name || "—"}</td>
                         <td className="px-2 py-1 text-right">{fmtQty(r.ordered_qty, r.unit)}</td>
                         <td className="px-2 py-1 text-right">{fmtQty(r.balance_qty, r.unit)}</td>
                         <td className="px-2 py-1 text-right">{fmtNum(r.rate)}</td>
