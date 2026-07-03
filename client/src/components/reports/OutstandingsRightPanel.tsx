@@ -1,5 +1,3 @@
-import * as React from "react";
-
 /* ── Tally-style right action panel for the Outstandings reports ───────────
  * Strict black/white (no colour). Each item is an F-key label. Items without
  * an `onClick` render greyed/disabled — mirroring how TallyPrime itself greys

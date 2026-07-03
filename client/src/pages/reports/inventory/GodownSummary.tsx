@@ -335,7 +335,6 @@ export default function GodownSummary() {
     const totalBase = inGroup ? list : items;
     const grandQty = totalBase.reduce((s, r) => s + (Number(r.closing_qty) || 0), 0);
     const grandValue = totalBase.reduce((s, r) => s + (Number(r.closing_value) || 0), 0);
-    const focusIdx = inGroup ? groupItemIndex : itemIndex;
     const rowCount = inGroup ? list.length : summaryEntries.length;
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
