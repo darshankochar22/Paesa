@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
 import MovementAnalysisTable, { type MovRow } from "./MovementAnalysisTable";
+import ItemMovementAnalysis, { type PartyMov, type MovCursor, type MovSection } from "./ItemMovementAnalysis";
 import ItemVoucherAnalysis, { type VoucherRow } from "./ItemVoucherAnalysis";
 
 interface GroupRow { group_id: number; group_name: string; in_qty: number; in_value: number; out_qty: number; out_value: number; }
@@ -16,13 +17,41 @@ type Level =
   | { step: "select" }
   | { step: "groups" }
   | { step: "items"; group: GroupRef; from: Origin }
-  | { step: "vouchers"; group: GroupRef; item: ItemRow; from: Origin };
+  | { step: "movement"; group: GroupRef; item: ItemRow; from: Origin }
+  | { step: "vouchers"; group: GroupRef; item: ItemRow; party: string; direction: MovSection; from: Origin };
 
 const FooterBar = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
     {children}
   </div>
 );
+
+// Classify by voucher-type family so purchase returns (Debit Note) net inside
+// the supplier's inward group, and sales returns (Credit Note) net inside the
+// buyer's outward group — matching Tally, rather than following goods direction.
+const isSalesFamily = (vt: string) => /credit note|sales|sale/i.test(vt || "");
+export const rowFamily = (r: VoucherRow): MovSection => (isSalesFamily(r.voucher_type) ? "outward" : "inward");
+
+/** Aggregate item voucher rows into per-party inward / outward movement totals. */
+function aggregate(rows: VoucherRow[]): { inward: PartyMov[]; outward: PartyMov[] } {
+  const inMap = new Map<string, PartyMov>();
+  const outMap = new Map<string, PartyMov>();
+  const add = (m: Map<string, PartyMov>, name: string, qty: number, basic: number, addl: number) => {
+    const prev = m.get(name) ?? { name, qty: 0, basicValue: 0, addl: 0 };
+    prev.qty += qty; prev.basicValue += basic; prev.addl += addl;
+    m.set(name, prev);
+  };
+  for (const r of rows) {
+    if (!r.voucher_id) continue; // Opening Balance
+    const addl = Number(r.addl_cost) || 0;
+    const inQty = Number(r.inwards_qty) || 0,  outQty = Number(r.outwards_qty) || 0;
+    const inVal = Number(r.inwards_value) || 0, outVal = Number(r.outwards_value) || 0;
+    if (rowFamily(r) === "inward") add(inMap,  r.particulars, inQty - outQty, inVal - outVal, addl);
+    else                          add(outMap, r.particulars, outQty - inQty, outVal - inVal, addl);
+  }
+  const sort = (m: Map<string, PartyMov>) => [...m.values()].sort((a, b) => (b.basicValue + b.addl) - (a.basicValue + a.addl));
+  return { inward: sort(inMap), outward: sort(outMap) };
+}
 
 export default function StockGroupAnalysis() {
   const navigate = useNavigate();
@@ -91,22 +120,39 @@ export default function StockGroupAnalysis() {
     });
   }, [companyId, fyId]);
 
-  // ── Level: item voucher analysis ─────────────────────────────────────────
-  const [vouchers, setVouchers] = React.useState<VoucherRow[]>([]);
-  const [loadingVouchers, setLoadingVouchers] = React.useState(false);
-  const [voucherErr, setVoucherErr] = React.useState<string | null>(null);
-  const [voucherIdx, setVoucherIdx] = React.useState(0);
+  // ── Level: item movement analysis (Suppliers / Buyers) ───────────────────
+  const allRowsRef = React.useRef<VoucherRow[]>([]);
+  const [movData, setMovData] = React.useState<{ inward: PartyMov[]; outward: PartyMov[] } | null>(null);
+  const [movLoading, setMovLoading] = React.useState(false);
+  const [movErr, setMovErr] = React.useState<string | null>(null);
+  const [movCursor, setMovCursor] = React.useState<MovCursor>({ section: "inward", idx: 0 });
 
-  const loadVouchers = React.useCallback((group: GroupRef, item: ItemRow, from: Origin) => {
+  const loadMovement = React.useCallback((group: GroupRef, item: ItemRow, from: Origin) => {
     if (!companyId || !fyId) return;
-    setLevel({ step: "vouchers", group, item, from });
-    setLoadingVouchers(true); setVoucherErr(null); setVoucherIdx(0);
+    setLevel({ step: "movement", group, item, from });
+    setMovLoading(true); setMovErr(null); setMovData(null); setMovCursor({ section: "inward", idx: 0 });
     (window as any).api.report.stockItemVouchers(companyId, fyId, item.item_id, activeFY?.start_date, activeFY?.end_date).then((res: any) => {
-      if (res.success) setVouchers(res.rows ?? []);
-      else setVoucherErr(res.error || "Failed to load vouchers");
-      setLoadingVouchers(false);
+      if (res.success) { allRowsRef.current = res.rows ?? []; setMovData(aggregate(res.rows ?? [])); }
+      else setMovErr(res.error || "Failed to load movement");
+      setMovLoading(false);
     });
   }, [companyId, fyId, activeFY]);
+
+  // ── Level: item voucher analysis (per ledger + direction) ────────────────
+  const [voucherIdx, setVoucherIdx] = React.useState(0);
+  const voucherRows = React.useMemo(() => {
+    if (level.step !== "vouchers") return [];
+    const dir = level.direction;
+    return allRowsRef.current.filter(r =>
+      r.voucher_id && r.particulars === level.party && rowFamily(r) === dir);
+  }, [level]);
+
+  const openVouchers = React.useCallback((section: MovSection, party: string) => {
+    setLevel(l => l.step === "movement"
+      ? { step: "vouchers", group: l.group, item: l.item, party, direction: section, from: l.from }
+      : l);
+    setVoucherIdx(0);
+  }, []);
 
   const acceptGroup = React.useCallback((g: GroupRef) => {
     if (g.group_id === PRIMARY_ID) loadGroups();
@@ -132,18 +178,37 @@ export default function StockGroupAnalysis() {
       } else if (level.step === "items") {
         if (e.key === "ArrowDown") { e.preventDefault(); setItemIdx(p => Math.min(items.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setItemIdx(p => Math.max(0, p - 1)); }
-        else if (e.key === "Enter") { e.preventDefault(); const it = items[itemIdx]; if (it) loadVouchers(level.group, it, level.from); }
+        else if (e.key === "Enter") { e.preventDefault(); const it = items[itemIdx]; if (it) loadMovement(level.group, it, level.from); }
         else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); level.from === "groups" ? backToGroups() : backToSelect(); }
+      } else if (level.step === "movement") {
+        const inLen = movData?.inward.length ?? 0;
+        const outLen = movData?.outward.length ?? 0;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setMovCursor(c => c.section === "inward"
+            ? (c.idx < inLen - 1 ? { section: "inward", idx: c.idx + 1 } : { section: "outward", idx: 0 })
+            : { section: "outward", idx: Math.min(outLen - 1, c.idx + 1) });
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setMovCursor(c => c.section === "outward"
+            ? (c.idx > 0 ? { section: "outward", idx: c.idx - 1 } : { section: "inward", idx: Math.max(0, inLen - 1) })
+            : { section: "inward", idx: Math.max(0, c.idx - 1) });
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          const list = movCursor.section === "inward" ? movData?.inward : movData?.outward;
+          const row = list?.[movCursor.idx];
+          if (row) openVouchers(movCursor.section, row.name);
+        } else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); loadItems(level.group, level.from); }
       } else {
-        if (e.key === "ArrowDown") { e.preventDefault(); setVoucherIdx(p => Math.min(vouchers.length - 1, p + 1)); }
+        if (e.key === "ArrowDown") { e.preventDefault(); setVoucherIdx(p => Math.min(voucherRows.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setVoucherIdx(p => Math.max(0, p - 1)); }
-        else if (e.key === "Enter") { e.preventDefault(); const r = vouchers[voucherIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
-        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); loadItems(level.group, level.from); }
+        else if (e.key === "Enter") { e.preventDefault(); const r = voucherRows[voucherIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
+        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); loadMovement(level.group, level.item, level.from); }
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [level, filtered, selectIdx, groups, groupIdx, items, itemIdx, vouchers, voucherIdx, acceptGroup, loadItems, loadVouchers, backToSelect, backToGroups, navigate]);
+  }, [level, filtered, selectIdx, groups, groupIdx, items, itemIdx, movData, movCursor, voucherRows, voucherIdx, acceptGroup, loadItems, loadMovement, openVouchers, backToSelect, backToGroups, navigate]);
 
   // ── Select Stock Group ───────────────────────────────────────────────────
   if (level.step === "select") {
@@ -193,20 +258,43 @@ export default function StockGroupAnalysis() {
         periodLabel={periodLabel} leftLabel="Inward" rightLabel="Outward" rows={rows}
         loading={loadingItems} error={itemErr} emptyText="No items in this group."
         selectedIndex={itemIdx} onSelectIndex={setItemIdx}
-        onActivate={(_r, i) => loadVouchers(g, items[i], level.from)}
-        footer={<FooterBar><button onClick={() => level.from === "groups" ? backToGroups() : backToSelect()} className="hover:underline hover:text-zinc-900">Q: Back</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
+        onActivate={(_r, i) => loadMovement(g, items[i], level.from)}
+        footer={<FooterBar><button onClick={() => level.from === "groups" ? backToGroups() : backToSelect()} className="hover:underline hover:text-zinc-900">Q: Back</button><span className="text-zinc-400">Enter: Item movement analysis</span></FooterBar>}
       />
     );
   }
 
-  const { group: g, item: it, from } = level;
+  // ── Item Movement Analysis (Suppliers / Buyers) ──────────────────────────
+  if (level.step === "movement") {
+    const it = level.item;
+    return (
+      <ItemMovementAnalysis
+        itemName={it.item_name} companyName={selectedCompany?.name} periodLabel={periodLabel} unit={it.unit_name}
+        inward={movData?.inward ?? []} outward={movData?.outward ?? []}
+        loading={movLoading} error={movErr}
+        cursor={movCursor} onCursor={setMovCursor}
+        onActivate={(section, party) => openVouchers(section, party.name)}
+        footer={<FooterBar><button onClick={() => loadItems(level.group, level.from)} className="hover:underline hover:text-zinc-900">Q: Back to Items</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
+      />
+    );
+  }
+
+  // ── Item Voucher Analysis (leaf → voucher) ───────────────────────────────
+  const it = level.item;
   return (
     <ItemVoucherAnalysis
       itemName={it.item_name} companyName={selectedCompany?.name} periodLabel={periodLabel}
-      rows={vouchers} loading={loadingVouchers} error={voucherErr}
+      ledgerName={level.party} direction={level.direction} unit={it.unit_name}
+      rows={voucherRows} loading={false} error={null}
       selectedIndex={voucherIdx} onSelectIndex={setVoucherIdx}
       onOpenVoucher={(r) => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
-      footer={<FooterBar><button onClick={() => loadItems(g, from)} className="hover:underline hover:text-zinc-900">Q: Back to Items</button><span className="text-zinc-400">Enter: Open voucher</span></FooterBar>}
+      footer={<FooterBar>
+        <button onClick={() => loadMovement(level.group, it, level.from)} className="hover:underline hover:text-zinc-900">Q: Back</button>
+        <span className="text-zinc-400">Enter: Alter</span>
+        <span className="text-zinc-400">A: Add Vch</span>
+        <span className="text-zinc-400">2: Duplicate Vch</span>
+        <span className="text-zinc-400">I: Insert Vch</span>
+      </FooterBar>}
     />
   );
 }

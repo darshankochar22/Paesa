@@ -30,6 +30,7 @@ const buildVoucherRegister = (entries, wa, from_date, to_date, includeOpeningRow
       voucher_type: '', voucher_number: '',
       inwards_qty: openingQty, inwards_value: openingValue,
       outwards_qty: null, outwards_value: null,
+      addl_cost: 0,
       closing_qty: openingQty, closing_value: openingValue,
     });
   }
@@ -48,11 +49,13 @@ const buildVoucherRegister = (entries, wa, from_date, to_date, includeOpeningRow
         voucher_type: e.voucher_type, voucher_number: e.voucher_number,
         inwards_qty: null, inwards_value: null,
         outwards_qty: null, outwards_value: null,
+        addl_cost: 0,
         closing_qty: wa.qty, closing_value: wa.value,
       };
     }
     const qty = Number(e.quantity) || 0;
     const amt = Number(e.amount) || 0;
+    current.addl_cost += Number(e.additional_amount) || 0;
     if (dir === 'in') {
       current.inwards_qty = (current.inwards_qty || 0) + qty;
       current.inwards_value = (current.inwards_value || 0) + amt;
@@ -757,6 +760,7 @@ module.exports = {
               v.voucher_number AS voucher_number,
               vse.quantity     AS quantity,
               vse.amount       AS amount,
+              vse.additional_amount AS additional_amount,
               vse.is_source    AS is_source
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
