@@ -270,13 +270,18 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   const entityLabel = level.selection && !isPrimary(level.dim, level.selection)
     ? level.selection.name : (level.dim.allLabel ?? "All Orders");
 
-  // Info-header band shared by both report views (mirrors Tally's report info block).
+  // Info-header band shared by both report views. Mirrors Tally's right-aligned
+  // stacked block: scope · company · period · "<Sales> Orders Outstanding" ·
+  // "Pending Orders". "Particulars" sits at the far left of the same band.
   const InfoBand = ({ context }: { context?: string }) => (
     <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
-      <span className="font-bold">{context ?? entityLabel}</span>
+      <span className="font-bold tracking-wide">Particulars</span>
       <div className="text-right leading-tight">
-        <div className="italic">{orderWord} Orders Outstanding · Pending Orders</div>
+        <div className="italic">{context ?? entityLabel}</div>
+        <div className="font-bold">{selectedCompany?.name ?? ""}</div>
         <div className="text-zinc-600">{periodLabel}</div>
+        <div className="italic">{orderWord} Orders Outstanding</div>
+        <div className="font-bold">Pending Orders</div>
       </div>
     </div>
   );
@@ -293,10 +298,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
           <table className="w-full border-collapse text-[11px] font-mono">
             <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
               <tr>
-                <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom">Particulars</th>
-                <th colSpan={3} className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200">Pending Orders</th>
-              </tr>
-              <tr>
+                <th className="px-3 py-1 text-left font-bold" />
                 <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Quantity</th>
                 <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">Rate</th>
                 <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Value</th>
