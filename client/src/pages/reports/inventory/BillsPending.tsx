@@ -15,6 +15,7 @@ interface Row {
   tracking_no: string;
   item_name: string;
   party_name: string;
+  unit: string;
   initial_qty: number;
   pending_qty: number;
   rate: number;
@@ -29,10 +30,11 @@ const dmy = (iso: string) => {
 };
 const fmtNum = (v: number | null | undefined) =>
   !v ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
-const fmtQty = (v: number | null | undefined) => {
+const fmtQty = (v: number | null | undefined, unit?: string) => {
   const n = Number(v) || 0;
   if (n === 0) return "";
-  return n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  const num = n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  return unit ? `${num} ${unit}` : num;
 };
 
 const TH = "px-2 py-1 font-bold text-[10px] bg-zinc-100 border-b border-zinc-300";
@@ -71,6 +73,9 @@ export default function BillsPending({ mode }: { mode: Mode }) {
   const totals = rows.reduce((a, r) => ({
     initial: a.initial + r.initial_qty, pending: a.pending + r.pending_qty, value: a.value + r.value,
   }), { initial: 0, pending: 0, value: 0 });
+  // Quantity totals carry a unit only when every row shares one (else blank).
+  const unitSet = new Set(rows.filter(r => r.pending_qty).map(r => r.unit));
+  const totalUnit = unitSet.size === 1 ? [...unitSet][0] : "";
 
   React.useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -103,9 +108,9 @@ export default function BillsPending({ mode }: { mode: Mode }) {
               <th className={`${TH} text-left`}>Date</th>
               <th className={`${TH} text-left`}>Tracking Number</th>
               <th className={`${TH} text-left`}>Name of Item</th>
-              <th className={`${TH} text-right w-28`}>Initial Qty</th>
-              <th className={`${TH} text-right w-28`}>Pending Qty</th>
-              <th className={`${TH} text-right w-24`}>Rate</th>
+              <th className={`${TH} text-right w-28`}>Initial Quantity</th>
+              <th className={`${TH} text-right w-28`}>Pending Quantity</th>
+              <th className={`${TH} text-right w-24`}>Rate (Disc %)</th>
               <th className={`${TH} text-right w-28`}>Value</th>
             </tr>
           </thead>
@@ -126,8 +131,8 @@ export default function BillsPending({ mode }: { mode: Mode }) {
                   <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
                   <td className="px-2 py-1">{r.tracking_no}</td>
                   <td className="px-2 py-1">{r.item_name}</td>
-                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.initial_qty)}</td>
-                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.pending_qty)}</td>
+                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.initial_qty, r.unit)}</td>
+                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.pending_qty, r.unit)}</td>
                   <td className="px-2 py-1 text-right w-24">{fmtNum(r.rate)}</td>
                   <td className="px-2 py-1 text-right w-28">{fmtNum(r.value)}</td>
                 </tr>
@@ -144,8 +149,8 @@ export default function BillsPending({ mode }: { mode: Mode }) {
       {/* Total row — fixed widths mirror the numeric columns so it aligns */}
       <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-2 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
         <span className="flex-1 pl-2">Total</span>
-        <span className="w-28 text-right">{fmtQty(totals.initial)}</span>
-        <span className="w-28 text-right">{fmtQty(totals.pending)}</span>
+        <span className="w-28 text-right">{totalUnit ? fmtQty(totals.initial, totalUnit) : ""}</span>
+        <span className="w-28 text-right">{totalUnit ? fmtQty(totals.pending, totalUnit) : ""}</span>
         <span className="w-24" />
         <span className="w-28 text-right">{fmtNum(totals.value)}</span>
       </div>

@@ -262,6 +262,7 @@ module.exports = {
           vb.tracking_no    AS tracking_no,
           vse.item_name     AS item_name,
           v.party_name      AS party_name,
+          MAX(COALESCE(um.symbol, um2.symbol)) AS unit,
           SUM(vb.quantity)  AS initial_qty,
           MAX(vse.rate)     AS rate,
           MAX(vse.discount_amount) AS disc_amount,
@@ -280,6 +281,9 @@ module.exports = {
         FROM ${voucherBatches} vb
         INNER JOIN ${vouchers} v            ON v.voucher_id       = vb.voucher_id
         INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
+        LEFT JOIN units um  ON um.unit_id  = vse.unit_id
+        LEFT JOIN ${stockItems} siu ON siu.item_id = vse.stock_item_id
+        LEFT JOIN units um2 ON um2.unit_id = siu.unit_id
         WHERE v.company_id   = ${company_id}
           AND v.fy_id        = ${fy_id}
           AND v.voucher_type = ${billType}
@@ -300,6 +304,7 @@ module.exports = {
             tracking_no: r.tracking_no,
             item_name: r.item_name,
             party_name: r.party_name,
+            unit: r.unit || "",
             initial_qty: initial,
             pending_qty: pending,
             rate: r.rate || 0,
