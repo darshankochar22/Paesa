@@ -52,21 +52,21 @@ const api = () => (window as any).api;
 
 const DIMS = (): Dim[] => [
   { key: "stock-group",    label: "Stock Group",    summary: true, allLabel: "All Stock Groups",
-    selectTitle: "Select Stock Group",    fieldLabel: "Name of Group",    listLabel: "List of Stock Groups",
+    selectTitle: "Select Stock Group",    fieldLabel: "Name of Group",    listLabel: "List of Stock Groups",    createPath: "/master/create/stock-group",
     fetch: async (c) => (((await api().stockGroup.getAll(c)).stockGroups ?? []).map((g: any) => ({ id: g.sg_id, name: g.name }))) },
   { key: "stock-category", label: "Stock Category", summary: true, allLabel: "All Stock Categories",
-    selectTitle: "Select Stock Category", fieldLabel: "Name of Stock Category", listLabel: "List of Stock Categories",
+    selectTitle: "Select Stock Category", fieldLabel: "Name of Stock Category", listLabel: "List of Stock Categories", createPath: "/master/create/stock-category",
     fetch: async (c) => (((await api().stockCategory.getAll(c)).stockCategories ?? []).map((g: any) => ({ id: g.sc_id, name: g.name }))) },
   { key: "stock-item",     label: "Stock Item",     allLabel: "All Items",
-    selectTitle: "Select Stock Item",     fieldLabel: "Name of Item",     listLabel: "List of Stock Items",
+    selectTitle: "Select Stock Item",     fieldLabel: "Name of Item",     listLabel: "List of Stock Items",     createPath: "/master/create/stock-item",
     fetch: async (c) => (((await api().stockItem.getAll(c)).stockItems ?? []).map((g: any) => ({ id: g.item_id, name: g.name }))) },
-  { key: "group",          label: "Group",          allLabel: "All Groups",
-    selectTitle: "Select Group",          fieldLabel: "Name of Group",    listLabel: "List of Groups",
+  { key: "group",          label: "Group",          allLabel: "All Groups", groupStart: true,
+    selectTitle: "Select Group",          fieldLabel: "Name of Group",    listLabel: "List of Groups",          createPath: "/master/create/group",
     fetch: async (c) => (((await api().group.getAll(c)).groups ?? []).map((g: any) => ({ id: g.group_id, name: g.name }))) },
   { key: "ledger",         label: "Ledger",         allLabel: "All Ledgers",
-    selectTitle: "Select Ledger",         fieldLabel: "Name of Ledger",   listLabel: "List of Ledgers",
+    selectTitle: "Select Ledger",         fieldLabel: "Name of Ledger",   listLabel: "List of Ledgers",         createPath: "/master/create/ledger",
     fetch: async (c) => (((await api().ledger.getAll(c)).ledgers ?? []).map((g: any) => ({ id: g.ledger_id, name: g.name }))) },
-  { key: "all",            label: "All Orders",     allLabel: "All Orders", fetch: null },
+  { key: "all",            label: "All Orders",     allLabel: "All Orders", groupStart: true, fetch: null },
 ];
 
 type Level =
@@ -216,7 +216,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
             <button key={d.key}
               onClick={() => openDim(d)}
               onMouseEnter={() => setMenuIdx(i)}
-              className={`text-left px-2 h-7 text-[12px] ${i === menuIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
+              className={`text-left px-2 h-7 text-[12px] ${d.groupStart ? "mt-3" : ""} ${i === menuIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
               {d.label}
             </button>
           ))}
@@ -239,6 +239,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
           onSearchChange={setSearch} onIndexChange={setSelIdx}
           onAccept={(i) => { const s = filtered[i]; if (s) setLevel({ step: "report", dim: level.dim, selection: s }); }}
           onCancel={() => setLevel({ step: "menu" })}
+          onCreate={level.dim.createPath ? () => navigate(level.dim.createPath!) : undefined}
         />
       </div>
     );
