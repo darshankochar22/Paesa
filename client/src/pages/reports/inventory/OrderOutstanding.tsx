@@ -136,6 +136,8 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   const [sumIdx, setSumIdx] = React.useState(0);
 
   const groupBy: GroupBy = level.step === "report" ? level.dim.groupBy : "item";
+  // "All Orders" skips the Particulars summary and shows Order Details directly.
+  const directOrders = level.step === "report" && level.dim.key === "all";
 
   React.useEffect(() => {
     if (level.step !== "report" || !companyId || !fyId) return;
@@ -194,18 +196,18 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
         else if (e.key === "Enter") { e.preventDefault(); const s = filtered[selIdx]; if (s) setLevel({ step: "report", dim: level.dim, selection: s }); }
         // Escape only — Backspace must keep editing the SelectionPopup search input.
         else if (e.key === "Escape") { e.preventDefault(); setLevel({ step: "menu" }); }
-      } else if (!drill) {
+      } else if (!drill && !directOrders) {
         // Particulars summary view
         if (e.key === "ArrowDown") { e.preventDefault(); setSumIdx(p => Math.min(summary.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setSumIdx(p => Math.max(0, p - 1)); }
         else if (e.key === "Enter") { e.preventDefault(); const it = summary[sumIdx]; if (it) { setDrill({ key: it.key, name: it.name }); setRowIdx(0); } }
         else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" }); }
       } else {
-        // Order-line drill view
+        // Order Details view (drilled item, or All-Orders direct list)
         if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(lineRows.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
         else if (e.key === "Enter") { e.preventDefault(); const r = lineRows[rowIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
-        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); setDrill(null); }
+        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); drill ? setDrill(null) : setLevel({ step: "menu" }); }
       }
     };
     window.addEventListener("keydown", h);
@@ -289,7 +291,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   );
 
   // ---- Particulars summary: Particulars | Quantity | Rate | Value ----------
-  if (!drill) {
+  if (!drill && !directOrders) {
     const grandQty = summary.reduce((s, r) => s + r.qty, 0);
     const grandVal = summary.reduce((s, r) => s + r.value, 0);
     return (
@@ -343,10 +345,13 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
 
   // ---- Order Details drill: outstanding + over-received sections -----------
   const TH = "px-2 py-1 font-bold text-[10px] bg-zinc-100 border-b border-zinc-300";
-  // When the report is scoped to a party (Group/Ledger), the drill header reads
-  // "<party> (for <item> )"; otherwise it names the item ("Item: <item>").
+  // Two Order Details modes: an item drilled from a summary (itemFixed → primary
+  // column is the party) vs the "All Orders" direct list (primary column is the
+  // item, with a "To: <party>" sub-line). Header for a drilled item is
+  // "<party> (for <item> )" when party-scoped (Group/Ledger), else "Item: <item>".
+  const itemFixed = !!drill;
   const partyScoped = (level.dim.key === "group" || level.dim.key === "ledger") && !!level.selection;
-  const drillTitle = partyScoped ? `${entityLabel} (for ${drill.name} )` : `Item: ${drill.name}`;
+  const drillTitle = drill ? (partyScoped ? `${entityLabel} (for ${drill.name} )` : `Item: ${drill.name}`) : "";
   const posCount = lineRows.filter(r => r.balance_qty > 1e-9).length;
   const sectionUnit = (rs: Row[]) => { const u = new Set(rs.filter(r => r.balance_qty).map(r => r.unit)); return u.size === 1 ? [...u][0] : ""; };
   const sections = [
@@ -359,8 +364,8 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
       <TitleBar title="Order Details" />
       <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
         <div>
-          <div className="font-bold">{drillTitle}</div>
-          <div className="italic text-zinc-600">{orderWord} Orders (All Orders)</div>
+          {itemFixed && <div className="font-bold">{drillTitle}</div>}
+          <div className={itemFixed ? "italic text-zinc-600" : "font-bold"}>{orderWord} Orders (All Orders)</div>
         </div>
         <span className="text-zinc-600">{periodLabel}</span>
       </div>
@@ -371,7 +376,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
             <tr>
               <th className={`${TH} text-left w-20`}>Date</th>
               <th className={`${TH} text-left w-24`}>Order No.</th>
-              <th className={`${TH} text-left`}>Name of Party</th>
+              <th className={`${TH} text-left`}>{itemFixed ? "Name of Party" : "Name of Item"}</th>
               <th className={`${TH} text-right w-24`}>Ordered Qty</th>
               <th className={`${TH} text-right w-24`}>Balance Qty</th>
               <th className={`${TH} text-right w-24`}>Rate</th>
@@ -391,24 +396,33 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                   {sec.rows.map((r, j) => {
                     const gi = sec.offset + j;
                     return (
-                      <tr key={gi} onClick={() => setRowIdx(gi)}
-                        onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
-                        className={`border-b border-zinc-100 cursor-pointer ${gi === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
-                        <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
-                        <td className="px-2 py-1">{r.order_no}</td>
-                        <td className="px-2 py-1">{r.party_name || "—"}</td>
-                        <td className="px-2 py-1 text-right">{fmtQty(r.ordered_qty, r.unit)}</td>
-                        <td className="px-2 py-1 text-right">{fmtQty(r.balance_qty, r.unit)}</td>
-                        <td className="px-2 py-1 text-right">{fmtNum(r.rate)}</td>
-                        <td className="px-2 py-1 text-right">{fmtNum(r.value)}</td>
-                        <td className="px-2 py-1 whitespace-nowrap">{dmy(r.due_on)}</td>
-                      </tr>
+                      <React.Fragment key={gi}>
+                        <tr onClick={() => setRowIdx(gi)}
+                          onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
+                          className={`cursor-pointer ${gi === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"} ${itemFixed ? "border-b border-zinc-100" : ""}`}>
+                          <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
+                          <td className="px-2 py-1">{r.order_no}</td>
+                          <td className="px-2 py-1 font-semibold">{itemFixed ? (r.party_name || "—") : r.item_name}</td>
+                          <td className="px-2 py-1 text-right">{fmtQty(r.ordered_qty, r.unit)}</td>
+                          <td className="px-2 py-1 text-right">{fmtQty(r.balance_qty, r.unit)}</td>
+                          <td className="px-2 py-1 text-right">{fmtNum(r.rate)}</td>
+                          <td className="px-2 py-1 text-right">{fmtNum(r.value)}</td>
+                          <td className="px-2 py-1 whitespace-nowrap">{dmy(r.due_on)}</td>
+                        </tr>
+                        {!itemFixed && (
+                          <tr className={`border-b border-zinc-100 ${gi === rowIdx ? "bg-[#e4e4e7]" : ""}`}>
+                            <td /><td />
+                            <td className="px-2 pb-1 italic text-zinc-500">To: {r.party_name || "—"}</td>
+                            <td colSpan={5} />
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                   <tr className="border-t border-zinc-300 font-bold">
                     <td /><td /><td />
-                    <td className="px-2 py-1 text-right">{fmtQty(sub.o, su)}</td>
-                    <td className="px-2 py-1 text-right">{fmtQty(sub.b, su)}</td>
+                    <td className="px-2 py-1 text-right">{su ? fmtQty(sub.o, su) : ""}</td>
+                    <td className="px-2 py-1 text-right">{su ? fmtQty(sub.b, su) : ""}</td>
                     <td />
                     <td className="px-2 py-1 text-right">{fmtNum(sub.v)}</td>
                     <td />
@@ -421,7 +435,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
       </div>
 
       <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => setDrill(null)} className="hover:text-zinc-900">Q: Back</button>
+        <button onClick={() => (itemFixed ? setDrill(null) : setLevel({ step: "menu" }))} className="hover:text-zinc-900">Q: Back</button>
         <span className="text-zinc-400">Enter: Open order voucher</span>
       </div>
     </div>
