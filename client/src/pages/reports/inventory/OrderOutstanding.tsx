@@ -6,17 +6,20 @@ import SelectionPopup from "./SelectionPopup";
 // Issues #167–#177 — Sales / Purchase Order Outstandings.
 // Flow: dimension sub-menu (Stock Group / Stock Category / Stock Item / Group /
 // Ledger / All Orders) → optional entity SelectionPopup → report.
-//   • Stock Group / Stock Category  → item summary (Particulars | Pending Orders:
-//     Quantity · Rate · Value), drill into an item → its order lines.
-//   • Stock Item / Group / Ledger / All → order lines directly.
-// Order line balance qty = ordered − fulfilled (Delivery/Receipt Note by order no).
+// Every dimension renders the SAME Tally report shape:
+//   Particulars | Pending Orders (Quantity · Rate · Value) + Grand Total.
+// "Particulars" groups by stock item (stock dimensions) or by party/ledger
+// (group / ledger / all). Enter/double-click drills a Particulars row into its
+// underlying order lines (balance qty = ordered − fulfilled).
 
 type Mode = "sales" | "purchase";
+type GroupBy = "item" | "party";
 
 interface Ref { id: number; name: string; }
 interface Row {
   voucher_id: number | null;
-  date: string; order_no: string; party_name: string;
+  date: string; order_no: string;
+  party_name: string; party_ledger_id: number | null;
   stock_item_id: number | null;
   item_name: string; ordered_qty: number; balance_qty: number; rate: number; value: number;
 }
@@ -30,8 +33,8 @@ interface Dim {
   createPath?: string;
   // label shown in the report header when nothing (or Primary) is selected
   allLabel?: string;
-  // dimensions rendered as a grouped item summary rather than raw order lines
-  summary?: boolean;
+  // what the Particulars column groups by
+  groupBy: GroupBy;
   // starts a new visual group in the sub-menu (blank line above, as in Tally)
   groupStart?: boolean;
 }
@@ -51,22 +54,22 @@ const fmtQty = (v: number | null | undefined) => {
 const api = () => (window as any).api;
 
 const DIMS = (): Dim[] => [
-  { key: "stock-group",    label: "Stock Group",    summary: true, allLabel: "All Stock Groups",
+  { key: "stock-group",    label: "Stock Group",    groupBy: "item", allLabel: "All Stock Groups",
     selectTitle: "Select Stock Group",    fieldLabel: "Name of Group",    listLabel: "List of Stock Groups",    createPath: "/master/create/stock-group",
     fetch: async (c) => (((await api().stockGroup.getAll(c)).stockGroups ?? []).map((g: any) => ({ id: g.sg_id, name: g.name }))) },
-  { key: "stock-category", label: "Stock Category", summary: true, allLabel: "All Stock Categories",
+  { key: "stock-category", label: "Stock Category", groupBy: "item", allLabel: "All Stock Categories",
     selectTitle: "Select Stock Category", fieldLabel: "Name of Stock Category", listLabel: "List of Stock Categories", createPath: "/master/create/stock-category",
     fetch: async (c) => (((await api().stockCategory.getAll(c)).stockCategories ?? []).map((g: any) => ({ id: g.sc_id, name: g.name }))) },
-  { key: "stock-item",     label: "Stock Item",     allLabel: "All Items",
+  { key: "stock-item",     label: "Stock Item",     groupBy: "item", allLabel: "All Items",
     selectTitle: "Select Stock Item",     fieldLabel: "Name of Item",     listLabel: "List of Stock Items",     createPath: "/master/create/stock-item",
     fetch: async (c) => (((await api().stockItem.getAll(c)).stockItems ?? []).map((g: any) => ({ id: g.item_id, name: g.name }))) },
-  { key: "group",          label: "Group",          allLabel: "All Groups", groupStart: true,
+  { key: "group",          label: "Group",          groupBy: "party", allLabel: "All Groups", groupStart: true,
     selectTitle: "Select Group",          fieldLabel: "Name of Group",    listLabel: "List of Groups",          createPath: "/master/create/group",
     fetch: async (c) => (((await api().group.getAll(c)).groups ?? []).map((g: any) => ({ id: g.group_id, name: g.name }))) },
-  { key: "ledger",         label: "Ledger",         allLabel: "All Ledgers",
+  { key: "ledger",         label: "Ledger",         groupBy: "party", allLabel: "All Ledgers",
     selectTitle: "Select Ledger",         fieldLabel: "Name of Ledger",   listLabel: "List of Ledgers",         createPath: "/master/create/ledger",
     fetch: async (c) => (((await api().ledger.getAll(c)).ledgers ?? []).map((g: any) => ({ id: g.ledger_id, name: g.name }))) },
-  { key: "all",            label: "All Orders",     allLabel: "All Orders", groupStart: true, fetch: null },
+  { key: "all",            label: "All Orders",     groupBy: "party", allLabel: "All Orders", groupStart: true, fetch: null },
 ];
 
 type Level =
@@ -77,6 +80,11 @@ type Level =
 // The root "Primary" group/category means "All …" — no filter.
 const isPrimary = (dim: Dim, sel: Ref | null) =>
   (dim.key === "stock-group" || dim.key === "stock-category") && sel?.name === "Primary";
+
+// Group-key for a row under the current Particulars grouping.
+const rowKey = (r: Row, by: GroupBy) =>
+  by === "item" ? String(r.stock_item_id ?? r.item_name) : String(r.party_ledger_id ?? r.party_name);
+const rowName = (r: Row, by: GroupBy) => (by === "item" ? r.item_name : (r.party_name || "—"));
 
 export default function OrderOutstanding({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
@@ -103,7 +111,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
     setLevel({ step: "select", dim }); setSearch(""); setSelIdx(0);
     setEntLoading(true); setEntities([]);
     dim.fetch(companyId!).then((list) => {
-      // Pin "Primary" (the All Stock Groups root) to the top, rest alphabetical.
+      // Pin "Primary" (the All-Groups root) to the top, rest alphabetical.
       setEntities(list.sort((a, b) =>
         a.name === "Primary" ? -1 : b.name === "Primary" ? 1 : a.name.localeCompare(b.name)));
       setEntLoading(false);
@@ -120,13 +128,15 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [rowIdx, setRowIdx] = React.useState(0);
-  // In a summary dimension, which item is drilled open (null = summary view).
-  const [drillItem, setDrillItem] = React.useState<{ id: number | null; name: string } | null>(null);
+  // Which Particulars row is drilled open (null = summary view).
+  const [drill, setDrill] = React.useState<{ key: string; name: string } | null>(null);
   const [sumIdx, setSumIdx] = React.useState(0);
+
+  const groupBy: GroupBy = level.step === "report" ? level.dim.groupBy : "item";
 
   React.useEffect(() => {
     if (level.step !== "report" || !companyId || !fyId) return;
-    setLoading(true); setErr(null); setRows([]); setRowIdx(0); setSumIdx(0); setDrillItem(null);
+    setLoading(true); setErr(null); setRows([]); setRowIdx(0); setSumIdx(0); setDrill(null);
     const selId = isPrimary(level.dim, level.selection) ? null : (level.selection?.id ?? null);
     api().report.orderOutstanding(companyId, fyId, mode, level.dim.key, selId)
       .then((res: any) => {
@@ -136,25 +146,26 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
       }).catch((e: any) => { setErr(e.message); setLoading(false); });
   }, [level, companyId, fyId, mode]);
 
-  // Item summary (grouped by stock item) for summary dimensions.
-  interface ItemSum { id: number | null; name: string; qty: number; value: number; rate: number; }
-  const itemSummary = React.useMemo<ItemSum[]>(() => {
-    const map = new Map<string, ItemSum>();
+  // Particulars summary — grouped by item or party. Rate only meaningful when a
+  // single item backs the row, so party-grouped rows leave Rate blank.
+  interface SumRow { key: string; name: string; qty: number; value: number; rate: number; }
+  const summary = React.useMemo<SumRow[]>(() => {
+    const map = new Map<string, SumRow>();
     for (const r of rows) {
-      const key = String(r.stock_item_id ?? r.item_name);
-      const cur = map.get(key) ?? { id: r.stock_item_id, name: r.item_name, qty: 0, value: 0, rate: 0 };
+      const key = rowKey(r, groupBy);
+      const cur = map.get(key) ?? { key, name: rowName(r, groupBy), qty: 0, value: 0, rate: 0 };
       cur.qty += r.balance_qty; cur.value += r.value;
       map.set(key, cur);
     }
     return [...map.values()]
-      .map(x => ({ ...x, rate: x.qty ? x.value / x.qty : 0 }))
+      .map(x => ({ ...x, rate: groupBy === "item" && x.qty ? x.value / x.qty : 0 }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows]);
+  }, [rows, groupBy]);
 
-  // Rows shown in the order-line view (all, or filtered to the drilled item).
+  // Order lines for the drilled Particulars row.
   const lineRows = React.useMemo(() =>
-    drillItem ? rows.filter(r => (r.stock_item_id ?? null) === drillItem.id) : rows,
-    [rows, drillItem]);
+    drill ? rows.filter(r => rowKey(r, groupBy) === drill.key) : rows,
+    [rows, drill, groupBy]);
 
   // Keyboard
   React.useEffect(() => {
@@ -170,27 +181,23 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
         else if (e.key === "Enter") { e.preventDefault(); const s = filtered[selIdx]; if (s) setLevel({ step: "report", dim: level.dim, selection: s }); }
         // Escape only — Backspace must keep editing the SelectionPopup search input.
         else if (e.key === "Escape") { e.preventDefault(); setLevel({ step: "menu" }); }
-      } else if (level.dim.summary && !drillItem) {
-        // Summary (item) view
-        if (e.key === "ArrowDown") { e.preventDefault(); setSumIdx(p => Math.min(itemSummary.length - 1, p + 1)); }
+      } else if (!drill) {
+        // Particulars summary view
+        if (e.key === "ArrowDown") { e.preventDefault(); setSumIdx(p => Math.min(summary.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setSumIdx(p => Math.max(0, p - 1)); }
-        else if (e.key === "Enter") { e.preventDefault(); const it = itemSummary[sumIdx]; if (it) { setDrillItem({ id: it.id, name: it.name }); setRowIdx(0); } }
+        else if (e.key === "Enter") { e.preventDefault(); const it = summary[sumIdx]; if (it) { setDrill({ key: it.key, name: it.name }); setRowIdx(0); } }
         else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" }); }
       } else {
-        // Order-line view
+        // Order-line drill view
         if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(lineRows.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
         else if (e.key === "Enter") { e.preventDefault(); const r = lineRows[rowIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
-        else if (e.key === "Escape" || e.key === "Backspace") {
-          e.preventDefault();
-          if (drillItem) setDrillItem(null);                       // back to item summary
-          else setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" });
-        }
+        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); setDrill(null); }
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [level, dims, menuIdx, filtered, selIdx, rows, rowIdx, lineRows, itemSummary, sumIdx, drillItem, openDim, navigate]);
+  }, [level, dims, menuIdx, filtered, selIdx, summary, sumIdx, lineRows, rowIdx, drill, openDim, navigate]);
 
   const TitleBar = ({ title }: { title: string }) => (
     <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
@@ -251,10 +258,6 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   // Entity label — Primary/none shows the dimension's "All …" label.
   const entityLabel = level.selection && !isPrimary(level.dim, level.selection)
     ? level.selection.name : (level.dim.allLabel ?? "All Orders");
-  const back = () => {
-    if (drillItem) { setDrillItem(null); return; }
-    setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" });
-  };
 
   // Info-header band shared by both report views (mirrors Tally's report info block).
   const InfoBand = ({ context }: { context?: string }) => (
@@ -267,10 +270,10 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
     </div>
   );
 
-  // ---- Summary (item) view: Particulars | Quantity | Rate | Value ----------
-  if (level.dim.summary && !drillItem) {
-    const grandQty = itemSummary.reduce((s, r) => s + r.qty, 0);
-    const grandVal = itemSummary.reduce((s, r) => s + r.value, 0);
+  // ---- Particulars summary: Particulars | Quantity | Rate | Value ----------
+  if (!drill) {
+    const grandQty = summary.reduce((s, r) => s + r.qty, 0);
+    const grandVal = summary.reduce((s, r) => s + r.value, 0);
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
         <TitleBar title={reportTitle} />
@@ -293,12 +296,12 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">Loading…</td></tr>
               ) : err ? (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-600">{err}</td></tr>
-              ) : itemSummary.length === 0 ? (
+              ) : summary.length === 0 ? (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">No outstanding orders.</td></tr>
-              ) : itemSummary.map((r, i) => (
-                <tr key={String(r.id ?? r.name)}
+              ) : summary.map((r, i) => (
+                <tr key={r.key}
                   onClick={() => setSumIdx(i)}
-                  onDoubleClick={() => { setDrillItem({ id: r.id, name: r.name }); setRowIdx(0); }}
+                  onDoubleClick={() => { setDrill({ key: r.key, name: r.name }); setRowIdx(0); }}
                   className={`border-b border-zinc-100 cursor-pointer ${i === sumIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
                   <td className="px-3 py-1">{r.name}</td>
                   <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(r.qty)}</td>
@@ -316,21 +319,21 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
           <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtNum(grandVal)}</span>
         </div>
         <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-          <button onClick={back} className="hover:text-zinc-900">Q: Back</button>
+          <button onClick={() => setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" })} className="hover:text-zinc-900">Q: Back</button>
           <span className="text-zinc-400">Enter: Order-wise details</span>
         </div>
       </div>
     );
   }
 
-  // ---- Order-line view (drill of a summary item, or non-summary dimensions) --
+  // ---- Order-line drill view -----------------------------------------------
   const totals = lineRows.reduce((a, r) => ({ ordered: a.ordered + r.ordered_qty, balance: a.balance + r.balance_qty, value: a.value + r.value }), { ordered: 0, balance: 0, value: 0 });
   const TH = "px-2 py-1 font-bold text-[10px] bg-zinc-100 border-b border-zinc-300";
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
       <TitleBar title={reportTitle} />
-      <InfoBand context={drillItem ? `${entityLabel} › ${drillItem.name}` : undefined} />
+      <InfoBand context={`${entityLabel} › ${drill.name}`} />
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
@@ -338,7 +341,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
             <tr>
               <th className={`${TH} text-left`}>Date</th>
               <th className={`${TH} text-left`}>Order Number</th>
-              <th className={`${TH} text-left`}>Name of Item</th>
+              <th className={`${TH} text-left`}>{groupBy === "item" ? "Party" : "Name of Item"}</th>
               <th className={`${TH} text-right w-28`}>Ordered Qty</th>
               <th className={`${TH} text-right w-28`}>Balance Qty</th>
               <th className={`${TH} text-right w-24`}>Rate</th>
@@ -346,29 +349,20 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">Loading…</td></tr>
-            ) : err ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{err}</td></tr>
-            ) : lineRows.length === 0 ? (
+            {lineRows.length === 0 ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">No outstanding orders.</td></tr>
             ) : lineRows.map((r, i) => (
-              <React.Fragment key={i}>
-                <tr onClick={() => setRowIdx(i)}
-                  onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
-                  className={`border-b border-zinc-100 cursor-pointer ${i === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
-                  <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
-                  <td className="px-2 py-1">{r.order_no}</td>
-                  <td className="px-2 py-1">{r.item_name}</td>
-                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.ordered_qty)}</td>
-                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.balance_qty)}</td>
-                  <td className="px-2 py-1 text-right w-24">{fmtNum(r.rate)}</td>
-                  <td className="px-2 py-1 text-right w-28">{fmtNum(r.value)}</td>
-                </tr>
-                <tr className={i === rowIdx ? "bg-[#e4e4e7]" : ""}>
-                  <td /><td colSpan={6} className="px-2 pb-1 italic text-zinc-500">To: {r.party_name || "—"}</td>
-                </tr>
-              </React.Fragment>
+              <tr key={i} onClick={() => setRowIdx(i)}
+                onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
+                className={`border-b border-zinc-100 cursor-pointer ${i === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
+                <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
+                <td className="px-2 py-1">{r.order_no}</td>
+                <td className="px-2 py-1">{groupBy === "item" ? (r.party_name || "—") : r.item_name}</td>
+                <td className="px-2 py-1 text-right w-28">{fmtQty(r.ordered_qty)}</td>
+                <td className="px-2 py-1 text-right w-28">{fmtQty(r.balance_qty)}</td>
+                <td className="px-2 py-1 text-right w-24">{fmtNum(r.rate)}</td>
+                <td className="px-2 py-1 text-right w-28">{fmtNum(r.value)}</td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -384,7 +378,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
       </div>
 
       <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={back} className="hover:text-zinc-900">Q: Back</button>
+        <button onClick={() => setDrill(null)} className="hover:text-zinc-900">Q: Back</button>
         <span className="text-zinc-400">Enter: Open order voucher</span>
       </div>
     </div>
