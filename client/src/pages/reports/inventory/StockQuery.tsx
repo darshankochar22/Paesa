@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import SelectionPopup from "./SelectionPopup";
+import VoucherDisplay from "./VoucherDisplay";
 
 // Issue #156 — Statements of Inventory · Stock Query.
 // Flow: SelectionPopup (List of Stock Items) → single-item snapshot report.
@@ -175,6 +176,8 @@ export default function StockQuery() {
 
   // Keyboard cursor over the transaction rows: purchases first, then sales.
   const [txIdx, setTxIdx] = React.useState(0);
+  // Voucher currently open in the item-invoice "Voucher Display" overlay (#156).
+  const [displayVoucherId, setDisplayVoucherId] = React.useState<number | null>(null);
 
   const openDetail = React.useCallback((item: StockItem) => {
     if (!companyId || !fyId) return;
@@ -209,6 +212,7 @@ export default function StockQuery() {
   // ── Keyboard — detail (↑↓ over purchases+sales, Enter: Display Vch) ────
   React.useEffect(() => {
     if (level.step !== "detail") return;
+    if (displayVoucherId !== null) return;   // Voucher Display overlay owns the keyboard
     const txCount = (data?.purchases.length ?? 0) + (data?.sales.length ?? 0);
     const h = (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Backspace") {
@@ -224,12 +228,17 @@ export default function StockQuery() {
         if (!data) return;
         const flat = [...data.purchases, ...data.sales];
         const r = flat[txIdx];
-        if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`);
+        if (r?.voucher_id) setDisplayVoucherId(r.voucher_id);   // open Voucher Display
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [level.step, data, txIdx, navigate]);
+  }, [level.step, data, txIdx, displayVoucherId]);
+
+  // ── Render — Voucher Display (#156), inside the app layout (keeps Navbar/Footer) ──
+  if (displayVoucherId !== null) {
+    return <VoucherDisplay voucherId={displayVoucherId} onClose={() => setDisplayVoucherId(null)} />;
+  }
 
   // ── Render — selection popup ───────────────────────────────────────────
   if (level.step === "select") {
@@ -263,7 +272,7 @@ export default function StockQuery() {
   const it   = data?.item;
   const unit = it?.unit_name;
   const godownTotal = (data?.godownDetails ?? []).reduce((s, g) => s + (g.qty || 0), 0);
-  const openVoucher = (id: number) => navigate(`/transactions/voucher/${id}`);
+  const openVoucher = (id: number) => setDisplayVoucherId(id);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
