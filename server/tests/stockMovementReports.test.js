@@ -20,7 +20,7 @@ const advancedInventoryReportService = require("../report/advancedInventoryRepor
 const { stockGroupSummary } = require("../report/inventory/stockGroupSummary");
 const { stockCategorySummary } = require("../report/inventory/stockCategorySummary");
 const { calculateClosingStock } = require("../report/stockValuationEngine");
-const { entryDirection } = require("../report/services/stockMovement");
+const { entryDirection, registerDirection } = require("../report/services/stockMovement");
 
 describe("Stock movement classification + valuation", () => {
   let companyId, fyId;
@@ -126,6 +126,18 @@ describe("Stock movement classification + valuation", () => {
     expect(entryDirection("Physical Stock", null)).toBe(null);
   });
 
+  it("registerDirection shows returns as a negative movement in the opposite column", () => {
+    // Physical flow is unchanged (entryDirection), but the register DISPLAY
+    // follows TallyPrime: Debit Note = negative Inward, Credit Note = negative
+    // Outward. Everything else keeps its physical direction, positive.
+    expect(registerDirection("Debit Note", null)).toEqual({ dir: "in", sign: -1 });
+    expect(registerDirection("Credit Note", null)).toEqual({ dir: "out", sign: -1 });
+    expect(registerDirection("Purchase", null)).toEqual({ dir: "in", sign: 1 });
+    expect(registerDirection("Sales", null)).toEqual({ dir: "out", sign: 1 });
+    expect(registerDirection("Stock Journal", 1)).toEqual({ dir: "out", sign: 1 });
+    expect(registerDirection("Stock Journal", 0)).toEqual({ dir: "in", sign: 1 });
+  });
+
   it("valuation engine: Credit Note and Stock Journal move qty; optional excluded", async () => {
     const res = await calculateClosingStock(companyId, fyId, null, "FIFO");
     expect(res.success).toBe(true);
@@ -151,7 +163,7 @@ describe("Stock movement classification + valuation", () => {
     expect(gadget.closing_qty).toBe(5);
   });
 
-  it("stockItemVouchers: SJ shows both legs, CN is inward, closing at WA cost", async () => {
+  it("stockItemVouchers: SJ shows both legs, CN is a negative Outward, closing at WA cost", async () => {
     const res = await stockSummaryReportService.stockItemVouchers(companyId, fyId, widgetId, null, null);
     expect(res.success).toBe(true);
     const rows = res.rows;
@@ -170,9 +182,13 @@ describe("Stock movement classification + valuation", () => {
     expect(sales.closing_qty).toBe(15);
     expect(sales.closing_value).toBeCloseTo(1500, 2); // consumed at cost 100, NOT revenue 200
 
+    // TallyPrime shows a sales return (Credit Note) as a NEGATIVE Outward —
+    // reducing sales — not as a positive Inward. Stock still physically comes
+    // back, so closing rises to 17 at weighted-average cost.
     const cn = rows.find(r => r.voucher_type === "Credit Note");
-    expect(cn.inwards_qty).toBe(2);                   // was outward before the fix
-    expect(cn.outwards_qty).toBeNull();
+    expect(cn.outwards_qty).toBe(-2);
+    expect(cn.outwards_value).toBe(-400);
+    expect(cn.inwards_qty).toBeNull();
     expect(cn.closing_qty).toBe(17);
 
     const sj = rows.find(r => r.voucher_type === "Stock Journal");
@@ -192,8 +208,8 @@ describe("Stock movement classification + valuation", () => {
     const res = await stockSummaryReportService.stockItemMonthly(companyId, fyId, widgetId);
     expect(res.success).toBe(true);
     const april = res.months.find(m => m.month === "April");
-    expect(april.in_qty).toBe(15);   // 10 purchase + 2 CN + 3 SJ-in
-    expect(april.out_qty).toBe(8);   // 5 sales + 3 SJ-out
+    expect(april.in_qty).toBe(13);   // 10 purchase + 3 SJ-in
+    expect(april.out_qty).toBe(6);   // 5 sales − 2 CN (neg Outward) + 3 SJ-out
     expect(april.closing_qty).toBe(WIDGET_CLOSING_QTY);
     expect(april.closing_value).toBeGreaterThan(1500);
     // March (FY end) carries the same closing forward.
@@ -304,5 +320,61 @@ describe("Voucher-type registers direction (Inventory Books)", () => {
     const rout = await regRow("Rejection Out");
     expect(rout.outwards_qty).toBe(0);
     expect(rout.inwards_qty).toBe(-3);
+  });
+});
+
+// Stock Item Vouchers register: TallyPrime shows a purchase return (Debit Note)
+// as a NEGATIVE Inward — on the purchase side, reducing purchases — mirroring
+// the way a sales return (Credit Note) shows as a negative Outward.
+describe("Stock Item Vouchers: Debit Note is a negative Inward", () => {
+  let companyId, fyId, pipeId;
+
+  beforeAll(async () => {
+    await setupTestDB();
+    const company = await createTestCompany("Debit Note Co");
+    companyId = company.company_id;
+    const fy = await db.execute(
+      `SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`,
+      [companyId]
+    );
+    fyId = fy.rows[0].fy_id;
+
+    const pipe = await stockItemService.create({ company_id: companyId, name: "Pipe" });
+    pipeId = pipe.item?.item_id ?? pipe.itemId ?? pipe.id;
+
+    // Purchase 10 @ 100, then a purchase return (Debit Note) of 4 @ 100.
+    await voucherService.create({
+      company_id: companyId, fy_id: fyId, voucher_type: "Purchase",
+      date: "2026-04-05", party_name: "Supplier", is_inventory_voucher: 1, entries: [],
+      stock_entries: [{ stock_item_id: pipeId, item_name: "Pipe", quantity: 10, rate: 100, amount: 1000 }],
+    });
+    await voucherService.create({
+      company_id: companyId, fy_id: fyId, voucher_type: "Debit Note",
+      date: "2026-04-10", party_name: "Supplier", is_inventory_voucher: 1, entries: [],
+      stock_entries: [{ stock_item_id: pipeId, item_name: "Pipe", quantity: 4, rate: 100, amount: 400 }],
+    });
+  });
+
+  it("Debit Note shows on the Inwards side with a negative sign", async () => {
+    const res = await stockSummaryReportService.stockItemVouchers(companyId, fyId, pipeId, null, null);
+    expect(res.success).toBe(true);
+
+    const purchase = res.rows.find(r => r.voucher_type === "Purchase");
+    expect(purchase.inwards_qty).toBe(10);
+
+    const dn = res.rows.find(r => r.voucher_type === "Debit Note");
+    expect(dn.inwards_qty).toBe(-4);       // negative Inward, not positive Outward
+    expect(dn.inwards_value).toBe(-400);
+    expect(dn.outwards_qty).toBeNull();
+    expect(dn.closing_qty).toBe(6);        // 10 purchased − 4 returned
+  });
+
+  it("Monthly summary nets the Debit Note into the Inwards column", async () => {
+    const res = await stockSummaryReportService.stockItemMonthly(companyId, fyId, pipeId);
+    expect(res.success).toBe(true);
+    const april = res.months.find(m => m.month === "April");
+    expect(april.in_qty).toBe(6);          // 10 purchase − 4 Debit Note
+    expect(april.out_qty).toBe(0);
+    expect(april.closing_qty).toBe(6);
   });
 });

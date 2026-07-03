@@ -39,6 +39,27 @@ const entryDirection = (voucher_type, is_source) => {
   return null;
 };
 
+/**
+ * Register-display direction & sign for a stock entry — how it appears in the
+ * Inwards/Outwards columns of Stock Item Vouchers / Monthly Summary.
+ *
+ * TallyPrime does NOT show a return as a positive movement in its physical-flow
+ * column. A Debit Note (purchase return) shows as a NEGATIVE Inward — reducing
+ * purchases — and a Credit Note (sales return) shows as a NEGATIVE Outward —
+ * reducing sales. Everything else keeps its physical direction (entryDirection)
+ * with a positive sign. Physical stock still moves the natural way, so callers
+ * apply the running valuation with (dir, sign*qty, sign*amount): a Credit Note
+ * of −1 in the Outwards column consumes −1 at average cost (i.e. adds it back),
+ * matching Tally's closing balance.
+ *
+ * Returns { dir: 'in'|'out'|null, sign: 1|-1 }.
+ */
+const registerDirection = (voucher_type, is_source) => {
+  if (voucher_type === 'Debit Note')  return { dir: 'in',  sign: -1 }; // negative Inward
+  if (voucher_type === 'Credit Note') return { dir: 'out', sign: -1 }; // negative Outward
+  return { dir: entryDirection(voucher_type, is_source), sign: 1 };
+};
+
 // The type lists are module-local string constants, so inlining them with
 // sql.raw is safe (no user input touches these fragments).
 const quoteList = (arr) => arr.map((t) => `'${t.replace(/'/g, "''")}'`).join(', ');
@@ -146,6 +167,7 @@ module.exports = {
   STOCK_OUTWARD_TYPES,
   DUAL_TYPES,
   entryDirection,
+  registerDirection,
   inwardCondSql,
   outwardCondSql,
   trackingBilledExpr,

@@ -3,7 +3,7 @@ const { sql } = require('drizzle-orm');
 const { stockItems, stockGroups, voucherStockEntries, vouchers, units } = require('../db/schema');
 const { calculateClosingStock } = require('./stockValuationEngine');
 const {
-  entryDirection, inwardCondSql, outwardCondSql, trackingBilledSql, newWAState, applyWA,
+  entryDirection, registerDirection, inwardCondSql, outwardCondSql, trackingBilledSql, newWAState, applyWA,
 } = require('./services/stockMovement');
 
 // Shared row-builder for the voucher registers (Stock Item Vouchers / Godown
@@ -17,8 +17,8 @@ const {
 const buildVoucherRegister = (entries, wa, from_date, to_date, includeOpeningRow) => {
   for (const e of entries) {
     if (!from_date || !e.date || e.date >= from_date) continue;
-    const dir = entryDirection(e.voucher_type, e.is_source);
-    if (dir) applyWA(wa, dir, e.quantity, e.amount);
+    const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
+    if (dir) applyWA(wa, dir, sign * (Number(e.quantity) || 0), sign * (Number(e.amount) || 0));
   }
   const openingQty = wa.qty;
   const openingValue = wa.value;
@@ -40,7 +40,7 @@ const buildVoucherRegister = (entries, wa, from_date, to_date, includeOpeningRow
   for (const e of entries) {
     if (from_date && e.date && e.date < from_date) continue;
     if (to_date && e.date && e.date > to_date) continue;
-    const dir = entryDirection(e.voucher_type, e.is_source);
+    const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
     if (!dir) continue;
     if (!current || current.voucher_id !== e.voucher_id) {
       flush();
@@ -53,8 +53,11 @@ const buildVoucherRegister = (entries, wa, from_date, to_date, includeOpeningRow
         closing_qty: wa.qty, closing_value: wa.value,
       };
     }
-    const qty = Number(e.quantity) || 0;
-    const amt = Number(e.amount) || 0;
+    // sign is -1 for returns (Debit/Credit Note), which show as a negative
+    // movement in the opposite column (neg Inward / neg Outward) and unwind
+    // the running valuation accordingly.
+    const qty = (Number(e.quantity) || 0) * sign;
+    const amt = (Number(e.amount) || 0) * sign;
     current.addl_cost += Number(e.additional_amount) || 0;
     if (dir === 'in') {
       current.inwards_qty = (current.inwards_qty || 0) + qty;
@@ -208,17 +211,21 @@ module.exports = {
         let in_qty = 0, in_value = 0, out_qty = 0, out_value = 0;
         for (const e of entries) {
           if (!e.date || !e.date.startsWith(prefix)) continue;
-          const dir = entryDirection(e.voucher_type, e.is_source);
+          // Returns (Debit/Credit Note) show as a negative movement in the
+          // opposite column: Debit Note = neg Inward, Credit Note = neg Outward.
+          const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
+          const qty = (Number(e.quantity) || 0) * sign;
+          const amt = (Number(e.amount) || 0) * sign;
           if (dir === 'in') {
-            in_qty += Number(e.quantity) || 0;
-            in_value += Number(e.amount) || 0;
+            in_qty += qty;
+            in_value += amt;
           } else if (dir === 'out') {
-            out_qty += Number(e.quantity) || 0;
-            out_value += Number(e.amount) || 0;
+            out_qty += qty;
+            out_value += amt;
           } else {
             continue;
           }
-          applyWA(wa, dir, e.quantity, e.amount);
+          applyWA(wa, dir, qty, amt);
         }
 
         return {
@@ -1041,17 +1048,21 @@ module.exports = {
         let in_qty = 0, in_value = 0, out_qty = 0, out_value = 0;
         for (const e of entries) {
           if (!e.date || !e.date.startsWith(prefix)) continue;
-          const dir = entryDirection(e.voucher_type, e.is_source);
+          // Returns (Debit/Credit Note) show as a negative movement in the
+          // opposite column: Debit Note = neg Inward, Credit Note = neg Outward.
+          const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
+          const qty = (Number(e.quantity) || 0) * sign;
+          const amt = (Number(e.amount) || 0) * sign;
           if (dir === 'in') {
-            in_qty += Number(e.quantity) || 0;
-            in_value += Number(e.amount) || 0;
+            in_qty += qty;
+            in_value += amt;
           } else if (dir === 'out') {
-            out_qty += Number(e.quantity) || 0;
-            out_value += Number(e.amount) || 0;
+            out_qty += qty;
+            out_value += amt;
           } else {
             continue;
           }
-          applyWA(wa, dir, e.quantity, e.amount);
+          applyWA(wa, dir, qty, amt);
         }
         return { month: name, in_qty, in_value, out_qty, out_value, closing_qty: wa.qty, closing_value: wa.value };
       });
