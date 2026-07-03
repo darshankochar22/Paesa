@@ -152,7 +152,17 @@ module.exports = {
         : sql``;
       let dimCond = sql``;
       if (dimension === 'stock-item'     && selection_id) dimCond = sql` AND vse.stock_item_id = ${selection_id}`;
-      else if (dimension === 'stock-group'    && selection_id) dimCond = sql` AND si.group_id = ${selection_id}`;
+      // Stock Group is hierarchical — include the chosen group AND all its
+      // descendant groups (Tally shows a group's whole sub-tree). Primary/"All
+      // Stock Groups" arrives as selection_id = null → no filter.
+      else if (dimension === 'stock-group'    && selection_id) dimCond = sql` AND si.group_id IN (
+        WITH RECURSIVE grp(id) AS (
+          SELECT ${selection_id}
+          UNION ALL
+          SELECT sg.sg_id FROM stock_groups sg INNER JOIN grp ON sg.parent_group_id = grp.id
+        )
+        SELECT id FROM grp
+      )`;
       else if (dimension === 'stock-category' && selection_id) dimCond = sql` AND si.category_id = ${selection_id}`;
       else if (dimension === 'ledger'         && selection_id) dimCond = sql` AND v.party_ledger_id = ${selection_id}`;
       else if (dimension === 'group'          && selection_id) dimCond = sql` AND v.party_ledger_id IN (SELECT ledger_id FROM ledgers WHERE group_id = ${selection_id})`;
@@ -163,6 +173,7 @@ module.exports = {
           v.date            AS date,
           v.voucher_number  AS order_no,
           v.party_name      AS party_name,
+          vse.stock_item_id AS stock_item_id,
           vse.item_name     AS item_name,
           vse.quantity      AS ordered_qty,
           vse.rate          AS rate,
@@ -196,6 +207,7 @@ module.exports = {
             date: r.date,
             order_no: r.order_no,
             party_name: r.party_name,
+            stock_item_id: r.stock_item_id,
             item_name: r.item_name,
             ordered_qty: ordered,
             balance_qty: balance,

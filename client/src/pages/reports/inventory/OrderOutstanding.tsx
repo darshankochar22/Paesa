@@ -5,8 +5,11 @@ import SelectionPopup from "./SelectionPopup";
 
 // Issues #167–#177 — Sales / Purchase Order Outstandings.
 // Flow: dimension sub-menu (Stock Group / Stock Category / Stock Item / Group /
-// Ledger / All Orders) → optional entity SelectionPopup → outstanding order lines
-// (balance qty = ordered − fulfilled) with drill to the order voucher.
+// Ledger / All Orders) → optional entity SelectionPopup → report.
+//   • Stock Group / Stock Category  → item summary (Particulars | Pending Orders:
+//     Quantity · Rate · Value), drill into an item → its order lines.
+//   • Stock Item / Group / Ledger / All → order lines directly.
+// Order line balance qty = ordered − fulfilled (Delivery/Receipt Note by order no).
 
 type Mode = "sales" | "purchase";
 
@@ -14,6 +17,7 @@ interface Ref { id: number; name: string; }
 interface Row {
   voucher_id: number | null;
   date: string; order_no: string; party_name: string;
+  stock_item_id: number | null;
   item_name: string; ordered_qty: number; balance_qty: number; rate: number; value: number;
 }
 
@@ -22,6 +26,10 @@ interface Dim {
   // how to fetch the entity list; null => no selection (All Orders)
   fetch: ((companyId: number) => Promise<Ref[]>) | null;
   selectTitle?: string; fieldLabel?: string; listLabel?: string;
+  // label shown in the report header when nothing (or Primary) is selected
+  allLabel?: string;
+  // dimensions rendered as a grouped item summary rather than raw order lines
+  summary?: boolean;
 }
 
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -39,23 +47,31 @@ const fmtQty = (v: number | null | undefined) => {
 const api = () => (window as any).api;
 
 const DIMS = (): Dim[] => [
-  { key: "stock-group",    label: "Stock Group",    selectTitle: "Select Stock Group",    fieldLabel: "Name of Group",    listLabel: "List of Stock Groups",
+  { key: "stock-group",    label: "Stock Group",    summary: true, allLabel: "All Stock Groups",
+    selectTitle: "Select Stock Group",    fieldLabel: "Name of Group",    listLabel: "List of Stock Groups",
     fetch: async (c) => (((await api().stockGroup.getAll(c)).stockGroups ?? []).map((g: any) => ({ id: g.sg_id, name: g.name }))) },
-  { key: "stock-category", label: "Stock Category", selectTitle: "Select Stock Category", fieldLabel: "Name of Category", listLabel: "List of Stock Categories",
+  { key: "stock-category", label: "Stock Category", summary: true, allLabel: "All Stock Categories",
+    selectTitle: "Select Stock Category", fieldLabel: "Name of Category", listLabel: "List of Stock Categories",
     fetch: async (c) => (((await api().stockCategory.getAll(c)).stockCategories ?? []).map((g: any) => ({ id: g.sc_id, name: g.name }))) },
-  { key: "stock-item",     label: "Stock Item",     selectTitle: "Select Stock Item",     fieldLabel: "Name of Item",     listLabel: "List of Stock Items",
+  { key: "stock-item",     label: "Stock Item",     allLabel: "All Items",
+    selectTitle: "Select Stock Item",     fieldLabel: "Name of Item",     listLabel: "List of Stock Items",
     fetch: async (c) => (((await api().stockItem.getAll(c)).stockItems ?? []).map((g: any) => ({ id: g.item_id, name: g.name }))) },
-  { key: "group",          label: "Group",          selectTitle: "Select Group",          fieldLabel: "Name of Group",    listLabel: "List of Groups",
+  { key: "group",          label: "Group",          allLabel: "All Groups",
+    selectTitle: "Select Group",          fieldLabel: "Name of Group",    listLabel: "List of Groups",
     fetch: async (c) => (((await api().group.getAll(c)).groups ?? []).map((g: any) => ({ id: g.group_id, name: g.name }))) },
-  { key: "ledger",         label: "Ledger",         selectTitle: "Select Ledger",         fieldLabel: "Name of Ledger",   listLabel: "List of Ledgers",
+  { key: "ledger",         label: "Ledger",         allLabel: "All Ledgers",
+    selectTitle: "Select Ledger",         fieldLabel: "Name of Ledger",   listLabel: "List of Ledgers",
     fetch: async (c) => (((await api().ledger.getAll(c)).ledgers ?? []).map((g: any) => ({ id: g.ledger_id, name: g.name }))) },
-  { key: "all",            label: "All Orders",     fetch: null },
+  { key: "all",            label: "All Orders",     allLabel: "All Orders", fetch: null },
 ];
 
 type Level =
   | { step: "menu" }
   | { step: "select"; dim: Dim }
   | { step: "report"; dim: Dim; selection: Ref | null };
+
+// The root "Primary" group means "All Stock Groups" — no filter.
+const isPrimary = (dim: Dim, sel: Ref | null) => dim.key === "stock-group" && sel?.name === "Primary";
 
 export default function OrderOutstanding({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
@@ -64,6 +80,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   const fyId = activeFY?.fy_id;
   const periodLabel = activeFY ? `${dmy(activeFY.start_date)} to ${dmy(activeFY.end_date)}` : "";
   const heading = mode === "sales" ? "Sales Order Outstandings" : "Purchase Order Outstandings";
+  const orderWord = mode === "sales" ? "Sales" : "Purchase";
   const dims = React.useMemo(DIMS, []);
 
   const [level, setLevel] = React.useState<Level>({ step: "menu" });
@@ -81,7 +98,9 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
     setLevel({ step: "select", dim }); setSearch(""); setSelIdx(0);
     setEntLoading(true); setEntities([]);
     dim.fetch(companyId!).then((list) => {
-      setEntities(list.sort((a, b) => a.name.localeCompare(b.name)));
+      // Pin "Primary" (the All Stock Groups root) to the top, rest alphabetical.
+      setEntities(list.sort((a, b) =>
+        a.name === "Primary" ? -1 : b.name === "Primary" ? 1 : a.name.localeCompare(b.name)));
       setEntLoading(false);
     }).catch(() => setEntLoading(false));
   }, [companyId]);
@@ -91,22 +110,46 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
     [entities, search]);
   React.useEffect(() => { setSelIdx(0); }, [search]);
 
-  // Report data
+  // Report data (order lines)
   const [rows, setRows] = React.useState<Row[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [rowIdx, setRowIdx] = React.useState(0);
+  // In a summary dimension, which item is drilled open (null = summary view).
+  const [drillItem, setDrillItem] = React.useState<{ id: number | null; name: string } | null>(null);
+  const [sumIdx, setSumIdx] = React.useState(0);
 
   React.useEffect(() => {
     if (level.step !== "report" || !companyId || !fyId) return;
-    setLoading(true); setErr(null); setRows([]); setRowIdx(0);
-    api().report.orderOutstanding(companyId, fyId, mode, level.dim.key, level.selection?.id ?? null)
+    setLoading(true); setErr(null); setRows([]); setRowIdx(0); setSumIdx(0); setDrillItem(null);
+    const selId = isPrimary(level.dim, level.selection) ? null : (level.selection?.id ?? null);
+    api().report.orderOutstanding(companyId, fyId, mode, level.dim.key, selId)
       .then((res: any) => {
         if (res?.success) setRows(res.rows ?? []);
         else setErr(res?.error ?? "Failed to load order outstandings.");
         setLoading(false);
       }).catch((e: any) => { setErr(e.message); setLoading(false); });
   }, [level, companyId, fyId, mode]);
+
+  // Item summary (grouped by stock item) for summary dimensions.
+  interface ItemSum { id: number | null; name: string; qty: number; value: number; rate: number; }
+  const itemSummary = React.useMemo<ItemSum[]>(() => {
+    const map = new Map<string, ItemSum>();
+    for (const r of rows) {
+      const key = String(r.stock_item_id ?? r.item_name);
+      const cur = map.get(key) ?? { id: r.stock_item_id, name: r.item_name, qty: 0, value: 0, rate: 0 };
+      cur.qty += r.balance_qty; cur.value += r.value;
+      map.set(key, cur);
+    }
+    return [...map.values()]
+      .map(x => ({ ...x, rate: x.qty ? x.value / x.qty : 0 }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
+
+  // Rows shown in the order-line view (all, or filtered to the drilled item).
+  const lineRows = React.useMemo(() =>
+    drillItem ? rows.filter(r => (r.stock_item_id ?? null) === drillItem.id) : rows,
+    [rows, drillItem]);
 
   // Keyboard
   React.useEffect(() => {
@@ -122,16 +165,27 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
         else if (e.key === "Enter") { e.preventDefault(); const s = filtered[selIdx]; if (s) setLevel({ step: "report", dim: level.dim, selection: s }); }
         // Escape only — Backspace must keep editing the SelectionPopup search input.
         else if (e.key === "Escape") { e.preventDefault(); setLevel({ step: "menu" }); }
-      } else {
-        if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(rows.length - 1, p + 1)); }
-        else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
-        else if (e.key === "Enter") { e.preventDefault(); const r = rows[rowIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
+      } else if (level.dim.summary && !drillItem) {
+        // Summary (item) view
+        if (e.key === "ArrowDown") { e.preventDefault(); setSumIdx(p => Math.min(itemSummary.length - 1, p + 1)); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); setSumIdx(p => Math.max(0, p - 1)); }
+        else if (e.key === "Enter") { e.preventDefault(); const it = itemSummary[sumIdx]; if (it) { setDrillItem({ id: it.id, name: it.name }); setRowIdx(0); } }
         else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" }); }
+      } else {
+        // Order-line view
+        if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(lineRows.length - 1, p + 1)); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
+        else if (e.key === "Enter") { e.preventDefault(); const r = lineRows[rowIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
+        else if (e.key === "Escape" || e.key === "Backspace") {
+          e.preventDefault();
+          if (drillItem) setDrillItem(null);                       // back to item summary
+          else setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" });
+        }
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [level, dims, menuIdx, filtered, selIdx, rows, rowIdx, openDim, navigate]);
+  }, [level, dims, menuIdx, filtered, selIdx, rows, rowIdx, lineRows, itemSummary, sumIdx, drillItem, openDim, navigate]);
 
   const TitleBar = ({ title }: { title: string }) => (
     <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
@@ -171,7 +225,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   if (level.step === "select") {
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        <TitleBar title={heading} />
+        <TitleBar title={level.dim.selectTitle!} />
         <SelectionPopup
           title={level.dim.selectTitle!} fieldLabel={level.dim.fieldLabel!} listLabel={level.dim.listLabel!}
           companyName={selectedCompany?.name}
@@ -186,18 +240,91 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   }
 
   // ── Report ───────────────────────────────────────────────────────────────
-  const totals = rows.reduce((a, r) => ({ ordered: a.ordered + r.ordered_qty, balance: a.balance + r.balance_qty, value: a.value + r.value }), { ordered: 0, balance: 0, value: 0 });
-  const subtitle = level.selection ? `${level.dim.label}: ${level.selection.name}` : "All Orders";
+  // Tally title, e.g. "Sales Order Stock Group Outstandings" (generic for All Orders).
+  const reportTitle = `${orderWord} Order ${level.dim.key === "all" ? "" : level.dim.label + " "}Outstandings`;
+  // Entity label — Primary/none shows the dimension's "All …" label.
+  const entityLabel = level.selection && !isPrimary(level.dim, level.selection)
+    ? level.selection.name : (level.dim.allLabel ?? "All Orders");
+  const back = () => {
+    if (drillItem) { setDrillItem(null); return; }
+    setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" });
+  };
+
+  // Info-header band shared by both report views (mirrors Tally's report info block).
+  const InfoBand = ({ context }: { context?: string }) => (
+    <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+      <span className="font-bold">{context ?? entityLabel}</span>
+      <div className="text-right leading-tight">
+        <div className="italic">{orderWord} Orders Outstanding · Pending Orders</div>
+        <div className="text-zinc-600">{periodLabel}</div>
+      </div>
+    </div>
+  );
+
+  // ---- Summary (item) view: Particulars | Quantity | Rate | Value ----------
+  if (level.dim.summary && !drillItem) {
+    const grandQty = itemSummary.reduce((s, r) => s + r.qty, 0);
+    const grandVal = itemSummary.reduce((s, r) => s + r.value, 0);
+    return (
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+        <TitleBar title={reportTitle} />
+        <InfoBand />
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full border-collapse text-[11px] font-mono">
+            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+              <tr>
+                <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom">Particulars</th>
+                <th colSpan={3} className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200">Pending Orders</th>
+              </tr>
+              <tr>
+                <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Quantity</th>
+                <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">Rate</th>
+                <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">Loading…</td></tr>
+              ) : err ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-600">{err}</td></tr>
+              ) : itemSummary.length === 0 ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">No outstanding orders.</td></tr>
+              ) : itemSummary.map((r, i) => (
+                <tr key={String(r.id ?? r.name)}
+                  onClick={() => setSumIdx(i)}
+                  onDoubleClick={() => { setDrillItem({ id: r.id, name: r.name }); setRowIdx(0); }}
+                  className={`border-b border-zinc-100 cursor-pointer ${i === sumIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
+                  <td className="px-3 py-1">{r.name}</td>
+                  <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(r.qty)}</td>
+                  <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtNum(r.rate)}</td>
+                  <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtNum(r.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
+          <span className="flex-1">Grand Total</span>
+          <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtQty(grandQty)}</span>
+          <span className="w-28 border-l border-zinc-300" />
+          <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtNum(grandVal)}</span>
+        </div>
+        <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
+          <button onClick={back} className="hover:text-zinc-900">Q: Back</button>
+          <span className="text-zinc-400">Enter: Order-wise details</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Order-line view (drill of a summary item, or non-summary dimensions) --
+  const totals = lineRows.reduce((a, r) => ({ ordered: a.ordered + r.ordered_qty, balance: a.balance + r.balance_qty, value: a.value + r.value }), { ordered: 0, balance: 0, value: 0 });
   const TH = "px-2 py-1 font-bold text-[10px] bg-zinc-100 border-b border-zinc-300";
-  const back = () => setLevel(level.dim.fetch ? { step: "select", dim: level.dim } : { step: "menu" });
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-      <TitleBar title={heading} />
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
-        <span className="font-semibold">{heading} Outstanding — {subtitle}</span>
-        <span>{periodLabel}</span>
-      </div>
+      <TitleBar title={reportTitle} />
+      <InfoBand context={drillItem ? `${entityLabel} › ${drillItem.name}` : undefined} />
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
@@ -217,9 +344,9 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
               <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">Loading…</td></tr>
             ) : err ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{err}</td></tr>
-            ) : rows.length === 0 ? (
+            ) : lineRows.length === 0 ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">No outstanding orders.</td></tr>
-            ) : rows.map((r, i) => (
+            ) : lineRows.map((r, i) => (
               <React.Fragment key={i}>
                 <tr onClick={() => setRowIdx(i)}
                   onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
