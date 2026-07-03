@@ -131,15 +131,18 @@ const jobWorkOrderVouchers = async (company_id, fy_id, voucher_type, from_date, 
   try {
     const dateFrom = from_date ? sql` AND v.date >= ${from_date}` : sql``;
     const dateTo   = to_date   ? sql` AND v.date <= ${to_date}`   : sql``;
+    // Order Ref No.: Purchase/Sales Orders carry it as the "Order no." on their
+    // order-details row; job work orders use the voucher reference number.
     const rows = await db.all(sql`
       SELECT v.voucher_id AS voucher_id,
              v.date AS date,
              COALESCE(v.party_name, v.narration, '') AS particulars,
              v.voucher_type AS voucher_type,
              v.voucher_number AS voucher_number,
-             COALESCE(v.reference_number, '') AS order_ref,
+             COALESCE(NULLIF(v.reference_number, ''), vod.order_nos, '') AS order_ref,
              COALESCE(SUM(vse.amount), 0) AS order_amount
       FROM ${vouchers} v
+      LEFT JOIN voucher_order_details vod ON vod.voucher_id = v.voucher_id
       LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
       WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
         AND v.voucher_type = ${voucher_type} AND ${ACTIVE}

@@ -4,6 +4,7 @@ export const INITIAL_FORM_STATE: FormData = {
   name: "",
   alias: "",
   group_id: "",
+  category_id: "",
   unit_id: "",
   rate_of_duty: "0",
   has_bom: false,

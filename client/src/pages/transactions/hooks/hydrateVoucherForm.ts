@@ -140,12 +140,14 @@ export function hydrateVoucherForm(form: any, v: any) {
     form.setPartyBillReferences?.(billsByLedger[v.party_ledger_id] || []);
   } else if (INVENTORY_ONLY.has(type)) {
     form.setPartyLedger?.(findLedger(v.party_ledger_id));
+    form.setSalesPurchaseLedger?.(findLedger(v.sales_purchase_ledger_id));
     form.setStockEntries?.((v.stock_entries || []).map(mkStockRow));
   } else if (TRANSFER.has(type)) {
     form.setSourceStockEntries?.((v.stock_entries || []).filter((s: any) => s.is_source).map(mkStockRow));
     form.setDestinationStockEntries?.((v.stock_entries || []).filter((s: any) => !s.is_source).map(mkStockRow));
   } else if (ORDER_VOUCHERS.has(type)) {
     form.setPartyLedger?.(findLedger(v.party_ledger_id));
+    form.setSalesPurchaseLedger?.(findLedger(v.sales_purchase_ledger_id));
     const isJW = JW_TYPES.has(type);
     form.setStockEntries?.((v.stock_entries || []).map((s: any) => {
       const base = mkStockRow(s);

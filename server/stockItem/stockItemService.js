@@ -22,6 +22,12 @@ const {
   physicalStockEntries,
   physicalStockEntryLines,
 } = require('../db/schema');
+const { trackingBilledExpr } = require('../report/services/stockMovement');
+// Goods billed by a Purchase/Sales that were already brought in by a linked
+// Receipt/Delivery Note must not be counted again (see stockMovement.js). The
+// analytical balance queries below reference the tables by full name, so the
+// expression is built with those as the "aliases".
+const TRACKING_BILLED = trackingBilledExpr('vouchers', 'voucher_stock_entries');
 
 // Fetch stock_items rows in the legacy snake_case shape.
 const findItemRow = async (whereSql) => {
@@ -376,6 +382,7 @@ module.exports = {
             ${stockItems.openingQuantity} AS opening_quantity,
             COALESCE(SUM(
               CASE
+                WHEN ${sql.raw(TRACKING_BILLED)} THEN 0
                 WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
                   THEN ${voucherStockEntries.quantity}
                 WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
@@ -478,6 +485,7 @@ module.exports = {
           SELECT ${voucherStockEntries.godownId} AS godown_id,
             COALESCE(SUM(
               CASE
+                WHEN ${sql.raw(TRACKING_BILLED)} THEN 0
                 WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
                   THEN ${voucherStockEntries.quantity}
                 WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})

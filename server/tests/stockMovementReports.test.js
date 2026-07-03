@@ -294,12 +294,15 @@ describe("Voucher-type registers direction (Inventory Books)", () => {
     expect(r.inwards_qty).toBe(0);
   });
 
-  it("Rejection In is inward, Rejection Out is outward", async () => {
+  // TallyPrime's Voucher Register shows rejection notes as reversing entries:
+  // Rejection In (return of a sale) is a NEGATIVE Outward; Rejection Out (return
+  // of a purchase) is a NEGATIVE Inward.
+  it("Rejection In is a negative Outward, Rejection Out is a negative Inward", async () => {
     const rin = await regRow("Rejection In");
-    expect(rin.inwards_qty).toBe(4);
-    expect(rin.outwards_qty).toBe(0);
+    expect(rin.inwards_qty).toBe(0);
+    expect(rin.outwards_qty).toBe(-4);
     const rout = await regRow("Rejection Out");
-    expect(rout.outwards_qty).toBe(3);
-    expect(rout.inwards_qty).toBe(0);
+    expect(rout.outwards_qty).toBe(0);
+    expect(rout.inwards_qty).toBe(-3);
   });
 });

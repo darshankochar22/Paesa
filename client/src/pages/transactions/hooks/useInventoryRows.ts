@@ -111,10 +111,24 @@ export function useInventoryRows({
     const warnings: string[] = [];
     const cumulativeOut: Record<number, number> = {};
 
+    // A Sales line that bills goods already shipped by a linked Delivery Note
+    // (it carries that note's tracking or order number) does NOT remove fresh
+    // stock on save — the Delivery Note already did, and the backend's
+    // tracking-billed guard excludes it. Mirror that here so the pre-save check
+    // doesn't false-alarm (and block) a legitimate invoice against a delivery.
+    const isTrackingBilled = (r: StockEntryRow) =>
+      voucherType === "Sales" &&
+      (r.batchAllocations ?? []).some(
+        (b) =>
+          !!(b.tracking_no && b.tracking_no.trim()) ||
+          !!(b.order_no && b.order_no.trim())
+      );
+
     const checkRow = (r: StockEntryRow) => {
       if (!r.stockItem) return;
       const id = r.stockItem.item_id;
       if (!id) return;
+      if (isTrackingBilled(r)) return;
       const qty = Number(r.quantityRaw) || 0;
       if (qty <= 0) return;
       cumulativeOut[id] = (cumulativeOut[id] || 0) + qty;

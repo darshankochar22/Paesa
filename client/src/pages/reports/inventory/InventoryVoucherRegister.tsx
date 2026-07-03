@@ -2,10 +2,13 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 
-const fmtQty = (val: number | null | undefined) => {
+// Tally shows quantities as "12 Pcs" and reversing (rejection) rows as "(-)2 Pcs".
+const fmtQty = (val: number | null | undefined, unit?: string) => {
   const n = Number(val) || 0;
   if (n === 0) return "";
-  return n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const abs = Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const sign = n < 0 ? "(-)" : "";
+  return `${sign}${abs}${unit ? ` ${unit}` : ""}`;
 };
 
 const fmtAmt = (val: number | null | undefined) => {
@@ -34,6 +37,7 @@ interface VoucherRow {
   voucher_number: string | number;
   inwards_qty: number;
   outwards_qty: number;
+  unit_symbol?: string;
   order_ref?: string;
   order_amount?: number;
   debit?: number;
@@ -297,8 +301,8 @@ export default function InventoryVoucherRegister({ voucherType, title, variant =
                       </>
                     ) : (
                       <>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.inwards_qty)}</td>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.outwards_qty)}</td>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.inwards_qty, row.unit_symbol)}</td>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtQty(row.outwards_qty, row.unit_symbol)}</td>
                       </>
                     )}
                   </tr>

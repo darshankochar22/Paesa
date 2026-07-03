@@ -28,6 +28,9 @@ const vouchers = sqliteTable('vouchers', {
   applicableUpto: text('applicable_upto'),
   // Selected Voucher Type Class ("Name of Class") name, if any.
   voucherClass: text('voucher_class'),
+  // Sales/Purchase ledger on non-accounting inventory vouchers (Receipt Note etc.) —
+  // informational only, never posted to voucher_entries.
+  salesPurchaseLedgerId: integer('sales_purchase_ledger_id'),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 });

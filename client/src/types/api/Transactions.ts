@@ -28,7 +28,7 @@ export interface VoucherAPI {
     getNextNumber: (company_id: number, fy_id: number, type: string) => Promise<{ success: boolean; nextNumber?: number; voucher_number?: string; error?: string }>;
     getLedgerBalance: (ledger_id: number, company_id: number, fy_id: number) => Promise<{ success: boolean; balance?: string; rawBalance?: number; error?: string }>;
     searchLedgers: (company_id: number, searchTerm: string) => Promise<{ success: boolean; ledgers: LedgerType[]; error?: string }>;
-    getPendingBills: (ledger_id: number, company_id: number, fy_id: number) => Promise<{ success: boolean; pendingBills?: { bill_name: string; bill_date: string; due_date: string; credit_period: string; balance: number; final_balance: number }[]; defaultCreditPeriod?: number; error?: string }>;
+    getPendingBills: (ledger_id: number, company_id: number, fy_id: number) => Promise<{ success: boolean; pendingBills?: { bill_name: string; bill_date: string | null; due_date: string | null; credit_period: string | null; balance: number | null; final_balance: number | null; is_order?: number }[]; defaultCreditPeriod?: number; error?: string }>;
   };
 
   report: {

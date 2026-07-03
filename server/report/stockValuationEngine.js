@@ -1,7 +1,7 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const { stockItems, voucherStockEntries, vouchers } = require('../db/schema');
-const { entryDirection } = require('./services/stockMovement');
+const { entryDirection, trackingBilledSql } = require('./services/stockMovement');
 
 async function calculateClosingStock(company_id, fy_id, as_on_date = null, method = 'FIFO') {
   const items = await db.all(
@@ -19,6 +19,7 @@ async function calculateClosingStock(company_id, fy_id, as_on_date = null, metho
         INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
         WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
           AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
+          AND NOT ${trackingBilledSql('v', 'vse')}
         ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`
   );
 
@@ -155,6 +156,7 @@ async function calculateGodownClosing(company_id, fy_id, as_on_date = null) {
         INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
         WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
           AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
+          AND NOT ${trackingBilledSql('v', 'vse')}
         ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`
   );
 

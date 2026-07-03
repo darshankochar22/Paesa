@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 export interface DispatchDetails {
@@ -15,12 +15,43 @@ export interface DispatchDetails {
   nature_of_processing?: string;
 }
 
+export interface SavedNote {
+  voucher_id: number;
+  tracking_no: string;
+  date: string;
+}
+
+export interface SavedOrder {
+  voucher_id: number;
+  order_no: string;
+  date: string;
+}
+
 interface Props {
   initialDetails?: DispatchDetails | null;
   onClose: () => void;
   onSave: (details: DispatchDetails) => void;
   /** "jobWork" = Job Work In/Out Order layout (no delivery note nos, adds mode/terms + process instruction) */
   variant?: "jobWork";
+  /** When set (with partyLedgerId), the Delivery Note No(s) field offers the
+   *  party's saved note reference numbers and pending order numbers ("List of
+   *  Tracking Numbers"); picking one lets the caller import that voucher's items. */
+  companyId?: number;
+  partyLedgerId?: number;
+  /** "Delivery Note" for the Sales voucher. */
+  noteVoucherType?: string;
+  /** "Sales Order" — its order numbers appear in the same list (Tally). */
+  orderVoucherType?: string;
+  onSelectSavedNote?: (note: SavedNote) => void;
+  onSelectSavedOrder?: (order: SavedOrder) => void;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmtDate(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return `${d.getDate()}-${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
 }
 
 const inputCls =
@@ -31,6 +62,12 @@ export default function DispatchDetailsPopup({
   onClose,
   onSave,
   variant,
+  companyId,
+  partyLedgerId,
+  noteVoucherType,
+  orderVoucherType,
+  onSelectSavedNote,
+  onSelectSavedOrder,
 }: Props) {
   const [form, setForm] = useState<DispatchDetails>({
     delivery_note_nos: initialDetails?.delivery_note_nos ?? "",
@@ -45,6 +82,47 @@ export default function DispatchDetailsPopup({
     duration_of_process: initialDetails?.duration_of_process ?? "",
     nature_of_processing: initialDetails?.nature_of_processing ?? "",
   });
+
+  const [savedNotes, setSavedNotes] = useState<SavedNote[]>([]);
+  const [savedOrders, setSavedOrders] = useState<SavedOrder[]>([]);
+  const [showNoteList, setShowNoteList] = useState(false);
+
+  // Reference numbers of the party's saved Delivery Notes.
+  useEffect(() => {
+    if (!companyId || !partyLedgerId || !noteVoucherType) return;
+    (window as any).api.report.partyTrackingNumbers?.(companyId, partyLedgerId, noteVoucherType)
+      .then((res: any) => { if (res?.success) setSavedNotes(res.trackingNumbers ?? []); })
+      .catch(() => {});
+  }, [companyId, partyLedgerId, noteVoucherType]);
+
+  // Order numbers on the party's saved Sales Orders — Tally offers those in
+  // the same "List of Tracking Numbers".
+  useEffect(() => {
+    if (!companyId || !partyLedgerId || !orderVoucherType) return;
+    (window as any).api.report.partyOrders?.(companyId, partyLedgerId, orderVoucherType)
+      .then((res: any) => { if (res?.success) setSavedOrders(res.orders ?? []); })
+      .catch(() => {});
+  }, [companyId, partyLedgerId, orderVoucherType]);
+
+  // Close the "List of Tracking Numbers" dropdown on an outside click.
+  useEffect(() => {
+    if (!showNoteList) return;
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-dd-dd]")) setShowNoteList(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showNoteList]);
+
+  // Multiple notes can be referenced on one invoice — comma-separated (Tally).
+  const appendNoteNo = (value: string) =>
+    setForm((prev) => {
+      const parts = (prev.delivery_note_nos ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+      if (parts.includes(value)) return prev;
+      return { ...prev, delivery_note_nos: [...parts, value].join(", ") };
+    });
+
+  const selectedNoteNos = (form.delivery_note_nos ?? "").split(",").map((p) => p.trim()).filter(Boolean);
 
   const set = (field: keyof DispatchDetails, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -177,13 +255,64 @@ export default function DispatchDetailsPopup({
               <span className="text-sm text-black shrink-0">Delivery Note No(s)</span>
               <span className="text-sm text-black shrink-0">:</span>
             </div>
-            <input
-              type="text"
-              className="w-full text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black"
-              value={form.delivery_note_nos ?? ""}
-              onChange={(e) => set("delivery_note_nos", e.target.value)}
-              autoFocus
-            />
+            <div data-dd-dd className="relative">
+              <input
+                type="text"
+                className="w-full text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                value={form.delivery_note_nos ?? ""}
+                onFocus={() => setShowNoteList(true)}
+                onChange={(e) => set("delivery_note_nos", e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") setShowNoteList(false); }}
+                placeholder="Not Applicable"
+                autoFocus
+              />
+              {showNoteList && (
+                <div className="absolute left-0 top-full mt-0.5 w-64 bg-white border border-gray-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                  <div className="bg-white text-black text-[10px] font-bold px-2 py-1 border-b border-gray-300">List of Tracking Numbers</div>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); set("delivery_note_nos", ""); setShowNoteList(false); }}
+                    className="block w-full text-left text-sm px-2 py-1 hover:bg-gray-100"
+                  >
+                    Not Applicable
+                  </button>
+                  {savedNotes.filter((n) => !selectedNoteNos.includes(n.tracking_no)).map((n) => (
+                    <button
+                      key={`note-${n.voucher_id}`}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        appendNoteNo(n.tracking_no);
+                        setShowNoteList(false);
+                        onSelectSavedNote?.(n);
+                      }}
+                      className="flex w-full items-center text-sm px-2 py-1 hover:bg-gray-100 border-t border-gray-100"
+                    >
+                      <span className="flex-1 text-left font-semibold">{n.tracking_no}</span>
+                      <span className="italic text-gray-600 text-xs">{fmtDate(n.date)}</span>
+                    </button>
+                  ))}
+                  {savedOrders
+                    .filter((o) => !selectedNoteNos.includes(o.order_no) && !savedNotes.some((n) => n.tracking_no === o.order_no))
+                    .map((o) => (
+                      <button
+                        key={`order-${o.voucher_id}`}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          appendNoteNo(o.order_no);
+                          setShowNoteList(false);
+                          onSelectSavedOrder?.(o);
+                        }}
+                        className="flex w-full items-center text-sm px-2 py-1 hover:bg-gray-100 border-t border-gray-100"
+                      >
+                        <span className="flex-1 text-left font-semibold">{o.order_no}</span>
+                        <span className="italic text-gray-600 text-xs">{fmtDate(o.date)}</span>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right column */}

@@ -1741,6 +1741,60 @@ export default function Vouchers() {
     [form.setOrderDetails]
   );
 
+  // A saved order / receipt note was picked on the Order Details or Receipt
+  // Details sub-screen — import that voucher's PENDING items into the grid:
+  // ordered minus received/billed for orders, received minus rejected/billed
+  // for notes (so a note of 12 with 2 rejected imports 10). The linking order
+  // or tracking number is stamped on the allocations; the rows are ordinary
+  // stock rows afterwards, fully editable.
+  const handleImportVoucherItems = useCallback(
+    async (voucherId: number, stamp: { order_no?: string; tracking_no?: string }) => {
+      try {
+        const mode = stamp.order_no ? "order" : "tracking";
+        const res = await (window as any).api.report.pendingVoucherItems?.(
+          selectedCompany?.company_id, voucherId, mode
+        );
+        if (!res?.success || !res.items?.length) return;
+        const imported = res.items
+          .map((s: any) => {
+            const stockItem = form.allStockItems.find((it: any) => it.item_id === s.stock_item_id) ?? null;
+            if (!stockItem) return null;
+            const godownName = s.batch?.godown
+              ?? form.allGodowns.find((g: any) => g.godown_id === s.godown_id)?.name;
+            return {
+              ...makeStockRow(),
+              stockItem,
+              godown: form.allGodowns.find((g: any) => g.godown_id === s.godown_id) ?? null,
+              unit: form.allUnits.find((u: any) => u.unit_id === s.unit_id) ?? null,
+              quantityRaw: String(s.quantity ?? ""),
+              billedQtyRaw: String(s.quantity ?? ""),
+              rateRaw: String(s.rate ?? ""),
+              amountRaw: String(s.amount ?? ""),
+              batchAllocations: [{
+                batch_number: s.batch?.batch_number ?? "",
+                godown: godownName ?? undefined,
+                quantity: s.quantity,
+                actual_quantity: s.quantity,
+                rate: s.rate,
+                // Prefer the source note's OWN tracking/order number (the real
+                // link, e.g. "341") over the picked label (e.g. "No. 3"), so the
+                // saved invoice is recognised as billing that note and doesn't
+                // double-remove stock.
+                order_no: s.batch?.order_no ?? stamp.order_no ?? undefined,
+                tracking_no: s.batch?.tracking_no ?? stamp.tracking_no ?? undefined,
+                due_on: s.batch?.due_on ?? undefined,
+              }],
+            };
+          })
+          .filter(Boolean);
+        if (!imported.length) return;
+        const existing = form.stockEntries.filter((r: any) => r.stockItem);
+        form.setStockEntries([...existing, ...imported]);
+      } catch { /* keep the popup usable even if the voucher can't be loaded */ }
+    },
+    [selectedCompany, form.allStockItems, form.allGodowns, form.allUnits, form.stockEntries, form.setStockEntries]
+  );
+
   const handleSaveReceiptDetails = useCallback(
     (details: any) => {
       form.setReceiptDetails(details);
@@ -1974,7 +2028,11 @@ const handleSaveVatDetails = useCallback(
       return "List of Cash / Bank Accounts";
     }
     if (af.type === "party") return (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Purchase Order" || effectiveVoucherType === "Sales Order" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Job Work In Order" || effectiveVoucherType === "Job Work Out Order") ? "List of Ledger Accounts" : "List of Party Accounts";
-    if (af.type === "salesPurchase") return (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Purchase Order" || effectiveVoucherType === "Sales Order") ? "List of Ledger Accounts" : `List of ${form.voucherType} Ledgers`;
+    if (af.type === "salesPurchase") {
+      if (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Purchase Order" || effectiveVoucherType === "Sales Order") return "List of Ledger Accounts";
+      if (effectiveVoucherType === "Receipt Note") return "List of Purchase Ledgers";
+      return `List of ${form.voucherType} Ledgers`;
+    }
     return "List of Ledger Accounts";
   }, [form.activeField, effectiveVoucherType, form.receiptEntryMode, form.receiptDoubleRows]);
 
@@ -2681,6 +2739,12 @@ const handleSaveVatDetails = useCallback(
           onClose={() => setShowDispatchDetails(false)}
           onSave={handleSaveDispatchDetails}
           variant={(effectiveVoucherType === "Job Work In Order" || effectiveVoucherType === "Job Work Out Order") ? "jobWork" : undefined}
+          companyId={selectedCompany?.company_id}
+          partyLedgerId={form.partyLedger?.ledger_id}
+          noteVoucherType="Delivery Note"
+          orderVoucherType="Sales Order"
+          onSelectSavedNote={(n) => handleImportVoucherItems(n.voucher_id, { tracking_no: n.tracking_no })}
+          onSelectSavedOrder={(o) => handleImportVoucherItems(o.voucher_id, { order_no: o.order_no })}
         />
       )}
 
@@ -2695,6 +2759,14 @@ const handleSaveVatDetails = useCallback(
           <OrderDetailsPopup
             initialDetails={form.orderDetails}
             receiptVariant={effectiveVoucherType === "Receipt Note"}
+            companyId={selectedCompany?.company_id}
+            partyLedgerId={form.partyLedger?.ledger_id}
+            orderVoucherType={
+              ["Receipt Note", "Rejection Out", "Purchase"].includes(effectiveVoucherType)
+                ? "Purchase Order"
+                : "Sales Order"
+            }
+            onSelectSavedOrder={(o) => handleImportVoucherItems(o.voucher_id, { order_no: o.order_no })}
             onClose={() => setShowOrderDetails(false)}
             onSave={handleSaveOrderDetails}
           />
@@ -2704,6 +2776,20 @@ const handleSaveVatDetails = useCallback(
       {showReceiptDetails && form.partyLedger && (
         <ReceiptDetailsPopup
           initialDetails={form.receiptDetails}
+          companyId={selectedCompany?.company_id}
+          partyLedgerId={form.partyLedger?.ledger_id}
+          noteVoucherType={
+            ["Sales", "Credit Note", "Delivery Note"].includes(effectiveVoucherType)
+              ? "Delivery Note"
+              : "Receipt Note"
+          }
+          orderVoucherType={
+            ["Sales", "Credit Note", "Delivery Note"].includes(effectiveVoucherType)
+              ? "Sales Order"
+              : "Purchase Order"
+          }
+          onSelectSavedNote={(n) => handleImportVoucherItems(n.voucher_id, { tracking_no: n.tracking_no })}
+          onSelectSavedOrder={(o) => handleImportVoucherItems(o.voucher_id, { order_no: o.order_no })}
           onClose={() => setShowReceiptDetails(false)}
           onSave={handleSaveReceiptDetails}
         />

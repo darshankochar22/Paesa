@@ -9,7 +9,7 @@ import {
   FormRow,
   MasterFormFooter,
 } from "@/components/ui";
-import type { StockGroupType, UnitType, StockItemType, GodownType } from "@/types/api";
+import type { StockGroupType, StockCategoryType, UnitType, StockItemType, GodownType } from "@/types/api";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
 import ListSidePanel from "./components/ListSidePanel";
@@ -117,6 +117,7 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
 
   const [stockItems,  setStockItems]  = useState<StockItemType[]>([]);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
+  const [stockCategories, setStockCategories] = useState<StockCategoryType[]>([]);
   const [units,       setUnits]       = useState<UnitType[]>([]);
   const [godowns,     setGodowns]     = useState<GodownType[]>([]);
   const [gstClassifications, setGstClassifications] = useState<any[]>([]);
@@ -154,6 +155,7 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
           name:  fullItem.name  ?? "",
           alias: fullItem.alias ?? "",
           group_id: fullItem.group_id ? String(fullItem.group_id) : "",
+          category_id: fullItem.category_id ? String(fullItem.category_id) : "",
           unit_id:  fullItem.unit_id  ? String(fullItem.unit_id)  : "",
           rate_of_duty: String(fullItem.rate_of_duty ?? 0),
           has_bom:  Boolean(fullItem.has_bom),
@@ -225,6 +227,7 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
       }
     });
     window.api.stockGroup.getAll(company_id).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
+    window.api.stockCategory.getAll(company_id).then(r => { if (r.success) setStockCategories(r.stockCategories ?? []); });
     window.api.unit.getAll(company_id).then(r => { if (r.success) setUnits(r.units ?? []); });
     window.api.godown.getAll(company_id).then(r => { if (r.success) setGodowns(r.godowns ?? []); });
     window.api.gstClassification.getAll(company_id).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
@@ -237,6 +240,10 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
   const selectedGroupLabel = form?.group_id
     ? stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "Primary"
     : "Primary";
+
+  const selectedCategoryLabel = form?.category_id
+    ? stockCategories.find(c => String(c.sc_id) === form.category_id)?.name ?? "Not Applicable"
+    : "Not Applicable";
 
   const selectedUnitLabel = form?.unit_id
     ? units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable"
@@ -266,6 +273,7 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
         name:  form.name.trim(),
         alias: form.alias.trim() || null,
         group_id: form.group_id ? Number(form.group_id) : null,
+        category_id: form.category_id ? Number(form.category_id) : null,
         unit_id:  form.unit_id  ? Number(form.unit_id)  : null,
         rate_of_duty:   Number(form.rate_of_duty) || 0,
         has_bom:  form.has_bom,
@@ -369,6 +377,7 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
         navigate("/master/alter");
       }
       if (e.altKey && e.key.toLowerCase() === "g") { e.preventDefault(); if (selectedItem) setShowPanel(p => p === "group" ? null : "group"); }
+      if (e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); if (selectedItem) setShowPanel(p => p === "category" ? null : "category"); }
       if (e.altKey && e.key.toLowerCase() === "u") { e.preventDefault(); if (selectedItem) setShowPanel(p => p === "unit"  ? null : "unit");  }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
       if (e.altKey && e.key.toLowerCase() === "d") { e.preventDefault(); handleDelete(); }
@@ -389,8 +398,9 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
   }
 
   const alterActions = [
-    { key: "Alt+G", label: "Select Group", onClick: () => setShowPanel(p => p === "group" ? null : "group") },
-    { key: "Alt+U", label: "Select Unit",  onClick: () => setShowPanel(p => p === "unit"  ? null : "unit")  },
+    { key: "Alt+G", label: "Select Group",    onClick: () => setShowPanel(p => p === "group"    ? null : "group")    },
+    { key: "Alt+T", label: "Select Category", onClick: () => setShowPanel(p => p === "category" ? null : "category") },
+    { key: "Alt+U", label: "Select Unit",     onClick: () => setShowPanel(p => p === "unit"     ? null : "unit")     },
     { key: "Alt+A", label: "Accept",       onClick: handleSubmit },
     { key: "Alt+D", label: "Delete",       onClick: handleDelete },
     { key: "Esc",   label: "Back",         onClick: handleBack   },
@@ -439,6 +449,20 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
                   <span className="text-zinc-400 mr-2 shrink-0">:</span>
                   <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
                     {selectedGroupLabel}
+                  </span>
+                </div>
+              </div>
+
+              {/* Category */}
+              <div className="p-3 border-b border-zinc-100 bg-zinc-50/20">
+                <div
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
+                  onClick={() => setShowPanel(p => p === "category" ? null : "category")}
+                >
+                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">Category</span>
+                  <span className="text-zinc-400 mr-2 shrink-0">:</span>
+                  <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
+                    {selectedCategoryLabel}
                   </span>
                 </div>
               </div>
@@ -610,6 +634,19 @@ export default function StockItemAlter({ initialItemId, onDone, onCancel }: Stoc
             onClose={() => setShowPanel(null)}
             showPrimary
             primaryLabel="Primary"
+          />
+        )}
+        {showPanel === "category" && (
+          <ListSidePanel
+            title="List of Categories"
+            items={stockCategories.map(c => ({ id: String(c.sc_id), label: c.name }))}
+            selected={form.category_id}
+            onSelect={val => { setVal("category_id", val); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+            showPrimary
+            primaryLabel="Not Applicable"
+            showCreate
+            onCreateNew={() => navigate("/master/create/stock-category")}
           />
         )}
         {showPanel === "unit" && (

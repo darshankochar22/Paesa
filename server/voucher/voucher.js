@@ -347,6 +347,13 @@ const init = async (db) => {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN voucher_class TEXT`);
   } catch (err) {}
 
+  // Sales/Purchase ledger on non-accounting inventory vouchers (e.g. Receipt Note's
+  // "Purchase ledger") — stored on the voucher row, NOT posted as an accounting entry,
+  // so ledger balances are unaffected.
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN sales_purchase_ledger_id INTEGER`);
+  } catch (err) {}
+
   try {
     await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN cheque_range TEXT`);
   } catch (err) {}

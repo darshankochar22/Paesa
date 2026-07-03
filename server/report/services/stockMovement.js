@@ -44,19 +44,66 @@ const entryDirection = (voucher_type, is_source) => {
 const quoteList = (arr) => arr.map((t) => `'${t.replace(/'/g, "''")}'`).join(', ');
 
 /**
+ * Tracking-number reconciliation (TallyPrime): goods received on a Receipt Note
+ * (or delivered on a Delivery Note) move stock ONCE. The Purchase/Sales invoice
+ * that later BILLS those same goods is linked by tracking number and must be
+ * stock-neutral — otherwise the quantity is counted twice (receipt +12, invoice
+ * +10 ⇒ a phantom 22). This SQL boolean is TRUE for such a "already-received"
+ * invoice line, so callers subtract it from the inward/outward classification.
+ *
+ * A Purchase/Sales stock line is tracking-billed when its batch carries a
+ * tracking number that matches a Receipt/Delivery Note for the SAME item —
+ * either the note's own batch tracking number or the note's reference number
+ * (the two ways this app links an invoice back to its note).
+ *
+ * @param v   alias of the vouchers table in the calling query
+ * @param vse alias of the voucher_stock_entries table
+ */
+const trackingBilledExpr = (v = 'v', vse = 'vse') =>
+  `(${v}.voucher_type IN ('Purchase', 'Sales') AND EXISTS (` +
+    `SELECT 1 FROM voucher_batches vb_lnk ` +
+    `WHERE vb_lnk.stock_entry_id = ${vse}.stock_entry_id ` +
+      // The invoice line must carry SOME link back to a note — a tracking
+      // number, or (when tracking wasn't stamped) the order number.
+      `AND ((vb_lnk.tracking_no IS NOT NULL AND vb_lnk.tracking_no <> '') ` +
+        `OR (vb_lnk.order_no IS NOT NULL AND vb_lnk.order_no <> '')) ` +
+      `AND EXISTS (` +
+        `SELECT 1 FROM voucher_batches vb_note ` +
+        `JOIN vouchers v_note ON v_note.voucher_id = vb_note.voucher_id ` +
+        `JOIN voucher_stock_entries vse_note ON vse_note.stock_entry_id = vb_note.stock_entry_id ` +
+        `WHERE v_note.voucher_type IN ('Receipt Note', 'Delivery Note') ` +
+          `AND vse_note.stock_item_id = ${vse}.stock_item_id ` +
+          // Same goods if linked by tracking number (batch tracking or the
+          // note's reference), OR — when no tracking was stamped — by a shared
+          // order number. This stops a Purchase/Sales that only carries the
+          // order number from double-counting the note's goods.
+          `AND ((vb_lnk.tracking_no IS NOT NULL AND vb_lnk.tracking_no <> '' ` +
+                `AND (vb_note.tracking_no = vb_lnk.tracking_no OR v_note.reference_number = vb_lnk.tracking_no)) ` +
+            `OR (vb_lnk.order_no IS NOT NULL AND vb_lnk.order_no <> '' ` +
+                `AND vb_note.order_no = vb_lnk.order_no)) ` +
+          `AND v_note.is_cancelled = 0 AND COALESCE(v_note.is_optional, 0) = 0` +
+      `)` +
+  `))`;
+
+/** SQL boolean fragment form of trackingBilledExpr (for standalone use). */
+const trackingBilledSql = (v = 'v', vse = 'vse') => sql.raw(trackingBilledExpr(v, vse));
+
+/**
  * SQL boolean fragment: is this stock-entry row an inward movement?
  * @param v   alias of the vouchers table in the calling query
  * @param vse alias of the voucher_stock_entries table
  */
 const inwardCondSql = (v = 'v', vse = 'vse') => sql.raw(
-  `(${v}.voucher_type IN (${quoteList(STOCK_INWARD_TYPES)}) ` +
-  `OR (${v}.voucher_type IN (${quoteList(DUAL_TYPES)}) AND COALESCE(${vse}.is_source, 0) = 0))`
+  `((${v}.voucher_type IN (${quoteList(STOCK_INWARD_TYPES)}) ` +
+  `OR (${v}.voucher_type IN (${quoteList(DUAL_TYPES)}) AND COALESCE(${vse}.is_source, 0) = 0)) ` +
+  `AND NOT ${trackingBilledExpr(v, vse)})`
 );
 
 /** SQL boolean fragment: is this stock-entry row an outward movement? */
 const outwardCondSql = (v = 'v', vse = 'vse') => sql.raw(
-  `(${v}.voucher_type IN (${quoteList(STOCK_OUTWARD_TYPES)}) ` +
-  `OR (${v}.voucher_type IN (${quoteList(DUAL_TYPES)}) AND COALESCE(${vse}.is_source, 0) = 1))`
+  `((${v}.voucher_type IN (${quoteList(STOCK_OUTWARD_TYPES)}) ` +
+  `OR (${v}.voucher_type IN (${quoteList(DUAL_TYPES)}) AND COALESCE(${vse}.is_source, 0) = 1)) ` +
+  `AND NOT ${trackingBilledExpr(v, vse)})`
 );
 
 /**
@@ -101,6 +148,8 @@ module.exports = {
   entryDirection,
   inwardCondSql,
   outwardCondSql,
+  trackingBilledExpr,
+  trackingBilledSql,
   newWAState,
   applyWA,
 };

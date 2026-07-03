@@ -13,6 +13,7 @@ export interface FormData {
   name: string;
   alias: string;
   group_id: string;
+  category_id: string;
   unit_id: string;
   rate_of_duty: string;
   has_bom: boolean;
@@ -56,6 +57,7 @@ export interface FormData {
 
 export type PanelType =
   | "group"
+  | "category"
   | "unit"
   | "hsn_classification"
   | "rate_classification"

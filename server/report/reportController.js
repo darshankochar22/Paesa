@@ -138,6 +138,15 @@ module.exports = {
   orderNumbers: async (event, { company_id, item_id }) => {
     return await stockSummaryReportService.orderNumbers(company_id, item_id);
   },
+  partyOrders: async (event, { company_id, party_ledger_id, voucher_type }) => {
+    return await stockSummaryReportService.partyOrders(company_id, party_ledger_id, voucher_type);
+  },
+  partyTrackingNumbers: async (event, { company_id, party_ledger_id, voucher_type }) => {
+    return await stockSummaryReportService.partyTrackingNumbers(company_id, party_ledger_id, voucher_type);
+  },
+  pendingVoucherItems: async (event, { company_id, voucher_id, mode }) => {
+    return await stockSummaryReportService.pendingVoucherItems(company_id, voucher_id, mode);
+  },
   batchesForItem: async (event, { company_id, item_id }) => {
     return await stockSummaryReportService.batchesForItem(company_id, item_id);
   },

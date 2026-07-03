@@ -34,6 +34,9 @@ function register() {
   ipcMain.handle('report:batchBalances', reportController.batchBalances);
   ipcMain.handle('report:trackingNumbers', reportController.trackingNumbers);
   ipcMain.handle('report:orderNumbers', reportController.orderNumbers);
+  ipcMain.handle('report:partyOrders', reportController.partyOrders);
+  ipcMain.handle('report:partyTrackingNumbers', reportController.partyTrackingNumbers);
+  ipcMain.handle('report:pendingVoucherItems', reportController.pendingVoucherItems);
   ipcMain.handle('report:batchesForItem', reportController.batchesForItem);
   ipcMain.handle('report:batchVouchers', reportController.batchVouchers);
   ipcMain.handle('report:godownItems', reportController.godownItems);

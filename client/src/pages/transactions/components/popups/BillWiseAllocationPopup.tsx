@@ -4,11 +4,14 @@ import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 interface PendingBill {
   bill_name: string;
-  bill_date: string;
-  due_date: string;
-  credit_period: string;
-  balance: number;
-  final_balance: number;
+  // Order references (a party's open Purchase/Sales Order numbers) appear in
+  // the list name-only: date / balance columns are null (is_order = 1).
+  bill_date: string | null;
+  due_date: string | null;
+  credit_period: string | null;
+  balance: number | null;
+  final_balance: number | null;
+  is_order?: number;
 }
 
 interface BillReference {
@@ -190,7 +193,7 @@ export default function BillWiseAllocationPopup({
         base.bill_name = first.bill_name;
         base.credit_period = first.credit_period || "";
         base.due_date = first.due_date || "";
-        base.amount = Math.min(amount, first.balance);
+        base.amount = first.balance == null ? amount : Math.min(amount, first.balance);
       }
     }
     return base;
@@ -253,7 +256,8 @@ export default function BillWiseAllocationPopup({
           bill_name: bill.bill_name,
           credit_period: bill.credit_period || "",
           due_date: bill.due_date || "",
-          amount: bill.balance,
+          // An order reference has no posted balance — keep the typed amount.
+          amount: bill.balance == null ? row.amount : bill.balance,
         };
       })
     );
@@ -269,7 +273,7 @@ export default function BillWiseAllocationPopup({
     for (const a of allocations) {
       if (a.bill_type !== "Agst Ref") continue;
       const bill = pendingBills.find((b) => b.bill_name === a.bill_name);
-      if (bill && (Number(a.amount) || 0) > bill.balance + 0.005) {
+      if (bill && bill.balance != null && (Number(a.amount) || 0) > bill.balance + 0.005) {
         setError(`Amount for "${a.bill_name}" exceeds its outstanding balance of ${formatCurrency(bill.balance)}.`);
         return;
       }
@@ -409,10 +413,10 @@ export default function BillWiseAllocationPopup({
                                 className="grid grid-cols-5 w-full text-left text-[10px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 last:border-0"
                               >
                                 <div className="col-span-1 font-semibold">{bill.bill_name}</div>
-                                <div className="col-span-1 text-center">{formatDateDisplay(bill.bill_date)}</div>
-                                <div className="col-span-1 text-center">{formatDateDisplay(bill.due_date)}</div>
-                                <div className="col-span-1 text-right font-mono">{formatCurrency(bill.balance)}</div>
-                                <div className="col-span-1 text-right font-mono">{formatCurrency(bill.final_balance)}</div>
+                                <div className="col-span-1 text-center">{formatDateDisplay(bill.bill_date ?? undefined)}</div>
+                                <div className="col-span-1 text-center">{formatDateDisplay(bill.due_date ?? undefined)}</div>
+                                <div className="col-span-1 text-right font-mono">{bill.balance == null ? "" : formatCurrency(bill.balance)}</div>
+                                <div className="col-span-1 text-right font-mono">{bill.final_balance == null ? "" : formatCurrency(bill.final_balance)}</div>
                               </button>
                             ))
                           )}

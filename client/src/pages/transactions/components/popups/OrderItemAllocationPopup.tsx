@@ -37,6 +37,7 @@ interface OrderOption {
   godown?: string | null;
   due_on?: string | null;
   balance?: number;
+  rate?: number;
 }
 
 interface GodownOption {
@@ -292,8 +293,8 @@ export default function OrderItemAllocationPopup({
       .filter((no) => !fetchedTracking.some((t) => t.name === no))
       .map((no) => ({ no, godown: rows.find((r) => r.tracking_no === no)?.godown, balance: undefined })),
   ];
-  const sessionOrders: { no: string; godown?: string; due?: string; balance?: number }[] = [
-    ...fetchedOrders.map((o) => ({ no: o.name, godown: o.godown ?? undefined, due: o.due_on ?? undefined, balance: o.balance })),
+  const sessionOrders: { no: string; godown?: string; due?: string; balance?: number; rate?: number }[] = [
+    ...fetchedOrders.map((o) => ({ no: o.name, godown: o.godown ?? undefined, due: o.due_on ?? undefined, balance: o.balance, rate: o.rate })),
     ...mergeNos(
       rows.filter((r) => r.order_no && r.order_no !== NA).map((r) => r.order_no as string),
       created.order
@@ -334,14 +335,35 @@ export default function OrderItemAllocationPopup({
 
   // Tracking No. picked → real number goes to Order No.; Not Applicable jumps
   // straight to the Godown (Order No. / Due on are hidden for that row).
+  // A tracked number (from a saved Receipt/Delivery Note) autofills the row's
+  // godown / quantity / rate from that note — all still editable.
   const afterTracking = (i: number, value: string) => {
     const v = value.trim();
-    update(i, { tracking_no: v });
+    const t = fetchedTracking.find((x) => x.name === v);
+    update(i, {
+      tracking_no: v,
+      ...(t?.godown ? { godown: t.godown } : {}),
+      ...(t?.balance ? { quantity: t.balance, actual_quantity: t.balance } : {}),
+      ...(t?.rate ? { rate: t.rate } : {}),
+    });
     setOpenTrackRow(null);
-    // No tracking number (blank or Not Applicable) → skip Order No. / Due on and
-    // go straight to the Godown; a real number → Order No.
-    if (!v || v === NA) focusSel(`[data-oa-godown="${i}"]`);
-    else focusSel(`[data-oa-order="${i}"]`);
+    // Order No. / Due on are always available (a note can be order-tracked
+    // without a tracking number) — Enter lands on Order No. either way.
+    focusSel(`[data-oa-order="${i}"]`);
+  };
+
+  // Order No. picked from the list → autofill godown / due-on / quantity / rate
+  // from the saved order voucher (Tally behaviour); everything stays editable.
+  const selectOrder = (i: number, o: { no: string; godown?: string; due?: string; balance?: number; rate?: number }) => {
+    update(i, {
+      order_no: o.no,
+      ...(o.godown ? { godown: o.godown } : {}),
+      ...(o.due ? { due_on: o.due } : {}),
+      ...(o.balance ? { quantity: o.balance, actual_quantity: o.balance } : {}),
+      ...(o.rate ? { rate: o.rate } : {}),
+    });
+    setOpenOrderRow(null);
+    focusSel(`[data-oa-due="${i}"]`);
   };
 
   // Enter on the last field (Disc) of a row: append a fresh allocation and land
@@ -484,7 +506,9 @@ export default function OrderItemAllocationPopup({
             {/* Allocations — Tracking/Order/Due header line + data line */}
             <div>
               {rows.map((row, i) => {
-                const showOrder = hasTracking(row);
+                // Order No. / Due on always show — order tracking works with or
+                // without a tracking number (Tally shows both side by side).
+                const showOrder = true;
                 const baseIso = (trackMfg && row.mfg_date) ? row.mfg_date : voucherDate;
                 return (
                   <div key={i} className="border-b border-gray-200">
@@ -553,7 +577,7 @@ export default function OrderItemAllocationPopup({
                                 <button type="button" onMouseDown={(e) => { e.preventDefault(); update(i, { order_no: NA }); setOpenOrderRow(null); focusSel(`[data-oa-due="${i}"]`); }} className={optSpecial + " border-b border-gray-100"}>{NA}</button>
                                 <button type="button" onMouseDown={(e) => { e.preventDefault(); setOpenOrderRow(null); setNewNumber({ row: i, field: "order" }); }} className={optNew}>New Number</button>
                                 {sessionOrders.filter((o) => o.no !== row.order_no).map((o) => (
-                                  <button key={o.no} type="button" onMouseDown={(e) => { e.preventDefault(); update(i, { order_no: o.no }); setOpenOrderRow(null); focusSel(`[data-oa-due="${i}"]`); }} className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
+                                  <button key={o.no} type="button" onMouseDown={(e) => { e.preventDefault(); selectOrder(i, o); }} className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
                                     <div className="flex-1 font-semibold">{o.no}</div><div className="w-14 truncate">{o.godown}</div><div className="w-14 truncate">{fmtDate(o.due)}</div><div className="w-12 text-right font-mono">{o.balance || ""}</div>
                                   </button>
                                 ))}

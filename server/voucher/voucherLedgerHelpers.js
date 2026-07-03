@@ -4,6 +4,7 @@ const {
   vouchers,
   voucherEntries,
   voucherBillReferences,
+  voucherOrderDetails,
   ledgers,
   groups,
   payHeads,
@@ -101,6 +102,37 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
       balance: Number(row.total_amount) || 0,
       final_balance: Number(row.total_amount) || 0,
     }));
+
+    // Order numbers on the party's saved Purchase/Sales Order vouchers — Tally
+    // offers the order reference in the Pending Bills list too (name only, no
+    // bill date/balance: an order is not a posted bill), so an invoice or
+    // receipt can put its bill-wise reference against the order number.
+    const orderRows = await db.all(
+      sql`SELECT vod.order_nos AS bill_name
+          FROM ${vouchers} v
+          INNER JOIN ${voucherOrderDetails} vod ON vod.voucher_id = v.voucher_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
+            AND v.party_ledger_id = ${ledger_id}
+            AND v.voucher_type IN ('Purchase Order', 'Sales Order')
+            AND vod.order_nos IS NOT NULL AND vod.order_nos <> ''
+            AND v.is_cancelled = 0
+            AND COALESCE(v.is_optional, 0) = 0
+            AND COALESCE(v.is_post_dated, 0) = 0
+          GROUP BY vod.order_nos
+          ORDER BY MAX(v.date), vod.order_nos`
+    );
+    for (const r of orderRows) {
+      if (pendingBills.some((b) => b.bill_name === r.bill_name)) continue;
+      pendingBills.push({
+        bill_name: r.bill_name,
+        bill_date: null,
+        due_date: null,
+        credit_period: null,
+        balance: null,
+        final_balance: null,
+        is_order: 1,
+      });
+    }
 
     return { success: true, pendingBills, defaultCreditPeriod, checkCreditDays };
   } catch (err) {

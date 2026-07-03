@@ -17,6 +17,12 @@ export interface OrderDetails {
   motor_vehicle_no?: string;
 }
 
+export interface SavedOrder {
+  voucher_id: number;
+  order_no: string;
+  date: string;
+}
+
 interface Props {
   initialDetails?: OrderDetails | null;
   onClose: () => void;
@@ -24,6 +30,22 @@ interface Props {
   /** Inward vouchers (e.g. Receipt Note) label the 2nd block "Receipt Details"
    *  with "Receipt Doc No." instead of the outward "Dispatch Details". */
   receiptVariant?: boolean;
+  /** When set (with partyLedgerId + orderVoucherType), the "List of Orders"
+   *  also shows the order numbers written on the party's saved order vouchers. */
+  companyId?: number;
+  partyLedgerId?: number;
+  /** "Purchase Order" for inward notes, "Sales Order" for outward. */
+  orderVoucherType?: string;
+  /** Fired when a saved order is picked — the caller can import its items. */
+  onSelectSavedOrder?: (order: SavedOrder) => void;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmtDate(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return `${d.getDate()}-${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
 }
 
 // Legacy saved values may contain the "♦ Not Applicable" sentinel (or a stray
@@ -33,7 +55,10 @@ function cleanOrderNos(value: string | null | undefined): string {
   return v === "Not Applicable" ? "" : v;
 }
 
-export default function OrderDetailsPopup({ initialDetails, onClose, onSave, receiptVariant }: Props) {
+export default function OrderDetailsPopup({
+  initialDetails, onClose, onSave, receiptVariant,
+  companyId, partyLedgerId, orderVoucherType, onSelectSavedOrder,
+}: Props) {
   const [form, setForm] = useState<OrderDetails>({
     order_nos: cleanOrderNos(initialDetails?.order_nos),
     order_date: initialDetails?.order_date ?? "",
@@ -52,6 +77,15 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
   const [showOrderList, setShowOrderList] = useState(false);
   const [showNewNumber, setShowNewNumber] = useState(false);
   const [createdOrders, setCreatedOrders] = useState<string[]>([]);
+  const [savedOrders, setSavedOrders] = useState<SavedOrder[]>([]);
+
+  // Order numbers on the party's saved order vouchers (Tally's "List of Orders").
+  useEffect(() => {
+    if (!companyId || !partyLedgerId || !orderVoucherType) return;
+    (window as any).api.report.partyOrders?.(companyId, partyLedgerId, orderVoucherType)
+      .then((res: any) => { if (res?.success) setSavedOrders(res.orders ?? []); })
+      .catch(() => {});
+  }, [companyId, partyLedgerId, orderVoucherType]);
 
   const set = (field: keyof OrderDetails, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -126,7 +160,23 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
                     >
                       Not Applicable
                     </button>
-                    {createdOrders.filter((o) => !selectedOrderNos.includes(o)).map((o) => (
+                    {savedOrders.filter((o) => !selectedOrderNos.includes(o.order_no)).map((o) => (
+                      <button
+                        key={`saved-${o.voucher_id}`}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          appendOrderNo(o.order_no);
+                          setShowOrderList(false);
+                          onSelectSavedOrder?.(o);
+                        }}
+                        className="flex w-full items-center text-sm px-2 py-1 hover:bg-gray-100 border-t border-gray-100"
+                      >
+                        <span className="flex-1 text-left font-semibold">{o.order_no}</span>
+                        <span className="italic text-gray-600 text-xs">{fmtDate(o.date)}</span>
+                      </button>
+                    ))}
+                    {createdOrders.filter((o) => !selectedOrderNos.includes(o) && !savedOrders.some((s) => s.order_no === o)).map((o) => (
                       <button
                         key={o}
                         type="button"

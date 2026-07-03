@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel, FormRow, MasterFormFooter } from "@/components/ui";
-import type { StockGroupType, UnitType, GodownType } from "@/types/api";
+import type { StockGroupType, StockCategoryType, UnitType, GodownType } from "@/types/api";
 import type { StockItemType } from "@/types/entities/StockItem";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
@@ -29,6 +29,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
 
   const [form, setForm] = useState<FormData>(INITIAL_FORM_STATE);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
+  const [stockCategories, setStockCategories] = useState<StockCategoryType[]>([]);
   const [units, setUnits] = useState<UnitType[]>([]);
   const [godowns, setGodowns] = useState<GodownType[]>([]);
   const [stockItems, setStockItems] = useState<StockItemType[]>([]);
@@ -62,6 +63,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
     const cid = selectedCompany?.company_id;
     if (!cid) return;
     window.api.stockGroup.getAll(cid).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
+    window.api.stockCategory.getAll(cid).then(r => { if (r.success) setStockCategories(r.stockCategories ?? []); });
     window.api.unit.getAll(cid).then(r => { if (r.success) setUnits(r.units ?? []); });
     window.api.godown.getAll(cid).then(r => { if (r.success) setGodowns(r.godowns ?? []); });
     window.api.stockItem.getAll(cid).then(r => { if (r.success) setStockItems(r.stockItems ?? []); });
@@ -75,6 +77,10 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
   const selectedGroupLabel = form.group_id
     ? (stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "Primary")
     : "Primary";
+
+  const selectedCategoryLabel = form.category_id
+    ? (stockCategories.find(c => String(c.sc_id) === form.category_id)?.name ?? "Not Applicable")
+    : "Not Applicable";
 
   const selectedUnitLabel = form.unit_id
     ? (units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable")
@@ -102,6 +108,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
         name: form.name.trim(),
         alias: form.alias.trim() || undefined,
         group_id: form.group_id ? Number(form.group_id) : undefined,
+        category_id: form.category_id ? Number(form.category_id) : undefined,
         unit_id: form.unit_id ? Number(form.unit_id) : undefined,
         rate_of_duty: Number(form.rate_of_duty) || 0,
         has_bom: form.has_bom,
@@ -188,6 +195,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.altKey && e.key.toLowerCase() === "g") { e.preventDefault(); setActivePanel(p => p === "group" ? null : "group"); }
+      if (e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); setActivePanel(p => p === "category" ? null : "category"); }
       if (e.altKey && e.key.toLowerCase() === "u") { e.preventDefault(); setActivePanel(p => p === "unit" ? null : "unit"); }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
       if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/alter/stock-item"); }
@@ -202,8 +210,9 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
     "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
   const createActions = [
-    { key: "Alt+G", label: "Select Group", onClick: () => setActivePanel(p => p === "group" ? null : "group") },
-    { key: "Alt+U", label: "Select Unit",  onClick: () => setActivePanel(p => p === "unit"  ? null : "unit")  },
+    { key: "Alt+G", label: "Select Group",    onClick: () => setActivePanel(p => p === "group"    ? null : "group")    },
+    { key: "Alt+T", label: "Select Category", onClick: () => setActivePanel(p => p === "category" ? null : "category") },
+    { key: "Alt+U", label: "Select Unit",     onClick: () => setActivePanel(p => p === "unit"     ? null : "unit")     },
     { key: "Alt+A", label: "Accept",       onClick: handleSubmit },
     { key: "Alt+C", label: "Alter Item",   onClick: () => navigate("/master/alter/stock-item") },
     { key: "Esc",   label: "Quit",         onClick: handleQuit },
@@ -249,6 +258,20 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                   <span className="text-zinc-400 mr-2 shrink-0">:</span>
                   <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
                     {selectedGroupLabel}
+                  </span>
+                </div>
+              </div>
+
+              {/* Category */}
+              <div className="p-3 border-b border-zinc-100 bg-zinc-50/20">
+                <div
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
+                  onClick={() => setActivePanel(p => p === "category" ? null : "category")}
+                >
+                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">Category</span>
+                  <span className="text-zinc-400 mr-2 shrink-0">:</span>
+                  <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
+                    {selectedCategoryLabel}
                   </span>
                 </div>
               </div>
@@ -424,6 +447,19 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
             onClose={() => setActivePanel(null)}
             showPrimary
             primaryLabel="Primary"
+          />
+        )}
+        {activePanel === "category" && (
+          <ListSidePanel
+            title="List of Categories"
+            items={stockCategories.map(c => ({ id: String(c.sc_id), label: c.name }))}
+            selected={form.category_id}
+            onSelect={val => { setVal("category_id", val); setActivePanel(null); }}
+            onClose={() => setActivePanel(null)}
+            showPrimary
+            primaryLabel="Not Applicable"
+            showCreate
+            onCreateNew={() => navigate("/master/create/stock-category")}
           />
         )}
         {activePanel === "unit" && (

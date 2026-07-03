@@ -604,6 +604,9 @@ export function useVoucherForm(
           narration: meta.narration || null,
           party_ledger_id: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.ledger_id ?? null : null,
           party_name: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.name ?? null : null,
+          // Non-accounting vouchers (Receipt Note, orders) keep their Sales/Purchase
+          // ledger on the voucher row since no accounting entry is posted for it.
+          sales_purchase_ledger_id: rows.salesPurchaseLedger?.ledger_id ?? null,
           is_accounting_voucher: (isInventoryOnly || isOrderVoucher || isNonAccounting) ? 0 : 1,
           is_invoice: hasAccountingEntries ? 1 : 0,
           is_inventory_voucher: (isInventoryOnly || isOrderVoucher || hasAccountingEntries || stock_entries.length > 0) ? 1 : 0,

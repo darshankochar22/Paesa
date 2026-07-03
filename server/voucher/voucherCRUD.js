@@ -286,6 +286,7 @@ module.exports = {
             isPostDated: data.is_post_dated ? 1 : 0,
             applicableUpto: nullify(data.applicable_upto) || null,
             voucherClass: nullify(data.voucher_class) || null,
+            salesPurchaseLedgerId: nullify(data.sales_purchase_ledger_id) || null,
           })
           .returning({ id: vouchers.voucherId });
 
@@ -1238,6 +1239,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           isPostDated: data.is_post_dated !== undefined ? (data.is_post_dated ? 1 : 0) : current.is_post_dated,
           applicableUpto: nullify(data.applicable_upto) ?? nullify(current.applicable_upto),
           voucherClass: nullify(data.voucher_class) ?? nullify(current.voucher_class),
+          salesPurchaseLedgerId: nullify(data.sales_purchase_ledger_id) ?? nullify(current.sales_purchase_ledger_id),
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(vouchers.voucherId, data.voucher_id));
