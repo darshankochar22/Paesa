@@ -66,6 +66,9 @@ export default function CostEstimation() {
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [rowIdx, setRowIdx] = React.useState(0);
+  const [expanded, setExpanded] = React.useState<Set<React.Key>>(new Set());
+  const toggleExpand = React.useCallback((id: React.Key) =>
+    setExpanded(prev => { const c = new Set(prev); c.has(id) ? c.delete(id) : c.add(id); return c; }), []);
 
   const loadReport = React.useCallback((group: GroupRef) => {
     if (!companyId || !fyId) return;
@@ -90,12 +93,13 @@ export default function CostEstimation() {
       } else {
         if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(rows.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
+        else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); const r = rows[rowIdx]; if (r) toggleExpand(r.item_id); }
         else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToSelect(); }
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [level, filtered, selectIdx, rows, rowIdx, loadReport, backToSelect, navigate]);
+  }, [level, filtered, selectIdx, rows, rowIdx, loadReport, backToSelect, navigate, toggleExpand]);
 
   if (level.step === "select") {
     return (
@@ -128,7 +132,8 @@ export default function CostEstimation() {
       companyName={selectedCompany?.name} groupLabel={level.group.group_name} asAt={asAt}
       rows={estRows} loading={loading} error={err}
       selectedIndex={rowIdx} onSelectIndex={setRowIdx}
-      footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Group Selection</button><span className="text-zinc-400">Space/Double-click: Expand components</span></FooterBar>}
+      expanded={expanded} onToggleExpand={toggleExpand}
+      footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Group Selection</button><span className="text-zinc-400">Space/Enter/Double-click: Expand components</span></FooterBar>}
     />
   );
 }

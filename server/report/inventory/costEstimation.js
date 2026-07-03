@@ -83,16 +83,19 @@ const costEstimation = async (company_id, fy_id, group_id) => {
       const components = byItem.get(it.item_id) || [];
       const closing_qty = (it.opening_qty || 0) + (it.in_qty || 0) - (it.out_qty || 0);
       const compTotal = components.reduce((s, c) => s + c.amount, 0);
-      const compQty = components.reduce((s, c) => s + c.qty, 0);
-      // Per-unit cost: BoM defines cost to make 1 unit of output, so compTotal IS the unit cost.
-      const cost = compTotal > 0 ? compTotal : (it.opening_rate || 0);
+      // Estimated per-unit cost = total BoM component amount / output (closing) qty.
+      // Falls back to the item's own standard (opening) rate when it has no
+      // stored components. Amount = closing qty x per-unit cost (Tally: qty x cost).
+      const cost = compTotal > 0 && closing_qty > 0
+        ? compTotal / closing_qty
+        : (it.opening_rate || 0);
       const amount = closing_qty * cost;
       return {
         item_id: it.item_id,
         name: it.item_name,
         unit: it.unit_name || '',
         bom_name: it.bom_name || '',
-        qty: components.length ? compQty || closing_qty : closing_qty,
+        qty: closing_qty,
         cost,
         amount,
         components,

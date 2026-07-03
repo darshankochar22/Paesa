@@ -13,6 +13,14 @@ const qtyStr = (val: number | null | undefined, unit?: string) => {
   return unit ? `${s} ${unit}` : s;
 };
 
+// Per-unit cost with its "/unit" suffix, e.g. "0.77/nos". Blank when zero.
+const costStr = (val: number | null | undefined, unit?: string) => {
+  const n = Number(val) || 0;
+  if (n === 0) return "";
+  const s = n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return unit ? `${s}/${unit}` : s;
+};
+
 export interface EstComponent { name: string; unit: string; qty: number; rate: number; amount: number; }
 export interface EstRow {
   id: React.Key;
@@ -35,6 +43,8 @@ interface Props {
   selectedIndex: number;
   onSelectIndex: (i: number) => void;
   footer?: React.ReactNode;
+  expanded?: Set<React.Key>;          // controlled expand set (optional)
+  onToggleExpand?: (id: React.Key) => void;
 }
 
 /**
@@ -45,10 +55,14 @@ interface Props {
 export default function ItemEstimatesTable({
   companyName, groupLabel, bomType = "Default", asAt, rows,
   loading, error, selectedIndex, onSelectIndex, footer,
+  expanded: expandedProp, onToggleExpand,
 }: Props) {
-  const [expanded, setExpanded] = React.useState<Set<React.Key>>(new Set());
-  const toggle = (id: React.Key) =>
-    setExpanded(prev => { const c = new Set(prev); c.has(id) ? c.delete(id) : c.add(id); return c; });
+  const [expandedLocal, setExpandedLocal] = React.useState<Set<React.Key>>(new Set());
+  const expanded = expandedProp ?? expandedLocal;
+  const toggle = (id: React.Key) => {
+    if (onToggleExpand) { onToggleExpand(id); return; }
+    setExpandedLocal(prev => { const c = new Set(prev); c.has(id) ? c.delete(id) : c.add(id); return c; });
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -96,14 +110,14 @@ export default function ItemEstimatesTable({
                     {r.name}
                   </td>
                   <td className="px-2 py-1 text-right border-l border-zinc-100">{qtyStr(r.qty, r.unit)}</td>
-                  <td className="px-2 py-1 text-right">{r.cost ? r.cost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}</td>
+                  <td className="px-2 py-1 text-right">{costStr(r.cost, r.unit)}</td>
                   <td className="px-2 py-1 text-right">{amt(r.amount)}</td>
                 </tr>
                 {expanded.has(r.id) && r.components.map((c, ci) => (
-                  <tr key={`${r.id}-c${ci}`} className="border-b border-zinc-50 text-zinc-600">
+                  <tr key={`${r.id}-c${ci}`} className="border-b border-zinc-50 text-zinc-600 italic">
                     <td className="px-3 py-0.5 pl-8">{c.name}</td>
                     <td className="px-2 py-0.5 text-right border-l border-zinc-100">{qtyStr(c.qty, c.unit)}</td>
-                    <td className="px-2 py-0.5 text-right">{c.rate ? c.rate.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}</td>
+                    <td className="px-2 py-0.5 text-right">{costStr(c.rate, c.unit)}</td>
                     <td className="px-2 py-0.5 text-right">{amt(c.amount)}</td>
                   </tr>
                 ))}
