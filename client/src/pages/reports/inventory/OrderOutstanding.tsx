@@ -26,10 +26,14 @@ interface Dim {
   // how to fetch the entity list; null => no selection (All Orders)
   fetch: ((companyId: number) => Promise<Ref[]>) | null;
   selectTitle?: string; fieldLabel?: string; listLabel?: string;
+  // master "Create" route offered inside the selection popup (Tally shows it)
+  createPath?: string;
   // label shown in the report header when nothing (or Primary) is selected
   allLabel?: string;
   // dimensions rendered as a grouped item summary rather than raw order lines
   summary?: boolean;
+  // starts a new visual group in the sub-menu (blank line above, as in Tally)
+  groupStart?: boolean;
 }
 
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
