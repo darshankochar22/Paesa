@@ -21,6 +21,12 @@ jspm_packages/
 # Build output
 dist/
 build/
+# but keep electron-builder icon resources
+!build/
+build/*
+!build/icon.icns
+!build/icon.ico
+!build/icon.png
 out/
 .next/
 coverage/

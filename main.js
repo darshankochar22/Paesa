@@ -80,6 +80,7 @@ function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
+        icon: path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -96,6 +97,17 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+    // Per-platform dev-mode icon (packaged builds use the installer/bundle icon).
+    // macOS: dock icon must be set explicitly (BrowserWindow.icon is ignored on mac).
+    if (isDev && process.platform === 'darwin' && app.dock) {
+        app.dock.setIcon(path.join(__dirname, 'build', 'icon.png'));
+    }
+    // Windows: taskbar groups by AppUserModelID; set it so our window icon is used.
+    if (process.platform === 'win32') {
+        app.setAppUserModelId('com.startup.app');
+    }
+    // Linux: no extra step — BrowserWindow({ icon }) already drives the taskbar icon.
+
     try {
         const { initDB } = require('./server/db/index');
         await initDB();
