@@ -49,6 +49,7 @@ export default function GSTR1View() {
   const [gstr1Data, setGstr1Data] = useState<any>(null);
   const [gstr1Errors, setGstr1Errors] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [filing, setFiling] = useState<{ status?: string; arn?: string | null; filed_at?: string | null } | null>(null);
   const [showErrorsDialog, setShowErrorsDialog] = useState(false);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
 
@@ -111,11 +112,33 @@ export default function GSTR1View() {
         gst_registration_id: regId,
       });
       setStats(statsRes.success && statsRes.statistics ? statsRes.statistics.totals : null);
+
+      // Real filing status (Status / ARN / ARN Date header) from gst_filings.
+      const info = await window.api.gstFiling.getFilingInfo({
+        company_id: companyId,
+        return_type: "GSTR1",
+        return_period: returnPeriod,
+      });
+      setFiling(info.success ? info : null);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMarkAsFiled = async () => {
+    if (!companyId || !fyId) return;
+    const arn = window.prompt("Enter ARN (Acknowledgement Reference Number), or leave blank:", "") ?? "";
+    const res = await window.api.gstFiling.markAsFiled({
+      company_id: companyId,
+      return_type: "GSTR1",
+      fy_id: fyId,
+      return_period: returnPeriod,
+      arn: arn.trim() || null,
+    });
+    if (res.success) loadData(false);
+    else setError(res.error || "Failed to mark as filed.");
   };
 
   useEffect(() => {
@@ -289,15 +312,15 @@ export default function GSTR1View() {
           </div>
           <div className="flex gap-4">
             <span className="w-32">Status</span>
-            <span className="font-bold">: Not Filed</span>
+            <span className="font-bold">: {filing?.status || "Not Filed"}</span>
           </div>
           <div className="flex gap-4">
             <span className="w-32">ARN</span>
-            <span className="font-bold">:</span>
+            <span className="font-bold">: {filing?.arn || ""}</span>
           </div>
           <div className="flex gap-4">
             <span className="w-32">ARN Date</span>
-            <span className="font-bold">:</span>
+            <span className="font-bold">: {filing?.filed_at || ""}</span>
           </div>
         </>
       }
@@ -316,6 +339,14 @@ export default function GSTR1View() {
             className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
           >
             F5: Refresh
+          </Button>
+          <Button
+            onClick={handleMarkAsFiled}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            F10: {filing?.status === "Filed" ? "Filed ✓" : "Mark as Filed"}
           </Button>
           <Button
             onClick={handleExportJson}

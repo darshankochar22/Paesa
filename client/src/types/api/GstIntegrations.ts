@@ -91,5 +91,8 @@ export interface GstIntegrationsAPI {
     saveToPortal: (p: { company_id: number; return_type: string; fy_id: number; return_period: string }) => Promise<ApiResult>;
     fileReturn: (p: { company_id: number; return_type: string; return_period: string; evc_otp: string }) => Promise<ApiResult>;
     getFilings: (company_id: number) => Promise<{ success: boolean; filings: GstFilingRecord[]; error?: string }>;
+    markAsFiled: (p: { company_id: number; return_type: string; fy_id?: number; return_period: string; arn?: string | null; filed_date?: string | null }) => Promise<{ success: boolean; filing_id?: number; status?: string; arn?: string | null; filed_at?: string | null; error?: string }>;
+    updateArn: (p: { company_id: number; return_type: string; fy_id?: number; return_period: string; arn: string; arn_date?: string | null }) => Promise<{ success: boolean; filing_id?: number; arn?: string | null; error?: string }>;
+    getFilingInfo: (p: { company_id: number; return_type: string; return_period: string }) => Promise<{ success: boolean; status?: string; arn?: string | null; filed_at?: string | null; error?: string }>;
   };
 }

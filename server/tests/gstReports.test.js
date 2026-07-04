@@ -10,6 +10,7 @@ const voucherController = require("../voucher/voucherController");
 const gstReportService = require("../report/services/gstReportService");
 const reconciliationService = require("../gst/reconciliationService");
 const gstr1Service = require("../gst/gstr1Service");
+const gstFilingService = require("../gstFiling/gstFilingService");
 
 const ledgerId = (res) => res.ledger?.ledger_id ?? res.ledger_id ?? res.id;
 
@@ -369,5 +370,114 @@ describe("GST Reports engine", () => {
     expect(docs.success).toBe(true);
     expect(docs.view).toBe("docs");
     expect(docs.rows.find((r) => r.nature === "Sales")?.count).toBe(1);
+  });
+
+  it("Mark as Filed records the return and flips Track Activities 'Pending to Be Filed' to No", async () => {
+    // April GSTR-1 starts unfiled.
+    let before = await gstFilingService.getFilingInfo(companyId, { return_type: "GSTR1", return_period: "042026" });
+    expect(before.status).toBe("Not Filed");
+
+    const marked = await gstFilingService.markAsFiled(companyId, {
+      return_type: "GSTR1", fy_id: fyId, return_period: "042026", arn: "AA270426000001X",
+    });
+    expect(marked.success).toBe(true);
+    expect(marked.status).toBe("FILED");
+
+    const after = await gstFilingService.getFilingInfo(companyId, { return_type: "GSTR1", return_period: "042026" });
+    expect(after.status).toBe("Filed");
+    expect(after.arn).toBe("AA270426000001X");
+
+    // Track GST Return Activities reads gst_filings → April GSTR-1 now shows filed (0).
+    const act = await reconciliationService.getReturnActivities(companyId, fyId);
+    const apr = act.activities.registrations[0].months.find((m) => m.period === "042026");
+    expect(apr.returns.find((r) => r.name === "GSTR-1").pending_file).toBe(0);
+    // A different period is untouched.
+    const may = act.activities.registrations[0].months.find((m) => m.period === "052026");
+    expect(may.returns.find((r) => r.name === "GSTR-1").pending_file).toBe(1);
+  });
+
+  it("Annual Computation aggregates the whole FY on the shared classifier, matching Statistics", async () => {
+    const ann = await reconciliationService.getAnnualComputation(companyId, fyId, {});
+    expect(ann.success).toBe(true);
+    const p = ann.payload;
+
+    // Voucher counts span the whole FY (April sales+purchase, plus the June bad sales
+    // added earlier). Company GSTIN is valid → the clean April docs are Included.
+    expect(p.voucher_count.total).toBe(3);
+    expect(p.voucher_count.uncertain).toBe(1);       // June sales, missing place of supply
+    expect(p.voucher_count.included).toBe(2);        // April sales + April purchase
+
+    // Included counts here EXACTLY match a full-FY Statistics call (same classifier).
+    const statsApr = await reconciliationService.getReturnStatistics(companyId, fyId, "042026", { return_type: "GSTR3B", annual: true });
+    expect(statsApr.statistics.totals.total).toBe(3);
+    expect(statsApr.statistics.totals.uncertain).toBe(1);
+
+    // Outward taxable liability = the April sales (10000 taxable, 1800 tax).
+    expect(p.liability.taxable_and_advances.txval).toBe(10000);
+    expect(p.liability.taxable_and_advances.camt).toBe(900);
+    expect(p.liability.taxable_and_advances.samt).toBe(900);
+    // ITC availed = the April purchase (5000 taxable, 900 tax).
+    expect(p.itc.availed.txval).toBe(5000);
+    expect(p.itc.availed.camt).toBe(450);
+    expect(p.itc.availed.samt).toBe(450);
+    // Outward/inward supply summaries.
+    expect(p.summary_outward.txval).toBe(10000);
+    expect(p.summary_inward.txval).toBe(5000);
+    // Header shows All Registrations when unscoped.
+    expect(p.gstin).toBe("All Registrations");
+  });
+
+  it("Annual drill tree: section → sub-category → monthly → register, all consistent", async () => {
+    // Level 1: payable — the April B2B sales (registered party) lands under B2B.
+    const payable = await reconciliationService.getAnnualSectionBreakdown(companyId, fyId, { path: "payable" });
+    expect(payable.success).toBe(true);
+    const b2b = payable.rows.find((r) => r.key === "payable.b2b");
+    expect(b2b.txval).toBe(10000);
+    expect(b2b.tax).toBe(1800);
+    expect(b2b.has_children).toBe(true);
+    // B2C and exports rows exist but are honestly zero.
+    expect(payable.rows.find((r) => r.key === "payable.b2c").txval).toBe(0);
+    expect(payable.rows.find((r) => r.key === "payable.exports_pay").txval).toBe(0);
+
+    // Level 2: the CN/DN split — sales land in 'supplies', notes rows are zero.
+    const b2bSplit = await reconciliationService.getAnnualSectionBreakdown(companyId, fyId, { path: "payable.b2b" });
+    expect(b2bSplit.rows.find((r) => r.key === "payable.b2b.supplies").txval).toBe(10000);
+    expect(b2bSplit.rows.find((r) => r.key === "payable.b2b.cn").txval).toBe(0);
+
+    // ITC: purchases land in All Other ITC.
+    const itc = await reconciliationService.getAnnualSectionBreakdown(companyId, fyId, { path: "itc" });
+    expect(itc.rows.find((r) => r.key === "itc.all_other_itc").txval).toBe(5000);
+    expect(itc.rows.find((r) => r.key === "itc.impg").txval).toBe(0);
+
+    // Reversal + interest sections render all their rows, honestly zero.
+    const rev = await reconciliationService.getAnnualSectionBreakdown(companyId, fyId, { path: "itc_reversal" });
+    expect(rev.rows).toHaveLength(8);
+    expect(rev.rows.every((r) => r.txval === 0 && r.tax === 0)).toBe(true);
+
+    // Monthly: April carries the B2B amount, every other month is zero.
+    const monthly = await reconciliationService.getAnnualMonthly(companyId, fyId, { category: "payable.b2b.supplies" });
+    expect(monthly.view).toBe("monthly");
+    expect(monthly.rows).toHaveLength(12);
+    const apr = monthly.rows.find((r) => r.period === "042026");
+    expect(apr.txval).toBe(10000);
+    expect(monthly.rows.filter((r) => r.txval !== 0)).toHaveLength(1);
+
+    // Month breakup (not-payable style): intra/interstate × registered/unregistered.
+    const breakup = await reconciliationService.getAnnualMonthly(companyId, fyId, { category: "payable.b2b", month: "042026" });
+    expect(breakup.view).toBe("breakup");
+    expect(breakup.rows).toHaveLength(4);
+    expect(breakup.rows.reduce((n, r) => n + r.txval, 0)).toBe(10000);
+
+    // Register leaf: annual_category + the clicked month → exactly the April invoice.
+    const reg = await reconciliationService.getReturnVouchers(companyId, fyId, "042026", {
+      return_type: "ANNUAL", bucket: "included", annual_category: "payable.b2b",
+    });
+    expect(reg.rows).toHaveLength(1);
+    expect(reg.rows[0].taxable).toBe(10000);
+    // Same category in a month with no B2B docs → empty.
+    const regJune = await reconciliationService.getReturnVouchers(companyId, fyId, "062026", {
+      return_type: "ANNUAL", bucket: "included", annual_category: "payable.b2b",
+    });
+    expect(regJune.rows).toHaveLength(0);
   });
 });

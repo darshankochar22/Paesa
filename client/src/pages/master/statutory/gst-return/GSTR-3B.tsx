@@ -78,6 +78,7 @@ export default function GSTR3BView() {
   const [gstr3bData, setGstr3bData] = useState<any>(null);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [filing, setFiling] = useState<{ status?: string; arn?: string | null; filed_at?: string | null } | null>(null);
 
   const activeRegistration = location.state?.registration || fetchedRegistration;
   const registrationName = activeRegistration?.state_id
@@ -137,11 +138,33 @@ export default function GSTR3BView() {
         gst_registration_id: regId,
       });
       setStats(statsRes.success && statsRes.statistics ? statsRes.statistics.totals : null);
+
+      // Real filing status (Status / ARN header) from gst_filings.
+      const info = await window.api.gstFiling.getFilingInfo({
+        company_id: companyId,
+        return_type: "GSTR3B",
+        return_period: returnPeriod,
+      });
+      setFiling(info.success ? info : null);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMarkAsFiled = async () => {
+    if (!companyId || !fyId) return;
+    const arn = window.prompt("Enter ARN (Acknowledgement Reference Number), or leave blank:", "") ?? "";
+    const res = await window.api.gstFiling.markAsFiled({
+      company_id: companyId,
+      return_type: "GSTR3B",
+      fy_id: fyId,
+      return_period: returnPeriod,
+      arn: arn.trim() || null,
+    });
+    if (res.success) loadData(false);
+    else setError(res.error || "Failed to mark as filed.");
   };
 
   useEffect(() => {
@@ -277,7 +300,11 @@ export default function GSTR3BView() {
           </div>
           <div className="flex gap-4">
             <span className="w-32">Status</span>
-            <span className="font-bold">: Not Filed</span>
+            <span className="font-bold">: {filing?.status || "Not Filed"}</span>
+          </div>
+          <div className="flex gap-4">
+            <span className="w-32">ARN</span>
+            <span className="font-bold">: {filing?.arn || ""}</span>
           </div>
         </>
       }
@@ -296,6 +323,14 @@ export default function GSTR3BView() {
             className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
           >
             F5: Refresh
+          </Button>
+          <Button
+            onClick={handleMarkAsFiled}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            F10: {filing?.status === "Filed" ? "Filed ✓" : "Mark as Filed"}
           </Button>
           <Button
             onClick={handleExportJson}
@@ -404,10 +439,26 @@ export default function GSTR3BView() {
               const indentPl = row.indent === 2 ? "pl-10" : "pl-6";
               const hasData = taxTotal(row.data) !== 0 || row.data.txval !== 0;
 
+              // ITC section rows (4…) drill to inward (Purchase) documents; the outward
+              // liability rows (3.1/3.2) drill to the included outward vouchers.
+              const isItcRow = /Input Tax Credit|Import of|Inward supplies|reverse charge|ITC/i.test(row.label);
               return (
                 <TableRow
                   key={idx}
-                  onClick={() => setSelectedRow(idx)}
+                  onClick={() => {
+                    setSelectedRow(idx);
+                    navigate("/master/statutory/gst/voucher-register", {
+                      state: {
+                        registration: activeRegistration,
+                        month: selectedMonth,
+                        year: selectedYear,
+                        returnType: "GSTR3B",
+                        bucket: "included",
+                        voucherType: isItcRow ? "Purchase" : undefined,
+                        subtitle: row.label,
+                      },
+                    });
+                  }}
                   className={cn(
                     "border-0 cursor-pointer hover:bg-[#e6f2ff]",
                     isSelected

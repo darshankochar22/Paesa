@@ -47,7 +47,11 @@ export default function GSTReturnStatistics() {
   const year = location.state?.year || String(today.getFullYear());
   const registration = location.state?.registration;
   const returnType = location.state?.returnType || "GSTR1";
+  const annual = !!location.state?.annual;
   const returnPeriod = `${month}${year}`;
+  const periodText = annual
+    ? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "")
+    : periodLabelFor(month, year);
 
   const registrationName = registration?.state_id
     ? `${registration.state_id} Registration`
@@ -70,6 +74,7 @@ export default function GSTReturnStatistics() {
           return_period: returnPeriod,
           return_type: returnType,
           gst_registration_id: registration?.gst_id ?? null,
+          annual,
         });
         if (res.success && res.statistics) {
           setRows(res.statistics.rows);
@@ -98,7 +103,7 @@ export default function GSTReturnStatistics() {
           <span className="font-bold">: {registrationName}</span>
         </div>
       }
-      rightSubtitle={<div>{periodLabelFor(month, year)}</div>}
+      rightSubtitle={<div>{periodText}</div>}
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
         {loading && <EmptyState message="Compiling statistics..." className="italic" />}
@@ -153,6 +158,7 @@ export default function GSTReturnStatistics() {
                           month,
                           year,
                           returnType,
+                          annual,
                           bucket: "all",
                           voucherType: row.voucher_type,
                           subtitle: row.voucher_type,

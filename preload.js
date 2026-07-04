@@ -373,6 +373,8 @@ contextBridge.exposeInMainWorld('api', {
         getReturnStatistics:  (data)      => invoke('gst:getReturnStatistics', data),
         getReturnVouchers:    (data)      => invoke('gst:getReturnVouchers', data),
         getNotRelevantBreakdown: (data)   => invoke('gst:getNotRelevantBreakdown', data),
+        getAnnualSectionBreakdown: (data) => invoke('gst:getAnnualSectionBreakdown', data),
+        getAnnualMonthly:     (data)      => invoke('gst:getAnnualMonthly', data),
     },
     master: {
         getMenu: (company_id) => invoke('master:getMenu', company_id),
@@ -553,6 +555,9 @@ contextBridge.exposeInMainWorld('api', {
         saveToPortal: (payload)    => invoke('gstFiling:saveToPortal', payload),
         fileReturn:   (payload)    => invoke('gstFiling:fileReturn', payload),
         getFilings:   (company_id) => invoke('gstFiling:getFilings', { company_id }),
+        markAsFiled:  (payload)    => invoke('gstFiling:markAsFiled', payload),
+        updateArn:    (payload)    => invoke('gstFiling:updateArn', payload),
+        getFilingInfo:(payload)    => invoke('gstFiling:getFilingInfo', payload),
     },
     whatsapp: {
         getStatus:           (company_id) => invoke('whatsapp:getStatus', company_id),

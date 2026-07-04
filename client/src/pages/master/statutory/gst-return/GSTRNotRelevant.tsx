@@ -37,6 +37,10 @@ export default function GSTRNotRelevant() {
   const year = location.state?.year || String(today.getFullYear());
   const registration = location.state?.registration;
   const returnType = location.state?.returnType || "GSTR1";
+  const annual = !!location.state?.annual;
+  const periodText = annual
+    ? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "")
+    : periodLabelFor(month, year);
 
   const registrationName = registration?.state_id
     ? `${registration.state_id} Registration`
@@ -61,6 +65,7 @@ export default function GSTRNotRelevant() {
           return_period: `${month}${year}`,
           return_type: returnType,
           gst_registration_id: registration?.gst_id ?? null,
+          annual,
         });
         if (res.success && res.breakdown) {
           setCategories(res.breakdown.non_gst.categories);
@@ -85,6 +90,7 @@ export default function GSTRNotRelevant() {
         month,
         year,
         returnType,
+        annual,
         bucket: "not_relevant",
         category,
         voucherType,
@@ -97,7 +103,7 @@ export default function GSTRNotRelevant() {
 
   return (
     <TallyReportLayout
-      title={`${returnType === "GSTR3B" ? "GSTR-3B" : "GSTR-1"} - Not Relevant for This Return`}
+      title={`${returnType === "ANNUAL" ? "Annual Computation" : returnType === "GSTR3B" ? "GSTR-3B" : "GSTR-1"} - Not Relevant for This Return`}
       companyName={selectedCompany?.name || "Company"}
       leftSubtitle={
         <div className="flex gap-4">
@@ -105,7 +111,7 @@ export default function GSTRNotRelevant() {
           <span className="font-bold">: {registrationName}</span>
         </div>
       }
-      rightSubtitle={<div>{periodLabelFor(month, year)}</div>}
+      rightSubtitle={<div>{periodText}</div>}
     >
       <div className="w-full font-sans text-xs">
         {loading ? (

@@ -101,4 +101,58 @@ const getFilings = async (company_id) => {
   }
 };
 
-module.exports = { getStatus, prepare, saveToPortal, fileReturn, getFilings };
+// Manual "Mark as Filed" (Tally F10) — records the return as FILED in gst_filings
+// without any GSP round-trip. Track GST Return Activities reads this same table,
+// so marking here flips that dashboard's "Pending to Be Filed" to No.
+const markAsFiled = async (company_id, { return_type = 'GSTR1', fy_id, return_period, arn = null, filed_date = null }) => {
+  try {
+    const fields = {
+      status: 'FILED',
+      fyId: fy_id ?? null,
+      arn: arn || null,
+      filedAt: filed_date || new Date().toISOString().slice(0, 10),
+    };
+    const id = await upsertFiling(company_id, return_type, return_period, fields);
+    return { success: true, filing_id: id, status: 'FILED', arn: fields.arn, filed_at: fields.filedAt };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Update only the ARN/ARN-date of an existing (or new) filing record ("A: Manually Update ARN").
+const updateArn = async (company_id, { return_type = 'GSTR1', fy_id, return_period, arn, arn_date = null }) => {
+  try {
+    const id = await upsertFiling(company_id, return_type, return_period, {
+      fyId: fy_id ?? null,
+      arn: arn || null,
+      ...(arn_date ? { filedAt: arn_date } : {}),
+    });
+    return { success: true, filing_id: id, arn: arn || null };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Filing status of one return period — drives the Status / ARN / ARN Date header lines.
+const getFilingInfo = async (company_id, { return_type = 'GSTR1', return_period }) => {
+  try {
+    const rows = await db.all(
+      sql`SELECT status, arn, filed_at FROM ${gstFilings}
+          WHERE ${gstFilings.companyId} = ${company_id}
+            AND ${gstFilings.returnType} = ${return_type}
+            AND ${gstFilings.returnPeriod} = ${return_period}
+          ORDER BY ${gstFilings.filingId} DESC LIMIT 1`
+    );
+    const row = rows[0];
+    return {
+      success: true,
+      status: row?.status === 'FILED' ? 'Filed' : 'Not Filed',
+      arn: row?.arn || null,
+      filed_at: row?.filed_at || null,
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+module.exports = { getStatus, prepare, saveToPortal, fileReturn, getFilings, markAsFiled, updateArn, getFilingInfo };

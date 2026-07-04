@@ -33,6 +33,9 @@ function register() {
   ipcMain.handle('gstFiling:saveToPortal', gstFilingController.saveToPortal);
   ipcMain.handle('gstFiling:fileReturn', gstFilingController.fileReturn);
   ipcMain.handle('gstFiling:getFilings', gstFilingController.getFilings);
+  ipcMain.handle('gstFiling:markAsFiled', gstFilingController.markAsFiled);
+  ipcMain.handle('gstFiling:updateArn', gstFilingController.updateArn);
+  ipcMain.handle('gstFiling:getFilingInfo', gstFilingController.getFilingInfo);
 
   ipcMain.handle('whatsapp:saveConfig', whatsappController.saveConfig);
   ipcMain.handle('whatsapp:getConfig', whatsappController.getConfig);

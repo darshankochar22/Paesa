@@ -49,6 +49,10 @@ export default function GSTRUncertain() {
   const year = location.state?.year || String(today.getFullYear());
   const registration = location.state?.registration;
   const returnType = location.state?.returnType || "GSTR1";
+  const annual = !!location.state?.annual;
+  const periodText = annual
+    ? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "")
+    : periodLabelFor(month, year);
 
   const registrationName = registration?.state_id
     ? `${registration.state_id} Registration`
@@ -70,6 +74,7 @@ export default function GSTRUncertain() {
           return_period: `${month}${year}`,
           return_type: returnType,
           gst_registration_id: registration?.gst_id ?? null,
+          annual,
           bucket: "uncertain",
         });
         if (res.success) setRows((res.rows as UncertainRow[]) || []);
@@ -89,7 +94,7 @@ export default function GSTRUncertain() {
 
   return (
     <TallyReportLayout
-      title={`${returnType === "GSTR3B" ? "GSTR-3B" : "GSTR-1"} - Resolution of Uncertain Transactions`}
+      title={`${returnType === "ANNUAL" ? "Annual Computation" : returnType === "GSTR3B" ? "GSTR-3B" : "GSTR-1"} - Resolution of Uncertain Transactions`}
       companyName={selectedCompany?.name || "Company"}
       leftSubtitle={
         <>
@@ -103,7 +108,7 @@ export default function GSTRUncertain() {
           </div>
         </>
       }
-      rightSubtitle={<div>{periodLabelFor(month, year)}</div>}
+      rightSubtitle={<div>{periodText}</div>}
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
         {loading && <EmptyState message="Scanning transactions..." className="italic" />}

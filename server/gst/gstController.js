@@ -4,7 +4,6 @@ const { gstHsnRates } = require('../db/schema');
 const gstTaxEngine = require('./gstTaxEngine');
 const gstr1Service = require('./gstr1Service');
 const gstr3bService = require('./gstr3bService');
-const annualComputationService = require('./annualComputationService');
 const reconciliationService = require('./reconciliationService');
 
 module.exports = {
@@ -33,8 +32,12 @@ module.exports = {
     return await gstr3bService.getGSTR3B(company_id, fy_id, return_period, gst_registration_id ?? null);
   },
 
-  getAnnualComputation: async (event, { company_id, fy_id }) => {
-    return await annualComputationService.generateAnnualComputation(company_id, fy_id);
+  getAnnualComputation: async (event, { company_id, fy_id, gst_registration_id }) => {
+    // Uses the shared drill-engine classifier (reconciliationService) so the report's
+    // voucher counts + section amounts match the Statistics / Not-Relevant / Uncertain
+    // drills exactly. The older annualComputationService payload shape did not match the
+    // frontend contract (report rendered blank).
+    return await reconciliationService.getAnnualComputation(company_id, fy_id, { gst_registration_id });
   },
 
   getHSNRates: async (event, company_id) => {
@@ -148,15 +151,23 @@ module.exports = {
     return await reconciliationService.getReturnActivities(company_id, fy_id);
   },
 
-  getReturnStatistics: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id }) => {
-    return await reconciliationService.getReturnStatistics(company_id, fy_id, return_period, { return_type, gst_registration_id });
+  getReturnStatistics: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id, annual }) => {
+    return await reconciliationService.getReturnStatistics(company_id, fy_id, return_period, { return_type, gst_registration_id, annual });
   },
 
-  getReturnVouchers: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id, bucket, category, voucher_type, section }) => {
-    return await reconciliationService.getReturnVouchers(company_id, fy_id, return_period, { return_type, gst_registration_id, bucket, category, voucher_type, section });
+  getReturnVouchers: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id, bucket, category, voucher_type, section, annual, direction, annual_category }) => {
+    return await reconciliationService.getReturnVouchers(company_id, fy_id, return_period, { return_type, gst_registration_id, bucket, category, voucher_type, section, annual, direction, annual_category });
   },
 
-  getNotRelevantBreakdown: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id }) => {
-    return await reconciliationService.getNotRelevantBreakdown(company_id, fy_id, return_period, { return_type, gst_registration_id });
+  getAnnualSectionBreakdown: async (event, { company_id, fy_id, gst_registration_id, path }) => {
+    return await reconciliationService.getAnnualSectionBreakdown(company_id, fy_id, { gst_registration_id, path });
+  },
+
+  getAnnualMonthly: async (event, { company_id, fy_id, gst_registration_id, category, month }) => {
+    return await reconciliationService.getAnnualMonthly(company_id, fy_id, { gst_registration_id, category, month });
+  },
+
+  getNotRelevantBreakdown: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id, annual }) => {
+    return await reconciliationService.getNotRelevantBreakdown(company_id, fy_id, return_period, { return_type, gst_registration_id, annual });
   }
 };

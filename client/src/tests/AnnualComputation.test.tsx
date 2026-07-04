@@ -11,32 +11,25 @@ const selectedCompany = {
   financial_year_beginning_from: '2026-04-01',
 };
 
+// Payload shape produced by reconciliationService.getAnnualComputation — the real
+// backend contract for this screen (voucher_count + liability/itc/summary sections).
 const mockPayload = {
-  fy_label: "2026-04-01 to 2027-03-31",
-  gstin: "27AAACG1234A1Z1",
-  company_name: "CC Test Corp",
-  outward_supplies: {
-    taxable:  { txval: 100000, iamt: 18000, camt: 0, samt: 0, cess: 0 },
-    zero:     { txval: 20000, iamt: 0, camt: 0, samt: 0, cess: 0 },
-    nil_exmp: { txval: 5000, iamt: 0, camt: 0, samt: 0, cess: 0 },
-    nongst:   { txval: 1000, iamt: 0, camt: 0, samt: 0, cess: 0 },
-    rcm:      { txval: 2000, iamt: 360, camt: 0, samt: 0, cess: 0 },
+  fy_label: '2026-04-01 to 2027-03-31',
+  gstin: 'All Registrations',
+  voucher_count: { total: 124, included: 74, not_relevant: 40, uncertain: 10 },
+  liability: {
+    taxable_and_advances: { txval: 100000, iamt: 18000, camt: 0, samt: 0, cess: 0 },
+    not_payable:          { txval: 5000, iamt: 0, camt: 0, samt: 0, cess: 0 },
+    missing_invoice:      { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 },
   },
   itc: {
-    import_goods:    { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 },
-    import_services: { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 },
-    rcm:             { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 },
-    other:           { txval: 50000, iamt: 9000, camt: 0, samt: 0, cess: 0 },
-    reversed:        { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 },
-    total_availed:   { txval: 50000, iamt: 9000, camt: 0, samt: 0, cess: 0 },
+    availed:  { txval: 50000, iamt: 9000, camt: 0, samt: 0, cess: 0 },
+    reversal: { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 },
   },
-  tax_payable: { igst: 18000, cgst: 0, sgst: 0, cess: 0 },
-  tax_paid:    { igst: 18000, cgst: 0, sgst: 0, cess: 0 },
-  net_tax:     { igst: 9000, cgst: 0, sgst: 0, cess: 0 },
-  monthly_summary: [
-    { month: "Apr-26", taxable_val: 100000, outward_tax: 18000, itc_availed: 9000, net_tax: 9000 }
-  ],
-  annual_total: { taxable_val: 100000, outward_tax: 18000, itc_availed: 9000, net_tax: 9000 },
+  interest_late_fee: { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 },
+  hsn_summary:       { txval: 100000, iamt: 18000, camt: 0, samt: 0, cess: 0 },
+  summary_outward:   { txval: 100000, iamt: 18000, camt: 0, samt: 0, cess: 0 },
+  summary_inward:    { txval: 50000, iamt: 9000, camt: 0, samt: 0, cess: 0 },
 };
 
 function renderAnnualComputation() {
@@ -59,7 +52,7 @@ beforeEach(() => {
   });
   window.api.fy.getAll = vi.fn().mockResolvedValue({
     success: true,
-    financialYears: [{ fy_id: 1, company_id: 1, start_date: '2026-04-01', is_active: 1 }],
+    financialYears: [{ fy_id: 1, company_id: 1, start_date: '2026-04-01', end_date: '2027-03-31', is_active: 1 }],
   });
 
   window.api.gst.getAnnualComputation = vi.fn().mockResolvedValue({
@@ -69,41 +62,44 @@ beforeEach(() => {
 });
 
 describe('AnnualComputation Report Component', () => {
-  it('loads and displays the statutory details', async () => {
+  it('loads and displays the annual computation with real voucher counts', async () => {
     renderAnnualComputation();
 
     await waitFor(() => {
       expect(screen.getByText('Annual Computation')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('27AAACG1234A1Z1')).toBeInTheDocument();
-    expect(screen.getByText('2026-04-01 to 2027-03-31')).toBeInTheDocument();
+    // Header: registration + FY label from the payload.
+    expect(screen.getByText(/All Registrations/)).toBeInTheDocument();
+    expect(screen.getAllByText(/2026-04-01 to 2027-03-31/).length).toBeGreaterThanOrEqual(1);
 
-    // Verify outward total and net ITC rows are shown
-    expect(screen.getByText('Total Outward Supplies')).toBeInTheDocument();
-    expect(screen.getByText('Net ITC Available')).toBeInTheDocument();
-
-    // Verify monthly summary row is rendered
-    expect(screen.getByText('Apr-26')).toBeInTheDocument();
+    // Top voucher-count summary (Total = Included + Not Relevant + Uncertain).
+    expect(screen.getByText('Total Vouchers')).toBeInTheDocument();
+    expect(screen.getByText('124')).toBeInTheDocument();
+    expect(screen.getByText('74')).toBeInTheDocument();
+    expect(screen.getByText('40')).toBeInTheDocument();
+    expect(screen.getByText('Uncertain Transactions (Corrections needed)')).toBeInTheDocument();
   });
 
-  it('can expand a details section and view individual rows', async () => {
-    const user = userEvent.setup();
+  it('renders the liability, ITC and summary sections with amounts', async () => {
     renderAnnualComputation();
 
     await waitFor(() => {
-      expect(screen.getByText('1. Details of Outward Supplies')).toBeInTheDocument();
+      expect(
+        screen.getByText('Outward and Inward Supplies on Which Tax is Payable (Including Advances)')
+      ).toBeInTheDocument();
     });
 
-    // Sub-items should not be visible initially
-    expect(screen.queryByText('(a) Taxable supplies')).not.toBeInTheDocument();
+    expect(screen.getByText('Outward Supplies on Which Tax is Not Payable')).toBeInTheDocument();
+    expect(screen.getByText('Total Liability')).toBeInTheDocument();
+    expect(screen.getByText('Reversal of Input Tax Credit, Adjusted and Ineligible Input Tax Credit Declared')).toBeInTheDocument();
+    expect(screen.getByText('Summary of Outward Supplies')).toBeInTheDocument();
+    expect(screen.getByText('Summary of Inward Supplies')).toBeInTheDocument();
 
-    // Click section header to expand
-    await user.click(screen.getByText('1. Details of Outward Supplies'));
-
-    // Now they should be visible
-    expect(screen.getByText('(a) Taxable supplies')).toBeInTheDocument();
-    expect(screen.getByText('(b) Zero-rated supplies (exports)')).toBeInTheDocument();
+    // Liability taxable amount (formatted en-IN) appears.
+    expect(screen.getAllByText('1,00,000.00').length).toBeGreaterThanOrEqual(1);
+    // ITC availed tax amount.
+    expect(screen.getAllByText('9,000.00').length).toBeGreaterThanOrEqual(1);
   });
 
   it('handles API errors gracefully', async () => {
@@ -124,12 +120,14 @@ describe('AnnualComputation Report Component', () => {
     renderAnnualComputation();
 
     await waitFor(() => {
-      expect(screen.getByText('Refresh')).toBeInTheDocument();
+      expect(screen.getByText('F5: Refresh')).toBeInTheDocument();
     });
 
-    vi.clearAllMocks();
-    await user.click(screen.getByText('Refresh'));
+    (window.api.gst.getAnnualComputation as ReturnType<typeof vi.fn>).mockClear();
+    await user.click(screen.getByText('F5: Refresh'));
 
-    expect(window.api.gst.getAnnualComputation).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(window.api.gst.getAnnualComputation).toHaveBeenCalledTimes(1);
+    });
   });
 });

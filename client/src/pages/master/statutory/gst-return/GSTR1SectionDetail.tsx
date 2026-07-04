@@ -44,6 +44,11 @@ export default function GSTR1SectionDetail() {
   const section = location.state?.section ?? null; // null → section with no book data (amendments/advances)
   const label = location.state?.label || "Section";
   const returnType = location.state?.returnType || "GSTR1";
+  const annual = !!location.state?.annual;
+  const direction = location.state?.direction; // 'outward' | 'inward' (HSN summaries)
+  const periodText = annual
+    ? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "")
+    : periodLabelFor(month, year);
 
   const registrationName = registration?.state_id
     ? `${registration.state_id} Registration`
@@ -68,6 +73,8 @@ export default function GSTR1SectionDetail() {
           return_period: `${month}${year}`,
           return_type: returnType,
           gst_registration_id: registration?.gst_id ?? null,
+          annual,
+          direction,
           bucket: "included",
           section,
         });
@@ -144,7 +151,7 @@ export default function GSTR1SectionDetail() {
 
   return (
     <TallyReportLayout
-      title={`${returnType === "GSTR3B" ? "GSTR-3B" : "GSTR-1"} - ${view === "register" && serverView === "vouchers" ? "Voucher Register" : section === "hsn" ? "HSN/SAC Summary" : section === "docs" ? "Document Summary" : "Summary"}`}
+      title={`${returnType === "ANNUAL" ? "Annual Computation" : returnType === "GSTR3B" ? "GSTR-3B" : "GSTR-1"} - ${view === "register" && serverView === "vouchers" ? "Voucher Register" : section === "hsn" ? "HSN/SAC Summary" : section === "docs" ? "Document Summary" : "Summary"}`}
       companyName={selectedCompany?.name || "Company"}
       leftSubtitle={
         <>
@@ -158,7 +165,7 @@ export default function GSTR1SectionDetail() {
           </div>
         </>
       }
-      rightSubtitle={<div>{periodLabelFor(month, year)}</div>}
+      rightSubtitle={<div>{periodText}</div>}
       footerControls={
         serverView === "vouchers" ? (
           <div className="flex items-center gap-4 ml-4">

@@ -38,6 +38,8 @@ function register() {
   ipcMain.handle('gst:getReturnStatistics', gstController.getReturnStatistics);
   ipcMain.handle('gst:getReturnVouchers', gstController.getReturnVouchers);
   ipcMain.handle('gst:getNotRelevantBreakdown', gstController.getNotRelevantBreakdown);
+  ipcMain.handle('gst:getAnnualSectionBreakdown', gstController.getAnnualSectionBreakdown);
+  ipcMain.handle('gst:getAnnualMonthly', gstController.getAnnualMonthly);
 
   ipcMain.handle('gstRegistration:create', gstRegistrationController.create);
   ipcMain.handle('gstRegistration:getAll', gstRegistrationController.getAll);

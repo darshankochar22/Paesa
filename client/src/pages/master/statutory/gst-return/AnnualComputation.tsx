@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
 import { Button } from "@/components/shadcn/button";
@@ -49,7 +50,7 @@ function addAmt(a: TaxAmount, b: TaxAmount): TaxAmount {
 type RowDef =
   | { type: "section";    label: string }
   | { type: "subsection"; label: string }
-  | { type: "data";       label: string; data: TaxAmount; indent?: 1 | 2; bold?: boolean }
+  | { type: "data";       label: string; data: TaxAmount; indent?: 1 | 2; bold?: boolean; nav?: () => void }
   | { type: "total";      label: string; data: TaxAmount }
   | { type: "divider" };
 
@@ -62,8 +63,11 @@ const HEAD_CELL = "h-auto w-28 px-2 py-1 text-right align-bottom font-bold text-
 
 export default function AnnualComputation() {
   const { selectedCompany, activeFY } = useCompany();
+  const navigate = useNavigate();
+  const location = useLocation();
   const companyId = selectedCompany?.company_id;
   const fyId      = activeFY?.fy_id;
+  const registration = location.state?.registration; // optional (All Registrations by default)
 
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
@@ -75,7 +79,11 @@ export default function AnnualComputation() {
     try {
       setLoading(true);
       setError(null);
-      const result = await window.api.gst.getAnnualComputation({ company_id: companyId, fy_id: fyId });
+      const result = await window.api.gst.getAnnualComputation({
+        company_id: companyId,
+        fy_id: fyId,
+        gst_registration_id: registration?.gst_id ?? null,
+      });
       if (result.success) setData(result.payload);
       else setError(result.error || "Failed to load data");
     } catch (e: any) {
@@ -84,6 +92,21 @@ export default function AnnualComputation() {
       setLoading(false);
     }
   };
+
+  // Every Annual drill runs over the full FY (annual: true) with the shared engine.
+  const annualState = { registration, month: "", year: "", returnType: "ANNUAL", annual: true };
+  const openStats = () => navigate("/master/statutory/gst/return-statistics", { state: annualState });
+  const openNotRelevant = () => navigate("/master/statutory/gst/not-relevant", { state: annualState });
+  const openUncertain = () => navigate("/master/statutory/gst/uncertain", { state: annualState });
+  const openRegister = (subtitle: string, extra: Record<string, unknown>) =>
+    navigate("/master/statutory/gst/voucher-register", {
+      state: { ...annualState, columns: "tax", subtitle, ...extra },
+    });
+  const openSection = (label: string, extra: Record<string, unknown>) =>
+    navigate("/master/statutory/gstr1/section", { state: { ...annualState, label, ...extra } });
+  // GSTR-9 style category tree (section → sub-category → CN/DN split → monthly → register).
+  const openTree = (path: string, label: string) =>
+    navigate("/master/statutory/gst/annual-section", { state: { registration, path, label } });
 
   useEffect(() => { loadData(); }, [companyId, fyId]);
 
@@ -127,32 +150,41 @@ export default function AnnualComputation() {
   const rows: RowDef[] = [
     // ── Liability ──
     { type: "section",    label: "Liability" },
-    { type: "data",       label: "Outward and Inward Supplies on Which Tax is Payable (Including Advances)", data: liab_taxable,  indent: 1 },
-    { type: "data",       label: "Outward Supplies on Which Tax is Not Payable",                              data: liab_notpay,   indent: 1 },
-    { type: "data",       label: "Missing Invoice Reported in Current Period",                                 data: liab_missing,  indent: 1 },
+    { type: "data",       label: "Outward and Inward Supplies on Which Tax is Payable (Including Advances)", data: liab_taxable,  indent: 1,
+      nav: () => openTree("payable", "Outward and Inward Supplies on Which Tax is Payable (Including Advances)") },
+    { type: "data",       label: "Outward Supplies on Which Tax is Not Payable",                              data: liab_notpay,   indent: 1,
+      nav: () => openTree("not_payable", "Outward Supplies on Which Tax is Not Payable") },
+    { type: "data",       label: "Missing Invoice Reported in Current Period",                                 data: liab_missing,  indent: 1,
+      nav: () => openRegister("Missing Invoice Reported in Current Period", { bucket: "included", voucherType: "__none__" }) },
     { type: "total",      label: "Total Liability",                                                            data: liab_total },
 
     { type: "divider" },
 
     // ── ITC ──
     { type: "section",    label: "Input Tax Credit" },
-    { type: "data",       label: "Input Tax Credit",                                                                                              data: itc_availed,  indent: 1 },
-    { type: "data",       label: "Reversal of Input Tax Credit, Adjusted and Ineligible Input Tax Credit Declared",                              data: itc_reversal, indent: 1 },
+    { type: "data",       label: "Input Tax Credit",                                                                                              data: itc_availed,  indent: 1,
+      nav: () => openTree("itc", "Input Tax Credit") },
+    { type: "data",       label: "Reversal of Input Tax Credit, Adjusted and Ineligible Input Tax Credit Declared",                              data: itc_reversal, indent: 1,
+      nav: () => openTree("itc_reversal", "Reversal of Input Tax Credit, Adjusted and Ineligible Input Tax Credit Declared") },
     { type: "total",      label: "Total ITC After Reversal & Ineligible Input Tax Credit",                                                        data: itc_net },
 
     { type: "divider" },
 
     // ── Others ──
     { type: "section",    label: "Other Details" },
-    { type: "data",       label: "Interest, Late Fee, Penalty and Others", data: interest,      indent: 1 },
-    { type: "data",       label: "HSN/SAC Summary",                        data: hsn_summary,   indent: 1 },
+    { type: "data",       label: "Interest, Late Fee, Penalty and Others", data: interest,      indent: 1,
+      nav: () => openTree("interest", "Interest, Late Fee, Penalty and Others") },
+    { type: "data",       label: "HSN/SAC Summary",                        data: hsn_summary,   indent: 1,
+      nav: () => openSection("HSN/SAC Summary", { section: "hsn" }) },
 
     { type: "divider" },
 
     // ── Summaries ──
     { type: "section",    label: "Supply Summary" },
-    { type: "data",       label: "Summary of Outward Supplies",            data: outward_summ,  indent: 1 },
-    { type: "data",       label: "Summary of Inward Supplies",             data: inward_summ,   indent: 1 },
+    { type: "data",       label: "Summary of Outward Supplies",            data: outward_summ,  indent: 1,
+      nav: () => openSection("HSN-SAC Summary (Outward Supplies)", { section: "hsn", direction: "outward" }) },
+    { type: "data",       label: "Summary of Inward Supplies",             data: inward_summ,   indent: 1,
+      nav: () => openSection("HSN-SAC Summary (Inward Supplies)", { section: "hsn", direction: "inward" }) },
   ];
 
   // ── Grand totals for footer ───────────────────────────────────────────────
@@ -203,27 +235,28 @@ export default function AnnualComputation() {
                 <div className="w-32 text-right">Voucher Count</div>
               </div>
 
-              <div className="flex px-2 py-0.5 font-bold bg-[#ffcc00]">
+              <div className="flex px-2 py-0.5 font-bold bg-[#ffcc00] cursor-pointer" onClick={openStats}>
                 <div className="flex-1">Total Vouchers</div>
                 <div className="w-32 text-right">{totalVouchers || ""}</div>
               </div>
 
-              <div className="flex px-4 py-0.5">
+              <div className="flex px-4 py-0.5 cursor-pointer hover:bg-[#e6f2ff]" onClick={openStats}>
                 <div className="flex-1">Included in Return</div>
                 <div className="w-32 text-right">{includedReturn || ""}</div>
               </div>
 
-              <div className="flex px-4 py-0.5 text-gray-500">
+              <div className="flex px-4 py-0.5 text-gray-500 cursor-pointer hover:bg-[#e6f2ff]" onClick={openNotRelevant}>
                 <div className="flex-1">Not Relevant for This Return</div>
                 <div className="w-32 text-right">{notRelevant || ""}</div>
               </div>
 
-              {uncertain > 0 && (
-                <div className="flex px-4 py-0.5 pb-2 text-red-600 font-semibold">
-                  <div className="flex-1">Uncertain Transactions (Corrections needed)</div>
-                  <div className="w-32 text-right">{uncertain}</div>
-                </div>
-              )}
+              <div
+                className="flex px-4 py-0.5 pb-2 text-[#ff8c00] font-semibold cursor-pointer hover:underline"
+                onClick={openUncertain}
+              >
+                <div className="flex-1">Uncertain Transactions (Corrections needed)</div>
+                <div className="w-32 text-right">{uncertain || ""}</div>
+              </div>
             </div>
 
             {/* ── Main Table ────────────────────────────────────────────── */}
@@ -305,7 +338,7 @@ export default function AnnualComputation() {
                   return (
                     <TableRow
                       key={idx}
-                      onClick={() => setSelectedRow(idx)}
+                      onClick={() => { setSelectedRow(idx); row.nav?.(); }}
                       className={cn(
                         "border-0 cursor-pointer hover:bg-[#e6f2ff]",
                         isSelected
