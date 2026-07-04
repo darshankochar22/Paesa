@@ -35,6 +35,9 @@ function register() {
   ipcMain.handle('gst:getIMSInwardSupplies', gstController.getIMSInwardSupplies);
   ipcMain.handle('gst:getChallanReconciliation', gstController.getChallanReconciliation);
   ipcMain.handle('gst:getReturnActivities', gstController.getReturnActivities);
+  ipcMain.handle('gst:getReturnStatistics', gstController.getReturnStatistics);
+  ipcMain.handle('gst:getReturnVouchers', gstController.getReturnVouchers);
+  ipcMain.handle('gst:getNotRelevantBreakdown', gstController.getNotRelevantBreakdown);
 
   ipcMain.handle('gstRegistration:create', gstRegistrationController.create);
   ipcMain.handle('gstRegistration:getAll', gstRegistrationController.getAll);

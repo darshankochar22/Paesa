@@ -35,14 +35,20 @@ export default function GSTR1View() {
   const fyId = activeFY?.fy_id;
 
   const today = new Date();
-  const [selectedMonth] = useState(String(today.getMonth() + 1).padStart(2, "0"));
-  const [selectedYear] = useState(String(today.getFullYear()));
+  // When drilled in from Track GST Return Activities, land on the clicked period.
+  const [selectedMonth] = useState(
+    location.state?.month || String(today.getMonth() + 1).padStart(2, "0")
+  );
+  const [selectedYear] = useState(
+    location.state?.year || String(today.getFullYear())
+  );
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gstr1Data, setGstr1Data] = useState<any>(null);
   const [gstr1Errors, setGstr1Errors] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [showErrorsDialog, setShowErrorsDialog] = useState(false);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
 
@@ -69,17 +75,22 @@ export default function GSTR1View() {
       setLoading(true);
       setError(null);
       let result;
+      // Scope the return to the registration we drilled into (Assam, etc.), so the
+      // counts reflect that GSTIN's outward supplies — not the whole company's.
+      const regId = activeRegistration?.gst_id ?? null;
       if (forceGenerate) {
         result = await window.api.gst.generateGSTR1({
           company_id: companyId,
           fy_id: fyId,
           return_period: returnPeriod,
+          gst_registration_id: regId,
         });
       } else {
         result = await window.api.gst.getGSTR1({
           company_id: companyId,
           fy_id: fyId,
           return_period: returnPeriod,
+          gst_registration_id: regId,
         });
       }
 
@@ -89,6 +100,17 @@ export default function GSTR1View() {
       } else {
         setError(result.error || "Failed to load GSTR-1 data.");
       }
+
+      // Real Total/Included/Not-Relevant/Uncertain counts — same classifier as the
+      // Statistics, Not-Relevant and Uncertain drill screens, so all numbers agree.
+      const statsRes = await window.api.gst.getReturnStatistics({
+        company_id: companyId,
+        fy_id: fyId,
+        return_period: returnPeriod,
+        return_type: "GSTR1",
+        gst_registration_id: regId,
+      });
+      setStats(statsRes.success && statsRes.statistics ? statsRes.statistics.totals : null);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
@@ -114,6 +136,19 @@ export default function GSTR1View() {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [navigate]);
+
+  // Drill from the "Total Vouchers / Included / Not Relevant" summary lines into the
+  // per-voucher-type Statistics screen, scoped to this registration + period.
+  const openStatistics = () => {
+    navigate("/master/statutory/gst/return-statistics", {
+      state: {
+        registration: activeRegistration,
+        month: selectedMonth,
+        year: selectedYear,
+        returnType: "GSTR1",
+      },
+    });
+  };
 
   const handleExportJson = () => {
     if (!gstr1Data) return;
@@ -202,26 +237,29 @@ export default function GSTR1View() {
     return { count, txval, iamt, camt, samt, csamt, val };
   }, [gstr1Data]);
 
+  const EMPTY = { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
+  // `section` keys map to the drill engine's classifier; null = a section with no
+  // book data (amendments/advances) — its drill shows an honestly empty screen.
   const rows = [
-    { label: "B2B Invoices - 4A, 4B, 4C, 6B, 6C", data: b2bData, bold: true },
-    { label: "B2C (Large) Invoices - 5A, 5B", data: b2clData },
-    { label: "Exports Invoices - 6A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Credit or Debit Notes (Registered) - 9B", data: cdnrData },
-    { label: "Credit or Debit Notes (Unregistered) - 9B", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Amended B2B Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Amended B2C (Large) Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Amended Exports Invoices - 9A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Amended Credit or Debit Notes (Registered) - 9C", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Amended Credit or Debit Notes (Unregistered) - 9C", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "B2C (Small) Invoices - 7", data: b2csData },
-    { label: "Nil Rated Invoices - 8A, 8B, 8C, 8D", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Amendment B2C (Small) Invoices - 10", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Tax Liability (Advances Received) - 11A(1), 11A(2)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Adjustment of Advances - 11B(1), 11B(2)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Amended Tax Liability (Advances Received) - 11A", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Amendment of Adjusted Advances - 11B", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "HSN Summary - 12 (B2B - B2C Supplies)", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
-    { label: "Document Summary - 13", data: { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 } },
+    { label: "B2B Invoices - 4A, 4B, 4C, 6B, 6C", data: b2bData, bold: true, section: "b2b" },
+    { label: "B2C (Large) Invoices - 5A, 5B", data: b2clData, section: "b2cl" },
+    { label: "Exports Invoices - 6A", data: EMPTY, section: "exports" },
+    { label: "Credit or Debit Notes (Registered) - 9B", data: cdnrData, section: "cdnr" },
+    { label: "Credit or Debit Notes (Unregistered) - 9B", data: EMPTY, section: "cdnur" },
+    { label: "Amended B2B Invoices - 9A", data: EMPTY, section: null },
+    { label: "Amended B2C (Large) Invoices - 9A", data: EMPTY, section: null },
+    { label: "Amended Exports Invoices - 9A", data: EMPTY, section: null },
+    { label: "Amended Credit or Debit Notes (Registered) - 9C", data: EMPTY, section: null },
+    { label: "Amended Credit or Debit Notes (Unregistered) - 9C", data: EMPTY, section: null },
+    { label: "B2C (Small) Invoices - 7", data: b2csData, section: "b2cs" },
+    { label: "Nil Rated Invoices - 8A, 8B, 8C, 8D", data: EMPTY, section: "nil" },
+    { label: "Amendment B2C (Small) Invoices - 10", data: EMPTY, section: null },
+    { label: "Tax Liability (Advances Received) - 11A(1), 11A(2)", data: EMPTY, section: null },
+    { label: "Adjustment of Advances - 11B(1), 11B(2)", data: EMPTY, section: null },
+    { label: "Amended Tax Liability (Advances Received) - 11A", data: EMPTY, section: null },
+    { label: "Amendment of Adjusted Advances - 11B", data: EMPTY, section: null },
+    { label: "HSN Summary - 12 (B2B - B2C Supplies)", data: EMPTY, section: "hsn" },
+    { label: "Document Summary - 13", data: EMPTY, section: "docs" },
   ];
 
   const totalVouchers = b2bData.count + b2clData.count + b2csData.count + cdnrData.count;
@@ -300,21 +338,41 @@ export default function GSTR1View() {
             <div className="flex-1">P a r t i c u l a r s</div>
             <div className="w-32 text-right">Voucher Count</div>
           </div>
-          <div className="flex px-2 py-0.5 font-bold">
+          <div
+            className="flex px-2 py-0.5 font-bold cursor-pointer hover:bg-[#e6f2ff]"
+            onClick={() => openStatistics()}
+          >
             <div className="flex-1">Total Vouchers</div>
-            <div className="w-32 text-right">{totalVouchers || ""}</div>
+            <div className="w-32 text-right">{stats ? stats.total : ""}</div>
           </div>
-          <div className="flex px-4 py-0.5">
+          <div
+            className="flex px-4 py-0.5 cursor-pointer hover:bg-[#e6f2ff]"
+            onClick={() => openStatistics()}
+          >
             <div className="flex-1">Included in Return</div>
-            <div className="w-32 text-right">{totalVouchers || ""}</div>
+            <div className="w-32 text-right">{stats ? stats.included_ok + stats.included_pending : ""}</div>
           </div>
-          <div className="flex px-4 py-0.5 text-gray-600">
+          <div
+            className="flex px-4 py-0.5 text-gray-600 cursor-pointer hover:bg-[#e6f2ff]"
+            onClick={() =>
+              navigate("/master/statutory/gst/not-relevant", {
+                state: { registration: activeRegistration, month: selectedMonth, year: selectedYear, returnType: "GSTR1" },
+              })
+            }
+          >
             <div className="flex-1">Not Relevant for This Return</div>
-            <div className="w-32 text-right">0</div>
+            <div className="w-32 text-right">{stats ? stats.not_relevant : ""}</div>
           </div>
-          <div className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2 cursor-pointer hover:underline" onClick={() => { if(gstr1Errors.length > 0) setShowErrorsDialog(true); }}>
+          <div
+            className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2 cursor-pointer hover:underline"
+            onClick={() =>
+              navigate("/master/statutory/gst/uncertain", {
+                state: { registration: activeRegistration, month: selectedMonth, year: selectedYear, returnType: "GSTR1" },
+              })
+            }
+          >
             <div className="flex-1">Uncertain Transactions (Corrections needed)</div>
-            <div className="w-32 text-right">{gstr1Errors.length || ""}</div>
+            <div className="w-32 text-right">{stats ? stats.uncertain : ""}</div>
           </div>
         </div>
 
@@ -343,7 +401,19 @@ export default function GSTR1View() {
               return (
                 <TableRow
                   key={idx}
-                  onClick={() => setSelectedRow(idx)}
+                  onClick={() => {
+                    setSelectedRow(idx);
+                    navigate("/master/statutory/gstr1/section", {
+                      state: {
+                        registration: activeRegistration,
+                        month: selectedMonth,
+                        year: selectedYear,
+                        section: row.section,
+                        label: row.label,
+                        returnType: "GSTR1",
+                      },
+                    });
+                  }}
                   className={cn(
                     "border-0 cursor-pointer hover:bg-[#e6f2ff]",
                     isSelected

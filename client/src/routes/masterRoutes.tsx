@@ -76,6 +76,11 @@ import GSTClassificationAlter from "../pages/master/statutory/gst-classification
 import GSTClassificationCOA from "../pages/master/statutory/gst-classification/GSTClassificationCOA.tsx";
 import TrackGSTReturnActivities from "../pages/master/statutory/gst-return/TrackGSTReturnActivities.tsx";
 import GSTR1View from "../pages/master/statutory/gst-return/GSTR1View.tsx";
+import GSTReturnStatistics from "../pages/master/statutory/gst-return/GSTReturnStatistics.tsx";
+import GSTVoucherRegister from "../pages/master/statutory/gst-return/GSTVoucherRegister.tsx";
+import GSTR1SectionDetail from "../pages/master/statutory/gst-return/GSTR1SectionDetail.tsx";
+import GSTRNotRelevant from "../pages/master/statutory/gst-return/GSTRNotRelevant.tsx";
+import GSTRUncertain from "../pages/master/statutory/gst-return/GSTRUncertain.tsx";
 import GSTR1Reconciliation from "../pages/master/statutory/gst-return/GSTR1-Reconcilation.tsx";
 import GSTR3BView from "../pages/master/statutory/gst-return/GSTR-3B.tsx";
 import AnnualComputation from "../pages/master/statutory/gst-return/AnnualComputation.tsx";
@@ -259,6 +264,11 @@ export const masterRoutes: RouteConfig[] = [
 
   // Statutory — GST Returns
   { path: "/master/statutory/gst/track-activities", element: <TrackGSTReturnActivities /> },
+  { path: "/master/statutory/gst/return-statistics", element: <GSTReturnStatistics /> },
+  { path: "/master/statutory/gst/voucher-register", element: <GSTVoucherRegister /> },
+  { path: "/master/statutory/gstr1/section", element: <GSTR1SectionDetail /> },
+  { path: "/master/statutory/gst/not-relevant", element: <GSTRNotRelevant /> },
+  { path: "/master/statutory/gst/uncertain", element: <GSTRUncertain /> },
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
   { path: "/master/statutory/gstr1/reconciliation", element: <GSTR1Reconciliation /> },
   { path: "/master/statutory/gstr3b", element: <GSTR3BView /> },

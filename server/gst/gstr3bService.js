@@ -12,11 +12,11 @@ const {
 } = require('../db/schema');
 const { resolveStateCode, resolveTaxRate, computeVoucherTaxLines } = require('./gstTaxEngine');
 
-const getGSTR3B = async (company_id, fy_id, return_period) => {
-  return await generateGSTR3B(company_id, fy_id, return_period);
+const getGSTR3B = async (company_id, fy_id, return_period, gst_registration_id = null) => {
+  return await generateGSTR3B(company_id, fy_id, return_period, gst_registration_id);
 };
 
-const generateGSTR3B = async (company_id, fy_id, return_period) => {
+const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration_id = null) => {
   try {
     const month = return_period.substring(0, 2);
     const year = return_period.substring(2, 6);
@@ -34,24 +34,39 @@ const generateGSTR3B = async (company_id, fy_id, return_period) => {
     const company = companyRows[0];
     if (!company) return { success: false, error: 'Company not found' };
 
-    const companyGstRows = await db.all(
-      sql`SELECT * FROM ${gstRegistrations}
+    // Active registrations (ordered). When a specific registration is requested
+    // (drill-down), compute the return for THAT registration and use its GSTIN.
+    const activeRegs = await db.all(
+      sql`SELECT gst_id, gstin, state_id FROM ${gstRegistrations}
           WHERE ${gstRegistrations.companyId} = ${company_id}
             AND ${gstRegistrations.isActive} = 1
-          LIMIT 1`
+          ORDER BY gst_id ASC`
     );
-    const companyReg = companyGstRows[0];
+    const primaryId = activeRegs[0] ? Number(activeRegs[0].gst_id) : null;
+    const companyReg = gst_registration_id != null
+      ? activeRegs.find((r) => Number(r.gst_id) === Number(gst_registration_id))
+      : activeRegs[0];
     const companyGSTIN = companyReg ? companyReg.gstin : "";
     const companyState = companyReg ? companyReg.state_id : "";
     const companyStateCode = resolveStateCode(companyState, companyGSTIN);
 
-    // 2. Fetch all vouchers in the date range
+    // The primary (first active) registration also owns legacy vouchers whose
+    // gst_registration_id is NULL; a secondary registration matches its id exactly.
+    let regFilter = sql``;
+    if (gst_registration_id != null) {
+      regFilter = Number(gst_registration_id) === primaryId
+        ? sql`AND (v.gst_registration_id = ${gst_registration_id} OR v.gst_registration_id IS NULL)`
+        : sql`AND v.gst_registration_id = ${gst_registration_id}`;
+    }
+
+    // 2. Fetch all vouchers in the date range (scoped to the registration if given)
     const rawVouchers = await db.all(
       sql`SELECT v.*, l.name as party_name, l.gstin as party_gstin, l.state as party_state, l.registration_type as party_reg_type
           FROM ${vouchers} v
           LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
           WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
             AND v.date >= ${startDate} AND v.date < ${endDate}
+            ${regFilter}
           ORDER BY v.date ASC`
     );
 

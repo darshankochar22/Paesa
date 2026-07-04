@@ -495,14 +495,151 @@ const getChallanReconciliation = async (company_id, fy_id) => {
   }
 };
 
-// Real return-filing status for the "Track GST Return Activities" dashboard,
-// computed from books (data-quality exceptions + whether a return has been filed).
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+// Build the 12 months of a financial year from its start date ('YYYY-MM-DD').
+// Each entry carries the keys used downstream: `ym` for GROUP BY substr(date,1,7),
+// `period` as MMYYYY (the gst_filings key) and a human `label` like "Apr-26".
+const buildFyMonths = (fyStartDate) => {
+  const [ys, ms] = String(fyStartDate || '').split('-').map(Number);
+  const startYear = Number.isFinite(ys) ? ys : new Date().getFullYear();
+  const startMonth = Number.isFinite(ms) ? ms : 4;
+  const months = [];
+  let y = startYear;
+  let m = startMonth;
+  for (let i = 0; i < 12; i++) {
+    const mm = String(m).padStart(2, '0');
+    months.push({
+      ym: `${y}-${mm}`,
+      period: `${mm}${y}`,
+      label: `${MONTH_ABBR[m - 1]}-${String(y).slice(-2)}`,
+    });
+    if (m === 12) { m = 1; y += 1; } else { m += 1; }
+  }
+  return months;
+};
+
+// Real return-filing status for the "Track GST Return Activities" dashboard.
+// Returns a per-registration -> per-month -> per-return matrix computed from the
+// books (data-quality exceptions per period drive "Corrections Needed"; the
+// gst_filings / gstr1_exports lifecycle drives "Pending to Be Filed"). A flat
+// company-wide `returns` roll-up is kept for backward compatibility.
+//
+// Columns match TallyPrime's report. "Pending for Upload" (GSTR-1 only) and
+// "Exceptions in Reconciliation" stay "No" until the GST portal data is actually
+// uploaded/imported — there is no portal round-trip in this offline clone, so we
+// report them honestly as not-pending rather than fabricating a status.
 const getReturnActivities = async (company_id, fy_id) => {
   try {
-    const { fyLabel } = await getDatesForFY(fy_id);
+    const { fyStartDate, fyLabel } = await getDatesForFY(fy_id);
+    const months = buildFyMonths(fyStartDate);
 
-    // GSTR-1 corrections: outward sales invoices with a data-quality problem
-    // (registered party but missing/invalid GSTIN, or a missing place of supply).
+    // Active registrations for the company; the first is treated as the primary
+    // registration and also owns legacy vouchers whose gst_registration_id is NULL.
+    const regRows = await db.all(
+      sql`SELECT gst_id, state_id, gstin, legal_name, trade_name, gst_username
+          FROM ${gstRegistrations}
+          WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1
+          ORDER BY gst_id ASC`
+    );
+
+    // Filed periods (company-level; gst_filings has no per-registration column).
+    const filedGSTR1 = new Set();
+    const filedGSTR3B = new Set();
+    try {
+      const rows = await db.all(sql`SELECT return_type, return_period FROM gst_filings WHERE company_id = ${company_id} AND status = 'FILED'`);
+      for (const r of rows) {
+        if (r.return_type === 'GSTR1') filedGSTR1.add(String(r.return_period));
+        if (r.return_type === 'GSTR3B') filedGSTR3B.add(String(r.return_period));
+      }
+    } catch (_) { /* table may not exist */ }
+    try {
+      const rows = await db.all(sql`SELECT return_period FROM gstr1_exports WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND status = 'Filed'`);
+      for (const r of rows) filedGSTR1.add(String(r.return_period));
+    } catch (_) { /* table may not exist */ }
+
+    const registrations = [];
+    for (let idx = 0; idx < regRows.length; idx++) {
+      const reg = regRows[idx];
+      const isPrimary = idx === 0;
+      // When the company's own registration is invalid/unspecified, every voucher
+      // in that registration becomes an "uncertain transaction" (corrections needed) —
+      // mirrors Tally's "GST Registration Details of the Company are invalid" exception.
+      const gstinInvalid = !GSTIN_RE.test(String(reg.gstin || '').toUpperCase());
+      const regFilter = isPrimary
+        ? sql`(v.gst_registration_id = ${reg.gst_id} OR v.gst_registration_id IS NULL)`
+        : sql`v.gst_registration_id = ${reg.gst_id}`;
+
+      // Outward docs (GSTR-1 / GSTR-3B side) per month, with a data-quality count.
+      const outRows = await db.all(
+        sql`SELECT substr(v.date, 1, 7) AS ym,
+                   COUNT(DISTINCT v.voucher_id) AS total,
+                   COUNT(DISTINCT CASE WHEN (
+                     (l.registration_type IS NOT NULL AND l.registration_type != 'Unregistered'
+                        AND (l.gstin IS NULL OR l.gstin = '' OR length(l.gstin) != 15))
+                     OR COALESCE(v.place_of_supply, '') = ''
+                   ) THEN v.voucher_id END) AS corr
+            FROM ${vouchers} v
+            LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+              AND v.voucher_type IN ('Sales', 'Credit Note', 'Debit Note')
+              AND ${regFilter}
+            GROUP BY ym`
+      );
+      // Inward docs (GSTR-2A / GSTR-2B side) per month, with a data-quality count.
+      const inRows = await db.all(
+        sql`SELECT substr(v.date, 1, 7) AS ym,
+                   COUNT(DISTINCT v.voucher_id) AS total,
+                   COUNT(DISTINCT CASE WHEN (
+                     l.registration_type IS NOT NULL AND l.registration_type != 'Unregistered'
+                       AND (l.gstin IS NULL OR l.gstin = '' OR length(l.gstin) != 15)
+                   ) THEN v.voucher_id END) AS corr
+            FROM ${vouchers} v
+            LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+              AND v.voucher_type = 'Purchase'
+              AND ${regFilter}
+            GROUP BY ym`
+      );
+      const outByYm = {};
+      for (const r of outRows) outByYm[r.ym] = r;
+      const inByYm = {};
+      for (const r of inRows) inByYm[r.ym] = r;
+
+      const monthEntries = months.map((mo) => {
+        const o = outByYm[mo.ym] || {};
+        const i = inByYm[mo.ym] || {};
+        const outTotal = Number(o.total || 0);
+        const inTotal = Number(i.total || 0);
+        const outCorr = gstinInvalid ? outTotal : Number(o.corr || 0);
+        const inCorr = gstinInvalid ? inTotal : Number(i.corr || 0);
+        const g1Filed = filedGSTR1.has(mo.period);
+        const g3bFiled = filedGSTR3B.has(mo.period);
+        return {
+          period: mo.period,
+          label: mo.label,
+          returns: [
+            { name: 'GSTR-1', corrections: outCorr, pending_upload: 0, recon_exceptions: 0, pending_file: g1Filed ? 0 : 1 },
+            { name: 'GSTR-2A', corrections: inCorr, pending_upload: null, recon_exceptions: 0, pending_file: null },
+            { name: 'GSTR-2B', corrections: inCorr, pending_upload: null, recon_exceptions: 0, pending_file: null },
+            { name: 'GSTR-3B', corrections: outCorr + inCorr, pending_upload: null, recon_exceptions: 0, pending_file: g3bFiled ? 0 : 1 },
+          ],
+        };
+      });
+
+      registrations.push({
+        gst_id: reg.gst_id,
+        state_id: reg.state_id,
+        gstin: reg.gstin,
+        name: reg.state_id
+          ? `${reg.state_id} Registration`
+          : (reg.trade_name || reg.legal_name || reg.gst_username || reg.gstin || 'Registration'),
+        months: monthEntries,
+      });
+    }
+
+    // ---- Backward-compatible flat company-wide roll-up (legacy consumers/tests) ----
     const corrRows = await db.all(
       sql`SELECT COUNT(DISTINCT v.voucher_id) AS n
           FROM ${vouchers} v
@@ -516,9 +653,6 @@ const getReturnActivities = async (company_id, fy_id) => {
             )`
     );
     const corrections = Number(corrRows[0]?.n || 0);
-
-    // Inward documents — treated as reconciliation exceptions until matched against
-    // imported 2A/2B portal data.
     const purRows = await db.all(
       sql`SELECT COUNT(DISTINCT v.voucher_id) AS n
           FROM ${vouchers} v
@@ -527,27 +661,304 @@ const getReturnActivities = async (company_id, fy_id) => {
     );
     const inwardCount = Number(purRows[0]?.n || 0);
 
-    let gstr1Filed = false;
-    let gstr3bFiled = false;
-    try {
-      const r = await db.all(sql`SELECT COUNT(*) AS n FROM gstr1_exports WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND status = 'Filed'`);
-      gstr1Filed = Number(r[0]?.n || 0) > 0;
-    } catch (_) { /* table may not exist */ }
-    try {
-      const r = await db.all(sql`SELECT COUNT(*) AS n FROM gstr3b_exports WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND status = 'Filed'`);
-      gstr3bFiled = Number(r[0]?.n || 0) > 0;
-    } catch (_) { /* table may not exist */ }
-
     return {
       success: true,
       activities: {
         period_label: fyLabel,
+        registrations,
         returns: [
-          { name: 'GSTR-1', corrections, pending_upload: 0, recon_exceptions: 0, pending_file: gstr1Filed ? 0 : 1 },
+          { name: 'GSTR-1', corrections, pending_upload: 0, recon_exceptions: 0, pending_file: filedGSTR1.size > 0 ? 0 : 1 },
           { name: 'GSTR-2A', corrections: 0, pending_upload: null, recon_exceptions: inwardCount, pending_file: null },
           { name: 'GSTR-2B', corrections: 0, pending_upload: null, recon_exceptions: inwardCount, pending_file: null },
-          { name: 'GSTR-3B', corrections, pending_upload: 0, recon_exceptions: 0, pending_file: gstr3bFiled ? 0 : 1 },
+          { name: 'GSTR-3B', corrections, pending_upload: 0, recon_exceptions: 0, pending_file: filedGSTR3B.size > 0 ? 0 : 1 },
         ],
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Return-period drill engine — shared by Statistics, section summaries/registers,
+// Not-Relevant breakdown and Uncertain Transactions, so every screen in the
+// GSTR-1 / GSTR-3B drill chain reports the SAME classification of the SAME
+// vouchers. All data is real (from books); nothing is fabricated.
+// ───────────────────────────────────────────────────────────────────────────────
+const OUTWARD_TYPES = ['Sales', 'Credit Note', 'Debit Note'];
+const INVENTORY_TYPES = ['Delivery Note', 'Receipt Note', 'Stock Journal', 'Physical Stock', 'Material In', 'Material Out', 'Rejections In', 'Rejections Out'];
+const ORDER_TYPES = ['Purchase Order', 'Sales Order', 'Job Work In Order', 'Job Work Out Order'];
+const PAYROLL_TYPES = ['Payroll', 'Salary Slip'];
+const B2CL_THRESHOLD = 250000;
+
+// Load every non-cancelled voucher of a return period (optionally scoped to a
+// registration) with party info + tax sums aggregated from voucher_stock_entries.
+const fetchPeriodVouchers = async (company_id, fy_id, return_period, gstRegistrationId) => {
+  const month = String(return_period).substring(0, 2);
+  const year = String(return_period).substring(2, 6);
+  const startDate = `${year}-${month}-01`;
+  const nm = Number(month) === 12 ? 1 : Number(month) + 1;
+  const ny = Number(month) === 12 ? Number(year) + 1 : Number(year);
+  const endDate = `${ny}-${String(nm).padStart(2, '0')}-01`;
+
+  const activeRegs = await db.all(
+    sql`SELECT gst_id, gstin FROM ${gstRegistrations}
+        WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1
+        ORDER BY gst_id ASC`
+  );
+  const primaryId = activeRegs[0] ? Number(activeRegs[0].gst_id) : null;
+  const scopedReg = gstRegistrationId != null
+    ? activeRegs.find((r) => Number(r.gst_id) === Number(gstRegistrationId))
+    : activeRegs[0];
+  const companyGstinInvalid = !GSTIN_RE.test(String(scopedReg?.gstin || '').toUpperCase());
+
+  let regFilter = sql``;
+  if (gstRegistrationId != null) {
+    regFilter = Number(gstRegistrationId) === primaryId
+      ? sql`AND (v.gst_registration_id = ${gstRegistrationId} OR v.gst_registration_id IS NULL)`
+      : sql`AND v.gst_registration_id = ${gstRegistrationId}`;
+  }
+
+  const rows = await db.all(
+    sql`SELECT v.voucher_id, v.date, v.voucher_type, v.voucher_number, v.party_name,
+               v.place_of_supply, v.is_interstate,
+               l.name AS ledger_name, l.gstin AS party_gstin, l.registration_type AS party_reg_type,
+               COALESCE(s.stock_count, 0) AS stock_count,
+               COALESCE(s.taxable, 0) AS taxable,
+               COALESCE(s.igst, 0) AS igst,
+               COALESCE(s.cgst, 0) AS cgst,
+               COALESCE(s.sgst, 0) AS sgst,
+               COALESCE(s.max_rate, 0) AS max_rate
+        FROM ${vouchers} v
+        LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+        LEFT JOIN (
+          SELECT voucher_id, COUNT(*) AS stock_count, SUM(amount) AS taxable,
+                 SUM(igst_amount) AS igst, SUM(cgst_amount) AS cgst,
+                 SUM(sgst_amount) AS sgst, MAX(gst_rate) AS max_rate
+          FROM ${voucherStockEntries} GROUP BY voucher_id
+        ) s ON s.voucher_id = v.voucher_id
+        WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+          AND v.date >= ${startDate} AND v.date < ${endDate}
+          ${regFilter}
+        ORDER BY v.date ASC, v.voucher_id ASC`
+  );
+  return { rows, companyGstinInvalid };
+};
+
+// Classify one voucher: bucket (included / not_relevant / uncertain), the
+// Not-Relevant grouping (non_gst category or other_returns), the GSTR-1 section
+// it lands in when included, and the concrete exceptions when uncertain.
+const classifyVoucher = (v, returnType, companyGstinInvalid) => {
+  const isOutward = OUTWARD_TYPES.includes(v.voucher_type);
+  const isInward = v.voucher_type === 'Purchase';
+  const relevant = returnType === 'GSTR3B' ? (isOutward || isInward) : isOutward;
+
+  if (!relevant) {
+    let group = 'non_gst';
+    let category = 'Other Transactions';
+    if (returnType !== 'GSTR3B' && isInward) { group = 'other_returns'; category = 'Transactions of Other GST Returns'; }
+    else if (v.voucher_type === 'Contra') category = 'Contra Vouchers';
+    else if (INVENTORY_TYPES.includes(v.voucher_type)) category = 'Inventory Vouchers';
+    else if (ORDER_TYPES.includes(v.voucher_type)) category = 'Order Vouchers';
+    else if (PAYROLL_TYPES.includes(v.voucher_type)) category = 'Payroll Vouchers';
+    return { bucket: 'not_relevant', group, category, section: null, exceptions: [] };
+  }
+
+  const exceptions = [];
+  if (companyGstinInvalid) exceptions.push('GST Registration Details of the Company are invalid or not specified');
+  const partyRegistered = v.party_reg_type && v.party_reg_type !== 'Unregistered';
+  if (partyRegistered && (!v.party_gstin || String(v.party_gstin).length !== 15)) {
+    exceptions.push('Party is registered but its GSTIN/UIN is missing or invalid');
+  }
+  if (!String(v.place_of_supply || '').trim()) exceptions.push('Place of supply is not specified');
+  if (Number(v.stock_count || 0) === 0) exceptions.push('No item or tax details available in the voucher');
+  if (exceptions.length) return { bucket: 'uncertain', group: null, category: null, section: null, exceptions };
+
+  // GSTR-1 section for an included outward voucher.
+  const hasGstin = !!v.party_gstin;
+  let section = null;
+  if (v.voucher_type === 'Credit Note') section = hasGstin ? 'cdnr' : 'cdnur';
+  else if (Number(v.max_rate || 0) === 0) section = 'nil';
+  else if (hasGstin) section = 'b2b';
+  else if (Number(v.is_interstate || 0) === 1 && invoiceOf(v) > B2CL_THRESHOLD) section = 'b2cl';
+  else section = 'b2cs';
+  return { bucket: 'included', group: null, category: null, section, exceptions: [] };
+};
+
+const invoiceOf = (v) =>
+  Number(v.taxable || 0) + Number(v.igst || 0) + Number(v.cgst || 0) + Number(v.sgst || 0);
+
+const voucherRow = (v, cls) => ({
+  voucher_id: v.voucher_id,
+  date: v.date,
+  particulars: v.party_name || v.ledger_name || '',
+  voucher_type: v.voucher_type,
+  voucher_number: v.voucher_number,
+  party_gstin: v.party_gstin || '',
+  taxable: Number(v.taxable || 0),
+  igst: Number(v.igst || 0),
+  cgst: Number(v.cgst || 0),
+  sgst: Number(v.sgst || 0),
+  cess: 0,
+  tax: Number(v.igst || 0) + Number(v.cgst || 0) + Number(v.sgst || 0),
+  invoice: invoiceOf(v),
+  exceptions: cls ? cls.exceptions : [],
+});
+
+// Voucher-type "Statistics" — the drill behind the "Total Vouchers" line.
+const getReturnStatistics = async (company_id, fy_id, return_period, opts = {}) => {
+  try {
+    const returnType = opts.return_type || 'GSTR1';
+    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, return_period, gstRegistrationId);
+
+    const byType = {};
+    const bucketFor = (t) => {
+      if (!byType[t]) {
+        byType[t] = { voucher_type: t, total: 0, included_pending: 0, included_ok: 0, not_relevant: 0, uncertain: 0 };
+      }
+      return byType[t];
+    };
+
+    for (const v of rows) {
+      const b = bucketFor(v.voucher_type || 'Unknown');
+      b.total++;
+      const cls = classifyVoucher(v, returnType, companyGstinInvalid);
+      if (cls.bucket === 'not_relevant') b.not_relevant++;
+      else if (cls.bucket === 'uncertain') b.uncertain++;
+      else b.included_ok++;
+    }
+
+    const list = Object.values(byType).sort((a, b) => a.voucher_type.localeCompare(b.voucher_type));
+    const totals = list.reduce(
+      (acc, r) => ({
+        total: acc.total + r.total,
+        included_pending: acc.included_pending + r.included_pending,
+        included_ok: acc.included_ok + r.included_ok,
+        not_relevant: acc.not_relevant + r.not_relevant,
+        uncertain: acc.uncertain + r.uncertain,
+      }),
+      { total: 0, included_pending: 0, included_ok: 0, not_relevant: 0, uncertain: 0 }
+    );
+
+    return { success: true, statistics: { return_type: returnType, rows: list, totals } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Voucher list for any drill: filter by bucket ('included'|'not_relevant'|'uncertain'|
+// 'all'), Not-Relevant category, voucher type and/or GSTR-1 section. Sections 'hsn'
+// and 'docs' return their aggregate summaries instead of a voucher list.
+const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) => {
+  try {
+    const returnType = opts.return_type || 'GSTR1';
+    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, return_period, gstRegistrationId);
+
+    // HSN summary (section 12): aggregate the included vouchers' stock lines by HSN.
+    if (opts.section === 'hsn') {
+      const includedIds = rows
+        .filter((v) => classifyVoucher(v, returnType, companyGstinInvalid).bucket === 'included')
+        .map((v) => v.voucher_id);
+      if (includedIds.length === 0) return { success: true, rows: [], view: 'hsn' };
+      // db.execute(string, params) — sql`` templates can't expand an array into IN (...).
+      const placeholders = includedIds.map(() => '?').join(',');
+      const hsnRes = await db.execute(
+        `SELECT COALESCE(NULLIF(hsn_code, ''), 'Not Specified') AS hsn,
+                SUM(quantity) AS qty, SUM(amount) AS taxable,
+                SUM(igst_amount) AS igst, SUM(cgst_amount) AS cgst, SUM(sgst_amount) AS sgst
+         FROM voucher_stock_entries
+         WHERE voucher_id IN (${placeholders})
+         GROUP BY hsn ORDER BY hsn`,
+        includedIds
+      );
+      const hsnRows = hsnRes.rows || [];
+      return {
+        success: true,
+        view: 'hsn',
+        rows: hsnRows.map((r) => ({
+          hsn: r.hsn,
+          qty: Number(r.qty || 0),
+          taxable: Number(r.taxable || 0),
+          igst: Number(r.igst || 0),
+          cgst: Number(r.cgst || 0),
+          sgst: Number(r.sgst || 0),
+          cess: 0,
+          tax: Number(r.igst || 0) + Number(r.cgst || 0) + Number(r.sgst || 0),
+        })),
+      };
+    }
+
+    // Document summary (section 13): voucher-number ranges per voucher type.
+    if (opts.section === 'docs') {
+      const byType = {};
+      for (const v of rows) {
+        if (!OUTWARD_TYPES.includes(v.voucher_type)) continue;
+        const b = byType[v.voucher_type] || (byType[v.voucher_type] = { nature: v.voucher_type, from: null, to: null, count: 0 });
+        b.count++;
+        const n = String(v.voucher_number ?? '');
+        if (b.from === null || n < b.from) b.from = n;
+        if (b.to === null || n > b.to) b.to = n;
+      }
+      return {
+        success: true,
+        view: 'docs',
+        rows: Object.values(byType).map((b) => ({ ...b, cancelled: 0, net: b.count })),
+      };
+    }
+
+    const out = [];
+    for (const v of rows) {
+      const cls = classifyVoucher(v, returnType, companyGstinInvalid);
+      if (opts.bucket && opts.bucket !== 'all' && cls.bucket !== opts.bucket) continue;
+      if (opts.category && cls.category !== opts.category) continue;
+      if (opts.voucher_type && v.voucher_type !== opts.voucher_type) continue;
+      if (opts.section && cls.section !== opts.section) continue;
+      out.push(voucherRow(v, cls));
+    }
+    return { success: true, view: 'vouchers', rows: out };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// "Not Relevant for This Return" breakdown: Non-GST transaction categories with
+// per-voucher-type counts, plus Transactions of Other GST Returns (GSTR-1 only).
+const getNotRelevantBreakdown = async (company_id, fy_id, return_period, opts = {}) => {
+  try {
+    const returnType = opts.return_type || 'GSTR1';
+    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, return_period, gstRegistrationId);
+
+    const categories = {}; // category label -> { count, types: {type: count} }
+    let otherReturns = 0;
+    for (const v of rows) {
+      const cls = classifyVoucher(v, returnType, companyGstinInvalid);
+      if (cls.bucket !== 'not_relevant') continue;
+      if (cls.group === 'other_returns') { otherReturns++; continue; }
+      const c = categories[cls.category] || (categories[cls.category] = { count: 0, types: {} });
+      c.count++;
+      c.types[v.voucher_type] = (c.types[v.voucher_type] || 0) + 1;
+    }
+
+    const catList = Object.entries(categories)
+      .map(([label, c]) => ({
+        label,
+        count: c.count,
+        types: Object.entries(c.types)
+          .map(([voucher_type, count]) => ({ voucher_type, count }))
+          .sort((a, b) => a.voucher_type.localeCompare(b.voucher_type)),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    const nonGstTotal = catList.reduce((n, c) => n + c.count, 0);
+
+    return {
+      success: true,
+      breakdown: {
+        non_gst: { label: 'Non-GST transactions', count: nonGstTotal, categories: catList },
+        other_returns: returnType === 'GSTR3B' ? null : { label: 'Transactions of Other GST Returns', count: otherReturns },
+        total: nonGstTotal + (returnType === 'GSTR3B' ? 0 : otherReturns),
       },
     };
   } catch (err) {
@@ -563,4 +974,7 @@ module.exports = {
   getIMSInwardSupplies,
   getChallanReconciliation,
   getReturnActivities,
+  getReturnStatistics,
+  getReturnVouchers,
+  getNotRelevantBreakdown,
 };

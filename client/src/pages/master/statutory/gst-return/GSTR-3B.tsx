@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
 import { Button } from "@/components/shadcn/button";
@@ -46,19 +46,38 @@ function periodLabelFor(month: string, year: string) {
 export default function GSTR3BView() {
   const { selectedCompany, activeFY } = useCompany();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
 
   const today = new Date();
-  const [selectedMonth] = useState(String(today.getMonth() + 1).padStart(2, "0"));
-  const [selectedYear] = useState(String(today.getFullYear()));
+  // When drilled in from Track GST Return Activities, land on the clicked period.
+  const [selectedMonth] = useState(
+    location.state?.month || String(today.getMonth() + 1).padStart(2, "0")
+  );
+  const [selectedYear] = useState(
+    location.state?.year || String(today.getFullYear())
+  );
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
+
+  // Drill from the summary lines into the per-voucher-type Statistics screen.
+  const openStatistics = () => {
+    navigate("/master/statutory/gst/return-statistics", {
+      state: {
+        registration: location.state?.registration || fetchedRegistration,
+        month: selectedMonth,
+        year: selectedYear,
+        returnType: "GSTR3B",
+      },
+    });
+  };
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gstr3bData, setGstr3bData] = useState<any>(null);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
 
   const activeRegistration = location.state?.registration || fetchedRegistration;
   const registrationName = activeRegistration?.state_id
@@ -84,18 +103,22 @@ export default function GSTR3BView() {
     try {
       setLoading(true);
       setError(null);
+      // Scope the return to the registration we drilled into.
+      const regId = (location.state?.registration || fetchedRegistration)?.gst_id ?? null;
       let result;
       if (forceGenerate) {
         result = await window.api.gst.generateGSTR3B({
           company_id: companyId,
           fy_id: fyId,
           return_period: returnPeriod,
+          gst_registration_id: regId,
         });
       } else {
         result = await window.api.gst.getGSTR3B({
           company_id: companyId,
           fy_id: fyId,
           return_period: returnPeriod,
+          gst_registration_id: regId,
         });
       }
 
@@ -104,6 +127,16 @@ export default function GSTR3BView() {
       } else {
         setError(result.error || "Failed to load GSTR-3B data.");
       }
+
+      // Real classification counts — same engine as the drill screens.
+      const statsRes = await window.api.gst.getReturnStatistics({
+        company_id: companyId,
+        fy_id: fyId,
+        return_period: returnPeriod,
+        return_type: "GSTR3B",
+        gst_registration_id: regId,
+      });
+      setStats(statsRes.success && statsRes.statistics ? statsRes.statistics.totals : null);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
@@ -285,21 +318,41 @@ export default function GSTR3BView() {
             <div className="flex-1">P a r t i c u l a r s</div>
             <div className="w-32 text-right">Voucher Count</div>
           </div>
-          <div className="flex px-2 py-0.5 font-bold bg-[#ffcc00]">
+          <div
+            className="flex px-2 py-0.5 font-bold bg-[#ffcc00] cursor-pointer"
+            onClick={() => openStatistics()}
+          >
             <div className="flex-1">Total Vouchers</div>
-            <div className="w-32 text-right">{totalVouchers || ""}</div>
+            <div className="w-32 text-right">{stats ? stats.total : ""}</div>
           </div>
-          <div className="flex px-4 py-0.5">
+          <div
+            className="flex px-4 py-0.5 cursor-pointer hover:bg-[#e6f2ff]"
+            onClick={() => openStatistics()}
+          >
             <div className="flex-1">Included in Return</div>
-            <div className="w-32 text-right">{totalVouchers || ""}</div>
+            <div className="w-32 text-right">{stats ? stats.included_ok + stats.included_pending : ""}</div>
           </div>
-          <div className="flex px-4 py-0.5 text-gray-600">
+          <div
+            className="flex px-4 py-0.5 text-gray-600 cursor-pointer hover:bg-[#e6f2ff]"
+            onClick={() =>
+              navigate("/master/statutory/gst/not-relevant", {
+                state: { registration: activeRegistration, month: selectedMonth, year: selectedYear, returnType: "GSTR3B" },
+              })
+            }
+          >
             <div className="flex-1">Not Relevant for This Return</div>
-            <div className="w-32 text-right"></div>
+            <div className="w-32 text-right">{stats ? stats.not_relevant : ""}</div>
           </div>
-          <div className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2">
+          <div
+            className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2 cursor-pointer hover:underline"
+            onClick={() =>
+              navigate("/master/statutory/gst/uncertain", {
+                state: { registration: activeRegistration, month: selectedMonth, year: selectedYear, returnType: "GSTR3B" },
+              })
+            }
+          >
             <div className="flex-1">Uncertain Transactions (Corrections needed)</div>
-            <div className="w-32 text-right"></div>
+            <div className="w-32 text-right">{stats ? stats.uncertain : ""}</div>
           </div>
         </div>
 

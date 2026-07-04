@@ -120,10 +120,10 @@ export interface MasterDataAPI {
       taxLinesBreakdown: any[];
       error?: string;
     }>;
-    generateGSTR1: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; export_id: number; payload: any; errors: any[]; error?: string }>;
-    getGSTR1: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; export_id: number; status: string; filed_date?: string; payload: any; errors: any[]; error?: string }>;
-    generateGSTR3B: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; payload: any; error?: string }>;
-    getGSTR3B: (data: { company_id: number; fy_id: number; return_period: string }) => Promise<{ success: boolean; payload: any; error?: string }>;
+    generateGSTR1: (data: { company_id: number; fy_id: number; return_period: string; gst_registration_id?: number | null }) => Promise<{ success: boolean; export_id: number | null; payload: any; errors: any[]; error?: string }>;
+    getGSTR1: (data: { company_id: number; fy_id: number; return_period: string; gst_registration_id?: number | null }) => Promise<{ success: boolean; export_id: number | null; status?: string; filed_date?: string; payload: any; errors: any[]; error?: string }>;
+    generateGSTR3B: (data: { company_id: number; fy_id: number; return_period: string; gst_registration_id?: number | null }) => Promise<{ success: boolean; payload: any; error?: string }>;
+    getGSTR3B: (data: { company_id: number; fy_id: number; return_period: string; gst_registration_id?: number | null }) => Promise<{ success: boolean; payload: any; error?: string }>;
     getHSNRates: (company_id: number) => Promise<{ success: boolean; hsnRates: any[]; error?: string }>;
     upsertHSNRate: (data: any) => Promise<{ success: boolean; error?: string }>;
     deleteHSNRate: (data: { rate_id: number; company_id: number }) => Promise<{ success: boolean; error?: string }>;
@@ -134,7 +134,10 @@ export interface MasterDataAPI {
     importGSTR2B: (data: { company_id: number; fy_id: number; return_period: string; payload: any }) => Promise<{ success: boolean; error?: string }>;
     getIMSInwardSupplies: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; payload?: any; error?: string }>;
     getChallanReconciliation: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; payload?: any; error?: string }>;
-    getReturnActivities: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; activities?: { period_label: string; returns: { name: string; corrections: number; pending_upload: number | null; recon_exceptions: number; pending_file: number | null }[] }; error?: string }>;
+    getReturnActivities: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; activities?: { period_label: string; returns: { name: string; corrections: number; pending_upload: number | null; recon_exceptions: number; pending_file: number | null }[]; registrations: { gst_id: number; state_id: string | null; gstin: string | null; name: string; months: { period: string; label: string; returns: { name: string; corrections: number | null; pending_upload: number | null; recon_exceptions: number | null; pending_file: number | null }[] }[] }[] }; error?: string }>;
+    getReturnStatistics: (data: { company_id: number; fy_id: number; return_period: string; return_type?: string; gst_registration_id?: number | null }) => Promise<{ success: boolean; statistics?: { return_type: string; rows: { voucher_type: string; total: number; included_pending: number; included_ok: number; not_relevant: number; uncertain: number }[]; totals: { total: number; included_pending: number; included_ok: number; not_relevant: number; uncertain: number } }; error?: string }>;
+    getReturnVouchers: (data: { company_id: number; fy_id: number; return_period: string; return_type?: string; gst_registration_id?: number | null; bucket?: string; category?: string; voucher_type?: string; section?: string }) => Promise<{ success: boolean; view?: 'vouchers' | 'hsn' | 'docs'; rows?: any[]; error?: string }>;
+    getNotRelevantBreakdown: (data: { company_id: number; fy_id: number; return_period: string; return_type?: string; gst_registration_id?: number | null }) => Promise<{ success: boolean; breakdown?: { non_gst: { label: string; count: number; categories: { label: string; count: number; types: { voucher_type: string; count: number }[] }[] }; other_returns: { label: string; count: number } | null; total: number }; error?: string }>;
   };
 
   master: {

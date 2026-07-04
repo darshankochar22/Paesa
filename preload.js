@@ -370,6 +370,9 @@ contextBridge.exposeInMainWorld('api', {
         getIMSInwardSupplies: (data)      => invoke('gst:getIMSInwardSupplies', data),
         getChallanReconciliation: (data)  => invoke('gst:getChallanReconciliation', data),
         getReturnActivities:  (data)      => invoke('gst:getReturnActivities', data),
+        getReturnStatistics:  (data)      => invoke('gst:getReturnStatistics', data),
+        getReturnVouchers:    (data)      => invoke('gst:getReturnVouchers', data),
+        getNotRelevantBreakdown: (data)   => invoke('gst:getNotRelevantBreakdown', data),
     },
     master: {
         getMenu: (company_id) => invoke('master:getMenu', company_id),

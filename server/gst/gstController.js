@@ -17,20 +17,20 @@ module.exports = {
     }
   },
 
-  generateGSTR1: async (event, { company_id, fy_id, return_period }) => {
-    return await gstr1Service.generateGSTR1(company_id, fy_id, return_period);
+  generateGSTR1: async (event, { company_id, fy_id, return_period, gst_registration_id }) => {
+    return await gstr1Service.generateGSTR1(company_id, fy_id, return_period, gst_registration_id ?? null);
   },
 
-  getGSTR1: async (event, { company_id, fy_id, return_period }) => {
-    return await gstr1Service.getGSTR1(company_id, fy_id, return_period);
+  getGSTR1: async (event, { company_id, fy_id, return_period, gst_registration_id }) => {
+    return await gstr1Service.getGSTR1(company_id, fy_id, return_period, gst_registration_id ?? null);
   },
 
-  generateGSTR3B: async (event, { company_id, fy_id, return_period }) => {
-    return await gstr3bService.generateGSTR3B(company_id, fy_id, return_period);
+  generateGSTR3B: async (event, { company_id, fy_id, return_period, gst_registration_id }) => {
+    return await gstr3bService.generateGSTR3B(company_id, fy_id, return_period, gst_registration_id ?? null);
   },
 
-  getGSTR3B: async (event, { company_id, fy_id, return_period }) => {
-    return await gstr3bService.getGSTR3B(company_id, fy_id, return_period);
+  getGSTR3B: async (event, { company_id, fy_id, return_period, gst_registration_id }) => {
+    return await gstr3bService.getGSTR3B(company_id, fy_id, return_period, gst_registration_id ?? null);
   },
 
   getAnnualComputation: async (event, { company_id, fy_id }) => {
@@ -146,5 +146,17 @@ module.exports = {
 
   getReturnActivities: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getReturnActivities(company_id, fy_id);
+  },
+
+  getReturnStatistics: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id }) => {
+    return await reconciliationService.getReturnStatistics(company_id, fy_id, return_period, { return_type, gst_registration_id });
+  },
+
+  getReturnVouchers: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id, bucket, category, voucher_type, section }) => {
+    return await reconciliationService.getReturnVouchers(company_id, fy_id, return_period, { return_type, gst_registration_id, bucket, category, voucher_type, section });
+  },
+
+  getNotRelevantBreakdown: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id }) => {
+    return await reconciliationService.getNotRelevantBreakdown(company_id, fy_id, return_period, { return_type, gst_registration_id });
   }
 };

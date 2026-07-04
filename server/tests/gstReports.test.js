@@ -9,6 +9,7 @@ const ledgerService = require("../ledger/ledgerService");
 const voucherController = require("../voucher/voucherController");
 const gstReportService = require("../report/services/gstReportService");
 const reconciliationService = require("../gst/reconciliationService");
+const gstr1Service = require("../gst/gstr1Service");
 
 const ledgerId = (res) => res.ledger?.ledger_id ?? res.ledger_id ?? res.id;
 
@@ -230,5 +231,143 @@ describe("GST Reports engine", () => {
     expect(g1.pending_file).toBe(1);
     const g2a = res.activities.returns.find((r) => r.name === "GSTR-2A");
     expect(g2a.recon_exceptions).toBeGreaterThanOrEqual(1);
+  });
+
+  it("Track GST Return Activities builds a per-registration, per-month matrix from books", async () => {
+    // No GST registration is seeded by default — add a valid one so the matrix has a row.
+    // Its NULL-registration legacy vouchers (the sales/purchase above) attach to it as primary.
+    await db.execute(
+      `INSERT INTO gst_registrations (company_id, state_id, gstin, registration_type, registration_status, is_active) VALUES (?, ?, ?, 'Regular', 'Active', 1)`,
+      [companyId, "Maharashtra", "27ABCDE1234F1Z5"]
+    );
+    const res = await reconciliationService.getReturnActivities(companyId, fyId);
+    expect(res.success).toBe(true);
+
+    const regs = res.activities.registrations;
+    expect(Array.isArray(regs)).toBe(true);
+    expect(regs.length).toBeGreaterThanOrEqual(1);
+
+    const reg = regs[0];
+    expect(reg.name).toBe("Maharashtra Registration");
+    expect(reg.months).toHaveLength(12);
+    // Each month carries all four returns.
+    expect(reg.months[0].returns.map((r) => r.name)).toEqual(["GSTR-1", "GSTR-2A", "GSTR-2B", "GSTR-3B"]);
+
+    // Apr-2026 holds the seeded sales + purchase vouchers.
+    const apr = reg.months.find((m) => m.period === "042026");
+    expect(apr).toBeTruthy();
+    const g1 = apr.returns.find((r) => r.name === "GSTR-1");
+    const g2a = apr.returns.find((r) => r.name === "GSTR-2A");
+    const g3b = apr.returns.find((r) => r.name === "GSTR-3B");
+
+    // Nothing is filed → Pending to Be Filed = Yes(1) for GSTR-1/3B; 2A is not filable (null).
+    expect(g1.pending_file).toBe(1);
+    expect(g3b.pending_file).toBe(1);
+    expect(g2a.pending_file).toBeNull();
+    expect(g2a.pending_upload).toBeNull();
+
+    // Company GSTIN valid + party GSTIN valid + place of supply set → no corrections.
+    expect(g1.corrections).toBe(0);
+
+    // A month with no transactions is entirely clear.
+    const may = reg.months.find((m) => m.period === "052026");
+    expect(may.returns.find((r) => r.name === "GSTR-1").corrections).toBe(0);
+    expect(may.returns.find((r) => r.name === "GSTR-1").pending_file).toBe(1);
+  });
+
+  it("Return Statistics classifies vouchers by type for the drill from Total Vouchers", async () => {
+    // Runs after the matrix test, so a valid company registration exists.
+    const res = await reconciliationService.getReturnStatistics(companyId, fyId, "042026", { return_type: "GSTR1" });
+    expect(res.success).toBe(true);
+    const { rows, totals } = res.statistics;
+
+    const sales = rows.find((r) => r.voucher_type === "Sales");
+    const purchase = rows.find((r) => r.voucher_type === "Purchase");
+
+    // Outward sales with valid party GSTIN + place of supply → Included (no action needed).
+    expect(sales.total).toBe(1);
+    expect(sales.included_ok).toBe(1);
+    expect(sales.uncertain).toBe(0);
+    // Purchase is inward → Not Relevant for GSTR-1.
+    expect(purchase.total).toBe(1);
+    expect(purchase.not_relevant).toBe(1);
+
+    expect(totals.total).toBe(2);
+    expect(totals.included_ok).toBe(1);
+    expect(totals.not_relevant).toBe(1);
+  });
+
+  it("GSTR-1 scoped to a registration computes live (not persisted) with that reg's outward supplies", async () => {
+    const reg = await db.execute(
+      `SELECT gst_id FROM gst_registrations WHERE company_id = ? AND is_active = 1 ORDER BY gst_id ASC LIMIT 1`,
+      [companyId]
+    );
+    const regId = reg.rows[0].gst_id;
+
+    const res = await gstr1Service.generateGSTR1(companyId, fyId, "042026", regId);
+    expect(res.success).toBe(true);
+    // A registration-scoped computation must NOT persist a snapshot (would corrupt the
+    // company-wide gstr1_exports row keyed without a registration).
+    expect(res.export_id).toBeNull();
+
+    // The seeded April sales invoice (party "GST Customer", valid GSTIN) is a B2B invoice,
+    // picked up for the primary registration via the NULL-gst_registration_id fallback.
+    const invoiceCount = (res.payload.b2b || []).reduce((n, p) => n + (p.inv?.length || 0), 0);
+    expect(invoiceCount).toBeGreaterThanOrEqual(1);
+
+    // A month with no outward supplies for this registration computes to an empty return.
+    const empty = await gstr1Service.generateGSTR1(companyId, fyId, "062026", regId);
+    expect(empty.success).toBe(true);
+    const juneInvoices = (empty.payload.b2b || []).reduce((n, p) => n + (p.inv?.length || 0), 0);
+    expect(juneInvoices).toBe(0);
+  });
+
+  it("Return drill engine: sections, buckets, uncertain exceptions and Not-Relevant breakdown", async () => {
+    // Seed a June sales invoice WITHOUT place of supply → must land in 'uncertain'.
+    const bad = await voucherController.create(null, {
+      company_id: companyId, fy_id: fyId, voucher_type: "Sales", date: "2026-06-05",
+      status: "Regular", reference_number: "INV-BAD", place_of_supply: "",
+      party_ledger_id: partyId, party_name: "GST Customer",
+      is_accounting_voucher: 1, is_invoice: 1, is_inventory_voucher: 1, is_order_voucher: 0, is_post_dated: 0,
+      entries: [
+        { ledger_id: partyId, ledger_name: "GST Customer", type: "Dr", amount: 1180, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "GST Sales A/c", type: "Cr", amount: 1180, currency: "INR" },
+      ],
+      stock_entries: [{ item_name: "Widget", quantity: 1, rate: 1000, hsn_code: "8471" }],
+    });
+    expect(bad.success ?? !!bad.voucher).toBeTruthy();
+
+    // April: the valid B2B sales invoice lands in section 'b2b' with its real tax sums.
+    const b2b = await reconciliationService.getReturnVouchers(companyId, fyId, "042026", { bucket: "included", section: "b2b" });
+    expect(b2b.success).toBe(true);
+    expect(b2b.rows).toHaveLength(1);
+    expect(b2b.rows[0].taxable).toBe(10000);
+    expect(b2b.rows[0].tax).toBe(1800);
+    expect(b2b.rows[0].invoice).toBe(11800);
+
+    // April: Not-Relevant bucket holds the purchase (GSTR-1 → other GST returns).
+    const nr = await reconciliationService.getNotRelevantBreakdown(companyId, fyId, "042026", {});
+    expect(nr.success).toBe(true);
+    expect(nr.breakdown.other_returns.count).toBe(1);
+
+    // June: the bad invoice is uncertain, with a concrete exception message.
+    const unc = await reconciliationService.getReturnVouchers(companyId, fyId, "062026", { bucket: "uncertain" });
+    expect(unc.success).toBe(true);
+    expect(unc.rows).toHaveLength(1);
+    expect(unc.rows[0].exceptions.join(" ")).toMatch(/Place of supply/);
+
+    // HSN summary aggregates included vouchers' stock lines by HSN code.
+    const hsn = await reconciliationService.getReturnVouchers(companyId, fyId, "042026", { section: "hsn" });
+    expect(hsn.success).toBe(true);
+    expect(hsn.view).toBe("hsn");
+    expect(hsn.rows).toHaveLength(1);
+    expect(hsn.rows[0].hsn).toBe("8471");
+    expect(hsn.rows[0].taxable).toBe(10000);
+
+    // Document summary reports the outward voucher-number range.
+    const docs = await reconciliationService.getReturnVouchers(companyId, fyId, "042026", { section: "docs" });
+    expect(docs.success).toBe(true);
+    expect(docs.view).toBe("docs");
+    expect(docs.rows.find((r) => r.nature === "Sales")?.count).toBe(1);
   });
 });
