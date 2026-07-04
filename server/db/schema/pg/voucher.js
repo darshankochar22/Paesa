@@ -29,6 +29,10 @@ const vouchers = pgTable('vouchers', {
   partyLedgerId: bigint('party_ledger_id', { mode: 'number' }),
   partyName: text('party_name'),
   placeOfSupply: text('place_of_supply'),
+  // GST snapshot (immutable after save) — see server/voucher/voucher.js init() migrations.
+  gstRegistrationId: bigint('gst_registration_id', { mode: 'number' }),
+  companyState: text('company_state'),
+  isInterstate: boolean('is_interstate').default(false),
   isInvoice: boolean('is_invoice').default(false),
   isAccountingVoucher: boolean('is_accounting_voucher').default(true),
   isInventoryVoucher: boolean('is_inventory_voucher').default(false),

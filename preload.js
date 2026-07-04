@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('api', {
         update:         (data) => invoke('company:update', data),
         delete:         (id)   => invoke('company:delete', id),
         verifyPassword: (data) => invoke('company:verifyPassword', data),
+        setDefaultGstRegistration: (company_id, gst_registration_id) => invoke('company:setDefaultGstRegistration', { company_id, gst_registration_id }),
+        getDefaultGstRegistration: (company_id) => invoke('company:getDefaultGstRegistration', company_id),
     },
     taxUnits:{
         create:         (data)=> invoke('taxUnits:create',data),

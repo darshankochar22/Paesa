@@ -19,6 +19,10 @@ const stockItems = pgTable('stock_items', {
   // GST Applicability
   gstApplicable: text('gst_applicable').notNull().default('Not Applicable'),
 
+  // Cross-check link to a GST Classification master (FK -> gst_classifications(gc_id));
+  // plain bigint (cross-module). Classification gst_rate = "expected rate" for warnings only.
+  gstClassificationId: bigint('gst_classification_id', { mode: 'number' }),
+
   // HSN/SAC & related details
   hsnSac: text('hsn_sac'),
   sourceOfDetails: text('source_of_details').notNull().default('As per Company/Stock Group'),

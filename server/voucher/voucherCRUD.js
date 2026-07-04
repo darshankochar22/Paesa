@@ -226,24 +226,42 @@ module.exports = {
         data.is_accounting_voucher = 1;
       }
 
-      if (data.is_accounting_voucher && (data.voucher_type === 'Sales' || data.voucher_type === 'Purchase' || data.voucher_type === 'Credit Note' || data.voucher_type === 'Debit Note')) {
-        try {
-          const gstTaxEngine = require('../gst/gstTaxEngine');
-          if (data.is_accounting_voucher && data.entries) {
-                 if (!validateDoubleEntry(data.entries)) {
-                 return { success: false, error: 'Debit and Credit amounts must be equal' };
-                }
-          }
+      if (data.is_accounting_voucher && ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(data.voucher_type)) {
+        const gstTaxEngine = require('../gst/gstTaxEngine');
+        const gstValidation = require('../gst/gstValidation');
 
-        if (['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(data.voucher_type)) {
-          data.voucher_class_gst_ledgers = await resolveVoucherClassGstLedgers(data.company_id, data.voucher_type, data.voucher_class);
-          const computed = await gstTaxEngine.computeVoucherTaxLines(db, data);
-          data.entries = computed.entries;
-          data.stock_entries = computed.stock_entries;
-          data.computedGST = computed;
-       }
-        } catch (gstErr) {
-          console.error("GST calculation failed:", gstErr);
+        if (data.entries && !validateDoubleEntry(data.entries)) {
+          return { success: false, error: 'Debit and Credit amounts must be equal' };
+        }
+
+        data.voucher_class_gst_ledgers = await resolveVoucherClassGstLedgers(data.company_id, data.voucher_type, data.voucher_class);
+
+        if (data.voucher_class_gst_ledgers) {
+          // OPT-IN: a Voucher Type Class with GST-details mapping still auto-injects its
+          // explicitly mapped ledgers (existing feature — not the silent default flow).
+          try {
+            const computed = await gstTaxEngine.computeVoucherTaxLines(db, data);
+            if (gstValidation.isComposition(computed.company_registration_type) &&
+                (computed.total_cgst || computed.total_sgst || computed.total_igst || computed.total_cess)) {
+              return { success: false, error: 'Composition registration cannot apply any GST tax ledgers.' };
+            }
+            data.entries = computed.entries;
+            data.stock_entries = computed.stock_entries;
+            data.computedGST = computed;
+          } catch (gstErr) {
+            console.error('GST class calculation failed:', gstErr);
+          }
+        } else {
+          // DEFAULT MANUAL FLOW: keep the user's own tax-ledger selection, validate it at
+          // save (bugs 2/3/4/8), compute amounts per item (bug 7). No auto-inject (bug 1).
+          const result = await gstTaxEngine.validateAndComputeVoucherGst(db, data);
+          if (result.errors && result.errors.length > 0) {
+            return { success: false, error: result.errors[0] };
+          }
+          data.entries = result.entries;
+          data.stock_entries = result.stock_entries;
+          data.computedGST = result;
+          data.manualGST = result;
         }
       }
 
@@ -287,6 +305,10 @@ module.exports = {
             applicableUpto: nullify(data.applicable_upto) || null,
             voucherClass: nullify(data.voucher_class) || null,
             salesPurchaseLedgerId: nullify(data.sales_purchase_ledger_id) || null,
+            // GST snapshot captured at first save (immutable thereafter).
+            gstRegistrationId: data.computedGST ? (data.computedGST.gst_registration_id ?? null) : null,
+            companyState: data.computedGST ? (data.computedGST.company_state || null) : null,
+            isInterstate: data.computedGST ? (data.computedGST.is_inter_state ? 1 : 0) : 0,
           })
           .returning({ id: vouchers.voucherId });
 
@@ -596,7 +618,10 @@ module.exports = {
           });
         }
 
-        if (data.computedGST) {
+        if (data.manualGST) {
+          const gstTaxEngine = require('../gst/gstTaxEngine');
+          await gstTaxEngine.saveManualVoucherTaxLines(db, voucher_id, data.manualGST);
+        } else if (data.computedGST) {
           const gstTaxEngine = require('../gst/gstTaxEngine');
           await gstTaxEngine.saveVoucherTaxLines(db, voucher_id, data.computedGST);
         }
@@ -622,6 +647,18 @@ module.exports = {
         });
 
         await db.execute({ sql: 'COMMIT', args: [] });
+
+        // Bug 5: persist the voucher's chosen GST registration as the company's current
+        // default, so subsequent NEW vouchers prefill with it ("fixed until changed").
+        if (data.gst_registration_id && data.company_id) {
+          try {
+            await db.update(companies)
+              .set({ currentDefaultGstRegistrationId: Number(data.gst_registration_id) })
+              .where(eq(companies.companyId, data.company_id));
+          } catch (e) {
+            console.error('Failed to persist default GST registration:', e);
+          }
+        }
 
 // ── E-Invoice auto-trigger ────────────────────────────────────────────────────
 if (data.voucher_type === 'Sales' && data.is_invoice) {
@@ -880,8 +917,14 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       if (voucherRows.length === 0) return { success: false, error: 'Voucher not found' };
       const voucher = voucherRows[0];
 
+      // Enrich each entry with its GST tax tagging (LEFT JOIN ledger_statutory_details,
+      // 1:1) so the voucher view can show a tax ledger's rate % next to it, Tally-style.
       const entries = await db.all(
-        sql`SELECT * FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${id}`
+        sql`SELECT ve.*, sd.gst_tax_type AS gst_tax_type, sd.gst_rate AS gst_tax_rate,
+                   sd.type_of_duty_tax AS type_of_duty_tax
+            FROM ${voucherEntries} ve
+            LEFT JOIN ${ledgerStatutoryDetails} sd ON sd.ledger_id = ve.ledger_id
+            WHERE ve.voucher_id = ${id}`
       );
       // Joined so VoucherView can show Godown/per (unit) columns the way each
       // Create form does — vse.* alone only carries the bare godown_id/unit_id.
@@ -1193,25 +1236,57 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         data.entries !== undefined &&
         data.stock_entries !== undefined
       ) {
-        try {
-          const gstTaxEngine = require('../gst/gstTaxEngine');
-          const companyId = data.company_id || current.company_id;
-          const voucherClass = data.voucher_class !== undefined ? data.voucher_class : current.voucher_class;
-          const computed = await gstTaxEngine.computeVoucherTaxLines(db, {
-            company_id: companyId,
-            date: data.date || current.date,
-            party_ledger_id: data.party_ledger_id !== undefined ? data.party_ledger_id : current.party_ledger_id,
-            place_of_supply: data.place_of_supply !== undefined ? data.place_of_supply : current.place_of_supply,
-            stock_entries: data.stock_entries,
-            entries: data.entries,
-            voucher_type: voucherType,
-            voucher_class_gst_ledgers: await resolveVoucherClassGstLedgers(companyId, voucherType, voucherClass),
-          });
-          data.entries = computed.entries;
-          data.stock_entries = computed.stock_entries;
-          data.computedGST = computed;
-        } catch (gstErr) {
-          console.error("GST recalculation failed:", gstErr);
+        const gstTaxEngine = require('../gst/gstTaxEngine');
+        const gstValidation = require('../gst/gstValidation');
+        const companyId = data.company_id || current.company_id;
+        const voucherClass = data.voucher_class !== undefined ? data.voucher_class : current.voucher_class;
+        // Freeze GST identity to the voucher's own snapshot (STEP 7): amounts still
+        // recompute from changed stock lines, but registration/state/interstate never
+        // re-derive from the company's current default. Legacy rows (no snapshot yet)
+        // pass null → derived fresh, backfilling on this save.
+        const gstSnapshot = current.gst_registration_id != null
+          ? {
+              gst_registration_id: current.gst_registration_id,
+              company_state: current.company_state,
+              is_interstate: current.is_interstate,
+            }
+          : null;
+        const gstPayload = {
+          company_id: companyId,
+          date: data.date || current.date,
+          party_ledger_id: data.party_ledger_id !== undefined ? data.party_ledger_id : current.party_ledger_id,
+          place_of_supply: data.place_of_supply !== undefined ? data.place_of_supply : current.place_of_supply,
+          stock_entries: data.stock_entries,
+          entries: data.entries,
+          voucher_type: voucherType,
+          gst_snapshot: gstSnapshot,
+        };
+        const classGstLedgers = await resolveVoucherClassGstLedgers(companyId, voucherType, voucherClass);
+
+        if (classGstLedgers) {
+          // OPT-IN Voucher-Class GST mapping → auto-inject (legacy behavior).
+          try {
+            const computed = await gstTaxEngine.computeVoucherTaxLines(db, { ...gstPayload, voucher_class_gst_ledgers: classGstLedgers });
+            if (gstValidation.isComposition(computed.company_registration_type) &&
+                (computed.total_cgst || computed.total_sgst || computed.total_igst || computed.total_cess)) {
+              return { success: false, error: 'Composition registration cannot apply any GST tax ledgers.' };
+            }
+            data.entries = computed.entries;
+            data.stock_entries = computed.stock_entries;
+            data.computedGST = computed;
+          } catch (gstErr) {
+            console.error('GST class recalculation failed:', gstErr);
+          }
+        } else {
+          // DEFAULT MANUAL FLOW — validate the user's own tax ledgers, per-item amounts.
+          const result = await gstTaxEngine.validateAndComputeVoucherGst(db, gstPayload);
+          if (result.errors && result.errors.length > 0) {
+            return { success: false, error: result.errors[0] };
+          }
+          data.entries = result.entries;
+          data.stock_entries = result.stock_entries;
+          data.computedGST = result;
+          data.manualGST = result;
         }
 
         if (data.entries && data.entries.length > 0 && !validateDoubleEntry(data.entries)) {
@@ -1240,6 +1315,17 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           applicableUpto: nullify(data.applicable_upto) ?? nullify(current.applicable_upto),
           voucherClass: nullify(data.voucher_class) ?? nullify(current.voucher_class),
           salesPurchaseLedgerId: nullify(data.sales_purchase_ledger_id) ?? nullify(current.sales_purchase_ledger_id),
+          // GST snapshot: keep the existing one if present (immutable); otherwise backfill
+          // from this save's computation for legacy rows created before the snapshot existed.
+          gstRegistrationId: current.gst_registration_id != null
+            ? current.gst_registration_id
+            : (data.computedGST ? (data.computedGST.gst_registration_id ?? null) : null),
+          companyState: current.gst_registration_id != null
+            ? current.company_state
+            : (data.computedGST ? (data.computedGST.company_state || null) : nullify(current.company_state)),
+          isInterstate: current.gst_registration_id != null
+            ? current.is_interstate
+            : (data.computedGST ? (data.computedGST.is_inter_state ? 1 : 0) : (current.is_interstate ?? 0)),
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(vouchers.voucherId, data.voucher_id));
@@ -1587,7 +1673,10 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         }
       }
 
-      if (data.computedGST) {
+      if (data.manualGST) {
+        const gstTaxEngine = require('../gst/gstTaxEngine');
+        await gstTaxEngine.saveManualVoucherTaxLines(db, data.voucher_id, data.manualGST);
+      } else if (data.computedGST) {
         const gstTaxEngine = require('../gst/gstTaxEngine');
         await gstTaxEngine.saveVoucherTaxLines(db, data.voucher_id, data.computedGST);
       }

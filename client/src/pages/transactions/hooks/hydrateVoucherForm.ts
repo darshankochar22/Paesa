@@ -46,6 +46,12 @@ export function hydrateVoucherForm(form: any, v: any) {
   form.setSupplierInvoiceNo?.(v.supplier_invoice_no || "");
   form.setSupplierInvoiceDate?.(v.supplier_invoice_date || "");
   if (v.place_of_supply) form.setPlaceOfSupply?.(v.place_of_supply);
+  // Bug 5: restore the voucher's own GST registration on reopen (marks the field as
+  // explicitly set so the new-voucher default seeding never overrides it).
+  if (v.gst_registration_id != null) {
+    const reg = byId(form.allGstRegistrations, "gst_id", v.gst_registration_id);
+    if (reg) form.setGstRegistration?.(reg);
+  }
   form.setVoucherClass?.(v.voucher_class || "");
   form.setStatus?.(v.is_post_dated ? "Post-Dated" : "Regular");
 

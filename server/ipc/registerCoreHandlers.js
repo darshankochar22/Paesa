@@ -23,6 +23,8 @@ function register() {
   ipcMain.handle('company:update', companyController.update);
   ipcMain.handle('company:delete', companyController.delete);
   ipcMain.handle('company:verifyPassword', companyController.verifyPassword);
+  ipcMain.handle('company:setDefaultGstRegistration', companyController.setDefaultGstRegistration);
+  ipcMain.handle('company:getDefaultGstRegistration', companyController.getDefaultGstRegistration);
 
   ipcMain.handle('fy:create', financialYearController.create);
   ipcMain.handle('fy:getAll', financialYearController.getAll);

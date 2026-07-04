@@ -1,244 +1,277 @@
-// GST tax engine — verifies that computeVoucherTaxLines() posts CGST/SGST/IGST
-// against the Duties & Taxes ledger the USER configured (matched via
-// ledger_statutory_details.type_of_duty_tax/gst_tax_type), not a hardcoded
-// "CGST"/"SGST"/"IGST" name — and never silently creates a duplicate ledger.
+// GST tax engine — MANUAL model (the default voucher flow).
+//
+// Tax ledger SELECTION IS MANUAL. On save the engine keeps exactly the tax ledgers the
+// user put on the voucher, validates them, and computes their amounts per item. It never
+// auto-creates a tax line from a stock item (bug 1) and never substitutes the user's
+// CGST/SGST for IGST or vice-versa (bug 2). Only the opt-in Voucher Type Class GST
+// mapping still auto-injects (second describe).
 
 const { setupTestDB, createTestCompany, db } = require("./helpers");
 const { gstHsnRates } = require("../db/schema");
 const ledgerService = require("../ledger/ledgerService");
+const stockItemService = require("../stockItem/stockItemService");
+const gstRegistrationController = require("../gstRegistration/gstRegistrationController");
 const voucherController = require("../voucher/voucherController");
 const voucherTypeService = require("../voucherType/voucherTypeService");
 
 const ledgerId = (res) => res.ledger?.ledger_id ?? res.ledger_id ?? res.id;
+const itemId = (res) => res.stockItem?.item_id ?? res.item_id ?? res.id;
 
-describe("GST tax engine — Duties & Taxes ledger resolution", () => {
-  let companyId, fyId, partyId, salesId, dutiesGroupId, outputCgstId, outputSgstId;
+const makeTaxLedger = (companyId, name, gstTaxType, rate) =>
+  ledgerService.create({
+    company_id: companyId, name,
+    statutory_details: { type_of_duty_tax: "GST", gst_tax_type: gstTaxType, gst_rate: rate },
+  });
+
+const entriesOf = async (voucherId) =>
+  (await db.execute(`SELECT ledger_id, ledger_name, type, amount FROM voucher_entries WHERE voucher_id = ?`, [voucherId])).rows;
+const taxLinesOf = async (voucherId) =>
+  (await db.execute(`SELECT tax_type, amount FROM gst_voucher_tax_lines WHERE voucher_id = ?`, [voucherId])).rows;
+
+describe("GST tax engine — manual tax ledger model", () => {
+  let companyId, fyId, partyId, partyKAId, salesId, cgstId, sgstId, igstId, exemptItemId;
 
   beforeAll(async () => {
     await setupTestDB();
-    const company = await createTestCompany("GST Tax Engine Test Co");
+    const company = await createTestCompany("GST Manual Model Co");
     companyId = company.company_id;
-    const fyResult = await db.execute(
-      `SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`,
-      [companyId]
-    );
-    fyId = fyResult.rows[0].fy_id;
+    fyId = (await db.execute(`SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`, [companyId])).rows[0].fy_id;
 
-    const groupRes = await db.execute(
-      `SELECT group_id FROM groups WHERE company_id = ? AND name = 'Duties & Taxes'`,
-      [companyId]
-    );
-    dutiesGroupId = groupRes.rows[0].group_id;
-
-    // User-created ledgers with real-world names — NOT literally "CGST"/"SGST".
-    outputCgstId = ledgerId(await ledgerService.create({
-      company_id: companyId, name: "Output CGST @9%", group_id: dutiesGroupId,
-      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "CGST" },
-    }));
-    outputSgstId = ledgerId(await ledgerService.create({
-      company_id: companyId, name: "Output SGST @9%", group_id: dutiesGroupId,
-      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "SGST/UTGST" },
-    }));
+    const reg = await gstRegistrationController.create(null, {
+      company_id: companyId, registration_type: "Regular", state_id: "Maharashtra", gstin: "27ABCDE1234F1Z5", registration_status: "Active",
+    });
+    await db.execute(`UPDATE companies SET current_default_gst_registration_id = ? WHERE company_id = ?`, [reg.gstRegistration.gst_id, companyId]);
 
     const party = await ledgerService.create({
-      company_id: companyId, name: "Tax Engine Customer",
-      gstin: "27ABCDE1234F1Z5", state: "Maharashtra", country: "India", registration_type: "Regular",
+      company_id: companyId, name: "Manual Customer", gstin: "27ZZZZZ1234F1Z5", state: "Maharashtra", country: "India", registration_type: "Regular",
     });
     partyId = ledgerId(party);
-    salesId = ledgerId(await ledgerService.create({ company_id: companyId, name: "Tax Engine Sales A/c" }));
-
-    // Company-level HSN rate override so voucher.create computes real (nonzero) GST.
-    await db.insert(gstHsnRates).values({
-      companyId, hsnCode: "8471", effectiveFrom: "2026-01-01",
-      gstRate: 18, cgstRate: 9, sgstRate: 9, igstRate: 18,
+    const partyKA = await ledgerService.create({
+      company_id: companyId, name: "Manual Customer KA", gstin: "29ZZZZZ1234F1Z5", state: "Karnataka", country: "India", registration_type: "Regular",
     });
+    partyKAId = ledgerId(partyKA);
+    salesId = ledgerId(await ledgerService.create({ company_id: companyId, name: "Manual Sales A/c" }));
+    cgstId = ledgerId(await makeTaxLedger(companyId, "Output CGST @9%", "CGST", 9));
+    sgstId = ledgerId(await makeTaxLedger(companyId, "Output SGST @9%", "SGST/UTGST", 9));
+    igstId = ledgerId(await makeTaxLedger(companyId, "Output IGST @18%", "IGST", 18));
+
+    const exempt = await stockItemService.create({
+      company_id: companyId, name: "Exempt Widget", gst_applicable: "Not Applicable", taxability_type: "Exempt", gst_rate: 0,
+    });
+    exemptItemId = itemId(exempt);
+
+    await db.insert(gstHsnRates).values({ companyId, hsnCode: "8471", effectiveFrom: "2026-01-01", gstRate: 18, cgstRate: 9, sgstRate: 9, igstRate: 18 });
+    await db.insert(gstHsnRates).values({ companyId, hsnCode: "6109", effectiveFrom: "2026-01-01", gstRate: 12, cgstRate: 6, sgstRate: 6, igstRate: 12 });
   });
 
-  const createSalesVoucher = async (extraEntries = []) => {
-    return voucherController.create(null, {
-      company_id: companyId, fy_id: fyId, voucher_type: "Sales", date: "2026-04-10",
-      status: "Regular", reference_number: `INV-${Date.now()}-${Math.random()}`, place_of_supply: "Maharashtra",
-      party_ledger_id: partyId, party_name: "Tax Engine Customer",
-      is_accounting_voucher: 1, is_invoice: 1, is_inventory_voucher: 1, is_order_voucher: 0, is_post_dated: 0,
-      entries: [
-        { ledger_id: partyId, ledger_name: "Tax Engine Customer", type: "Dr", amount: 11800, currency: "INR" },
-        { ledger_id: salesId, ledger_name: "Tax Engine Sales A/c", type: "Cr", amount: 11800, currency: "INR" },
-        ...extraEntries,
-      ],
-      stock_entries: [
-        { item_name: "Widget", quantity: 10, rate: 1000, hsn_code: "8471" },
-      ],
-    });
-  };
+  const createVoucher = (extra) => voucherController.create(null, {
+    company_id: companyId, fy_id: fyId, voucher_type: "Sales", date: "2026-04-10",
+    status: "Regular", reference_number: `INV-${Date.now()}-${Math.random()}`,
+    party_ledger_id: partyId, party_name: "Manual Customer",
+    is_accounting_voucher: 1, is_invoice: 1, is_inventory_voucher: 1,
+    place_of_supply: "Maharashtra",
+    ...extra,
+  });
 
-  it("posts CGST/SGST to the user's own Duties & Taxes ledgers, not a duplicate", async () => {
-    const res = await createSalesVoucher();
+  it("BUG 1: adding a stock item and not touching tax saves ZERO tax lines", async () => {
+    const res = await createVoucher({
+      entries: [
+        { ledger_id: partyId, ledger_name: "Manual Customer", type: "Dr", amount: 10000, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 10000, currency: "INR" },
+      ],
+      stock_entries: [{ item_name: "Widget", quantity: 10, rate: 1000, hsn_code: "8471" }],
+    });
     expect(res.success).toBe(true);
 
-    const entriesRes = await db.execute(
-      `SELECT ledger_id, ledger_name, type, amount FROM voucher_entries WHERE voucher_id = ?`,
-      [res.voucher.voucher_id]
-    );
-    const entries = entriesRes.rows;
-
-    const cgstEntry = entries.find((e) => Number(e.ledger_id) === Number(outputCgstId));
-    const sgstEntry = entries.find((e) => Number(e.ledger_id) === Number(outputSgstId));
-    expect(cgstEntry).toBeTruthy();
-    expect(sgstEntry).toBeTruthy();
-    expect(cgstEntry.amount).toBe(900);
-    expect(sgstEntry.amount).toBe(900);
-    expect(cgstEntry.type).toBe("Cr");
-    expect(cgstEntry.ledger_name).toBe("Output CGST @9%");
-
-    // No auto-generated duplicate ledger literally named "CGST"/"SGST" was created.
-    const dupes = await db.execute(
-      `SELECT name FROM ledgers WHERE company_id = ? AND (LOWER(name) = 'cgst' OR LOWER(name) = 'sgst')`,
-      [companyId]
-    );
-    expect(dupes.rows.length).toBe(0);
+    expect(await taxLinesOf(res.voucher.voucher_id)).toHaveLength(0);
+    const entries = await entriesOf(res.voucher.voucher_id);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(cgstId))).toBeFalsy();
+    expect(entries.find((e) => Number(e.ledger_id) === Number(sgstId))).toBeFalsy();
+    expect(entries.find((e) => Number(e.ledger_id) === Number(igstId))).toBeFalsy();
   });
 
-  it("reuses the same ledger across multiple vouchers instead of creating a new one each time", async () => {
-    const res1 = await createSalesVoucher();
-    const res2 = await createSalesVoucher();
-    expect(res1.success).toBe(true);
-    expect(res2.success).toBe(true);
-
-    const dutiesLedgers = await db.execute(
-      `SELECT ledger_id, name FROM ledgers WHERE company_id = ? AND group_id = ?`,
-      [companyId, dutiesGroupId]
-    );
-    // Only the two ledgers created in beforeAll — still no extra CGST/SGST ledger.
-    expect(dutiesLedgers.rows.length).toBe(2);
-  });
-
-  it("strips a stray tax-ledger entry the caller sent and injects the correctly computed one instead", async () => {
-    // Simulate a client that (incorrectly) already included a CGST line — the
-    // engine must strip it by ledger_id and inject one fresh, correct entry —
-    // not append a second one. Paired Cr+Dr of the same amount on the same
-    // ledger keeps the pre-engine double-entry check balanced.
-    const res = await createSalesVoucher([
-      { ledger_id: outputCgstId, ledger_name: "Output CGST @9%", type: "Cr", amount: 1, currency: "INR" },
-      { ledger_id: outputCgstId, ledger_name: "Output CGST @9%", type: "Dr", amount: 1, currency: "INR" },
-    ]);
+  it("BUG 2: manually selected CGST+SGST are saved AS-IS on an intra-state supply, not swapped to IGST", async () => {
+    const res = await createVoucher({
+      entries: [
+        { ledger_id: partyId, ledger_name: "Manual Customer", type: "Dr", amount: 11800, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 10000, currency: "INR" },
+        { ledger_id: cgstId, ledger_name: "Output CGST @9%", type: "Cr", amount: 900, currency: "INR" },
+        { ledger_id: sgstId, ledger_name: "Output SGST @9%", type: "Cr", amount: 900, currency: "INR" },
+      ],
+      stock_entries: [{ item_name: "Widget", quantity: 10, rate: 1000, hsn_code: "8471" }],
+    });
     expect(res.success).toBe(true);
 
-    const entriesRes = await db.execute(
-      `SELECT ledger_id, amount FROM voucher_entries WHERE voucher_id = ? AND ledger_id = ?`,
-      [res.voucher.voucher_id, outputCgstId]
-    );
-    expect(entriesRes.rows.length).toBe(1);
-    expect(entriesRes.rows[0].amount).toBe(900);
+    const entries = await entriesOf(res.voucher.voucher_id);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(cgstId))?.amount).toBe(900);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(sgstId))?.amount).toBe(900);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(igstId))).toBeFalsy();
+    expect((await taxLinesOf(res.voucher.voucher_id)).map((r) => r.tax_type).sort()).toEqual(["CGST", "SGST"]);
   });
 
-  it("recomputes GST on the Alter/update path when stock entries change", async () => {
-    const created = await createSalesVoucher();
-    const voucherId = created.voucher.voucher_id;
-
-    // Double the quantity: 20 * 1000 = 20000 taxable @18% => CGST 1800 + SGST 1800.
-    const updateRes = await voucherController.update(null, {
-      voucher_id: voucherId,
-      company_id: companyId,
-      voucher_type: "Sales",
-      is_accounting_voucher: 1,
-      party_ledger_id: partyId,
-      place_of_supply: "Maharashtra",
-      date: "2026-04-10",
+  it("BUG 3: blocks an IGST ledger on an intra-state supply", async () => {
+    const res = await createVoucher({
       entries: [
-        { ledger_id: partyId, ledger_name: "Tax Engine Customer", type: "Dr", amount: 23600, currency: "INR" },
-        { ledger_id: salesId, ledger_name: "Tax Engine Sales A/c", type: "Cr", amount: 23600, currency: "INR" },
+        { ledger_id: partyId, ledger_name: "Manual Customer", type: "Dr", amount: 11800, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 10000, currency: "INR" },
+        { ledger_id: igstId, ledger_name: "Output IGST @18%", type: "Cr", amount: 1800, currency: "INR" },
+      ],
+      stock_entries: [{ item_name: "Widget", quantity: 10, rate: 1000, hsn_code: "8471" }],
+    });
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/IGST/i);
+  });
+
+  it("BUG 3: inter-state supply blocks CGST/SGST and accepts a single IGST", async () => {
+    // Blocked: CGST/SGST on an inter-state supply (Karnataka party vs Maharashtra company).
+    const blocked = await createVoucher({
+      party_ledger_id: partyKAId, party_name: "Manual Customer KA", place_of_supply: "Karnataka",
+      entries: [
+        { ledger_id: partyKAId, ledger_name: "Manual Customer KA", type: "Dr", amount: 11800, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 10000, currency: "INR" },
+        { ledger_id: cgstId, ledger_name: "Output CGST @9%", type: "Cr", amount: 900, currency: "INR" },
+        { ledger_id: sgstId, ledger_name: "Output SGST @9%", type: "Cr", amount: 900, currency: "INR" },
+      ],
+      stock_entries: [{ item_name: "Widget", quantity: 10, rate: 1000, hsn_code: "8471" }],
+    });
+    expect(blocked.success).toBe(false);
+    expect(blocked.error).toMatch(/CGST\/SGST|IGST/i);
+
+    // Accepted: a single IGST ledger on the same inter-state supply.
+    const ok = await createVoucher({
+      party_ledger_id: partyKAId, party_name: "Manual Customer KA", place_of_supply: "Karnataka",
+      entries: [
+        { ledger_id: partyKAId, ledger_name: "Manual Customer KA", type: "Dr", amount: 11800, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 10000, currency: "INR" },
+        { ledger_id: igstId, ledger_name: "Output IGST @18%", type: "Cr", amount: 1800, currency: "INR" },
+      ],
+      stock_entries: [{ item_name: "Widget", quantity: 10, rate: 1000, hsn_code: "8471" }],
+    });
+    expect(ok.success).toBe(true);
+    const entries = await entriesOf(ok.voucher.voucher_id);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(igstId))?.amount).toBe(1800);
+    expect((await taxLinesOf(ok.voucher.voucher_id)).map((r) => r.tax_type)).toEqual(["IGST"]);
+  });
+
+  it("BUG 4: blocks a GST ledger when the item is Exempt / Nil Rated", async () => {
+    const res = await createVoucher({
+      entries: [
+        { ledger_id: partyId, ledger_name: "Manual Customer", type: "Dr", amount: 1090, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 1000, currency: "INR" },
+        { ledger_id: cgstId, ledger_name: "Output CGST @9%", type: "Cr", amount: 45, currency: "INR" },
+        { ledger_id: sgstId, ledger_name: "Output SGST @9%", type: "Cr", amount: 45, currency: "INR" },
+      ],
+      stock_entries: [{ stock_item_id: exemptItemId, item_name: "Exempt Widget", quantity: 1, rate: 1000 }],
+    });
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/Exempt|Nil/i);
+  });
+
+  it("inter-state multi-item invoice posts exactly ONE IGST = sum of per-item 18% (user's 9594 case)", async () => {
+    // Office Chair 6x500=3000, Notebook 6x50=300, Desktop 1x50000=50000 → 53300 @18% = 9594.
+    const res = await createVoucher({
+      party_ledger_id: partyKAId, party_name: "Manual Customer KA", place_of_supply: "Karnataka",
+      entries: [
+        { ledger_id: partyKAId, ledger_name: "Manual Customer KA", type: "Dr", amount: 62894, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 53300, currency: "INR" },
+        { ledger_id: igstId, ledger_name: "Output IGST @18%", type: "Cr", amount: 9594, currency: "INR" },
       ],
       stock_entries: [
-        { item_name: "Widget", quantity: 20, rate: 1000, hsn_code: "8471" },
+        { item_name: "Office Chair", quantity: 6, rate: 500, hsn_code: "8471" },
+        { item_name: "Notebook", quantity: 6, rate: 50, hsn_code: "8471" },
+        { item_name: "Desktop Computer", quantity: 1, rate: 50000, hsn_code: "8471" },
       ],
     });
-    expect(updateRes.success).toBe(true);
+    expect(res.success).toBe(true);
+    const igstEntries = (await entriesOf(res.voucher.voucher_id)).filter((e) => Number(e.ledger_id) === Number(igstId));
+    expect(igstEntries).toHaveLength(1);           // exactly ONE IGST, never two
+    expect(igstEntries[0].amount).toBe(9594);      // per-item summed, correct total
+    const taxLines = await taxLinesOf(res.voucher.voucher_id);
+    expect(taxLines.filter((r) => r.tax_type === "IGST")).toHaveLength(1);
+  });
 
-    const entriesRes = await db.execute(
-      `SELECT ledger_id, amount FROM voucher_entries WHERE voucher_id = ? AND ledger_id IN (?, ?)`,
-      [voucherId, outputCgstId, outputSgstId]
-    );
-    const cgst = entriesRes.rows.find((r) => Number(r.ledger_id) === Number(outputCgstId));
-    const sgst = entriesRes.rows.find((r) => Number(r.ledger_id) === Number(outputSgstId));
-    expect(cgst.amount).toBe(1800);
-    expect(sgst.amount).toBe(1800);
+  it("classifies a GST ledger named 'IGST' even when gst_tax_type is null (name fallback)", async () => {
+    // A Duties&Taxes ledger tagged type_of_duty_tax='GST' but WITHOUT a gst_tax_type,
+    // literally named "IGST" (matches a real user's data). It must still be recognised.
+    const igstNoTag = ledgerId(await ledgerService.create({
+      company_id: companyId, name: "IGST",
+      statutory_details: { type_of_duty_tax: "GST" }, // no gst_tax_type
+    }));
+    const res = await createVoucher({
+      party_ledger_id: partyKAId, party_name: "Manual Customer KA", place_of_supply: "Karnataka",
+      entries: [
+        { ledger_id: partyKAId, ledger_name: "Manual Customer KA", type: "Dr", amount: 11800, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 10000, currency: "INR" },
+        { ledger_id: igstNoTag, ledger_name: "IGST", type: "Cr", amount: 1800, currency: "INR" },
+      ],
+      stock_entries: [{ item_name: "Widget", quantity: 10, rate: 1000, hsn_code: "8471" }],
+    });
+    expect(res.success).toBe(true); // not rejected as "requires exactly one IGST"
+    const entries = await entriesOf(res.voucher.voucher_id);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(igstNoTag))?.amount).toBe(1800);
+    expect((await taxLinesOf(res.voucher.voucher_id)).map((r) => r.tax_type)).toEqual(["IGST"]);
+  });
 
-    // Exactly one CGST row remains — the stale 900 entry from create() wasn't
-    // left behind alongside the recomputed 1800 one.
-    expect(entriesRes.rows.filter((r) => Number(r.ledger_id) === Number(outputCgstId)).length).toBe(1);
+  it("BUG 7: multi-rate invoice computes CGST per item then sums (not one flat rate on the subtotal)", async () => {
+    // Item A: 10 x 1000 @18% ⇒ CGST 900. Item B: 5 x 1000 @12% ⇒ CGST 300. Total CGST 1200.
+    // A flat 9% on the 15000 subtotal would wrongly be 1350.
+    const res = await createVoucher({
+      entries: [
+        { ledger_id: partyId, ledger_name: "Manual Customer", type: "Dr", amount: 17400, currency: "INR" },
+        { ledger_id: salesId, ledger_name: "Manual Sales A/c", type: "Cr", amount: 15000, currency: "INR" },
+        { ledger_id: cgstId, ledger_name: "Output CGST @9%", type: "Cr", amount: 1200, currency: "INR" },
+        { ledger_id: sgstId, ledger_name: "Output SGST @9%", type: "Cr", amount: 1200, currency: "INR" },
+      ],
+      stock_entries: [
+        { item_name: "Widget18", quantity: 10, rate: 1000, hsn_code: "8471" },
+        { item_name: "Shirt12", quantity: 5, rate: 1000, hsn_code: "6109" },
+      ],
+    });
+    expect(res.success).toBe(true);
+    const entries = await entriesOf(res.voucher.voucher_id);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(cgstId))?.amount).toBe(1200);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(sgstId))?.amount).toBe(1200);
   });
 });
 
-// Voucher Type Class ("Name of Class" → "Use Class for GST Details") — a class's
-// explicitly mapped ledgers must win over the normal auto-resolve/auto-create lookup,
-// and a voucher with no class selected must be byte-identical to today's behavior.
-describe("GST tax engine — Voucher Type Class ledger override", () => {
-  let companyId, fyId, partyId, salesId, salesVtId;
-  let autoCgstId, autoSgstId, classCgstId, classSgstId;
+// Voucher Type Class ("Name of Class" → "Use Class for GST Details") — the OPT-IN
+// auto-inject path. A class's explicitly mapped ledgers are injected; a voucher with no
+// class and no manual tax ledgers gets NO GST (manual model).
+describe("GST tax engine — Voucher Type Class ledger override (opt-in auto-inject)", () => {
+  let companyId, fyId, partyId, salesId, classCgstId, classSgstId;
   const CLASS_NAME = "GST Sales Class";
 
   beforeAll(async () => {
     await setupTestDB();
     const company = await createTestCompany("GST Voucher Class Test Co");
     companyId = company.company_id;
-    const fyResult = await db.execute(
-      `SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`,
-      [companyId]
-    );
-    fyId = fyResult.rows[0].fy_id;
+    fyId = (await db.execute(`SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`, [companyId])).rows[0].fy_id;
 
-    const groupRes = await db.execute(
-      `SELECT group_id FROM groups WHERE company_id = ? AND name = 'Duties & Taxes'`,
-      [companyId]
-    );
+    const groupRes = await db.execute(`SELECT group_id FROM groups WHERE company_id = ? AND name = 'Duties & Taxes'`, [companyId]);
     const dutiesGroupId = groupRes.rows[0].group_id;
 
-    // The ledgers the engine would auto-resolve when no class is involved.
-    autoCgstId = ledgerId(await ledgerService.create({
-      company_id: companyId, name: "Auto CGST @9%", group_id: dutiesGroupId,
-      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "CGST" },
-    }));
-    autoSgstId = ledgerId(await ledgerService.create({
-      company_id: companyId, name: "Auto SGST @9%", group_id: dutiesGroupId,
-      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "SGST/UTGST" },
-    }));
-    // Also tagged CGST/SGST like the auto ones (their own gst_tax_type is what the class
-    // override now reads to know which slot they fill), but created after the auto ledgers
-    // so plain auto-resolve (lowest ledger_id first) would pick the auto ones instead —
-    // proving the class's explicit gst_ledger_ids list wins.
     classCgstId = ledgerId(await ledgerService.create({
       company_id: companyId, name: "Class-Mapped CGST", group_id: dutiesGroupId,
-      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "CGST" },
+      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "CGST", gst_rate: 9 },
     }));
     classSgstId = ledgerId(await ledgerService.create({
       company_id: companyId, name: "Class-Mapped SGST", group_id: dutiesGroupId,
-      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "SGST/UTGST" },
+      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "SGST/UTGST", gst_rate: 9 },
     }));
 
     const party = await ledgerService.create({
-      company_id: companyId, name: "Voucher Class Customer",
-      gstin: "27ABCDE1234F1Z5", state: "Maharashtra", country: "India", registration_type: "Regular",
+      company_id: companyId, name: "Voucher Class Customer", gstin: "27ABCDE1234F1Z5", state: "Maharashtra", country: "India", registration_type: "Regular",
     });
     partyId = ledgerId(party);
     salesId = ledgerId(await ledgerService.create({ company_id: companyId, name: "Voucher Class Sales A/c" }));
 
-    await db.insert(gstHsnRates).values({
-      companyId, hsnCode: "8472", effectiveFrom: "2026-01-01",
-      gstRate: 18, cgstRate: 9, sgstRate: 9, igstRate: 18,
-    });
+    await db.insert(gstHsnRates).values({ companyId, hsnCode: "8472", effectiveFrom: "2026-01-01", gstRate: 18, cgstRate: 9, sgstRate: 9, igstRate: 18 });
 
-    // Find the predefined "Sales" voucher type seeded for this company, and attach a
-    // Class to it via voucher_type_configs.voucher_classes.
     const vtRes = await voucherTypeService.getAll(companyId);
-    salesVtId = vtRes.voucherTypes.find((vt) => vt.name === "Sales").vt_id;
+    const salesVtId = vtRes.voucherTypes.find((vt) => vt.name === "Sales").vt_id;
     const configRes = await voucherTypeService.updateConfig({
       voucher_type_id: salesVtId,
-      voucher_classes: [{
-        id: "vc-test-1",
-        name: CLASS_NAME,
-        use_for_gst_details: "Yes",
-        gst_ledger_ids: [classCgstId, classSgstId],
-      }],
+      voucher_classes: [{ id: "vc-test-1", name: CLASS_NAME, use_for_gst_details: "Yes", gst_ledger_ids: [classCgstId, classSgstId] }],
     });
     expect(configRes.success).toBe(true);
   });
@@ -247,59 +280,29 @@ describe("GST tax engine — Voucher Type Class ledger override", () => {
     company_id: companyId, fy_id: fyId, voucher_type: "Sales", date: "2026-04-10",
     status: "Regular", reference_number: `INV-CLS-${Date.now()}-${Math.random()}`, place_of_supply: "Maharashtra",
     party_ledger_id: partyId, party_name: "Voucher Class Customer",
-    is_accounting_voucher: 1, is_invoice: 1, is_inventory_voucher: 1, is_order_voucher: 0, is_post_dated: 0,
+    is_accounting_voucher: 1, is_invoice: 1, is_inventory_voucher: 1,
     voucher_class: voucher_class || null,
     entries: [
       { ledger_id: partyId, ledger_name: "Voucher Class Customer", type: "Dr", amount: 11800, currency: "INR" },
       { ledger_id: salesId, ledger_name: "Voucher Class Sales A/c", type: "Cr", amount: 11800, currency: "INR" },
     ],
-    stock_entries: [
-      { item_name: "Gadget", quantity: 10, rate: 1000, hsn_code: "8472" },
-    ],
+    stock_entries: [{ item_name: "Gadget", quantity: 10, rate: 1000, hsn_code: "8472" }],
   });
 
-  it("posts to the Class-mapped ledgers when a Class with Use Class for GST Details=Yes is selected", async () => {
+  it("auto-injects the Class-mapped ledgers when a GST-details Class is selected", async () => {
     const res = await createSalesVoucher(CLASS_NAME);
     expect(res.success).toBe(true);
-
-    const entriesRes = await db.execute(
-      `SELECT ledger_id, amount FROM voucher_entries WHERE voucher_id = ?`,
-      [res.voucher.voucher_id]
-    );
-    const entries = entriesRes.rows;
-
-    const classCgst = entries.find((e) => Number(e.ledger_id) === Number(classCgstId));
-    const classSgst = entries.find((e) => Number(e.ledger_id) === Number(classSgstId));
-    expect(classCgst).toBeTruthy();
-    expect(classSgst).toBeTruthy();
-    expect(classCgst.amount).toBe(900);
-    expect(classSgst.amount).toBe(900);
-
-    // The auto-resolved ledgers were NOT used for this voucher.
-    expect(entries.find((e) => Number(e.ledger_id) === Number(autoCgstId))).toBeFalsy();
-    expect(entries.find((e) => Number(e.ledger_id) === Number(autoSgstId))).toBeFalsy();
-
-    // The voucher row remembers which Class was used.
-    const voucherRow = await db.execute(
-      `SELECT voucher_class FROM vouchers WHERE voucher_id = ?`,
-      [res.voucher.voucher_id]
-    );
-    expect(voucherRow.rows[0].voucher_class).toBe(CLASS_NAME);
+    const entries = await entriesOf(res.voucher.voucher_id);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(classCgstId))?.amount).toBe(900);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(classSgstId))?.amount).toBe(900);
   });
 
-  it("falls back to normal auto-resolution when no Class is selected (regression guard)", async () => {
+  it("injects NO GST when no Class is selected and no tax ledger was manually added (manual model)", async () => {
     const res = await createSalesVoucher(null);
     expect(res.success).toBe(true);
-
-    const entriesRes = await db.execute(
-      `SELECT ledger_id, amount FROM voucher_entries WHERE voucher_id = ?`,
-      [res.voucher.voucher_id]
-    );
-    const entries = entriesRes.rows;
-
-    expect(entries.find((e) => Number(e.ledger_id) === Number(autoCgstId))?.amount).toBe(900);
-    expect(entries.find((e) => Number(e.ledger_id) === Number(autoSgstId))?.amount).toBe(900);
+    const entries = await entriesOf(res.voucher.voucher_id);
     expect(entries.find((e) => Number(e.ledger_id) === Number(classCgstId))).toBeFalsy();
     expect(entries.find((e) => Number(e.ledger_id) === Number(classSgstId))).toBeFalsy();
+    expect(await taxLinesOf(res.voucher.voucher_id)).toHaveLength(0);
   });
 });

@@ -23,6 +23,9 @@ const companies = sqliteTable('companies', {
   password: text('password'),
   accessControl: text('access_control'),
   editLog: text('edit_log'),
+  // Mutable pointer to the "current default" GST registration (FK -> gst_registrations(gst_id));
+  // used only to prefill NEW vouchers. Kept as plain INTEGER to avoid a cross-module require cycle.
+  currentDefaultGstRegistrationId: integer('current_default_gst_registration_id'),
   // SQLite: TEXT DEFAULT (datetime('now')) storing ISO strings; keep raw TEXT.
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 });

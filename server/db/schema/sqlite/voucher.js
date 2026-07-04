@@ -17,6 +17,10 @@ const vouchers = sqliteTable('vouchers', {
   partyLedgerId: integer('party_ledger_id'),
   partyName: text('party_name'),
   placeOfSupply: text('place_of_supply'),
+  // GST snapshot (immutable after save) — see voucher.js init() migrations.
+  gstRegistrationId: integer('gst_registration_id'),
+  companyState: text('company_state'),
+  isInterstate: integer('is_interstate').default(0),
   isInvoice: integer('is_invoice').default(0),
   isAccountingVoucher: integer('is_accounting_voucher').default(1),
   isInventoryVoucher: integer('is_inventory_voucher').default(0),

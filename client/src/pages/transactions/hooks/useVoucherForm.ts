@@ -7,6 +7,7 @@ import { useState } from "react"; // add useState to your existing import from "
 import { useVoucherMeta } from "./useVoucherMeta";
 import { useVoucherLedgers } from "./useVoucherLedgers";
 import { useVoucherRows as useVoucherRowsInternal } from "./useVoucherRowsNew";
+import { pickDefaultRegistrationFrom } from "../utils/defaultRegistration";
 
 // Re-export types so any file that previously imported from this hook still works
 export type { ParticularRow, StockEntryRow, ActiveField, ActiveAllocation } from "../types";
@@ -26,9 +27,24 @@ export function useVoucherForm(
   const [allTaxUnits, setAllTaxUnits] = useState<any[]>([]);
   const [allPriceLevels, setAllPriceLevels] = useState<string[]>([]);
 
-  const [gstRegistration, setGstRegistration] = useState<any | null>(null);
+  const [gstRegistration, setGstRegistrationState] = useState<any | null>(null);
   const [taxUnit, setTaxUnit] = useState<any | null>(null);
   const [priceLevel, setPriceLevel] = useState<string>("");
+
+  // Bug 5: the company's persisted "current default GST registration id" — the single
+  // source of truth for what a NEW voucher prefills. Fetched fresh from the backend (not
+  // read off a possibly-stale company object) and updated the instant the user changes it.
+  const [defaultRegistrationId, setDefaultRegistrationId] = useState<number | null>(null);
+
+  // Bug 5: the GST registration must default to the company's registration and persist —
+  // not reset to "Not Applicable" on every new/reopened voucher. `gstTouchedRef` records
+  // whether the user (or hydrate) explicitly set it, so the default-seeding effect below
+  // never clobbers an explicit choice (including an explicit "Not Applicable"/null).
+  const gstTouchedRef = useRef(false);
+  const setGstRegistration = useCallback((val: any | null) => {
+    gstTouchedRef.current = true;
+    setGstRegistrationState(val);
+  }, []);
 
   // Per-godown balances for the item currently being entered (Physical Stock's
   // "List of Godowns" quantity column). Fetched on item selection.
@@ -54,25 +70,89 @@ export function useVoucherForm(
 
   const fetchTaxAndPriceMasters = useCallback(async () => {
     if (!companyId) return;
+    // Each master loads INDEPENDENTLY — a failure in one (e.g. a newly-added IPC handler
+    // not yet registered) must never blank the others. Previously these shared a single
+    // Promise.all, so one rejected call wiped the whole GST-registration list.
     try {
-      const [gstRes, taxUnitRes, priceLevelRes] = await Promise.all([
-        window.api.gstRegistration.getAll(companyId),
-        window.api.taxUnits.getAll(companyId),
-        window.api.priceLevels.get(companyId),
-      ]);
+      const gstRes = await window.api.gstRegistration.getAll(companyId);
       if (gstRes?.success) setAllGstRegistrations(gstRes.gstRegistrations || []);
+    } catch (err) {
+      console.error("Failed to load GST registrations:", err);
+    }
+    try {
+      const taxUnitRes = await window.api.taxUnits.getAll(companyId);
       if (taxUnitRes?.success) setAllTaxUnits(taxUnitRes.taxUnits || []);
+    } catch (err) {
+      console.error("Failed to load tax units:", err);
+    }
+    try {
+      const priceLevelRes = await window.api.priceLevels.get(companyId);
       if (priceLevelRes?.success) {
         setAllPriceLevels((priceLevelRes.data || []).filter((n: string) => !!n && n.trim() !== ""));
       }
     } catch (err) {
-      console.error("Failed to load GST Registration / Tax Unit / Price Level masters:", err);
+      console.error("Failed to load price levels:", err);
     }
+    // The default registration persists in localStorage (durable across app restarts even
+    // if the backend handler isn't yet live) with the backend as a secondary/cross-surface
+    // store. localStorage wins when present.
+    let backendId: number | null = null;
+    try {
+      const defaultRegRes = await window.api.company.getDefaultGstRegistration(companyId);
+      if (defaultRegRes?.success && defaultRegRes.current_default_gst_registration_id != null) {
+        backendId = Number(defaultRegRes.current_default_gst_registration_id);
+      }
+    } catch (err) {
+      console.error("Failed to load default GST registration:", err);
+    }
+    let localId: number | null = null;
+    try {
+      const raw = localStorage.getItem(`defaultGstRegistration:${companyId}`);
+      if (raw != null && raw !== "") localId = Number(raw);
+    } catch { /* localStorage unavailable — fall back to backend */ }
+    setDefaultRegistrationId(localId != null ? localId : backendId);
   }, [companyId]);
 
   useEffect(() => {
     fetchTaxAndPriceMasters();
   }, [fetchTaxAndPriceMasters]);
+
+  // Bug 5: seed strictly from the company's persisted default registration — NO fallback
+  // to the first record (which was the reported bug: it showed Arunachal instead of the
+  // last-selected Chhattisgarh).
+  const pickDefaultRegistration = useCallback(
+    () => pickDefaultRegistrationFrom(defaultRegistrationId, allGstRegistrations),
+    [allGstRegistrations, defaultRegistrationId]
+  );
+
+  // Bug 5: persist the user's registration choice as the company default the INSTANT it is
+  // picked (not only on save). Written to localStorage (durable, no backend dependency) AND
+  // the backend (best-effort). A freshly-opened voucher — even after an app restart — seeds
+  // from this, so the choice sticks until explicitly changed.
+  const persistDefaultRegistration = useCallback(async (gstId: number | null) => {
+    const value = gstId != null ? Number(gstId) : null;
+    setDefaultRegistrationId(value);
+    if (!companyId) return;
+    try {
+      if (value != null) localStorage.setItem(`defaultGstRegistration:${companyId}`, String(value));
+      else localStorage.removeItem(`defaultGstRegistration:${companyId}`);
+    } catch { /* localStorage unavailable — the backend write below still persists it */ }
+    try {
+      await window.api.company.setDefaultGstRegistration(companyId, value);
+    } catch (e) {
+      console.error("Failed to persist default GST registration to backend:", e);
+    }
+  }, [companyId]);
+
+  // Seed the default for a NEW voucher once registrations + the persisted default load.
+  // Edit mode hydrates from the saved voucher instead, and an explicit user choice is
+  // never overwritten.
+  useEffect(() => {
+    if (editVoucherId) return;
+    if (gstTouchedRef.current) return;
+    const chosen = pickDefaultRegistration();
+    if (chosen) setGstRegistrationState(chosen);
+  }, [pickDefaultRegistration, editVoucherId]);
 
   // ── Sub-hooks ──────────────────────────────────────────────────────────────
 
@@ -600,6 +680,9 @@ export function useVoucherForm(
           reference_number: meta.referenceNumber || null,
           reference_date: meta.referenceDate || null,
           place_of_supply: meta.placeOfSupply !== "Select" ? meta.placeOfSupply : null,
+          // Bug 5: persist the selected GST registration so it round-trips on reopen and
+          // the backend snapshots the user's explicit choice (not just the company default).
+          gst_registration_id: gstRegistration?.gst_id ?? null,
           voucher_class: meta.voucherClass || null,
           narration: meta.narration || null,
           party_ledger_id: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.ledger_id ?? null : null,
@@ -671,7 +754,7 @@ export function useVoucherForm(
     } finally {
       meta.setIsSubmitting(false);
     }
-  }, [validate, companyId, fyId, effectiveVoucherType, meta, rows, ledgers.fetchContextData, editVoucherId, onSaved]);
+  }, [validate, companyId, fyId, effectiveVoucherType, meta, rows, ledgers.fetchContextData, editVoucherId, onSaved, gstRegistration]);
 
   // ── resetForm ──────────────────────────────────────────────────────────────
 
@@ -679,7 +762,11 @@ export function useVoucherForm(
     meta.resetMeta();
     rows.resetRows(effectiveVoucherType);
     fetchNextNumber();
-  }, [meta.resetMeta, rows.resetRows, effectiveVoucherType, fetchNextNumber]);
+    // Bug 5: re-seed the default GST registration for the next new voucher rather than
+    // dropping back to "Not Applicable".
+    gstTouchedRef.current = false;
+    setGstRegistrationState(pickDefaultRegistration());
+  }, [meta.resetMeta, rows.resetRows, effectiveVoucherType, fetchNextNumber, pickDefaultRegistration]);
 
   resetFormRef.current = resetForm;
 
@@ -765,6 +852,7 @@ export function useVoucherForm(
     allPriceLevels,
     gstRegistration,
     setGstRegistration,
+    persistDefaultRegistration,
     taxUnit,
     setTaxUnit,
     priceLevel,

@@ -1,28 +1,46 @@
-import { Badge } from "@/components/shadcn/badge";
 import {
-  type Voucher,
-  formatDate, formatAmount,
-  ReadOnlyFieldRow, ReadOnlyStockTable, ReadOnlyBillReferences,
+  type Voucher, type AdditionalRow,
+  formatDate,
+  ReadOnlyFieldRow, ReadOnlyStockTable,
   STOCK_TABLE_VARIANT,
 } from "./shared";
 
 // Trade vouchers — Sales / Purchase / Credit Note / Debit Note.
 // Credit Note mirrors Sales (party Cr, "Sales ledger"); Debit Note mirrors
-// Purchase (party Dr, "Purchase ledger"). Layout: header fields → item table →
-// additional ledger lines → note details → bill-wise refs.
+// Purchase (party Dr, "Purchase ledger"). Layout (bug 9): header fields → ONE
+// continuous table of item rows then tax/ledger rows (same columns, GST % in the
+// Rate column) → a single bold Total → note details. Bill-wise/party balance are
+// intentionally NOT shown in the invoice body (matches TallyPrime's invoice view).
 export default function TradeVoucherView({ voucher }: { voucher: Voucher; balances: Record<number, string> }) {
   const t = voucher.voucher_type;
   const isSalesLike = ["Sales", "Credit Note"].includes(t);
   const mainLedger = voucher.entries.find(e => (isSalesLike ? e.type === "Cr" : e.type === "Dr")) || null;
-  const additionalEntries = mainLedger
+
+  const stockSubtotal = voucher.stock_entries.reduce((s, e) => s + (e.amount || 0), 0);
+
+  // Everything that isn't the party or the sales/purchase ledger is a tax / additional
+  // ledger line. Show its GST % when it is a GST ledger — prefer the ledger's configured
+  // rate, else derive it from amount ÷ taxable subtotal (many tax ledgers store rate 0).
+  const additionalRows: AdditionalRow[] = (mainLedger
     ? voucher.entries.filter(e => e.ledger_name !== mainLedger.ledger_name && e.ledger_name !== voucher.party_name)
-    : [];
+    : []
+  ).map(e => {
+    const isGst = e.type_of_duty_tax === "GST" || !!e.gst_tax_type;
+    const configured = Number(e.gst_tax_rate) || 0;
+    const derived = stockSubtotal > 0 && e.amount ? (e.amount / stockSubtotal) * 100 : 0;
+    const rate = configured > 0 ? configured : derived;
+    return {
+      name: e.ledger_name,
+      ratePct: isGst && rate > 0 ? Number(rate.toFixed(2)) : null,
+      amount: e.amount,
+    };
+  });
+
+  const additionalTotal = additionalRows.reduce((s, r) => s + (r.amount || 0), 0);
+  const grandTotal = stockSubtotal + additionalTotal;
+
   const noteDetails = t === "Credit Note" ? voucher.credit_note_details
     : t === "Debit Note" ? voucher.debit_note_details : null;
-  const ledgerNames = voucher.entries.reduce<Record<number, string>>((acc, e) => {
-    if (e.ledger_id) acc[e.ledger_id] = e.ledger_name;
-    return acc;
-  }, {});
   const hasStock = voucher.stock_entries.length > 0;
   const stockTableVariant = STOCK_TABLE_VARIANT[t] ?? "default";
 
@@ -57,22 +75,13 @@ export default function TradeVoucherView({ voucher }: { voucher: Voucher; balanc
 
       {(hasStock || voucher.entries.length > 0) && <div className="border-b border-gray-300 shrink-0" />}
 
-      {hasStock && <ReadOnlyStockTable entries={voucher.stock_entries} variant={stockTableVariant} />}
-
-      {additionalEntries.length > 0 && (
-        <div className="border-b border-gray-300 shrink-0">
-          {additionalEntries.map((row, idx) => (
-            <div key={idx} className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
-              <div className="w-10 text-center">
-                <Badge variant="outline" className="h-auto rounded border-0 bg-transparent px-0 py-0 text-xs font-semibold text-black">
-                  {row.type}
-                </Badge>
-              </div>
-              <div className="flex-1 text-sm text-black pl-2">{row.ledger_name || "—"}</div>
-              <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(row.amount)}</div>
-            </div>
-          ))}
-        </div>
+      {hasStock && (
+        <ReadOnlyStockTable
+          entries={voucher.stock_entries}
+          variant={stockTableVariant}
+          additionalRows={stockTableVariant === "default" ? additionalRows : []}
+          grandTotal={stockTableVariant === "default" ? grandTotal : undefined}
+        />
       )}
 
       {noteDetails && (noteDetails.reason_for_issuing_note || noteDetails.original_invoice_no || noteDetails.original_invoice_date) && (
@@ -87,10 +96,6 @@ export default function TradeVoucherView({ voucher }: { voucher: Voucher; balanc
             <ReadOnlyFieldRow label="Original Invoice Date" value={formatDate(noteDetails.original_invoice_date)} />
           )}
         </div>
-      )}
-
-      {voucher.bill_references?.length > 0 && (
-        <ReadOnlyBillReferences bills={voucher.bill_references} ledgerNames={ledgerNames} />
       )}
     </>
   );

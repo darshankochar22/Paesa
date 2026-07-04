@@ -26,6 +26,9 @@ const companies = pgTable('companies', {
   password: text('password'),
   accessControl: text('access_control'),
   editLog: text('edit_log'),
+  // Mutable pointer to the "current default" GST registration (FK -> gst_registrations(gst_id));
+  // used only to prefill NEW vouchers. Plain bigint to avoid a cross-module require cycle.
+  currentDefaultGstRegistrationId: bigint('current_default_gst_registration_id', { mode: 'number' }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .default(sql`now()`),

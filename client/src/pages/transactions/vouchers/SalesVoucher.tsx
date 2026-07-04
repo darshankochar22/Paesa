@@ -278,6 +278,7 @@ import { useState } from "react";
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 import FieldRow from "../components/FieldRow";
 import VatAdditionalDetailsPopup from "../components/popups/VatAdditionalDetailsPopup";
+import { gstRowInfo } from "../utils/gstRow";
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -313,7 +314,7 @@ export default function SalesVoucher({
   const priceLevelLabel = form.priceLevel || "♦ Not Applicable";
 
   return (
-    <div>
+    <div className="flex flex-1 flex-col min-h-0">
       {/* Party / Sales ledger block, with Price Level on the right */}
       <div className="border-b border-gray-300 shrink-0 py-1 flex items-start">
         <div className="flex-1">
@@ -323,6 +324,7 @@ export default function SalesVoucher({
             ledger={form.partyLedger}
             balance={form.partyBalance}
             form={form}
+            hideBalance
             onEnterCommit={() => setTimeout(() => (document.querySelector('[data-field-type="salesPurchase"]') as HTMLElement)?.focus(), 50)}
           />
           <FieldRow
@@ -331,6 +333,7 @@ export default function SalesVoucher({
             ledger={form.salesPurchaseLedger}
             balance={form.salesPurchaseBalance}
             form={form}
+            hideBalance
             onEnterCommit={() => setTimeout(() => (document.querySelector('[data-stock-item="1"]') as HTMLElement)?.focus(), 50)}
           />
         </div>
@@ -537,72 +540,45 @@ export default function SalesVoucher({
           );
         })}
 
-        {/* Filler rows */}
-        {Array.from({ length: Math.max(0, 5 - form.stockEntries.length) }).map((_, i) => (
-          <div
-            key={`sf-${i}`}
-            className="flex border-b border-gray-50 min-h-[22px] px-3"
-          />
-        ))}
-
-        {/* Stock subtotal */}
-        {!hideAdditionalLedgers && form.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0) > 0 && (
-          <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
-            <div className="flex-1 text-xs text-gray-700">Subtotal</div>
-            <div className="w-44" />
-            <div className="w-20" />
-            <div className="w-12" />
-            <div className="w-16" />
-            <div className="w-32 text-right text-sm font-semibold text-black">
-              {form.stockEntries
-                .reduce((s, r) => s + (Number(r.amountRaw) || 0), 0)
-                .toLocaleString("en-IN", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-            </div>
-          </div>
-        )}
-
-        {/* Additional ledger rows (taxes, freight, discounts) */}
+        {/* Bug 9: tax / additional ledger rows continue the SAME table as the item rows —
+            same 6 columns (Name | Quantity | Rate | per | Disc% | Amount), no separate
+            section, no subtotal or filler gap in between. The ledger's own GST % shows in
+            the Rate column; the amount auto-fills per item when a tax ledger is picked. */}
         {!hideAdditionalLedgers && form.additionalEntries.map((row, idx) => {
           const isAddActive =
             form.activeField?.type === "additional" &&
             form.activeField.rowId === row.id;
+          const stockSubtotal = form.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+          const { isGstRow, rateLabel } = gstRowInfo(row.ledger, row.amountRaw, stockSubtotal);
           return (
             <div
               key={row.id}
               className="flex items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
             >
-              <div className="w-10 text-center">
-                <select
-                  className="text-xs bg-transparent outline-none font-semibold text-black"
-                  value={row.type}
-                  onChange={(e) =>
-                    form.handleUpdateAdditionalRow(row.id, {
-                      type: e.target.value as "Dr" | "Cr",
-                    })
-                  }
-                >
-                  <option value="Dr">Dr</option>
-                  <option value="Cr">Cr</option>
-                </select>
-              </div>
-
-              <div className="flex-1 flex items-center gap-1 pl-2">
+              <div className="flex-1 flex items-center gap-1">
+                {/* GST tax lines don't show a Dr/Cr selector (their side is implied). */}
+                {!isGstRow && (
+                  <select
+                    className="text-xs bg-transparent outline-none font-semibold text-black shrink-0"
+                    value={row.type}
+                    onChange={(e) =>
+                      form.handleUpdateAdditionalRow(row.id, { type: e.target.value as "Dr" | "Cr" })
+                    }
+                  >
+                    <option value="Dr">Dr</option>
+                    <option value="Cr">Cr</option>
+                  </select>
+                )}
                 <input
                   data-additional-ledger={idx + 1}
                   type="text"
                   className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                   value={isAddActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
                   placeholder="Tax / Ledger…"
-                  onFocus={() =>
-                    form.handleFieldFocus({ type: "additional", rowId: row.id })
-                  }
+                  onFocus={() => form.handleFieldFocus({ type: "additional", rowId: row.id })}
                   onChange={(e) => {
                     form.setLedgerSearchTerm(e.target.value);
-                    if (!row.ledger)
-                      form.handleFieldFocus({ type: "additional", rowId: row.id });
+                    if (!row.ledger) form.handleFieldFocus({ type: "additional", rowId: row.id });
                   }}
                   autoComplete="off"
                 />
@@ -610,12 +586,22 @@ export default function SalesVoucher({
                   type="button"
                   tabIndex={-1}
                   onClick={() => form.handleRemoveAdditionalRow(row.id)}
-                  className="text-xs text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
+                  className="text-xs text-gray-300 hover:text-black opacity-0 group-hover:opacity-100 shrink-0"
                 >
                   &times;
                 </button>
               </div>
 
+              {/* Quantity column — unused for a tax line */}
+              <div className="w-44" />
+              {/* Rate column — the applied GST % (ledger rate, else derived from the amount). */}
+              <div className="w-20 text-right pr-1 text-sm text-black select-none">
+                {rateLabel}
+              </div>
+              {/* per + Disc% columns — unused for a tax line */}
+              <div className="w-12" />
+              <div className="w-16" />
+              {/* Amount column — aligns with the item Amount column */}
               <div className="w-32 text-right">
                 <input
                   type="text"
@@ -636,24 +622,12 @@ export default function SalesVoucher({
             </div>
           );
         })}
-
-        {!hideAdditionalLedgers && (
-          <div className="px-3 py-1 border-b border-gray-100">
-            <button
-              type="button"
-              onClick={form.handleAddAdditionalRow}
-              className="text-xs text-gray-500 hover:text-black border border-gray-300 px-2 py-0.5"
-            >
-              + Add Tax / Ledger Row
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Grand total footer */}
-      <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
-        <div className="flex-1 text-sm font-semibold text-black" />
-        <div className="w-32 text-right text-sm font-semibold text-black">
+      {/* Bug 9: exactly ONE bold total row at the bottom of the combined item+tax table. */}
+      <div className="flex border-t border-black shrink-0 px-3 py-1 bg-white">
+        <div className="flex-1 text-sm font-bold text-black">Total</div>
+        <div className="w-32 text-right text-sm font-bold text-black">
           {form.totalAmount > 0
             ? form.totalAmount.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -662,6 +636,18 @@ export default function SalesVoucher({
             : ""}
         </div>
       </div>
+
+      {!hideAdditionalLedgers && (
+        <div className="px-3 py-1 shrink-0">
+          <button
+            type="button"
+            onClick={form.handleAddAdditionalRow}
+            className="text-xs text-gray-500 hover:text-black border border-gray-300 px-2 py-0.5"
+          >
+            + Add Tax / Ledger Row
+          </button>
+        </div>
+      )}
 
       {/* Provide GST/e-Way Bill details */}
       {!hideAdditionalLedgers && <SalesGstEwayRow form={form} />}

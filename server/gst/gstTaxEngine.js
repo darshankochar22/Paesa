@@ -1,5 +1,6 @@
 const { sql, eq, and } = require('drizzle-orm');
 const {
+  companies,
   gstRegistrations,
   ledgers,
   ledgerStatutoryDetails,
@@ -9,6 +10,7 @@ const {
   gstHsnRates,
   gstVoucherTaxLines,
 } = require('../db/schema');
+const gstValidation = require('./gstValidation');
 
 const STATE_CODE_MAP = {
   "jammu and kashmir": "01",
@@ -74,6 +76,7 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
     sgst_rate: 0,
     igst_rate: 0,
     cess_rate: 0,
+    taxability: "",
     source: "default"
   };
 
@@ -85,6 +88,7 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
     );
     const item = itemRows[0];
     if (item) {
+      if (item.taxability_type) resolved.taxability = item.taxability_type;
       if (item.hsn_code) resolved.hsn_code = item.hsn_code;
       if (item.gst_applicable === 'Applicable' || item.gst_rate > 0) {
         resolved.gst_rate = item.gst_rate || 0;
@@ -248,6 +252,270 @@ const resolveTaxLedgerId = async (db, company_id, tax_type, { createIfMissing = 
 };
 
 /**
+ * Bulk-setup utility (spec STEP 3): ensures the standard set of Duties & Taxes
+ * ledgers (CGST, SGST/UTGST, IGST, Cess) exists for a company, each correctly
+ * tagged in ledger_statutory_details so the engine resolves them. Idempotent —
+ * existing tagged/named ledgers are reused, never duplicated.
+ *
+ * The engine's tax ledgers are rate-agnostic (the applied rate comes from the
+ * item/classification, not the ledger), so a single ledger per component covers
+ * every rate slab present in gst_classifications.
+ * Returns a map of tax_type -> { id, name }.
+ */
+const setupStandardTaxLedgers = async (db, company_id) => {
+  if (!company_id) throw new Error('company_id is required to set up tax ledgers');
+  const result = {};
+  for (const taxType of ['CGST', 'SGST', 'IGST', 'CESS']) {
+    result[taxType] = await resolveTaxLedgerId(db, company_id, taxType, { createIfMissing: true });
+  }
+  return result;
+};
+
+/**
+ * Resolves the company's GST registration for a voucher, in priority order:
+ *   (a) edit path  — the voucher's OWN snapshotted registration id (frozen, STEP 7);
+ *   (b) create path — an explicitly chosen registration id from the payload (bug 5);
+ *   (c) create path — the company's current default registration;
+ *   (d) fallback    — the first active registration (legacy behavior).
+ */
+const resolveCompanyRegistration = async (db, company_id, { gst_snapshot = null, gst_registration_id = null } = {}) => {
+  let reg = null;
+  const pinnedRegId = (gst_snapshot && gst_snapshot.gst_registration_id) || null;
+  const tryReg = async (id, requireActive) => {
+    if (!id) return null;
+    const rows = await db.all(
+      requireActive
+        ? sql`SELECT * FROM ${gstRegistrations}
+               WHERE ${gstRegistrations.gstId} = ${id} AND ${gstRegistrations.companyId} = ${company_id}
+                 AND ${gstRegistrations.isActive} = 1 LIMIT 1`
+        : sql`SELECT * FROM ${gstRegistrations} WHERE ${gstRegistrations.gstId} = ${id} LIMIT 1`
+    );
+    return rows[0] || null;
+  };
+
+  reg = await tryReg(pinnedRegId, false);           // (a) frozen snapshot — honored as-is
+  if (!reg) reg = await tryReg(gst_registration_id, true); // (b) explicit choice on this save
+  if (!reg) {
+    const companyRows = await db.all(
+      sql`SELECT current_default_gst_registration_id AS def_id FROM ${companies}
+          WHERE ${companies.companyId} = ${company_id} LIMIT 1`
+    );
+    reg = await tryReg(companyRows[0] && companyRows[0].def_id, true); // (c) company default
+  }
+  if (!reg) {
+    const rows = await db.all(
+      sql`SELECT * FROM ${gstRegistrations}
+          WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1 LIMIT 1`
+    );
+    reg = rows[0] || null;                            // (d) first active
+  }
+  return reg;
+};
+
+/**
+ * Classifies which of a voucher's manually-entered accounting entries are GST
+ * Duties & Taxes ledgers, and with what tax_type + fixed rate. Reads
+ * ledger_statutory_details (type_of_duty_tax = 'GST'). Returns a Map:
+ *   ledger_id(Number) -> { taxType: 'CGST'|'SGST'|'IGST'|'CESS', rate: Number }
+ */
+const classifyTaxLedgers = async (db, company_id, entries = []) => {
+  const map = new Map();
+  const ids = [...new Set(entries.map((e) => Number(e.ledger_id)).filter(Boolean))];
+  if (ids.length === 0) return map;
+  const rows = await db.all(
+    sql`SELECT l.ledger_id AS ledger_id, l.name AS name, sd.gst_tax_type AS gst_tax_type,
+               sd.gst_rate AS gst_rate, sd.percentage_of_calculation AS pct
+        FROM ${ledgers} l
+        JOIN ${ledgerStatutoryDetails} sd ON sd.ledger_id = l.ledger_id
+        WHERE l.company_id = ${company_id} AND sd.type_of_duty_tax = 'GST'
+          AND l.ledger_id IN (${sql.join(ids, sql`, `)})`
+  );
+  for (const r of rows) {
+    // Prefer the configured gst_tax_type; fall back to inferring from the ledger name so a
+    // Duties&Taxes ledger tagged type_of_duty_tax='GST' but missing gst_tax_type (e.g. a
+    // ledger literally named "IGST") is still recognised instead of silently ignored.
+    let taxType = gstValidation.normalizeTaxType(r.gst_tax_type);
+    if (!['CGST', 'SGST', 'IGST', 'CESS'].includes(taxType)) {
+      taxType = gstValidation.normalizeTaxType(r.name);
+    }
+    if (!['CGST', 'SGST', 'IGST', 'CESS'].includes(taxType)) continue;
+    map.set(Number(r.ledger_id), { taxType, rate: Number(r.gst_rate || r.pct || 0) });
+  }
+  return map;
+};
+
+/**
+ * MANUAL GST model (the default voucher flow). Unlike computeVoucherTaxLines it
+ * NEVER adds, removes, or substitutes tax ledgers — it keeps exactly the ledgers the
+ * user selected, VALIDATES them at save, computes each selected tax ledger's amount
+ * PER ITEM (bug 7), and snapshots the registration/state/interstate flag.
+ *
+ * Returns { errors, warnings, entries, stock_entries, manualTaxLines, is_inter_state,
+ *           gst_registration_id, company_state, company_registration_type,
+ *           party_gstin, party_state }.
+ * On validation failure `errors` is non-empty and entries are returned unchanged.
+ */
+const validateAndComputeVoucherGst = async (db, payload) => {
+  const {
+    company_id,
+    date,
+    party_ledger_id,
+    place_of_supply,
+    voucher_type,
+    entries = [],
+    stock_entries = [],
+    gst_snapshot = null,
+    gst_registration_id = null,
+  } = payload;
+
+  if (!company_id) throw new Error('company_id is required for GST validation');
+
+  // 1. Company registration + state.
+  const companyReg = await resolveCompanyRegistration(db, company_id, { gst_snapshot, gst_registration_id });
+  const gstRegistrationId = companyReg ? companyReg.gst_id : null;
+  const companyRegistrationType = companyReg ? companyReg.registration_type : null;
+  const companyState = companyReg ? companyReg.state_id : '';
+  const companyGSTIN = companyReg ? companyReg.gstin : '';
+  const companyStateCode = resolveStateCode(companyState, companyGSTIN);
+
+  // 2. Party state + interstate (frozen from the snapshot on the edit path).
+  let partyState = '';
+  let partyGSTIN = '';
+  if (party_ledger_id) {
+    const partyRows = await db.all(
+      sql`SELECT state, gstin FROM ${ledgers}
+          WHERE ${ledgers.ledgerId} = ${party_ledger_id} AND ${ledgers.companyId} = ${company_id} LIMIT 1`
+    );
+    if (partyRows[0]) {
+      partyState = partyRows[0].state || '';
+      partyGSTIN = partyRows[0].gstin || '';
+    }
+  }
+  const destinationState = place_of_supply || partyState || companyState || '';
+  const destinationStateCode = resolveStateCode(destinationState, partyGSTIN);
+  const isInterState = (gst_snapshot && gst_snapshot.is_interstate != null)
+    ? Boolean(gst_snapshot.is_interstate)
+    : (companyStateCode !== destinationStateCode);
+
+  // 3. Per-item assessable value + rate + taxability.
+  const items = [];
+  const processedStockEntries = [];
+  for (const entry of stock_entries) {
+    const assessable_value = (entry.quantity || 0) * (entry.rate || 0) - (entry.discount_amount || 0);
+    const rateDetails = await resolveTaxRate(db, {
+      company_id,
+      stock_item_id: entry.stock_item_id,
+      ledger_id: entry.ledger_id,
+      hsn_code: entry.hsn_code,
+      date,
+    });
+    items.push({
+      assessable_value,
+      gst_rate: rateDetails.gst_rate,
+      cess_rate: rateDetails.cess_rate,
+      taxability: rateDetails.taxability,
+    });
+    processedStockEntries.push({ ...entry, hsn_code: rateDetails.hsn_code, gst_rate: rateDetails.gst_rate, assessable_value });
+  }
+
+  // 4. Classify the user's manually-selected tax ledgers.
+  const taxMap = await classifyTaxLedgers(db, company_id, entries);
+  const taxLines = entries
+    .filter((e) => taxMap.has(Number(e.ledger_id)))
+    .map((e) => ({ tax_type: taxMap.get(Number(e.ledger_id)).taxType, rate: taxMap.get(Number(e.ledger_id)).rate }));
+
+  // 5. Validate at save (bugs 3/4/8). Return early on the first blocking error.
+  const errors = [];
+  errors.push(...gstValidation.validateExemptItems({ items, taxLines }).errors);
+  const combo = gstValidation.validateGstLedgers({ isInterstate: isInterState, registrationType: companyRegistrationType, taxLines });
+  errors.push(...combo.errors);
+  if (errors.length > 0) {
+    return { errors, warnings: combo.warnings, entries, stock_entries: processedStockEntries };
+  }
+
+  // 6. Compute each selected tax ledger's amount PER ITEM, then sum (bug 7) — never a
+  //    single flat rate on the combined subtotal.
+  const componentRate = (taxType, it) => {
+    if (taxType === 'CGST' || taxType === 'SGST') return (it.gst_rate || 0) / 2;
+    if (taxType === 'IGST') return it.gst_rate || 0;
+    if (taxType === 'CESS') return it.cess_rate || 0;
+    return 0;
+  };
+  const manualTaxLines = [];
+  let totalTaxableAssessable = 0;
+  items.forEach((it) => { if (gstValidation.isItemTaxable(it)) totalTaxableAssessable += it.assessable_value; });
+
+  const finalEntries = entries.map((e) => {
+    const cls = taxMap.get(Number(e.ledger_id));
+    if (!cls) return e;
+    let amount = 0;
+    for (const it of items) amount += it.assessable_value * (componentRate(cls.taxType, it) / 100);
+    amount = Number(amount.toFixed(2));
+    manualTaxLines.push({
+      taxType: cls.taxType,
+      rate: cls.rate,
+      amount,
+      assessableValue: Number(totalTaxableAssessable.toFixed(2)),
+    });
+    return { ...e, amount, amount_forex: amount };
+  });
+
+  // 7. Rebalance the party ledger so the voucher stays double-entry balanced after the
+  //    tax amounts were (re)computed. No ledger is added/removed/substituted.
+  const isPurchase = voucher_type === 'Purchase' || voucher_type === 'Debit Note';
+  const partyEntryType = isPurchase ? 'Cr' : 'Dr';
+  let totalDr = 0;
+  let totalCr = 0;
+  let partyIdx = -1;
+  finalEntries.forEach((e, idx) => {
+    if (Number(e.ledger_id) === Number(party_ledger_id)) {
+      partyIdx = idx;
+    } else if (e.type === 'Dr') totalDr += Number(e.amount) || 0;
+    else totalCr += Number(e.amount) || 0;
+  });
+  if (partyIdx !== -1) {
+    const bal = Number(Math.abs(totalDr - totalCr).toFixed(2));
+    finalEntries[partyIdx] = { ...finalEntries[partyIdx], amount: bal, amount_forex: bal, type: partyEntryType };
+  }
+
+  return {
+    errors: [],
+    warnings: combo.warnings,
+    is_inter_state: isInterState ? 1 : 0,
+    gst_registration_id: gstRegistrationId,
+    company_state: companyState,
+    company_registration_type: companyRegistrationType,
+    party_gstin: partyGSTIN,
+    party_state: partyState,
+    entries: finalEntries,
+    stock_entries: processedStockEntries,
+    manualTaxLines,
+  };
+};
+
+/**
+ * Persists gst_voucher_tax_lines for the MANUAL flow — one row per user-selected tax
+ * ledger, from validateAndComputeVoucherGst().manualTaxLines. If the user added no tax
+ * ledgers, nothing is written (bug 1).
+ */
+const saveManualVoucherTaxLines = async (db, voucher_id, result) => {
+  await db.delete(gstVoucherTaxLines).where(eq(gstVoucherTaxLines.voucherId, voucher_id));
+  const { is_inter_state, party_gstin, party_state, manualTaxLines = [] } = result;
+  for (const line of manualTaxLines) {
+    await db.insert(gstVoucherTaxLines).values({
+      voucherId: voucher_id,
+      assessableValue: line.assessableValue || 0,
+      taxType: line.taxType,
+      rate: line.rate || 0,
+      amount: line.amount || 0,
+      isInterState: is_inter_state || 0,
+      partyGstin: party_gstin || '',
+      partyState: party_state || '',
+    });
+  }
+};
+
+/**
  * Computes GST tax lines for a voucher payload.
  */
 const computeVoucherTaxLines = async (db, payload) => {
@@ -259,7 +527,11 @@ const computeVoucherTaxLines = async (db, payload) => {
     stock_entries = [],
     entries = [],
     voucher_type,
-    voucher_class_gst_ledgers = null
+    voucher_class_gst_ledgers = null,
+    // Edit path: the voucher's OWN saved GST snapshot. When present it FREEZES the
+    // registration/company-state/interstate flag so re-saving never re-derives them
+    // from the company's (possibly changed) current default. Absent = fresh create.
+    gst_snapshot = null,
   } = payload;
 
   if (!company_id) {
@@ -280,12 +552,43 @@ const computeVoucherTaxLines = async (db, payload) => {
     return resolveTaxLedgerId(db, company_id, tax_type, { createIfMissing });
   };
 
-  // 1. Resolve Company State
-  const companyGstRows = await db.all(
-    sql`SELECT * FROM ${gstRegistrations}
-        WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1 LIMIT 1`
-  );
-  const companyReg = companyGstRows[0];
+  // 1. Resolve the company's GST registration, in priority order:
+  //    (a) edit path — the voucher's own snapshotted registration (frozen);
+  //    (b) create path — the company's current default registration;
+  //    (c) fallback — the first active registration (legacy behavior).
+  let companyReg = null;
+  const pinnedRegId = gst_snapshot && gst_snapshot.gst_registration_id;
+  if (pinnedRegId) {
+    const rows = await db.all(
+      sql`SELECT * FROM ${gstRegistrations} WHERE ${gstRegistrations.gstId} = ${pinnedRegId} LIMIT 1`
+    );
+    companyReg = rows[0] || null;
+  }
+  if (!companyReg) {
+    const companyRows = await db.all(
+      sql`SELECT current_default_gst_registration_id AS def_id FROM ${companies}
+          WHERE ${companies.companyId} = ${company_id} LIMIT 1`
+    );
+    const defaultRegId = companyRows[0] && companyRows[0].def_id;
+    if (defaultRegId) {
+      const rows = await db.all(
+        sql`SELECT * FROM ${gstRegistrations}
+            WHERE ${gstRegistrations.gstId} = ${defaultRegId}
+              AND ${gstRegistrations.companyId} = ${company_id}
+              AND ${gstRegistrations.isActive} = 1 LIMIT 1`
+      );
+      companyReg = rows[0] || null;
+    }
+  }
+  if (!companyReg) {
+    const rows = await db.all(
+      sql`SELECT * FROM ${gstRegistrations}
+          WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1 LIMIT 1`
+    );
+    companyReg = rows[0] || null;
+  }
+  const gstRegistrationId = companyReg ? companyReg.gst_id : null;
+  const companyRegistrationType = companyReg ? companyReg.registration_type : null;
   const companyState = companyReg ? companyReg.state_id : "";
   const companyGSTIN = companyReg ? companyReg.gstin : "";
   const companyStateCode = resolveStateCode(companyState, companyGSTIN);
@@ -309,7 +612,11 @@ const computeVoucherTaxLines = async (db, payload) => {
   const destinationState = place_of_supply || partyState || companyState || "";
   const destinationStateCode = resolveStateCode(destinationState, partyGSTIN);
 
-  const isInterState = companyStateCode !== destinationStateCode;
+  // FREEZE: on the edit path, honor the snapshotted interstate flag verbatim so it is
+  // "computed once, never recomputed" (spec STEP 5/7). Fresh saves derive it live.
+  const isInterState = (gst_snapshot && gst_snapshot.is_interstate != null)
+    ? Boolean(gst_snapshot.is_interstate)
+    : (companyStateCode !== destinationStateCode);
 
   let totalCGST = 0;
   let totalSGST = 0;
@@ -481,6 +788,10 @@ const computeVoucherTaxLines = async (db, payload) => {
 
   return {
     is_inter_state: isInterState ? 1 : 0,
+    // Header GST snapshot to persist on the voucher (immutable after first save).
+    gst_registration_id: gstRegistrationId,
+    company_state: companyState,
+    company_registration_type: companyRegistrationType,
     party_gstin: partyGSTIN,
     party_state: partyState,
     total_cgst: totalCGST,
@@ -577,6 +888,12 @@ module.exports = {
   STATE_CODE_MAP,
   resolveStateCode,
   resolveTaxRate,
+  resolveTaxLedgerId,
+  setupStandardTaxLedgers,
+  resolveCompanyRegistration,
+  classifyTaxLedgers,
+  validateAndComputeVoucherGst,
+  saveManualVoucherTaxLines,
   computeVoucherTaxLines,
   saveVoucherTaxLines
 };

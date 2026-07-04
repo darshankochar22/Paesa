@@ -337,10 +337,17 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
+      // LEFT JOIN ledger_statutory_details (1:1) so the ledger list carries the GST tax
+      // tagging the voucher UI needs to identify tax ledgers, show their rate, and
+      // auto-fill GST amounts (gst_tax_type / type_of_duty_tax / gst_tax_rate).
       const rows = await db.all(
-        sql`SELECT ${ledgers}.*, ${groups.name} as group_name
+        sql`SELECT ${ledgers}.*, ${groups.name} as group_name,
+                   ${ledgerStatutoryDetails.gstTaxType} as gst_tax_type,
+                   ${ledgerStatutoryDetails.typeOfDutyTax} as type_of_duty_tax,
+                   ${ledgerStatutoryDetails.gstRate} as gst_tax_rate
             FROM ${ledgers}
             LEFT JOIN ${groups} ON ${groups.groupId} = ${ledgers.groupId}
+            LEFT JOIN ${ledgerStatutoryDetails} ON ${ledgerStatutoryDetails.ledgerId} = ${ledgers.ledgerId}
             WHERE ${ledgers.companyId} = ${company_id}
               AND ${ledgers.isActive} = 1`,
       );

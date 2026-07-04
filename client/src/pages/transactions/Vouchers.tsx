@@ -8,6 +8,7 @@ import { formatDateDisplay } from "./hooks/useVoucherMeta";
 import type { BatchAllocation, InventoryAllocationItem } from "./types";
 import type { VoucherClassRow } from "@/types/entities/VoucherType";
 import { makeStockRow } from "./utils/rowFactories";
+import { validateTaxLedgerSelection } from "./utils/interstate";
 import { AlertBanner, PageTitleBar } from "../../components/ui";
 import { Button } from "@/components/shadcn/button";
 import { cn } from "@/lib/utils";
@@ -1247,6 +1248,32 @@ export default function Vouchers() {
   const handleLedgerSelectWithAllocation = useCallback(
     (item: any) => {
       const field = form.activeField;
+
+      // Validate a GST tax ledger AT SELECTION TIME (not at Accept): block IGST on an
+      // intra-state supply, CGST/SGST on an inter-state supply, and the SAME component
+      // being added twice — with a clear message, so the wrong ledger is never added.
+      if (field?.type === "additional") {
+        const otherTaxLedgers = form.additionalEntries
+          .filter((r: any) => r.id !== field.rowId && r.ledger)
+          .map((r: any) => r.ledger);
+        const err = validateTaxLedgerSelection(
+          item,
+          {
+            companyState: form.gstRegistration?.state_id,
+            companyGstin: form.gstRegistration?.gstin,
+            placeOfSupply: form.placeOfSupply && form.placeOfSupply !== "Select" ? form.placeOfSupply : undefined,
+            partyState: form.partyLedger?.state,
+            partyGstin: form.partyLedger?.gstin,
+          },
+          otherTaxLedgers,
+        );
+        if (err) {
+          form.setError(err);
+          form.handleFieldBlur?.();
+          return; // do NOT attach the ledger
+        }
+      }
+
       form.handleLedgerPanelSelect(item);
 
       // Payroll hierarchy auto-advance: category → first employee, employee → first
@@ -1506,6 +1533,12 @@ export default function Vouchers() {
       form.checkLedgerGroup,
       form.stockEntries,
       form.orderDetails,
+      form.gstRegistration,
+      form.placeOfSupply,
+      form.partyLedger,
+      form.additionalEntries,
+      form.setError,
+      form.handleFieldBlur,
       effectiveVoucherType,
       handleAmountConfirm,
     ]
@@ -2721,9 +2754,14 @@ const handleSaveVatDetails = useCallback(
       if (!selection) {
         form.setGstRegistration(null);
         form.setTaxUnit(null);
+        // Bug 5: an explicit "Not Applicable" choice clears the persisted default too.
+        form.persistDefaultRegistration(null);
       } else if (selection.kind === "gst") {
         form.setGstRegistration(selection.raw);
         form.setTaxUnit(null);
+        // Bug 5: persist this registration as the company default IMMEDIATELY, so the next
+        // new voucher (even after closing this screen) prefills it.
+        form.persistDefaultRegistration(selection.raw?.gst_id ?? null);
       } else {
         form.setTaxUnit(selection.raw);
         form.setGstRegistration(null);

@@ -354,6 +354,19 @@ const init = async (db) => {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN sales_purchase_ledger_id INTEGER`);
   } catch (err) {}
 
+  // GST snapshot (immutable after save): the registration/state/interstate-flag captured
+  // when the voucher was first saved. Edits validate against THESE, never the company's
+  // current default — so changing the default never alters an existing voucher's GST.
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN gst_registration_id INTEGER`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN company_state TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN is_interstate INTEGER DEFAULT 0`);
+  } catch (err) {}
+
   try {
     await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN cheque_range TEXT`);
   } catch (err) {}

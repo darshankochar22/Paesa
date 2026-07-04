@@ -3,6 +3,7 @@ import { useState, useCallback, useMemo } from "react";
 import type { LedgerType } from "../../../types/api";
 import type { ParticularRow, StockEntryRow } from "../types";
 import { makeParticularRow, makeStockRow } from "../utils/rowFactories";
+import { gstComponentOf } from "../utils/gstRow";
 
 interface UseInventoryRowsOptions {
   initialStockEntries?: StockEntryRow[];
@@ -81,12 +82,34 @@ export function useInventoryRows({
       );
       if (updates.ledger?.ledger_id) {
         const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
+        // Bug 7 (UI auto-fill): when the picked ledger is a GST tax ledger, compute its
+        // amount PER ITEM (each line's net value × that item's component rate) and fill it
+        // in, so the user doesn't hand-type it. CGST/SGST use half the item's GST rate,
+        // IGST the full rate. Non-tax ledgers (freight, discount) are left for manual entry.
+        // The server recomputes authoritatively on save; this just mirrors that figure live.
+        // Component is resolved via gst_tax_type OR the ledger name (so a ledger named
+        // "IGST" with no gst_tax_type set still auto-fills).
+        const component = gstComponentOf(updates.ledger);
+        const isHalf = component === "CGST" || component === "SGST";
+        const isFull = component === "IGST";
+        let autoAmount: string | undefined;
+        if (isHalf || isFull) {
+          const amt = stockEntries.reduce((s, r) => {
+            const assessable = Number(r.amountRaw) || 0;
+            const itemRate = Number((r.stockItem as any)?.gst_rate) || 0;
+            const componentRate = isHalf ? itemRate / 2 : itemRate;
+            return s + assessable * (componentRate / 100);
+          }, 0);
+          if (amt > 0) autoAmount = amt.toFixed(2);
+        }
         setAdditionalEntries((prev) =>
-          prev.map((p) => (p.id !== id ? p : { ...p, ledgerBalance: bal }))
+          prev.map((p) =>
+            p.id !== id ? p : { ...p, ledgerBalance: bal, ...(autoAmount ? { amountRaw: autoAmount } : {}) }
+          )
         );
       }
     },
-    [fetchLedgerBalance]
+    [fetchLedgerBalance, stockEntries]
   );
 
   const handleRemoveAdditionalRow = useCallback((id: string) => {

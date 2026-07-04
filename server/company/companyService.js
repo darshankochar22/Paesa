@@ -162,6 +162,34 @@ module.exports = {
     }
   },
 
+  // Bug 5: the single source of truth for "which GST registration prefills NEW vouchers".
+  // Written immediately when the user picks a registration on a voucher; read back when a
+  // fresh voucher is opened. No "first record" fallback — this field decides, or nothing.
+  setDefaultGstRegistration: async (company_id, gst_registration_id) => {
+    try {
+      const current = await findRow(sql`${companies.companyId} = ${company_id}`);
+      if (!current) return { success: false, error: 'Company not found' };
+      const value = gst_registration_id != null ? Number(gst_registration_id) : null;
+      await db
+        .update(companies)
+        .set({ currentDefaultGstRegistrationId: value })
+        .where(eq(companies.companyId, company_id));
+      return { success: true, current_default_gst_registration_id: value };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  getDefaultGstRegistration: async (company_id) => {
+    try {
+      const current = await findRow(sql`${companies.companyId} = ${company_id}`);
+      if (!current) return { success: false, error: 'Company not found' };
+      return { success: true, current_default_gst_registration_id: current.current_default_gst_registration_id ?? null };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
   verifyPassword: async (id, password) => {
     try {
       const company = await findRow(sql`${companies.companyId} = ${id}`);

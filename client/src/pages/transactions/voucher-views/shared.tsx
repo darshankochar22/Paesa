@@ -9,6 +9,10 @@ export interface VoucherEntry {
   amount_forex: number;
   currency: string;
   narration: string | null;
+  // Enriched by getById (LEFT JOIN ledger_statutory_details) so tax ledgers show their rate.
+  gst_tax_type?: string | null;
+  gst_tax_rate?: number | null;
+  type_of_duty_tax?: string | null;
 }
 
 export interface StockBatch {
@@ -248,7 +252,26 @@ export function BatchSummaryLine({ batches }: { batches: StockBatch[] }) {
   );
 }
 
-export function ReadOnlyStockTable({ entries, variant = "default" }: { entries: StockEntry[]; variant?: StockTableVariant }) {
+/** Tax / additional ledger line shown continuing the item table (bug 9 voucher view). */
+export interface AdditionalRow {
+  name: string;
+  ratePct?: number | null;
+  amount: number;
+}
+
+export function ReadOnlyStockTable({
+  entries,
+  variant = "default",
+  additionalRows = [],
+  grandTotal,
+}: {
+  entries: StockEntry[];
+  variant?: StockTableVariant;
+  /** Tax/ledger rows rendered directly under the item rows (default variant only). */
+  additionalRows?: AdditionalRow[];
+  /** When provided, a single bold "Total" row (item subtotal + tax) replaces the plain subtotal. */
+  grandTotal?: number;
+}) {
   const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
 
   if (variant === "actualBilled") {
@@ -376,17 +399,46 @@ export function ReadOnlyStockTable({ entries, variant = "default" }: { entries: 
             <BatchSummaryLine batches={item.batches} />
           </div>
         ))}
-        {Array.from({ length: Math.max(0, 5 - entries.length) }).map((_, i) => (
-          <div key={`sf-${i}`} className="flex border-b border-gray-50 min-h-[22px] px-3" />
-        ))}
-        {total > 0 && (
-          <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
-            <div className="flex-1 text-xs text-gray-700">Subtotal</div>
+
+        {/* Bug 9 (voucher view): tax / additional ledger rows continue the SAME table —
+            ledger name in the item column, its GST % in the Rate column, amount in Amount. */}
+        {additionalRows.map((row, idx) => (
+          <div key={`ar-${idx}`} className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
+            <div className="flex-1 text-sm text-black">{row.name || "—"}</div>
             {withGodown && <div className="w-28" />}
-            <div className="w-24 text-right pr-1" />
-            <div className="w-32 text-right pr-1" />
-            <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(total)}</div>
+            <div className="w-24" />
+            <div className="w-32 text-right text-sm text-black">
+              {row.ratePct != null && row.ratePct > 0 ? `${Number(row.ratePct)}%` : ""}
+            </div>
+            <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(row.amount)}</div>
           </div>
+        ))}
+
+        {additionalRows.length === 0 &&
+          Array.from({ length: Math.max(0, 5 - entries.length) }).map((_, i) => (
+            <div key={`sf-${i}`} className="flex border-b border-gray-50 min-h-[22px] px-3" />
+          ))}
+
+        {grandTotal != null ? (
+          grandTotal > 0 && (
+            <div className="flex border-t border-black border-b border-gray-300 px-3 py-1 bg-white">
+              <div className="flex-1 text-sm font-bold text-black">Total</div>
+              {withGodown && <div className="w-28" />}
+              <div className="w-24" />
+              <div className="w-32" />
+              <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(grandTotal)}</div>
+            </div>
+          )
+        ) : (
+          total > 0 && (
+            <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
+              <div className="flex-1 text-xs text-gray-700">Subtotal</div>
+              {withGodown && <div className="w-28" />}
+              <div className="w-24 text-right pr-1" />
+              <div className="w-32 text-right pr-1" />
+              <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(total)}</div>
+            </div>
+          )
         )}
       </div>
     </>

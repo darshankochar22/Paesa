@@ -24,4 +24,12 @@ module.exports = {
     verifyPassword: async (event, { id, password }) => {
     return await companyService.verifyPassword(id, password);
     },
+
+    setDefaultGstRegistration: async (event, { company_id, gst_registration_id }) => {
+        return await companyService.setDefaultGstRegistration(company_id, gst_registration_id);
+    },
+
+    getDefaultGstRegistration: async (event, company_id) => {
+        return await companyService.getDefaultGstRegistration(company_id);
+    },
 };

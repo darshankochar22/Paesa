@@ -92,6 +92,10 @@ const init = async (db) => {
     { col: 'excise_tariff_rate_per_unit', sql: `ALTER TABLE stock_items ADD COLUMN excise_tariff_rate_per_unit REAL DEFAULT 0` },
     { col: 'vat_applicable',             sql: `ALTER TABLE stock_items ADD COLUMN vat_applicable TEXT DEFAULT 'Applicable'` },
     { col: 'vat_details',                sql: `ALTER TABLE stock_items ADD COLUMN vat_details TEXT` },
+    // Cross-check link to a GST Classification master (FK -> gst_classifications(gc_id)).
+    // Inline gst_rate stays the live applied rate; the classification's gst_rate is the
+    // "expected rate" used only for the rate-mismatch warning (see gst/gstValidation.js).
+    { col: 'gst_classification_id',      sql: `ALTER TABLE stock_items ADD COLUMN gst_classification_id INTEGER` },
   ];
 
   for (const m of migrations) {
