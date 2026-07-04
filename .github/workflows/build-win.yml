@@ -16,16 +16,26 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: '.nvmrc'
 
       - name: Install root deps
-        run: npm install
+        run: npm install --ignore-scripts
+
+      - name: Lint backend (ESLint)
+        run: npm run lint
 
       - name: Run Backend Integration Tests
         run: npm run test
 
       - name: Install client deps
         run: cd client && npm install
+
+      - name: Typecheck frontend (tsc)
+        run: cd client && npx tsc -b
+
+      - name: Lint frontend (ESLint — report-only)
+        run: cd client && npm run lint
+        continue-on-error: true
 
       - name: Run Frontend Unit Tests (Vitest)
         run: cd client && npm run test
@@ -39,7 +49,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: '.nvmrc'
 
       - name: Install root deps
         run: npm install
@@ -70,7 +80,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: '.nvmrc'
 
       - name: Install root deps
         run: npm install
@@ -99,7 +109,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: '.nvmrc'
 
       - name: Install dependencies
         run: |

@@ -1,0 +1,26 @@
+# Dependencies & build output
+node_modules/
+dist/
+build/
+client/dist/
+coverage/
+out/
+.next/
+
+# Vendored / ignored
+paisa/
+
+# Generated & lockfiles
+package-lock.json
+client/package-lock.json
+drizzle/
+migrations/
+*.min.js
+*.min.css
+
+# Data / binaries
+*.sqlite
+*.db
+*.icns
+*.ico
+*.png

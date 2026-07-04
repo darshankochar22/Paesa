@@ -7,8 +7,18 @@
     "email": "dev@startup.com"
   },
   "main": "main.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "postinstall": "npm --prefix client install",
+    "prepare": "husky",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:client": "cd client && npm run lint",
+    "typecheck:client": "cd client && tsc -b",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "NODE_ENV=test jest --runInBand --detectOpenHandles --forceExit",
     "dev:client": "cd client && npm run dev",
     "dev": "cd client && npm run dev",
@@ -72,13 +82,19 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.0",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.10",
     "electron": "^42.4.0",
     "electron-builder": "^26.8.1",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0",
+    "husky": "^9.1.7",
     "jest": "^30.4.2",
+    "lint-staged": "^17.0.8",
     "playwright": "^1.61.0",
+    "prettier": "^3.9.4",
     "wait-on": "^9.0.10"
   },
   "dependencies": {
@@ -97,6 +113,18 @@
   "jest": {
     "testMatch": [
       "<rootDir>/server/tests/**/*.test.js"
+    ]
+  },
+  "lint-staged": {
+    "*.{js,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "client/**/*.{ts,tsx}": [
+      "prettier --write"
+    ],
+    "*.{mjs,json,md,css,yml,yaml}": [
+      "prettier --write"
     ]
   }
 }
