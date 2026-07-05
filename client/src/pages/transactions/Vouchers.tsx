@@ -9,33 +9,14 @@ import type { BatchAllocation, InventoryAllocationItem } from './types';
 import type { VoucherClassRow } from '@/types/entities/VoucherType';
 import { makeStockRow } from './utils/rowFactories';
 import { validateTaxLedgerSelection } from './utils/interstate';
+import { computeCanAccept } from './utils/voucherCanAccept';
+import { computePanelItems, computePanelTitle } from './utils/voucherPanel';
 import { AlertBanner, PageTitleBar } from '../../components/ui';
 import type { ExciseItemDetails } from './components/popups/ItemExciseDetailsPopup';
 import LedgerListPanel from './components/LedgerListPanel';
 import RightSidebar from './components/RightSidebar';
 import VoucherPopups from './components/VoucherPopups';
-import PaymentVoucher from './vouchers/PaymentVoucher';
-import ReceiptVoucher from './vouchers/ReceiptVoucher';
-import ContraVoucher from './vouchers/ContraVoucher';
-import JournalVoucher from './vouchers/JournalVoucher';
-import SalesVoucher from './vouchers/SalesVoucher';
-import PurchaseVoucher from './vouchers/PurchaseVoucher';
-import CreditNoteVoucher from './vouchers/CreditNoteVoucher';
-import DebitNoteVoucher from './vouchers/DebitNoteVoucher';
-import PhysicalStockVoucher from './vouchers/PhysicalStockVoucher';
-import StockJournalVoucher from './vouchers/StockJournalVoucher';
-import ReceiptNoteVoucher from './vouchers/ReceiptNoteVoucher';
-import RejectionInVoucher from './vouchers/RejectionInVoucher';
-import RejectionOutVoucher from './vouchers/RejectionOutVoucher';
-import MaterialInVoucher from './vouchers/MaterialInVoucher';
-import MaterialOutVoucher from './vouchers/MaterialOutVoucher';
-import ManufacturingJournalVoucher from './vouchers/ManufacturingJournalVoucher';
-import AttendanceVoucher from './vouchers/AttendanceVoucher';
-import PayrollVoucher from './vouchers/PayrollVoucher';
-import PurchaseOrderVoucher from './vouchers/PurchaseOrderVoucher';
-import SalesOrderVoucher from './vouchers/SalesOrderVoucher';
-import JobWorkInOrderVoucher from './vouchers/JobWorkInOrderVoucher';
-import JobWorkOutOrderVoucher from './vouchers/JobWorkOutOrderVoucher';
+import VoucherBody from './components/VoucherBody';
 
 // Voucher types whose entry screen is titled "Inventory Voucher Creation" — they
 // share the centered company name + GST Registration header.
@@ -148,177 +129,32 @@ export default function Vouchers() {
 
   const acceptRef = useRef<() => void>(() => {});
 
-  const canAccept = useMemo(() => {
-    if (form.isSubmitting) return false;
-
-    if (effectiveVoucherType === 'Receipt') {
-      if (form.receiptEntryMode === 'single') {
-        return (
-          !!form.accountLedger && form.particulars.some((p) => !!p.ledger && p.amountRaw !== '')
-        );
-      }
-      const filled = form.receiptDoubleRows.filter((r) => !!r.ledger && r.amountRaw !== '');
-      return filled.length >= 2 && Math.abs(form.debitTotal - form.creditTotal) < 0.01;
-    }
-
-    if (effectiveVoucherType === 'Payment') {
-      if (form.paymentEntryMode === 'single') {
-        return (
-          !!form.accountLedger &&
-          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
-        );
-      }
-      const filled = form.paymentDoubleRows.filter(
-        (r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0,
-      );
-      return filled.length >= 2 && Math.abs(form.debitTotal - form.creditTotal) < 0.01;
-    }
-
-    if (effectiveVoucherType === 'Contra') {
-      if (form.contraEntryMode === 'single') {
-        return (
-          !!form.accountLedger && form.particulars.some((p) => !!p.ledger && p.amountRaw !== '')
-        );
-      }
-      const filled = form.contraDoubleRows.filter((r) => !!r.ledger && r.amountRaw !== '');
-      return filled.length >= 2 && Math.abs(form.debitTotal - form.creditTotal) < 0.01;
-    }
-
-    if (effectiveVoucherType === 'Journal') {
-      if (form.journalEntryMode === 'single') {
-        return (
-          !!form.accountLedger &&
-          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
-        );
-      }
-      const filled = form.journalRows.filter((r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0);
-      return filled.length >= 2 && Math.abs(form.debitTotal - form.creditTotal) < 0.01;
-    }
-
-    if (
-      [
-        'Sales',
-        'Purchase',
-        'Credit Note',
-        'Debit Note',
-        'Delivery Note',
-        'Receipt Note',
-        'Rejection In',
-        'Rejection Out',
-        'Material In',
-        'Material Out',
-      ].includes(effectiveVoucherType)
-    ) {
-      const hasValidEntries = form.stockEntries.some(
-        (s) => !!s.stockItem && (Number(s.amountRaw) || 0) > 0,
-      );
-      const allFilled =
-        effectiveVoucherType === 'Credit Note' ||
-        effectiveVoucherType === 'Debit Note' ||
-        effectiveVoucherType === 'Rejection In' ||
-        effectiveVoucherType === 'Rejection Out' ||
-        effectiveVoucherType === 'Material In' ||
-        effectiveVoucherType === 'Material Out'
-          ? form.stockEntries.every(
-              (s) => !s.stockItem || (s.quantityRaw !== '' && s.rateRaw !== ''),
-            )
-          : true;
-      const needsLedger = ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(
-        effectiveVoucherType,
-      );
-      return (
-        !!form.partyLedger &&
-        (!needsLedger || !!form.salesPurchaseLedger) &&
-        hasValidEntries &&
-        allFilled
-      );
-    }
-
-    if (
-      effectiveVoucherType === 'Stock Journal' ||
-      effectiveVoucherType === 'Manufacturing Journal'
-    ) {
-      const filledSource = form.sourceStockEntries.some(
-        (s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0,
-      );
-      const filledDest = form.destinationStockEntries.some(
-        (s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0,
-      );
-      return filledSource || filledDest;
-    }
-
-    // Physical Stock: inventory-only, no party/ledger — valid once any item has a quantity.
-    if (effectiveVoucherType === 'Physical Stock') {
-      return form.stockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
-    }
-
-    // Order vouchers: party + at least one stock item with quantity
-    if (
-      ['Purchase Order', 'Sales Order', 'Job Work In Order', 'Job Work Out Order'].includes(
-        effectiveVoucherType,
-      )
-    ) {
-      return (
-        !!form.partyLedger &&
-        form.stockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0)
-      );
-    }
-
-    if (effectiveVoucherType === 'Memorandum') {
-      const filled = form.journalRows.filter((r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0);
-      return filled.length >= 2 && Math.abs(form.debitTotal - form.creditTotal) < 0.01;
-    }
-
-    if (effectiveVoucherType === 'Reversing Journal') {
-      if (form.journalEntryMode === 'single') {
-        return (
-          !!form.accountLedger &&
-          form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
-        );
-      }
-      const filled = form.journalRows.filter((r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0);
-      return filled.length >= 2 && Math.abs(form.debitTotal - form.creditTotal) < 0.01;
-    }
-
-    if (effectiveVoucherType === 'Attendance') {
-      return form.attendanceEntries.some(
-        (r) => !!r.employee && !!r.attendanceType && Number(r.valueRaw) > 0,
-      );
-    }
-
-    if (effectiveVoucherType === 'Payroll') {
-      return (
-        !!form.accountLedger &&
-        ((form as any).payrollEntriesFromGroups ?? form.payrollEntries).some(
-          (r: any) => !!r.employee && !!r.payHead && Number(r.amountRaw) > 0,
-        )
-      );
-    }
-
-    return false;
-  }, [
-    form.isSubmitting,
-    form.paymentEntryMode,
-    form.journalEntryMode,
-    effectiveVoucherType,
-    form.contraEntryMode,
-    form.receiptEntryMode,
-    form.contraDoubleRows,
-    form.receiptDoubleRows,
-    form.paymentDoubleRows,
-    form.accountLedger,
-    form.particulars,
-    form.journalRows,
-    form.debitTotal,
-    form.creditTotal,
-    form.partyLedger,
-    form.salesPurchaseLedger,
-    form.stockEntries,
-    form.sourceStockEntries,
-    form.destinationStockEntries,
-    form.attendanceEntries,
-    form.payrollEntries,
-  ]);
+  const canAccept = useMemo(
+    () => computeCanAccept(form, effectiveVoucherType),
+    [
+      form.isSubmitting,
+      form.paymentEntryMode,
+      form.journalEntryMode,
+      effectiveVoucherType,
+      form.contraEntryMode,
+      form.receiptEntryMode,
+      form.contraDoubleRows,
+      form.receiptDoubleRows,
+      form.paymentDoubleRows,
+      form.accountLedger,
+      form.particulars,
+      form.journalRows,
+      form.debitTotal,
+      form.creditTotal,
+      form.partyLedger,
+      form.salesPurchaseLedger,
+      form.stockEntries,
+      form.sourceStockEntries,
+      form.destinationStockEntries,
+      form.attendanceEntries,
+      form.payrollEntries,
+    ],
+  );
 
   useEffect(() => {
     if (effectiveVoucherType === 'Sales' && form.partyLedger && !hasAutoOpenedDispatch.current) {
@@ -1932,226 +1768,31 @@ export default function Vouchers() {
 
   const panelOpen = !!form.activeField;
 
-  const panelItems = useMemo(() => {
-    const af = form.activeField;
-    if (!af) return [];
+  const panelItems = useMemo(
+    () => computePanelItems(form, effectiveVoucherType),
+    [
+      form.activeField,
+      effectiveVoucherType,
+      form.paymentEntryMode,
+      form.journalEntryMode,
+      form.receiptEntryMode,
+      form.paymentDoubleRows,
+      form.receiptDoubleRows,
+      form.allLedgers,
+      form.allStockItems,
+      form.allGodowns,
+      form.allEmployees,
+      form.allAttendanceTypes,
+      form.allPayHeads,
+      form.checkIsCashOrBank,
+      form.checkLedgerGroup,
+    ],
+  );
 
-    if (af.type === 'stockItem') return form.allStockItems;
-    if (af.type === 'stockGodown') return form.allGodowns;
-    if (af.type === 'employee') return form.allEmployees;
-    // Only user-created attendance/production types appear — the old pre-seeded
-    // (predefined) ones are hidden so the list starts at just "Create".
-    if (af.type === 'attendanceType')
-      return form.allAttendanceTypes.filter((t: any) => !t.is_predefined);
-    if (af.type === 'payHead') return form.allPayHeads;
-
-    if (af.type === 'account') {
-      if (effectiveVoucherType === 'Journal') {
-        return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
-      }
-      if (effectiveVoucherType === 'Payroll') {
-        return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
-      }
-      // Account field is always cash/bank for all three single-entry types
-      return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
-    }
-
-    if (af.type === 'payrollCategory') {
-      return (form as any).allEmployeeCategories ?? [];
-    }
-
-    if (af.type === 'payrollEmployee') {
-      return form.allEmployees;
-    }
-
-    if (af.type === 'payrollPayHead') {
-      return form.allPayHeads;
-    }
-
-    if (af.type === 'party') {
-      // Credit Note: party may be Cash, a Bank Accounts ledger, Sundry Debtor,
-      // Sundry Creditor or Bank OD ledger only.
-      if (effectiveVoucherType === 'Credit Note') {
-        return form.allLedgers.filter((l) =>
-          form.checkLedgerGroup(l, [
-            'bank accounts',
-            'bank od accounts',
-            'bank od a/c',
-            'cash-in-hand',
-            'sundry debtors',
-            'sundry creditors',
-          ]),
-        );
-      }
-      if (
-        effectiveVoucherType === 'Debit Note' ||
-        effectiveVoucherType === 'Material In' ||
-        effectiveVoucherType === 'Material Out'
-      ) {
-        return form.allLedgers;
-      }
-      // Purchase Order / Sales Order / Delivery Note / Rejection In / Rejection Out —
-      // Tally's "List of Ledger Accounts": parties (Sundry Debtors + Creditors),
-      // Bank Accounts, Bank OD A/c, Branch/Divisions, Cash.
-      if (
-        effectiveVoucherType === 'Purchase Order' ||
-        effectiveVoucherType === 'Sales Order' ||
-        effectiveVoucherType === 'Delivery Note' ||
-        effectiveVoucherType === 'Receipt Note' ||
-        effectiveVoucherType === 'Rejection In' ||
-        effectiveVoucherType === 'Rejection Out' ||
-        effectiveVoucherType === 'Job Work In Order' ||
-        effectiveVoucherType === 'Job Work Out Order'
-      ) {
-        return form.allLedgers.filter((l) =>
-          form.checkLedgerGroup(l, [
-            'sundry debtors',
-            'sundry creditors',
-            'bank accounts',
-            'bank od accounts',
-            'bank od a/c',
-            'branch/divisions',
-            'branch / divisions',
-            'cash-in-hand',
-          ]),
-        );
-      }
-      const isPurchaseLike =
-        effectiveVoucherType === 'Purchase' ||
-        effectiveVoucherType === 'Receipt Note' ||
-        effectiveVoucherType === 'Rejection Out' ||
-        effectiveVoucherType === 'Material In';
-      return form.allLedgers.filter((l) =>
-        form.checkLedgerGroup(l, [
-          'bank accounts',
-          'bank od accounts',
-          'bank od a/c',
-          'cash-in-hand',
-          isPurchaseLike ? 'sundry creditors' : 'sundry debtors',
-        ]),
-      );
-    }
-
-    if (af.type === 'salesPurchase') {
-      // Credit Note: ledger account is a Sales or Purchase Accounts ledger only.
-      if (effectiveVoucherType === 'Credit Note') {
-        return form.allLedgers.filter((l) =>
-          form.checkLedgerGroup(l, ['sales accounts', 'purchase accounts']),
-        );
-      }
-      if (
-        effectiveVoucherType === 'Debit Note' ||
-        effectiveVoucherType === 'Rejection In' ||
-        effectiveVoucherType === 'Rejection Out'
-      ) {
-        return form.allLedgers;
-      }
-      const isPurchaseLike =
-        effectiveVoucherType === 'Purchase' ||
-        effectiveVoucherType === 'Receipt Note' ||
-        effectiveVoucherType === 'Rejection Out' ||
-        effectiveVoucherType === 'Purchase Order';
-      return form.allLedgers.filter((l) =>
-        form.checkLedgerGroup(l, isPurchaseLike ? ['purchase accounts'] : ['sales accounts']),
-      );
-    }
-
-    // Journal Particulars: all ledgers except cash/bank
-    if (effectiveVoucherType === 'Journal' && af.type === 'particular') {
-      return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
-    }
-
-    // Contra Particulars: also restricted to cash/bank (destination side)
-    // In double-entry mode, all rows are restricted to cash/bank
-    if (effectiveVoucherType === 'Contra' && af.type === 'particular') {
-      return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
-    }
-
-    // Receipt double-entry: Dr rows = all ledgers, Cr rows = all ledgers
-    if (
-      effectiveVoucherType === 'Receipt' &&
-      form.receiptEntryMode === 'double' &&
-      af.type === 'particular'
-    ) {
-      return form.allLedgers;
-    }
-
-    // Payment double-entry: all ledgers visible for both Dr and Cr
-    if (
-      effectiveVoucherType === 'Payment' &&
-      form.paymentEntryMode === 'double' &&
-      af.type === 'particular'
-    ) {
-      return form.allLedgers;
-    }
-
-    // Payment single-entry: Particulars are Dr — all ledgers except cash/bank
-    if (
-      effectiveVoucherType === 'Payment' &&
-      form.paymentEntryMode === 'single' &&
-      af.type === 'particular'
-    ) {
-      return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
-    }
-
-    return form.allLedgers;
-  }, [
-    form.activeField,
-    effectiveVoucherType,
-    form.paymentEntryMode,
-    form.journalEntryMode,
-    form.receiptEntryMode,
-    form.paymentDoubleRows,
-    form.receiptDoubleRows,
-    form.allLedgers,
-    form.allStockItems,
-    form.allGodowns,
-    form.allEmployees,
-    form.allAttendanceTypes,
-    form.allPayHeads,
-    form.checkIsCashOrBank,
-    form.checkLedgerGroup,
-  ]);
-
-  const panelTitle = useMemo(() => {
-    const af = form.activeField;
-    if (!af) return 'List of Ledger Accounts';
-    if (af.type === 'stockItem') return 'List of Stock Items';
-    if (af.type === 'stockGodown') return 'List of Godowns';
-    if (af.type === 'employee') return 'List of Employees';
-    if (af.type === 'attendanceType') return 'List of Attendance / Production Types';
-    if (af.type === 'payHead') return 'List of Pay Heads';
-    if (af.type === 'payrollCategory') return 'List of Categories';
-    if (af.type === 'payrollEmployee') return 'List of Employees';
-    if (af.type === 'payrollPayHead') return 'List of Pay Heads';
-    if (af.type === 'account') {
-      if (effectiveVoucherType === 'Journal') return 'List of Ledger Accounts';
-      if (effectiveVoucherType === 'Payroll') return 'List of Cash / Bank Accounts';
-      return 'List of Cash / Bank Accounts';
-    }
-    if (af.type === 'party')
-      return effectiveVoucherType === 'Credit Note' ||
-        effectiveVoucherType === 'Purchase Order' ||
-        effectiveVoucherType === 'Sales Order' ||
-        effectiveVoucherType === 'Delivery Note' ||
-        effectiveVoucherType === 'Rejection In' ||
-        effectiveVoucherType === 'Rejection Out' ||
-        effectiveVoucherType === 'Job Work In Order' ||
-        effectiveVoucherType === 'Job Work Out Order'
-        ? 'List of Ledger Accounts'
-        : 'List of Party Accounts';
-    if (af.type === 'salesPurchase') {
-      if (
-        effectiveVoucherType === 'Credit Note' ||
-        effectiveVoucherType === 'Purchase Order' ||
-        effectiveVoucherType === 'Sales Order'
-      )
-        return 'List of Ledger Accounts';
-      if (effectiveVoucherType === 'Receipt Note') return 'List of Purchase Ledgers';
-      return `List of ${form.voucherType} Ledgers`;
-    }
-    return 'List of Ledger Accounts';
-  }, [form.activeField, effectiveVoucherType, form.receiptEntryMode, form.receiptDoubleRows]);
+  const panelTitle = useMemo(
+    () => computePanelTitle(form, effectiveVoucherType),
+    [form.activeField, effectiveVoucherType, form.receiptEntryMode, form.receiptDoubleRows],
+  );
 
   const panelSearchTerm =
     form.activeField?.type === 'stockItem' ? form.stockSearchTerm : form.ledgerSearchTerm;
@@ -2511,169 +2152,15 @@ export default function Vouchers() {
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
-          {effectiveVoucherType === 'Payment' && (
-            <PaymentVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
-          )}
-          {effectiveVoucherType === 'Receipt' && (
-            <ReceiptVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
-          )}
-          {effectiveVoucherType === 'Contra' && (
-            <ContraVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
-          )}
-          {effectiveVoucherType === 'Journal' && (
-            <JournalVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
-          )}
-          {effectiveVoucherType === 'Sales' && (
-            <SalesVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Purchase' && (
-            <PurchaseVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Credit Note' && (
-            <CreditNoteVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Debit Note' && (
-            <DebitNoteVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Physical Stock' && (
-            <PhysicalStockVoucher
-              form={form}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-              physicalStockQtyEnter={handlePhysicalStockQtyEnter}
-            />
-          )}
-          {effectiveVoucherType === 'Stock Journal' && <StockJournalVoucher form={form} />}
-          {effectiveVoucherType === 'Delivery Note' && (
-            // Tally Delivery Note uses the sales-invoice layout (Party + Sales
-            // ledger + Actual/Billed/Rate/Disc%/Amount). Reuse SalesVoucher, hiding
-            // the Sales-only VAT toggle and additional-ledger rows (a Delivery Note
-            // is inventory-only — those lines aren't persisted for it).
-            <SalesVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-              hideVatDetails
-              hideAdditionalLedgers
-            />
-          )}
-          {effectiveVoucherType === 'Receipt Note' && (
-            <ReceiptNoteVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Rejection In' && (
-            <RejectionInVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Rejection Out' && (
-            <RejectionOutVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Material In' && (
-            <MaterialInVoucher
-              form={form}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Material Out' && (
-            <MaterialOutVoucher
-              form={form}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Manufacturing Journal' && (
-            <ManufacturingJournalVoucher form={form} />
-          )}
-          {effectiveVoucherType === 'Attendance' && <AttendanceVoucher form={form} />}
-          {effectiveVoucherType === 'Payroll' && <PayrollVoucher form={form} />}
-          {effectiveVoucherType === 'Purchase Order' && (
-            <PurchaseOrderVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Sales Order' && (
-            <SalesOrderVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Job Work In Order' && (
-            <JobWorkInOrderVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Job Work Out Order' && (
-            <JobWorkOutOrderVoucher
-              form={form}
-              handleAmountConfirm={handleAmountConfirm}
-              focusStockQty={focusStockQty}
-              focusStockRate={focusStockRate}
-              proceedToNextStockRow={proceedToNextStockRow}
-            />
-          )}
-          {effectiveVoucherType === 'Memorandum' && (
-            <JournalVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
-          )}
-          {effectiveVoucherType === 'Reversing Journal' && (
-            <JournalVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
-          )}
+          <VoucherBody
+            effectiveVoucherType={effectiveVoucherType}
+            form={form}
+            handleAmountConfirm={handleAmountConfirm}
+            focusStockQty={focusStockQty}
+            focusStockRate={focusStockRate}
+            proceedToNextStockRow={proceedToNextStockRow}
+            handlePhysicalStockQtyEnter={handlePhysicalStockQtyEnter}
+          />
 
           {/* ── Reversing Journal: Applicable Upto date ── */}
           {effectiveVoucherType === 'Reversing Journal' && (
