@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 function renderLabel(label: string) {
   const parts: React.ReactNode[] = [];
@@ -12,18 +12,18 @@ function renderLabel(label: string) {
       while (j < label.length && label[j] === label[j].toUpperCase() && label[j].match(/[A-Z]/)) {
         j++;
       }
-      parts.push(<span key={i} className="font-bold">{label.slice(i, j)}</span>);
+      parts.push(
+        <span key={i} className="font-bold">
+          {label.slice(i, j)}
+        </span>,
+      );
       boldUsed = true;
       i = j;
     } else {
       let j = i + 1;
       while (
         j < label.length &&
-        !(
-          !boldUsed &&
-          label[j] === label[j].toUpperCase() &&
-          label[j].match(/[A-Z]/)
-        )
+        !(!boldUsed && label[j] === label[j].toUpperCase() && label[j].match(/[A-Z]/))
       ) {
         j++;
       }
@@ -37,75 +37,71 @@ function renderLabel(label: string) {
 
 const gatewaySections = [
   {
-    title: "MASTERS",
+    title: 'MASTERS',
     items: [
-      { label: "Create",            route: "/master/create" },
-      { label: "Alter",             route: "/master/alter" },
-      { label: "CHart of Accounts", route: "/master/coa" },
+      { label: 'Create', route: '/master/create' },
+      { label: 'Alter', route: '/master/alter' },
+      { label: 'CHart of Accounts', route: '/master/coa' },
     ],
   },
   {
-    title: "TRANSACTIONS",
+    title: 'TRANSACTIONS',
     items: [
-      { label: "Vouchers",  route: "/transactions/vouchers" },
-      { label: "Day BooK",  route: "/transactions/daybook" },
+      { label: 'Vouchers', route: '/transactions/vouchers' },
+      { label: 'Day BooK', route: '/transactions/daybook' },
     ],
   },
   {
-    title: "UTILITIES",
+    title: 'UTILITIES',
     items: [
-      { label: "BaNking",    route: "/utilities/banking" },
-      { label: "AI Copilot", route: "/utilities/copilot" },
+      { label: 'BaNking', route: '/utilities/banking' },
+      { label: 'AI Copilot', route: '/utilities/copilot' },
     ],
   },
   {
-    title: "REPORTS",
+    title: 'REPORTS',
     items: [
-      { label: "Balance Sheet",     route: "/reports/accounts/balance-sheet" },
-      { label: "Profit & Loss A/c", route: "/reports/accounts/profit-loss" },
-      { label: "Stock Summary",     route: "/reports/inventory/stock-summary" },
-      { label: "Ratio Analysis",    route: "/reports/accounts/ratio-analysis" },
+      { label: 'Balance Sheet', route: '/reports/accounts/balance-sheet' },
+      { label: 'Profit & Loss A/c', route: '/reports/accounts/profit-loss' },
+      { label: 'Stock Summary', route: '/reports/inventory/stock-summary' },
+      { label: 'Ratio Analysis', route: '/reports/accounts/ratio-analysis' },
     ],
   },
 ];
 
 const displayMoreSections = [
   {
-    title: "ACCOUNTING",
+    title: 'ACCOUNTING',
     items: [
-      { label: "Trial Balance",          route: "/reports/accounts/trial-balance" },
-      { label: "Day Book",               route: "/transactions/daybook" },
-      { label: "Cash Flow",              route: "/reports/accounts/cash-flow" },
-      { label: "Funds Flow",             route: "/reports/accounts/funds-flow" },
-      { label: "Account Books",          route: "/reports/account-books" },
-      { label: "Statements of Accounts", route: "/reports/statements-of-accounts" },
+      { label: 'Trial Balance', route: '/reports/accounts/trial-balance' },
+      { label: 'Day Book', route: '/transactions/daybook' },
+      { label: 'Cash Flow', route: '/reports/accounts/cash-flow' },
+      { label: 'Funds Flow', route: '/reports/accounts/funds-flow' },
+      { label: 'Account Books', route: '/reports/account-books' },
+      { label: 'Statements of Accounts', route: '/reports/statements-of-accounts' },
     ],
   },
   {
-    title: "INVENTORY",
+    title: 'INVENTORY',
     items: [
-      { label: "Inventory Books",          route: "/reports/inventory-books" },
-      { label: "StatEments of Inventory",  route: "/reports/statements-of-inventory" },
-      { label: "Job Work Reports",         route: "/reports/job-work" },
+      { label: 'Inventory Books', route: '/reports/inventory-books' },
+      { label: 'StatEments of Inventory', route: '/reports/statements-of-inventory' },
+      { label: 'Job Work Reports', route: '/reports/job-work' },
     ],
   },
   {
-    title: "STATUTORY",
-    items: [
-      { label: "StatutOry Reports", route: "/reports/statutory" },
-    ],
+    title: 'STATUTORY',
+    items: [{ label: 'StatutOry Reports', route: '/reports/statutory' }],
   },
   {
-    title: "PAYROLL",
-    items: [
-      { label: "Payroll Reports", route: "/reports/payroll-hr" },
-    ],
+    title: 'PAYROLL',
+    items: [{ label: 'Payroll Reports', route: '/reports/payroll-hr' }],
   },
   {
-    title: "EXCEPTION",
+    title: 'EXCEPTION',
     items: [
-      { label: "EXception Reports",       route: "/reports/exception" },
-      { label: "Analysis & Verification", route: "/reports/analysis-verification" },
+      { label: 'EXception Reports', route: '/reports/exception' },
+      { label: 'Analysis & Verification', route: '/reports/analysis-verification' },
     ],
   },
 ];
@@ -163,7 +159,7 @@ function Panel({
                 >
                   {renderLabel(item.label)}
                 </button>
-              )
+              ),
             )}
           </div>
         )}
@@ -182,25 +178,25 @@ function Panel({
 }
 
 export default function Gateway() {
-  const [page, setPage] = useState<"gateway" | "display-more">("gateway");
+  const [page, setPage] = useState<'gateway' | 'display-more'>('gateway');
 
-  if (page === "display-more") {
+  if (page === 'display-more') {
     return (
       <Panel
         title="Display More Reports"
         sections={displayMoreSections}
-        onBack={() => setPage("gateway")}
+        onBack={() => setPage('gateway')}
       />
     );
   }
 
   return (
     <Panel
-      title="Gateway of Tally"
+      title="Gateway"
       sections={gatewaySections}
       bottomItems={[
-        { label: "Display More Reports", onClick: () => setPage("display-more") },
-        { label: "DashbOard", route: "/dashboard" },
+        { label: 'Display More Reports', onClick: () => setPage('display-more') },
+        { label: 'DashbOard', route: '/dashboard' },
       ]}
     />
   );

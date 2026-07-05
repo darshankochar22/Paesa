@@ -1,11 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Separator } from '@/components/shadcn/separator';
 
-const BASE = "/reports/inventory-stock";
+const BASE = '/reports/inventory-stock';
 const slug = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
@@ -14,133 +17,123 @@ export default function InventoryStock() {
 
   const sections = [
     {
-      title: "STOCK SUMMARY",
+      title: 'STOCK SUMMARY',
       items: items([
-        "Stock Summary",
-        "Stock Summary Group-wise",
-        "Stock Summary Item-wise",
-        "Stock Summary Godown-wise",
-        "Stock Summary Batch-wise",
-        "Stock Summary Category-wise",
-        "Stock Summary with Rates",
-        "Stock Summary with Values",
+        'Stock Summary',
+        'Stock Summary Group-wise',
+        'Stock Summary Item-wise',
+        'Stock Summary Godown-wise',
+        'Stock Summary Batch-wise',
+        'Stock Summary Category-wise',
+        'Stock Summary with Rates',
+        'Stock Summary with Values',
       ]),
     },
     {
-      title: "STOCK LEDGERS",
+      title: 'STOCK LEDGERS',
+      items: items(['Stock Item Ledger', 'Stock Group Ledger']),
+    },
+    {
+      title: 'GODOWN',
+      items: items(['Godown Summary', 'Godown Item Summary', 'Godown Batch Summary']),
+    },
+    {
+      title: 'STOCK QUERY',
       items: items([
-        "Stock Item Ledger",
-        "Stock Group Ledger",
+        'Stock Query',
+        'Stock Query Godown-wise',
+        'Stock Query Batch-wise',
+        'Stock Query Order-wise',
       ]),
     },
     {
-      title: "GODOWN",
+      title: 'MOVEMENT ANALYSIS',
       items: items([
-        "Godown Summary",
-        "Godown Item Summary",
-        "Godown Batch Summary",
+        'Movement Analysis',
+        'Movement Analysis Stock Item-wise',
+        'Movement Analysis Stock Group-wise',
+        'Movement Analysis Party-wise',
+        'Movement Analysis Supplier-wise',
+        'Movement Analysis Buyer-wise',
+        'Movement Analysis Consumption-wise',
       ]),
     },
     {
-      title: "STOCK QUERY",
+      title: 'STOCK AGEING',
       items: items([
-        "Stock Query",
-        "Stock Query Godown-wise",
-        "Stock Query Batch-wise",
-        "Stock Query Order-wise",
+        'Stock Ageing Analysis',
+        'Stock Ageing by Purchase Date',
+        'Stock Ageing by Manufacturing Date',
+        'Stock Ageing by Expiry Date',
+        'To-be-Expired Stock Report',
+        'Expired Stock Report',
       ]),
     },
     {
-      title: "MOVEMENT ANALYSIS",
+      title: 'BATCH & MRP',
+      items: items(['Batch-wise Stock Report', 'MRP-wise Stock Report']),
+    },
+    {
+      title: 'REORDER & EXCEPTIONS',
       items: items([
-        "Movement Analysis",
-        "Movement Analysis Stock Item-wise",
-        "Movement Analysis Stock Group-wise",
-        "Movement Analysis Party-wise",
-        "Movement Analysis Supplier-wise",
-        "Movement Analysis Buyer-wise",
-        "Movement Analysis Consumption-wise",
+        'Reorder Status',
+        'Reorder Quantity Report',
+        'Negative Stock Report',
+        'Zero Stock Report',
+        'Low Stock Report',
+        'Fast Moving Items',
+        'Slow Moving Items',
+        'Non-moving Items',
       ]),
     },
     {
-      title: "STOCK AGEING",
+      title: 'STOCK VALUATION',
       items: items([
-        "Stock Ageing Analysis",
-        "Stock Ageing by Purchase Date",
-        "Stock Ageing by Manufacturing Date",
-        "Stock Ageing by Expiry Date",
-        "To-be-Expired Stock Report",
-        "Expired Stock Report",
+        'Stock Valuation',
+        'FIFO Stock Valuation',
+        'Average Cost Stock Valuation',
+        'Last Purchase Cost Valuation',
+        'Standard Cost Valuation',
       ]),
     },
     {
-      title: "BATCH & MRP",
+      title: 'PHYSICAL STOCK & TRANSFERS',
       items: items([
-        "Batch-wise Stock Report",
-        "MRP-wise Stock Report",
+        'Physical Stock Register',
+        'Physical Stock Variance',
+        'Stock Journal Register',
+        'Stock Transfer Register',
+        'Inter-Godown Transfer Report',
       ]),
     },
     {
-      title: "REORDER & EXCEPTIONS",
+      title: 'MATERIAL & REJECTION',
       items: items([
-        "Reorder Status",
-        "Reorder Quantity Report",
-        "Negative Stock Report",
-        "Zero Stock Report",
-        "Low Stock Report",
-        "Fast Moving Items",
-        "Slow Moving Items",
-        "Non-moving Items",
+        'Material In Report',
+        'Material Out Report',
+        'Rejection In Report',
+        'Rejection Out Report',
       ]),
     },
     {
-      title: "STOCK VALUATION",
+      title: 'DELIVERY & RECEIPT NOTES',
       items: items([
-        "Stock Valuation",
-        "FIFO Stock Valuation",
-        "Average Cost Stock Valuation",
-        "Last Purchase Cost Valuation",
-        "Standard Cost Valuation",
+        'Delivery Note Register',
+        'Receipt Note Register',
+        'Inventory Voucher Register',
       ]),
     },
     {
-      title: "PHYSICAL STOCK & TRANSFERS",
+      title: 'PROFITABILITY & TRENDS',
       items: items([
-        "Physical Stock Register",
-        "Physical Stock Variance",
-        "Stock Journal Register",
-        "Stock Transfer Register",
-        "Inter-Godown Transfer Report",
-      ]),
-    },
-    {
-      title: "MATERIAL & REJECTION",
-      items: items([
-        "Material In Report",
-        "Material Out Report",
-        "Rejection In Report",
-        "Rejection Out Report",
-      ]),
-    },
-    {
-      title: "DELIVERY & RECEIPT NOTES",
-      items: items([
-        "Delivery Note Register",
-        "Receipt Note Register",
-        "Inventory Voucher Register",
-      ]),
-    },
-    {
-      title: "PROFITABILITY & TRENDS",
-      items: items([
-        "Stock Item Profitability",
-        "Stock Category Summary",
-        "Stock Category Movement",
-        "Stock Group Profitability",
-        "Stock Item Cost Analysis",
-        "Stock Item Sales Trend",
-        "Stock Item Purchase Trend",
-        "Inventory Exception Report",
+        'Stock Item Profitability',
+        'Stock Category Summary',
+        'Stock Category Movement',
+        'Stock Group Profitability',
+        'Stock Item Cost Analysis',
+        'Stock Item Sales Trend',
+        'Stock Item Purchase Trend',
+        'Inventory Exception Report',
       ]),
     },
   ];
@@ -149,9 +142,13 @@ export default function InventoryStock() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
         <CardTitle className="text-base font-semibold">Inventory, Stock & Godown Reports</CardTitle>
       </CardHeader>

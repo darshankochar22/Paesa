@@ -23,7 +23,7 @@ export default function GSTUtilities() {
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
           <Link to="/" className="hover:underline hover:text-zinc-900">
-            Gateway of Tally
+            Gateway
           </Link>
           <span>&gt;</span>
           <Link to="/reports/statutory" className="hover:underline hover:text-zinc-900">

@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { LedgerType, GroupType } from "@/types/api";
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import type { LedgerType, GroupType } from '@/types/api';
 
 interface TreeNode extends GroupType {
   children?: TreeNode[];
@@ -17,7 +17,7 @@ export default function LedgerCOA() {
 
   const [isLedgerView, setIsLedgerView] = useState(false);
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [showChangeViewModal, setShowChangeViewModal] = useState(false);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
@@ -47,24 +47,41 @@ export default function LedgerCOA() {
           setExpandedGroups(initialExpanded);
         }
       } catch (e) {
-        if (!cancelled) setError("Failed to load data.");
+        if (!cancelled) setError('Failed to load data.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [companyId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); navigate("/master/coa"); }
-      if (e.key === "F5" || e.key === "f5") { e.preventDefault(); setIsLedgerView((prev) => !prev); }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "h" || e.key === "H")) { e.preventDefault(); setShowChangeViewModal((prev) => !prev); }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "j" || e.key === "J")) { e.preventDefault(); setShowExceptionModal((prev) => !prev); }
-      if (e.altKey && (e.key === "c" || e.key === "C")) { e.preventDefault(); navigate("/master/create/ledger"); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/master/coa');
+      }
+      if (e.key === 'F5' || e.key === 'f5') {
+        e.preventDefault();
+        setIsLedgerView((prev) => !prev);
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        setShowChangeViewModal((prev) => !prev);
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'j' || e.key === 'J')) {
+        e.preventDefault();
+        setShowExceptionModal((prev) => !prev);
+      }
+      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        navigate('/master/create/ledger');
+      }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
   const groupMap = useMemo(() => {
@@ -93,7 +110,7 @@ export default function LedgerCOA() {
   const flatLedgerList = useMemo(() => {
     let list = ledgers.map((l) => ({
       ...l,
-      parentGroupName: l.group_id ? (groupMap[l.group_id] || "Primary") : "Primary",
+      parentGroupName: l.group_id ? groupMap[l.group_id] || 'Primary' : 'Primary',
     }));
     if (showUnusedOnly) list = list.filter((l) => Number(l.opening_balance) === 0);
     if (searchQuery.trim()) {
@@ -102,7 +119,7 @@ export default function LedgerCOA() {
         (l) =>
           l.name.toLowerCase().includes(q) ||
           (l.alias && l.alias.toLowerCase().includes(q)) ||
-          l.parentGroupName.toLowerCase().includes(q)
+          l.parentGroupName.toLowerCase().includes(q),
       );
     }
     return list.sort((a, b) => a.name.localeCompare(b.name));
@@ -117,10 +134,13 @@ export default function LedgerCOA() {
           const children = node.children ? filterNodes(node.children) : [];
           const nodeLedgers = ledgersByGroup[node.group_id!] ?? [];
           let matchedLedgers = nodeLedgers;
-          if (showUnusedOnly) matchedLedgers = matchedLedgers.filter((l) => Number(l.opening_balance) === 0);
-          if (q) matchedLedgers = matchedLedgers.filter(
-            (l) => l.name.toLowerCase().includes(q) || (l.alias && l.alias.toLowerCase().includes(q))
-          );
+          if (showUnusedOnly)
+            matchedLedgers = matchedLedgers.filter((l) => Number(l.opening_balance) === 0);
+          if (q)
+            matchedLedgers = matchedLedgers.filter(
+              (l) =>
+                l.name.toLowerCase().includes(q) || (l.alias && l.alias.toLowerCase().includes(q)),
+            );
           const groupNameMatches = node.name.toLowerCase().includes(q);
           if (groupNameMatches || children.length > 0 || matchedLedgers.length > 0) {
             return { ...node, children } as TreeNode;
@@ -172,7 +192,7 @@ export default function LedgerCOA() {
           <span className="w-5 flex items-center justify-center text-zinc-400 shrink-0">
             {hasItems ? (
               <span className="text-xs transition-transform duration-100 select-none">
-                {isExpanded ? "▼" : "▶"}
+                {isExpanded ? '▼' : '▶'}
               </span>
             ) : (
               <span className="text-[10px] opacity-30 select-none">•</span>
@@ -182,7 +202,9 @@ export default function LedgerCOA() {
             <span className="font-semibold text-zinc-800 text-[13px]">{node.name}</span>
             <div className="flex items-center gap-2 text-[10px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">
               <span>Group</span>
-              {node.nature && <span className="bg-zinc-100 px-1 py-0.5 rounded">{node.nature}</span>}
+              {node.nature && (
+                <span className="bg-zinc-100 px-1 py-0.5 rounded">{node.nature}</span>
+              )}
             </div>
           </div>
         </div>
@@ -199,13 +221,17 @@ export default function LedgerCOA() {
                   style={{ paddingLeft: (depth + 1) * 20 + 8 }}
                   onClick={() => navigate(`/master/alter/ledger`, { state: { ledgerId } })}
                 >
-                  <span className="w-5 flex items-center justify-center text-sky-600/70 shrink-0 font-bold select-none text-[11px]">▫</span>
+                  <span className="w-5 flex items-center justify-center text-sky-600/70 shrink-0 font-bold select-none text-[11px]">
+                    ▫
+                  </span>
                   <div className="flex-1 flex items-center justify-between pr-4">
                     <span className="text-zinc-700 font-medium text-[13px] group-hover:text-sky-800 transition-colors">
                       {ledger.name}
                     </span>
                     <span className="text-[12px] tabular-nums text-zinc-500">
-                      {Number(ledger.opening_balance) === 0 ? "—" : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || "Dr"}`}
+                      {Number(ledger.opening_balance) === 0
+                        ? '—'
+                        : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || 'Dr'}`}
                     </span>
                   </div>
                 </div>
@@ -236,13 +262,22 @@ export default function LedgerCOA() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={expandAll} className="text-[11px] font-semibold text-zinc-600 hover:text-black px-2 py-1 border border-zinc-300 rounded bg-white shadow-sm">
+          <button
+            onClick={expandAll}
+            className="text-[11px] font-semibold text-zinc-600 hover:text-black px-2 py-1 border border-zinc-300 rounded bg-white shadow-sm"
+          >
             Expand All
           </button>
-          <button onClick={collapseAll} className="text-[11px] font-semibold text-zinc-600 hover:text-black px-2 py-1 border border-zinc-300 rounded bg-white shadow-sm">
+          <button
+            onClick={collapseAll}
+            className="text-[11px] font-semibold text-zinc-600 hover:text-black px-2 py-1 border border-zinc-300 rounded bg-white shadow-sm"
+          >
             Collapse All
           </button>
-          <Link to="/master/create/ledger" className="text-[11px] font-semibold text-white bg-black hover:bg-zinc-800 px-3 py-1 rounded shadow-sm">
+          <Link
+            to="/master/create/ledger"
+            className="text-[11px] font-semibold text-white bg-black hover:bg-zinc-800 px-3 py-1 rounded shadow-sm"
+          >
             + Create Ledger
           </Link>
         </div>
@@ -251,14 +286,21 @@ export default function LedgerCOA() {
       {error && (
         <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center animate-shake">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">dismiss</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 text-xs font-bold"
+          >
+            dismiss
+          </button>
         </div>
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
         <div className="flex-1 flex flex-col min-w-0 bg-white h-full">
           <div className="px-4 py-1.5 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">Search:</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">
+              Search:
+            </span>
             <input
               type="text"
               placeholder="Type name, alias, parent group to filter..."
@@ -267,7 +309,10 @@ export default function LedgerCOA() {
               className="flex-1 bg-white border border-zinc-300 rounded px-2.5 py-1 text-xs text-zinc-850 focus:outline-none focus:border-zinc-500 shadow-inner"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="text-xs text-zinc-400 hover:text-black font-bold px-1.5">
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-xs text-zinc-400 hover:text-black font-bold px-1.5"
+              >
                 Clear
               </button>
             )}
@@ -275,17 +320,23 @@ export default function LedgerCOA() {
 
           <div className="flex-1 overflow-y-auto min-h-0 bg-white">
             {loading ? (
-              <div className="flex items-center justify-center h-48 text-xs text-zinc-400">Loading ledger hierarchy...</div>
+              <div className="flex items-center justify-center h-48 text-xs text-zinc-400">
+                Loading ledger hierarchy...
+              </div>
             ) : isLedgerView ? (
               flatLedgerList.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-xs text-zinc-400">No matching ledgers found.</div>
+                <div className="flex items-center justify-center h-48 text-xs text-zinc-400">
+                  No matching ledgers found.
+                </div>
               ) : (
                 <div className="flex flex-col min-w-full">
                   {/* Table headers */}
                   <div className="flex items-center bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold text-zinc-500 uppercase tracking-wider select-none min-h-[26px]">
                     <span className="flex-1 px-4 py-1">Ledger Name</span>
                     <span className="w-56 px-4 py-1 border-l border-zinc-200">Parent Group</span>
-                    <span className="w-36 px-4 py-1 text-right border-l border-zinc-200">Opening Balance</span>
+                    <span className="w-36 px-4 py-1 text-right border-l border-zinc-200">
+                      Opening Balance
+                    </span>
                   </div>
                   {flatLedgerList.map((ledger) => {
                     const ledgerId = ledger.ledger_id!;
@@ -300,7 +351,9 @@ export default function LedgerCOA() {
                             {ledger.name}
                           </span>
                           {ledger.alias && (
-                            <span className="text-[10px] text-zinc-400 font-normal ml-1.5 truncate">({ledger.alias})</span>
+                            <span className="text-[10px] text-zinc-400 font-normal ml-1.5 truncate">
+                              ({ledger.alias})
+                            </span>
                           )}
                         </div>
                         <div className="w-56 px-4 py-1.5 text-zinc-600 text-xs truncate border-l border-zinc-100/50">
@@ -308,7 +361,9 @@ export default function LedgerCOA() {
                         </div>
                         <div className="w-36 px-4 py-1.5 flex items-center border-l border-zinc-100/50">
                           <span className="text-xs font-medium tabular-nums text-zinc-700 ml-auto">
-                            {Number(ledger.opening_balance) === 0 ? "—" : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || "Dr"}`}
+                            {Number(ledger.opening_balance) === 0
+                              ? '—'
+                              : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || 'Dr'}`}
                           </span>
                         </div>
                       </div>
@@ -316,12 +371,12 @@ export default function LedgerCOA() {
                   })}
                 </div>
               )
+            ) : filteredGroupTree.length === 0 ? (
+              <div className="flex items-center justify-center h-48 text-xs text-zinc-400">
+                No matching items found.
+              </div>
             ) : (
-              filteredGroupTree.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-xs text-zinc-400">No matching items found.</div>
-              ) : (
-                <div className="py-2">{filteredGroupTree.map((node) => renderTreeNode(node, 0))}</div>
-              )
+              <div className="py-2">{filteredGroupTree.map((node) => renderTreeNode(node, 0))}</div>
             )}
           </div>
         </div>
@@ -332,7 +387,7 @@ export default function LedgerCOA() {
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">F5</span>
-            <span>{isLedgerView ? "Group-wise" : "Ledger-wise"}</span>
+            <span>{isLedgerView ? 'Group-wise' : 'Ledger-wise'}</span>
           </button>
           <button
             onClick={() => setShowChangeViewModal(true)}
@@ -349,14 +404,14 @@ export default function LedgerCOA() {
             <span>Exception Reports</span>
           </button>
           <button
-            onClick={() => alert("Multi-Masters option selected. (Emulated Mode)")}
+            onClick={() => alert('Multi-Masters option selected. (Emulated Mode)')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Alt+H</span>
             <span>Multi-Masters</span>
           </button>
           <button
-            onClick={() => navigate("/master/create/ledger")}
+            onClick={() => navigate('/master/create/ledger')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Alt+C</span>
@@ -364,7 +419,7 @@ export default function LedgerCOA() {
           </button>
           <div className="flex-1"></div>
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-zinc-200 hover:bg-zinc-300 text-zinc-800 transition-colors text-left shadow-sm font-semibold mt-auto"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Esc</span>
@@ -378,16 +433,77 @@ export default function LedgerCOA() {
           <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-80 overflow-hidden select-none animate-fadeIn">
             <div className="bg-zinc-100 px-4 py-2 text-xs font-bold text-zinc-750 border-b border-zinc-200 flex justify-between items-center">
               <span>Change View</span>
-              <button onClick={() => setShowChangeViewModal(false)} className="text-zinc-400 hover:text-black font-semibold">✕</button>
+              <button
+                onClick={() => setShowChangeViewModal(false)}
+                className="text-zinc-400 hover:text-black font-semibold"
+              >
+                ✕
+              </button>
             </div>
             <div className="p-1 flex flex-col text-xs">
-              <button onClick={() => { setShowChangeViewModal(false); setIsLedgerView(false); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">Ledgers (Group-wise Tree)</button>
-              <button onClick={() => { setShowChangeViewModal(false); setIsLedgerView(true); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">Ledgers (Ledger-wise Flat)</button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/group"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors border-t border-zinc-100">Groups</button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/inventory?section=stock-group"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">Stock Groups & Items</button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/inventory?section=stock-category"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">Stock Categories</button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/inventory?section=unit"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">Units of Measure</button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/inventory?section=godown"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">Godowns</button>
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  setIsLedgerView(false);
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
+                Ledgers (Group-wise Tree)
+              </button>
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  setIsLedgerView(true);
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
+                Ledgers (Ledger-wise Flat)
+              </button>
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/group');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors border-t border-zinc-100"
+              >
+                Groups
+              </button>
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/inventory?section=stock-group');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
+                Stock Groups & Items
+              </button>
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/inventory?section=stock-category');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
+                Stock Categories
+              </button>
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/inventory?section=unit');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
+                Units of Measure
+              </button>
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/inventory?section=godown');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
+                Godowns
+              </button>
             </div>
           </div>
         </div>
@@ -398,18 +514,29 @@ export default function LedgerCOA() {
           <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-72 overflow-hidden select-none animate-fadeIn">
             <div className="bg-zinc-100 px-4 py-2 text-xs font-bold text-zinc-750 border-b border-zinc-200 flex justify-between items-center">
               <span>Exception Reports</span>
-              <button onClick={() => setShowExceptionModal(false)} className="text-zinc-400 hover:text-black font-semibold">✕</button>
+              <button
+                onClick={() => setShowExceptionModal(false)}
+                className="text-zinc-400 hover:text-black font-semibold"
+              >
+                ✕
+              </button>
             </div>
             <div className="p-1 flex flex-col text-xs">
               <button
-                onClick={() => { setShowExceptionModal(false); setShowUnusedOnly(true); }}
-                className={`w-full text-left px-3 py-2 rounded transition-colors ${showUnusedOnly ? "bg-zinc-100 text-black font-semibold" : "hover:bg-black hover:text-white"}`}
+                onClick={() => {
+                  setShowExceptionModal(false);
+                  setShowUnusedOnly(true);
+                }}
+                className={`w-full text-left px-3 py-2 rounded transition-colors ${showUnusedOnly ? 'bg-zinc-100 text-black font-semibold' : 'hover:bg-black hover:text-white'}`}
               >
                 Show Unused Masters Only
               </button>
               <button
-                onClick={() => { setShowExceptionModal(false); setShowUnusedOnly(false); }}
-                className={`w-full text-left px-3 py-2 rounded transition-colors border-t border-zinc-100 ${!showUnusedOnly ? "bg-zinc-100 text-black font-semibold" : "hover:bg-black hover:text-white"}`}
+                onClick={() => {
+                  setShowExceptionModal(false);
+                  setShowUnusedOnly(false);
+                }}
+                className={`w-full text-left px-3 py-2 rounded transition-colors border-t border-zinc-100 ${!showUnusedOnly ? 'bg-zinc-100 text-black font-semibold' : 'hover:bg-black hover:text-white'}`}
               >
                 Show All Masters
               </button>
@@ -419,8 +546,10 @@ export default function LedgerCOA() {
       )}
 
       <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none">
-        <span>Total Ledgers Displayed: {isLedgerView ? flatLedgerList.length : ledgers.length}</span>
-        <span>TallyPrime COA Engine v2.0 (Keyboard Enabled)</span>
+        <span>
+          Total Ledgers Displayed: {isLedgerView ? flatLedgerList.length : ledgers.length}
+        </span>
+        <span>COA Engine v2.0 (Keyboard Enabled)</span>
       </div>
     </div>
   );

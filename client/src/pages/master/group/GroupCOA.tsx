@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import GroupTree from "@/components/GroupTree";
-import GroupFlatList from "@/components/GroupFlatList";
-import type { GroupType } from "@/types/api";
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import GroupTree from '@/components/GroupTree';
+import GroupFlatList from '@/components/GroupFlatList';
+import type { GroupType } from '@/types/api';
 
 interface TreeNode extends GroupType {
   children?: TreeNode[];
@@ -18,7 +18,7 @@ export default function GroupCOA() {
   const [loading, setLoading] = useState(true);
 
   const [isFlatView, setIsFlatView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
   const companyId = selectedCompany?.company_id;
@@ -41,7 +41,7 @@ export default function GroupCOA() {
           setFlatGroups(allRes.groups ?? []);
         }
       } catch (e) {
-        if (!cancelled) setError("Failed to load groups.");
+        if (!cancelled) setError('Failed to load groups.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -54,21 +54,21 @@ export default function GroupCOA() {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.key === "F5" || e.key === "f5") {
+      if (e.key === 'F5' || e.key === 'f5') {
         e.preventDefault();
         setIsFlatView((prev) => !prev);
       }
-      if (e.altKey && (e.key === "c" || e.key === "C")) {
+      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault();
-        navigate("/master/create/group");
+        navigate('/master/create/group');
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
   const filteredFlatGroups = useMemo(() => {
@@ -110,7 +110,7 @@ export default function GroupCOA() {
             &larr; Back
           </Link>
           <span className="font-bold text-sm text-zinc-800">
-            {isFlatView ? "List of Groups" : "Chart of Accounts: Groups"}
+            {isFlatView ? 'List of Groups' : 'Chart of Accounts: Groups'}
           </span>
         </div>
 
@@ -127,7 +127,10 @@ export default function GroupCOA() {
       {error && (
         <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 text-xs font-bold"
+          >
             dismiss
           </button>
         </div>
@@ -139,7 +142,9 @@ export default function GroupCOA() {
         <div className="flex-1 flex flex-col min-w-0 bg-white h-full">
           {/* Search Box */}
           <div className="px-4 py-1.5 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">Search:</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">
+              Search:
+            </span>
             <input
               type="text"
               placeholder="Type group name to filter..."
@@ -149,7 +154,7 @@ export default function GroupCOA() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => setSearchQuery('')}
                 className="text-xs text-zinc-400 hover:text-black font-bold px-1.5"
               >
                 Clear
@@ -159,7 +164,9 @@ export default function GroupCOA() {
 
           <div className="flex-1 overflow-y-auto min-h-0 bg-white">
             {loading ? (
-              <div className="flex items-center justify-center h-48 text-xs text-zinc-400">Loading groups...</div>
+              <div className="flex items-center justify-center h-48 text-xs text-zinc-400">
+                Loading groups...
+              </div>
             ) : isFlatView ? (
               /* Flat Alphabetical List View — Tally style (Image 1) */
               <GroupFlatList
@@ -172,7 +179,9 @@ export default function GroupCOA() {
               /* Group-wise Hierarchical Tree View — Tally style (Image 2) */
               <div className="py-1">
                 {filteredGroupTree.length === 0 ? (
-                  <div className="flex items-center justify-center h-48 text-xs text-zinc-400">No matching groups found.</div>
+                  <div className="flex items-center justify-center h-48 text-xs text-zinc-400">
+                    No matching groups found.
+                  </div>
                 ) : (
                   <GroupTree
                     tree={filteredGroupTree}
@@ -193,11 +202,11 @@ export default function GroupCOA() {
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">F5</span>
-            <span>{isFlatView ? "Group-wise Tree" : "Alphabetical Flat"}</span>
+            <span>{isFlatView ? 'Group-wise Tree' : 'Alphabetical Flat'}</span>
           </button>
 
           <button
-            onClick={() => navigate("/master/create/group")}
+            onClick={() => navigate('/master/create/group')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Alt+C</span>
@@ -207,7 +216,7 @@ export default function GroupCOA() {
           <div className="flex-1" />
 
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-zinc-200 hover:bg-zinc-300 text-zinc-800 transition-colors text-left shadow-sm font-semibold mt-auto"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Esc</span>
@@ -219,7 +228,7 @@ export default function GroupCOA() {
       {/* Footer Status Bar */}
       <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none">
         <span>Total Groups: {isFlatView ? filteredFlatGroups.length : flatGroups.length}</span>
-        <span>TallyPrime COA Engine v2.0</span>
+        <span>COA Engine v2.0</span>
       </div>
     </div>
   );

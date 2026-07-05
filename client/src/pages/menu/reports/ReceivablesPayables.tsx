@@ -1,11 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Separator } from '@/components/shadcn/separator';
 
-const BASE = "/reports/receivables-payables";
+const BASE = '/reports/receivables-payables';
 const slug = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
@@ -14,88 +17,72 @@ export default function ReceivablesPayables() {
 
   const sections = [
     {
-      title: "BILLS & OUTSTANDINGS",
+      title: 'BILLS & OUTSTANDINGS',
       items: items([
-        "Bills Receivable",
-        "Bills Payable",
-        "Ledger Outstandings",
-        "Group Outstandings",
+        'Bills Receivable',
+        'Bills Payable',
+        'Ledger Outstandings',
+        'Group Outstandings',
       ]),
     },
     {
-      title: "AGEING ANALYSIS",
+      title: 'AGEING ANALYSIS',
+      items: items(['Receivables Ageing', 'Payables Ageing']),
+    },
+    {
+      title: 'BILL-WISE DETAILS',
+      items: items(['Bill-wise Receivables', 'Bill-wise Payables']),
+    },
+    {
+      title: 'PARTY-WISE OUTSTANDING',
       items: items([
-        "Receivables Ageing",
-        "Payables Ageing",
+        'Customer-wise Outstanding',
+        'Supplier-wise Outstanding',
+        'Salesperson-wise Outstanding',
+        'Area-wise Outstanding',
       ]),
     },
     {
-      title: "BILL-WISE DETAILS",
+      title: 'DUE & OVERDUE',
       items: items([
-        "Bill-wise Receivables",
-        "Bill-wise Payables",
+        'Due Today Receivables',
+        'Due Today Payables',
+        'Overdue Receivables',
+        'Overdue Payables',
       ]),
     },
     {
-      title: "PARTY-WISE OUTSTANDING",
+      title: 'EXCEPTIONS',
+      items: items(['Credit Limit Exception', 'Credit Period Exception']),
+    },
+    {
+      title: 'INTEREST',
+      items: items(['Interest Receivable', 'Interest Payable', 'Interest Calculation Ledger-wise']),
+    },
+    {
+      title: 'FOLLOW-UP & DISPUTES',
       items: items([
-        "Customer-wise Outstanding",
-        "Supplier-wise Outstanding",
-        "Salesperson-wise Outstanding",
-        "Area-wise Outstanding",
+        'Collection Follow-up',
+        'Payment Follow-up',
+        'Promise-to-Pay Report',
+        'Broken Promise Report',
+        'Disputed Bills Report',
       ]),
     },
     {
-      title: "DUE & OVERDUE",
+      title: 'ADJUSTMENTS & ADVANCES',
       items: items([
-        "Due Today Receivables",
-        "Due Today Payables",
-        "Overdue Receivables",
-        "Overdue Payables",
+        'Unadjusted Receipts',
+        'Unadjusted Payments',
+        'Advance from Customers',
+        'Advance to Suppliers',
+        'Pending Bill Allocations',
+        'Bill Settlement Register',
       ]),
     },
     {
-      title: "EXCEPTIONS",
-      items: items([
-        "Credit Limit Exception",
-        "Credit Period Exception",
-      ]),
-    },
-    {
-      title: "INTEREST",
-      items: items([
-        "Interest Receivable",
-        "Interest Payable",
-        "Interest Calculation Ledger-wise",
-      ]),
-    },
-    {
-      title: "FOLLOW-UP & DISPUTES",
-      items: items([
-        "Collection Follow-up",
-        "Payment Follow-up",
-        "Promise-to-Pay Report",
-        "Broken Promise Report",
-        "Disputed Bills Report",
-      ]),
-    },
-    {
-      title: "ADJUSTMENTS & ADVANCES",
-      items: items([
-        "Unadjusted Receipts",
-        "Unadjusted Payments",
-        "Advance from Customers",
-        "Advance to Suppliers",
-        "Pending Bill Allocations",
-        "Bill Settlement Register",
-      ]),
-    },
-    {
-      title: "STATEMENTS",
-      items: items([
-        "Party Statement",
-        "Ledger Confirmation Report",
-      ]),
+      title: 'STATEMENTS',
+      items: items(['Party Statement', 'Ledger Confirmation Report']),
     },
   ];
 
@@ -103,11 +90,17 @@ export default function ReceivablesPayables() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
-        <CardTitle className="text-base font-semibold">Receivables, Payables & Bill-wise Reports</CardTitle>
+        <CardTitle className="text-base font-semibold">
+          Receivables, Payables & Bill-wise Reports
+        </CardTitle>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">

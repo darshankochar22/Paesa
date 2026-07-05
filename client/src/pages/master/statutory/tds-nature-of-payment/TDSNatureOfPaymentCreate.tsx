@@ -1,63 +1,58 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, RightActionPanel } from "@/components/ui";
-import { useTDSNatureOfPaymentForm } from "./hooks/useTDSNatureOfPaymentForm";
-import TDSNatureOfPaymentFormFields from "./components/TDSNatureOfPaymentFormFields";
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, RightActionPanel } from '@/components/ui';
+import { useTDSNatureOfPaymentForm } from './hooks/useTDSNatureOfPaymentForm';
+import TDSNatureOfPaymentFormFields from './components/TDSNatureOfPaymentFormFields';
 
 export default function TDSNatureOfPaymentCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const [showAccept, setShowAccept] = useState(false);
 
-  const {
-    form,
-    setForm,
-    loading,
-    error,
-    setError,
-    success,
-    setSuccess,
-    setField,
-    handleSubmit,
-  } = useTDSNatureOfPaymentForm({ mode: "create" });
+  const { form, setForm, loading, error, setError, success, setSuccess, setField, handleSubmit } =
+    useTDSNatureOfPaymentForm({ mode: 'create' });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (showAccept) {
         const k = e.key.toLowerCase();
-        if (k === "y" || e.key === "Enter") {
+        if (k === 'y' || e.key === 'Enter') {
           e.preventDefault();
           setShowAccept(false);
           handleSubmit();
-        } else if (k === "n" || e.key === "Escape") {
+        } else if (k === 'n' || e.key === 'Escape') {
           e.preventDefault();
           setShowAccept(false);
         }
         return;
       }
 
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/create");
+        navigate('/master/create');
       }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setShowAccept(true);
       }
-      if (e.altKey && e.key.toLowerCase() === "c") {
+      if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        navigate("/master/alter/tds-nature-of-payment");
+        navigate('/master/alter/tds-nature-of-payment');
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, navigate, showAccept]);
 
   const actions = [
-    { key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) },
-    { key: "Alt+C", label: "Alter Mode", onClick: () => navigate("/master/alter/tds-nature-of-payment") },
-    { key: "Esc", label: "Quit", onClick: () => navigate("/master/create") },
+    { key: 'Alt+A', label: 'Accept', onClick: () => setShowAccept(true) },
+    {
+      key: 'Alt+C',
+      label: 'Alter Mode',
+      onClick: () => navigate('/master/alter/tds-nature-of-payment'),
+    },
+    { key: 'Esc', label: 'Quit', onClick: () => navigate('/master/create') },
   ];
 
   return (
@@ -67,22 +62,31 @@ export default function TDSNatureOfPaymentCreate() {
       {error && (
         <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 z-50">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
       {success && (
         <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 z-50">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-500 hover:text-green-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
 
       <div className="flex-1 flex min-h-0 relative">
-        
-        {/* Mock Gateway of Tally background */}
+        {/* Mock Gateway background */}
         <div className="absolute inset-0 flex p-8 opacity-20 select-none pointer-events-none text-zinc-500">
           <div className="w-80 border-r border-zinc-300 pr-6 space-y-4">
-            <div className="text-sm font-bold border-b border-zinc-300 pb-1">Gateway of Tally</div>
+            <div className="text-sm font-bold border-b border-zinc-300 pb-1">Gateway</div>
             <div className="space-y-1 text-xs">
               <div>Masters</div>
               <div className="pl-4">Create</div>

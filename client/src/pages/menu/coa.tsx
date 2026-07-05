@@ -1,6 +1,6 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { useCompany } from "@/context/CompanyContext";
+import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useCompany } from '@/context/CompanyContext';
 
 export default function COA() {
   const { selectedCompany } = useCompany();
@@ -17,7 +17,7 @@ export default function COA() {
           setMasterSections(data.menu);
         }
       } catch (err) {
-        console.error("Failed to fetch master menu:", err);
+        console.error('Failed to fetch master menu:', err);
       }
     }
     fetchMenu();
@@ -25,40 +25,40 @@ export default function COA() {
 
   const getRoute = (item: string) => {
     const map: Record<string, string> = {
-      Ledger: "/master/coa/ledger",
-      Group: "/master/coa/group",
-      Currency: "/master/coa/currency",
-      "Voucher Type": "/master/coa/voucher-type",
-      "Cost Category": "/master/coa/cost-category",
-      "Cost Centre": "/master/coa/cost-centre",
-      "Budget": "/master/coa/budget",
-      "Scenario": "/master/coa/scenario",
-      "Stock Group": "/master/coa/stock-group",
-      "Stock Category": "/master/coa/stock-category",
-       "TDS Details": "/master/coa/tds-details",
-       "TCS Details": "/master/coa/tcs-details",
-       "VAT Registration Details": "/master/coa/vat-registration-details",
-        "Excise Registration Details": "/master/coa/excise-registration-details",
-        "PAN / CIN Details": "/master/coa/pan-cin-details",
-        "Price levels": "/master/coa/price-levels",
-       "Price list (Stock Group)": "/master/coa/price-lists",
-       "Price list (Stock Category)": "/master/coa/price-lists",
-      "Stock Items": "/master/coa/stock-group",
-      Unit: "/master/coa/unit",
-      Location: "/master/coa/godown",
-      "GST Registration": "/master/coa/gst-registration",
-      "GST Classification": "/master/coa/gst-classification",
-      "Excise Duty Classification": "/master/coa/excise-duty-classification",
-      "TCS Nature of Goods": "/master/coa/tcs-nature-of-goods",
-      "Tax Units": "/master/coa/tax-units",
-      "Employee Category": "/master/coa/employee-category",
-      "Employee Group": "/master/coa/employee-group",
-      Employee: "/master/coa/employee",
-      "Attendance / Production type": "/master/coa/attendance-type",
-      "Payroll Voucher Type": "/master/coa/payroll-voucher-type",
-      "Pay Heads": "/master/coa/pay-head",
-      "Units(work)": "/master/coa/payroll-unit",
-      "Salary Structure": "/master/coa/salary-structure",
+      Ledger: '/master/coa/ledger',
+      Group: '/master/coa/group',
+      Currency: '/master/coa/currency',
+      'Voucher Type': '/master/coa/voucher-type',
+      'Cost Category': '/master/coa/cost-category',
+      'Cost Centre': '/master/coa/cost-centre',
+      Budget: '/master/coa/budget',
+      Scenario: '/master/coa/scenario',
+      'Stock Group': '/master/coa/stock-group',
+      'Stock Category': '/master/coa/stock-category',
+      'TDS Details': '/master/coa/tds-details',
+      'TCS Details': '/master/coa/tcs-details',
+      'VAT Registration Details': '/master/coa/vat-registration-details',
+      'Excise Registration Details': '/master/coa/excise-registration-details',
+      'PAN / CIN Details': '/master/coa/pan-cin-details',
+      'Price levels': '/master/coa/price-levels',
+      'Price list (Stock Group)': '/master/coa/price-lists',
+      'Price list (Stock Category)': '/master/coa/price-lists',
+      'Stock Items': '/master/coa/stock-group',
+      Unit: '/master/coa/unit',
+      Location: '/master/coa/godown',
+      'GST Registration': '/master/coa/gst-registration',
+      'GST Classification': '/master/coa/gst-classification',
+      'Excise Duty Classification': '/master/coa/excise-duty-classification',
+      'TCS Nature of Goods': '/master/coa/tcs-nature-of-goods',
+      'Tax Units': '/master/coa/tax-units',
+      'Employee Category': '/master/coa/employee-category',
+      'Employee Group': '/master/coa/employee-group',
+      Employee: '/master/coa/employee',
+      'Attendance / Production type': '/master/coa/attendance-type',
+      'Payroll Voucher Type': '/master/coa/payroll-voucher-type',
+      'Pay Heads': '/master/coa/pay-head',
+      'Units(work)': '/master/coa/payroll-unit',
+      'Salary Structure': '/master/coa/salary-structure',
     };
     return map[item] ?? null;
   };
@@ -77,9 +77,11 @@ export default function COA() {
             <div className="flex flex-col items-end gap-2 mt-4">
               <div className="text-lg font-semibold">Company</div>
               <button className="rounded px-2 py-1 hover:bg-zinc-100 transition-colors">
-                {selectedCompany?.name || "Change Company"}
+                {selectedCompany?.name || 'Change Company'}
               </button>
-              <button className="rounded px-2 py-1 hover:bg-zinc-100 transition-colors">Show More</button>
+              <button className="rounded px-2 py-1 hover:bg-zinc-100 transition-colors">
+                Show More
+              </button>
             </div>
           </div>
         </div>
@@ -97,7 +99,7 @@ export default function COA() {
                       <button
                         key={item}
                         onClick={() => navigate(route)}
-                        className="text-left rounded px-2 py-1 w-full hover:bg-black hover:text-white transition-colors"
+                        className="text-left rounded px-2 py-1 w-full hover:bg-zinc-100 transition-colors"
                       >
                         {item}
                       </button>

@@ -1,11 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Separator } from '@/components/shadcn/separator';
 
-const BASE = "/reports/tcs";
+const BASE = '/reports/tcs';
 const slug = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
@@ -14,63 +17,53 @@ export default function TCSReports() {
 
   const sections = [
     {
-      title: "TCS MENU & CHALLANS",
+      title: 'TCS MENU & CHALLANS',
+      items: items(['TCS Reports Menu', 'TCS Challan Reconciliation', 'TCS Challan Details']),
+    },
+    {
+      title: 'TCS RETURNS',
+      items: items(['Form 27EQ', 'TCS Return Transaction Book']),
+    },
+    {
+      title: 'TCS OUTSTANDINGS',
       items: items([
-        "TCS Reports Menu",
-        "TCS Challan Reconciliation",
-        "TCS Challan Details",
+        'TCS Outstandings',
+        'TCS Outstandings Nature of Goods-wise',
+        'TCS Outstandings Party-wise',
       ]),
     },
     {
-      title: "TCS RETURNS",
+      title: 'TCS EXCEPTIONS',
+      items: items(['Ledgers Without PAN - Collectees', 'Buyer Ledger Without PAN']),
+    },
+    {
+      title: 'TCS COLLECTION DETAILS',
       items: items([
-        "Form 27EQ",
-        "TCS Return Transaction Book",
+        'TCS Collection Details',
+        'TCS Collection at Normal Rate',
+        'TCS Collection at Higher Rate',
+        'TCS Zero/Lower Rate Collection',
+        'TCS Exemption Limit Report',
       ]),
     },
     {
-      title: "TCS OUTSTANDINGS",
+      title: 'TCS PAYMENTS & RETURNS',
       items: items([
-        "TCS Outstandings",
-        "TCS Outstandings Nature of Goods-wise",
-        "TCS Outstandings Party-wise",
+        'TCS Payment Details',
+        'TCS Balance Payable',
+        'TCS Recompute Return',
+        'TCS Revised Return',
+        'TCS Save Return',
       ]),
     },
     {
-      title: "TCS EXCEPTIONS",
+      title: 'TCS VALIDATION & EXPORT',
       items: items([
-        "Ledgers Without PAN - Collectees",
-        "Buyer Ledger Without PAN",
-      ]),
-    },
-    {
-      title: "TCS COLLECTION DETAILS",
-      items: items([
-        "TCS Collection Details",
-        "TCS Collection at Normal Rate",
-        "TCS Collection at Higher Rate",
-        "TCS Zero/Lower Rate Collection",
-        "TCS Exemption Limit Report",
-      ]),
-    },
-    {
-      title: "TCS PAYMENTS & RETURNS",
-      items: items([
-        "TCS Payment Details",
-        "TCS Balance Payable",
-        "TCS Recompute Return",
-        "TCS Revised Return",
-        "TCS Save Return",
-      ]),
-    },
-    {
-      title: "TCS VALIDATION & EXPORT",
-      items: items([
-        "TCS Remarks Report",
-        "TCS Exception Report",
-        "TCS Challan Details of Buyer",
-        "TCS Validation Report",
-        "TCS Return Export Report",
+        'TCS Remarks Report',
+        'TCS Exception Report',
+        'TCS Challan Details of Buyer',
+        'TCS Validation Report',
+        'TCS Return Export Report',
       ]),
     },
   ];
@@ -79,9 +72,13 @@ export default function TCSReports() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
         <CardTitle className="text-base font-semibold">TCS Reports</CardTitle>
       </CardHeader>

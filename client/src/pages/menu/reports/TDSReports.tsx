@@ -1,11 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Separator } from '@/components/shadcn/separator';
 
-const BASE = "/reports/tds";
+const BASE = '/reports/tds';
 const slug = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
@@ -14,68 +17,63 @@ export default function TDSReports() {
 
   const sections = [
     {
-      title: "TDS MENU & CHALLANS",
+      title: 'TDS MENU & CHALLANS',
       items: items([
-        "TDS Reports Menu",
-        "TDS Challan Reconciliation",
-        "TDS Challan Details",
-        "TDS Challan Status",
+        'TDS Reports Menu',
+        'TDS Challan Reconciliation',
+        'TDS Challan Details',
+        'TDS Challan Status',
       ]),
     },
     {
-      title: "TDS RETURNS",
+      title: 'TDS RETURNS',
+      items: items(['Form 26Q', 'Form 27Q', 'Form 24Q', 'TDS Return Transaction Book']),
+    },
+    {
+      title: 'TDS OUTSTANDINGS',
       items: items([
-        "Form 26Q",
-        "Form 27Q",
-        "Form 24Q",
-        "TDS Return Transaction Book",
+        'TDS Outstandings',
+        'TDS Outstandings Nature of Payment-wise',
+        'TDS Outstandings Party-wise',
       ]),
     },
     {
-      title: "TDS OUTSTANDINGS",
+      title: 'TDS EXCEPTIONS',
       items: items([
-        "TDS Outstandings",
-        "TDS Outstandings Nature of Payment-wise",
-        "TDS Outstandings Party-wise",
+        'Ledgers Without PAN - Deductees',
+        'Deductee PAN Exception',
+        'Deductee Type Exception',
+        'Resident Type Exception',
+        'Section Number Exception',
       ]),
     },
     {
-      title: "TDS EXCEPTIONS",
+      title: 'TDS DEDUCTION DETAILS',
       items: items([
-        "Ledgers Without PAN - Deductees",
-        "Deductee PAN Exception",
-        "Deductee Type Exception",
-        "Resident Type Exception",
-        "Section Number Exception",
+        'TDS Deduction Details',
+        'TDS Deducted at Normal Rate',
+        'TDS Deducted at Higher Rate',
+        'TDS Zero/Lower Rate Deduction',
+        'TDS Exemption Limit Report',
       ]),
     },
     {
-      title: "TDS DEDUCTION DETAILS",
+      title: 'TDS PAYMENTS & RETURNS',
       items: items([
-        "TDS Deduction Details",
-        "TDS Deducted at Normal Rate",
-        "TDS Deducted at Higher Rate",
-        "TDS Zero/Lower Rate Deduction",
-        "TDS Exemption Limit Report",
+        'TDS Payment Details',
+        'TDS Balance Payable',
+        'TDS Recompute Return',
+        'TDS Revised Return',
+        'TDS Save Return',
       ]),
     },
     {
-      title: "TDS PAYMENTS & RETURNS",
+      title: 'TDS VALIDATION & EXPORT',
       items: items([
-        "TDS Payment Details",
-        "TDS Balance Payable",
-        "TDS Recompute Return",
-        "TDS Revised Return",
-        "TDS Save Return",
-      ]),
-    },
-    {
-      title: "TDS VALIDATION & EXPORT",
-      items: items([
-        "TDS Remarks Report",
-        "TDS Exception Report",
-        "TDS Validation/FVU Report",
-        "TDS Return Export Report",
+        'TDS Remarks Report',
+        'TDS Exception Report',
+        'TDS Validation/FVU Report',
+        'TDS Return Export Report',
       ]),
     },
   ];
@@ -84,9 +82,13 @@ export default function TDSReports() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
         <CardTitle className="text-base font-semibold">TDS Reports</CardTitle>
       </CardHeader>

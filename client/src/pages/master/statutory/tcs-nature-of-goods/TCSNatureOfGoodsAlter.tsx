@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, RightActionPanel } from "@/components/ui";
-import { useTCSNatureOfGoodsForm } from "./hooks/useTCSNatureOfGoodsForm";
-import TCSNatureOfGoodsFormFields from "./components/TCSNatureOfGoodsFormFields";
-import TCSNatureOfGoodsSelectionPanel from "./components/TCSNatureOfGoodsSelectionPanel";
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, RightActionPanel } from '@/components/ui';
+import { useTCSNatureOfGoodsForm } from './hooks/useTCSNatureOfGoodsForm';
+import TCSNatureOfGoodsFormFields from './components/TCSNatureOfGoodsFormFields';
+import TCSNatureOfGoodsSelectionPanel from './components/TCSNatureOfGoodsSelectionPanel';
 
 export default function TCSNatureOfGoodsAlter() {
   const navigate = useNavigate();
@@ -26,46 +26,46 @@ export default function TCSNatureOfGoodsAlter() {
     handleDelete,
     handleSelectTcs,
     handleBack,
-  } = useTCSNatureOfGoodsForm({ mode: "alter" });
+  } = useTCSNatureOfGoodsForm({ mode: 'alter' });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (showAccept) {
         const k = e.key.toLowerCase();
-        if (k === "y" || e.key === "Enter") {
+        if (k === 'y' || e.key === 'Enter') {
           e.preventDefault();
           setShowAccept(false);
           handleSubmit();
-        } else if (k === "n" || e.key === "Escape") {
+        } else if (k === 'n' || e.key === 'Escape') {
           e.preventDefault();
           setShowAccept(false);
         }
         return;
       }
 
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         if (selectedTcs) {
           handleBack();
         } else {
-          navigate("/master/alter");
+          navigate('/master/alter');
         }
       }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         if (selectedTcs && !selectedTcs.is_predefined) {
           setShowAccept(true);
         }
       }
-      if (e.altKey && e.key.toLowerCase() === "d") {
+      if (e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         if (selectedTcs && !selectedTcs.is_predefined) {
           handleDelete();
         }
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, handleDelete, navigate, selectedTcs, handleBack, showAccept]);
 
   if (!selectedTcs) {
@@ -73,8 +73,8 @@ export default function TCSNatureOfGoodsAlter() {
       <TCSNatureOfGoodsSelectionPanel
         tcsList={tcsList}
         onSelect={handleSelectTcs}
-        onCancel={() => navigate("/master/alter")}
-        onCreate={() => navigate("/master/create/tcs-nature-of-goods")}
+        onCancel={() => navigate('/master/alter')}
+        onCreate={() => navigate('/master/create/tcs-nature-of-goods')}
       />
     );
   }
@@ -82,9 +82,11 @@ export default function TCSNatureOfGoodsAlter() {
   const isPredefined = !!selectedTcs.is_predefined;
 
   const alterActions = [
-    ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) }]),
-    ...(isPredefined ? [] : [{ key: "Alt+D", label: "Delete", onClick: handleDelete }]),
-    { key: "Esc", label: "Back", onClick: handleBack },
+    ...(isPredefined
+      ? []
+      : [{ key: 'Alt+A', label: 'Accept', onClick: () => setShowAccept(true) }]),
+    ...(isPredefined ? [] : [{ key: 'Alt+D', label: 'Delete', onClick: handleDelete }]),
+    { key: 'Esc', label: 'Back', onClick: handleBack },
   ];
 
   return (
@@ -97,13 +99,23 @@ export default function TCSNatureOfGoodsAlter() {
       {error && (
         <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 z-50">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
       {success && (
         <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 z-50">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-500 hover:text-green-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
       {isPredefined && (
@@ -113,11 +125,10 @@ export default function TCSNatureOfGoodsAlter() {
       )}
 
       <div className="flex-1 flex min-h-0 relative">
-        
-        {/* Mock Gateway of Tally background */}
+        {/* Mock Gateway background */}
         <div className="absolute inset-0 flex p-8 opacity-20 select-none pointer-events-none text-zinc-500">
           <div className="w-80 border-r border-zinc-300 pr-6 space-y-4">
-            <div className="text-sm font-bold border-b border-zinc-300 pb-1">Gateway of Tally</div>
+            <div className="text-sm font-bold border-b border-zinc-300 pb-1">Gateway</div>
             <div className="space-y-1 text-xs">
               <div>Masters</div>
               <div className="pl-4">Create</div>

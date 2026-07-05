@@ -282,7 +282,7 @@ export const reportRoutes: RouteConfig[] = [
       <CategoryMenuPage
         title="Audit & Security"
         categorySlug="audit-security"
-        description="Edit log, audit trail, verification, TallyMarks, user access logs and data integrity reports."
+        description="Edit log, audit trail, verification, user access logs and data integrity reports."
       />
     ),
   },

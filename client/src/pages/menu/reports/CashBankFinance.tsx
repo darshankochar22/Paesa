@@ -1,11 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Separator } from '@/components/shadcn/separator';
 
-const BASE = "/reports/cash-bank-finance";
+const BASE = '/reports/cash-bank-finance';
 const slug = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
@@ -14,63 +17,56 @@ export default function CashBankFinance() {
 
   const sections = [
     {
-      title: "CASH & BANK BOOKS",
+      title: 'CASH & BANK BOOKS',
       items: items([
-        "Cash Book Detailed",
-        "Bank Book Detailed",
-        "Cash Summary",
-        "Bank Summary",
-        "Petty Cash Book",
-        "Cash Deposit Report",
-        "Cash Withdrawal Report",
-        "Contra Cash-Bank Movement",
+        'Cash Book Detailed',
+        'Bank Book Detailed',
+        'Cash Summary',
+        'Bank Summary',
+        'Petty Cash Book',
+        'Cash Deposit Report',
+        'Cash Withdrawal Report',
+        'Contra Cash-Bank Movement',
       ]),
     },
     {
-      title: "BANK RECONCILIATION",
+      title: 'BANK RECONCILIATION',
       items: items([
-        "Bank Reconciliation",
-        "Bank Reconciliation Detailed",
-        "Imported Bank Statement",
-        "Bank Statement Matching",
-        "Unreconciled Bank Entries",
-        "Reconciled Bank Entries",
+        'Bank Reconciliation',
+        'Bank Reconciliation Detailed',
+        'Imported Bank Statement',
+        'Bank Statement Matching',
+        'Unreconciled Bank Entries',
+        'Reconciled Bank Entries',
       ]),
     },
     {
-      title: "CHEQUE MANAGEMENT",
+      title: 'CHEQUE MANAGEMENT',
       items: items([
-        "Cheque Register",
-        "Cheque Issued Register",
-        "Cheque Received Register",
-        "Post-dated Cheques Issued",
-        "Post-dated Cheques Received",
-        "Bounced Cheque Report",
-        "Cancelled Cheque Report",
+        'Cheque Register',
+        'Cheque Issued Register',
+        'Cheque Received Register',
+        'Post-dated Cheques Issued',
+        'Post-dated Cheques Received',
+        'Bounced Cheque Report',
+        'Cancelled Cheque Report',
       ]),
     },
     {
-      title: "DIGITAL PAYMENTS",
-      items: items([
-        "UPI Receipts Report",
-        "NEFT/RTGS Payments Report",
-      ]),
+      title: 'DIGITAL PAYMENTS',
+      items: items(['UPI Receipts Report', 'NEFT/RTGS Payments Report']),
     },
     {
-      title: "LOANS & FINANCE",
-      items: items([
-        "Loan Register",
-        "Loan EMI Schedule",
-        "Interest on Loan Report",
-      ]),
+      title: 'LOANS & FINANCE',
+      items: items(['Loan Register', 'Loan EMI Schedule', 'Interest on Loan Report']),
     },
     {
-      title: "CASH FLOW & PLANNING",
+      title: 'CASH FLOW & PLANNING',
       items: items([
-        "Cash Flow Forecast",
-        "Daily Cash Position",
-        "Bank-wise Balance Report",
-        "Payment Planning Report",
+        'Cash Flow Forecast',
+        'Daily Cash Position',
+        'Bank-wise Balance Report',
+        'Payment Planning Report',
       ]),
     },
   ];
@@ -79,9 +75,13 @@ export default function CashBankFinance() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
         <CardTitle className="text-base font-semibold">Cash, Bank, Finance & Banking</CardTitle>
       </CardHeader>

@@ -1,11 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Separator } from '@/components/shadcn/separator';
 
-const BASE = "/reports/financial-statements";
+const BASE = '/reports/financial-statements';
 const slug = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
@@ -14,68 +17,64 @@ export default function CoreFinancialStatements() {
 
   const sections = [
     {
-      title: "BALANCE SHEET",
+      title: 'BALANCE SHEET',
       items: items([
-        "Balance Sheet",
-        "Vertical Balance Sheet",
-        "Consolidated Balance Sheet",
-        "Schedule VI Balance Sheet",
-        "Balance Sheet with Previous Year",
-        "Balance Sheet with Monthly Columns",
+        'Balance Sheet',
+        'Vertical Balance Sheet',
+        'Consolidated Balance Sheet',
+        'Schedule VI Balance Sheet',
+        'Balance Sheet with Previous Year',
+        'Balance Sheet with Monthly Columns',
       ]),
     },
     {
-      title: "PROFIT & LOSS",
+      title: 'PROFIT & LOSS',
       items: items([
-        "Profit & Loss Account",
-        "Vertical Profit & Loss Account",
-        "Profit & Loss with Gross Profit Split",
-        "Profit & Loss Monthly Comparison",
-        "Profit & Loss Cost Centre-wise",
+        'Profit & Loss Account',
+        'Vertical Profit & Loss Account',
+        'Profit & Loss with Gross Profit Split',
+        'Profit & Loss Monthly Comparison',
+        'Profit & Loss Cost Centre-wise',
       ]),
     },
     {
-      title: "TRIAL BALANCE",
+      title: 'TRIAL BALANCE',
       items: items([
-        "Trial Balance",
-        "Group-wise Trial Balance",
-        "Ledger-wise Trial Balance",
-        "Opening Balance Trial Balance",
-        "Closing Balance Trial Balance",
-        "Trial Balance with Transactions",
+        'Trial Balance',
+        'Group-wise Trial Balance',
+        'Ledger-wise Trial Balance',
+        'Opening Balance Trial Balance',
+        'Closing Balance Trial Balance',
+        'Trial Balance with Transactions',
       ]),
     },
     {
-      title: "CASH & FUND FLOW",
+      title: 'CASH & FUND FLOW',
+      items: items(['Cash Flow Statement', 'Cash Flow Projection', 'Fund Flow Statement']),
+    },
+    {
+      title: 'ANALYSIS & RATIOS',
       items: items([
-        "Cash Flow Statement",
-        "Cash Flow Projection",
-        "Fund Flow Statement",
+        'Ratio Analysis',
+        'Statistics Report',
+        'Working Capital Report',
+        'Net Worth Report',
       ]),
     },
     {
-      title: "ANALYSIS & RATIOS",
+      title: 'GROUP SUMMARIES',
       items: items([
-        "Ratio Analysis",
-        "Statistics Report",
-        "Working Capital Report",
-        "Net Worth Report",
-      ]),
-    },
-    {
-      title: "GROUP SUMMARIES",
-      items: items([
-        "Capital Account Summary",
-        "Reserves & Surplus Summary",
-        "Drawings Summary",
-        "Fixed Assets Summary",
-        "Depreciation Summary",
-        "Loans & Advances Summary",
-        "Secured Loans Summary",
-        "Unsecured Loans Summary",
-        "Current Assets Summary",
-        "Current Liabilities Summary",
-        "Monthly Financial Snapshot",
+        'Capital Account Summary',
+        'Reserves & Surplus Summary',
+        'Drawings Summary',
+        'Fixed Assets Summary',
+        'Depreciation Summary',
+        'Loans & Advances Summary',
+        'Secured Loans Summary',
+        'Unsecured Loans Summary',
+        'Current Assets Summary',
+        'Current Liabilities Summary',
+        'Monthly Financial Snapshot',
       ]),
     },
   ];
@@ -84,9 +83,13 @@ export default function CoreFinancialStatements() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
         <CardTitle className="text-base font-semibold">Core Financial Statements</CardTitle>
       </CardHeader>

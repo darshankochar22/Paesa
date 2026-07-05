@@ -1,11 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Separator } from '@/components/shadcn/separator';
 
-const BASE = "/reports/audit-security";
+const BASE = '/reports/audit-security';
 const slug = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
@@ -14,83 +17,69 @@ export default function AuditSecurity() {
 
   const sections = [
     {
-      title: "AUDIT MENU",
+      title: 'AUDIT MENU',
+      items: items(['Audit & Compliance Menu', 'Audit Listing']),
+    },
+    {
+      title: 'VOUCHER & LEDGER AUDIT',
+      items: items(['Voucher Audit', 'Ledger Audit', 'Master Alteration Audit']),
+    },
+    {
+      title: 'DELETED & ALTERED',
       items: items([
-        "Audit & Compliance Menu",
-        "Tally Audit Listing",
+        'Deleted Masters Report',
+        'Deleted Vouchers Report',
+        'Altered Vouchers Report',
+        'Altered Ledgers Report',
       ]),
     },
     {
-      title: "VOUCHER & LEDGER AUDIT",
+      title: 'EDIT LOG',
+      items: items(['Edit Log Report', 'Edit Log Voucher-wise', 'Edit Log Master-wise']),
+    },
+    {
+      title: 'USER ACTIVITY & SECURITY',
       items: items([
-        "Voucher Audit",
-        "Ledger Audit",
-        "Master Alteration Audit",
+        'User Activity Log',
+        'Login/Logout Report',
+        'Company Access Log',
+        'Security Control Report',
+        'User Rights Report',
+        'Role Permission Report',
       ]),
     },
     {
-      title: "DELETED & ALTERED",
+      title: 'DATA MANAGEMENT',
       items: items([
-        "Deleted Masters Report",
-        "Deleted Vouchers Report",
-        "Altered Vouchers Report",
-        "Altered Ledgers Report",
+        'Data Synchronisation Report',
+        'Backup Status Report',
+        'Restore History Report',
+        'Data Import Log',
+        'Data Export Log',
+        'Remote Access Report',
       ]),
     },
     {
-      title: "EDIT LOG",
+      title: 'CONNECTED SERVICES',
+      items: items(['Connected Services Status', 'License/Subscription Status']),
+    },
+    {
+      title: 'FEATURES REPORT',
       items: items([
-        "Edit Log Report",
-        "Edit Log Voucher-wise",
-        "Edit Log Master-wise",
+        'Company Features Report',
+        'Statutory Features Report',
+        'Inventory Features Report',
+        'Accounting Features Report',
       ]),
     },
     {
-      title: "USER ACTIVITY & SECURITY",
+      title: 'EXCEPTIONS & HEALTH',
       items: items([
-        "User Activity Log",
-        "Login/Logout Report",
-        "Company Access Log",
-        "Security Control Report",
-        "User Rights Report",
-        "Role Permission Report",
-      ]),
-    },
-    {
-      title: "DATA MANAGEMENT",
-      items: items([
-        "Data Synchronisation Report",
-        "Backup Status Report",
-        "Restore History Report",
-        "Data Import Log",
-        "Data Export Log",
-        "Remote Access Report",
-      ]),
-    },
-    {
-      title: "CONNECTED SERVICES",
-      items: items([
-        "Connected Services Status",
-        "License/Subscription Status",
-      ]),
-    },
-    {
-      title: "FEATURES REPORT",
-      items: items([
-        "Company Features Report",
-        "Statutory Features Report",
-        "Inventory Features Report",
-        "Accounting Features Report",
-      ]),
-    },
-    {
-      title: "EXCEPTIONS & HEALTH",
-      items: items([
-        "Exception Reports Summary",
-        "Negative Cash Exception",
-        "Duplicate Voucher Number Exception",
-        "Missing Master Details Exception",
-        "Data Health Check Report",
+        'Exception Reports Summary',
+        'Negative Cash Exception',
+        'Duplicate Voucher Number Exception',
+        'Missing Master Details Exception',
+        'Data Health Check Report',
       ]),
     },
   ];
@@ -99,9 +88,13 @@ export default function AuditSecurity() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
         <CardTitle className="text-base font-semibold">Audit, Edit Log, Security & Admin</CardTitle>
       </CardHeader>

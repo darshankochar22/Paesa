@@ -1,11 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
+import { Separator } from '@/components/shadcn/separator';
 
-const BASE = "/reports/manufacturing-costing";
+const BASE = '/reports/manufacturing-costing';
 const slug = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
@@ -14,64 +17,53 @@ export default function ManufacturingCosting() {
 
   const sections = [
     {
-      title: "BILL OF MATERIALS",
+      title: 'BILL OF MATERIALS',
+      items: items(['Bill of Materials Report', 'BOM Component Summary', 'BOM Cost Report']),
+    },
+    {
+      title: 'MANUFACTURING & PRODUCTION',
       items: items([
-        "Bill of Materials Report",
-        "BOM Component Summary",
-        "BOM Cost Report",
+        'Manufacturing Journal Register',
+        'Production Summary',
+        'Production Voucher Register',
+        'Finished Goods Production Report',
+        'Raw Material Consumption Report',
+        'Wastage Report',
+        'Scrap Report',
+        'Yield Analysis',
+        'Standard vs Actual Consumption',
+        'Production Cost Sheet',
       ]),
     },
     {
-      title: "MANUFACTURING & PRODUCTION",
+      title: 'JOB WORK',
       items: items([
-        "Manufacturing Journal Register",
-        "Production Summary",
-        "Production Voucher Register",
-        "Finished Goods Production Report",
-        "Raw Material Consumption Report",
-        "Wastage Report",
-        "Scrap Report",
-        "Yield Analysis",
-        "Standard vs Actual Consumption",
-        "Production Cost Sheet",
+        'Job Work In Register',
+        'Job Work Out Register',
+        'Material Sent to Job Worker',
+        'Material Received from Job Worker',
+        'Pending Job Work Material',
+        'Job Worker-wise Stock',
+        'Principal Manufacturer-wise Stock',
       ]),
     },
     {
-      title: "JOB WORK",
+      title: 'COST CENTRES',
       items: items([
-        "Job Work In Register",
-        "Job Work Out Register",
-        "Material Sent to Job Worker",
-        "Material Received from Job Worker",
-        "Pending Job Work Material",
-        "Job Worker-wise Stock",
-        "Principal Manufacturer-wise Stock",
+        'Cost Centre Summary',
+        'Cost Category Summary',
+        'Cost Centre Break-up',
+        'Cost Centre Ledger',
+        'Cost Centre-wise P&L',
       ]),
     },
     {
-      title: "COST CENTRES",
-      items: items([
-        "Cost Centre Summary",
-        "Cost Category Summary",
-        "Cost Centre Break-up",
-        "Cost Centre Ledger",
-        "Cost Centre-wise P&L",
-      ]),
+      title: 'PROJECT & DEPARTMENT COSTING',
+      items: items(['Project Cost Report', 'Project Profitability', 'Department Cost Report']),
     },
     {
-      title: "PROJECT & DEPARTMENT COSTING",
-      items: items([
-        "Project Cost Report",
-        "Project Profitability",
-        "Department Cost Report",
-      ]),
-    },
-    {
-      title: "BATCH & ORDER COSTING",
-      items: items([
-        "Batch Costing Report",
-        "Order Costing Report",
-      ]),
+      title: 'BATCH & ORDER COSTING',
+      items: items(['Batch Costing Report', 'Order Costing Report']),
     },
   ];
 
@@ -79,9 +71,13 @@ export default function ManufacturingCosting() {
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
         <CardTitle className="text-base font-semibold">Manufacturing, Job Work & Costing</CardTitle>
       </CardHeader>
