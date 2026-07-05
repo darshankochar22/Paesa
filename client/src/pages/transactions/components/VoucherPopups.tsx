@@ -25,6 +25,7 @@ import OrderDetailsPopup from './popups/OrderDetailsPopup';
 import PurchaseOrderDetailsPopup from './popups/PurchaseOrderDetailsPopup';
 import MaterialInAllocationPopup from './popups/MaterialInAllocationPopup';
 import JobWorkItemAllocationPopup from './popups/JobWorkItemAllocationPopup';
+import { ORDER_CREATION_TYPES } from '../voucherConstants';
 
 interface VoucherPopupsProps {
   form: any;
@@ -36,7 +37,6 @@ interface VoucherPopupsProps {
   setInventoryAlloc: any;
   itemExcise: any;
   setItemExcise: any;
-  ORDER_CREATION_TYPES: any;
   showDatePicker: any;
   showApplicableUptoPicker: any;
   showTaxRegistrationPopup: any;
@@ -94,7 +94,6 @@ export default function VoucherPopups({
   setInventoryAlloc,
   itemExcise,
   setItemExcise,
-  ORDER_CREATION_TYPES,
   showDatePicker,
   showApplicableUptoPicker,
   showTaxRegistrationPopup,
