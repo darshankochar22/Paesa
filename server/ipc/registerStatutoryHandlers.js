@@ -66,6 +66,18 @@ function register() {
   ipcMain.handle('tcs:getForm27EQDrill', (event, { company_id, fy_id, ...params }) =>
     tcsReportService.getForm27EQDrill(company_id, fy_id, params),
   );
+  ipcMain.handle('tcs:getReturnTransactionBook', (event, { company_id, fy_id }) =>
+    tcsReportService.getReturnTransactionBook(company_id, fy_id),
+  );
+  ipcMain.handle('tcs:getOutstandings', (event, { company_id, fy_id, by }) =>
+    tcsReportService.getTcsOutstandings(company_id, fy_id, { by }),
+  );
+  ipcMain.handle('tcs:getLedgersWithoutPan', (event, { company_id }) =>
+    tcsReportService.getLedgersWithoutPan(company_id),
+  );
+  ipcMain.handle('tcs:getChallanDetailsOfBuyer', (event, { company_id, fy_id }) =>
+    tcsReportService.getChallanDetailsOfBuyer(company_id, fy_id),
+  );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),
   );

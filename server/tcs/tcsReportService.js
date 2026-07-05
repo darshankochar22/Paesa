@@ -391,4 +391,183 @@ const getForm27EQDrill = async (company_id, fy_id, params = {}) => {
   }
 };
 
-module.exports = { getChallanReconciliation, getForm27EQ, getForm27EQDrill };
+// ---------------------------------------------------------------------------
+// #205 — TCS Return Transaction Book, TCS Outstandings, Ledgers Without PAN,
+// TDS Challan details of Buyer
+// ---------------------------------------------------------------------------
+
+// TCS Return Transaction Book — register of SAVED TCS returns; honestly empty until a
+// return-saving engine exists (same contract as the TDS book #202).
+const getReturnTransactionBook = async (company_id, fy_id) => {
+  try {
+    const fyRows = await db.all(
+      sql`SELECT start_date, end_date FROM financial_years WHERE fy_id = ${fy_id}`,
+    );
+    const fy = fyRows[0] || {};
+    return {
+      success: true,
+      payload: {
+        period_label: `${fy.start_date || ''} to ${fy.end_date || ''}`,
+        returns: [],
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// TCS Outstandings — TCS collected (Cr on a type_of_duty_tax='TCS' ledger) minus paid
+// (Dr), grouped by Nature of Goods or by Party; Company / Non Company split follows the
+// buyer's tcs_buyer_lessee_type.
+const getTcsOutstandings = async (company_id, fy_id, { by = 'nature' } = {}) => {
+  try {
+    const fyRows = await db.all(
+      sql`SELECT start_date, end_date FROM financial_years WHERE fy_id = ${fy_id}`,
+    );
+    const fy = fyRows[0] || {};
+
+    const rows = await db.all(
+      sql`SELECT ve.type, ve.amount,
+                 dl.tcs_nature_of_goods, dl.name AS duty_ledger_name,
+                 v.party_name, p.name AS party_ledger_name,
+                 p.tcs_buyer_lessee_type AS collectee_type
+          FROM voucher_entries ve
+          JOIN ledger_statutory_details sd ON sd.ledger_id = ve.ledger_id
+            AND sd.type_of_duty_tax = 'TCS'
+          JOIN ledgers dl ON dl.ledger_id = ve.ledger_id
+          JOIN vouchers v ON v.voucher_id = ve.voucher_id
+          LEFT JOIN ledgers p ON p.ledger_id = v.party_ledger_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0`,
+    );
+
+    const buckets = new Map();
+    for (const r of rows) {
+      const key =
+        by === 'party'
+          ? r.party_ledger_name || r.party_name || '(No Party)'
+          : r.tcs_nature_of_goods || r.duty_ledger_name || 'Any';
+      if (!buckets.has(key)) buckets.set(key, { label: key, company: 0, non_company: 0 });
+      const b = buckets.get(key);
+      // Cr = collected (adds to pending); Dr = paid to govt (reduces pending).
+      const signed = (r.type === 'Cr' ? 1 : -1) * (Number(r.amount) || 0);
+      const isCompany = /company/i.test(String(r.collectee_type || ''));
+      if (isCompany) b.company += signed;
+      else b.non_company += signed;
+    }
+
+    const out = [...buckets.values()]
+      .map((b) => ({
+        label: b.label,
+        company: b.company,
+        non_company: b.non_company,
+        total_pending: b.company + b.non_company,
+      }))
+      .filter((b) => b.total_pending !== 0)
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return {
+      success: true,
+      payload: {
+        period_label: `${fy.start_date || ''} to ${fy.end_date || ''}`,
+        by,
+        rows: out,
+        grand_total: out.reduce((s, r) => s + r.total_pending, 0),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Ledgers Without PAN — collectee (buyer) ledgers missing a PAN; contact columns come
+// from the ledger's mailing details ('Unknown' collectee type = not set, excluded).
+const getLedgersWithoutPan = async (company_id) => {
+  try {
+    const rows = await db.all(
+      sql`SELECT ledger_id, name, tcs_buyer_lessee_type, mailing_name, phone
+          FROM ledgers
+          WHERE company_id = ${company_id}
+            AND (
+              (tcs_buyer_lessee_type IS NOT NULL AND TRIM(tcs_buyer_lessee_type) != ''
+               AND LOWER(TRIM(tcs_buyer_lessee_type)) != 'unknown')
+              OR is_tcs_applicable = 1
+            )
+            AND (pan IS NULL OR TRIM(pan) = '')
+            AND (tcs_pan_it_no IS NULL OR TRIM(tcs_pan_it_no) = '')
+          ORDER BY name`,
+    );
+    return {
+      success: true,
+      payload: {
+        ledgers: rows.map((r) => ({
+          ledger_id: r.ledger_id,
+          name: r.name,
+          collectee_type: String(r.tcs_buyer_lessee_type || '').trim() || 'Unknown',
+          contact_person: r.mailing_name || '',
+          contact_no: r.phone || '',
+          pan: '',
+        })),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// TDS Challan details of Buyer — "Entries Without Challan Details": TCS collection
+// entries (Cr on a type_of_duty_tax='TCS' ledger) that carry no challan reference.
+// No challan-linking engine exists, so every collection entry is pending; challan
+// number/date stay blank until reconciled.
+const getChallanDetailsOfBuyer = async (company_id, fy_id) => {
+  try {
+    const fyRows = await db.all(
+      sql`SELECT start_date, end_date FROM financial_years WHERE fy_id = ${fy_id}`,
+    );
+    const fy = fyRows[0] || {};
+
+    const rows = await db.all(
+      sql`SELECT v.voucher_id, v.date, v.party_name,
+                 p.name AS party_ledger_name,
+                 dl.tcs_nature_of_goods, dl.name AS duty_ledger_name,
+                 SUM(CASE WHEN ve.type = 'Cr' THEN ve.amount ELSE 0 END) AS amount
+          FROM voucher_entries ve
+          JOIN ledger_statutory_details sd ON sd.ledger_id = ve.ledger_id
+            AND sd.type_of_duty_tax = 'TCS'
+          JOIN ledgers dl ON dl.ledger_id = ve.ledger_id
+          JOIN vouchers v ON v.voucher_id = ve.voucher_id
+          LEFT JOIN ledgers p ON p.ledger_id = v.party_ledger_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+          GROUP BY v.voucher_id
+          HAVING amount > 0
+          ORDER BY v.date ASC, v.voucher_id ASC`,
+    );
+
+    return {
+      success: true,
+      payload: {
+        period_label: `${fy.start_date || ''} to ${fy.end_date || ''}`,
+        entries: rows.map((r) => ({
+          voucher_id: r.voucher_id,
+          date: r.date,
+          buyer_name: r.party_ledger_name || r.party_name || '',
+          nature_of_goods: r.tcs_nature_of_goods || r.duty_ledger_name || '',
+          amount: Number(r.amount) || 0,
+          challan_number: '',
+          challan_date: '',
+        })),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+module.exports = {
+  getChallanReconciliation,
+  getForm27EQ,
+  getForm27EQDrill,
+  getReturnTransactionBook,
+  getTcsOutstandings,
+  getLedgersWithoutPan,
+  getChallanDetailsOfBuyer,
+};

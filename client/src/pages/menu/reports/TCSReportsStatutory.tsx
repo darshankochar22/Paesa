@@ -11,10 +11,13 @@ export default function TCSReportsStatutory() {
   const items: Array<{ label: string; route: string }> = [
     { label: 'Challan Reconciliation', route: '/reports/statutory/tcs/challan-reconciliation' },
     { label: 'Form 27EQ', route: '/reports/statutory/tcs/form-27eq' },
-    { label: 'Return Transaction Book', route: '/reports/tcs/tcs-return-transaction-book' },
-    { label: 'TCS Outstandings', route: '/reports/tcs/tcs-outstandings' },
-    { label: 'Ledgers Without PAN', route: '/reports/tcs/ledgers-without-pan-collectees' },
-    { label: 'TDS Challan details of Buyer', route: '/reports/tcs/tcs-challan-details-of-buyer' },
+    { label: 'Return Transaction Book', route: '/reports/statutory/tcs/return-transaction-book' },
+    { label: 'TCS Outstandings', route: '/reports/statutory/tcs/outstandings' },
+    { label: 'Ledgers Without PAN', route: '/reports/statutory/tcs/ledgers-without-pan' },
+    {
+      label: 'TDS Challan details of Buyer',
+      route: '/reports/statutory/tcs/challan-details-of-buyer',
+    },
   ];
 
   return (

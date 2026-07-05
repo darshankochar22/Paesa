@@ -24,6 +24,12 @@ import {
   Form27EQUncertain,
   Form27EQUncertainResolution,
 } from '../pages/master/statutory/tcs-return/Form27EQDrills.tsx';
+import {
+  TCSReturnTransactionBook,
+  TCSOutstandings,
+  TCSLedgersWithoutPAN,
+  TCSChallanDetailsOfBuyer,
+} from '../pages/master/statutory/tcs-return/TCSRegisters.tsx';
 import Form27Q from '../pages/master/statutory/tds-return/Form27Q.tsx';
 import {
   Form27QNotRelevant,
@@ -171,6 +177,16 @@ export const reportRoutes: RouteConfig[] = [
   {
     path: '/reports/statutory/tcs/form-27eq/collection-details',
     element: <Form27EQCollectionDetails />,
+  },
+  {
+    path: '/reports/statutory/tcs/return-transaction-book',
+    element: <TCSReturnTransactionBook />,
+  },
+  { path: '/reports/statutory/tcs/outstandings', element: <TCSOutstandings /> },
+  { path: '/reports/statutory/tcs/ledgers-without-pan', element: <TCSLedgersWithoutPAN /> },
+  {
+    path: '/reports/statutory/tcs/challan-details-of-buyer',
+    element: <TCSChallanDetailsOfBuyer />,
   },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
