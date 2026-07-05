@@ -280,6 +280,7 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gstr1/reconciliation', element: <GSTR1Reconciliation /> },
   { path: '/master/statutory/gstr1/reconciliation/uncertain', element: <UncertainBreakdown /> },
   { path: '/master/statutory/gstr2a/reconciliation/uncertain', element: <UncertainBreakdown /> },
+  { path: '/master/statutory/gstr2b/reconciliation/uncertain', element: <UncertainBreakdown /> },
   { path: '/master/statutory/annual-computation/uncertain', element: <UncertainBreakdown /> },
   { path: '/master/statutory/gstr3b', element: <GSTR3BView /> },
   { path: '/master/statutory/annual-computation', element: <AnnualComputation /> },

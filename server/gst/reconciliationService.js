@@ -145,28 +145,17 @@ const getGSTR1Reconciliation = async (company_id, fy_id) => {
 
 const getGSTR2BReconciliation = async (company_id, fy_id) => {
   try {
-    const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
+    const { fyLabel } = await getDatesForFY(fy_id);
 
-    // Books side: inward documents with tax totalled from the stock lines
-    // (the voucher row itself carries no tax aggregate columns).
-    const rawVouchers = await db.all(
-      sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.reference_number,
-                 l.gstin AS party_gstin,
-                 COALESCE(SUM(vse.amount), 0) AS taxable_amount,
-                 COALESCE(SUM(vse.igst_amount), 0) AS igst,
-                 COALESCE(SUM(vse.cgst_amount), 0) AS cgst,
-                 COALESCE(SUM(vse.sgst_amount), 0) AS sgst,
-                 COALESCE(SUM(vse.amount + vse.cgst_amount + vse.sgst_amount + vse.igst_amount), 0) AS invoice_amount
-          FROM ${vouchers} v
-          LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
-          LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
-          WHERE v.company_id = ${company_id}
-            AND v.fy_id = ${fy_id}
-            AND v.is_cancelled = 0
-            AND v.date >= ${fyStartDate}
-            AND v.date <= ${fyEndDate}
-            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')
-          GROUP BY v.voucher_id`,
+    // Pull the whole FY once and classify each inward document with the SAME shared
+    // engine the drill screens use, so the "Uncertain Transactions" count here matches
+    // the resolution drill exactly. Tax is totalled from the stock lines.
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      null,
+      null,
+      true,
     );
 
     const keys = [
@@ -190,6 +179,7 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
 
     let reconciledCount = 0;
     let unreconciledCount = 0;
+    let uncertainCount = 0;
 
     // Real reconciliation logic against imported GSTR-2B data
     const importedRows = await db.all(
@@ -212,19 +202,29 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
       } catch (e) {}
     }
 
-    for (const v of rawVouchers) {
+    for (const v of rows) {
+      if (!INWARD_RECON_TYPES.includes(v.voucher_type)) continue;
+      const cls = classifyVoucher(v, 'GSTR2B', companyGstinInvalid);
+      // Corrections-needed documents are excluded from the Return View and reported
+      // separately — matching TallyPrime (invalid company GSTIN → everything Uncertain).
+      if (cls.bucket === 'uncertain') {
+        uncertainCount++;
+        continue;
+      }
+      if (cls.bucket !== 'included') continue;
+
       // Purchases feed "All other ITC"; purchase returns (Debit Notes) feed the
       // Part-B reversal row — mirrors how the portal 2B statement buckets them.
       const bucket =
         v.voucher_type === 'Debit Note' ? 'itc_available_reversal' : 'itc_available_other';
       const row = return_view[bucket];
       row.vch_count++;
-      row.taxable_amount += Number(v.taxable_amount) || 0;
+      row.taxable_amount += Number(v.taxable) || 0;
       row.igst += Number(v.igst) || 0;
       row.cgst += Number(v.cgst) || 0;
       row.sgst += Number(v.sgst) || 0;
       row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
-      row.invoice_amount += Number(v.invoice_amount) || 0;
+      row.invoice_amount += invoiceOf(v);
 
       // Reconciliation: match GSTIN and Invoice Number
       const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
@@ -244,7 +244,7 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
         voucher_status: {
           reconciled: reconciledCount,
           unreconciled: unreconciledCount,
-          uncertain: 0,
+          uncertain: uncertainCount,
         },
         period_label: fyLabel,
         last_gst_activity:

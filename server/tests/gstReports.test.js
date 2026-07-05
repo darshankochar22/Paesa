@@ -843,4 +843,23 @@ describe('GST Reports engine', () => {
     expect(unc.rows[0].voucher_type).toBe('Purchase');
     expect(unc.rows[0].exceptions).toContain('Place of supply is not specified');
   });
+
+  it('GSTR-2B Reconciliation counts uncertain inward vouchers and excludes them from the Return View', async () => {
+    // The bad July purchase (missing place of supply, seeded in the 2A test above) is
+    // Uncertain for GSTR-2B too; the clean April purchase stays in All-other-ITC.
+    const res = await reconciliationService.getGSTR2BReconciliation(companyId, fyId);
+    expect(res.success).toBe(true);
+    expect(res.payload.return_view.itc_available_other.vch_count).toBe(1);
+    expect(res.payload.voucher_status.uncertain).toBe(1);
+
+    // Drill: the GSTR-2B uncertain list surfaces the bad purchase with its exception.
+    const unc = await reconciliationService.getReturnVouchers(companyId, fyId, null, {
+      return_type: 'GSTR2B',
+      annual: true,
+      bucket: 'uncertain',
+    });
+    expect(unc.rows).toHaveLength(1);
+    expect(unc.rows[0].voucher_type).toBe('Purchase');
+    expect(unc.rows[0].exceptions).toContain('Place of supply is not specified');
+  });
 });
