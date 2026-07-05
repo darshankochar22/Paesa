@@ -12,7 +12,7 @@ export default function GSTReports() {
     },
     {
       title: 'EXCHANGE REPORTS',
-      items: ['e-Way Bill'],
+      items: ['e-Invoice', 'e-Way Bill'],
     },
     {
       title: 'RECONCILIATION REPORTS',
@@ -62,6 +62,12 @@ export default function GSTReports() {
     }
     if (item === 'Other Reports') {
       return '/master/statutory/gst/other-reports';
+    }
+    if (item === 'e-Invoice') {
+      return '/master/statutory/gst/einvoice-report';
+    }
+    if (item === 'e-Way Bill') {
+      return '/master/statutory/gst/eway-bill-report';
     }
     return null;
   };

@@ -96,6 +96,7 @@ import GSTOtherReports from '../pages/menu/reports/GSTOtherReports.tsx';
 import MarkedVouchers from '../pages/master/statutory/gst-return/MarkedVouchers.tsx';
 import GstAdvancesReport from '../pages/master/statutory/gst-return/GstAdvancesReport.tsx';
 import ReverseChargeSupplies from '../pages/master/statutory/gst-return/ReverseChargeSupplies.tsx';
+import EInvoiceEWayBillReport from '../pages/master/statutory/gst-return/EInvoiceEWayBillReport.tsx';
 import GSTR3BView from '../pages/master/statutory/gst-return/GSTR-3B.tsx';
 import AnnualComputation from '../pages/master/statutory/gst-return/AnnualComputation.tsx';
 import GSTR2AReconciliation from '../pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx';
@@ -312,6 +313,15 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gst/advance-receipts', element: <GstAdvancesReport type="Receipt" /> },
   { path: '/master/statutory/gst/advance-paid', element: <GstAdvancesReport type="Payment" /> },
   { path: '/master/statutory/gst/reverse-charge-supplies', element: <ReverseChargeSupplies /> },
+  {
+    path: '/master/statutory/gst/einvoice-report',
+    element: <EInvoiceEWayBillReport mode="einvoice" />,
+  },
+  {
+    path: '/master/statutory/gst/eway-bill-report',
+    element: <EInvoiceEWayBillReport mode="eway" />,
+  },
+  { path: '/master/statutory/gst/exchange-uncertain', element: <UncertainBreakdown /> },
 
   // Statutory — Excise Duty Classification
   {
