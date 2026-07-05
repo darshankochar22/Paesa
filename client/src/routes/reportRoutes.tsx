@@ -15,6 +15,15 @@ import {
   LedgersWithoutPAN,
 } from '../pages/master/statutory/tds-return/TDSRegisters.tsx';
 import TCSChallanReconciliation from '../pages/master/statutory/tcs-return/TCSChallanReconciliation.tsx';
+import Form27EQ, {
+  Form27EQCollectionDetails,
+} from '../pages/master/statutory/tcs-return/Form27EQ.tsx';
+import {
+  Form27EQNotRelevant,
+  Form27EQVoucherRegister,
+  Form27EQUncertain,
+  Form27EQUncertainResolution,
+} from '../pages/master/statutory/tcs-return/Form27EQDrills.tsx';
 import Form27Q from '../pages/master/statutory/tds-return/Form27Q.tsx';
 import {
   Form27QNotRelevant,
@@ -151,6 +160,18 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/statutory/tds/ledgers-without-pan', element: <LedgersWithoutPAN /> },
   { path: '/reports/statutory/tcs', element: <TCSReportsStatutory /> },
   { path: '/reports/statutory/tcs/challan-reconciliation', element: <TCSChallanReconciliation /> },
+  { path: '/reports/statutory/tcs/form-27eq', element: <Form27EQ /> },
+  { path: '/reports/statutory/tcs/form-27eq/not-relevant', element: <Form27EQNotRelevant /> },
+  { path: '/reports/statutory/tcs/form-27eq/register', element: <Form27EQVoucherRegister /> },
+  { path: '/reports/statutory/tcs/form-27eq/uncertain', element: <Form27EQUncertain /> },
+  {
+    path: '/reports/statutory/tcs/form-27eq/uncertain/resolution',
+    element: <Form27EQUncertainResolution />,
+  },
+  {
+    path: '/reports/statutory/tcs/form-27eq/collection-details',
+    element: <Form27EQCollectionDetails />,
+  },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
   { path: '/reports/inventory-books', element: <InventoryBooks /> },

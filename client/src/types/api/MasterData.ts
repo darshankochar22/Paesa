@@ -501,6 +501,18 @@ export interface MasterDataAPI {
       company_id: number;
       fy_id: number;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getForm27EQ: (data: {
+      company_id: number;
+      fy_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getForm27EQDrill: (data: {
+      company_id: number;
+      fy_id: number;
+      view: 'not_relevant' | 'register' | 'uncertain' | 'resolution' | 'collection_details';
+      bucket?: string;
+      voucher_type?: string;
+      exception?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
   };
   master: {
     getMenu: (

@@ -60,6 +60,12 @@ function register() {
   ipcMain.handle('tcs:getChallanReconciliation', (event, { company_id, fy_id }) =>
     tcsReportService.getChallanReconciliation(company_id, fy_id),
   );
+  ipcMain.handle('tcs:getForm27EQ', (event, { company_id, fy_id }) =>
+    tcsReportService.getForm27EQ(company_id, fy_id),
+  );
+  ipcMain.handle('tcs:getForm27EQDrill', (event, { company_id, fy_id, ...params }) =>
+    tcsReportService.getForm27EQDrill(company_id, fy_id, params),
+  );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),
   );

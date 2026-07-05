@@ -543,6 +543,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   tcs: {
     getChallanReconciliation: (data) => invoke('tcs:getChallanReconciliation', data),
+    getForm27EQ: (data) => invoke('tcs:getForm27EQ', data),
+    getForm27EQDrill: (data) => invoke('tcs:getForm27EQDrill', data),
   },
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),

@@ -1339,4 +1339,72 @@ describe('GST Reports engine', () => {
     // The TDS challan (300) must NOT leak into the TCS report.
     expect(res.payload.challans.find((c) => c.amount === 300)).toBeFalsy();
   });
+
+  it('Form 27EQ classifies TCS-applicable vouchers and drills breakdown/uncertain', async () => {
+    // A TCS-applicable sales ledger + a Receipt from a buyer with no collectee type.
+    const scrapLedger = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'Scrap Sales TCS' }),
+    );
+    await db.execute(`UPDATE ledgers SET is_tcs_applicable = 1 WHERE ledger_id = ?`, [scrapLedger]);
+    const buyer = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'F27EQ Buyer' }),
+    );
+
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Receipt',
+      date: '2026-08-05',
+      status: 'Regular',
+      party_ledger_id: buyer,
+      party_name: 'F27EQ Buyer',
+      is_accounting_voucher: 1,
+      is_invoice: 0,
+      is_inventory_voucher: 0,
+      is_order_voucher: 0,
+      is_post_dated: 0,
+      entries: [
+        {
+          ledger_id: scrapLedger,
+          ledger_name: 'Scrap Sales TCS',
+          type: 'Cr',
+          amount: 8000,
+          currency: 'INR',
+        },
+        { ledger_id: buyer, ledger_name: 'F27EQ Buyer', type: 'Dr', amount: 8000, currency: 'INR' },
+      ],
+    });
+
+    const res = await tcsReportService.getForm27EQ(companyId, fyId);
+    expect(res.success).toBe(true);
+    const vs = res.payload.voucher_status;
+    expect(vs.total).toBeGreaterThan(0);
+    // Buyer has no collectee type → the TCS voucher lands in Uncertain, not Included.
+    expect(vs.uncertain).toBeGreaterThanOrEqual(1);
+    // 27EQ has the 4 collection rate buckets.
+    expect(res.payload.collection_details.map((r) => r.label)).toEqual([
+      'Collection at Normal Rate',
+      'Collection at Higher Rate',
+      'Collection at Zero/Lower Rate',
+      'Under Exemption limit',
+    ]);
+    // Payment side picks up the TCS challan from the previous test (450).
+    expect(res.payload.payment.paid_amount).toBe(450);
+
+    // Drills agree with the summary.
+    const nr = await tcsReportService.getForm27EQDrill(companyId, fyId, { view: 'not_relevant' });
+    expect(nr.payload.total).toBe(vs.not_relevant);
+    const un = await tcsReportService.getForm27EQDrill(companyId, fyId, { view: 'uncertain' });
+    const counted = un.payload.taxonomy
+      .flatMap((s) => s.groups)
+      .flatMap((g) => g.items)
+      .reduce((s, it) => s + (it.count || 0), 0);
+    expect(counted).toBe(vs.uncertain);
+    const reso = await tcsReportService.getForm27EQDrill(companyId, fyId, {
+      view: 'resolution',
+      exception: 'collectee_type',
+    });
+    expect(reso.payload.mode).toBe('ledgers');
+    expect(reso.payload.ledgers.length).toBeGreaterThanOrEqual(1);
+  });
 });
