@@ -172,6 +172,10 @@ module.exports = {
     return await reconciliationService.getChallanReconciliation(company_id, fy_id);
   },
 
+  getGstRateSetup: async (event, { company_id, master_type }) => {
+    return await reconciliationService.getGstRateSetup(company_id, master_type);
+  },
+
   getReturnActivities: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getReturnActivities(company_id, fy_id);
   },

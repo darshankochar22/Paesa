@@ -862,4 +862,123 @@ describe('GST Reports engine', () => {
     expect(unc.rows[0].voucher_type).toBe('Purchase');
     expect(unc.rows[0].exceptions).toContain('Place of supply is not specified');
   });
+
+  it('Challan Reconciliation lists only GST tax payments with the real amount from entries', async () => {
+    // A Duties & Taxes ledger tagged GST, a bank, and an ordinary expense ledger.
+    const cgstLedger = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'CGST Payable' }),
+    );
+    await db.execute(
+      `INSERT INTO ledger_statutory_details (ledger_id, type_of_duty_tax, gst_tax_type) VALUES (?, 'GST', 'CGST')`,
+      [cgstLedger],
+    );
+    const bankLedger = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'HDFC Bank' }),
+    );
+    const rentLedger = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'Rent A/c' }),
+    );
+
+    // A GST tax payment: Dr CGST Payable 500, Cr Bank 500 → one challan of 500.
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Payment',
+      date: '2026-08-10',
+      status: 'Regular',
+      party_ledger_id: bankLedger,
+      party_name: 'HDFC Bank',
+      is_accounting_voucher: 1,
+      is_invoice: 0,
+      is_inventory_voucher: 0,
+      is_order_voucher: 0,
+      is_post_dated: 0,
+      entries: [
+        {
+          ledger_id: cgstLedger,
+          ledger_name: 'CGST Payable',
+          type: 'Dr',
+          amount: 500,
+          currency: 'INR',
+        },
+        {
+          ledger_id: bankLedger,
+          ledger_name: 'HDFC Bank',
+          type: 'Cr',
+          amount: 500,
+          currency: 'INR',
+        },
+      ],
+    });
+
+    // An ordinary (non-GST) payment that must NOT appear as a challan.
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Payment',
+      date: '2026-08-11',
+      status: 'Regular',
+      party_ledger_id: bankLedger,
+      party_name: 'HDFC Bank',
+      is_accounting_voucher: 1,
+      is_invoice: 0,
+      is_inventory_voucher: 0,
+      is_order_voucher: 0,
+      is_post_dated: 0,
+      entries: [
+        {
+          ledger_id: rentLedger,
+          ledger_name: 'Rent A/c',
+          type: 'Dr',
+          amount: 1000,
+          currency: 'INR',
+        },
+        {
+          ledger_id: bankLedger,
+          ledger_name: 'HDFC Bank',
+          type: 'Cr',
+          amount: 1000,
+          currency: 'INR',
+        },
+      ],
+    });
+
+    const res = await reconciliationService.getChallanReconciliation(companyId, fyId);
+    expect(res.success).toBe(true);
+    expect(res.payload.challans).toHaveLength(1);
+    const ch = res.payload.challans[0];
+    expect(ch.amount).toBe(500);
+    expect(ch.type_of_tax_payment).toBe('GST');
+    expect(ch.vch_type).toBe('Payment');
+  });
+
+  it('GST Rate Setup buckets each master by its GST rate status', async () => {
+    await db.execute(
+      `INSERT INTO stock_items (company_id, name, gst_applicable, taxability_type, gst_rate, hsn_sac, is_active)
+       VALUES (?, 'RS Taxable Item', 'Applicable', 'Taxable', 18, '9401', 1),
+              (?, 'RS Exempt Item', 'Applicable', 'Exempt', 0, '1234', 1),
+              (?, 'RS Blank Item', 'Applicable', NULL, 0, NULL, 1),
+              (?, 'RS NA Item', 'Not Applicable', NULL, 0, NULL, 1)`,
+      [companyId, companyId, companyId, companyId],
+    );
+
+    const res = await reconciliationService.getGstRateSetup(companyId, 'stock_item');
+    expect(res.success).toBe(true);
+    const byName = Object.fromEntries(res.masters.map((m) => [m.name, m]));
+    expect(byName['RS Taxable Item'].status).toBe('GST Rate-18%');
+    expect(byName['RS Taxable Item'].hsn).toBe('9401');
+    expect(byName['RS Exempt Item'].status).toBe('Exempt');
+    expect(byName['RS Blank Item'].status).toBe('GST Rate Details Not Provided');
+    expect(byName['RS NA Item'].status).toBe('GST Not Applicable');
+
+    // Ledgers resolve their GST status from ledger_statutory_details (CGST Payable was
+    // tagged type_of_duty_tax='GST' in the challan test — its statutory row exists).
+    const led = await reconciliationService.getGstRateSetup(companyId, 'ledger');
+    expect(led.success).toBe(true);
+    expect(led.masters.length).toBeGreaterThan(0);
+
+    // Unknown master type is a clean error, not a throw.
+    const bad = await reconciliationService.getGstRateSetup(companyId, 'nonsense');
+    expect(bad.success).toBe(false);
+  });
 });

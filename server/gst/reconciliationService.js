@@ -494,25 +494,37 @@ const getChallanReconciliation = async (company_id, fy_id) => {
   try {
     const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
 
-    // Fetch Payment vouchers which could represent Tax payments
+    // A GST challan payment = a Payment voucher with at least one entry against a
+    // Duties & Taxes ledger tagged type_of_duty_tax = 'GST'. The challan amount is the
+    // total GST debited in that voucher, summed from voucher_entries (the voucher row
+    // carries no amount column). Ordinary payments (rent, suppliers…) are excluded.
     const rawVouchers = await db.all(
-      sql`SELECT v.*, l.name as party_name
+      sql`SELECT v.voucher_id, v.date, v.voucher_number, v.voucher_type,
+                 v.party_name, l.name AS party_ledger_name,
+                 COALESCE(SUM(CASE WHEN ve.type = 'Dr' AND sd.type_of_duty_tax = 'GST'
+                                   THEN ve.amount ELSE 0 END), 0) AS gst_amount,
+                 COUNT(CASE WHEN sd.type_of_duty_tax = 'GST' THEN 1 END) AS gst_entry_count
           FROM ${vouchers} v
+          JOIN voucher_entries ve ON ve.voucher_id = v.voucher_id
           LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+          LEFT JOIN ledger_statutory_details sd ON sd.ledger_id = ve.ledger_id
           WHERE v.company_id = ${company_id}
             AND v.fy_id = ${fy_id}
             AND v.is_cancelled = 0
             AND v.date >= ${fyStartDate}
             AND v.date <= ${fyEndDate}
-            AND v.voucher_type = 'Payment'`,
+            AND v.voucher_type = 'Payment'
+          GROUP BY v.voucher_id
+          HAVING COUNT(CASE WHEN sd.type_of_duty_tax = 'GST' THEN 1 END) > 0
+          ORDER BY v.date ASC, v.voucher_id ASC`,
     );
 
-    // Challan identifiers (CPIN/CIN/BRN) live on the GST portal; until a challan
-    // import exists they are honestly blank instead of fabricated.
+    // Challan identifiers (CPIN/CIN/BRN), bank and instrument details live on the GST
+    // portal; until a challan import exists they are honestly blank, not fabricated.
     const challans = rawVouchers.map((v, idx) => {
       return {
         date: v.date,
-        particulars: v.party_name || 'GST Tax Payment',
+        particulars: v.party_ledger_name || v.party_name || 'GST Tax Payment',
         vch_type: v.voucher_type,
         vch_no: v.voucher_number || `PMT-${idx + 1}`,
         type_of_tax_payment: 'GST',
@@ -527,7 +539,7 @@ const getChallanReconciliation = async (company_id, fy_id) => {
         instrument_number: '',
         instrument_date: v.date,
         payment_date: v.date,
-        amount: v.amount || 0,
+        amount: Number(v.gst_amount) || 0,
       };
     });
 
@@ -1583,6 +1595,73 @@ const getAnnualMonthly = async (company_id, fy_id, opts = {}) => {
   }
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// GST Rate Setup (GST Utilities) — list the masters of one type with their GST rate
+// configuration and the status bucket each falls under, so the setup grid can group
+// them (GST Rate-18%, Exempt, GST Rate Details Not Provided, GST Not Applicable, …).
+// All 4 master types keep their own GST columns; ledgers keep them in
+// ledger_statutory_details. This is a read view — editing is via the master screens.
+// ───────────────────────────────────────────────────────────────────────────────
+const rateSetupStatus = ({ gst_applicability, taxability_type, gst_rate, hsn }) => {
+  const taxability = String(taxability_type || '').trim();
+  const rate = Number(gst_rate) || 0;
+  if (String(gst_applicability || '') === 'Not Applicable') return 'GST Not Applicable';
+  if (/exempt/i.test(taxability)) return 'Exempt';
+  if (/nil/i.test(taxability)) return 'Nil Rated';
+  if (/non[- ]?gst/i.test(taxability)) return 'Non-GST';
+  if (/taxable/i.test(taxability)) return `GST Rate-${rate}%`;
+  if (!taxability && rate === 0 && !String(hsn || '').trim())
+    return 'GST Rate Details Not Provided';
+  return `GST Rate-${rate}%`;
+};
+
+const RATE_SETUP_QUERIES = {
+  stock_item: (company_id) => sql`
+    SELECT item_id AS id, name, gst_applicable AS gst_applicability,
+           taxability_type, gst_rate, COALESCE(NULLIF(hsn_sac, ''), hsn_code) AS hsn
+    FROM stock_items WHERE company_id = ${company_id} AND is_active = 1
+    ORDER BY name COLLATE NOCASE`,
+  ledger: (company_id) => sql`
+    SELECT l.ledger_id AS id, l.name,
+           COALESCE(sd.gst_applicability, 'Not Applicable') AS gst_applicability,
+           sd.taxability_type AS taxability_type, sd.gst_rate AS gst_rate,
+           sd.hsn_sac_code AS hsn
+    FROM ledgers l
+    LEFT JOIN ledger_statutory_details sd ON sd.ledger_id = l.ledger_id
+    WHERE l.company_id = ${company_id} AND l.is_active = 1
+    ORDER BY l.name COLLATE NOCASE`,
+  group: (company_id) => sql`
+    SELECT group_id AS id, name, NULL AS gst_applicability,
+           taxability_type, gst_rate, hsn_sac_code AS hsn
+    FROM groups WHERE company_id = ${company_id} AND is_active = 1
+    ORDER BY name COLLATE NOCASE`,
+  stock_group: (company_id) => sql`
+    SELECT sg_id AS id, name, NULL AS gst_applicability,
+           taxability_type, gst_rate, hsn_sac_code AS hsn
+    FROM stock_groups WHERE company_id = ${company_id} AND is_active = 1
+    ORDER BY name COLLATE NOCASE`,
+};
+
+const getGstRateSetup = async (company_id, master_type) => {
+  try {
+    const build = RATE_SETUP_QUERIES[master_type];
+    if (!build) return { success: false, error: `Unknown master type: ${master_type}` };
+    const rows = await db.all(build(company_id));
+    const masters = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      taxability_type: r.taxability_type || '',
+      gst_rate: Number(r.gst_rate) || 0,
+      hsn: r.hsn || '',
+      gst_applicability: r.gst_applicability || '',
+      status: rateSetupStatus(r),
+    }));
+    return { success: true, masters };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   getGSTR1Reconciliation,
   getGSTR2AReconciliation,
@@ -1598,4 +1677,5 @@ module.exports = {
   getAnnualSectionBreakdown,
   getAnnualMonthly,
   annualCategoryOf,
+  getGstRateSetup,
 };
