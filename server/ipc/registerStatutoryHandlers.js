@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 
 const gstController = require('../gst/gstController');
+const tdsReportService = require('../tds/tdsReportService');
 const gstRegistrationController = require('../gstRegistration/gstRegistrationController');
 const gstClassificationController = require('../gstClassification/gstClassificationController');
 const tcsNatureOfGoodsController = require('../tcsNatureOfGoods/tcsNatureOfGoodsController');
@@ -43,6 +44,9 @@ function register() {
   ipcMain.handle('gst:getMarkedVouchers', gstController.getMarkedVouchers);
   ipcMain.handle('gst:getGstAdvancesReport', gstController.getGstAdvancesReport);
   ipcMain.handle('gst:getReverseChargeSupplies', gstController.getReverseChargeSupplies);
+  ipcMain.handle('tds:getChallanReconciliation', (event, { company_id, fy_id }) =>
+    tdsReportService.getChallanReconciliation(company_id, fy_id),
+  );
   ipcMain.handle('gst:getReturnActivities', gstController.getReturnActivities);
   ipcMain.handle('gst:getReturnStatistics', gstController.getReturnStatistics);
   ipcMain.handle('gst:getReturnVouchers', gstController.getReturnVouchers);

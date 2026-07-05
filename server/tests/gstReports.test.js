@@ -11,6 +11,7 @@ const gstReportService = require('../report/services/gstReportService');
 const reconciliationService = require('../gst/reconciliationService');
 const gstr1Service = require('../gst/gstr1Service');
 const gstFilingService = require('../gstFiling/gstFilingService');
+const tdsReportService = require('../tds/tdsReportService');
 
 const ledgerId = (res) => res.ledger?.ledger_id ?? res.ledger_id ?? res.id;
 
@@ -1113,5 +1114,50 @@ describe('GST Reports engine', () => {
     const rcm = await reconciliationService.getReverseChargeSupplies(companyId, fyId);
     expect(rcm.success).toBe(true);
     expect(rcm.rows).toEqual([]);
+  });
+
+  it('TDS Challan Reconciliation lists Payment vouchers hitting a TDS ledger', async () => {
+    const tdsLedger = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'TDS Payable' }),
+    );
+    await db.execute(
+      `INSERT INTO ledger_statutory_details (ledger_id, type_of_duty_tax) VALUES (?, 'TDS')`,
+      [tdsLedger],
+    );
+    const bank = ledgerId(await ledgerService.create({ company_id: companyId, name: 'TDS Bank' }));
+
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Payment',
+      date: '2026-07-15',
+      status: 'Regular',
+      party_ledger_id: bank,
+      party_name: 'TDS Bank',
+      is_accounting_voucher: 1,
+      is_invoice: 0,
+      is_inventory_voucher: 0,
+      is_order_voucher: 0,
+      is_post_dated: 0,
+      entries: [
+        {
+          ledger_id: tdsLedger,
+          ledger_name: 'TDS Payable',
+          type: 'Dr',
+          amount: 300,
+          currency: 'INR',
+        },
+        { ledger_id: bank, ledger_name: 'TDS Bank', type: 'Cr', amount: 300, currency: 'INR' },
+      ],
+    });
+
+    const res = await tdsReportService.getChallanReconciliation(companyId, fyId);
+    expect(res.success).toBe(true);
+    const ch = res.payload.challans.find((c) => c.amount === 300);
+    expect(ch).toBeTruthy();
+    expect(ch.vch_no).toBeTruthy();
+    // A July payment belongs to E-TDS quarter Q2 (Jul-Sep).
+    expect(ch.quarter_from).toBe('2026-07-01');
+    expect(ch.quarter_to).toBe('2026-09-30');
   });
 });

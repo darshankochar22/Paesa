@@ -1,29 +1,32 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
-import { Button } from "@/components/shadcn/button";
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
+import { Button } from '@/components/shadcn/button';
 
 export default function StatutoryReports() {
   const navigate = useNavigate();
 
   const sections = [
     {
-      title: "",
+      title: '',
       items: [
-        "GST Reports",
-        "TDS Reports",
-        "TCS Reports",
-        "Payroll Reports",
-        "Central Excise Reports",
-        "Service Tax Reports",
-        "MSME Reports",
-        "Quit"
+        'GST Reports',
+        'TDS Reports',
+        'TCS Reports',
+        'Payroll Reports',
+        'Central Excise Reports',
+        'Service Tax Reports',
+        'MSME Reports',
+        'Quit',
       ],
-    }
+    },
   ];
 
   const getRoute = (_section: string, item: string) => {
-    if (item === "GST Reports") {
-      return "/reports/statutory/gst";
+    if (item === 'GST Reports') {
+      return '/reports/statutory/gst';
+    }
+    if (item === 'TDS Reports') {
+      return '/reports/statutory/tds';
     }
     return null;
   };
@@ -32,9 +35,13 @@ export default function StatutoryReports() {
     <Card className="w-96 mx-auto mt-10 gap-4 text-xs">
       <CardHeader className="pb-2">
         <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">Gateway of Tally</Link>
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway of Tally
+          </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
+          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+            Display More Reports
+          </Link>
         </div>
         <CardTitle className="text-base font-semibold">Statutory Reports</CardTitle>
       </CardHeader>
@@ -51,7 +58,7 @@ export default function StatutoryReports() {
             {section.items.length > 0 && (
               <div className="flex flex-col pl-4 gap-0.5">
                 {section.items.map((item) => {
-                  if (item === "Quit") {
+                  if (item === 'Quit') {
                     return (
                       <Button
                         key={item}

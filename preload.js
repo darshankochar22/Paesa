@@ -532,6 +532,9 @@ contextBridge.exposeInMainWorld('api', {
     getAnnualSectionBreakdown: (data) => invoke('gst:getAnnualSectionBreakdown', data),
     getAnnualMonthly: (data) => invoke('gst:getAnnualMonthly', data),
   },
+  tds: {
+    getChallanReconciliation: (data) => invoke('tds:getChallanReconciliation', data),
+  },
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),
   },
