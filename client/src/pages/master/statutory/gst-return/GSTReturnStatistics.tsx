@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
 import {
   Table,
   TableHeader,
@@ -10,10 +10,10 @@ import {
   TableHead,
   TableRow,
   TableCell,
-} from "@/components/shadcn/table";
-import { EmptyState } from "@/components/blocks/EmptyState";
+} from '@/components/shadcn/table';
+import { EmptyState } from '@/components/blocks/EmptyState';
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function periodLabelFor(month: string, year: string) {
   const m = Number(month);
@@ -32,7 +32,7 @@ interface StatRow {
   uncertain: number;
 }
 
-const num = (n: number) => (n ? String(n) : "");
+const num = (n: number) => (n ? String(n) : '');
 
 export default function GSTReturnStatistics() {
   const { selectedCompany, activeFY } = useCompany();
@@ -43,19 +43,21 @@ export default function GSTReturnStatistics() {
   const fyId = activeFY?.fy_id;
 
   const today = new Date();
-  const month = location.state?.month || String(today.getMonth() + 1).padStart(2, "0");
+  const month = location.state?.month || String(today.getMonth() + 1).padStart(2, '0');
   const year = location.state?.year || String(today.getFullYear());
   const registration = location.state?.registration;
-  const returnType = location.state?.returnType || "GSTR1";
+  const returnType = location.state?.returnType || 'GSTR1';
   const annual = !!location.state?.annual;
   const returnPeriod = `${month}${year}`;
   const periodText = annual
-    ? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "")
+    ? activeFY
+      ? `${activeFY.start_date} to ${activeFY.end_date}`
+      : ''
     : periodLabelFor(month, year);
 
   const registrationName = registration?.state_id
     ? `${registration.state_id} Registration`
-    : registration?.name || " All Registrations";
+    : registration?.name || ' All Registrations';
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,13 +80,13 @@ export default function GSTReturnStatistics() {
         });
         if (res.success && res.statistics) {
           setRows(res.statistics.rows);
-          setTotals({ voucher_type: "Total", ...res.statistics.totals });
+          setTotals({ voucher_type: 'Total', ...res.statistics.totals });
         } else {
-          setError(res.error || "Failed to load statistics.");
+          setError(res.error || 'Failed to load statistics.');
           setRows([]);
         }
       } catch (err: any) {
-        setError(err.message || "An unexpected error occurred.");
+        setError(err.message || 'An unexpected error occurred.');
         setRows([]);
       } finally {
         setLoading(false);
@@ -96,7 +98,7 @@ export default function GSTReturnStatistics() {
   return (
     <TallyReportLayout
       title="Statistics"
-      companyName={selectedCompany?.name || "Company"}
+      companyName={selectedCompany?.name || 'Company'}
       leftSubtitle={
         <div className="flex gap-4">
           <span className="w-32">GST Registration</span>
@@ -113,28 +115,51 @@ export default function GSTReturnStatistics() {
           <Table className="text-xs table-fixed">
             <TableHeader>
               <TableRow className="border-b border-gray-300 hover:bg-transparent">
-                <TableHead rowSpan={2} className="h-auto px-2 py-1 align-bottom font-bold text-black">
+                <TableHead
+                  rowSpan={2}
+                  className="h-auto px-2 py-1 align-bottom font-bold text-black"
+                >
                   Type of Voucher
                 </TableHead>
-                <TableHead rowSpan={2} className="h-auto w-28 px-2 py-1 text-right align-bottom font-bold text-black">
+                <TableHead
+                  rowSpan={2}
+                  className="h-auto w-28 px-2 py-1 text-right align-bottom font-bold text-black"
+                >
                   Total Vouchers
                 </TableHead>
-                <TableHead colSpan={2} className="h-auto px-2 py-1 text-center font-bold text-black border-l border-gray-200">
+                <TableHead
+                  colSpan={2}
+                  className="h-auto px-2 py-1 text-center font-bold text-black border-l border-gray-200"
+                >
                   Included in Return
                 </TableHead>
-                <TableHead rowSpan={2} className="h-auto w-32 px-2 py-1 text-right align-bottom font-bold text-black border-l border-gray-200">
-                  Not Relevant<br />for This Return
+                <TableHead
+                  rowSpan={2}
+                  className="h-auto w-32 px-2 py-1 text-right align-bottom font-bold text-black border-l border-gray-200"
+                >
+                  Not Relevant
+                  <br />
+                  for This Return
                 </TableHead>
-                <TableHead rowSpan={2} className="h-auto w-32 px-2 py-1 text-right align-bottom font-bold text-[#ff8c00] border-l border-gray-200">
-                  Uncertain<br />Transactions
+                <TableHead
+                  rowSpan={2}
+                  className="h-auto w-32 px-2 py-1 text-right align-bottom font-bold text-[#ff8c00] border-l border-gray-200"
+                >
+                  Uncertain
+                  <br />
+                  Transactions
                 </TableHead>
               </TableRow>
               <TableRow className="border-b border-gray-300 hover:bg-transparent">
                 <TableHead className="h-auto w-28 px-2 py-1 text-right align-bottom font-bold text-[#ff8c00] border-l border-gray-200">
-                  Action<br />Pending
+                  Action
+                  <br />
+                  Pending
                 </TableHead>
                 <TableHead className="h-auto w-28 px-2 py-1 text-right align-bottom font-bold text-black">
-                  No Action<br />Required
+                  No Action
+                  <br />
+                  Required
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -152,14 +177,14 @@ export default function GSTReturnStatistics() {
                     key={row.voucher_type}
                     className="border-0 cursor-pointer hover:bg-[#e6f2ff]"
                     onClick={() =>
-                      navigate("/master/statutory/gst/voucher-register", {
+                      navigate('/master/statutory/gst/voucher-monthly', {
                         state: {
                           registration,
                           month,
                           year,
                           returnType,
                           annual,
-                          bucket: "all",
+                          bucket: 'all',
                           voucherType: row.voucher_type,
                           subtitle: row.voucher_type,
                         },
@@ -168,10 +193,16 @@ export default function GSTReturnStatistics() {
                   >
                     <TableCell className="px-2 py-0.5 pl-4">{row.voucher_type}</TableCell>
                     <TableCell className="px-2 py-0.5 text-right">{num(row.total)}</TableCell>
-                    <TableCell className="px-2 py-0.5 text-right text-[#ff8c00]">{num(row.included_pending)}</TableCell>
+                    <TableCell className="px-2 py-0.5 text-right text-[#ff8c00]">
+                      {num(row.included_pending)}
+                    </TableCell>
                     <TableCell className="px-2 py-0.5 text-right">{num(row.included_ok)}</TableCell>
-                    <TableCell className="px-2 py-0.5 text-right">{num(row.not_relevant)}</TableCell>
-                    <TableCell className="px-2 py-0.5 text-right text-[#ff8c00]">{num(row.uncertain)}</TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {num(row.not_relevant)}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right text-[#ff8c00]">
+                      {num(row.uncertain)}
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -182,10 +213,14 @@ export default function GSTReturnStatistics() {
                 <TableRow className="border-t border-gray-300 hover:bg-transparent font-bold">
                   <TableCell className="px-2 py-1 pl-4">Total</TableCell>
                   <TableCell className="px-2 py-1 text-right">{num(totals.total)}</TableCell>
-                  <TableCell className="px-2 py-1 text-right text-[#ff8c00]">{num(totals.included_pending)}</TableCell>
+                  <TableCell className="px-2 py-1 text-right text-[#ff8c00]">
+                    {num(totals.included_pending)}
+                  </TableCell>
                   <TableCell className="px-2 py-1 text-right">{num(totals.included_ok)}</TableCell>
                   <TableCell className="px-2 py-1 text-right">{num(totals.not_relevant)}</TableCell>
-                  <TableCell className="px-2 py-1 text-right text-[#ff8c00]">{num(totals.uncertain)}</TableCell>
+                  <TableCell className="px-2 py-1 text-right text-[#ff8c00]">
+                    {num(totals.uncertain)}
+                  </TableCell>
                 </TableRow>
               </TableFooter>
             )}
