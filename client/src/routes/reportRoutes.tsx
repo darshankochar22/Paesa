@@ -8,6 +8,15 @@ import GSTReports from '../pages/menu/reports/GSTReports.tsx';
 import TDSReportsStatutory from '../pages/menu/reports/TDSReportsStatutory.tsx';
 import TDSChallanReconciliation from '../pages/master/statutory/tds-return/TDSChallanReconciliation.tsx';
 import Form26Q from '../pages/master/statutory/tds-return/Form26Q.tsx';
+import Form27Q from '../pages/master/statutory/tds-return/Form27Q.tsx';
+import {
+  Form27QNotRelevant,
+  Form27QVoucherRegister,
+} from '../pages/master/statutory/tds-return/Form27QNotRelevant.tsx';
+import {
+  Form27QUncertain,
+  Form27QUncertainResolution,
+} from '../pages/master/statutory/tds-return/Form27QUncertain.tsx';
 import AccountBooks from '../pages/menu/reports/AccountBooks.tsx';
 import StatementsOfAccounts from '../pages/menu/reports/StatementsOfAccounts.tsx';
 import InventoryBooks from '../pages/menu/reports/InventoryBooks.tsx';
@@ -119,6 +128,14 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/statutory/tds', element: <TDSReportsStatutory /> },
   { path: '/reports/statutory/tds/challan-reconciliation', element: <TDSChallanReconciliation /> },
   { path: '/reports/statutory/tds/form-26q', element: <Form26Q /> },
+  { path: '/reports/statutory/tds/form-27q', element: <Form27Q /> },
+  { path: '/reports/statutory/tds/form-27q/not-relevant', element: <Form27QNotRelevant /> },
+  { path: '/reports/statutory/tds/form-27q/register', element: <Form27QVoucherRegister /> },
+  { path: '/reports/statutory/tds/form-27q/uncertain', element: <Form27QUncertain /> },
+  {
+    path: '/reports/statutory/tds/form-27q/uncertain/resolution',
+    element: <Form27QUncertainResolution />,
+  },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
   { path: '/reports/inventory-books', element: <InventoryBooks /> },

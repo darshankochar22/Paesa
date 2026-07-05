@@ -11,7 +11,7 @@ export default function TDSReportsStatutory() {
   const items: Array<{ label: string; route: string }> = [
     { label: 'Challan Reconciliation', route: '/reports/statutory/tds/challan-reconciliation' },
     { label: 'Form 26Q', route: '/reports/statutory/tds/form-26q' },
-    { label: 'Form 27Q', route: '/reports/tds/form-27q' },
+    { label: 'Form 27Q', route: '/reports/statutory/tds/form-27q' },
     { label: 'Return Transaction Book', route: '/reports/tds/tds-return-transaction-book' },
     { label: 'TDS Outstandings', route: '/reports/tds/tds-outstandings' },
     { label: 'Ledgers Without PAN', route: '/reports/tds/ledgers-without-pan-deductees' },
