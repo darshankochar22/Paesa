@@ -60,6 +60,9 @@ export default function GSTReports() {
     if (item === 'GST Utilities') {
       return '/master/statutory/gst/utilities';
     }
+    if (item === 'Other Reports') {
+      return '/master/statutory/gst/other-reports';
+    }
     return null;
   };
 

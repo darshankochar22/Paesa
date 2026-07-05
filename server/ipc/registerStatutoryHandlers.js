@@ -37,6 +37,12 @@ function register() {
   ipcMain.handle('gst:getGstRateSetup', gstController.getGstRateSetup);
   ipcMain.handle('gst:validatePartyGstin', gstController.validatePartyGstin);
   ipcMain.handle('gst:createPartiesFromGstin', gstController.createPartiesFromGstin);
+  ipcMain.handle('gst:getGstOpeningAdvances', gstController.getGstOpeningAdvances);
+  ipcMain.handle('gst:createGstOpeningAdvance', gstController.createGstOpeningAdvance);
+  ipcMain.handle('gst:deleteGstOpeningAdvance', gstController.deleteGstOpeningAdvance);
+  ipcMain.handle('gst:getMarkedVouchers', gstController.getMarkedVouchers);
+  ipcMain.handle('gst:getGstAdvancesReport', gstController.getGstAdvancesReport);
+  ipcMain.handle('gst:getReverseChargeSupplies', gstController.getReverseChargeSupplies);
   ipcMain.handle('gst:getReturnActivities', gstController.getReturnActivities);
   ipcMain.handle('gst:getReturnStatistics', gstController.getReturnStatistics);
   ipcMain.handle('gst:getReturnVouchers', gstController.getReturnVouchers);

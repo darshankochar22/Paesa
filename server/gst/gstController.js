@@ -184,6 +184,30 @@ module.exports = {
     return await reconciliationService.createPartiesFromGstin(company_id, { gstins, group_name });
   },
 
+  getGstOpeningAdvances: async (event, { company_id }) => {
+    return await reconciliationService.getGstOpeningAdvances(company_id);
+  },
+
+  createGstOpeningAdvance: async (event, { company_id, ...data }) => {
+    return await reconciliationService.createGstOpeningAdvance(company_id, data);
+  },
+
+  deleteGstOpeningAdvance: async (event, { advance_id, company_id }) => {
+    return await reconciliationService.deleteGstOpeningAdvance(advance_id, company_id);
+  },
+
+  getMarkedVouchers: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getMarkedVouchers(company_id, fy_id);
+  },
+
+  getGstAdvancesReport: async (event, { company_id, fy_id, type }) => {
+    return await reconciliationService.getGstAdvancesReport(company_id, fy_id, type);
+  },
+
+  getReverseChargeSupplies: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getReverseChargeSupplies(company_id, fy_id);
+  },
+
   getReturnActivities: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getReturnActivities(company_id, fy_id);
   },

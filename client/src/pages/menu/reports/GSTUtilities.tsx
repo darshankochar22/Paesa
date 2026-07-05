@@ -12,7 +12,10 @@ export default function GSTUtilities() {
     { label: 'Map UoM - UQC', route: '/master/statutory/gst/map-uom-uqc' },
     { label: 'Validate Party GSTIN/UIN', route: '/master/statutory/gst/validate-party-gstin' },
     { label: 'Create Party Using GSTIN/UIN', route: '/master/statutory/gst/create-party-gstin' },
-    { label: 'GST Advances - Opening Balance' },
+    {
+      label: 'GST Advances - Opening Balance',
+      route: '/master/statutory/gst/advances-opening-balance',
+    },
   ];
 
   return (

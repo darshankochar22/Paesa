@@ -91,6 +91,11 @@ import GSTRateSetup from '../pages/master/statutory/gst-return/GSTRateSetup.tsx'
 import MapUomUqc from '../pages/master/statutory/gst-return/MapUomUqc.tsx';
 import ValidatePartyGstin from '../pages/master/statutory/gst-return/ValidatePartyGstin.tsx';
 import CreatePartyUsingGstin from '../pages/master/statutory/gst-return/CreatePartyUsingGstin.tsx';
+import GstAdvancesOpeningBalance from '../pages/master/statutory/gst-return/GstAdvancesOpeningBalance.tsx';
+import GSTOtherReports from '../pages/menu/reports/GSTOtherReports.tsx';
+import MarkedVouchers from '../pages/master/statutory/gst-return/MarkedVouchers.tsx';
+import GstAdvancesReport from '../pages/master/statutory/gst-return/GstAdvancesReport.tsx';
+import ReverseChargeSupplies from '../pages/master/statutory/gst-return/ReverseChargeSupplies.tsx';
 import GSTR3BView from '../pages/master/statutory/gst-return/GSTR-3B.tsx';
 import AnnualComputation from '../pages/master/statutory/gst-return/AnnualComputation.tsx';
 import GSTR2AReconciliation from '../pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx';
@@ -298,6 +303,15 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gst/map-uom-uqc', element: <MapUomUqc /> },
   { path: '/master/statutory/gst/validate-party-gstin', element: <ValidatePartyGstin /> },
   { path: '/master/statutory/gst/create-party-gstin', element: <CreatePartyUsingGstin /> },
+  {
+    path: '/master/statutory/gst/advances-opening-balance',
+    element: <GstAdvancesOpeningBalance />,
+  },
+  { path: '/master/statutory/gst/other-reports', element: <GSTOtherReports /> },
+  { path: '/master/statutory/gst/marked-vouchers', element: <MarkedVouchers /> },
+  { path: '/master/statutory/gst/advance-receipts', element: <GstAdvancesReport type="Receipt" /> },
+  { path: '/master/statutory/gst/advance-paid', element: <GstAdvancesReport type="Payment" /> },
+  { path: '/master/statutory/gst/reverse-charge-supplies', element: <ReverseChargeSupplies /> },
 
   // Statutory — Excise Duty Classification
   {

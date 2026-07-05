@@ -72,6 +72,32 @@ const init = async (db) => {
     )
   `);
 
+  // 5. Create gst_opening_advances table (GST Utilities → GST Advances - Opening Balance).
+  // Unadjusted advance receipts/payments carrying GST liability at the opening date.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS gst_opening_advances (
+      advance_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
+      gst_registration_id INTEGER,
+      registration_name TEXT,
+      party_ledger_id INTEGER,
+      party_name TEXT,
+      type_of_advance TEXT,            -- 'Receipt' | 'Payment'
+      place_of_supply TEXT,
+      reverse_charge INTEGER DEFAULT 0,
+      date TEXT,
+      taxability TEXT DEFAULT 'Taxable',
+      gst_rate REAL DEFAULT 0,
+      advance_amount REAL DEFAULT 0,   -- unadjusted advance (GST-inclusive)
+      taxable_amount REAL DEFAULT 0,
+      igst REAL DEFAULT 0,
+      cgst REAL DEFAULT 0,
+      sgst REAL DEFAULT 0,
+      cess REAL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   // Migrations: Alter stock_groups to add igst_rate and cess_rate
   try {
     await db.execute(`

@@ -1043,4 +1043,75 @@ describe('GST Reports engine', () => {
     expect(led.rows[0].pan).toBe('AAACI1681G'); // chars 3-12
     expect(led.rows[0].registration_type).toBe('Regular');
   });
+
+  it('GST Advances - Opening Balance stores, lists and deletes an unadjusted advance', async () => {
+    const create = await reconciliationService.createGstOpeningAdvance(companyId, {
+      registration_name: 'Maharashtra Registration',
+      party_ledger_id: partyId,
+      party_name: 'GST Customer',
+      type_of_advance: 'Receipt',
+      place_of_supply: 'Maharashtra',
+      reverse_charge: false,
+      date: '2026-04-01',
+      taxability: 'Taxable',
+      gst_rate: 18,
+      advance_amount: 11800,
+      taxable_amount: 10000,
+      cgst: 900,
+      sgst: 900,
+    });
+    expect(create.success).toBe(true);
+
+    const list = await reconciliationService.getGstOpeningAdvances(companyId);
+    expect(list.success).toBe(true);
+    const adv = list.advances.find(
+      (a) => a.party_name === 'GST Customer' && a.type_of_advance === 'Receipt',
+    );
+    expect(adv).toBeTruthy();
+    expect(adv.advance_amount).toBe(11800);
+    expect(adv.taxable_amount).toBe(10000);
+    expect(adv.cgst).toBe(900);
+    expect(adv.sgst).toBe(900);
+
+    const del = await reconciliationService.deleteGstOpeningAdvance(adv.advance_id, companyId);
+    expect(del.success).toBe(true);
+    const after = await reconciliationService.getGstOpeningAdvances(companyId);
+    expect(after.advances.find((a) => a.advance_id === adv.advance_id)).toBeFalsy();
+  });
+
+  it('Other Reports: Marked Vouchers register, Advance report and Reverse Charge', async () => {
+    // Marked Vouchers = full voucher register; a sale shows the party's Debit amount.
+    const mv = await reconciliationService.getMarkedVouchers(companyId, fyId);
+    expect(mv.success).toBe(true);
+    expect(mv.vouchers.length).toBeGreaterThan(0);
+    const sale = mv.vouchers.find((v) => v.voucher_type === 'Sales');
+    expect(sale).toBeTruthy();
+    expect(sale.debit).toBeGreaterThan(0);
+
+    // Advance report Opening Balance comes from the GST Advances - Opening Balance utility.
+    await reconciliationService.createGstOpeningAdvance(companyId, {
+      party_name: 'Adv Party',
+      type_of_advance: 'Receipt',
+      taxability: 'Taxable',
+      gst_rate: 18,
+      advance_amount: 1180,
+      taxable_amount: 1000,
+      cgst: 90,
+      sgst: 90,
+    });
+    const rcpt = await reconciliationService.getGstAdvancesReport(companyId, fyId, 'Receipt');
+    expect(rcpt.success).toBe(true);
+    const row = rcpt.parties.find((p) => p.party_name === 'Adv Party');
+    expect(row).toBeTruthy();
+    expect(row.opening.taxable).toBe(1000);
+    expect(row.opening.tax).toBe(180);
+    // A Receipt advance does not appear under Advance Paid.
+    const paid = await reconciliationService.getGstAdvancesReport(companyId, fyId, 'Payment');
+    expect(paid.parties.find((p) => p.party_name === 'Adv Party')).toBeFalsy();
+
+    // Reverse Charge Supplies is honestly empty (no RCM voucher tracking).
+    const rcm = await reconciliationService.getReverseChargeSupplies(companyId, fyId);
+    expect(rcm.success).toBe(true);
+    expect(rcm.rows).toEqual([]);
+  });
 });

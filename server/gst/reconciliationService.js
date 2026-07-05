@@ -1839,6 +1839,171 @@ const createPartiesFromGstin = async (company_id, opts = {}) => {
   }
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// GST Advances - Opening Balance (GST Utilities) — CRUD over gst_opening_advances,
+// the unadjusted advance receipts/payments carrying GST liability at the opening date.
+// The GST split (intra CGST+SGST vs inter IGST) is computed by the caller and stored.
+// ───────────────────────────────────────────────────────────────────────────────
+const getGstOpeningAdvances = async (company_id) => {
+  try {
+    const rows = await db.all(
+      sql`SELECT * FROM gst_opening_advances WHERE company_id = ${company_id}
+          ORDER BY advance_id DESC`,
+    );
+    return { success: true, advances: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+const createGstOpeningAdvance = async (company_id, data = {}) => {
+  try {
+    const n = (v) => Number(v) || 0;
+    await db.execute(
+      `INSERT INTO gst_opening_advances
+         (company_id, gst_registration_id, registration_name, party_ledger_id, party_name,
+          type_of_advance, place_of_supply, reverse_charge, date, taxability, gst_rate,
+          advance_amount, taxable_amount, igst, cgst, sgst, cess)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        company_id,
+        data.gst_registration_id ?? null,
+        data.registration_name ?? null,
+        data.party_ledger_id ?? null,
+        data.party_name ?? null,
+        data.type_of_advance === 'Payment' ? 'Payment' : 'Receipt',
+        data.place_of_supply ?? null,
+        data.reverse_charge ? 1 : 0,
+        data.date ?? null,
+        data.taxability ?? 'Taxable',
+        n(data.gst_rate),
+        n(data.advance_amount),
+        n(data.taxable_amount),
+        n(data.igst),
+        n(data.cgst),
+        n(data.sgst),
+        n(data.cess),
+      ],
+    );
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+const deleteGstOpeningAdvance = async (advance_id, company_id) => {
+  try {
+    await db.execute(`DELETE FROM gst_opening_advances WHERE advance_id = ? AND company_id = ?`, [
+      advance_id,
+      company_id,
+    ]);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// ───────────────────────────────────────────────────────────────────────────────
+// GST Reports → Other Reports (Marked Vouchers, Outstanding Advances, Reverse Charge).
+// ───────────────────────────────────────────────────────────────────────────────
+
+// Marked Vouchers register — the full voucher register (day-book style). The amount
+// shows on the party ledger's own side (Dr→Debit, Cr→Credit); no-party vouchers show
+// the total under Debit. Rows drill to the voucher.
+const getMarkedVouchers = async (company_id, fy_id) => {
+  try {
+    const rows = await db.all(
+      sql`SELECT v.voucher_id, v.date, v.voucher_type, v.voucher_number,
+                 COALESCE(NULLIF(v.party_name, ''), l.name, '') AS particulars,
+                 COALESCE(e.dr_total, 0) AS dr_total,
+                 COALESCE(e.cr_total, 0) AS cr_total,
+                 COALESCE(p.party_type, '') AS party_type
+          FROM ${vouchers} v
+          LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+          LEFT JOIN (
+            SELECT voucher_id,
+                   SUM(CASE WHEN type = 'Dr' THEN amount ELSE 0 END) AS dr_total,
+                   SUM(CASE WHEN type = 'Cr' THEN amount ELSE 0 END) AS cr_total
+            FROM voucher_entries GROUP BY voucher_id
+          ) e ON e.voucher_id = v.voucher_id
+          LEFT JOIN (
+            SELECT voucher_id, ledger_id, MAX(type) AS party_type
+            FROM voucher_entries GROUP BY voucher_id, ledger_id
+          ) p ON p.voucher_id = v.voucher_id AND p.ledger_id = v.party_ledger_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+          ORDER BY v.date ASC, v.voucher_id ASC`,
+    );
+    const list = rows.map((r) => {
+      const total = Math.max(Number(r.dr_total) || 0, Number(r.cr_total) || 0);
+      const onCredit = r.party_type === 'Cr';
+      return {
+        voucher_id: r.voucher_id,
+        date: r.date,
+        particulars: r.particulars,
+        voucher_type: r.voucher_type,
+        voucher_number: r.voucher_number,
+        debit: onCredit ? 0 : total,
+        credit: onCredit ? total : 0,
+      };
+    });
+    return { success: true, vouchers: list };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Outstanding Advance Receipts / Advance Paid — per-party opening / received / adjusted
+// GST on unadjusted advances. Opening Balance comes from gst_opening_advances (the
+// GST Advances - Opening Balance utility). Received/Adjusted are 0 until the app tracks
+// GST-bearing advance receipts and their invoice adjustments as distinct data.
+const getGstAdvancesReport = async (company_id, fy_id, type = 'Receipt') => {
+  try {
+    const kind = type === 'Payment' ? 'Payment' : 'Receipt';
+    const rows = await db.all(
+      sql`SELECT party_name, place_of_supply, registration_name,
+                 COALESCE(SUM(taxable_amount), 0) AS taxable,
+                 COALESCE(SUM(igst), 0) AS igst,
+                 COALESCE(SUM(cgst), 0) AS cgst,
+                 COALESCE(SUM(sgst), 0) AS sgst,
+                 COALESCE(SUM(cess), 0) AS cess
+          FROM gst_opening_advances
+          WHERE company_id = ${company_id} AND type_of_advance = ${kind}
+          GROUP BY party_name, place_of_supply
+          ORDER BY party_name COLLATE NOCASE`,
+    );
+    const parties = rows.map((r) => {
+      const igst = Number(r.igst) || 0;
+      const cgst = Number(r.cgst) || 0;
+      const sgst = Number(r.sgst) || 0;
+      const cess = Number(r.cess) || 0;
+      return {
+        party_name: r.party_name || '',
+        place_of_supply: r.place_of_supply || '',
+        registration_name: r.registration_name || '',
+        opening: {
+          taxable: Number(r.taxable) || 0,
+          igst,
+          cgst,
+          sgst,
+          cess,
+          tax: igst + cgst + sgst + cess,
+        },
+      };
+    });
+    return { success: true, type: kind, parties };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Reverse Charge Supplies — RCM liability/ITC per party. Purchases from unregistered
+// parties or flagged reverse-charge attract RCM; the app does not persist an RCM flag
+// on vouchers, so this is honestly empty until that data exists (matches TallyPrime EDU).
+const getReverseChargeSupplies = async () => {
+  // Honestly empty until an RCM flag is persisted on vouchers (matches TallyPrime EDU).
+  return { success: true, rows: [] };
+};
+
 module.exports = {
   getGSTR1Reconciliation,
   getGSTR2AReconciliation,
@@ -1857,4 +2022,10 @@ module.exports = {
   getGstRateSetup,
   validatePartyGstin,
   createPartiesFromGstin,
+  getGstOpeningAdvances,
+  createGstOpeningAdvance,
+  deleteGstOpeningAdvance,
+  getMarkedVouchers,
+  getGstAdvancesReport,
+  getReverseChargeSupplies,
 };
