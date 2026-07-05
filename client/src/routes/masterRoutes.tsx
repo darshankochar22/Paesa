@@ -89,6 +89,8 @@ import UncertainBreakdown from '../pages/master/statutory/gst-return/UncertainBr
 import GSTUtilities from '../pages/menu/reports/GSTUtilities.tsx';
 import GSTRateSetup from '../pages/master/statutory/gst-return/GSTRateSetup.tsx';
 import MapUomUqc from '../pages/master/statutory/gst-return/MapUomUqc.tsx';
+import ValidatePartyGstin from '../pages/master/statutory/gst-return/ValidatePartyGstin.tsx';
+import CreatePartyUsingGstin from '../pages/master/statutory/gst-return/CreatePartyUsingGstin.tsx';
 import GSTR3BView from '../pages/master/statutory/gst-return/GSTR-3B.tsx';
 import AnnualComputation from '../pages/master/statutory/gst-return/AnnualComputation.tsx';
 import GSTR2AReconciliation from '../pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx';
@@ -294,6 +296,8 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gst/utilities', element: <GSTUtilities /> },
   { path: '/master/statutory/gst/rate-setup', element: <GSTRateSetup /> },
   { path: '/master/statutory/gst/map-uom-uqc', element: <MapUomUqc /> },
+  { path: '/master/statutory/gst/validate-party-gstin', element: <ValidatePartyGstin /> },
+  { path: '/master/statutory/gst/create-party-gstin', element: <CreatePartyUsingGstin /> },
 
   // Statutory — Excise Duty Classification
   {

@@ -176,6 +176,14 @@ module.exports = {
     return await reconciliationService.getGstRateSetup(company_id, master_type);
   },
 
+  validatePartyGstin: async (event, { company_id, group_name, ledger_name }) => {
+    return await reconciliationService.validatePartyGstin(company_id, { group_name, ledger_name });
+  },
+
+  createPartiesFromGstin: async (event, { company_id, gstins, group_name }) => {
+    return await reconciliationService.createPartiesFromGstin(company_id, { gstins, group_name });
+  },
+
   getReturnActivities: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getReturnActivities(company_id, fy_id);
   },

@@ -1662,6 +1662,183 @@ const getGstRateSetup = async (company_id, master_type) => {
   }
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Validate Party GSTIN/UIN (GST Utilities) — list party ledgers with their GST
+// registration details and an OFFLINE validity check (format + PAN-in-GSTIN). No GST
+// portal round-trip exists, so "valid" = well-formed GSTIN whose embedded PAN matches
+// the ledger PAN; a registered party with a missing/malformed GSTIN is an exception.
+// ───────────────────────────────────────────────────────────────────────────────
+const validatePartyGstin = async (company_id, opts = {}) => {
+  try {
+    const groupName = opts.group_name && opts.group_name !== 'All Items' ? opts.group_name : null;
+    const ledgerName =
+      opts.ledger_name && opts.ledger_name !== 'All Items' ? opts.ledger_name : null;
+
+    const scope = groupName
+      ? sql`AND g.name = ${groupName}`
+      : sql`AND (g.name IN ('Sundry Debtors', 'Sundry Creditors', 'Branch / Divisions')
+                 OR (l.gstin IS NOT NULL AND l.gstin != '')
+                 OR (l.registration_type IS NOT NULL AND l.registration_type != 'Unregistered'))`;
+    const ledgerFilter = ledgerName ? sql`AND l.name = ${ledgerName}` : sql``;
+
+    const rows = await db.all(
+      sql`SELECT l.ledger_id AS id, l.name, l.mailing_name,
+                 l.address1, l.address2, l.state, l.country,
+                 l.registration_type, l.gstin, l.pan, g.name AS group_name
+          FROM ${ledgers} l
+          LEFT JOIN groups g ON g.group_id = l.group_id
+          WHERE l.company_id = ${company_id} AND l.is_active = 1
+          ${scope} ${ledgerFilter}
+          ORDER BY l.name COLLATE NOCASE`,
+    );
+
+    const parties = rows.map((r) => {
+      const gstin = String(r.gstin || '')
+        .trim()
+        .toUpperCase();
+      const pan = String(r.pan || '')
+        .trim()
+        .toUpperCase();
+      const registered =
+        !!r.registration_type &&
+        r.registration_type !== 'Unregistered' &&
+        r.registration_type !== 'Consumer';
+
+      let valid = true;
+      let status = 'Not Applicable';
+      if (!gstin) {
+        valid = !registered;
+        status = registered ? 'GSTIN/UIN not specified' : 'Not Applicable';
+      } else if (!GSTIN_RE.test(gstin)) {
+        valid = false;
+        status = 'Invalid GSTIN/UIN format';
+      } else if (pan && gstin.substring(2, 12) !== pan) {
+        valid = false;
+        status = 'PAN in GSTIN/UIN does not match';
+      } else {
+        valid = true;
+        status = 'Valid';
+      }
+
+      const address = [r.address1, r.address2].filter(Boolean).join(', ');
+      return {
+        id: r.id,
+        name: r.name,
+        address,
+        state: r.state || '',
+        country: r.country || '',
+        registration_type: r.registration_type || '',
+        gstin,
+        pan,
+        valid,
+        status,
+      };
+    });
+
+    return { success: true, parties };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// India GST state codes (first two digits of a GSTIN) → state name.
+const GST_STATE_CODES = {
+  '01': 'Jammu & Kashmir',
+  '02': 'Himachal Pradesh',
+  '03': 'Punjab',
+  '04': 'Chandigarh',
+  '05': 'Uttarakhand',
+  '06': 'Haryana',
+  '07': 'Delhi',
+  '08': 'Rajasthan',
+  '09': 'Uttar Pradesh',
+  10: 'Bihar',
+  11: 'Sikkim',
+  12: 'Arunachal Pradesh',
+  13: 'Nagaland',
+  14: 'Manipur',
+  15: 'Mizoram',
+  16: 'Tripura',
+  17: 'Meghalaya',
+  18: 'Assam',
+  19: 'West Bengal',
+  20: 'Jharkhand',
+  21: 'Odisha',
+  22: 'Chhattisgarh',
+  23: 'Madhya Pradesh',
+  24: 'Gujarat',
+  25: 'Daman & Diu',
+  26: 'Dadra & Nagar Haveli',
+  27: 'Maharashtra',
+  28: 'Andhra Pradesh',
+  29: 'Karnataka',
+  30: 'Goa',
+  31: 'Lakshadweep',
+  32: 'Kerala',
+  33: 'Tamil Nadu',
+  34: 'Puducherry',
+  35: 'Andaman & Nicobar Islands',
+  36: 'Telangana',
+  37: 'Andhra Pradesh',
+  38: 'Ladakh',
+  97: 'Other Territory',
+};
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Create Party Using GSTIN/UIN (GST Utilities) — create a party ledger for each
+// GSTIN. Offline (no portal), the derivable details are State (from the state-code
+// prefix), PAN (chars 3-12) and Registration Type; the ledger is named after the
+// GSTIN and can be renamed later. Reuses ledgerService.create so the ledger is set
+// up exactly like a manually-created one.
+// ───────────────────────────────────────────────────────────────────────────────
+const createPartiesFromGstin = async (company_id, opts = {}) => {
+  try {
+    const ledgerService = require('../ledger/ledgerService');
+    const groupName = opts.group_name || 'Sundry Debtors';
+    const grp = await db.all(
+      sql`SELECT group_id FROM groups
+          WHERE company_id = ${company_id} AND name = ${groupName} AND is_active = 1 LIMIT 1`,
+    );
+    const groupId = grp[0] ? grp[0].group_id : null;
+    if (!groupId) return { success: false, error: `Group "${groupName}" not found.` };
+
+    const results = [];
+    for (const raw of opts.gstins || []) {
+      const gstin = String(raw || '')
+        .trim()
+        .toUpperCase();
+      if (!gstin) continue;
+      if (!GSTIN_RE.test(gstin)) {
+        results.push({ gstin, success: false, error: 'Invalid GSTIN/UIN format' });
+        continue;
+      }
+      const stateCode = gstin.substring(0, 2);
+      const state = GST_STATE_CODES[stateCode] || '';
+      const pan = gstin.substring(2, 12);
+      const res = await ledgerService.create({
+        company_id,
+        name: gstin,
+        group_id: groupId,
+        state,
+        country: 'India',
+        gstin,
+        pan,
+        registration_type: 'Regular',
+      });
+      results.push({
+        gstin,
+        success: !!res.success,
+        ledger_id: res.ledger?.ledger_id ?? res.ledger_id ?? null,
+        state,
+        error: res.error,
+      });
+    }
+    return { success: true, results };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   getGSTR1Reconciliation,
   getGSTR2AReconciliation,
@@ -1678,4 +1855,6 @@ module.exports = {
   getAnnualMonthly,
   annualCategoryOf,
   getGstRateSetup,
+  validatePartyGstin,
+  createPartiesFromGstin,
 };

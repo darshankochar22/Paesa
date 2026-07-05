@@ -981,4 +981,66 @@ describe('GST Reports engine', () => {
     const bad = await reconciliationService.getGstRateSetup(companyId, 'nonsense');
     expect(bad.success).toBe(false);
   });
+
+  it('Validate Party GSTIN/UIN flags registered parties with missing/malformed GSTIN', async () => {
+    await db.execute(
+      `INSERT INTO groups (company_id, name, is_active) VALUES (?, 'VP Parties', 1)`,
+      [companyId],
+    );
+    const grp = await db.execute(
+      `SELECT group_id FROM groups WHERE company_id = ? AND name = 'VP Parties'`,
+      [companyId],
+    );
+    const groupId = grp.rows[0].group_id;
+
+    await db.execute(
+      `INSERT INTO ledgers (company_id, group_id, name, state, country, registration_type, gstin, pan, is_active)
+       VALUES (?, ?, 'VP Valid Co', 'Maharashtra', 'India', 'Regular', '27ABCDE1234F1Z5', 'ABCDE1234F', 1),
+              (?, ?, 'VP Missing Co', 'Chhattisgarh', 'India', 'Regular', NULL, NULL, 1),
+              (?, ?, 'VP Bad Co', 'Karnataka', 'India', 'Regular', 'NOTAGSTIN', NULL, 1),
+              (?, ?, 'VP Unreg Co', 'Delhi', 'India', 'Unregistered', NULL, NULL, 1)`,
+      [companyId, groupId, companyId, groupId, companyId, groupId, companyId, groupId],
+    );
+
+    const res = await reconciliationService.validatePartyGstin(companyId, {
+      group_name: 'VP Parties',
+    });
+    expect(res.success).toBe(true);
+    const byName = Object.fromEntries(res.parties.map((p) => [p.name, p]));
+    expect(byName['VP Valid Co'].valid).toBe(true);
+    expect(byName['VP Valid Co'].status).toBe('Valid');
+    expect(byName['VP Missing Co'].valid).toBe(false);
+    expect(byName['VP Missing Co'].status).toMatch(/not specified/i);
+    expect(byName['VP Bad Co'].valid).toBe(false);
+    expect(byName['VP Bad Co'].status).toMatch(/invalid/i);
+    // An unregistered party without a GSTIN is not an exception.
+    expect(byName['VP Unreg Co'].valid).toBe(true);
+  });
+
+  it('Create Party Using GSTIN derives State/PAN and creates a party ledger per GSTIN', async () => {
+    await db.execute(
+      `INSERT INTO groups (company_id, name, is_active) VALUES (?, 'CP Debtors', 1)`,
+      [companyId],
+    );
+
+    const res = await reconciliationService.createPartiesFromGstin(companyId, {
+      group_name: 'CP Debtors',
+      gstins: ['22AAACI1681G1ZZ', 'not-a-gstin'],
+    });
+    expect(res.success).toBe(true);
+    const byGstin = Object.fromEntries(res.results.map((r) => [r.gstin, r]));
+    expect(byGstin['22AAACI1681G1ZZ'].success).toBe(true);
+    expect(byGstin['22AAACI1681G1ZZ'].state).toBe('Chhattisgarh'); // state code 22
+    expect(byGstin['NOT-A-GSTIN'].success).toBe(false); // uppercased, malformed
+
+    // The ledger was actually created with State/PAN/registration derived from the GSTIN.
+    const led = await db.execute(
+      `SELECT name, state, gstin, pan, registration_type FROM ledgers WHERE company_id = ? AND gstin = '22AAACI1681G1ZZ'`,
+      [companyId],
+    );
+    expect(led.rows).toHaveLength(1);
+    expect(led.rows[0].state).toBe('Chhattisgarh');
+    expect(led.rows[0].pan).toBe('AAACI1681G'); // chars 3-12
+    expect(led.rows[0].registration_type).toBe('Regular');
+  });
 });

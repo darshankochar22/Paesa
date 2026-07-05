@@ -517,6 +517,8 @@ contextBridge.exposeInMainWorld('api', {
     getIMSInwardSupplies: (data) => invoke('gst:getIMSInwardSupplies', data),
     getChallanReconciliation: (data) => invoke('gst:getChallanReconciliation', data),
     getGstRateSetup: (data) => invoke('gst:getGstRateSetup', data),
+    validatePartyGstin: (data) => invoke('gst:validatePartyGstin', data),
+    createPartiesFromGstin: (data) => invoke('gst:createPartiesFromGstin', data),
     getReturnActivities: (data) => invoke('gst:getReturnActivities', data),
     getReturnStatistics: (data) => invoke('gst:getReturnStatistics', data),
     getReturnVouchers: (data) => invoke('gst:getReturnVouchers', data),
