@@ -96,7 +96,7 @@ const faqs = [
   },
   {
     q: "Can I import my data from Tally or Excel?",
-    a: "Yes. Paisa has a direct import tool for Tally XML exports and structured Excel sheets. Most businesses are up and running with historical data in under an hour.",
+    a: "Yes. Paesa has a direct import tool for Tally XML exports and structured Excel sheets. Most businesses are up and running with historical data in under an hour.",
   },
   {
     q: "What happens after the 30-day trial?",

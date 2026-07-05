@@ -81,7 +81,7 @@ const FEATURES = [
   {
     id: "payroll",
     label: "Payroll",
-    title: "Define salary structure once. Paisa handles PF, ESI, TDS, and pay slips.",
+    title: "Define salary structure once. Paesa handles PF, ESI, TDS, and pay slips.",
     desc: "Configurable pay heads, statutory deductions, and pay slip printing — everything automated.",
     points: ["Configurable pay heads & salary structures", "PF, ESI, professional tax automation", "Monthly payroll voucher generation", "Employee pay slip printing"],
     visual: (

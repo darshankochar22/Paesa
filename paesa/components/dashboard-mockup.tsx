@@ -6,7 +6,7 @@ export function DashboardMockup() {
         <span className="w-3 h-3 rounded-full bg-gray-300" />
         <span className="w-3 h-3 rounded-full bg-gray-300" />
         <span className="w-3 h-3 rounded-full bg-gray-300" />
-        <span className="ml-3 text-xs text-gray-400 font-mono">paisa.app / dashboard</span>
+        <span className="ml-3 text-xs text-gray-400 font-mono">paesa.app / dashboard</span>
       </div>
 
       {/* App body */}
@@ -14,7 +14,7 @@ export function DashboardMockup() {
         {/* Sidebar */}
         <div className="w-48 border-r border-gray-100 bg-gray-50 p-3 flex flex-col gap-1 shrink-0">
           <div className="mb-2 px-2 py-1.5">
-            <span className="text-xs font-semibold text-gray-900">Paisa</span>
+            <span className="text-xs font-semibold text-gray-900">Paesa</span>
           </div>
           {[
             { label: "Dashboard", active: true },

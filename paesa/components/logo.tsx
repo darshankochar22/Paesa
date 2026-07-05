@@ -18,7 +18,7 @@ export function Logo({ size = "md", className = "" }: LogoProps) {
         viewBox="0 0 40 40"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        aria-label="Paisa logo"
+        aria-label="Paesa logo"
       >
         <rect width="40" height="40" rx="10" fill="#0a0a0a" />
         {/* Stylised P that echoes the ₹ crossbars */}
@@ -35,7 +35,7 @@ export function Logo({ size = "md", className = "" }: LogoProps) {
         <line x1="10" y1="20" x2="21" y2="20" stroke="white" strokeWidth="2" strokeLinecap="round" />
       </svg>
       <span className={`font-semibold tracking-tight ${textSize[size]} text-gray-900`}>
-        Paisa
+        Paesa
       </span>
     </Link>
   );

@@ -6,7 +6,7 @@ const TWEETS = [
     handle: "carahulsharma",
     verified: true,
     initials: "RS",
-    text: "Switched our CA practice to @PaisaApp 3 months ago. GST filing that used to take 3 days now takes 20 minutes. The GSTN reconciliation feature alone is worth every rupee. Recommend to every CA managing multiple clients.",
+    text: "Switched our CA practice to @PaesaApp 3 months ago. GST filing that used to take 3 days now takes 20 minutes. The GSTN reconciliation feature alone is worth every rupee. Recommend to every CA managing multiple clients.",
     likes: 312,
     retweets: 84,
     replies: 19,
@@ -17,7 +17,7 @@ const TWEETS = [
     handle: "priya_mehta_cfo",
     verified: false,
     initials: "PM",
-    text: "Set up 3 companies on @PaisaApp in under 4 hours and our books have never been this clean. The multi-company switcher is silky smooth. No more logging in and out of different portals.",
+    text: "Set up 3 companies on @PaesaApp in under 4 hours and our books have never been this clean. The multi-company switcher is silky smooth. No more logging in and out of different portals.",
     likes: 198,
     retweets: 41,
     replies: 7,
@@ -28,7 +28,7 @@ const TWEETS = [
     handle: "amar_kapoor_mfg",
     verified: false,
     initials: "AK",
-    text: "Real talk: Paisa's inventory module is what sold me. Every purchase entry immediately updates stock value in the accounts. Zero manual reconciliation. This is how software should work.",
+    text: "Real talk: Paesa's inventory module is what sold me. Every purchase entry immediately updates stock value in the accounts. Zero manual reconciliation. This is how software should work.",
     likes: 276,
     retweets: 59,
     replies: 14,
@@ -39,7 +39,7 @@ const TWEETS = [
     handle: "ananyareddy_fin",
     verified: true,
     initials: "AR",
-    text: "My team used to ping me every week for updated P&L numbers. Since we moved to @PaisaApp they just open the dashboard themselves. Real-time P&L that you can actually trust is a game changer.",
+    text: "My team used to ping me every week for updated P&L numbers. Since we moved to @PaesaApp they just open the dashboard themselves. Real-time P&L that you can actually trust is a game changer.",
     likes: 421,
     retweets: 103,
     replies: 31,
@@ -50,7 +50,7 @@ const TWEETS = [
     handle: "vikram_joshi_ca",
     verified: true,
     initials: "VJ",
-    text: "Managing 11 client companies on @PaisaApp from a single login. Data isolation is perfect — I've never once seen client A's data appear in client B's reports. This is what proper multi-tenancy looks like.",
+    text: "Managing 11 client companies on @PaesaApp from a single login. Data isolation is perfect — I've never once seen client A's data appear in client B's reports. This is what proper multi-tenancy looks like.",
     likes: 189,
     retweets: 52,
     replies: 11,
@@ -61,7 +61,7 @@ const TWEETS = [
     handle: "sunita_patel_accts",
     verified: false,
     initials: "SP",
-    text: "Ran the outstanding receivables report and found ₹18 lakh sitting uncollected across 3 parties. None of us had noticed. @PaisaApp paid for itself on day one. No exaggeration.",
+    text: "Ran the outstanding receivables report and found ₹18 lakh sitting uncollected across 3 parties. None of us had noticed. @PaesaApp paid for itself on day one. No exaggeration.",
     likes: 534,
     retweets: 147,
     replies: 43,
@@ -166,7 +166,7 @@ export function TweetWall() {
               {/* Tweet text */}
               <p className="text-sm text-[#0f1419] leading-relaxed flex-1"
                 dangerouslySetInnerHTML={{
-                  __html: t.text.replace(/@PaisaApp/g, '<span class="text-[#1d9bf0]">@PaisaApp</span>')
+                  __html: t.text.replace(/@PaesaApp/g, '<span class="text-[#1d9bf0]">@PaesaApp</span>')
                 }}
               />
 

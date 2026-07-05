@@ -8,12 +8,12 @@ export default function AboutPage() {
       {/* Hero */}
       <section className="py-24 bg-white">
         <div className="max-w-3xl mx-auto px-6 text-center">
-          <p className="text-sm font-semibold text-zinc-500 uppercase tracking-widest mb-4">About Paisa</p>
+          <p className="text-sm font-semibold text-zinc-500 uppercase tracking-widest mb-4">About Paesa</p>
           <h1 className="text-5xl md:text-6xl font-bold text-zinc-950 tracking-tight leading-tight mb-6">
             We're building the financial OS<br />for Indian business
           </h1>
           <p className="text-lg text-zinc-600 leading-relaxed">
-            Paisa started with one frustration: the best-known accounting software for Indian businesses was built in the 90s and it shows. We're fixing that — one workflow at a time.
+            Paesa started with one frustration: the best-known accounting software for Indian businesses was built in the 90s and it shows. We're fixing that — one workflow at a time.
           </p>
         </div>
       </section>
@@ -23,7 +23,7 @@ export default function AboutPage() {
         <div className="max-w-4xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { stat: "1,200+", label: "Businesses on Paisa" },
+              { stat: "1,200+", label: "Businesses on Paesa" },
               { stat: "₹4,200 Cr+", label: "Transactions processed" },
               { stat: "98.9%", label: "Uptime, last 12 months" },
               { stat: "< 4 hrs", label: "Avg. onboarding time" },
@@ -47,7 +47,7 @@ export default function AboutPage() {
               <Link href="#">See open roles <ArrowRight size={16} className="ml-2" /></Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="rounded-xl border-zinc-700 text-zinc-300 hover:bg-[#1a1a1a] h-12 px-8 font-medium">
-              <Link href="/pricing">Try Paisa</Link>
+              <Link href="/pricing">Try Paesa</Link>
             </Button>
           </div>
         </div>

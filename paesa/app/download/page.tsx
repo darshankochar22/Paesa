@@ -81,11 +81,11 @@ const FEATURES = [
   },
   {
     heading: "Auto-updates",
-    body: "Paisa checks for updates silently in the background. New versions install without interrupting your work.",
+    body: "Paesa checks for updates silently in the background. New versions install without interrupting your work.",
   },
   {
     heading: "Native performance",
-    body: "Not a web app in a browser wrapper. Paisa is built as a native desktop app — launches in under a second.",
+    body: "Not a web app in a browser wrapper. Paesa is built as a native desktop app — launches in under a second.",
   },
   {
     heading: "Local data, your control",
@@ -114,7 +114,7 @@ export default function DownloadPage() {
           </div>
           <h1 className="text-5xl md:text-6xl font-bold text-zinc-950 tracking-tight leading-tight mb-5">
             Download{" "}
-            <span style={SERIF} className="text-zinc-400">Paisa.</span>
+            <span style={SERIF} className="text-zinc-400">Paesa.</span>
           </h1>
           <p className="text-lg text-zinc-500 leading-relaxed">
             A native desktop app for macOS, Windows, and Linux.<br />
@@ -180,7 +180,7 @@ export default function DownloadPage() {
 
           {/* Version / checksum note */}
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-sm text-zinc-400">
-            <span>Paisa v{VERSION} · Released June 14, 2026</span>
+            <span>Paesa v{VERSION} · Released June 14, 2026</span>
             <div className="flex gap-6">
               <Link href="#" className="hover:text-zinc-700 transition-colors">Changelog</Link>
               <Link href="#" className="hover:text-zinc-700 transition-colors">SHA-256 checksums</Link>

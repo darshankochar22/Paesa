@@ -19,13 +19,13 @@ export default function DocumentationPage() {
             Documentation
           </p>
           <h1 className="text-5xl md:text-6xl font-bold text-zinc-950 tracking-tight leading-[1.05] mb-6">
-            The Paisa{" "}
+            The Paesa{" "}
             <span style={SERIF} className="text-zinc-400 text-5xl md:text-6xl">
               user guide.
             </span>
           </h1>
           <p className="text-xl text-zinc-500 leading-relaxed max-w-2xl">
-            Step-by-step instructions for every part of Paisa — the exact fields, buttons,
+            Step-by-step instructions for every part of Paesa — the exact fields, buttons,
             and shortcuts you&apos;ll see on screen, in the order you&apos;ll use them.
             Written to be enough on its own; screenshots are being layered in alongside it.
           </p>
@@ -156,7 +156,7 @@ export default function DocumentationPage() {
             <span style={{ ...SERIF, color: "#71717a" }}>including AI agents.</span>
           </h2>
           <p className="text-zinc-400 leading-relaxed max-w-2xl mb-16">
-            Paisa already ships an AI Copilot, an Assisted Entry endpoint, and an MCP
+            Paesa already ships an AI Copilot, an Assisted Entry endpoint, and an MCP
             server that exposes company data to external agents. The two tracks below
             are where that goes next: closing the remaining Tally-parity gaps, and
             turning the AI layer from something you ask questions to into something

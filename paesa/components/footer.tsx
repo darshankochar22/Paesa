@@ -66,10 +66,10 @@ const COLS = [
       {
         heading: "Compare",
         links: [
-          { label: "Paisa vs Tally Prime", href: "#" },
-          { label: "Paisa vs Zoho Books", href: "#" },
-          { label: "Paisa vs Busy", href: "#" },
-          { label: "Paisa vs QuickBooks", href: "#" },
+          { label: "Paesa vs Tally Prime", href: "#" },
+          { label: "Paesa vs Zoho Books", href: "#" },
+          { label: "Paesa vs Busy", href: "#" },
+          { label: "Paesa vs QuickBooks", href: "#" },
           { label: "Migration Guide", href: "#" },
         ],
       },
@@ -105,7 +105,7 @@ const COLS = [
       {
         heading: "Company",
         links: [
-          { label: "About Paisa", href: "/about" },
+          { label: "About Paesa", href: "/about" },
           { label: "Careers", href: "#" },
           { label: "Press & Media", href: "#" },
           { label: "Investors", href: "#" },
@@ -136,7 +136,7 @@ export function Footer() {
           {/* Brand column */}
           <div className="flex flex-col justify-between md:col-span-1">
             <Link href="/" className="text-xl font-bold text-white tracking-tight">
-              Paisa
+              Paesa
             </Link>
             <div className="mt-auto pt-12">
               <div className="flex items-center gap-4">

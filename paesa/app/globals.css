@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -118,17 +118,31 @@
 }
 
 @keyframes marquee-left {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 @keyframes marquee-right {
-  from { transform: translateX(-50%); }
-  to   { transform: translateX(0); }
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
-.animate-marquee-left  { animation: marquee-left  32s linear infinite; }
-.animate-marquee-right { animation: marquee-right 32s linear infinite; }
+.animate-marquee-left {
+  animation: marquee-left 32s linear infinite;
+}
+.animate-marquee-right {
+  animation: marquee-right 32s linear infinite;
+}
 .marquee-track:hover .animate-marquee-left,
-.marquee-track:hover .animate-marquee-right { animation-play-state: paused; }
+.marquee-track:hover .animate-marquee-right {
+  animation-play-state: paused;
+}
 
 @layer base {
   * {
@@ -136,14 +150,23 @@
   }
   body {
     @apply bg-white text-gray-950;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   html {
     @apply font-sans;
   }
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     color: #09090b;
     letter-spacing: -0.02em;
   }

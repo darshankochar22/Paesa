@@ -157,7 +157,7 @@ const FEATURES = [
     id: "accounting",
     label: "Accounting",
     headline: "Books that stay balanced — always.",
-    body: "Paisa is built on double-entry bookkeeping from the ground up. Every transaction must balance. Every ledger is real-time. And every report you pull reflects the exact state of your books at that moment — no month-end reconciliation, no manual journal adjustments to fix errors.",
+    body: "Paesa is built on double-entry bookkeeping from the ground up. Every transaction must balance. Every ledger is real-time. And every report you pull reflects the exact state of your books at that moment — no month-end reconciliation, no manual journal adjustments to fix errors.",
     body2: "Designed to CA audit standards. Supports cost centres, profit centres, opening balance import from Tally or Excel, and every voucher type your business will ever need.",
     points: [
       "Multi-ledger chart of accounts",
@@ -173,7 +173,7 @@ const FEATURES = [
     id: "gst",
     label: "GST & Compliance",
     headline: "File GST in 20 minutes, not 3 days.",
-    body: "Every sale and purchase entry in Paisa auto-applies the correct GST rate based on item, party, and transaction type. There's no separate GST module — it's built into every voucher. When it's time to file, your GSTR-1 and GSTR-3B are already computed.",
+    body: "Every sale and purchase entry in Paesa auto-applies the correct GST rate based on item, party, and transaction type. There's no separate GST module — it's built into every voucher. When it's time to file, your GSTR-1 and GSTR-3B are already computed.",
     body2: "Reconcile with GSTN to spot mismatches before the deadline. Flag unclaimed ITC. Generate e-way bills and e-invoices. TDS and TCS are handled the same way — automatic, accurate, and always current with the latest government rules.",
     points: [
       "Auto GST on every sale and purchase",
@@ -189,7 +189,7 @@ const FEATURES = [
     id: "inventory",
     label: "Inventory",
     headline: "Know what you have. Know where it is.",
-    body: "Inventory in Paisa is not a separate system — it updates the moment you raise a purchase order, record a receipt, or process a sale return. Stock value in your balance sheet is always current because it's the same data, not a sync.",
+    body: "Inventory in Paesa is not a separate system — it updates the moment you raise a purchase order, record a receipt, or process a sale return. Stock value in your balance sheet is always current because it's the same data, not a sync.",
     body2: "Manage multiple godowns, batch tracking, serial numbers, and expiry dates. Run movement analysis to understand which items are moving and which are ageing. Set reorder levels and get notified before you run out.",
     points: [
       "Multi-location and multi-godown support",
@@ -205,7 +205,7 @@ const FEATURES = [
     id: "payroll",
     label: "Payroll",
     headline: "Configure once. Run every month.",
-    body: "Define an employee's salary structure — basic, HRA, allowances, and deductions — and Paisa calculates everything automatically when you run payroll. PF, ESI, and professional tax are applied by the book, with rates that update when government notifications change.",
+    body: "Define an employee's salary structure — basic, HRA, allowances, and deductions — and Paesa calculates everything automatically when you run payroll. PF, ESI, and professional tax are applied by the book, with rates that update when government notifications change.",
     body2: "Every payroll run generates a payroll voucher that posts directly to your accounts. Pay slips are ready to print immediately. Annual CTC statements and Form 16 data are built from the same numbers.",
     points: [
       "Configurable pay heads and salary structures",
@@ -221,7 +221,7 @@ const FEATURES = [
     id: "reports",
     label: "Reports",
     headline: "Every number links back to its source.",
-    body: "Paisa ships with over 100 pre-built reports. Balance sheet, P&L, trial balance, cash flow, stock summary, outstanding receivables and payables, day book, journal register — all available instantly for any date range, without exports or manual compilation.",
+    body: "Paesa ships with over 100 pre-built reports. Balance sheet, P&L, trial balance, cash flow, stock summary, outstanding receivables and payables, day book, journal register — all available instantly for any date range, without exports or manual compilation.",
     body2: "Every figure in every report is a link. Click a number and you see the vouchers behind it. Click a voucher and you see the full transaction. This is how accounting software should have always worked.",
     points: [
       "P&L and balance sheet",
@@ -237,7 +237,7 @@ const FEATURES = [
     id: "multicompany",
     label: "Multi-Company",
     headline: "One login. Many entities. Zero confusion.",
-    body: "Manage unlimited companies from a single Paisa account. Each company is completely isolated — one company's data never appears in another's reports, even when accessed by the same user. Switching contexts is instant.",
+    body: "Manage unlimited companies from a single Paesa account. Each company is completely isolated — one company's data never appears in another's reports, even when accessed by the same user. Switching contexts is instant.",
     body2: "Ideal for CA firms managing client books, business groups with subsidiaries, or any organisation with multiple GST registrations or branches. Role-based access control lets you grant users access to specific companies and specific features within each.",
     points: [
       "Unlimited company creation",
@@ -291,7 +291,7 @@ export default function FeaturesPage() {
             <span style={SERIF} className="text-zinc-400 text-5xl md:text-6xl">for Indian business.</span>
           </h1>
           <p className="text-xl text-zinc-500 leading-relaxed max-w-2xl mb-10">
-            Paisa is not a collection of modules bolted together. Every feature shares the same data, the same ledger, and the same real-time engine — so every number is always consistent.
+            Paesa is not a collection of modules bolted together. Every feature shares the same data, the same ledger, and the same real-time engine — so every number is always consistent.
           </p>
           <Link
             href="/pricing"

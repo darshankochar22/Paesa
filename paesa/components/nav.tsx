@@ -60,7 +60,7 @@ export function Nav() {
             href="/pricing"
             className="inline-flex items-center h-9 px-4 rounded-lg bg-[#0d0d0d] text-white text-sm font-medium hover:bg-[#1a1a1a] transition-colors"
           >
-            Get Paisa free
+            Get Paesa free
           </Link>
         </div>
 
@@ -95,7 +95,7 @@ export function Nav() {
               href="/pricing"
               className="w-full h-10 rounded-xl bg-[#0d0d0d] text-white text-sm font-medium flex items-center justify-center"
             >
-              Get Paisa free
+              Get Paesa free
             </Link>
           </div>
         </div>

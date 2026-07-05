@@ -10,10 +10,10 @@ const FAQS = [
   },
   {
     q: "Can I import my data from Tally or Excel?",
-    a: "Yes. Paisa has a direct import tool for Tally XML exports and structured Excel sheets. Most businesses are live with clean historical data in under an hour.",
+    a: "Yes. Paesa has a direct import tool for Tally XML exports and structured Excel sheets. Most businesses are live with clean historical data in under an hour.",
   },
   {
-    q: "Does Paisa handle multi-company books?",
+    q: "Does Paesa handle multi-company books?",
     a: "Absolutely. You can manage unlimited companies from a single login. Each company's data is fully isolated — one company's entries never appear in another's reports.",
   },
   {
