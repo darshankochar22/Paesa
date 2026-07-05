@@ -17,10 +17,9 @@ const lora = Lora({
   display: "swap",
 });
 
-// Set NEXT_PUBLIC_SITE_URL to the production origin (e.g. https://paesa.app) so
-// Open Graph, Twitter, and canonical URLs resolve to absolute links. Falls back
-// to localhost in development.
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+// Production origin. Open Graph, Twitter, and canonical URLs are resolved against
+// this. Override per-environment with NEXT_PUBLIC_SITE_URL if needed.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.paesa.xyz";
 
 const title = "Paesa — Modern Accounting for Indian Business";
 const description =
