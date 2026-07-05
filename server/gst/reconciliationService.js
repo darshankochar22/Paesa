@@ -13,17 +13,15 @@ const ZERO_ROW = () => ({
   cess: 0,
   tax_amount: 0,
   invoice_amount: 0,
-  status: ""
+  status: '',
 });
 
 const getDatesForFY = async (fy_id) => {
   let fyStartDate = null;
   let fyEndDate = null;
-  let fyLabel = "";
+  let fyLabel = '';
   try {
-    const fyRows = await db.all(
-      sql`SELECT * FROM financial_years WHERE fy_id = ${fy_id}`
-    );
+    const fyRows = await db.all(sql`SELECT * FROM financial_years WHERE fy_id = ${fy_id}`);
     const fy = fyRows[0];
     if (fy) {
       fyStartDate = fy.start_date;
@@ -43,71 +41,88 @@ const getDatesForFY = async (fy_id) => {
   return { fyStartDate, fyEndDate, fyLabel };
 };
 
+// Classifier GSTR-1 section → this report's Return-View row.
+const GSTR1_SECTION_TO_ROW = {
+  b2b: 'b2b',
+  b2cl: 'b2c_large',
+  b2cs: 'b2c_small',
+  cdnr: 'cdn_registered',
+  cdnur: 'cdn_unreg',
+  nil: 'nil_rated',
+};
+
 const getGSTR1Reconciliation = async (company_id, fy_id) => {
   try {
-    const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
+    const { fyLabel } = await getDatesForFY(fy_id);
 
-    // Books side: outward documents with tax totalled from the stock lines
-    // (the voucher row itself carries no tax aggregate columns).
-    const rawVouchers = await db.all(
-      sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.reference_number,
-                 l.gstin AS party_gstin, l.registration_type AS party_reg_type,
-                 COALESCE(SUM(vse.amount), 0) AS taxable_amount,
-                 COALESCE(SUM(vse.igst_amount), 0) AS igst,
-                 COALESCE(SUM(vse.cgst_amount), 0) AS cgst,
-                 COALESCE(SUM(vse.sgst_amount), 0) AS sgst,
-                 COALESCE(SUM(vse.amount + vse.cgst_amount + vse.sgst_amount + vse.igst_amount), 0) AS invoice_amount
-          FROM ${vouchers} v
-          LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
-          LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
-          WHERE v.company_id = ${company_id}
-            AND v.fy_id = ${fy_id}
-            AND v.is_cancelled = 0
-            AND v.date >= ${fyStartDate}
-            AND v.date <= ${fyEndDate}
-            AND v.voucher_type IN ('Sales', 'Credit Note', 'Debit Note')
-          GROUP BY v.voucher_id`
+    // Pull the whole FY once and classify each voucher with the SAME shared engine
+    // the drill screens use, so the "Uncertain Transactions" count shown here matches
+    // the resolution drill exactly. Tax is totalled from the stock lines (the voucher
+    // row carries no tax aggregate columns).
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      null,
+      null,
+      true,
     );
 
     const keys = [
-      "b2b", "b2c_large", "exports", "cdn_registered", "cdn_unreg",
-      "amend_b2b", "amend_b2c", "amend_exports", "amend_cdn_reg", "amend_cdn_unreg",
-      "b2c_small", "nil_rated", "amend_b2c_small", "tax_liability_advances",
-      "adjustment_advances", "amend_tax_liability", "amend_adjustment",
-      "hsn_summary", "doc_summary"
+      'b2b',
+      'b2c_large',
+      'exports',
+      'cdn_registered',
+      'cdn_unreg',
+      'amend_b2b',
+      'amend_b2c',
+      'amend_exports',
+      'amend_cdn_reg',
+      'amend_cdn_unreg',
+      'b2c_small',
+      'nil_rated',
+      'amend_b2c_small',
+      'tax_liability_advances',
+      'adjustment_advances',
+      'amend_tax_liability',
+      'amend_adjustment',
+      'hsn_summary',
+      'doc_summary',
     ];
 
     const return_view = {};
-    keys.forEach(k => {
+    keys.forEach((k) => {
       return_view[k] = ZERO_ROW();
     });
 
     let reconciledCount = 0;
     let unreconciledCount = 0;
+    let uncertainCount = 0;
 
-    // Portal side: GSTR-1 has no import path yet, so books-only documents are
-    // honestly reported as Unreconciled (matches the 2A books-only behaviour).
-    for (const v of rawVouchers) {
-      const isCreditDebit = v.voucher_type === 'Credit Note' || v.voucher_type === 'Debit Note';
-      const hasGstin = !!v.party_gstin;
-
-      let category = "b2c_small";
-      if (isCreditDebit) {
-        category = hasGstin ? "cdn_registered" : "cdn_unreg";
-      } else if (hasGstin) {
-        category = "b2b";
+    for (const v of rows) {
+      const cls = classifyVoucher(v, 'GSTR1', companyGstinInvalid);
+      // Corrections-needed vouchers are excluded from the Return View and reported
+      // separately — matching TallyPrime (invalid company GSTIN → everything Uncertain).
+      if (cls.bucket === 'uncertain') {
+        uncertainCount++;
+        continue;
       }
+      // Inward / inventory / order vouchers are Not Relevant for GSTR-1.
+      if (cls.bucket !== 'included') continue;
 
-      const row = return_view[category];
+      const rowKey = GSTR1_SECTION_TO_ROW[cls.section];
+      if (!rowKey) continue;
+
+      const row = return_view[rowKey];
       row.vch_count++;
-      row.taxable_amount += Number(v.taxable_amount) || 0;
+      row.taxable_amount += Number(v.taxable) || 0;
       row.igst += Number(v.igst) || 0;
       row.cgst += Number(v.cgst) || 0;
       row.sgst += Number(v.sgst) || 0;
       row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
-      row.invoice_amount += Number(v.invoice_amount) || 0;
-
-      row.status = "Unreconciled";
+      row.invoice_amount += invoiceOf(v);
+      // Portal side: GSTR-1 has no import path yet, so clean book documents are
+      // honestly reported as Unreconciled (matches the 2A books-only behaviour).
+      row.status = 'Unreconciled';
       unreconciledCount++;
     }
 
@@ -118,10 +133,10 @@ const getGSTR1Reconciliation = async (company_id, fy_id) => {
         voucher_status: {
           reconciled: reconciledCount,
           unreconciled: unreconciledCount,
-          uncertain: 0
+          uncertain: uncertainCount,
         },
-        period_label: fyLabel
-      }
+        period_label: fyLabel,
+      },
     };
   } catch (err) {
     return { success: false, error: err.message };
@@ -151,16 +166,25 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
             AND v.date >= ${fyStartDate}
             AND v.date <= ${fyEndDate}
             AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')
-          GROUP BY v.voucher_id`
+          GROUP BY v.voucher_id`,
     );
 
     const keys = [
-      "itc_available_other", "itc_available_isd", "itc_available_rcm", "itc_available_import", "itc_available_reversal", "itc_available_others",
-      "itc_unavailable_other", "itc_unavailable_isd", "itc_unavailable_rcm", "itc_unavailable_reversal", "itc_unavailable_others"
+      'itc_available_other',
+      'itc_available_isd',
+      'itc_available_rcm',
+      'itc_available_import',
+      'itc_available_reversal',
+      'itc_available_others',
+      'itc_unavailable_other',
+      'itc_unavailable_isd',
+      'itc_unavailable_rcm',
+      'itc_unavailable_reversal',
+      'itc_unavailable_others',
     ];
 
     const return_view = {};
-    keys.forEach(k => {
+    keys.forEach((k) => {
       return_view[k] = ZERO_ROW();
     });
 
@@ -169,7 +193,7 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
 
     // Real reconciliation logic against imported GSTR-2B data
     const importedRows = await db.all(
-      sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`
+      sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
     );
 
     // Parse portal invoices
@@ -191,7 +215,8 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
     for (const v of rawVouchers) {
       // Purchases feed "All other ITC"; purchase returns (Debit Notes) feed the
       // Part-B reversal row — mirrors how the portal 2B statement buckets them.
-      const bucket = v.voucher_type === 'Debit Note' ? 'itc_available_reversal' : 'itc_available_other';
+      const bucket =
+        v.voucher_type === 'Debit Note' ? 'itc_available_reversal' : 'itc_available_other';
       const row = return_view[bucket];
       row.vch_count++;
       row.taxable_amount += Number(v.taxable_amount) || 0;
@@ -204,10 +229,10 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
       // Reconciliation: match GSTIN and Invoice Number
       const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
       if (portalInvoices.has(key)) {
-        row.status = "Reconciled";
+        row.status = 'Reconciled';
         reconciledCount++;
       } else {
-        row.status = "Unreconciled";
+        row.status = 'Unreconciled';
         unreconciledCount++;
       }
     }
@@ -219,11 +244,14 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
         voucher_status: {
           reconciled: reconciledCount,
           unreconciled: unreconciledCount,
-          uncertain: 0
+          uncertain: 0,
         },
         period_label: fyLabel,
-        last_gst_activity: importedRows.length > 0 ? importedRows[importedRows.length - 1].created_at : "No Activity Found"
-      }
+        last_gst_activity:
+          importedRows.length > 0
+            ? importedRows[importedRows.length - 1].created_at
+            : 'No Activity Found',
+      },
     };
   } catch (err) {
     return { success: false, error: err.message };
@@ -234,15 +262,15 @@ const importGSTR2B = async (company_id, fy_id, return_period, payload) => {
   try {
     // Upsert — db.execute delegates to the raw libsql client (string + params),
     // NOT the drizzle sql template.
-    await db.execute(
-      `DELETE FROM gstr2b_imports WHERE company_id = ? AND return_period = ?`,
-      [company_id, return_period]
-    );
+    await db.execute(`DELETE FROM gstr2b_imports WHERE company_id = ? AND return_period = ?`, [
+      company_id,
+      return_period,
+    ]);
 
     await db.execute(
       `INSERT INTO gstr2b_imports (company_id, fy_id, return_period, payload_json)
        VALUES (?, ?, ?, ?)`,
-      [company_id, fy_id, return_period, JSON.stringify(payload)]
+      [company_id, fy_id, return_period, JSON.stringify(payload)],
     );
     return { success: true };
   } catch (err) {
@@ -252,36 +280,30 @@ const importGSTR2B = async (company_id, fy_id, return_period, payload) => {
 
 const getGSTR2AReconciliation = async (company_id, fy_id) => {
   try {
-    const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
+    const { fyLabel } = await getDatesForFY(fy_id);
 
-    // Books side: inward documents with their tax totalled from the stock lines
-    // (more reliable than reading aggregate columns that may not exist on the voucher row).
-    const rawVouchers = await db.all(
-      sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.reference_number,
-                 l.gstin AS party_gstin,
-                 COALESCE(SUM(vse.amount), 0) AS taxable_amount,
-                 COALESCE(SUM(vse.igst_amount), 0) AS igst,
-                 COALESCE(SUM(vse.cgst_amount), 0) AS cgst,
-                 COALESCE(SUM(vse.sgst_amount), 0) AS sgst,
-                 COALESCE(SUM(vse.amount + vse.cgst_amount + vse.sgst_amount + vse.igst_amount), 0) AS invoice_amount
-          FROM ${vouchers} v
-          LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
-          LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
-          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
-            AND v.date >= ${fyStartDate} AND v.date <= ${fyEndDate}
-            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')
-          GROUP BY v.voucher_id`
+    // Pull the whole FY once and classify each inward document with the SAME shared
+    // engine the drill screens use, so the "Uncertain Transactions" count here matches
+    // the resolution drill exactly. Tax is totalled from the stock lines.
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      null,
+      null,
+      true,
     );
 
     const keys = ['b2b', 'amend_b2b', 'cdn', 'amend_cdn', 'isd', 'import_boe', 'import_sez_boe'];
     const return_view = {};
-    keys.forEach((k) => { return_view[k] = ZERO_ROW(); });
+    keys.forEach((k) => {
+      return_view[k] = ZERO_ROW();
+    });
 
     // Reconcile against imported GSTR-2A portal data (if the user has imported any).
     const portalInvoices = new Map();
     try {
       const importedRows = await db.all(
-        sql`SELECT * FROM gstr2a_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`
+        sql`SELECT * FROM gstr2a_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
       );
       for (const row of importedRows) {
         try {
@@ -291,24 +313,38 @@ const getGSTR2AReconciliation = async (company_id, fy_id) => {
               portalInvoices.set(`${p.ctin}-${inv.inum}`.toUpperCase(), inv);
             }
           }
-        } catch (_) { /* skip malformed import */ }
+        } catch (_) {
+          /* skip malformed import */
+        }
       }
-    } catch (_) { /* no gstr2a_imports table yet — books-only view */ }
+    } catch (_) {
+      /* no gstr2a_imports table yet — books-only view */
+    }
 
     let reconciled = 0;
     let unreconciled = 0;
+    let uncertain = 0;
 
-    for (const v of rawVouchers) {
+    for (const v of rows) {
+      if (!INWARD_RECON_TYPES.includes(v.voucher_type)) continue;
+      const cls = classifyVoucher(v, 'GSTR2A', companyGstinInvalid);
+      // Corrections-needed documents are excluded from the Return View and reported
+      // separately — matching TallyPrime (invalid company GSTIN → everything Uncertain).
+      if (cls.bucket === 'uncertain') {
+        uncertain++;
+        continue;
+      }
+      if (cls.bucket !== 'included') continue;
+
       const bucket = v.voucher_type === 'Purchase' ? 'b2b' : 'cdn';
       const row = return_view[bucket];
       row.vch_count++;
-      row.taxable_amount += Number(v.taxable_amount) || 0;
+      row.taxable_amount += Number(v.taxable) || 0;
       row.igst += Number(v.igst) || 0;
       row.cgst += Number(v.cgst) || 0;
       row.sgst += Number(v.sgst) || 0;
-      row.cess += Number(v.cess) || 0;
-      row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0);
-      row.invoice_amount += Number(v.invoice_amount) || 0;
+      row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
+      row.invoice_amount += invoiceOf(v);
 
       const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
       if (portalInvoices.size > 0 && portalInvoices.has(key)) {
@@ -324,7 +360,7 @@ const getGSTR2AReconciliation = async (company_id, fy_id) => {
       success: true,
       payload: {
         return_view,
-        voucher_status: { reconciled, unreconciled, uncertain: 0 },
+        voucher_status: { reconciled, unreconciled, uncertain },
         period_label: fyLabel,
         last_gst_activity: portalInvoices.size > 0 ? 'GSTR-2A imported' : 'No portal 2A imported',
       },
@@ -357,16 +393,24 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
             AND v.date >= ${fyStartDate}
             AND v.date <= ${fyEndDate}
             AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')
-          GROUP BY v.voucher_id`
+          GROUP BY v.voucher_id`,
     );
 
     const keys = [
-      "b2b", "amend_b2b", "cdn", "amend_cdn", "debit_note", "amend_debit_note",
-      "impg", "amend_impg", "impgsez", "amend_impgsez"
+      'b2b',
+      'amend_b2b',
+      'cdn',
+      'amend_cdn',
+      'debit_note',
+      'amend_debit_note',
+      'impg',
+      'amend_impg',
+      'impgsez',
+      'amend_impgsez',
     ];
 
     const return_view = {};
-    keys.forEach(k => {
+    keys.forEach((k) => {
       return_view[k] = ZERO_ROW();
     });
 
@@ -375,7 +419,7 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
     const portalInvoices = new Map();
     try {
       const importedRows = await db.all(
-        sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`
+        sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
       );
       for (const row of importedRows) {
         try {
@@ -385,9 +429,13 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
               portalInvoices.set(`${p.ctin}-${inv.inum}`.toUpperCase(), inv);
             }
           }
-        } catch (_) { /* skip malformed import */ }
+        } catch (_) {
+          /* skip malformed import */
+        }
       }
-    } catch (_) { /* no imports yet — books-only view */ }
+    } catch (_) {
+      /* no imports yet — books-only view */
+    }
 
     let totalCount = 0;
     let filedUploaded = 0;
@@ -395,7 +443,7 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
 
     for (const v of rawVouchers) {
       const isCreditDebit = v.voucher_type === 'Credit Note' || v.voucher_type === 'Debit Note';
-      const category = isCreditDebit ? "cdn" : "b2b";
+      const category = isCreditDebit ? 'cdn' : 'b2b';
       const row = return_view[category];
 
       row.vch_count++;
@@ -425,17 +473,17 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
             total: filedUploaded,
             action_required: 0,
             ready_for_upload: 0,
-            uploaded: filedUploaded
+            uploaded: filedUploaded,
           },
           yet_filed: {
             total: yetFiled,
             action_required: yetFiled,
             ready_for_upload: 0,
-            uploaded: 0
-          }
+            uploaded: 0,
+          },
         },
-        period_label: fyLabel
-      }
+        period_label: fyLabel,
+      },
     };
   } catch (err) {
     return { success: false, error: err.message };
@@ -456,7 +504,7 @@ const getChallanReconciliation = async (company_id, fy_id) => {
             AND v.is_cancelled = 0
             AND v.date >= ${fyStartDate}
             AND v.date <= ${fyEndDate}
-            AND v.voucher_type = 'Payment'`
+            AND v.voucher_type = 'Payment'`,
     );
 
     // Challan identifiers (CPIN/CIN/BRN) live on the GST portal; until a challan
@@ -464,22 +512,22 @@ const getChallanReconciliation = async (company_id, fy_id) => {
     const challans = rawVouchers.map((v, idx) => {
       return {
         date: v.date,
-        particulars: v.party_name || "GST Tax Payment",
+        particulars: v.party_name || 'GST Tax Payment',
         vch_type: v.voucher_type,
         vch_no: v.voucher_number || `PMT-${idx + 1}`,
-        type_of_tax_payment: "GST",
+        type_of_tax_payment: 'GST',
         payment_period_from: fyStartDate,
         payment_period_to: fyEndDate,
-        type_of_payment: "Tax Payment",
-        mode_of_payment: "",
-        bank_name: "",
-        cpin: "",
-        cin: "",
-        brn_utr: "",
-        instrument_number: "",
+        type_of_payment: 'Tax Payment',
+        mode_of_payment: '',
+        bank_name: '',
+        cpin: '',
+        cin: '',
+        brn_utr: '',
+        instrument_number: '',
         instrument_date: v.date,
         payment_date: v.date,
-        amount: v.amount || 0
+        amount: v.amount || 0,
       };
     });
 
@@ -487,22 +535,37 @@ const getChallanReconciliation = async (company_id, fy_id) => {
       success: true,
       payload: {
         challans,
-        period_label: fyLabel
-      }
+        period_label: fyLabel,
+      },
     };
   } catch (err) {
     return { success: false, error: err.message };
   }
 };
 
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_ABBR = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
 // Build the 12 months of a financial year from its start date ('YYYY-MM-DD').
 // Each entry carries the keys used downstream: `ym` for GROUP BY substr(date,1,7),
 // `period` as MMYYYY (the gst_filings key) and a human `label` like "Apr-26".
 const buildFyMonths = (fyStartDate) => {
-  const [ys, ms] = String(fyStartDate || '').split('-').map(Number);
+  const [ys, ms] = String(fyStartDate || '')
+    .split('-')
+    .map(Number);
   const startYear = Number.isFinite(ys) ? ys : new Date().getFullYear();
   const startMonth = Number.isFinite(ms) ? ms : 4;
   const months = [];
@@ -515,7 +578,12 @@ const buildFyMonths = (fyStartDate) => {
       period: `${mm}${y}`,
       label: `${MONTH_ABBR[m - 1]}-${String(y).slice(-2)}`,
     });
-    if (m === 12) { m = 1; y += 1; } else { m += 1; }
+    if (m === 12) {
+      m = 1;
+      y += 1;
+    } else {
+      m += 1;
+    }
   }
   return months;
 };
@@ -541,23 +609,31 @@ const getReturnActivities = async (company_id, fy_id) => {
       sql`SELECT gst_id, state_id, gstin, legal_name, trade_name, gst_username
           FROM ${gstRegistrations}
           WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1
-          ORDER BY gst_id ASC`
+          ORDER BY gst_id ASC`,
     );
 
     // Filed periods (company-level; gst_filings has no per-registration column).
     const filedGSTR1 = new Set();
     const filedGSTR3B = new Set();
     try {
-      const rows = await db.all(sql`SELECT return_type, return_period FROM gst_filings WHERE company_id = ${company_id} AND status = 'FILED'`);
+      const rows = await db.all(
+        sql`SELECT return_type, return_period FROM gst_filings WHERE company_id = ${company_id} AND status = 'FILED'`,
+      );
       for (const r of rows) {
         if (r.return_type === 'GSTR1') filedGSTR1.add(String(r.return_period));
         if (r.return_type === 'GSTR3B') filedGSTR3B.add(String(r.return_period));
       }
-    } catch (_) { /* table may not exist */ }
+    } catch (_) {
+      /* table may not exist */
+    }
     try {
-      const rows = await db.all(sql`SELECT return_period FROM gstr1_exports WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND status = 'Filed'`);
+      const rows = await db.all(
+        sql`SELECT return_period FROM gstr1_exports WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND status = 'Filed'`,
+      );
       for (const r of rows) filedGSTR1.add(String(r.return_period));
-    } catch (_) { /* table may not exist */ }
+    } catch (_) {
+      /* table may not exist */
+    }
 
     const registrations = [];
     for (let idx = 0; idx < regRows.length; idx++) {
@@ -585,7 +661,7 @@ const getReturnActivities = async (company_id, fy_id) => {
             WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
               AND v.voucher_type IN ('Sales', 'Credit Note', 'Debit Note')
               AND ${regFilter}
-            GROUP BY ym`
+            GROUP BY ym`,
       );
       // Inward docs (GSTR-2A / GSTR-2B side) per month, with a data-quality count.
       const inRows = await db.all(
@@ -600,7 +676,7 @@ const getReturnActivities = async (company_id, fy_id) => {
             WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
               AND v.voucher_type = 'Purchase'
               AND ${regFilter}
-            GROUP BY ym`
+            GROUP BY ym`,
       );
       const outByYm = {};
       for (const r of outRows) outByYm[r.ym] = r;
@@ -620,10 +696,34 @@ const getReturnActivities = async (company_id, fy_id) => {
           period: mo.period,
           label: mo.label,
           returns: [
-            { name: 'GSTR-1', corrections: outCorr, pending_upload: 0, recon_exceptions: 0, pending_file: g1Filed ? 0 : 1 },
-            { name: 'GSTR-2A', corrections: inCorr, pending_upload: null, recon_exceptions: 0, pending_file: null },
-            { name: 'GSTR-2B', corrections: inCorr, pending_upload: null, recon_exceptions: 0, pending_file: null },
-            { name: 'GSTR-3B', corrections: outCorr + inCorr, pending_upload: null, recon_exceptions: 0, pending_file: g3bFiled ? 0 : 1 },
+            {
+              name: 'GSTR-1',
+              corrections: outCorr,
+              pending_upload: 0,
+              recon_exceptions: 0,
+              pending_file: g1Filed ? 0 : 1,
+            },
+            {
+              name: 'GSTR-2A',
+              corrections: inCorr,
+              pending_upload: null,
+              recon_exceptions: 0,
+              pending_file: null,
+            },
+            {
+              name: 'GSTR-2B',
+              corrections: inCorr,
+              pending_upload: null,
+              recon_exceptions: 0,
+              pending_file: null,
+            },
+            {
+              name: 'GSTR-3B',
+              corrections: outCorr + inCorr,
+              pending_upload: null,
+              recon_exceptions: 0,
+              pending_file: g3bFiled ? 0 : 1,
+            },
           ],
         };
       });
@@ -634,7 +734,7 @@ const getReturnActivities = async (company_id, fy_id) => {
         gstin: reg.gstin,
         name: reg.state_id
           ? `${reg.state_id} Registration`
-          : (reg.trade_name || reg.legal_name || reg.gst_username || reg.gstin || 'Registration'),
+          : reg.trade_name || reg.legal_name || reg.gst_username || reg.gstin || 'Registration',
         months: monthEntries,
       });
     }
@@ -650,14 +750,14 @@ const getReturnActivities = async (company_id, fy_id) => {
               (l.registration_type IS NOT NULL AND l.registration_type != 'Unregistered'
                  AND (l.gstin IS NULL OR l.gstin = '' OR length(l.gstin) != 15))
               OR COALESCE(v.place_of_supply, '') = ''
-            )`
+            )`,
     );
     const corrections = Number(corrRows[0]?.n || 0);
     const purRows = await db.all(
       sql`SELECT COUNT(DISTINCT v.voucher_id) AS n
           FROM ${vouchers} v
           WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
-            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')`
+            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')`,
     );
     const inwardCount = Number(purRows[0]?.n || 0);
 
@@ -667,10 +767,34 @@ const getReturnActivities = async (company_id, fy_id) => {
         period_label: fyLabel,
         registrations,
         returns: [
-          { name: 'GSTR-1', corrections, pending_upload: 0, recon_exceptions: 0, pending_file: filedGSTR1.size > 0 ? 0 : 1 },
-          { name: 'GSTR-2A', corrections: 0, pending_upload: null, recon_exceptions: inwardCount, pending_file: null },
-          { name: 'GSTR-2B', corrections: 0, pending_upload: null, recon_exceptions: inwardCount, pending_file: null },
-          { name: 'GSTR-3B', corrections, pending_upload: 0, recon_exceptions: 0, pending_file: filedGSTR3B.size > 0 ? 0 : 1 },
+          {
+            name: 'GSTR-1',
+            corrections,
+            pending_upload: 0,
+            recon_exceptions: 0,
+            pending_file: filedGSTR1.size > 0 ? 0 : 1,
+          },
+          {
+            name: 'GSTR-2A',
+            corrections: 0,
+            pending_upload: null,
+            recon_exceptions: inwardCount,
+            pending_file: null,
+          },
+          {
+            name: 'GSTR-2B',
+            corrections: 0,
+            pending_upload: null,
+            recon_exceptions: inwardCount,
+            pending_file: null,
+          },
+          {
+            name: 'GSTR-3B',
+            corrections,
+            pending_upload: 0,
+            recon_exceptions: 0,
+            pending_file: filedGSTR3B.size > 0 ? 0 : 1,
+          },
         ],
       },
     };
@@ -686,14 +810,31 @@ const getReturnActivities = async (company_id, fy_id) => {
 // vouchers. All data is real (from books); nothing is fabricated.
 // ───────────────────────────────────────────────────────────────────────────────
 const OUTWARD_TYPES = ['Sales', 'Credit Note', 'Debit Note'];
-const INVENTORY_TYPES = ['Delivery Note', 'Receipt Note', 'Stock Journal', 'Physical Stock', 'Material In', 'Material Out', 'Rejections In', 'Rejections Out'];
+// GSTR-2A / 2A reconciliation is inward: purchases plus purchase-side credit/debit notes.
+const INWARD_RECON_TYPES = ['Purchase', 'Credit Note', 'Debit Note'];
+const INVENTORY_TYPES = [
+  'Delivery Note',
+  'Receipt Note',
+  'Stock Journal',
+  'Physical Stock',
+  'Material In',
+  'Material Out',
+  'Rejections In',
+  'Rejections Out',
+];
 const ORDER_TYPES = ['Purchase Order', 'Sales Order', 'Job Work In Order', 'Job Work Out Order'];
 const PAYROLL_TYPES = ['Payroll', 'Salary Slip'];
 const B2CL_THRESHOLD = 250000;
 
 // Load every non-cancelled voucher of a return period (optionally scoped to a
 // registration) with party info + tax sums aggregated from voucher_stock_entries.
-const fetchPeriodVouchers = async (company_id, fy_id, return_period, gstRegistrationId, annual = false) => {
+const fetchPeriodVouchers = async (
+  company_id,
+  fy_id,
+  return_period,
+  gstRegistrationId,
+  annual = false,
+) => {
   let startDate;
   let endDate;
   if (annual) {
@@ -715,23 +856,25 @@ const fetchPeriodVouchers = async (company_id, fy_id, return_period, gstRegistra
   const activeRegs = await db.all(
     sql`SELECT gst_id, gstin FROM ${gstRegistrations}
         WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1
-        ORDER BY gst_id ASC`
+        ORDER BY gst_id ASC`,
   );
   const primaryId = activeRegs[0] ? Number(activeRegs[0].gst_id) : null;
-  const scopedReg = gstRegistrationId != null
-    ? activeRegs.find((r) => Number(r.gst_id) === Number(gstRegistrationId))
-    : activeRegs[0];
+  const scopedReg =
+    gstRegistrationId != null
+      ? activeRegs.find((r) => Number(r.gst_id) === Number(gstRegistrationId))
+      : activeRegs[0];
   const companyGstinInvalid = !GSTIN_RE.test(String(scopedReg?.gstin || '').toUpperCase());
 
   let regFilter = sql``;
   if (gstRegistrationId != null) {
-    regFilter = Number(gstRegistrationId) === primaryId
-      ? sql`AND (v.gst_registration_id = ${gstRegistrationId} OR v.gst_registration_id IS NULL)`
-      : sql`AND v.gst_registration_id = ${gstRegistrationId}`;
+    regFilter =
+      Number(gstRegistrationId) === primaryId
+        ? sql`AND (v.gst_registration_id = ${gstRegistrationId} OR v.gst_registration_id IS NULL)`
+        : sql`AND v.gst_registration_id = ${gstRegistrationId}`;
   }
 
   const rows = await db.all(
-    sql`SELECT v.voucher_id, v.date, v.voucher_type, v.voucher_number, v.party_name,
+    sql`SELECT v.voucher_id, v.date, v.voucher_type, v.voucher_number, v.reference_number, v.party_name,
                v.place_of_supply, v.is_interstate,
                l.name AS ledger_name, l.gstin AS party_gstin, l.registration_type AS party_reg_type,
                COALESCE(s.stock_count, 0) AS stock_count,
@@ -759,7 +902,7 @@ const fetchPeriodVouchers = async (company_id, fy_id, return_period, gstRegistra
         WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
           AND v.date >= ${startDate} AND v.date < ${endDate}
           ${regFilter}
-        ORDER BY v.date ASC, v.voucher_id ASC`
+        ORDER BY v.date ASC, v.voucher_id ASC`,
   );
   return { rows, companyGstinInvalid };
 };
@@ -770,15 +913,23 @@ const fetchPeriodVouchers = async (company_id, fy_id, return_period, gstRegistra
 const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   const isOutward = OUTWARD_TYPES.includes(v.voucher_type);
   const isInward = v.voucher_type === 'Purchase';
+  // GSTR-2A/2B reconciliation is inward (purchase + purchase-side notes).
+  const inwardRecon = returnType === 'GSTR2A' || returnType === 'GSTR2B';
   // GSTR-3B and Annual Computation treat both outward + inward as relevant.
   const bothSides = returnType === 'GSTR3B' || returnType === 'ANNUAL';
-  const relevant = bothSides ? (isOutward || isInward) : isOutward;
+  const relevant = inwardRecon
+    ? INWARD_RECON_TYPES.includes(v.voucher_type)
+    : bothSides
+      ? isOutward || isInward
+      : isOutward;
 
   if (!relevant) {
     let group = 'non_gst';
     let category = 'Other Transactions';
-    if (!bothSides && isInward) { group = 'other_returns'; category = 'Transactions of Other GST Returns'; }
-    else if (v.voucher_type === 'Contra') category = 'Contra Vouchers';
+    if (!bothSides && isInward) {
+      group = 'other_returns';
+      category = 'Transactions of Other GST Returns';
+    } else if (v.voucher_type === 'Contra') category = 'Contra Vouchers';
     else if (INVENTORY_TYPES.includes(v.voucher_type)) category = 'Inventory Vouchers';
     else if (ORDER_TYPES.includes(v.voucher_type)) category = 'Order Vouchers';
     else if (PAYROLL_TYPES.includes(v.voucher_type)) category = 'Payroll Vouchers';
@@ -786,14 +937,21 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   }
 
   const exceptions = [];
-  if (companyGstinInvalid) exceptions.push('GST Registration Details of the Company are invalid or not specified');
+  if (companyGstinInvalid)
+    exceptions.push('GST Registration Details of the Company are invalid or not specified');
   const partyRegistered = v.party_reg_type && v.party_reg_type !== 'Unregistered';
   if (partyRegistered && (!v.party_gstin || String(v.party_gstin).length !== 15)) {
     exceptions.push('Party is registered but its GSTIN/UIN is missing or invalid');
   }
   if (!String(v.place_of_supply || '').trim()) exceptions.push('Place of supply is not specified');
-  if (Number(v.stock_count || 0) === 0) exceptions.push('No item or tax details available in the voucher');
-  if (exceptions.length) return { bucket: 'uncertain', group: null, category: null, section: null, exceptions };
+  if (Number(v.stock_count || 0) === 0)
+    exceptions.push('No item or tax details available in the voucher');
+  if (exceptions.length)
+    return { bucket: 'uncertain', group: null, category: null, section: null, exceptions };
+
+  // Inward reconciliations don't use GSTR-1 outward sections.
+  if (inwardRecon)
+    return { bucket: 'included', group: null, category: null, section: null, exceptions: [] };
 
   // GSTR-1 section for an included outward voucher.
   const hasGstin = !!v.party_gstin;
@@ -834,13 +992,27 @@ const voucherRow = (v, cls) => ({
 const getReturnStatistics = async (company_id, fy_id, return_period, opts = {}) => {
   try {
     const returnType = opts.return_type || 'GSTR1';
-    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
-    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, return_period, gstRegistrationId, !!opts.annual);
+    const gstRegistrationId =
+      opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      return_period,
+      gstRegistrationId,
+      !!opts.annual,
+    );
 
     const byType = {};
     const bucketFor = (t) => {
       if (!byType[t]) {
-        byType[t] = { voucher_type: t, total: 0, included_pending: 0, included_ok: 0, not_relevant: 0, uncertain: 0 };
+        byType[t] = {
+          voucher_type: t,
+          total: 0,
+          included_pending: 0,
+          included_ok: 0,
+          not_relevant: 0,
+          uncertain: 0,
+        };
       }
       return byType[t];
     };
@@ -863,7 +1035,7 @@ const getReturnStatistics = async (company_id, fy_id, return_period, opts = {}) 
         not_relevant: acc.not_relevant + r.not_relevant,
         uncertain: acc.uncertain + r.uncertain,
       }),
-      { total: 0, included_pending: 0, included_ok: 0, not_relevant: 0, uncertain: 0 }
+      { total: 0, included_pending: 0, included_ok: 0, not_relevant: 0, uncertain: 0 },
     );
 
     return { success: true, statistics: { return_type: returnType, rows: list, totals } };
@@ -878,8 +1050,15 @@ const getReturnStatistics = async (company_id, fy_id, return_period, opts = {}) 
 const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) => {
   try {
     const returnType = opts.return_type || 'GSTR1';
-    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
-    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, return_period, gstRegistrationId, !!opts.annual);
+    const gstRegistrationId =
+      opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      return_period,
+      gstRegistrationId,
+      !!opts.annual,
+    );
 
     // Optional direction filter for HSN summaries (Annual: Outward vs Inward supplies).
     const dirOk = (v) => {
@@ -891,7 +1070,10 @@ const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) =>
     // HSN summary (section 12): aggregate the included vouchers' stock lines by HSN.
     if (opts.section === 'hsn') {
       const includedIds = rows
-        .filter((v) => dirOk(v) && classifyVoucher(v, returnType, companyGstinInvalid).bucket === 'included')
+        .filter(
+          (v) =>
+            dirOk(v) && classifyVoucher(v, returnType, companyGstinInvalid).bucket === 'included',
+        )
         .map((v) => v.voucher_id);
       if (includedIds.length === 0) return { success: true, rows: [], view: 'hsn' };
       // db.execute(string, params) — sql`` templates can't expand an array into IN (...).
@@ -903,7 +1085,7 @@ const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) =>
          FROM voucher_stock_entries
          WHERE voucher_id IN (${placeholders})
          GROUP BY hsn ORDER BY hsn`,
-        includedIds
+        includedIds,
       );
       const hsnRows = hsnRes.rows || [];
       return {
@@ -927,7 +1109,9 @@ const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) =>
       const byType = {};
       for (const v of rows) {
         if (!OUTWARD_TYPES.includes(v.voucher_type)) continue;
-        const b = byType[v.voucher_type] || (byType[v.voucher_type] = { nature: v.voucher_type, from: null, to: null, count: 0 });
+        const b =
+          byType[v.voucher_type] ||
+          (byType[v.voucher_type] = { nature: v.voucher_type, from: null, to: null, count: 0 });
         b.count++;
         const n = String(v.voucher_number ?? '');
         if (b.from === null || n < b.from) b.from = n;
@@ -945,6 +1129,7 @@ const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) =>
       if (opts.direction && !dirOk(v)) continue;
       const cls = classifyVoucher(v, returnType, companyGstinInvalid);
       if (opts.bucket && opts.bucket !== 'all' && cls.bucket !== opts.bucket) continue;
+      if (opts.exception && !(cls.exceptions || []).includes(opts.exception)) continue;
       if (opts.category && cls.category !== opts.category) continue;
       if (opts.voucher_type && v.voucher_type !== opts.voucher_type) continue;
       if (opts.section && cls.section !== opts.section) continue;
@@ -967,15 +1152,25 @@ const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) =>
 const getNotRelevantBreakdown = async (company_id, fy_id, return_period, opts = {}) => {
   try {
     const returnType = opts.return_type || 'GSTR1';
-    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
-    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, return_period, gstRegistrationId, !!opts.annual);
+    const gstRegistrationId =
+      opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      return_period,
+      gstRegistrationId,
+      !!opts.annual,
+    );
 
     const categories = {}; // category label -> { count, types: {type: count} }
     let otherReturns = 0;
     for (const v of rows) {
       const cls = classifyVoucher(v, returnType, companyGstinInvalid);
       if (cls.bucket !== 'not_relevant') continue;
-      if (cls.group === 'other_returns') { otherReturns++; continue; }
+      if (cls.group === 'other_returns') {
+        otherReturns++;
+        continue;
+      }
       const c = categories[cls.category] || (categories[cls.category] = { count: 0, types: {} });
       c.count++;
       c.types[v.voucher_type] = (c.types[v.voucher_type] || 0) + 1;
@@ -997,7 +1192,9 @@ const getNotRelevantBreakdown = async (company_id, fy_id, return_period, opts = 
       success: true,
       breakdown: {
         non_gst: { label: 'Non-GST transactions', count: nonGstTotal, categories: catList },
-        other_returns: bothSides ? null : { label: 'Transactions of Other GST Returns', count: otherReturns },
+        other_returns: bothSides
+          ? null
+          : { label: 'Transactions of Other GST Returns', count: otherReturns },
         total: nonGstTotal + (bothSides ? 0 : otherReturns),
       },
     };
@@ -1013,19 +1210,27 @@ const getNotRelevantBreakdown = async (company_id, fy_id, return_period, opts = 
 // legitimately zero — matching TallyPrime. Shape matches AnnualComputation.tsx keys.
 const getAnnualComputation = async (company_id, fy_id, opts = {}) => {
   try {
-    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const gstRegistrationId =
+      opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
     const { fyLabel } = await getDatesForFY(fy_id);
-    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, null, gstRegistrationId, true);
+    const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      null,
+      gstRegistrationId,
+      true,
+    );
 
     // Registration GSTIN for the header.
     const activeRegs = await db.all(
       sql`SELECT gst_id, gstin FROM ${gstRegistrations}
           WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1
-          ORDER BY gst_id ASC`
+          ORDER BY gst_id ASC`,
     );
-    const scopedReg = gstRegistrationId != null
-      ? activeRegs.find((r) => Number(r.gst_id) === gstRegistrationId)
-      : activeRegs[0];
+    const scopedReg =
+      gstRegistrationId != null
+        ? activeRegs.find((r) => Number(r.gst_id) === gstRegistrationId)
+        : activeRegs[0];
 
     const zero = () => ({ txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 });
     const add = (acc, v) => {
@@ -1040,8 +1245,8 @@ const getAnnualComputation = async (company_id, fy_id, opts = {}) => {
     };
 
     const taxable_and_advances = zero(); // outward taxable (tax payable)
-    const not_payable = zero();          // outward nil/exempt/non-GST
-    const itc_availed = zero();          // inward (Purchase) tax credit
+    const not_payable = zero(); // outward nil/exempt/non-GST
+    const itc_availed = zero(); // inward (Purchase) tax credit
     const summary_outward = zero();
     const summary_inward = zero();
     const vc = { total: 0, included: 0, not_relevant: 0, uncertain: 0 };
@@ -1049,8 +1254,14 @@ const getAnnualComputation = async (company_id, fy_id, opts = {}) => {
     for (const v of rows) {
       vc.total++;
       const cls = classifyVoucher(v, 'GSTR3B', companyGstinInvalid); // annual = outward + inward
-      if (cls.bucket === 'not_relevant') { vc.not_relevant++; continue; }
-      if (cls.bucket === 'uncertain') { vc.uncertain++; continue; }
+      if (cls.bucket === 'not_relevant') {
+        vc.not_relevant++;
+        continue;
+      }
+      if (cls.bucket === 'uncertain') {
+        vc.uncertain++;
+        continue;
+      }
       vc.included++;
 
       const isInward = v.voucher_type === 'Purchase';
@@ -1064,13 +1275,15 @@ const getAnnualComputation = async (company_id, fy_id, opts = {}) => {
       }
     }
 
-    [taxable_and_advances, not_payable, itc_availed, summary_outward, summary_inward].forEach(round);
+    [taxable_and_advances, not_payable, itc_availed, summary_outward, summary_inward].forEach(
+      round,
+    );
 
     return {
       success: true,
       payload: {
         fy_label: fyLabel,
-        gstin: gstRegistrationId != null ? (scopedReg?.gstin || '') : 'All Registrations',
+        gstin: gstRegistrationId != null ? scopedReg?.gstin || '' : 'All Registrations',
         voucher_count: vc,
         liability: {
           taxable_and_advances,
@@ -1125,21 +1338,48 @@ const ANNUAL_TREE = {
           dn: { label: 'Debit Notes Issued to Registered Persons' },
         },
       },
-      exports_pay: { label: 'Exports with Payment of Tax Including Credit/Debit Note', children: cdnSplit('Exports with Payment of Tax') },
-      sez_pay: { label: 'SEZ Supplies with Payment of Tax Including Credit/Debit Note', children: cdnSplit('SEZ Supplies with Payment of Tax') },
-      deemed: { label: 'Deemed Exports Including Credit/Debit Note', children: cdnSplit('Deemed Exports') },
+      exports_pay: {
+        label: 'Exports with Payment of Tax Including Credit/Debit Note',
+        children: cdnSplit('Exports with Payment of Tax'),
+      },
+      sez_pay: {
+        label: 'SEZ Supplies with Payment of Tax Including Credit/Debit Note',
+        children: cdnSplit('SEZ Supplies with Payment of Tax'),
+      },
+      deemed: {
+        label: 'Deemed Exports Including Credit/Debit Note',
+        children: cdnSplit('Deemed Exports'),
+      },
       inward_rcm: { label: 'Inward Supplies on Which Tax is to be Paid on Reverse Charge Basis' },
     },
   },
   not_payable: {
     label: 'Outward Supplies on Which Tax is Not Payable',
     children: {
-      exports_nopay: { label: 'Exports without Payment of Tax Including Credit/Debit Note', children: cdnSplit('Exports without Payment of Tax') },
-      sez_nopay: { label: 'SEZ Supplies without Payment of Tax Including Credit/Debit Note', children: cdnSplit('SEZ Supplies without Payment of Tax') },
-      rcm_outward: { label: 'Outward Supplies Subject to Reverse Charge Including Credit/Debit Note', children: cdnSplit('Outward Supplies Subject to Reverse Charge') },
-      exempt: { label: 'Exempted Supplies Including Credit/Debit Note', children: cdnSplit('Exempted Supplies') },
-      nil: { label: 'Nil Rated Supplies Including Credit/Debit Note', children: cdnSplit('Nil Rated Supplies') },
-      non_gst: { label: 'Non-GST Supplies Including Credit/Debit Note', children: cdnSplit('Non-GST Supplies') },
+      exports_nopay: {
+        label: 'Exports without Payment of Tax Including Credit/Debit Note',
+        children: cdnSplit('Exports without Payment of Tax'),
+      },
+      sez_nopay: {
+        label: 'SEZ Supplies without Payment of Tax Including Credit/Debit Note',
+        children: cdnSplit('SEZ Supplies without Payment of Tax'),
+      },
+      rcm_outward: {
+        label: 'Outward Supplies Subject to Reverse Charge Including Credit/Debit Note',
+        children: cdnSplit('Outward Supplies Subject to Reverse Charge'),
+      },
+      exempt: {
+        label: 'Exempted Supplies Including Credit/Debit Note',
+        children: cdnSplit('Exempted Supplies'),
+      },
+      nil: {
+        label: 'Nil Rated Supplies Including Credit/Debit Note',
+        children: cdnSplit('Nil Rated Supplies'),
+      },
+      non_gst: {
+        label: 'Non-GST Supplies Including Credit/Debit Note',
+        children: cdnSplit('Non-GST Supplies'),
+      },
     },
   },
   itc: {
@@ -1192,14 +1432,17 @@ const ANNUAL_TREE = {
 // lands in Nil Rated; purchases land in All Other ITC. Everything else has no book flag.
 const annualCategoryOf = (v) => {
   if (v.voucher_type === 'Purchase') return 'itc.all_other_itc';
-  const leaf = v.voucher_type === 'Credit Note' ? 'cn' : v.voucher_type === 'Debit Note' ? 'dn' : 'supplies';
+  const leaf =
+    v.voucher_type === 'Credit Note' ? 'cn' : v.voucher_type === 'Debit Note' ? 'dn' : 'supplies';
   if (Number(v.max_rate || 0) === 0) return `not_payable.nil.${leaf}`;
   return `payable.${v.party_gstin ? 'b2b' : 'b2c'}.${leaf}`;
 };
 
 const resolveAnnualNode = (path) => {
   let node = { children: ANNUAL_TREE };
-  for (const part of String(path || '').split('.').filter(Boolean)) {
+  for (const part of String(path || '')
+    .split('.')
+    .filter(Boolean)) {
     node = node.children?.[part];
     if (!node) return null;
   }
@@ -1214,18 +1457,28 @@ const addAmts = (acc, v) => {
   acc.samt += Number(v.sgst || 0);
   acc.tax += Number(v.igst || 0) + Number(v.cgst || 0) + Number(v.sgst || 0);
 };
-const roundAmts = (a) => { for (const k of Object.keys(a)) a[k] = Number(a[k].toFixed(2)); return a; };
+const roundAmts = (a) => {
+  for (const k of Object.keys(a)) a[k] = Number(a[k].toFixed(2));
+  return a;
+};
 
 // One level of the annual drill tree with real sums per child (prefix-matched).
 const getAnnualSectionBreakdown = async (company_id, fy_id, opts = {}) => {
   try {
-    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const gstRegistrationId =
+      opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
     const path = String(opts.path || '');
     const node = resolveAnnualNode(path);
     if (!node) return { success: false, error: `Unknown annual section: ${path}` };
     if (!node.children) return { success: true, label: node.label, rows: [] };
 
-    const { rows: vRows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, null, gstRegistrationId, true);
+    const { rows: vRows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      null,
+      gstRegistrationId,
+      true,
+    );
     const sums = {}; // child key -> amounts
     for (const v of vRows) {
       const cls = classifyVoucher(v, 'ANNUAL', companyGstinInvalid);
@@ -1256,10 +1509,17 @@ const getAnnualSectionBreakdown = async (company_id, fy_id, opts = {}) => {
 // intra/interstate × registered/unregistered breakup Tally shows below the month level.
 const getAnnualMonthly = async (company_id, fy_id, opts = {}) => {
   try {
-    const gstRegistrationId = opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
+    const gstRegistrationId =
+      opts.gst_registration_id != null ? Number(opts.gst_registration_id) : null;
     const category = String(opts.category || '');
     const { fyStartDate } = await getDatesForFY(fy_id);
-    const { rows: vRows, companyGstinInvalid } = await fetchPeriodVouchers(company_id, fy_id, null, gstRegistrationId, true);
+    const { rows: vRows, companyGstinInvalid } = await fetchPeriodVouchers(
+      company_id,
+      fy_id,
+      null,
+      gstRegistrationId,
+      true,
+    );
 
     const matches = vRows.filter((v) => {
       const cls = classifyVoucher(v, 'ANNUAL', companyGstinInvalid);
@@ -1295,7 +1555,20 @@ const getAnnualMonthly = async (company_id, fy_id, opts = {}) => {
       const ym = String(v.date).substring(0, 7);
       addAmts(byYm[ym] || (byYm[ym] = zeroAmts()), v);
     }
-    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const MONTH_NAMES = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     return {
       success: true,
       view: 'monthly',

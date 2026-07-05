@@ -85,6 +85,7 @@ import GSTRUncertain from '../pages/master/statutory/gst-return/GSTRUncertain.ts
 import AnnualSectionSummary from '../pages/master/statutory/gst-return/AnnualSectionSummary.tsx';
 import AnnualMonthlySummary from '../pages/master/statutory/gst-return/AnnualMonthlySummary.tsx';
 import GSTR1Reconciliation from '../pages/master/statutory/gst-return/GSTR1-Reconcilation.tsx';
+import UncertainBreakdown from '../pages/master/statutory/gst-return/UncertainBreakdown.tsx';
 import GSTR3BView from '../pages/master/statutory/gst-return/GSTR-3B.tsx';
 import AnnualComputation from '../pages/master/statutory/gst-return/AnnualComputation.tsx';
 import GSTR2AReconciliation from '../pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx';
@@ -277,6 +278,9 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gst/annual-monthly', element: <AnnualMonthlySummary /> },
   { path: '/master/statutory/gstr1', element: <GSTR1View /> },
   { path: '/master/statutory/gstr1/reconciliation', element: <GSTR1Reconciliation /> },
+  { path: '/master/statutory/gstr1/reconciliation/uncertain', element: <UncertainBreakdown /> },
+  { path: '/master/statutory/gstr2a/reconciliation/uncertain', element: <UncertainBreakdown /> },
+  { path: '/master/statutory/annual-computation/uncertain', element: <UncertainBreakdown /> },
   { path: '/master/statutory/gstr3b', element: <GSTR3BView /> },
   { path: '/master/statutory/annual-computation', element: <AnnualComputation /> },
   { path: '/master/statutory/gstr2a/reconciliation', element: <GSTR2AReconciliation /> },

@@ -17,19 +17,39 @@ module.exports = {
   },
 
   generateGSTR1: async (event, { company_id, fy_id, return_period, gst_registration_id }) => {
-    return await gstr1Service.generateGSTR1(company_id, fy_id, return_period, gst_registration_id ?? null);
+    return await gstr1Service.generateGSTR1(
+      company_id,
+      fy_id,
+      return_period,
+      gst_registration_id ?? null,
+    );
   },
 
   getGSTR1: async (event, { company_id, fy_id, return_period, gst_registration_id }) => {
-    return await gstr1Service.getGSTR1(company_id, fy_id, return_period, gst_registration_id ?? null);
+    return await gstr1Service.getGSTR1(
+      company_id,
+      fy_id,
+      return_period,
+      gst_registration_id ?? null,
+    );
   },
 
   generateGSTR3B: async (event, { company_id, fy_id, return_period, gst_registration_id }) => {
-    return await gstr3bService.generateGSTR3B(company_id, fy_id, return_period, gst_registration_id ?? null);
+    return await gstr3bService.generateGSTR3B(
+      company_id,
+      fy_id,
+      return_period,
+      gst_registration_id ?? null,
+    );
   },
 
   getGSTR3B: async (event, { company_id, fy_id, return_period, gst_registration_id }) => {
-    return await gstr3bService.getGSTR3B(company_id, fy_id, return_period, gst_registration_id ?? null);
+    return await gstr3bService.getGSTR3B(
+      company_id,
+      fy_id,
+      return_period,
+      gst_registration_id ?? null,
+    );
   },
 
   getAnnualComputation: async (event, { company_id, fy_id, gst_registration_id }) => {
@@ -37,7 +57,9 @@ module.exports = {
     // voucher counts + section amounts match the Statistics / Not-Relevant / Uncertain
     // drills exactly. The older annualComputationService payload shape did not match the
     // frontend contract (report rendered blank).
-    return await reconciliationService.getAnnualComputation(company_id, fy_id, { gst_registration_id });
+    return await reconciliationService.getAnnualComputation(company_id, fy_id, {
+      gst_registration_id,
+    });
   },
 
   getHSNRates: async (event, company_id) => {
@@ -45,7 +67,7 @@ module.exports = {
       const rows = await db.all(
         sql`SELECT * FROM ${gstHsnRates}
             WHERE ${gstHsnRates.companyId} = ${company_id}
-            ORDER BY ${gstHsnRates.hsnCode}, ${gstHsnRates.effectiveFrom} DESC`
+            ORDER BY ${gstHsnRates.hsnCode}, ${gstHsnRates.effectiveFrom} DESC`,
       );
       return { success: true, hsnRates: rows };
     } catch (err) {
@@ -67,11 +89,14 @@ module.exports = {
         sgst_rate,
         igst_rate,
         cess_rate,
-        type_of_supply
+        type_of_supply,
       } = data;
 
       if (!company_id || !hsn_code || !effective_from) {
-        return { success: false, error: "company_id, hsn_code, and effective_from are required fields" };
+        return {
+          success: false,
+          error: 'company_id, hsn_code, and effective_from are required fields',
+        };
       }
 
       if (rate_id) {
@@ -151,23 +176,72 @@ module.exports = {
     return await reconciliationService.getReturnActivities(company_id, fy_id);
   },
 
-  getReturnStatistics: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id, annual }) => {
-    return await reconciliationService.getReturnStatistics(company_id, fy_id, return_period, { return_type, gst_registration_id, annual });
+  getReturnStatistics: async (
+    event,
+    { company_id, fy_id, return_period, return_type, gst_registration_id, annual },
+  ) => {
+    return await reconciliationService.getReturnStatistics(company_id, fy_id, return_period, {
+      return_type,
+      gst_registration_id,
+      annual,
+    });
   },
 
-  getReturnVouchers: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id, bucket, category, voucher_type, section, annual, direction, annual_category }) => {
-    return await reconciliationService.getReturnVouchers(company_id, fy_id, return_period, { return_type, gst_registration_id, bucket, category, voucher_type, section, annual, direction, annual_category });
+  getReturnVouchers: async (
+    event,
+    {
+      company_id,
+      fy_id,
+      return_period,
+      return_type,
+      gst_registration_id,
+      bucket,
+      category,
+      voucher_type,
+      section,
+      annual,
+      direction,
+      annual_category,
+      exception,
+    },
+  ) => {
+    return await reconciliationService.getReturnVouchers(company_id, fy_id, return_period, {
+      return_type,
+      gst_registration_id,
+      bucket,
+      category,
+      voucher_type,
+      section,
+      annual,
+      direction,
+      annual_category,
+      exception,
+    });
   },
 
   getAnnualSectionBreakdown: async (event, { company_id, fy_id, gst_registration_id, path }) => {
-    return await reconciliationService.getAnnualSectionBreakdown(company_id, fy_id, { gst_registration_id, path });
+    return await reconciliationService.getAnnualSectionBreakdown(company_id, fy_id, {
+      gst_registration_id,
+      path,
+    });
   },
 
   getAnnualMonthly: async (event, { company_id, fy_id, gst_registration_id, category, month }) => {
-    return await reconciliationService.getAnnualMonthly(company_id, fy_id, { gst_registration_id, category, month });
+    return await reconciliationService.getAnnualMonthly(company_id, fy_id, {
+      gst_registration_id,
+      category,
+      month,
+    });
   },
 
-  getNotRelevantBreakdown: async (event, { company_id, fy_id, return_period, return_type, gst_registration_id, annual }) => {
-    return await reconciliationService.getNotRelevantBreakdown(company_id, fy_id, return_period, { return_type, gst_registration_id, annual });
-  }
+  getNotRelevantBreakdown: async (
+    event,
+    { company_id, fy_id, return_period, return_type, gst_registration_id, annual },
+  ) => {
+    return await reconciliationService.getNotRelevantBreakdown(company_id, fy_id, return_period, {
+      return_type,
+      gst_registration_id,
+      annual,
+    });
+  },
 };

@@ -13,43 +13,43 @@ const {
 const gstValidation = require('./gstValidation');
 
 const STATE_CODE_MAP = {
-  "jammu and kashmir": "01",
-  "himachal pradesh": "02",
-  "punjab": "03",
-  "chandigarh": "04",
-  "uttarakhand": "05",
-  "haryana": "06",
-  "delhi": "07",
-  "rajasthan": "08",
-  "uttar pradesh": "09",
-  "bihar": "10",
-  "sikkim": "11",
-  "arunachal pradesh": "12",
-  "nagaland": "13",
-  "manipur": "14",
-  "mizoram": "15",
-  "tripura": "16",
-  "meghalaya": "17",
-  "assam": "18",
-  "west bengal": "19",
-  "jharkhand": "20",
-  "odisha": "21",
-  "chhattisgarh": "22",
-  "madhya pradesh": "23",
-  "gujarat": "24",
-  "daman and diu": "26",
-  "dadra and nagar haveli and daman and diu": "26",
-  "maharashtra": "27",
-  "andhra pradesh": "37",
-  "karnataka": "29",
-  "goa": "30",
-  "lakshadweep": "31",
-  "kerala": "32",
-  "tamil nadu": "33",
-  "puducherry": "34",
-  "andaman and nicobar islands": "35",
-  "telangana": "36",
-  "ladakh": "38"
+  'jammu and kashmir': '01',
+  'himachal pradesh': '02',
+  punjab: '03',
+  chandigarh: '04',
+  uttarakhand: '05',
+  haryana: '06',
+  delhi: '07',
+  rajasthan: '08',
+  'uttar pradesh': '09',
+  bihar: '10',
+  sikkim: '11',
+  'arunachal pradesh': '12',
+  nagaland: '13',
+  manipur: '14',
+  mizoram: '15',
+  tripura: '16',
+  meghalaya: '17',
+  assam: '18',
+  'west bengal': '19',
+  jharkhand: '20',
+  odisha: '21',
+  chhattisgarh: '22',
+  'madhya pradesh': '23',
+  gujarat: '24',
+  'daman and diu': '26',
+  'dadra and nagar haveli and daman and diu': '26',
+  maharashtra: '27',
+  'andhra pradesh': '37',
+  karnataka: '29',
+  goa: '30',
+  lakshadweep: '31',
+  kerala: '32',
+  'tamil nadu': '33',
+  puducherry: '34',
+  'andaman and nicobar islands': '35',
+  telangana: '36',
+  ladakh: '38',
 };
 
 const resolveStateCode = (stateName, gstin) => {
@@ -59,9 +59,9 @@ const resolveStateCode = (stateName, gstin) => {
       return code;
     }
   }
-  if (!stateName) return "27"; // Default to Maharashtra if nothing specified
+  if (!stateName) return '27'; // Default to Maharashtra if nothing specified
   const nameLower = stateName.trim().toLowerCase();
-  return STATE_CODE_MAP[nameLower] || "27";
+  return STATE_CODE_MAP[nameLower] || '27';
 };
 
 /**
@@ -70,21 +70,21 @@ const resolveStateCode = (stateName, gstin) => {
  */
 const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_code, date }) => {
   let resolved = {
-    hsn_code: hsn_code || "",
+    hsn_code: hsn_code || '',
     gst_rate: 0,
     cgst_rate: 0,
     sgst_rate: 0,
     igst_rate: 0,
     cess_rate: 0,
-    taxability: "",
-    source: "default"
+    taxability: '',
+    source: 'default',
   };
 
   // 1. Resolve by Stock Item if stock_item_id is provided
   if (stock_item_id) {
     const itemRows = await db.all(
       sql`SELECT * FROM ${stockItems}
-          WHERE ${stockItems.itemId} = ${stock_item_id} AND ${stockItems.companyId} = ${company_id}`
+          WHERE ${stockItems.itemId} = ${stock_item_id} AND ${stockItems.companyId} = ${company_id}`,
     );
     const item = itemRows[0];
     if (item) {
@@ -95,15 +95,15 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
         resolved.cgst_rate = item.cgst_rate || 0;
         resolved.sgst_rate = item.sgst_rate || 0;
         resolved.igst_rate = item.igst_rate || 0;
-        resolved.source = "stock_item";
+        resolved.source = 'stock_item';
         return resolved;
       }
-      
+
       // 2. Check Stock Group of this item
       if (item.group_id) {
         const groupRows = await db.all(
           sql`SELECT * FROM ${stockGroups}
-              WHERE ${stockGroups.sgId} = ${item.group_id} AND ${stockGroups.companyId} = ${company_id}`
+              WHERE ${stockGroups.sgId} = ${item.group_id} AND ${stockGroups.companyId} = ${company_id}`,
         );
         const group = groupRows[0];
         if (group && (group.gst_rate > 0 || group.hsn_sac_code)) {
@@ -113,7 +113,7 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
           resolved.sgst_rate = group.sgst_rate || 0;
           resolved.igst_rate = group.igst_rate || 0;
           resolved.cess_rate = group.cess_rate || 0;
-          resolved.source = "stock_group";
+          resolved.source = 'stock_group';
           return resolved;
         }
       }
@@ -123,7 +123,7 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
   // 3. Check Ledger Statutory Details
   if (ledger_id) {
     const ledgerStatRows = await db.all(
-      sql`SELECT * FROM ${ledgerStatutoryDetails} WHERE ${ledgerStatutoryDetails.ledgerId} = ${ledger_id}`
+      sql`SELECT * FROM ${ledgerStatutoryDetails} WHERE ${ledgerStatutoryDetails.ledgerId} = ${ledger_id}`,
     );
     const stat = ledgerStatRows[0];
     if (stat && (stat.gst_rate > 0 || stat.hsn_sac_code)) {
@@ -132,7 +132,7 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
       resolved.cgst_rate = stat.cgst_rate || 0;
       resolved.sgst_rate = stat.sgst_rate || 0;
       resolved.igst_rate = stat.igst_rate || 0;
-      resolved.source = "ledger";
+      resolved.source = 'ledger';
       return resolved;
     }
   }
@@ -146,7 +146,7 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
           WHERE ${gstHsnRates.companyId} = ${company_id}
             AND ${gstHsnRates.hsnCode} = ${queryHsn}
             AND ${gstHsnRates.effectiveFrom} <= ${effectiveDate}
-          ORDER BY ${gstHsnRates.effectiveFrom} DESC LIMIT 1`
+          ORDER BY ${gstHsnRates.effectiveFrom} DESC LIMIT 1`,
     );
     const hsnRate = hsnRateRows[0];
     if (hsnRate) {
@@ -155,7 +155,7 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
       resolved.sgst_rate = hsnRate.sgst_rate || 0;
       resolved.igst_rate = hsnRate.igst_rate || 0;
       resolved.cess_rate = hsnRate.cess_rate || 0;
-      resolved.source = "company_hsn";
+      resolved.source = 'company_hsn';
       return resolved;
     }
   }
@@ -169,10 +169,10 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
  * "Tax type" dropdown in client/src/pages/master/ledger/components/LedgerTaxPanel.tsx).
  */
 const GST_TAX_TYPE_LABELS = {
-  CGST: "CGST",
-  SGST: "SGST/UTGST",
-  IGST: "IGST",
-  CESS: "Cess",
+  CGST: 'CGST',
+  SGST: 'SGST/UTGST',
+  IGST: 'IGST',
+  CESS: 'Cess',
 };
 
 /**
@@ -189,7 +189,7 @@ const resolveTaxLedgerId = async (db, company_id, tax_type, { createIfMissing = 
         JOIN ${ledgerStatutoryDetails} sd ON sd.ledger_id = l.ledger_id
         WHERE l.company_id = ${company_id} AND l.is_active = 1
           AND sd.type_of_duty_tax = 'GST' AND sd.gst_tax_type = ${gstTaxTypeLabel}
-        ORDER BY l.ledger_id ASC LIMIT 1`
+        ORDER BY l.ledger_id ASC LIMIT 1`,
   );
   if (configuredRows.length > 0) {
     return { id: configuredRows[0].ledger_id, name: configuredRows[0].name };
@@ -198,7 +198,7 @@ const resolveTaxLedgerId = async (db, company_id, tax_type, { createIfMissing = 
   const namedRows = await db.all(
     sql`SELECT l.ledger_id, l.name FROM ${ledgers} l
         WHERE l.company_id = ${company_id} AND l.is_active = 1 AND LOWER(l.name) = LOWER(${tax_type})
-        LIMIT 1`
+        LIMIT 1`,
   );
   if (namedRows.length > 0) {
     return { id: namedRows[0].ledger_id, name: namedRows[0].name };
@@ -210,7 +210,7 @@ const resolveTaxLedgerId = async (db, company_id, tax_type, { createIfMissing = 
   const groupRows = await db.all(
     sql`SELECT group_id FROM ${groups}
         WHERE ${groups.companyId} = ${company_id} AND ${groups.name} = 'Duties & Taxes' AND ${groups.isActive} = 1
-        LIMIT 1`
+        LIMIT 1`,
   );
   const group_id = groupRows.length > 0 ? groupRows[0].group_id : null;
 
@@ -238,15 +238,13 @@ const resolveTaxLedgerId = async (db, company_id, tax_type, { createIfMissing = 
 
   // Insert statutory details — tagged the same way the Ledger Create/Alter screen
   // would, so this ledger is found by name (or by a user editing it later).
-  await db
-    .insert(ledgerStatutoryDetails)
-    .values({
-      ledgerId: ledger_id,
-      gstApplicability: 'Applicable',
-      typeOfDutyTax: 'GST',
-      gstTaxType: gstTaxTypeLabel,
-      percentageOfCalculation: 0,
-    });
+  await db.insert(ledgerStatutoryDetails).values({
+    ledgerId: ledger_id,
+    gstApplicability: 'Applicable',
+    typeOfDutyTax: 'GST',
+    gstTaxType: gstTaxTypeLabel,
+    percentageOfCalculation: 0,
+  });
 
   return { id: ledger_id, name };
 };
@@ -278,7 +276,11 @@ const setupStandardTaxLedgers = async (db, company_id) => {
  *   (c) create path — the company's current default registration;
  *   (d) fallback    — the first active registration (legacy behavior).
  */
-const resolveCompanyRegistration = async (db, company_id, { gst_snapshot = null, gst_registration_id = null } = {}) => {
+const resolveCompanyRegistration = async (
+  db,
+  company_id,
+  { gst_snapshot = null, gst_registration_id = null } = {},
+) => {
   let reg = null;
   const pinnedRegId = (gst_snapshot && gst_snapshot.gst_registration_id) || null;
   const tryReg = async (id, requireActive) => {
@@ -288,26 +290,26 @@ const resolveCompanyRegistration = async (db, company_id, { gst_snapshot = null,
         ? sql`SELECT * FROM ${gstRegistrations}
                WHERE ${gstRegistrations.gstId} = ${id} AND ${gstRegistrations.companyId} = ${company_id}
                  AND ${gstRegistrations.isActive} = 1 LIMIT 1`
-        : sql`SELECT * FROM ${gstRegistrations} WHERE ${gstRegistrations.gstId} = ${id} LIMIT 1`
+        : sql`SELECT * FROM ${gstRegistrations} WHERE ${gstRegistrations.gstId} = ${id} LIMIT 1`,
     );
     return rows[0] || null;
   };
 
-  reg = await tryReg(pinnedRegId, false);           // (a) frozen snapshot — honored as-is
+  reg = await tryReg(pinnedRegId, false); // (a) frozen snapshot — honored as-is
   if (!reg) reg = await tryReg(gst_registration_id, true); // (b) explicit choice on this save
   if (!reg) {
     const companyRows = await db.all(
       sql`SELECT current_default_gst_registration_id AS def_id FROM ${companies}
-          WHERE ${companies.companyId} = ${company_id} LIMIT 1`
+          WHERE ${companies.companyId} = ${company_id} LIMIT 1`,
     );
     reg = await tryReg(companyRows[0] && companyRows[0].def_id, true); // (c) company default
   }
   if (!reg) {
     const rows = await db.all(
       sql`SELECT * FROM ${gstRegistrations}
-          WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1 LIMIT 1`
+          WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1 LIMIT 1`,
     );
-    reg = rows[0] || null;                            // (d) first active
+    reg = rows[0] || null; // (d) first active
   }
   return reg;
 };
@@ -328,7 +330,7 @@ const classifyTaxLedgers = async (db, company_id, entries = []) => {
         FROM ${ledgers} l
         JOIN ${ledgerStatutoryDetails} sd ON sd.ledger_id = l.ledger_id
         WHERE l.company_id = ${company_id} AND sd.type_of_duty_tax = 'GST'
-          AND l.ledger_id IN (${sql.join(ids, sql`, `)})`
+          AND l.ledger_id IN (${sql.join(ids, sql`, `)})`,
   );
   for (const r of rows) {
     // Prefer the configured gst_tax_type; fall back to inferring from the ledger name so a
@@ -371,7 +373,10 @@ const validateAndComputeVoucherGst = async (db, payload) => {
   if (!company_id) throw new Error('company_id is required for GST validation');
 
   // 1. Company registration + state.
-  const companyReg = await resolveCompanyRegistration(db, company_id, { gst_snapshot, gst_registration_id });
+  const companyReg = await resolveCompanyRegistration(db, company_id, {
+    gst_snapshot,
+    gst_registration_id,
+  });
   const gstRegistrationId = companyReg ? companyReg.gst_id : null;
   const companyRegistrationType = companyReg ? companyReg.registration_type : null;
   const companyState = companyReg ? companyReg.state_id : '';
@@ -384,7 +389,7 @@ const validateAndComputeVoucherGst = async (db, payload) => {
   if (party_ledger_id) {
     const partyRows = await db.all(
       sql`SELECT state, gstin FROM ${ledgers}
-          WHERE ${ledgers.ledgerId} = ${party_ledger_id} AND ${ledgers.companyId} = ${company_id} LIMIT 1`
+          WHERE ${ledgers.ledgerId} = ${party_ledger_id} AND ${ledgers.companyId} = ${company_id} LIMIT 1`,
     );
     if (partyRows[0]) {
       partyState = partyRows[0].state || '';
@@ -393,15 +398,17 @@ const validateAndComputeVoucherGst = async (db, payload) => {
   }
   const destinationState = place_of_supply || partyState || companyState || '';
   const destinationStateCode = resolveStateCode(destinationState, partyGSTIN);
-  const isInterState = (gst_snapshot && gst_snapshot.is_interstate != null)
-    ? Boolean(gst_snapshot.is_interstate)
-    : (companyStateCode !== destinationStateCode);
+  const isInterState =
+    gst_snapshot && gst_snapshot.is_interstate != null
+      ? Boolean(gst_snapshot.is_interstate)
+      : companyStateCode !== destinationStateCode;
 
   // 3. Per-item assessable value + rate + taxability.
   const items = [];
   const processedStockEntries = [];
   for (const entry of stock_entries) {
-    const assessable_value = (entry.quantity || 0) * (entry.rate || 0) - (entry.discount_amount || 0);
+    const assessable_value =
+      (entry.quantity || 0) * (entry.rate || 0) - (entry.discount_amount || 0);
     const rateDetails = await resolveTaxRate(db, {
       company_id,
       stock_item_id: entry.stock_item_id,
@@ -415,19 +422,31 @@ const validateAndComputeVoucherGst = async (db, payload) => {
       cess_rate: rateDetails.cess_rate,
       taxability: rateDetails.taxability,
     });
-    processedStockEntries.push({ ...entry, hsn_code: rateDetails.hsn_code, gst_rate: rateDetails.gst_rate, assessable_value });
+    processedStockEntries.push({
+      ...entry,
+      hsn_code: rateDetails.hsn_code,
+      gst_rate: rateDetails.gst_rate,
+      assessable_value,
+    });
   }
 
   // 4. Classify the user's manually-selected tax ledgers.
   const taxMap = await classifyTaxLedgers(db, company_id, entries);
   const taxLines = entries
     .filter((e) => taxMap.has(Number(e.ledger_id)))
-    .map((e) => ({ tax_type: taxMap.get(Number(e.ledger_id)).taxType, rate: taxMap.get(Number(e.ledger_id)).rate }));
+    .map((e) => ({
+      tax_type: taxMap.get(Number(e.ledger_id)).taxType,
+      rate: taxMap.get(Number(e.ledger_id)).rate,
+    }));
 
   // 5. Validate at save (bugs 3/4/8). Return early on the first blocking error.
   const errors = [];
   errors.push(...gstValidation.validateExemptItems({ items, taxLines }).errors);
-  const combo = gstValidation.validateGstLedgers({ isInterstate: isInterState, registrationType: companyRegistrationType, taxLines });
+  const combo = gstValidation.validateGstLedgers({
+    isInterstate: isInterState,
+    registrationType: companyRegistrationType,
+    taxLines,
+  });
   errors.push(...combo.errors);
   if (errors.length > 0) {
     return { errors, warnings: combo.warnings, entries, stock_entries: processedStockEntries };
@@ -443,7 +462,9 @@ const validateAndComputeVoucherGst = async (db, payload) => {
   };
   const manualTaxLines = [];
   let totalTaxableAssessable = 0;
-  items.forEach((it) => { if (gstValidation.isItemTaxable(it)) totalTaxableAssessable += it.assessable_value; });
+  items.forEach((it) => {
+    if (gstValidation.isItemTaxable(it)) totalTaxableAssessable += it.assessable_value;
+  });
 
   const finalEntries = entries.map((e) => {
     const cls = taxMap.get(Number(e.ledger_id));
@@ -475,7 +496,12 @@ const validateAndComputeVoucherGst = async (db, payload) => {
   });
   if (partyIdx !== -1) {
     const bal = Number(Math.abs(totalDr - totalCr).toFixed(2));
-    finalEntries[partyIdx] = { ...finalEntries[partyIdx], amount: bal, amount_forex: bal, type: partyEntryType };
+    finalEntries[partyIdx] = {
+      ...finalEntries[partyIdx],
+      amount: bal,
+      amount_forex: bal,
+      type: partyEntryType,
+    };
   }
 
   return {
@@ -494,6 +520,25 @@ const validateAndComputeVoucherGst = async (db, payload) => {
 };
 
 /**
+ * Invariant guard — a single voucher's GST tax lines must be IGST-side XOR CGST/SGST-side,
+ * never both: a supply is either inter-state (IGST) or intra-state (CGST + SGST). This is
+ * the last line of defence behind gstValidation.validateGstLedgers — it makes the STORED
+ * data physically incapable of holding a mixed voucher, whatever code path calls the save.
+ * Throws on violation so the enclosing transaction rolls back.
+ */
+const assertGstSidesExclusive = (lines = [], voucher_id) => {
+  const typeOf = (l) => l.taxType || l.tax_type;
+  const nonZero = (l) => Number(l.amount) !== 0;
+  const hasIgst = lines.some((l) => typeOf(l) === 'IGST' && nonZero(l));
+  const hasIntra = lines.some((l) => (typeOf(l) === 'CGST' || typeOf(l) === 'SGST') && nonZero(l));
+  if (hasIgst && hasIntra) {
+    throw new Error(
+      `GST integrity violation on voucher ${voucher_id ?? '?'}: a voucher cannot carry both IGST and CGST/SGST — inter-state supplies use IGST, intra-state use CGST + SGST, never both.`,
+    );
+  }
+};
+
+/**
  * Persists gst_voucher_tax_lines for the MANUAL flow — one row per user-selected tax
  * ledger, from validateAndComputeVoucherGst().manualTaxLines. If the user added no tax
  * ledgers, nothing is written (bug 1).
@@ -501,6 +546,7 @@ const validateAndComputeVoucherGst = async (db, payload) => {
 const saveManualVoucherTaxLines = async (db, voucher_id, result) => {
   await db.delete(gstVoucherTaxLines).where(eq(gstVoucherTaxLines.voucherId, voucher_id));
   const { is_inter_state, party_gstin, party_state, manualTaxLines = [] } = result;
+  assertGstSidesExclusive(manualTaxLines, voucher_id);
   for (const line of manualTaxLines) {
     await db.insert(gstVoucherTaxLines).values({
       voucherId: voucher_id,
@@ -535,7 +581,7 @@ const computeVoucherTaxLines = async (db, payload) => {
   } = payload;
 
   if (!company_id) {
-    throw new Error("company_id is required for GST calculation");
+    throw new Error('company_id is required for GST calculation');
   }
 
   // When a Voucher Type Class with "Use Class for GST Details" = Yes is selected, its
@@ -545,7 +591,7 @@ const computeVoucherTaxLines = async (db, payload) => {
     const overrideId = voucher_class_gst_ledgers?.[`${tax_type.toLowerCase()}_ledger_id`];
     if (overrideId) {
       const rows = await db.all(
-        sql`SELECT ledger_id, name FROM ${ledgers} WHERE ${ledgers.ledgerId} = ${overrideId} LIMIT 1`
+        sql`SELECT ledger_id, name FROM ${ledgers} WHERE ${ledgers.ledgerId} = ${overrideId} LIMIT 1`,
       );
       if (rows.length > 0) return { id: rows[0].ledger_id, name: rows[0].name };
     }
@@ -560,14 +606,14 @@ const computeVoucherTaxLines = async (db, payload) => {
   const pinnedRegId = gst_snapshot && gst_snapshot.gst_registration_id;
   if (pinnedRegId) {
     const rows = await db.all(
-      sql`SELECT * FROM ${gstRegistrations} WHERE ${gstRegistrations.gstId} = ${pinnedRegId} LIMIT 1`
+      sql`SELECT * FROM ${gstRegistrations} WHERE ${gstRegistrations.gstId} = ${pinnedRegId} LIMIT 1`,
     );
     companyReg = rows[0] || null;
   }
   if (!companyReg) {
     const companyRows = await db.all(
       sql`SELECT current_default_gst_registration_id AS def_id FROM ${companies}
-          WHERE ${companies.companyId} = ${company_id} LIMIT 1`
+          WHERE ${companies.companyId} = ${company_id} LIMIT 1`,
     );
     const defaultRegId = companyRows[0] && companyRows[0].def_id;
     if (defaultRegId) {
@@ -575,7 +621,7 @@ const computeVoucherTaxLines = async (db, payload) => {
         sql`SELECT * FROM ${gstRegistrations}
             WHERE ${gstRegistrations.gstId} = ${defaultRegId}
               AND ${gstRegistrations.companyId} = ${company_id}
-              AND ${gstRegistrations.isActive} = 1 LIMIT 1`
+              AND ${gstRegistrations.isActive} = 1 LIMIT 1`,
       );
       companyReg = rows[0] || null;
     }
@@ -583,40 +629,41 @@ const computeVoucherTaxLines = async (db, payload) => {
   if (!companyReg) {
     const rows = await db.all(
       sql`SELECT * FROM ${gstRegistrations}
-          WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1 LIMIT 1`
+          WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1 LIMIT 1`,
     );
     companyReg = rows[0] || null;
   }
   const gstRegistrationId = companyReg ? companyReg.gst_id : null;
   const companyRegistrationType = companyReg ? companyReg.registration_type : null;
-  const companyState = companyReg ? companyReg.state_id : "";
-  const companyGSTIN = companyReg ? companyReg.gstin : "";
+  const companyState = companyReg ? companyReg.state_id : '';
+  const companyGSTIN = companyReg ? companyReg.gstin : '';
   const companyStateCode = resolveStateCode(companyState, companyGSTIN);
 
   // 2. Resolve Party State
-  let partyState = "";
-  let partyGSTIN = "";
+  let partyState = '';
+  let partyGSTIN = '';
   if (party_ledger_id) {
     const partyRows = await db.all(
       sql`SELECT * FROM ${ledgers}
-          WHERE ${ledgers.ledgerId} = ${party_ledger_id} AND ${ledgers.companyId} = ${company_id}`
+          WHERE ${ledgers.ledgerId} = ${party_ledger_id} AND ${ledgers.companyId} = ${company_id}`,
     );
     const party = partyRows[0];
     if (party) {
-      partyState = party.state || "";
-      partyGSTIN = party.gstin || "";
+      partyState = party.state || '';
+      partyGSTIN = party.gstin || '';
     }
   }
 
   // Destination State: place_of_supply overrides party state
-  const destinationState = place_of_supply || partyState || companyState || "";
+  const destinationState = place_of_supply || partyState || companyState || '';
   const destinationStateCode = resolveStateCode(destinationState, partyGSTIN);
 
   // FREEZE: on the edit path, honor the snapshotted interstate flag verbatim so it is
   // "computed once, never recomputed" (spec STEP 5/7). Fresh saves derive it live.
-  const isInterState = (gst_snapshot && gst_snapshot.is_interstate != null)
-    ? Boolean(gst_snapshot.is_interstate)
-    : (companyStateCode !== destinationStateCode);
+  const isInterState =
+    gst_snapshot && gst_snapshot.is_interstate != null
+      ? Boolean(gst_snapshot.is_interstate)
+      : companyStateCode !== destinationStateCode;
 
   let totalCGST = 0;
   let totalSGST = 0;
@@ -629,7 +676,8 @@ const computeVoucherTaxLines = async (db, payload) => {
 
   // 3. Compute tax for each stock entry
   for (const entry of stock_entries) {
-    const assessable_value = (entry.quantity || 0) * (entry.rate || 0) - (entry.discount_amount || 0);
+    const assessable_value =
+      (entry.quantity || 0) * (entry.rate || 0) - (entry.discount_amount || 0);
     totalAssessableValue += assessable_value;
 
     const rateDetails = await resolveTaxRate(db, {
@@ -637,7 +685,7 @@ const computeVoucherTaxLines = async (db, payload) => {
       stock_item_id: entry.stock_item_id,
       ledger_id: entry.ledger_id,
       hsn_code: entry.hsn_code,
-      date
+      date,
     });
 
     let cgst_amount = 0;
@@ -651,8 +699,8 @@ const computeVoucherTaxLines = async (db, payload) => {
         igst_amount = Number((assessable_value * (gst_rate / 100)).toFixed(2));
         totalIGST += igst_amount;
       } else {
-        cgst_amount = Number((assessable_value * ((gst_rate / 2) / 100)).toFixed(2));
-        sgst_amount = Number((assessable_value * ((gst_rate / 2) / 100)).toFixed(2));
+        cgst_amount = Number((assessable_value * (gst_rate / 2 / 100)).toFixed(2));
+        sgst_amount = Number((assessable_value * (gst_rate / 2 / 100)).toFixed(2));
         totalCGST += cgst_amount;
         totalSGST += sgst_amount;
       }
@@ -671,7 +719,7 @@ const computeVoucherTaxLines = async (db, payload) => {
       sgst_amount,
       igst_amount,
       cess_amount,
-      assessable_value
+      assessable_value,
     });
 
     if (gst_rate > 0 || rateDetails.cess_rate > 0) {
@@ -682,7 +730,7 @@ const computeVoucherTaxLines = async (db, payload) => {
         cgst_amount,
         sgst_amount,
         igst_amount,
-        cess_amount
+        cess_amount,
       });
     }
   }
@@ -697,58 +745,58 @@ const computeVoucherTaxLines = async (db, payload) => {
   // re-saving/altering a voucher doesn't duplicate or orphan tax entries. Uses the same
   // override-aware resolution so a class-mapped ledger from a prior save is stripped too.
   const existingTaxLedgers = await Promise.all(
-    ["CGST", "SGST", "IGST", "CESS"].map(t => resolveOrOverride(t, { createIfMissing: false }))
+    ['CGST', 'SGST', 'IGST', 'CESS'].map((t) => resolveOrOverride(t, { createIfMissing: false })),
   );
-  const existingTaxLedgerIds = existingTaxLedgers.filter(Boolean).map(l => Number(l.id));
-  const finalEntries = entries.filter(e => !existingTaxLedgerIds.includes(Number(e.ledger_id)));
+  const existingTaxLedgerIds = existingTaxLedgers.filter(Boolean).map((l) => Number(l.id));
+  const finalEntries = entries.filter((e) => !existingTaxLedgerIds.includes(Number(e.ledger_id)));
 
   // Inject CGST, SGST, IGST lines
   if (!isInterState) {
     if (totalCGST > 0) {
-      const cgstLedger = await resolveOrOverride("CGST");
+      const cgstLedger = await resolveOrOverride('CGST');
       finalEntries.push({
         ledger_id: cgstLedger.id,
         ledger_name: cgstLedger.name,
         type: taxEntryType,
         amount: totalCGST,
         amount_forex: totalCGST,
-        currency: "INR"
+        currency: 'INR',
       });
     }
     if (totalSGST > 0) {
-      const sgstLedger = await resolveOrOverride("SGST");
+      const sgstLedger = await resolveOrOverride('SGST');
       finalEntries.push({
         ledger_id: sgstLedger.id,
         ledger_name: sgstLedger.name,
         type: taxEntryType,
         amount: totalSGST,
         amount_forex: totalSGST,
-        currency: "INR"
+        currency: 'INR',
       });
     }
   } else {
     if (totalIGST > 0) {
-      const igstLedger = await resolveOrOverride("IGST");
+      const igstLedger = await resolveOrOverride('IGST');
       finalEntries.push({
         ledger_id: igstLedger.id,
         ledger_name: igstLedger.name,
         type: taxEntryType,
         amount: totalIGST,
         amount_forex: totalIGST,
-        currency: "INR"
+        currency: 'INR',
       });
     }
   }
 
   if (totalCess > 0) {
-    const cessLedger = await resolveOrOverride("CESS");
+    const cessLedger = await resolveOrOverride('CESS');
     finalEntries.push({
       ledger_id: cessLedger.id,
       ledger_name: cessLedger.name,
       type: taxEntryType,
       amount: totalCess,
       amount_forex: totalCess,
-      currency: "INR"
+      currency: 'INR',
     });
   }
 
@@ -778,11 +826,11 @@ const computeVoucherTaxLines = async (db, payload) => {
     // Add the party entry if missing
     finalEntries.unshift({
       ledger_id: party_ledger_id,
-      ledger_name: "Party A/c",
+      ledger_name: 'Party A/c',
       type: partyEntryType,
       amount: Number(balanceDiff.toFixed(2)),
       amount_forex: Number(balanceDiff.toFixed(2)),
-      currency: "INR"
+      currency: 'INR',
     });
   }
 
@@ -800,7 +848,7 @@ const computeVoucherTaxLines = async (db, payload) => {
     total_cess: totalCess,
     stock_entries: processedStockEntries,
     entries: finalEntries,
-    taxLinesBreakdown
+    taxLinesBreakdown,
   };
 };
 
@@ -813,16 +861,27 @@ const saveVoucherTaxLines = async (db, voucher_id, computedTax) => {
 
   const { is_inter_state, party_gstin, party_state, stock_entries = [] } = computedTax;
 
+  // Same IGST-⊕-CGST/SGST guarantee for the auto flow (structurally single-side, but
+  // asserted so no future change to computeVoucherTaxLines can silently store a mix).
+  assertGstSidesExclusive(
+    stock_entries.flatMap((e) => [
+      { tax_type: 'IGST', amount: e.igst_amount || 0 },
+      { tax_type: 'CGST', amount: e.cgst_amount || 0 },
+      { tax_type: 'SGST', amount: e.sgst_amount || 0 },
+    ]),
+    voucher_id,
+  );
+
   for (const entry of stock_entries) {
     // Save line for CGST/SGST or IGST if tax is applicable
     if (entry.gst_rate > 0) {
       if (is_inter_state) {
         await db.insert(gstVoucherTaxLines).values({
           voucherId: voucher_id,
-          hsnCode: entry.hsn_code || "",
-          description: entry.item_name || "",
+          hsnCode: entry.hsn_code || '',
+          description: entry.item_name || '',
           quantity: entry.quantity || 0,
-          unit: "",
+          unit: '',
           assessableValue: entry.assessable_value || 0,
           taxType: 'IGST',
           rate: entry.gst_rate,
@@ -835,10 +894,10 @@ const saveVoucherTaxLines = async (db, voucher_id, computedTax) => {
         // CGST
         await db.insert(gstVoucherTaxLines).values({
           voucherId: voucher_id,
-          hsnCode: entry.hsn_code || "",
-          description: entry.item_name || "",
+          hsnCode: entry.hsn_code || '',
+          description: entry.item_name || '',
           quantity: entry.quantity || 0,
-          unit: "",
+          unit: '',
           assessableValue: entry.assessable_value || 0,
           taxType: 'CGST',
           rate: entry.gst_rate / 2,
@@ -850,10 +909,10 @@ const saveVoucherTaxLines = async (db, voucher_id, computedTax) => {
         // SGST
         await db.insert(gstVoucherTaxLines).values({
           voucherId: voucher_id,
-          hsnCode: entry.hsn_code || "",
-          description: entry.item_name || "",
+          hsnCode: entry.hsn_code || '',
+          description: entry.item_name || '',
           quantity: entry.quantity || 0,
-          unit: "",
+          unit: '',
           assessableValue: entry.assessable_value || 0,
           taxType: 'SGST',
           rate: entry.gst_rate / 2,
@@ -868,10 +927,10 @@ const saveVoucherTaxLines = async (db, voucher_id, computedTax) => {
     if (entry.cess_amount > 0) {
       await db.insert(gstVoucherTaxLines).values({
         voucherId: voucher_id,
-        hsnCode: entry.hsn_code || "",
-        description: entry.item_name || "",
+        hsnCode: entry.hsn_code || '',
+        description: entry.item_name || '',
         quantity: entry.quantity || 0,
-        unit: "",
+        unit: '',
         assessableValue: entry.assessable_value || 0,
         taxType: 'CESS',
         rate: 0,
@@ -895,5 +954,6 @@ module.exports = {
   validateAndComputeVoucherGst,
   saveManualVoucherTaxLines,
   computeVoucherTaxLines,
-  saveVoucherTaxLines
+  saveVoucherTaxLines,
+  assertGstSidesExclusive,
 };
