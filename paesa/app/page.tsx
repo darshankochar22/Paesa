@@ -15,10 +15,6 @@ export default function HomePage() {
       {/* ── Hero ── */}
       <section className="bg-white pt-20 pb-0 text-center">
         <div className="max-w-4xl mx-auto px-6">
-          <div className="inline-flex items-center gap-2 border border-zinc-200 rounded-full px-4 py-1.5 mb-10 text-sm text-zinc-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Now in open beta · Free 30-day trial
-          </div>
 
           <h1 className="text-[clamp(2.8rem,7vw,5.5rem)] font-bold tracking-tight text-zinc-950 leading-[1.05] mb-0">
             The finances platform
