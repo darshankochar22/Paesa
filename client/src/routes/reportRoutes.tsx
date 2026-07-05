@@ -7,6 +7,7 @@ import StatutoryReports from '../pages/menu/reports/StatutoryReports.tsx';
 import GSTReports from '../pages/menu/reports/GSTReports.tsx';
 import TDSReportsStatutory from '../pages/menu/reports/TDSReportsStatutory.tsx';
 import TDSChallanReconciliation from '../pages/master/statutory/tds-return/TDSChallanReconciliation.tsx';
+import Form26Q from '../pages/master/statutory/tds-return/Form26Q.tsx';
 import AccountBooks from '../pages/menu/reports/AccountBooks.tsx';
 import StatementsOfAccounts from '../pages/menu/reports/StatementsOfAccounts.tsx';
 import InventoryBooks from '../pages/menu/reports/InventoryBooks.tsx';
@@ -117,6 +118,7 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/statutory/gst', element: <GSTReports /> },
   { path: '/reports/statutory/tds', element: <TDSReportsStatutory /> },
   { path: '/reports/statutory/tds/challan-reconciliation', element: <TDSChallanReconciliation /> },
+  { path: '/reports/statutory/tds/form-26q', element: <Form26Q /> },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
   { path: '/reports/inventory-books', element: <InventoryBooks /> },

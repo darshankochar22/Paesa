@@ -47,6 +47,9 @@ function register() {
   ipcMain.handle('tds:getChallanReconciliation', (event, { company_id, fy_id }) =>
     tdsReportService.getChallanReconciliation(company_id, fy_id),
   );
+  ipcMain.handle('tds:getForm26Q', (event, { company_id, fy_id }) =>
+    tdsReportService.getForm26Q(company_id, fy_id),
+  );
   ipcMain.handle('gst:getReturnActivities', gstController.getReturnActivities);
   ipcMain.handle('gst:getReturnStatistics', gstController.getReturnStatistics);
   ipcMain.handle('gst:getReturnVouchers', gstController.getReturnVouchers);

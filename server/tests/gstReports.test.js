@@ -1160,4 +1160,56 @@ describe('GST Reports engine', () => {
     expect(ch.quarter_from).toBe('2026-07-01');
     expect(ch.quarter_to).toBe('2026-09-30');
   });
+
+  it('Form 26Q classifies TDS-relevant vouchers and sums the TDS challan payment', async () => {
+    // A TDS-deductable expense ledger + a Journal booking it against a PAN-less vendor.
+    const feeLedger = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'Professional Fees' }),
+    );
+    await db.execute(`UPDATE ledgers SET is_tds_deductable = 1 WHERE ledger_id = ?`, [feeLedger]);
+    const vendor = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'F26Q Vendor' }),
+    );
+
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Journal',
+      date: '2026-05-10',
+      status: 'Regular',
+      party_ledger_id: vendor,
+      party_name: 'F26Q Vendor',
+      is_accounting_voucher: 1,
+      is_invoice: 0,
+      is_inventory_voucher: 0,
+      is_order_voucher: 0,
+      is_post_dated: 0,
+      entries: [
+        {
+          ledger_id: feeLedger,
+          ledger_name: 'Professional Fees',
+          type: 'Dr',
+          amount: 10000,
+          currency: 'INR',
+        },
+        {
+          ledger_id: vendor,
+          ledger_name: 'F26Q Vendor',
+          type: 'Cr',
+          amount: 10000,
+          currency: 'INR',
+        },
+      ],
+    });
+
+    const res = await tdsReportService.getForm26Q(companyId, fyId);
+    expect(res.success).toBe(true);
+    const vs = res.payload.voucher_status;
+    expect(vs.total).toBeGreaterThan(0);
+    // The TDS-deductable voucher is relevant; no valid TAN / no deductee PAN → Uncertain.
+    expect(vs.uncertain).toBeGreaterThanOrEqual(1);
+    expect(res.payload.deduction_details).toHaveLength(6);
+    // Payment side picks up the TDS challan from the previous test (TDS Payable, 300).
+    expect(res.payload.payment.paid_amount).toBe(300);
+  });
 });
