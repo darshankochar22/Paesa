@@ -60,6 +60,15 @@ function register() {
   ipcMain.handle('tcs:getChallanReconciliation', (event, { company_id, fy_id }) =>
     tcsReportService.getChallanReconciliation(company_id, fy_id),
   );
+  ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
+    tdsReportService.getReturnTransactionBook(company_id, fy_id),
+  );
+  ipcMain.handle('tds:getOutstandings', (event, { company_id, fy_id, by }) =>
+    tdsReportService.getTdsOutstandings(company_id, fy_id, { by }),
+  );
+  ipcMain.handle('tds:getLedgersWithoutPan', (event, { company_id }) =>
+    tdsReportService.getLedgersWithoutPan(company_id),
+  );
   ipcMain.handle('gst:getReturnActivities', gstController.getReturnActivities);
   ipcMain.handle('gst:getReturnStatistics', gstController.getReturnStatistics);
   ipcMain.handle('gst:getReturnVouchers', gstController.getReturnVouchers);

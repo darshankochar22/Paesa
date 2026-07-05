@@ -491,4 +491,136 @@ const getForm27QDrill = async (company_id, fy_id, params = {}) => {
   }
 };
 
-module.exports = { getChallanReconciliation, getForm26Q, getForm27Q, getForm27QDrill };
+// ---------------------------------------------------------------------------
+// #202 — Return Transaction Book, TDS Outstandings, Ledgers Without PAN
+// ---------------------------------------------------------------------------
+
+// TDS Return Transaction Book — the register of SAVED returns (Tally's "Save Return" /
+// "Save as Revised" on Form 26Q/27Q). No return-saving engine exists yet, so the book is
+// honestly empty with the correct column contract (Date / From / To / Tax Type /
+// Is Modified / Form Type) — rows appear once saving returns is implemented.
+const getReturnTransactionBook = async (company_id, fy_id) => {
+  try {
+    const fyRows = await db.all(
+      sql`SELECT start_date, end_date FROM financial_years WHERE fy_id = ${fy_id}`,
+    );
+    const fy = fyRows[0] || {};
+    return {
+      success: true,
+      payload: {
+        period_label: `${fy.start_date || ''} to ${fy.end_date || ''}`,
+        returns: [],
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// TDS Outstandings — TDS deducted (Cr on a type_of_duty_tax='TDS' ledger) but not yet
+// paid to the government (Dr on the same ledger), grouped by Nature of Payment or by
+// Party. The Company / Non Company split follows the voucher party's deductee type
+// ("…Company…" → Company bucket; anything else, or no party → Non Company).
+const getTdsOutstandings = async (company_id, fy_id, { by = 'nature' } = {}) => {
+  try {
+    const fyRows = await db.all(
+      sql`SELECT start_date, end_date FROM financial_years WHERE fy_id = ${fy_id}`,
+    );
+    const fy = fyRows[0] || {};
+
+    const rows = await db.all(
+      sql`SELECT ve.type, ve.amount,
+                 dl.nature_of_payment, dl.name AS duty_ledger_name,
+                 v.party_name, p.name AS party_ledger_name, p.deductee_type
+          FROM voucher_entries ve
+          JOIN ledger_statutory_details sd ON sd.ledger_id = ve.ledger_id
+            AND sd.type_of_duty_tax = 'TDS'
+          JOIN ledgers dl ON dl.ledger_id = ve.ledger_id
+          JOIN vouchers v ON v.voucher_id = ve.voucher_id
+          LEFT JOIN ledgers p ON p.ledger_id = v.party_ledger_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0`,
+    );
+
+    const buckets = new Map();
+    for (const r of rows) {
+      const key =
+        by === 'party'
+          ? r.party_ledger_name || r.party_name || '(No Party)'
+          : r.nature_of_payment || r.duty_ledger_name || 'Any';
+      if (!buckets.has(key)) buckets.set(key, { label: key, company: 0, non_company: 0 });
+      const b = buckets.get(key);
+      // Cr = deducted (adds to pending); Dr = paid to govt (reduces pending).
+      const signed = (r.type === 'Cr' ? 1 : -1) * (Number(r.amount) || 0);
+      const isCompany = /company/i.test(String(r.deductee_type || ''));
+      if (isCompany) b.company += signed;
+      else b.non_company += signed;
+    }
+
+    const out = [...buckets.values()]
+      .map((b) => ({
+        label: b.label,
+        company: b.company,
+        non_company: b.non_company,
+        total_pending: b.company + b.non_company,
+      }))
+      .filter((b) => b.total_pending !== 0)
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return {
+      success: true,
+      payload: {
+        period_label: `${fy.start_date || ''} to ${fy.end_date || ''}`,
+        by,
+        rows: out,
+        grand_total: out.reduce((s, r) => s + r.total_pending, 0),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Ledgers Without PAN — deductee ledgers (deductee type set, or hit as a TDS deductable
+// party) whose PAN is missing. Contact columns come from the ledger's mailing details.
+const getLedgersWithoutPan = async (company_id) => {
+  try {
+    const rows = await db.all(
+      sql`SELECT ledger_id, name, deductee_type, mailing_name, phone, pan, tds_pan_it_no
+          FROM ledgers
+          WHERE company_id = ${company_id}
+            AND (
+              (deductee_type IS NOT NULL AND TRIM(deductee_type) != ''
+               AND LOWER(TRIM(deductee_type)) != 'unknown')
+              OR is_tds_deductable = 1
+            )
+            AND (pan IS NULL OR TRIM(pan) = '')
+            AND (tds_pan_it_no IS NULL OR TRIM(tds_pan_it_no) = '')
+          ORDER BY name`,
+    );
+    return {
+      success: true,
+      payload: {
+        ledgers: rows.map((r) => ({
+          ledger_id: r.ledger_id,
+          name: r.name,
+          deductee_type: String(r.deductee_type || '').trim() || 'Unknown',
+          contact_person: r.mailing_name || '',
+          contact_no: r.phone || '',
+          pan: '',
+        })),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+module.exports = {
+  getChallanReconciliation,
+  getForm26Q,
+  getForm27Q,
+  getForm27QDrill,
+  getReturnTransactionBook,
+  getTdsOutstandings,
+  getLedgersWithoutPan,
+};

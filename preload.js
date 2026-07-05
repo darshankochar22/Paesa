@@ -537,6 +537,9 @@ contextBridge.exposeInMainWorld('api', {
     getForm26Q: (data) => invoke('tds:getForm26Q', data),
     getForm27Q: (data) => invoke('tds:getForm27Q', data),
     getForm27QDrill: (data) => invoke('tds:getForm27QDrill', data),
+    getReturnTransactionBook: (data) => invoke('tds:getReturnTransactionBook', data),
+    getOutstandings: (data) => invoke('tds:getOutstandings', data),
+    getLedgersWithoutPan: (data) => invoke('tds:getLedgersWithoutPan', data),
   },
   tcs: {
     getChallanReconciliation: (data) => invoke('tcs:getChallanReconciliation', data),

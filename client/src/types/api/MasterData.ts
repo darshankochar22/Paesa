@@ -483,6 +483,18 @@ export interface MasterDataAPI {
       voucher_type?: string;
       exception?: string;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getReturnTransactionBook: (data: {
+      company_id: number;
+      fy_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getOutstandings: (data: {
+      company_id: number;
+      fy_id: number;
+      by?: 'nature' | 'party';
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getLedgersWithoutPan: (data: {
+      company_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
   };
   tcs: {
     getChallanReconciliation: (data: {

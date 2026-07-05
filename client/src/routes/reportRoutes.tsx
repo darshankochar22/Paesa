@@ -9,6 +9,11 @@ import TDSReportsStatutory from '../pages/menu/reports/TDSReportsStatutory.tsx';
 import TDSChallanReconciliation from '../pages/master/statutory/tds-return/TDSChallanReconciliation.tsx';
 import Form26Q from '../pages/master/statutory/tds-return/Form26Q.tsx';
 import TCSReportsStatutory from '../pages/menu/reports/TCSReportsStatutory.tsx';
+import {
+  TDSReturnTransactionBook,
+  TDSOutstandings,
+  LedgersWithoutPAN,
+} from '../pages/master/statutory/tds-return/TDSRegisters.tsx';
 import TCSChallanReconciliation from '../pages/master/statutory/tcs-return/TCSChallanReconciliation.tsx';
 import Form27Q from '../pages/master/statutory/tds-return/Form27Q.tsx';
 import {
@@ -138,6 +143,12 @@ export const reportRoutes: RouteConfig[] = [
     path: '/reports/statutory/tds/form-27q/uncertain/resolution',
     element: <Form27QUncertainResolution />,
   },
+  {
+    path: '/reports/statutory/tds/return-transaction-book',
+    element: <TDSReturnTransactionBook />,
+  },
+  { path: '/reports/statutory/tds/outstandings', element: <TDSOutstandings /> },
+  { path: '/reports/statutory/tds/ledgers-without-pan', element: <LedgersWithoutPAN /> },
   { path: '/reports/statutory/tcs', element: <TCSReportsStatutory /> },
   { path: '/reports/statutory/tcs/challan-reconciliation', element: <TCSChallanReconciliation /> },
   { path: '/reports/account-books', element: <AccountBooks /> },
