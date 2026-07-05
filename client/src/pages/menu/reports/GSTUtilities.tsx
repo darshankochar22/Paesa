@@ -9,7 +9,7 @@ export default function GSTUtilities() {
 
   const items: Array<{ label: string; route?: string }> = [
     { label: 'GST Rate Setup', route: '/master/statutory/gst/rate-setup' },
-    { label: 'Map UoM - UQC' },
+    { label: 'Map UoM - UQC', route: '/master/statutory/gst/map-uom-uqc' },
     { label: 'Validate Party GSTIN/UIN' },
     { label: 'Create Party Using GSTIN/UIN' },
     { label: 'GST Advances - Opening Balance' },

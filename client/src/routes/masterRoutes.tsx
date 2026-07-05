@@ -88,6 +88,7 @@ import GSTR1Reconciliation from '../pages/master/statutory/gst-return/GSTR1-Reco
 import UncertainBreakdown from '../pages/master/statutory/gst-return/UncertainBreakdown.tsx';
 import GSTUtilities from '../pages/menu/reports/GSTUtilities.tsx';
 import GSTRateSetup from '../pages/master/statutory/gst-return/GSTRateSetup.tsx';
+import MapUomUqc from '../pages/master/statutory/gst-return/MapUomUqc.tsx';
 import GSTR3BView from '../pages/master/statutory/gst-return/GSTR-3B.tsx';
 import AnnualComputation from '../pages/master/statutory/gst-return/AnnualComputation.tsx';
 import GSTR2AReconciliation from '../pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx';
@@ -292,6 +293,7 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/ims', element: <IMSInwardSupplies /> },
   { path: '/master/statutory/gst/utilities', element: <GSTUtilities /> },
   { path: '/master/statutory/gst/rate-setup', element: <GSTRateSetup /> },
+  { path: '/master/statutory/gst/map-uom-uqc', element: <MapUomUqc /> },
 
   // Statutory — Excise Duty Classification
   {
