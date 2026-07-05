@@ -2,6 +2,7 @@ const { ipcMain } = require('electron');
 
 const gstController = require('../gst/gstController');
 const tdsReportService = require('../tds/tdsReportService');
+const tcsReportService = require('../tcs/tcsReportService');
 const gstRegistrationController = require('../gstRegistration/gstRegistrationController');
 const gstClassificationController = require('../gstClassification/gstClassificationController');
 const tcsNatureOfGoodsController = require('../tcsNatureOfGoods/tcsNatureOfGoodsController');
@@ -55,6 +56,9 @@ function register() {
   );
   ipcMain.handle('tds:getForm27QDrill', (event, { company_id, fy_id, ...params }) =>
     tdsReportService.getForm27QDrill(company_id, fy_id, params),
+  );
+  ipcMain.handle('tcs:getChallanReconciliation', (event, { company_id, fy_id }) =>
+    tcsReportService.getChallanReconciliation(company_id, fy_id),
   );
   ipcMain.handle('gst:getReturnActivities', gstController.getReturnActivities);
   ipcMain.handle('gst:getReturnStatistics', gstController.getReturnStatistics);

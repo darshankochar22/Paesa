@@ -28,6 +28,9 @@ export default function StatutoryReports() {
     if (item === 'TDS Reports') {
       return '/reports/statutory/tds';
     }
+    if (item === 'TCS Reports') {
+      return '/reports/statutory/tcs';
+    }
     return null;
   };
 

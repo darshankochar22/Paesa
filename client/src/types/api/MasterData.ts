@@ -15,9 +15,7 @@ import type { TDSNatureOfPaymentType } from '../entities/TDSNatureOfPayment';
 
 export interface MasterDataAPI {
   companyGstDetails: {
-    get: (
-      company_id: number,
-    ) => Promise<{
+    get: (company_id: number) => Promise<{
       success: boolean;
       exists: boolean;
       data: CompanyGSTDetails | null;
@@ -29,9 +27,7 @@ export interface MasterDataAPI {
   };
 
   payrollStatutoryDetails: {
-    get: (
-      company_id: number,
-    ) => Promise<{
+    get: (company_id: number) => Promise<{
       success: boolean;
       exists: boolean;
       data: PayrollStatutoryDetails | null;
@@ -43,9 +39,7 @@ export interface MasterDataAPI {
   };
 
   serviceTaxDetails: {
-    get: (
-      company_id: number,
-    ) => Promise<{
+    get: (company_id: number) => Promise<{
       success: boolean;
       exists: boolean;
       data: ServiceTaxDetails | null;
@@ -57,9 +51,7 @@ export interface MasterDataAPI {
   };
 
   exciseRegistrationDetails: {
-    get: (
-      company_id: number,
-    ) => Promise<{
+    get: (company_id: number) => Promise<{
       success: boolean;
       exists: boolean;
       data: ExciseRegistrationDetails | null;
@@ -71,9 +63,7 @@ export interface MasterDataAPI {
   };
 
   vatRegistrationDetails: {
-    get: (
-      company_id: number,
-    ) => Promise<{
+    get: (company_id: number) => Promise<{
       success: boolean;
       exists: boolean;
       data: VATRegistrationDetails | null;
@@ -85,9 +75,7 @@ export interface MasterDataAPI {
   };
 
   companyTdsDetails: {
-    get: (
-      company_id: number,
-    ) => Promise<{
+    get: (company_id: number) => Promise<{
       success: boolean;
       exists: boolean;
       data: CompanyTDSDetails | null;
@@ -99,9 +87,7 @@ export interface MasterDataAPI {
   };
 
   companyTcsDetails: {
-    get: (
-      company_id: number,
-    ) => Promise<{
+    get: (company_id: number) => Promise<{
       success: boolean;
       exists: boolean;
       data: CompanyTCSDetails | null;
@@ -113,9 +99,7 @@ export interface MasterDataAPI {
   };
 
   companyPanCinDetails: {
-    get: (
-      company_id: number,
-    ) => Promise<{
+    get: (company_id: number) => Promise<{
       success: boolean;
       exists: boolean;
       data: CompanyPanCinDetails | null;
@@ -155,9 +139,7 @@ export interface MasterDataAPI {
       data: Partial<VoucherTypeType>,
     ) => Promise<{ success: boolean; voucherType: VoucherTypeType; error?: string }>;
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;
-    getConfig: (
-      id: number,
-    ) => Promise<{
+    getConfig: (id: number) => Promise<{
       success: boolean;
       config: {
         config_id: number;
@@ -209,9 +191,7 @@ export interface MasterDataAPI {
     create: (
       data: Partial<TCSNatureOfGoodsType>,
     ) => Promise<{ success: boolean; tcsNatureOfGoods: TCSNatureOfGoodsType; error?: string }>;
-    getAll: (
-      company_id: number,
-    ) => Promise<{
+    getAll: (company_id: number) => Promise<{
       success: boolean;
       tcsNatureOfGoodsList: TCSNatureOfGoodsType[];
       error?: string;
@@ -229,9 +209,7 @@ export interface MasterDataAPI {
     create: (
       data: Partial<TDSNatureOfPaymentType>,
     ) => Promise<{ success: boolean; tdsNatureOfPayment: TDSNatureOfPaymentType; error?: string }>;
-    getAll: (
-      company_id: number,
-    ) => Promise<{
+    getAll: (company_id: number) => Promise<{
       success: boolean;
       tdsNatureOfPaymentList: TDSNatureOfPaymentType[];
       error?: string;
@@ -337,10 +315,7 @@ export interface MasterDataAPI {
       company_id: number;
       fy_id: number;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
-    getReturnActivities: (data: {
-      company_id: number;
-      fy_id: number;
-    }) => Promise<{
+    getReturnActivities: (data: { company_id: number; fy_id: number }) => Promise<{
       success: boolean;
       activities?: {
         period_label: string;
@@ -507,6 +482,12 @@ export interface MasterDataAPI {
       bucket?: string;
       voucher_type?: string;
       exception?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+  };
+  tcs: {
+    getChallanReconciliation: (data: {
+      company_id: number;
+      fy_id: number;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
   };
   master: {
