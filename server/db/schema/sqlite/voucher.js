@@ -387,6 +387,39 @@ const voucherDebitNoteDetails = sqliteTable('voucher_debit_note_details', {
 });
 
 // ---------------------------------------------------------------------------
+// voucher_gst_eway_details
+// "Provide GST/e-Way Bill details" → Statutory Details popup shared by
+// Sales / Credit Note / Debit Note (Additional Details, e-Way Bill, Place of
+// Party, Transport Details, Part B).
+// ---------------------------------------------------------------------------
+const voucherGstEwayDetails = sqliteTable('voucher_gst_eway_details', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  // FK -> vouchers(voucher_id) ON DELETE CASCADE.
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
+  // Additional Details (Credit/Debit Note only).
+  reasonForIssuingNote: text('reason_for_issuing_note'),
+  buyersNoteNo: text('buyers_note_no'),
+  buyersNoteDate: text('buyers_note_date'),
+  // e-Way Bill Details.
+  ewayBillNo: text('eway_bill_no'),
+  ewayBillDate: text('eway_bill_date'),
+  // Place of Party.
+  dispatchFrom: text('dispatch_from'),
+  shipTo: text('ship_to'),
+  // Transport Details.
+  transporterName: text('transporter_name'),
+  transporterId: text('transporter_id'),
+  // Part B Details.
+  mode: text('mode'),
+  docLadingNo: text('doc_lading_no'),
+  docLadingDate: text('doc_lading_date'),
+  vehicleNumber: text('vehicle_number'),
+  vehicleType: text('vehicle_type'),
+});
+
+// ---------------------------------------------------------------------------
 // voucher_payroll_entries
 // ---------------------------------------------------------------------------
 const voucherPayrollEntries = sqliteTable('voucher_payroll_entries', {
@@ -420,5 +453,6 @@ module.exports = {
   voucherExciseDetails,
   voucherVatDetails,
   voucherOrderDetails,
+  voucherGstEwayDetails,
   voucherPayrollEntries,
 };
