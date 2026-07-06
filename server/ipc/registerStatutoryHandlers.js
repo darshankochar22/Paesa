@@ -85,6 +85,12 @@ function register() {
   ipcMain.handle('payrollStatutory:getPayHeadDetails', (event, { company_id, ...params }) =>
     payrollStatutoryReportService.getStatutoryPayHeadDetails(company_id, params),
   );
+  ipcMain.handle('payrollStatutory:getPFForm5', (event, { company_id, ...params }) =>
+    payrollStatutoryReportService.getPFForm5(company_id, params),
+  );
+  ipcMain.handle('payrollStatutory:getPFForm10', (event, { company_id, ...params }) =>
+    payrollStatutoryReportService.getPFForm10(company_id, params),
+  );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),
   );

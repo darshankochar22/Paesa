@@ -64,4 +64,35 @@ describe('Payroll Statutory reports (#206)', () => {
     expect(row).toBeTruthy();
     expect(row.payable).toBe(1800);
   });
+
+  it('PF Form 5 lists fund joiners in the period; Form 10 lists leavers (#207/#208)', async () => {
+    // A leaver — date_of_leaving inside the period.
+    await employeeService.create({
+      company_id: companyId,
+      name: 'Left Emp',
+      date_of_joining: '2025-01-01',
+      date_of_leaving: '2026-06-15',
+      father_name: 'Papa Left',
+      pf_account_number: 'PF/123',
+    });
+
+    const f5 = await statSvc.getPFForm5(companyId, { from: '2026-04-01', to: '2027-03-31' });
+    expect(f5.success).toBe(true);
+    // The joiner from beforeAll (Stat Emp, DOJ 2026-05-01) qualifies.
+    expect(f5.payload.employees.find((e) => e.name === 'Stat Emp')).toBeTruthy();
+    // Establishment header carries the company name.
+    expect(f5.payload.establishment.name).toBeTruthy();
+    // Out-of-period request excludes them.
+    const f5out = await statSvc.getPFForm5(companyId, { from: '2020-01-01', to: '2020-12-31' });
+    expect(f5out.payload.employees.length).toBe(0);
+
+    const f10 = await statSvc.getPFForm10(companyId, { from: '2026-04-01', to: '2027-03-31' });
+    expect(f10.success).toBe(true);
+    const leaver = f10.payload.employees.find((e) => e.name === 'Left Emp');
+    expect(leaver).toBeTruthy();
+    expect(leaver.account_no).toBe('PF/123');
+    expect(leaver.father_or_husband).toBe('Papa Left');
+    // Active joiner must NOT appear among leavers.
+    expect(f10.payload.employees.find((e) => e.name === 'Stat Emp')).toBeFalsy();
+  });
 });

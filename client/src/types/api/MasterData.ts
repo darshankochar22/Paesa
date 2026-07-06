@@ -539,6 +539,16 @@ export interface MasterDataAPI {
       component?: string;
       row_label?: string;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getPFForm5: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getPFForm10: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
   };
   master: {
     getMenu: (

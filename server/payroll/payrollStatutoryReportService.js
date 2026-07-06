@@ -126,4 +126,107 @@ const getStatutoryPayHeadDetails = async (company_id, { component, row_label } =
   }
 };
 
-module.exports = { getStatutorySummary, getStatutoryPayHeadDetails };
+// ---------------------------------------------------------------------------
+// PF Form 5 (#207) & Form 10 (#208) — the EPF monthly returns of employees
+// JOINING the fund / LEAVING service during a period. Statutory print documents;
+// header pulls the establishment name/address + PF code from company masters.
+// ---------------------------------------------------------------------------
+
+const loadEstablishment = async (company_id) => {
+  const compRows = await db.all(
+    sql`SELECT name, mailing_name, address1, address2 FROM companies
+        WHERE company_id = ${company_id} LIMIT 1`,
+  );
+  const comp = compRows[0] || {};
+  const statRows = await db.all(
+    sql`SELECT pf_company_code, pf_account_group_code FROM payroll_statutory_details
+        WHERE company_id = ${company_id} LIMIT 1`,
+  );
+  const stat = statRows[0] || {};
+  return {
+    name: comp.mailing_name || comp.name || '',
+    address: [comp.address1, comp.address2].filter(Boolean).join(', '),
+    pf_code: [stat.pf_company_code, stat.pf_account_group_code].filter(Boolean).join(' / '),
+  };
+};
+
+// Form 5 — employees whose PF date-of-joining (fallback: date of joining) falls in
+// the period. Previous-service/remarks stay blank (scheme-certificate data isn't kept).
+const getPFForm5 = async (company_id, { from, to } = {}) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const rows = await db.all(
+      sql`SELECT employee_id, name, father_name, spouse_name, date_of_birth, gender,
+                 pf_account_number, date_of_joining, date_of_joining_pf
+          FROM employees
+          WHERE company_id = ${company_id} AND is_active = 1
+          ORDER BY COALESCE(pf_account_number, ''), name`,
+    );
+    const inPeriod = rows.filter((e) => {
+      const d = e.date_of_joining_pf || e.date_of_joining || '';
+      if (!from || !to) return !!d;
+      return d >= from && d <= to;
+    });
+    return {
+      success: true,
+      payload: {
+        establishment,
+        employees: inPeriod.map((e) => ({
+          account_no: e.pf_account_number || '',
+          name: e.name,
+          father_or_husband: e.father_name || e.spouse_name || '',
+          date_of_birth: e.date_of_birth || '',
+          sex: e.gender || '',
+          date_of_joining_fund: e.date_of_joining_pf || e.date_of_joining || '',
+          previous_service: '',
+          remarks: '',
+        })),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Form 10 — members whose date of leaving falls in the period. Reason for leaving
+// isn't tracked on the employee master yet — stays blank on the form.
+const getPFForm10 = async (company_id, { from, to } = {}) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const rows = await db.all(
+      sql`SELECT employee_id, name, father_name, spouse_name, pf_account_number,
+                 date_of_leaving
+          FROM employees
+          WHERE company_id = ${company_id}
+            AND date_of_leaving IS NOT NULL AND TRIM(date_of_leaving) != ''
+          ORDER BY COALESCE(pf_account_number, ''), name`,
+    );
+    const inPeriod = rows.filter((e) => {
+      if (!from || !to) return true;
+      return e.date_of_leaving >= from && e.date_of_leaving <= to;
+    });
+    return {
+      success: true,
+      payload: {
+        establishment,
+        employees: inPeriod.map((e) => ({
+          account_no: e.pf_account_number || '',
+          name: e.name,
+          father_or_husband: e.father_name || e.spouse_name || '',
+          date_of_leaving: e.date_of_leaving || '',
+          reason: '',
+          remarks: '',
+        })),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+module.exports = {
+  getStatutorySummary,
+  getStatutoryPayHeadDetails,
+  getPFForm5,
+  getPFForm10,
+};
