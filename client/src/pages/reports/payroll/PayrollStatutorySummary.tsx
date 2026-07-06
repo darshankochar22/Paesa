@@ -66,7 +66,7 @@ export default function PayrollStatutorySummary() {
                 {sec.rows.map((r) => (
                   <div
                     key={r.label}
-                    className="flex px-4 py-0.5 font-semibold cursor-pointer hover:bg-[#ffcc00]"
+                    className="flex px-4 py-0.5 font-semibold cursor-pointer hover:bg-zinc-100"
                     onClick={() =>
                       navigate(
                         `/reports/statutory/payroll/pay-head-details?component=${sec.key}&row=${encodeURIComponent(r.label)}`,
@@ -149,7 +149,7 @@ export function PayrollStatutoryPayHeadDetails() {
               </div>
             )}
             {rows.map((r) => (
-              <div key={r.pay_head_id} className="flex px-2 py-0.5 hover:bg-[#e6f2ff]">
+              <div key={r.pay_head_id} className="flex px-2 py-0.5 hover:bg-zinc-50">
                 <div className="flex-1 font-semibold">{r.name}</div>
                 <div className="w-32 text-right tabular-nums">{fmt(r.gross)}</div>
                 <div className="w-32 text-right tabular-nums">{fmt(r.payable)}</div>
