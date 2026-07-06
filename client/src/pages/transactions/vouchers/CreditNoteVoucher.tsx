@@ -24,6 +24,8 @@ export default function CreditNoteVoucher({
   // Quantity column when the flag is explicitly No.
   const { features } = useCompany();
   const showBilled = features?.use_separate_actual_billed_qty !== 0;
+  // F11 "Use Discount column in invoices" — hide the Disc % column when No.
+  const showDisc = features?.use_discount_column_in_invoices !== 0;
   return (
     <>
       <div className="flex justify-between items-start border-b border-gray-300 shrink-0 py-1">
@@ -80,7 +82,9 @@ export default function CreditNoteVoucher({
           <div className="w-44 text-center text-sm font-semibold text-black">Quantity</div>
           <div className="w-20 text-right text-sm font-semibold text-black">Rate</div>
           <div className="w-12 text-center text-sm font-semibold text-black">per</div>
-          <div className="w-16 text-right text-sm font-semibold text-black">Disc %</div>
+          {showDisc && (
+            <div className="w-16 text-right text-sm font-semibold text-black">Disc %</div>
+          )}
           <div className="w-32 text-right text-sm font-semibold text-black">Amount</div>
         </div>
         <div className="flex px-3 py-0.5 border-t border-gray-200">
@@ -196,18 +200,20 @@ export default function CreditNoteVoucher({
 
               <div className="w-12 text-center text-xs text-gray-500">{row.unit?.symbol ?? ''}</div>
 
-              <div className="w-16 text-right pr-1">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={row.discPercentRaw ?? ''}
-                  placeholder=""
-                  onChange={(e) =>
-                    form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
-                  }
-                />
-              </div>
+              {showDisc && (
+                <div className="w-16 text-right pr-1">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                    value={row.discPercentRaw ?? ''}
+                    placeholder=""
+                    onChange={(e) =>
+                      form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
+                    }
+                  />
+                </div>
+              )}
 
               <div className="w-32 text-right text-sm font-semibold text-black select-none">
                 {row.amountRaw

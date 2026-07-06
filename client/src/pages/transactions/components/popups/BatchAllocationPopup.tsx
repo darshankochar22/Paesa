@@ -135,6 +135,8 @@ export default function BatchAllocationPopup({
   // column when the flag is explicitly No.
   const { features } = useCompany();
   const showBilled = features?.use_separate_actual_billed_qty !== 0;
+  // F11 "Use Discount column in invoices" — hide the Disc % column when No.
+  const showDisc = features?.use_discount_column_in_invoices !== 0;
 
   // Enter-to-advance: focus the given field on a row (actual → billed → rate →
   // disc → next row / accept). rAF waits for the row to (re)render.
@@ -624,7 +626,7 @@ export default function BatchAllocationPopup({
                 <div className={`${cell} ${W.qty} text-center`}>Quantity</div>
                 <div className={`${cell} ${W.rate} text-right`}>Rate</div>
                 <div className={`${cell} ${W.per} text-center`}>per</div>
-                <div className={`${cell} ${W.disc} text-right`}>Disc %</div>
+                {showDisc && <div className={`${cell} ${W.disc} text-right`}>Disc %</div>}
                 <div className={`${cell} ${W.amount} text-right`}>Amount</div>
                 <div className={`${cell} ${W.del}`} />
               </div>
@@ -647,7 +649,7 @@ export default function BatchAllocationPopup({
                 </div>
                 <div className={`${cell} ${W.rate}`} />
                 <div className={`${cell} ${W.per}`} />
-                <div className={`${cell} ${W.disc}`} />
+                {showDisc && <div className={`${cell} ${W.disc}`} />}
                 <div className={`${cell} ${W.amount}`} />
                 <div className={`${cell} ${W.del}`} />
               </div>
@@ -958,7 +960,10 @@ export default function BatchAllocationPopup({
                             onKeyDown={(e) => {
                               if (e.key !== 'Enter') return;
                               e.preventDefault();
-                              focusRowField(i, 'disc');
+                              // Disc hidden → Rate is the last field: accept / next row.
+                              if (showDisc) focusRowField(i, 'disc');
+                              else if (i === rows.length - 1) guardedAccept();
+                              else focusRowField(i + 1, 'actual');
                             }}
                             className={`${inputCls} text-right font-mono`}
                           />
@@ -972,25 +977,27 @@ export default function BatchAllocationPopup({
                         </div>
 
                         {/* Disc % */}
-                        <div className={`${cell} ${W.disc}`}>
-                          <input
-                            type="number"
-                            step="any"
-                            data-ba-row={i}
-                            data-ba-field="disc"
-                            value={row.disc_percent ?? ''}
-                            onChange={(e) => update(i, { disc_percent: numVal(e.target.value) })}
-                            onFocus={closePanel}
-                            onKeyDown={(e) => {
-                              if (e.key !== 'Enter') return;
-                              e.preventDefault();
-                              // Last row → accept (Enter-Enter through to save); else next row.
-                              if (i === rows.length - 1) guardedAccept();
-                              else focusRowField(i + 1, 'actual');
-                            }}
-                            className={`${inputCls} text-right font-mono`}
-                          />
-                        </div>
+                        {showDisc && (
+                          <div className={`${cell} ${W.disc}`}>
+                            <input
+                              type="number"
+                              step="any"
+                              data-ba-row={i}
+                              data-ba-field="disc"
+                              value={row.disc_percent ?? ''}
+                              onChange={(e) => update(i, { disc_percent: numVal(e.target.value) })}
+                              onFocus={closePanel}
+                              onKeyDown={(e) => {
+                                if (e.key !== 'Enter') return;
+                                e.preventDefault();
+                                // Last row → accept (Enter-Enter through to save); else next row.
+                                if (i === rows.length - 1) guardedAccept();
+                                else focusRowField(i + 1, 'actual');
+                              }}
+                              className={`${inputCls} text-right font-mono`}
+                            />
+                          </div>
+                        )}
 
                         {/* Amount */}
                         <div
@@ -1065,7 +1072,7 @@ export default function BatchAllocationPopup({
                 </div>
                 <div className={`${cell} ${W.rate}`} />
                 <div className={`${cell} ${W.per}`} />
-                <div className={`${cell} ${W.disc}`} />
+                {showDisc && <div className={`${cell} ${W.disc}`} />}
                 <div className={`${cell} ${W.amount} text-right`}>{num(totalAmount)}</div>
                 <div className={`${cell} ${W.del}`} />
               </div>
