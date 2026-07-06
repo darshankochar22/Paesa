@@ -483,7 +483,11 @@ const validateAndComputeVoucherGst = async (db, payload) => {
 
   // 7. Rebalance the party ledger so the voucher stays double-entry balanced after the
   //    tax amounts were (re)computed. No ledger is added/removed/substituted.
-  const isPurchase = voucher_type === 'Purchase' || voucher_type === 'Debit Note';
+  // Party side by voucher type: Purchase → Cr (supplier owed); everything else,
+  // including Debit Note (a purchase return DEBITS the supplier), keeps the party on
+  // Dr — matching the entries the client builds. Grouping Debit Note with Purchase
+  // here wrongly flipped the party to Cr, producing an all-Cr, unbalanced voucher.
+  const isPurchase = voucher_type === 'Purchase';
   const partyEntryType = isPurchase ? 'Cr' : 'Dr';
   let totalDr = 0;
   let totalCr = 0;

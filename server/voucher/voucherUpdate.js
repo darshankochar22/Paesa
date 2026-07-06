@@ -40,6 +40,7 @@ const {
   recalculateLedgerBalances,
   getOrCreatePayHeadLedger,
   validateDoubleEntry,
+  logVoucherPostings,
 } = require('./voucherLedgerHelpers');
 const {
   NON_ACCOUNTING_INVENTORY_TYPES,
@@ -223,8 +224,11 @@ module.exports = {
           data.manualGST = result;
         }
 
-        if (data.entries && data.entries.length > 0 && !validateDoubleEntry(data.entries)) {
-          return { success: false, error: 'Debit and Credit amounts must be equal' };
+        if (data.entries && data.entries.length > 0) {
+          logVoucherPostings(`${data.voucher_type} (alter)`, data.entries);
+          if (!validateDoubleEntry(data.entries)) {
+            return { success: false, error: 'Debit and Credit amounts must be equal' };
+          }
         }
       }
 

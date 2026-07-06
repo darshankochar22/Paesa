@@ -107,8 +107,13 @@ export function computePanelItems(form: any, effectiveVoucherType: string): any[
         form.checkLedgerGroup(l, ['sales accounts', 'purchase accounts']),
       );
     }
+    // Debit Note = purchase return → Ledger account is a Purchase Accounts ledger only.
+    if (effectiveVoucherType === 'Debit Note') {
+      return form.allLedgers.filter((l) =>
+        form.checkLedgerGroup(l, ['purchase accounts']),
+      );
+    }
     if (
-      effectiveVoucherType === 'Debit Note' ||
       effectiveVoucherType === 'Rejection In' ||
       effectiveVoucherType === 'Rejection Out'
     ) {

@@ -489,6 +489,73 @@ describe('GST tax engine — manual tax ledger model', () => {
     expect(entries.find((e) => Number(e.ledger_id) === Number(cgstId))?.amount).toBe(1200);
     expect(entries.find((e) => Number(e.ledger_id) === Number(sgstId))?.amount).toBe(1200);
   });
+
+  it('DEBIT NOTE: an items-only purchase return stays balanced (party keeps Dr, not flipped to Cr)', async () => {
+    // Debit Note = purchase return → Dr Party (supplier), Cr Purchase. The engine must
+    // NOT treat it as purchase-like and flip the party to Cr — that produced an all-Cr,
+    // unbalanced voucher and the "Debit and Credit amounts must be equal" error.
+    const res = await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Debit Note',
+      date: '2026-04-10',
+      status: 'Regular',
+      reference_number: `DN-${Date.now()}-${Math.random()}`,
+      party_ledger_id: partyId,
+      party_name: 'Manual Customer',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      place_of_supply: 'Maharashtra',
+      entries: [
+        {
+          ledger_id: partyId,
+          ledger_name: 'Manual Customer',
+          type: 'Dr',
+          amount: 10000,
+          currency: 'INR',
+        },
+        {
+          ledger_id: salesId,
+          ledger_name: 'Manual Sales A/c',
+          type: 'Cr',
+          amount: 10000,
+          currency: 'INR',
+        },
+      ],
+      stock_entries: [{ item_name: 'Widget', quantity: 10, rate: 1000, hsn_code: '8471' }],
+    });
+    expect(res.success).toBe(true);
+    const entries = await entriesOf(res.voucher.voucher_id);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(partyId))?.type).toBe('Dr');
+    // Double-entry holds: total Dr === total Cr.
+    const net = entries.reduce((s, e) => (e.type === 'Dr' ? s + e.amount : s - e.amount), 0);
+    expect(Math.abs(net)).toBeLessThan(0.01);
+  });
+
+  it('DEBIT NOTE: manually selected GST (Add Tax/Ledger Row) posts and stays balanced', async () => {
+    // Regression for enabling the Sales-style "+ Add Tax / Ledger Row" on Credit/Debit
+    // Note: the client now sends party (Dr), ledger (Cr) and GST ledgers (Cr) — the same
+    // sides as a Sales invoice — so GST must post and Dr must equal Cr.
+    const res = await createVoucher({
+      voucher_type: 'Debit Note',
+      reference_number: `DN-GST-${Date.now()}-${Math.random()}`,
+      entries: [
+        { ledger_id: partyId, ledger_name: 'Manual Customer', type: 'Dr', amount: 11800, currency: 'INR' },
+        { ledger_id: salesId, ledger_name: 'Manual Sales A/c', type: 'Cr', amount: 10000, currency: 'INR' },
+        { ledger_id: cgstId, ledger_name: 'Output CGST @9%', type: 'Cr', amount: 900, currency: 'INR' },
+        { ledger_id: sgstId, ledger_name: 'Output SGST @9%', type: 'Cr', amount: 900, currency: 'INR' },
+      ],
+      stock_entries: [{ item_name: 'Widget', quantity: 10, rate: 1000, hsn_code: '8471' }],
+    });
+    expect(res.success).toBe(true);
+    const entries = await entriesOf(res.voucher.voucher_id);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(cgstId))?.amount).toBe(900);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(sgstId))?.amount).toBe(900);
+    expect(entries.find((e) => Number(e.ledger_id) === Number(partyId))?.type).toBe('Dr');
+    const net = entries.reduce((s, e) => (e.type === 'Dr' ? s + e.amount : s - e.amount), 0);
+    expect(Math.abs(net)).toBeLessThan(0.01);
+  });
 });
 
 // Voucher Type Class ("Name of Class" → "Use Class for GST Details") — the OPT-IN

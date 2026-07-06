@@ -190,10 +190,18 @@ export function useVoucherRows({
       ].includes(voucherType)
     ) {
       const stockSum = inv.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+      // Purchase adds a tax/charge on Dr; every other invoice (Sales, Credit Note,
+      // Debit Note) posts GST on Cr — the side that keeps the party's Dr balanced.
+      const isPurchase = voucherType === 'Purchase';
       const adjSum = inv.additionalEntries.reduce((s, r) => {
         const amt = Number(r.amountRaw) || 0;
-        if (voucherType === 'Sales') return r.type === 'Cr' ? s + amt : s - amt;
-        return r.type === 'Dr' ? s + amt : s - amt;
+        return isPurchase
+          ? r.type === 'Dr'
+            ? s + amt
+            : s - amt
+          : r.type === 'Cr'
+            ? s + amt
+            : s - amt;
       }, 0);
       return Math.max(0, stockSum + adjSum);
     }

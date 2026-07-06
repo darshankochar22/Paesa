@@ -687,6 +687,9 @@ export function useVoucherForm(
           'Material Out',
         ].includes(effectiveVoucherType);
         if (!isInventoryOnly) {
+          // Only Purchase inverts sides (party Cr, ledger Dr, input GST Dr). Sales,
+          // Credit Note and Debit Note all keep party Dr / ledger Cr / GST Cr — matching
+          // the GST engine's party-side rule so the voucher stays balanced on save.
           const isPurchaseLike = effectiveVoucherType === 'Purchase';
           const partyType: 'Dr' | 'Cr' = isPurchaseLike ? 'Cr' : 'Dr';
           const spType: 'Dr' | 'Cr' = isPurchaseLike ? 'Dr' : 'Cr';
@@ -706,7 +709,7 @@ export function useVoucherForm(
               amount: stockSubtotal,
               currency: 'INR',
             },
-            ...(effectiveVoucherType === 'Sales' || effectiveVoucherType === 'Purchase'
+            ...(['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType)
               ? rows.additionalEntries
                   .filter((p) => p.ledger && Number(p.amountRaw) > 0)
                   .map((p) => ({

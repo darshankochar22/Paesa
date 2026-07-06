@@ -5,6 +5,7 @@ import FieldRow from '../components/FieldRow';
 import GstNoteAdditionalDetailsPopup from '../components/popups/GstNoteAdditionalDetailsPopup';
 import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
 import VatNatureOfReturnPopup from '../components/popups/VatNatureOfReturnPopup';
+import AdditionalTaxLedgerRows from '../components/AdditionalTaxLedgerRows';
 import { useCompany } from '../../../context/CompanyContext';
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 
 export default function CreditNoteVoucher({
   form,
+  handleAmountConfirm,
   focusStockQty,
   focusStockRate,
   proceedToNextStockRow,
@@ -251,6 +253,9 @@ export default function CreditNoteVoucher({
             </div>
           </div>
         )}
+
+        {/* Additional tax / ledger lines (GST etc.) — same flow as Sales */}
+        <AdditionalTaxLedgerRows form={form} handleAmountConfirm={handleAmountConfirm} />
       </div>
 
       {/* Grand total footer */}
@@ -264,6 +269,16 @@ export default function CreditNoteVoucher({
               })
             : ''}
         </div>
+      </div>
+
+      <div className="px-3 py-1 shrink-0">
+        <button
+          type="button"
+          onClick={form.handleAddAdditionalRow}
+          className="text-xs text-gray-500 hover:text-black border border-gray-300 px-2 py-0.5"
+        >
+          + Add Tax / Ledger Row
+        </button>
       </div>
 
       {/* Provide GST details — only for a Purchase Accounts ledger */}

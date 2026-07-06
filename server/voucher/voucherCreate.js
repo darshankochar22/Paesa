@@ -40,6 +40,7 @@ const {
   recalculateLedgerBalances,
   getOrCreatePayHeadLedger,
   validateDoubleEntry,
+  logVoucherPostings,
 } = require('./voucherLedgerHelpers');
 const {
   NON_ACCOUNTING_INVENTORY_TYPES,
@@ -173,6 +174,7 @@ module.exports = {
       }
 
       if (data.is_accounting_voucher && data.entries && data.entries.length > 0) {
+        logVoucherPostings(`${data.voucher_type} (create)`, data.entries);
         if (!validateDoubleEntry(data.entries)) {
           return { success: false, error: 'Debit and Credit amounts must be equal' };
         }

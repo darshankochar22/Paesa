@@ -70,9 +70,11 @@ export function useInventoryRows({
 
   // ─── Additional entry handlers ────────────────────────────────────────────
   const handleAddAdditionalRow = useCallback(() => {
+    // Purchase defaults a tax/charge line to Dr; every other invoice (Sales, Credit
+    // Note, Debit Note) to Cr — the side that keeps the voucher balanced.
     setAdditionalEntries((prev) => [
       ...prev,
-      makeParticularRow(voucherType === 'Sales' ? 'Cr' : 'Dr'),
+      makeParticularRow(voucherType === 'Purchase' ? 'Dr' : 'Cr'),
     ]);
   }, [voucherType]);
 

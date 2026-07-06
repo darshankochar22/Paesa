@@ -217,6 +217,36 @@ const validateDoubleEntry = (entries) => {
   return Math.abs(total) < 0.01;
 };
 
+// Debug aid: print every Dr/Cr posting and the running totals right before the
+// double-entry check runs. Silent unless DEBUG_VOUCHER_POSTINGS=1, so production stays
+// quiet. When a voucher trips "Debit and Credit amounts must be equal", this shows
+// exactly which side is short and by how much.
+const logVoucherPostings = (label, entries) => {
+  if (process.env.DEBUG_VOUCHER_POSTINGS !== '1') return;
+  const list = Array.isArray(entries) ? entries : [];
+  let totalDr = 0;
+  let totalCr = 0;
+  const rows = list.map((e) => {
+    const amt = Number(e.amount) || 0;
+    if (e.type === 'Dr') totalDr += amt;
+    else totalCr += amt;
+    return {
+      ledger: e.ledger_name || e.ledger_id,
+      Dr: e.type === 'Dr' ? amt.toFixed(2) : '',
+      Cr: e.type === 'Cr' ? amt.toFixed(2) : '',
+    };
+  });
+  const diff = totalDr - totalCr;
+  console.log(`\n[postings] ${label || 'Voucher'} — Dr/Cr before save:`);
+  if (typeof console.table === 'function') console.table(rows);
+  else rows.forEach((r) => console.log('  ', r.ledger, '| Dr', r.Dr, '| Cr', r.Cr));
+  console.log(
+    `[postings] total Dr = ${totalDr.toFixed(2)} | total Cr = ${totalCr.toFixed(2)} | diff = ${diff.toFixed(
+      2,
+    )} → ${Math.abs(diff) < 0.01 ? 'BALANCED' : 'NOT BALANCED'}`,
+  );
+};
+
 module.exports = {
   nullify,
   getLedgerBalance,
@@ -225,4 +255,5 @@ module.exports = {
   recalculateLedgerBalances,
   getOrCreatePayHeadLedger,
   validateDoubleEntry,
+  logVoucherPostings,
 };
