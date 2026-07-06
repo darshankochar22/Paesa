@@ -95,4 +95,16 @@ describe('Payroll Statutory reports (#206)', () => {
     // Active joiner must NOT appear among leavers.
     expect(f10.payload.employees.find((e) => e.name === 'Stat Emp')).toBeFalsy();
   });
+
+  it('PF Form 12A ties PF contribution figures to the summary buckets (#209)', async () => {
+    const res = await statSvc.getPFForm12A(companyId, { from: '2026-04-01', to: '2027-03-31' });
+    expect(res.success).toBe(true);
+    // Employees' Share = the same 1800 the summary bucketed under Provident Fund.
+    const eeShare = res.payload.accounts.find((a) => /Employees' Share/.test(a.label));
+    expect(eeShare.amount).toBe(1800);
+    expect(res.payload.total).toBe(1800);
+    // Stat Emp contributes to PF via the active salary structure → one member.
+    expect(res.payload.members.closing).toBe(1);
+    expect(res.payload.establishment.name).toBeTruthy();
+  });
 });
