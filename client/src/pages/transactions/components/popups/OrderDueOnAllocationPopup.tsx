@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import type { BatchAllocation } from "../../types";
-import NewNumberPopup from "./NewNumberPopup";
-import { parseDueOn } from "@/lib/dueDate";
-import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { BatchAllocation } from '../../types';
+import NewNumberPopup from './NewNumberPopup';
+import { parseDueOn } from '@/lib/dueDate';
+import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
+import { useCompany } from '@/context/CompanyContext';
 
 // Stock Item Allocations sub-screen for ORDER vouchers (Purchase / Sales Order).
 // Tally layout (screenshot-faithful): each allocation is a "Due on <period/date>"
@@ -25,7 +26,7 @@ interface Props {
   itemName: string;
   rate: number;
   unitSymbol?: string;
-  voucherDate: string;        // ISO yyyy-mm-dd — default "Due on"
+  voucherDate: string; // ISO yyyy-mm-dd — default "Due on"
   trackMfg: boolean;
   trackExpiry: boolean;
   isInward: boolean;
@@ -37,18 +38,18 @@ interface Props {
   onSave: (allocations: BatchAllocation[]) => void;
 }
 
-const ANY = "♦ Any";
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const ANY = '♦ Any';
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function fmtDate(iso?: string | null): string {
-  if (!iso) return "";
+  if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return `${d.getDate()}-${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
 }
 
 const num = (v: number | undefined) =>
-  v ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+  v ? v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -67,15 +68,32 @@ const focusSel = (sel: string) =>
   setTimeout(() => (document.querySelector(sel) as HTMLElement | null)?.focus(), 30);
 
 export default function OrderDueOnAllocationPopup({
-  companyId, itemId, itemName, rate, unitSymbol, voucherDate,
-  trackMfg, trackExpiry, isInward, godowns = [], initialAllocations = [],
-  showBatch = true, onClose, onSave,
+  companyId,
+  itemId,
+  itemName,
+  rate,
+  unitSymbol,
+  voucherDate,
+  trackMfg,
+  trackExpiry,
+  isInward,
+  godowns = [],
+  initialAllocations = [],
+  showBatch = true,
+  onClose,
+  onSave,
 }: Props) {
-  const defaultGodown = godowns.find((g) => g.name === "Main Location")?.name ?? godowns[0]?.name ?? "";
+  const defaultGodown =
+    godowns.find((g) => g.name === 'Main Location')?.name ?? godowns[0]?.name ?? '';
   const defaultDue = fmtDate(voucherDate);
 
+  // F11 flags — hide Billed / Disc % columns when the respective flag is No.
+  const { features } = useCompany();
+  const showBilled = features?.use_separate_actual_billed_qty !== 0;
+  const showDisc = features?.use_discount_column_in_invoices !== 0;
+
   const emptyRow = (): Row => ({
-    batch_number: "",
+    batch_number: '',
     godown: defaultGodown,
     quantity: 0,
     actual_quantity: 0,
@@ -91,16 +109,16 @@ export default function OrderDueOnAllocationPopup({
           // Billed differing from Actual on hydrate means it was set on its own.
           billedTouched: a.actual_quantity != null && a.actual_quantity !== a.quantity,
         }))
-      : [emptyRow()]
+      : [emptyRow()],
   );
   // Existing batches for this item (fetched) — the List of Active Batches.
   const [activeBatches, setActiveBatches] = useState<ActiveBatch[]>([]);
   // Lots the user creates here (New Number) also join the list (blank balance).
   const [createdBatches, setCreatedBatches] = useState<string[]>([]);
   const [godownBal, setGodownBal] = useState<Record<number, number>>({});
-  const [openListRow, setOpenListRow] = useState<number | null>(null);   // batch list
+  const [openListRow, setOpenListRow] = useState<number | null>(null); // batch list
   const [openGodownRow, setOpenGodownRow] = useState<number | null>(null); // godown list
-  const [newBatchRow, setNewBatchRow] = useState<number | null>(null);    // New Number popup
+  const [newBatchRow, setNewBatchRow] = useState<number | null>(null); // New Number popup
   const [error, setError] = useState<string | null>(null);
   const [fetchNotice, setFetchNotice] = useState<string | null>(null);
   const batchRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -111,19 +129,25 @@ export default function OrderDueOnAllocationPopup({
   // Per-godown balances for this item — shown in the List of Godowns.
   useEffect(() => {
     if (!companyId || !itemId) return;
-    const p = (window as any).api.stockItem.getStockBalancesByGodown?.({ company_id: companyId, item_id: itemId });
+    const p = (window as any).api.stockItem.getStockBalancesByGodown?.({
+      company_id: companyId,
+      item_id: itemId,
+    });
     if (!p) return;
     p.then((res: any) => {
       if (res?.success && res.balances) setGodownBal(res.balances);
-      else if (res && res.success === false) setFetchNotice("Godown balances unavailable.");
-    }).catch(() => setFetchNotice("Godown balances unavailable."));
+      else if (res && res.success === false) setFetchNotice('Godown balances unavailable.');
+    }).catch(() => setFetchNotice('Godown balances unavailable.'));
   }, [companyId, itemId]);
 
   // Existing batches (with expiry + balance) for the List of Active Batches.
   useEffect(() => {
     if (!showBatch || !companyId || !itemId) return;
-    (window as any).api.report.batchBalances?.(companyId, itemId)
-      .then((res: any) => { if (res?.success) setActiveBatches(res.batches ?? []); })
+    (window as any).api.report
+      .batchBalances?.(companyId, itemId)
+      .then((res: any) => {
+        if (res?.success) setActiveBatches(res.batches ?? []);
+      })
       .catch(() => {});
   }, [companyId, itemId, showBatch]);
 
@@ -135,8 +159,8 @@ export default function OrderDueOnAllocationPopup({
       if (bel && !bel.contains(e.target as Node)) setOpenListRow(null);
       if (gel && !gel.contains(e.target as Node)) setOpenGodownRow(null);
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
   }, [openListRow, openGodownRow]);
 
   const billed = (r: BatchAllocation) => Number(r.quantity) || 0;
@@ -150,8 +174,8 @@ export default function OrderDueOnAllocationPopup({
 
   // Godown balance label — negatives as "(-)9 Box" (Tally), blank when zero.
   const fmtQty = (q?: number) => {
-    if (!q) return "";
-    const u = unitSymbol || "";
+    if (!q) return '';
+    const u = unitSymbol || '';
     return q < 0 ? `(-)${Math.abs(q)} ${u}`.trim() : `${q} ${u}`.trim();
   };
   const update = (i: number, patch: Partial<Row>) => {
@@ -166,13 +190,19 @@ export default function OrderDueOnAllocationPopup({
       prev.map((r, idx) => {
         if (idx !== i) return r;
         return { ...r, actual_quantity: v, quantity: r.billedTouched ? r.quantity : v };
-      })
+      }),
     );
   };
 
-  const addRow = () => { setError(null); setRows((prev) => [...prev, emptyRow()]); };
+  const addRow = () => {
+    setError(null);
+    setRows((prev) => [...prev, emptyRow()]);
+  };
   const removeRow = (i: number) => {
-    if (rows.length === 1) { setError("At least one allocation row is required."); return; }
+    if (rows.length === 1) {
+      setError('At least one allocation row is required.');
+      return;
+    }
     setError(null);
     setRows((prev) => prev.filter((_, idx) => idx !== i));
   };
@@ -185,34 +215,42 @@ export default function OrderDueOnAllocationPopup({
   };
 
   const handleSave = useCallback(() => {
-    if (showBatch && rows.some((r) => !(r.batch_number || "").trim())) {
-      setError("Every row needs a Batch / Lot No. (pick Any or a New Number).");
+    if (showBatch && rows.some((r) => !(r.batch_number || '').trim())) {
+      setError('Every row needs a Batch / Lot No. (pick Any or a New Number).');
       return;
     }
-    if (totalBilled <= 0) { setError("Enter a quantity for at least one allocation."); return; }
-    const isAny = (s: string) => s.trim().toLowerCase() === "any";
-    onSave(rows.map((r): BatchAllocation & { due_on_date?: string | null } => {
-      const batch = (r.batch_number || "").trim();
-      const dueText = r.due_on || defaultDue;
-      return {
-        // "Any" is display-only — persist no specific batch/godown.
-        batch_number: isAny(batch) ? "" : batch,
-        godown: r.godown && !isAny(r.godown) ? r.godown : undefined,
-        due_on: dueText,
-        // Resolved ISO date for reports / order-outstanding logic.
-        due_on_date: parseDueOn(dueText, voucherDate),
-        mfg_date: trackMfg ? (r.mfg_date || undefined) : undefined,
-        expiry_date: trackExpiry ? (r.expiry_date || undefined) : undefined,
-        quantity: Number(r.quantity) || 0,
-        actual_quantity: Number(r.actual_quantity ?? r.quantity) || 0,
-        rate: Number(r.rate) || rate,
-        disc_percent: Number(r.disc_percent) || 0,
-      };
-    }));
+    if (totalBilled <= 0) {
+      setError('Enter a quantity for at least one allocation.');
+      return;
+    }
+    const isAny = (s: string) => s.trim().toLowerCase() === 'any';
+    onSave(
+      rows.map((r): BatchAllocation & { due_on_date?: string | null } => {
+        const batch = (r.batch_number || '').trim();
+        const dueText = r.due_on || defaultDue;
+        return {
+          // "Any" is display-only — persist no specific batch/godown.
+          batch_number: isAny(batch) ? '' : batch,
+          godown: r.godown && !isAny(r.godown) ? r.godown : undefined,
+          due_on: dueText,
+          // Resolved ISO date for reports / order-outstanding logic.
+          due_on_date: parseDueOn(dueText, voucherDate),
+          mfg_date: trackMfg ? r.mfg_date || undefined : undefined,
+          expiry_date: trackExpiry ? r.expiry_date || undefined : undefined,
+          quantity: Number(r.quantity) || 0,
+          actual_quantity: Number(r.actual_quantity ?? r.quantity) || 0,
+          rate: Number(r.rate) || rate,
+          disc_percent: Number(r.disc_percent) || 0,
+        };
+      }),
+    );
   }, [rows, totalBilled, trackMfg, trackExpiry, rate, defaultDue, showBatch, voucherDate, onSave]);
 
   const enter = (fn: () => void) => (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") { e.preventDefault(); fn(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      fn();
+    }
   };
 
   const pickGodown = (i: number, name: string) => {
@@ -226,43 +264,66 @@ export default function OrderDueOnAllocationPopup({
     focusSel(`[data-oa-actual="${i}"]`);
   };
 
-  const cell = "shrink-0";
+  const cell = 'shrink-0';
   const W = {
-    godown: "w-28", batch: "w-28", qty: "w-14", rate: "w-16",
-    per: "w-8", disc: "w-12", amount: "w-20", del: "w-4",
+    godown: 'w-28',
+    batch: 'w-28',
+    qty: 'w-14',
+    rate: 'w-16',
+    per: 'w-8',
+    disc: 'w-12',
+    amount: 'w-20',
+    del: 'w-4',
   };
-  const inputCls = "text-xs px-1 py-0.5 bg-white border border-gray-400 w-full outline-none focus:border-black";
-  const ddCls = "absolute left-0 top-full mt-1 w-60 bg-white border border-gray-400 shadow-xl z-30 max-h-52 overflow-y-auto";
-  const ddHeadCls = "bg-white text-black text-[10px] font-bold px-2 py-1 sticky top-0 border-b border-gray-400";
+  const inputCls =
+    'text-xs px-1 py-0.5 bg-white border border-gray-400 w-full outline-none focus:border-black';
+  const ddCls =
+    'absolute left-0 top-full mt-1 w-60 bg-white border border-gray-400 shadow-xl z-30 max-h-52 overflow-y-auto';
+  const ddHeadCls =
+    'bg-white text-black text-[10px] font-bold px-2 py-1 sticky top-0 border-b border-gray-400';
 
   return (
     <VoucherPopupShell
       title="Stock Item Allocations"
-      headerRight={<span>Item Allocations for : <span className="font-bold text-black">{itemName}</span></span>}
-      onClose={() => { if (!subPopupOpen) onClose(); }}
-      onAccept={() => { if (!subPopupOpen) handleSave(); }}
+      headerRight={
+        <span>
+          Item Allocations for : <span className="font-bold text-black">{itemName}</span>
+        </span>
+      }
+      onClose={() => {
+        if (!subPopupOpen) onClose();
+      }}
+      onAccept={() => {
+        if (!subPopupOpen) handleSave();
+      }}
     >
       <div className="space-y-3">
         {error && (
           <div className="border border-gray-400 border-l-2 border-l-black text-black text-xs px-3 py-2 flex justify-between items-center font-semibold">
             <span>• {error}</span>
-            <button onClick={() => setError(null)} className="font-bold">&times;</button>
+            <button onClick={() => setError(null)} className="font-bold">
+              &times;
+            </button>
           </div>
         )}
-        {fetchNotice && (
-          <div className="text-[10px] text-gray-600 italic px-1">{fetchNotice}</div>
-        )}
+        {fetchNotice && <div className="text-[10px] text-gray-600 italic px-1">{fetchNotice}</div>}
 
         <div className="border border-gray-300">
           {/* Column headers */}
           <div className="flex bg-white px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-black gap-2">
             <div className={`${cell} ${W.godown}`}>Godown</div>
             {showBatch && <div className={`${cell} ${W.batch} text-center`}>Batch / Lot No.</div>}
-            <div className={`${cell} ${W.qty} text-right`}>Actual</div>
-            <div className={`${cell} ${W.qty} text-right`}>Billed</div>
+            {showBilled ? (
+              <>
+                <div className={`${cell} ${W.qty} text-right`}>Actual</div>
+                <div className={`${cell} ${W.qty} text-right`}>Billed</div>
+              </>
+            ) : (
+              <div className={`${cell} ${W.qty} text-right`}>Quantity</div>
+            )}
             <div className={`${cell} ${W.rate} text-right`}>Rate</div>
             <div className={`${cell} ${W.per} text-center`}>per</div>
-            <div className={`${cell} ${W.disc} text-right`}>Disc %</div>
+            {showDisc && <div className={`${cell} ${W.disc} text-right`}>Disc %</div>}
             <div className={`${cell} ${W.amount} text-right`}>Amount</div>
             <div className={`${cell} ${W.del}`} />
           </div>
@@ -270,15 +331,15 @@ export default function OrderDueOnAllocationPopup({
             <div className={`${cell} ${W.godown}`} />
             {showBatch && (
               <div className={`${cell} ${W.batch} flex gap-1`}>
-                <div className="flex-1">{trackMfg ? "Mfg Dt." : ""}</div>
-                <div className="flex-1">{trackExpiry ? "Expiry Date" : ""}</div>
+                <div className="flex-1">{trackMfg ? 'Mfg Dt.' : ''}</div>
+                <div className="flex-1">{trackExpiry ? 'Expiry Date' : ''}</div>
               </div>
             )}
             <div className={`${cell} ${W.qty}`} />
-            <div className={`${cell} ${W.qty}`} />
+            {showBilled && <div className={`${cell} ${W.qty}`} />}
             <div className={`${cell} ${W.rate}`} />
             <div className={`${cell} ${W.per}`} />
-            <div className={`${cell} ${W.disc}`} />
+            {showDisc && <div className={`${cell} ${W.disc}`} />}
             <div className={`${cell} ${W.amount}`} />
             <div className={`${cell} ${W.del}`} />
           </div>
@@ -293,9 +354,12 @@ export default function OrderDueOnAllocationPopup({
                   <input
                     type="text"
                     data-oa-due={i}
-                    value={row.due_on ?? ""}
+                    value={row.due_on ?? ''}
                     onChange={(e) => update(i, { due_on: e.target.value })}
-                    onKeyDown={enter(() => { setOpenGodownRow(i); focusSel(`[data-oa-godown="${i}"]`); })}
+                    onKeyDown={enter(() => {
+                      setOpenGodownRow(i);
+                      focusSel(`[data-oa-godown="${i}"]`);
+                    })}
                     placeholder="9 Days / 1-Jul-26"
                     className="text-[11px] px-1 py-0.5 bg-white border border-gray-400 outline-none focus:border-black font-mono w-28"
                   />
@@ -304,25 +368,42 @@ export default function OrderDueOnAllocationPopup({
                 {/* Data line */}
                 <div className="flex items-start px-3 py-1.5 gap-2">
                   {/* Godown — opens the List of Godowns */}
-                  <div className={`${cell} ${W.godown} relative`} ref={(el) => { godownRefs.current[i] = el; }}>
+                  <div
+                    className={`${cell} ${W.godown} relative`}
+                    ref={(el) => {
+                      godownRefs.current[i] = el;
+                    }}
+                  >
                     <button
-                      type="button" data-oa-godown={i}
+                      type="button"
+                      data-oa-godown={i}
                       onClick={() => setOpenGodownRow((r) => (r === i ? null : i))}
                       onKeyDown={enter(() => setOpenGodownRow(i))}
                       className={`${inputCls} text-left font-semibold truncate`}
                     >
-                      {row.godown || "Select…"}
+                      {row.godown || 'Select…'}
                     </button>
                     {openGodownRow === i && (
                       <div className={ddCls}>
                         <div className={ddHeadCls}>List of Godowns</div>
-                        <button type="button" onClick={() => pickGodown(i, "Any")}
-                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">{ANY}</button>
+                        <button
+                          type="button"
+                          onClick={() => pickGodown(i, 'Any')}
+                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
+                        >
+                          {ANY}
+                        </button>
                         {godowns.map((g) => (
-                          <button key={g.godown_id ?? g.name} type="button" onClick={() => pickGodown(i, g.name)}
-                            className="flex w-full items-center text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
+                          <button
+                            key={g.godown_id ?? g.name}
+                            type="button"
+                            onClick={() => pickGodown(i, g.name)}
+                            className="flex w-full items-center text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+                          >
                             <div className="flex-1 font-semibold truncate">{g.name}</div>
-                            <div className="w-16 text-right font-mono text-gray-600">{g.godown_id ? fmtQty(godownBal[g.godown_id]) : ""}</div>
+                            <div className="w-16 text-right font-mono text-gray-600">
+                              {g.godown_id ? fmtQty(godownBal[g.godown_id]) : ''}
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -331,13 +412,22 @@ export default function OrderDueOnAllocationPopup({
 
                   {/* Batch / Lot No. (+ Mfg / Expiry stacked) */}
                   {showBatch && (
-                    <div className={`${cell} ${W.batch} relative`} ref={(el) => { batchRefs.current[i] = el; }}>
+                    <div
+                      className={`${cell} ${W.batch} relative`}
+                      ref={(el) => {
+                        batchRefs.current[i] = el;
+                      }}
+                    >
                       <input
-                        type="text" data-oa-batch={i}
+                        type="text"
+                        data-oa-batch={i}
                         value={row.batch_number}
                         onChange={(e) => update(i, { batch_number: e.target.value })}
                         onFocus={() => setOpenListRow(i)}
-                        onKeyDown={enter(() => { setOpenListRow(null); focusSel(`[data-oa-actual="${i}"]`); })}
+                        onKeyDown={enter(() => {
+                          setOpenListRow(null);
+                          focusSel(`[data-oa-actual="${i}"]`);
+                        })}
                         placeholder="Any / New Number…"
                         className={`${inputCls} font-semibold`}
                       />
@@ -345,16 +435,22 @@ export default function OrderDueOnAllocationPopup({
                         <div className="flex gap-1 mt-1">
                           <div className="flex-1">
                             {trackMfg && (
-                              <input type="date" value={row.mfg_date ?? ""}
+                              <input
+                                type="date"
+                                value={row.mfg_date ?? ''}
                                 onChange={(e) => update(i, { mfg_date: e.target.value })}
-                                className={`${inputCls} font-mono`} />
+                                className={`${inputCls} font-mono`}
+                              />
                             )}
                           </div>
                           <div className="flex-1">
                             {trackExpiry && (
-                              <input type="date" value={row.expiry_date ?? ""}
+                              <input
+                                type="date"
+                                value={row.expiry_date ?? ''}
                                 onChange={(e) => update(i, { expiry_date: e.target.value })}
-                                className={`${inputCls} font-mono`} />
+                                className={`${inputCls} font-mono`}
+                              />
                             )}
                           </div>
                         </div>
@@ -369,32 +465,52 @@ export default function OrderDueOnAllocationPopup({
                           </div>
                           {/* New Number — opens the New Number popup to type a fresh lot (inward only). */}
                           {isInward && (
-                            <button type="button"
-                              onClick={() => { setOpenListRow(null); setNewBatchRow(i); }}
-                              className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenListRow(null);
+                                setNewBatchRow(i);
+                              }}
+                              className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
+                            >
                               New Number
                             </button>
                           )}
                           {/* Any — no specific lot. */}
-                          <button type="button" onClick={() => pickBatch(i, "Any")}
-                            className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
+                          <button
+                            type="button"
+                            onClick={() => pickBatch(i, 'Any')}
+                            className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+                          >
                             <div className="flex-1 font-semibold">{ANY}</div>
                           </button>
                           {/* Existing batches for this item (fetched). */}
                           {activeBatches.map((b) => (
-                            <button key={`b-${b.name}`} type="button" onClick={() => pickBatch(i, b.name)}
-                              className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
+                            <button
+                              key={`b-${b.name}`}
+                              type="button"
+                              onClick={() => pickBatch(i, b.name)}
+                              className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+                            >
                               <div className="flex-1 font-semibold truncate">{b.name}</div>
-                              <div className="w-16 font-mono text-gray-600">{fmtDate(b.expiry_date)}</div>
-                              <div className="w-14 text-right font-mono text-gray-600">{b.balance ? fmtQty(b.balance) : ""}</div>
+                              <div className="w-16 font-mono text-gray-600">
+                                {fmtDate(b.expiry_date)}
+                              </div>
+                              <div className="w-14 text-right font-mono text-gray-600">
+                                {b.balance ? fmtQty(b.balance) : ''}
+                              </div>
                             </button>
                           ))}
                           {/* Lots created here this session (no balance yet). */}
                           {createdBatches
                             .filter((n) => !activeBatches.some((b) => b.name === n))
                             .map((n) => (
-                              <button key={`c-${n}`} type="button" onClick={() => pickBatch(i, n)}
-                                className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
+                              <button
+                                key={`c-${n}`}
+                                type="button"
+                                onClick={() => pickBatch(i, n)}
+                                className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+                              >
                                 <div className="flex-1 font-semibold truncate">{n}</div>
                                 <div className="w-16" />
                                 <div className="w-14" />
@@ -405,45 +521,85 @@ export default function OrderDueOnAllocationPopup({
                     </div>
                   )}
 
-                  {/* Actual */}
+                  {/* Actual (single Quantity when Billed is hidden) */}
                   <div className={`${cell} ${W.qty}`}>
-                    <input type="number" step="any" data-oa-actual={i}
-                      value={row.actual_quantity || ""}
+                    <input
+                      type="number"
+                      step="any"
+                      data-oa-actual={i}
+                      value={row.actual_quantity || ''}
                       onChange={(e) => setActual(i, Number(e.target.value) || 0)}
-                      onKeyDown={enter(() => focusSel(`[data-oa-billed="${i}"]`))}
-                      className={`${inputCls} text-right font-mono`} />
+                      onKeyDown={enter(() =>
+                        focusSel(`[data-oa-${showBilled ? 'billed' : 'rate'}="${i}"]`),
+                      )}
+                      className={`${inputCls} text-right font-mono`}
+                    />
                   </div>
                   {/* Billed */}
-                  <div className={`${cell} ${W.qty}`}>
-                    <input type="number" step="any" data-oa-billed={i}
-                      value={row.quantity || ""}
-                      onChange={(e) => update(i, { quantity: Number(e.target.value) || 0, billedTouched: true })}
-                      onKeyDown={enter(() => focusSel(`[data-oa-rate="${i}"]`))}
-                      className={`${inputCls} text-right font-mono`} />
-                  </div>
+                  {showBilled && (
+                    <div className={`${cell} ${W.qty}`}>
+                      <input
+                        type="number"
+                        step="any"
+                        data-oa-billed={i}
+                        value={row.quantity || ''}
+                        onChange={(e) =>
+                          update(i, { quantity: Number(e.target.value) || 0, billedTouched: true })
+                        }
+                        onKeyDown={enter(() => focusSel(`[data-oa-rate="${i}"]`))}
+                        className={`${inputCls} text-right font-mono`}
+                      />
+                    </div>
+                  )}
                   {/* Rate */}
                   <div className={`${cell} ${W.rate}`}>
-                    <input type="number" step="any" data-oa-rate={i}
-                      value={row.rate || ""}
+                    <input
+                      type="number"
+                      step="any"
+                      data-oa-rate={i}
+                      value={row.rate || ''}
                       onChange={(e) => update(i, { rate: Number(e.target.value) || 0 })}
-                      onKeyDown={enter(() => focusSel(`[data-oa-disc="${i}"]`))}
-                      className={`${inputCls} text-right font-mono`} />
+                      onKeyDown={enter(() =>
+                        showDisc ? focusSel(`[data-oa-disc="${i}"]`) : completeRow(i),
+                      )}
+                      className={`${inputCls} text-right font-mono`}
+                    />
                   </div>
                   {/* per */}
-                  <div className={`${cell} ${W.per} text-center text-[11px] text-gray-600 pt-1 font-mono`}>{unitSymbol ?? ""}</div>
-                  {/* Disc % — Enter completes the row → new "Due on". */}
-                  <div className={`${cell} ${W.disc}`}>
-                    <input type="number" step="any" data-oa-disc={i}
-                      value={row.disc_percent || ""}
-                      onChange={(e) => update(i, { disc_percent: Number(e.target.value) || 0 })}
-                      onKeyDown={enter(() => completeRow(i))}
-                      className={`${inputCls} text-right font-mono`} />
+                  <div
+                    className={`${cell} ${W.per} text-center text-[11px] text-gray-600 pt-1 font-mono`}
+                  >
+                    {unitSymbol ?? ''}
                   </div>
+                  {/* Disc % — Enter completes the row → new "Due on". */}
+                  {showDisc && (
+                    <div className={`${cell} ${W.disc}`}>
+                      <input
+                        type="number"
+                        step="any"
+                        data-oa-disc={i}
+                        value={row.disc_percent || ''}
+                        onChange={(e) => update(i, { disc_percent: Number(e.target.value) || 0 })}
+                        onKeyDown={enter(() => completeRow(i))}
+                        className={`${inputCls} text-right font-mono`}
+                      />
+                    </div>
+                  )}
                   {/* Amount */}
-                  <div className={`${cell} ${W.amount} text-right text-xs font-mono font-semibold pt-1`}>{num(lineAmount(row))}</div>
+                  <div
+                    className={`${cell} ${W.amount} text-right text-xs font-mono font-semibold pt-1`}
+                  >
+                    {num(lineAmount(row))}
+                  </div>
                   {/* Remove */}
                   <div className={`${cell} ${W.del} text-center pt-0.5`}>
-                    <button type="button" onClick={() => removeRow(i)} className="text-gray-400 hover:text-black text-sm font-bold">&times;</button>
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      className="text-gray-400 hover:text-black text-sm font-bold"
+                    >
+                      &times;
+                    </button>
                   </div>
                 </div>
               </div>
@@ -454,22 +610,26 @@ export default function OrderDueOnAllocationPopup({
           <div className="flex items-center px-3 py-2 bg-white border-t border-black gap-2 font-bold text-xs font-mono">
             <div className={`${cell} ${W.godown}`} />
             {showBatch && <div className={`${cell} ${W.batch}`} />}
-            <div className={`${cell} ${W.qty} text-right`}>{totalActual || ""}</div>
-            <div className={`${cell} ${W.qty} text-right`}>{totalBilled || ""}</div>
+            {showBilled && <div className={`${cell} ${W.qty} text-right`}>{totalActual || ''}</div>}
+            <div className={`${cell} ${W.qty} text-right`}>{totalBilled || ''}</div>
             <div className={`${cell} ${W.rate}`} />
             <div className={`${cell} ${W.per}`} />
-            <div className={`${cell} ${W.disc}`} />
+            {showDisc && <div className={`${cell} ${W.disc}`} />}
             <div className={`${cell} ${W.amount} text-right`}>{num(totalAmount)}</div>
             <div className={`${cell} ${W.del}`} />
           </div>
         </div>
 
         <div className="flex justify-between items-center">
-          <button onClick={addRow}
-            className="text-[10px] uppercase tracking-wide font-bold text-gray-600 hover:text-black border border-gray-400 px-2.5 py-1 hover:bg-gray-100">
+          <button
+            onClick={addRow}
+            className="text-[10px] uppercase tracking-wide font-bold text-gray-600 hover:text-black border border-gray-400 px-2.5 py-1 hover:bg-gray-100"
+          >
             + Add Allocation
           </button>
-          <span className="text-xs font-mono font-semibold text-black">Total: {totalBilled} {unitSymbol ?? ""}</span>
+          <span className="text-xs font-mono font-semibold text-black">
+            Total: {totalBilled} {unitSymbol ?? ''}
+          </span>
         </div>
       </div>
 
@@ -488,7 +648,6 @@ export default function OrderDueOnAllocationPopup({
           onClose={() => setNewBatchRow(null)}
         />
       )}
-
     </VoucherPopupShell>
   );
 }
