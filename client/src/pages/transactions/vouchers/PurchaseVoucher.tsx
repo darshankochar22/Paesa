@@ -302,6 +302,7 @@ import { useState } from 'react';
 import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
 import { gstRowInfo } from '../utils/gstRow';
+import { useCompany } from '../../../context/CompanyContext';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -318,6 +319,12 @@ export default function PurchaseVoucher({
   focusStockRate,
   proceedToNextStockRow,
 }: Props) {
+  // F11 "Use separate Actual and Billed Quantity columns" — collapse to a single
+  // Quantity column when the flag is explicitly No.
+  const { features } = useCompany();
+  const showBilled = features?.use_separate_actual_billed_qty !== 0;
+  // F11 "Use Discount column in invoices" — hide the Disc % column when No.
+  const showDisc = features?.use_discount_column_in_invoices !== 0;
   return (
     <>
       {/* Supplier invoice fields */}
@@ -412,14 +419,20 @@ export default function PurchaseVoucher({
           <div className="w-44 text-center text-sm font-semibold text-black">Quantity</div>
           <div className="w-20 text-right text-sm font-semibold text-black">Rate</div>
           <div className="w-12 text-center text-sm font-semibold text-black">per</div>
-          <div className="w-16 text-right text-sm font-semibold text-black">Disc %</div>
+          {showDisc && (
+            <div className="w-16 text-right text-sm font-semibold text-black">Disc %</div>
+          )}
           <div className="w-32 text-right text-sm font-semibold text-black">Amount</div>
         </div>
         <div className="flex px-3 py-0.5 border-t border-gray-200">
           <div className="flex-1" />
           <div className="w-44 flex">
-            <div className="flex-1 text-center text-xs text-zinc-600">Actual</div>
-            <div className="flex-1 text-center text-xs text-zinc-600">Billed</div>
+            {showBilled && (
+              <>
+                <div className="flex-1 text-center text-xs text-zinc-600">Actual</div>
+                <div className="flex-1 text-center text-xs text-zinc-600">Billed</div>
+              </>
+            )}
           </div>
           <div className="w-20" />
           <div className="w-12" />
@@ -489,23 +502,25 @@ export default function PurchaseVoucher({
                     }}
                   />
                 </div>
-                <div className="flex-1 text-right pr-1">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                    value={row.billedQtyRaw ?? row.quantityRaw}
-                    placeholder=""
-                    onChange={(e) =>
-                      form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key !== 'Enter') return;
-                      e.preventDefault();
-                      focusStockRate(idx);
-                    }}
-                  />
-                </div>
+                {showBilled && (
+                  <div className="flex-1 text-right pr-1">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                      value={row.billedQtyRaw ?? row.quantityRaw}
+                      placeholder=""
+                      onChange={(e) =>
+                        form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        focusStockRate(idx);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="w-20 text-right pr-1">
@@ -527,23 +542,25 @@ export default function PurchaseVoucher({
 
               <div className="w-12 text-center text-xs text-gray-500">{row.unit?.symbol ?? ''}</div>
 
-              <div className="w-16 text-right pr-1">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={row.discPercentRaw ?? ''}
-                  placeholder=""
-                  onChange={(e) =>
-                    form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key !== 'Enter') return;
-                    e.preventDefault();
-                    proceedToNextStockRow(idx);
-                  }}
-                />
-              </div>
+              {showDisc && (
+                <div className="w-16 text-right pr-1">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                    value={row.discPercentRaw ?? ''}
+                    placeholder=""
+                    onChange={(e) =>
+                      form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      proceedToNextStockRow(idx);
+                    }}
+                  />
+                </div>
+              )}
 
               <div className="w-32 text-right text-sm font-semibold text-black select-none">
                 {row.amountRaw

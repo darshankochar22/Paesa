@@ -50,7 +50,14 @@ module.exports = {
 
   get: async (company_id) => {
     try {
-      const features = await findRow(company_id);
+      let features = await findRow(company_id);
+      // Lazy-seed: companies created before feature seeding (or a failed seed)
+      // have no row — create defaults on first read instead of erroring, so the
+      // frontend always gets a real set of flags (not null).
+      if (!features) {
+        await seedDefaultFeatures(company_id);
+        features = await findRow(company_id);
+      }
       if (!features) return { success: false, error: 'Features not found' };
       return { success: true, features };
     } catch (err) {
@@ -60,7 +67,12 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const current = await findRow(data.company_id);
+      let current = await findRow(data.company_id);
+      // Lazy-seed a missing row so updates from the F11 popup always persist.
+      if (!current) {
+        await seedDefaultFeatures(data.company_id);
+        current = await findRow(data.company_id);
+      }
       if (!current) return { success: false, error: 'Features not found' };
 
       await db
@@ -128,7 +140,11 @@ module.exports = {
 
   reset: async (company_id) => {
     try {
-      const current = await findRow(company_id);
+      let current = await findRow(company_id);
+      if (!current) {
+        await seedDefaultFeatures(company_id);
+        current = await findRow(company_id);
+      }
       if (!current) return { success: false, error: 'Features not found' };
 
       await db

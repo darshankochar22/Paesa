@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import type { CompanyType, FYType } from "../types/api";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import type { CompanyType, FYType } from '../types/api';
+import type { TallyFeaturesType } from '../types/entities/TallyFeatures';
 
 interface CompanyContextValue {
   selectedCompany: CompanyType | null;
@@ -8,6 +9,10 @@ interface CompanyContextValue {
   setActiveFY: (fy: FYType | null) => void;
   availableFYs: FYType[];
   switchFY: (fy: FYType) => Promise<void>;
+  // Current company's F11 feature flags (null until loaded). Refetched on
+  // company switch and whenever a "features-reload" window event fires
+  // (dispatched by the F11 popup after save/reset).
+  features: TallyFeaturesType | null;
 }
 
 const CompanyContext = createContext<CompanyContextValue | null>(null);
@@ -16,7 +21,19 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [selectedCompany, setSelectedCompany] = useState<CompanyType | null>(null);
   const [activeFY, setActiveFY] = useState<FYType | null>(null);
   const [availableFYs, setAvailableFYs] = useState<FYType[]>([]);
+  const [features, setFeatures] = useState<TallyFeaturesType | null>(null);
   const [checked, setChecked] = useState(false);
+
+  const loadFeatures = useCallback(async (company_id: number) => {
+    try {
+      if (!window.api?.tallyFeatures) return;
+      const res = await window.api.tallyFeatures.get(company_id);
+      setFeatures(res?.success ? res.features : null);
+    } catch (err) {
+      console.error(err);
+      setFeatures(null);
+    }
+  }, []);
 
   const loadFYs = useCallback(async (company_id: number) => {
     try {
@@ -34,28 +51,36 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const handleSetSelectedCompany = useCallback(async (company: CompanyType | null) => {
-    setSelectedCompany(company);
-    if (!company?.company_id) {
-      setActiveFY(null);
-      setAvailableFYs([]);
-      return;
-    }
-    await loadFYs(company.company_id);
-  }, [loadFYs]);
+  const handleSetSelectedCompany = useCallback(
+    async (company: CompanyType | null) => {
+      setSelectedCompany(company);
+      if (!company?.company_id) {
+        setActiveFY(null);
+        setAvailableFYs([]);
+        setFeatures(null);
+        return;
+      }
+      await loadFYs(company.company_id);
+      await loadFeatures(company.company_id);
+    },
+    [loadFYs, loadFeatures],
+  );
 
-  const switchFY = useCallback(async (fy: FYType) => {
-    if (!selectedCompany?.company_id || !fy.fy_id) return;
-    try {
-      await window.api.fy.setActive(fy.fy_id, selectedCompany.company_id);
-      setActiveFY(fy);
-      setAvailableFYs(prev =>
-        prev.map(f => ({ ...f, is_active: f.fy_id === fy.fy_id ? 1 : 0 }))
-      );
-    } catch (err) {
-      console.error('switchFY error:', err);
-    }
-  }, [selectedCompany]);
+  const switchFY = useCallback(
+    async (fy: FYType) => {
+      if (!selectedCompany?.company_id || !fy.fy_id) return;
+      try {
+        await window.api.fy.setActive(fy.fy_id, selectedCompany.company_id);
+        setActiveFY(fy);
+        setAvailableFYs((prev) =>
+          prev.map((f) => ({ ...f, is_active: f.fy_id === fy.fy_id ? 1 : 0 })),
+        );
+      } catch (err) {
+        console.error('switchFY error:', err);
+      }
+    },
+    [selectedCompany],
+  );
 
   useEffect(() => {
     const handler = () => {
@@ -63,9 +88,19 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         loadFYs(selectedCompany.company_id);
       }
     };
-    window.addEventListener("fy-reload", handler);
-    return () => window.removeEventListener("fy-reload", handler);
+    window.addEventListener('fy-reload', handler);
+    return () => window.removeEventListener('fy-reload', handler);
   }, [selectedCompany, loadFYs]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (selectedCompany?.company_id) {
+        loadFeatures(selectedCompany.company_id);
+      }
+    };
+    window.addEventListener('features-reload', handler);
+    return () => window.removeEventListener('features-reload', handler);
+  }, [selectedCompany, loadFeatures]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +114,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         const result = await window.api.company.getAll();
         const companies: CompanyType[] = Array.isArray(result?.companies)
           ? result.companies
-          : Array.isArray(result) ? result : [];
+          : Array.isArray(result)
+            ? result
+            : [];
         if (cancelled) return;
         if (companies.length === 1) {
           await handleSetSelectedCompany(companies[0]);
@@ -90,18 +127,23 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setChecked(true);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [handleSetSelectedCompany]);
 
   return (
-    <CompanyContext value={{
-      selectedCompany,
-      setSelectedCompany: handleSetSelectedCompany,
-      activeFY,
-      setActiveFY,
-      availableFYs,
-      switchFY,
-    }}>
+    <CompanyContext
+      value={{
+        selectedCompany,
+        setSelectedCompany: handleSetSelectedCompany,
+        activeFY,
+        setActiveFY,
+        availableFYs,
+        switchFY,
+        features,
+      }}
+    >
       {checked ? children : null}
     </CompanyContext>
   );
@@ -109,6 +151,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
 export function useCompany() {
   const ctx = useContext(CompanyContext);
-  if (!ctx) throw new Error("useCompany must be used within CompanyProvider");
+  if (!ctx) throw new Error('useCompany must be used within CompanyProvider');
   return ctx;
 }

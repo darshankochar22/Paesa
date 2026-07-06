@@ -68,6 +68,16 @@ function Establishment({ est }: { est: any }) {
   );
 }
 
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex">
+      <div className="w-96">{label}</div>
+      <div className="w-4">:</div>
+      <div className="font-bold">{value}</div>
+    </div>
+  );
+}
+
 function SignatureFooter({ note }: { note?: string }) {
   const today = new Date().toLocaleDateString('en-IN');
   return (
@@ -265,14 +275,6 @@ export function PFForm12A() {
   const { payload, loading, selectedCompany, activeFY } = useFormData('form12a');
   const accounts: any[] = payload?.accounts ?? [];
   const members = payload?.members ?? { opening: 0, added: 0, left: 0, closing: 0 };
-
-  const InfoRow = ({ label, value }: { label: string; value: ReactNode }) => (
-    <div className="flex">
-      <div className="w-96">{label}</div>
-      <div className="w-4">:</div>
-      <div className="font-bold">{value}</div>
-    </div>
-  );
 
   return (
     <TallyReportLayout
