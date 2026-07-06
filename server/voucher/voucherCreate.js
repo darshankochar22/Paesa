@@ -430,8 +430,18 @@ module.exports = {
             supplierName: nullify(pd.supplier_name) || null,
             mailingName: nullify(pd.mailing_name) || null,
             address: nullify(pd.address) || null,
+            addressType: nullify(pd.address_type) || null,
             state: nullify(pd.state) || null,
             country: nullify(pd.country) || null,
+            gstRegistrationType: nullify(pd.gst_registration_type) || null,
+            gstin: nullify(pd.gstin) || null,
+            consigneeName: nullify(pd.consignee_name) || null,
+            consigneeMailingName: nullify(pd.consignee_mailing_name) || null,
+            consigneeAddress: nullify(pd.consignee_address) || null,
+            consigneeState: nullify(pd.consignee_state) || null,
+            consigneeCountry: nullify(pd.consignee_country) || null,
+            consigneeGstRegistrationType: nullify(pd.consignee_gst_registration_type) || null,
+            consigneeGstin: nullify(pd.consignee_gstin) || null,
           });
         }
 

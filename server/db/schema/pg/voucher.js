@@ -1,4 +1,13 @@
-const { pgTable, bigint, text, boolean, numeric, integer, date, timestamp } = require('drizzle-orm/pg-core');
+const {
+  pgTable,
+  bigint,
+  text,
+  boolean,
+  numeric,
+  integer,
+  date,
+  timestamp,
+} = require('drizzle-orm/pg-core');
 const { sql } = require('drizzle-orm');
 
 // Mirrors docs/db/modules/voucher.sql (PostgreSQL contract).
@@ -52,7 +61,9 @@ const vouchers = pgTable('vouchers', {
 const voucherEntries = pgTable('voucher_entries', {
   entryId: bigint('entry_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> ledgers.ledger_id (cross-module).
   ledgerId: bigint('ledger_id', { mode: 'number' }),
   ledgerName: text('ledger_name'),
@@ -68,9 +79,13 @@ const voucherEntries = pgTable('voucher_entries', {
 // is_source added via ALTER in source init().
 // ---------------------------------------------------------------------------
 const voucherStockEntries = pgTable('voucher_stock_entries', {
-  stockEntryId: bigint('stock_entry_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  stockEntryId: bigint('stock_entry_id', { mode: 'number' })
+    .primaryKey()
+    .generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> stock_items.stock_item_id (INFERRED, cross-module).
   stockItemId: bigint('stock_item_id', { mode: 'number' }),
   itemName: text('item_name'),
@@ -97,9 +112,13 @@ const voucherStockEntries = pgTable('voucher_stock_entries', {
 const voucherBatches = pgTable('voucher_batches', {
   batchId: bigint('batch_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> voucher_stock_entries.stock_entry_id ON DELETE CASCADE.
-  stockEntryId: bigint('stock_entry_id', { mode: 'number' }).notNull().references(() => voucherStockEntries.stockEntryId, { onDelete: 'cascade' }),
+  stockEntryId: bigint('stock_entry_id', { mode: 'number' })
+    .notNull()
+    .references(() => voucherStockEntries.stockEntryId, { onDelete: 'cascade' }),
   batchNumber: text('batch_number'),
   mfgDate: date('mfg_date'),
   // Free-form: an actual date, or a period like "6 Months" / "2 Yrs" / "9 Days".
@@ -121,11 +140,17 @@ const voucherBatches = pgTable('voucher_batches', {
 // voucher_item_excise  (per-item excise details — Credit Note excise items)
 // ---------------------------------------------------------------------------
 const voucherItemExcise = pgTable('voucher_item_excise', {
-  itemExciseId: bigint('item_excise_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  itemExciseId: bigint('item_excise_id', { mode: 'number' })
+    .primaryKey()
+    .generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> voucher_stock_entries.stock_entry_id ON DELETE CASCADE.
-  stockEntryId: bigint('stock_entry_id', { mode: 'number' }).notNull().references(() => voucherStockEntries.stockEntryId, { onDelete: 'cascade' }),
+  stockEntryId: bigint('stock_entry_id', { mode: 'number' })
+    .notNull()
+    .references(() => voucherStockEntries.stockEntryId, { onDelete: 'cascade' }),
   salesInvoiceNumber: text('sales_invoice_number'),
   salesInvoiceDate: text('sales_invoice_date'),
   exciseSalesInvoice: text('excise_sales_invoice'),
@@ -142,7 +167,9 @@ const voucherItemExcise = pgTable('voucher_item_excise', {
 const voucherBillReferences = pgTable('voucher_bill_references', {
   billId: bigint('bill_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> ledgers.ledger_id (cross-module).
   ledgerId: bigint('ledger_id', { mode: 'number' }),
   billName: text('bill_name'),
@@ -157,9 +184,13 @@ const voucherBillReferences = pgTable('voucher_bill_references', {
 // cheque_range added via ALTER in source init().
 // ---------------------------------------------------------------------------
 const voucherBankDetails = pgTable('voucher_bank_details', {
-  bankDetailId: bigint('bank_detail_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  bankDetailId: bigint('bank_detail_id', { mode: 'number' })
+    .primaryKey()
+    .generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> ledgers.ledger_id (cross-module).
   ledgerId: bigint('ledger_id', { mode: 'number' }),
   transactionType: text('transaction_type').default('Cheque'),
@@ -183,7 +214,9 @@ const voucherBankDetails = pgTable('voucher_bank_details', {
 const voucherCostCentres = pgTable('voucher_cost_centres', {
   ccEntryId: bigint('cc_entry_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> voucher_entries.entry_id.
   entryId: bigint('entry_id', { mode: 'number' }).references(() => voucherEntries.entryId),
   // FK -> cost_centres.cost_centre_id (INFERRED, cross-module).
@@ -198,7 +231,9 @@ const voucherCostCentres = pgTable('voucher_cost_centres', {
 const voucherCashDenominations = pgTable('voucher_cash_denominations', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> ledgers.ledger_id (cross-module).
   ledgerId: bigint('ledger_id', { mode: 'number' }),
   denomination: text('denomination'),
@@ -212,7 +247,9 @@ const voucherCashDenominations = pgTable('voucher_cash_denominations', {
 const voucherReceiptDetails = pgTable('voucher_receipt_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   receiptNoteNo: text('receipt_note_no'),
   receiptDocNo: text('receipt_doc_no'),
   receiptDocDate: text('receipt_doc_date'),
@@ -230,12 +267,26 @@ const voucherReceiptDetails = pgTable('voucher_receipt_details', {
 const voucherPartyDetails = pgTable('voucher_party_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  // Buyer / Supplier (Bill from) side.
   supplierName: text('supplier_name'),
   mailingName: text('mailing_name'),
   address: text('address'),
+  addressType: text('address_type'),
   state: text('state'),
   country: text('country'),
+  gstRegistrationType: text('gst_registration_type'),
+  gstin: text('gstin'),
+  // Consignee (Ship to) side.
+  consigneeName: text('consignee_name'),
+  consigneeMailingName: text('consignee_mailing_name'),
+  consigneeAddress: text('consignee_address'),
+  consigneeState: text('consignee_state'),
+  consigneeCountry: text('consignee_country'),
+  consigneeGstRegistrationType: text('consignee_gst_registration_type'),
+  consigneeGstin: text('consignee_gstin'),
 });
 
 // ---------------------------------------------------------------------------
@@ -245,7 +296,9 @@ const voucherPartyDetails = pgTable('voucher_party_details', {
 const voucherDispatchDetails = pgTable('voucher_dispatch_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   deliveryNoteNos: text('delivery_note_nos'),
   dispatchDocNo: text('dispatch_doc_no'),
   dispatchedThrough: text('dispatched_through'),
@@ -262,7 +315,9 @@ const voucherDispatchDetails = pgTable('voucher_dispatch_details', {
 const voucherCreditNoteDetails = pgTable('voucher_credit_note_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   trackingNo: text('tracking_no'),
   dispatchDocNo: text('dispatch_doc_no'),
   dispatchedThrough: text('dispatched_through'),
@@ -285,7 +340,9 @@ const voucherCreditNoteDetails = pgTable('voucher_credit_note_details', {
 const voucherExciseDetails = pgTable('voucher_excise_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   inspectionDocumentNo: text('inspection_document_no'),
   inspectionDocumentDate: text('inspection_document_date'),
 });
@@ -296,7 +353,9 @@ const voucherExciseDetails = pgTable('voucher_excise_details', {
 const voucherVatDetails = pgTable('voucher_vat_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   dateTime: text('date_time'),
   pointOfSale: text('point_of_sale'),
 });
@@ -307,7 +366,9 @@ const voucherVatDetails = pgTable('voucher_vat_details', {
 const voucherOrderDetails = pgTable('voucher_order_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   orderNos: text('order_nos'),
   orderDate: date('order_date'),
   sourceGodownId: bigint('source_godown_id', { mode: 'number' }),
@@ -330,7 +391,9 @@ const voucherOrderDetails = pgTable('voucher_order_details', {
 const voucherDebitNoteDetails = pgTable('voucher_debit_note_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   trackingNo: text('tracking_no'),
   dispatchDocNo: text('dispatch_doc_no'),
   dispatchedThrough: text('dispatched_through'),
@@ -353,9 +416,13 @@ const voucherDebitNoteDetails = pgTable('voucher_debit_note_details', {
 // voucher_payroll_entries
 // ---------------------------------------------------------------------------
 const voucherPayrollEntries = pgTable('voucher_payroll_entries', {
-  payrollEntryId: bigint('payroll_entry_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  payrollEntryId: bigint('payroll_entry_id', { mode: 'number' })
+    .primaryKey()
+    .generatedByDefaultAsIdentity(),
   // FK -> vouchers.voucher_id ON DELETE CASCADE.
-  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   // FK -> employees.employee_id (cross-module).
   employeeId: bigint('employee_id', { mode: 'number' }),
   // FK -> pay_heads.pay_head_id (cross-module).

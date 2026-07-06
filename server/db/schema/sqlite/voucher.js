@@ -45,7 +45,9 @@ const vouchers = sqliteTable('vouchers', {
 const voucherEntries = sqliteTable('voucher_entries', {
   entryId: integer('entry_id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   // FK -> ledgers(ledger_id) (cross-module).
   ledgerId: integer('ledger_id'),
   ledgerName: text('ledger_name'),
@@ -63,7 +65,9 @@ const voucherEntries = sqliteTable('voucher_entries', {
 const voucherStockEntries = sqliteTable('voucher_stock_entries', {
   stockEntryId: integer('stock_entry_id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   stockItemId: integer('stock_item_id'),
   itemName: text('item_name'),
   godownId: integer('godown_id'),
@@ -87,9 +91,13 @@ const voucherStockEntries = sqliteTable('voucher_stock_entries', {
 const voucherBatches = sqliteTable('voucher_batches', {
   batchId: integer('batch_id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   // FK -> voucher_stock_entries(stock_entry_id) ON DELETE CASCADE.
-  stockEntryId: integer('stock_entry_id').notNull().references(() => voucherStockEntries.stockEntryId),
+  stockEntryId: integer('stock_entry_id')
+    .notNull()
+    .references(() => voucherStockEntries.stockEntryId),
   batchNumber: text('batch_number'),
   trackingNo: text('tracking_no'),
   mfgDate: text('mfg_date'),
@@ -113,9 +121,13 @@ const voucherBatches = sqliteTable('voucher_batches', {
 const voucherItemExcise = sqliteTable('voucher_item_excise', {
   itemExciseId: integer('item_excise_id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   // FK -> voucher_stock_entries(stock_entry_id) ON DELETE CASCADE.
-  stockEntryId: integer('stock_entry_id').notNull().references(() => voucherStockEntries.stockEntryId),
+  stockEntryId: integer('stock_entry_id')
+    .notNull()
+    .references(() => voucherStockEntries.stockEntryId),
   salesInvoiceNumber: text('sales_invoice_number'),
   salesInvoiceDate: text('sales_invoice_date'),
   exciseSalesInvoice: text('excise_sales_invoice'),
@@ -132,7 +144,9 @@ const voucherItemExcise = sqliteTable('voucher_item_excise', {
 const voucherBillReferences = sqliteTable('voucher_bill_references', {
   billId: integer('bill_id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   // FK -> ledgers(ledger_id) (cross-module).
   ledgerId: integer('ledger_id'),
   billName: text('bill_name'),
@@ -149,7 +163,9 @@ const voucherBillReferences = sqliteTable('voucher_bill_references', {
 const voucherBankDetails = sqliteTable('voucher_bank_details', {
   bankDetailId: integer('bank_detail_id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   // FK -> ledgers(ledger_id) (cross-module).
   ledgerId: integer('ledger_id'),
   transactionType: text('transaction_type').default('Cheque'),
@@ -173,7 +189,9 @@ const voucherBankDetails = sqliteTable('voucher_bank_details', {
 const voucherCostCentres = sqliteTable('voucher_cost_centres', {
   ccEntryId: integer('cc_entry_id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   // FK -> voucher_entries(entry_id).
   entryId: integer('entry_id').references(() => voucherEntries.entryId),
   costCentreId: integer('cost_centre_id'),
@@ -187,7 +205,9 @@ const voucherCostCentres = sqliteTable('voucher_cost_centres', {
 const voucherCashDenominations = sqliteTable('voucher_cash_denominations', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   // FK -> ledgers(ledger_id) (cross-module).
   ledgerId: integer('ledger_id'),
   denomination: text('denomination'),
@@ -201,7 +221,9 @@ const voucherCashDenominations = sqliteTable('voucher_cash_denominations', {
 const voucherReceiptDetails = sqliteTable('voucher_receipt_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   receiptNoteNo: text('receipt_note_no'),
   receiptDocNo: text('receipt_doc_no'),
   receiptDocDate: text('receipt_doc_date'),
@@ -219,12 +241,26 @@ const voucherReceiptDetails = sqliteTable('voucher_receipt_details', {
 const voucherPartyDetails = sqliteTable('voucher_party_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
+  // Buyer / Supplier (Bill from) side.
   supplierName: text('supplier_name'),
   mailingName: text('mailing_name'),
   address: text('address'),
+  addressType: text('address_type'),
   state: text('state'),
   country: text('country'),
+  gstRegistrationType: text('gst_registration_type'),
+  gstin: text('gstin'),
+  // Consignee (Ship to) side.
+  consigneeName: text('consignee_name'),
+  consigneeMailingName: text('consignee_mailing_name'),
+  consigneeAddress: text('consignee_address'),
+  consigneeState: text('consignee_state'),
+  consigneeCountry: text('consignee_country'),
+  consigneeGstRegistrationType: text('consignee_gst_registration_type'),
+  consigneeGstin: text('consignee_gstin'),
 });
 
 // ---------------------------------------------------------------------------
@@ -234,7 +270,9 @@ const voucherPartyDetails = sqliteTable('voucher_party_details', {
 const voucherDispatchDetails = sqliteTable('voucher_dispatch_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   deliveryNoteNos: text('delivery_note_nos'),
   dispatchDocNo: text('dispatch_doc_no'),
   dispatchedThrough: text('dispatched_through'),
@@ -251,7 +289,9 @@ const voucherDispatchDetails = sqliteTable('voucher_dispatch_details', {
 const voucherCreditNoteDetails = sqliteTable('voucher_credit_note_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   trackingNo: text('tracking_no'),
   dispatchDocNo: text('dispatch_doc_no'),
   dispatchedThrough: text('dispatched_through'),
@@ -274,7 +314,9 @@ const voucherCreditNoteDetails = sqliteTable('voucher_credit_note_details', {
 const voucherExciseDetails = sqliteTable('voucher_excise_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   inspectionDocumentNo: text('inspection_document_no'),
   inspectionDocumentDate: text('inspection_document_date'),
 });
@@ -285,7 +327,9 @@ const voucherExciseDetails = sqliteTable('voucher_excise_details', {
 const voucherVatDetails = sqliteTable('voucher_vat_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   dateTime: text('date_time'),
   pointOfSale: text('point_of_sale'),
 });
@@ -296,7 +340,9 @@ const voucherVatDetails = sqliteTable('voucher_vat_details', {
 const voucherOrderDetails = sqliteTable('voucher_order_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   orderNos: text('order_nos'),
   orderDate: text('order_date'),
   sourceGodownId: integer('source_godown_id'),
@@ -319,7 +365,9 @@ const voucherOrderDetails = sqliteTable('voucher_order_details', {
 const voucherDebitNoteDetails = sqliteTable('voucher_debit_note_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   trackingNo: text('tracking_no'),
   dispatchDocNo: text('dispatch_doc_no'),
   dispatchedThrough: text('dispatched_through'),
@@ -344,7 +392,9 @@ const voucherDebitNoteDetails = sqliteTable('voucher_debit_note_details', {
 const voucherPayrollEntries = sqliteTable('voucher_payroll_entries', {
   payrollEntryId: integer('payroll_entry_id').primaryKey({ autoIncrement: true }),
   // FK -> vouchers(voucher_id) ON DELETE CASCADE.
-  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
   // FK -> employees(employee_id) (cross-module).
   employeeId: integer('employee_id'),
   // FK -> pay_heads(pay_head_id) (cross-module).
