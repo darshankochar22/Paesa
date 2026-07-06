@@ -77,7 +77,7 @@ export function PFReportsMenu() {
       items: [
         { label: 'Form 5', route: '/reports/statutory/payroll/pf/form-5' },
         { label: 'Form 10', route: '/reports/statutory/payroll/pf/form-10' },
-        { label: 'Form 12A', route: '/reports/payroll-hr/pf-form-12a' },
+        { label: 'Form 12A', route: '/reports/statutory/payroll/pf/form-12a' },
         { label: 'Monthly Statement', route: '/reports/payroll-hr/pf-monthly-statement' },
         {
           label: 'E-Challan Cum Return (ECR)',

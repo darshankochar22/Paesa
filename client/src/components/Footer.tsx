@@ -134,6 +134,12 @@ export default function Footer() {
           Vch
         </button>
         <button
+          onClick={() => setShowFeatures((prev) => !prev)}
+          className="hover:underline focus:outline-none transition-all"
+        >
+          Features
+        </button>
+        <button
           onClick={handleConfigure}
           className="hover:underline focus:outline-none transition-all"
         >
