@@ -298,10 +298,10 @@
 // }
 
 // vouchers/PurchaseVoucher.tsx
-import { useState } from "react";
-import type { useVoucherForm } from "../hooks/useVoucherForm";
-import FieldRow from "../components/FieldRow";
-import { gstRowInfo } from "../utils/gstRow";
+import { useState } from 'react';
+import type { useVoucherForm } from '../hooks/useVoucherForm';
+import FieldRow from '../components/FieldRow';
+import { gstRowInfo } from '../utils/gstRow';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -332,9 +332,15 @@ export default function PurchaseVoucher({
             value={form.supplierInvoiceNo}
             onChange={(e) => form.setSupplierInvoiceNo(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
+              if (e.key !== 'Enter') return;
               e.preventDefault();
-              setTimeout(() => (document.querySelector('[data-field-type="supplierInvoiceDate"]') as HTMLElement)?.focus(), 50);
+              setTimeout(
+                () =>
+                  (
+                    document.querySelector('[data-field-type="supplierInvoiceDate"]') as HTMLElement
+                  )?.focus(),
+                50,
+              );
             }}
           />
         </div>
@@ -348,9 +354,12 @@ export default function PurchaseVoucher({
             value={form.supplierInvoiceDate}
             onChange={(e) => form.setSupplierInvoiceDate(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
+              if (e.key !== 'Enter') return;
               e.preventDefault();
-              setTimeout(() => (document.querySelector('[data-field-type="party"]') as HTMLElement)?.focus(), 50);
+              setTimeout(
+                () => (document.querySelector('[data-field-type="party"]') as HTMLElement)?.focus(),
+                50,
+              );
             }}
           />
         </div>
@@ -364,8 +373,15 @@ export default function PurchaseVoucher({
           ledger={form.partyLedger}
           balance={form.partyBalance}
           form={form}
-          hideBalance
-          onEnterCommit={() => setTimeout(() => (document.querySelector('[data-field-type="salesPurchase"]') as HTMLElement)?.focus(), 50)}
+          onEnterCommit={() =>
+            setTimeout(
+              () =>
+                (
+                  document.querySelector('[data-field-type="salesPurchase"]') as HTMLElement
+                )?.focus(),
+              50,
+            )
+          }
         />
       </div>
 
@@ -377,8 +393,12 @@ export default function PurchaseVoucher({
           ledger={form.salesPurchaseLedger}
           balance={form.salesPurchaseBalance}
           form={form}
-          hideBalance
-          onEnterCommit={() => setTimeout(() => (document.querySelector('[data-stock-item="1"]') as HTMLElement)?.focus(), 50)}
+          onEnterCommit={() =>
+            setTimeout(
+              () => (document.querySelector('[data-stock-item="1"]') as HTMLElement)?.focus(),
+              50,
+            )
+          }
         />
       </div>
 
@@ -412,8 +432,7 @@ export default function PurchaseVoucher({
         {/* Stock item rows */}
         {form.stockEntries.map((row, idx) => {
           const isActive =
-            form.activeField?.type === "stockItem" &&
-            form.activeField.rowId === row.id;
+            form.activeField?.type === 'stockItem' && form.activeField.rowId === row.id;
           return (
             <div
               key={row.id}
@@ -424,18 +443,15 @@ export default function PurchaseVoucher({
                   data-stock-item={idx + 1}
                   type="text"
                   className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? "")}
-                  placeholder={idx === 0 ? "Select Item…" : ""}
-                  onFocus={() =>
-                    form.handleFieldFocus({ type: "stockItem", rowId: row.id })
-                  }
+                  value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? '')}
+                  placeholder={idx === 0 ? 'Select Item…' : ''}
+                  onFocus={() => form.handleFieldFocus({ type: 'stockItem', rowId: row.id })}
                   onChange={(e) => {
                     form.setStockSearchTerm(e.target.value);
-                    if (!row.stockItem)
-                      form.handleFieldFocus({ type: "stockItem", rowId: row.id });
+                    if (!row.stockItem) form.handleFieldFocus({ type: 'stockItem', rowId: row.id });
                   }}
                   onKeyDown={(e) => {
-                    if (e.key !== "Enter" || !row.stockItem) return;
+                    if (e.key !== 'Enter' || !row.stockItem) return;
                     e.preventDefault();
                     focusStockQty(idx);
                   }}
@@ -467,7 +483,7 @@ export default function PurchaseVoucher({
                       form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
                     }
                     onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
+                      if (e.key !== 'Enter') return;
                       e.preventDefault();
                       focusStockRate(idx);
                     }}
@@ -484,7 +500,7 @@ export default function PurchaseVoucher({
                       form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value })
                     }
                     onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
+                      if (e.key !== 'Enter') return;
                       e.preventDefault();
                       focusStockRate(idx);
                     }}
@@ -500,33 +516,29 @@ export default function PurchaseVoucher({
                   className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                   value={row.rateRaw}
                   placeholder=""
-                  onChange={(e) =>
-                    form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
-                  }
+                  onChange={(e) => form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })}
                   onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
+                    if (e.key !== 'Enter') return;
                     e.preventDefault();
                     proceedToNextStockRow(idx);
                   }}
                 />
               </div>
 
-              <div className="w-12 text-center text-xs text-gray-500">
-                {row.unit?.symbol ?? ""}
-              </div>
+              <div className="w-12 text-center text-xs text-gray-500">{row.unit?.symbol ?? ''}</div>
 
               <div className="w-16 text-right pr-1">
                 <input
                   type="text"
                   inputMode="decimal"
                   className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={row.discPercentRaw ?? ""}
+                  value={row.discPercentRaw ?? ''}
                   placeholder=""
                   onChange={(e) =>
                     form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
                   }
                   onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
+                    if (e.key !== 'Enter') return;
                     e.preventDefault();
                     proceedToNextStockRow(idx);
                   }}
@@ -535,11 +547,11 @@ export default function PurchaseVoucher({
 
               <div className="w-32 text-right text-sm font-semibold text-black select-none">
                 {row.amountRaw
-                  ? Number(row.amountRaw).toLocaleString("en-IN", {
+                  ? Number(row.amountRaw).toLocaleString('en-IN', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })
-                  : ""}
+                  : ''}
               </div>
             </div>
           );
@@ -551,9 +563,11 @@ export default function PurchaseVoucher({
             column; the amount auto-fills per item when a tax ledger is picked. */}
         {form.additionalEntries.map((row, idx) => {
           const isAddActive =
-            form.activeField?.type === "additional" &&
-            form.activeField.rowId === row.id;
-          const stockSubtotal = form.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+            form.activeField?.type === 'additional' && form.activeField.rowId === row.id;
+          const stockSubtotal = form.stockEntries.reduce(
+            (s, r) => s + (Number(r.amountRaw) || 0),
+            0,
+          );
           const { isGstRow, rateLabel } = gstRowInfo(row.ledger, row.amountRaw, stockSubtotal);
           return (
             <div
@@ -567,7 +581,9 @@ export default function PurchaseVoucher({
                     className="text-xs bg-transparent outline-none font-semibold text-black shrink-0"
                     value={row.type}
                     onChange={(e) =>
-                      form.handleUpdateAdditionalRow(row.id, { type: e.target.value as "Dr" | "Cr" })
+                      form.handleUpdateAdditionalRow(row.id, {
+                        type: e.target.value as 'Dr' | 'Cr',
+                      })
                     }
                   >
                     <option value="Dr">Dr</option>
@@ -578,12 +594,12 @@ export default function PurchaseVoucher({
                   data-additional-ledger={idx + 1}
                   type="text"
                   className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={isAddActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
+                  value={isAddActive ? form.ledgerSearchTerm : (row.ledger?.name ?? '')}
                   placeholder="Tax / Ledger…"
-                  onFocus={() => form.handleFieldFocus({ type: "additional", rowId: row.id })}
+                  onFocus={() => form.handleFieldFocus({ type: 'additional', rowId: row.id })}
                   onChange={(e) => {
                     form.setLedgerSearchTerm(e.target.value);
-                    if (!row.ledger) form.handleFieldFocus({ type: "additional", rowId: row.id });
+                    if (!row.ledger) form.handleFieldFocus({ type: 'additional', rowId: row.id });
                   }}
                   autoComplete="off"
                 />
@@ -598,9 +614,7 @@ export default function PurchaseVoucher({
               </div>
 
               <div className="w-44" />
-              <div className="w-20 text-right pr-1 text-sm text-black select-none">
-                {rateLabel}
-              </div>
+              <div className="w-20 text-right pr-1 text-sm text-black select-none">{rateLabel}</div>
               <div className="w-12" />
               <div className="w-16" />
               <div className="w-32 text-right">
@@ -614,7 +628,7 @@ export default function PurchaseVoucher({
                     form.handleUpdateAdditionalRow(row.id, { amountRaw: e.target.value })
                   }
                   onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
+                    if (e.key !== 'Enter') return;
                     e.preventDefault();
                     handleAmountConfirm(row, idx);
                   }}
@@ -630,11 +644,11 @@ export default function PurchaseVoucher({
         <div className="flex-1 text-sm font-bold text-black">Total</div>
         <div className="w-32 text-right text-sm font-bold text-black">
           {form.totalAmount > 0
-            ? form.totalAmount.toLocaleString("en-IN", {
+            ? form.totalAmount.toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })
-            : ""}
+            : ''}
         </div>
       </div>
 
@@ -655,7 +669,7 @@ export default function PurchaseVoucher({
 }
 
 function PurchaseGstEwayRow({ form }: { form: any }) {
-  const [provide, setProvide] = useState<"Yes" | "No">("No");
+  const [provide, setProvide] = useState<'Yes' | 'No'>('No');
   return (
     <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
       <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
@@ -663,22 +677,22 @@ function PurchaseGstEwayRow({ form }: { form: any }) {
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => setProvide("Yes")}
-          className={`text-sm px-2 py-0 border ${provide === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          onClick={() => setProvide('Yes')}
+          className={`text-sm px-2 py-0 border ${provide === 'Yes' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
         >
           Yes
         </button>
         <button
           type="button"
-          onClick={() => setProvide("No")}
-          className={`text-sm px-2 py-0 border ${provide === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          onClick={() => setProvide('No')}
+          className={`text-sm px-2 py-0 border ${provide === 'No' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
         >
           No
         </button>
       </div>
       {form.placeOfSupply !== undefined && (
         <span className="ml-6 text-sm text-black/60">
-          Place of Supply : {form.placeOfSupply || "—"}
+          Place of Supply : {form.placeOfSupply || '—'}
         </span>
       )}
     </div>

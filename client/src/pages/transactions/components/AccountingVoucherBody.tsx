@@ -1,7 +1,7 @@
-import type { useVoucherForm, ParticularRow } from "../hooks/useVoucherForm";
-import FieldRow from "./FieldRow";
-import BalanceIndicator from "./BalanceIndicator";
-import VoucherDoubleEntryTable from "./VoucherDoubleEntryTable";
+import type { useVoucherForm, ParticularRow } from '../hooks/useVoucherForm';
+import FieldRow from './FieldRow';
+import BalanceIndicator from './BalanceIndicator';
+import VoucherDoubleEntryTable from './VoucherDoubleEntryTable';
 
 /**
  * Shared body for the accounting vouchers (Payment, Receipt, Contra, Journal).
@@ -14,7 +14,7 @@ interface Props {
   handleAmountConfirm: (row: ParticularRow, idx: number) => void;
   entryMode: string;
   doubleRows: ParticularRow[];
-  onUpdateDoubleRow: (id: string, updates: Partial<Omit<ParticularRow, "id">>) => void;
+  onUpdateDoubleRow: (id: string, updates: Partial<Omit<ParticularRow, 'id'>>) => void;
   onAddDoubleRow: () => void;
   onRemoveDoubleRow: (id: string) => void;
 }
@@ -28,7 +28,7 @@ export default function AccountingVoucherBody({
   onAddDoubleRow,
   onRemoveDoubleRow,
 }: Props) {
-  if (entryMode === "single") {
+  if (entryMode === 'single') {
     return (
       <>
         <div className="border-b border-gray-300 shrink-0 py-1">
@@ -49,8 +49,7 @@ export default function AccountingVoucherBody({
         <div className="flex-1 overflow-y-auto min-h-0">
           {form.particulars.map((row, idx) => {
             const isActive =
-              form.activeField?.type === "particular" &&
-              form.activeField.rowId === row.id;
+              form.activeField?.type === 'particular' && form.activeField.rowId === row.id;
             return (
               <div
                 key={row.id}
@@ -61,21 +60,18 @@ export default function AccountingVoucherBody({
                     data-particular-ledger={idx + 1}
                     type="text"
                     className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                    value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
-                    placeholder={idx === 0 ? "Select Ledger…" : ""}
-                    onFocus={() =>
-                      form.handleFieldFocus({ type: "particular", rowId: row.id })
-                    }
+                    value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? '')}
+                    placeholder={idx === 0 ? 'Select Ledger…' : ''}
+                    onFocus={() => form.handleFieldFocus({ type: 'particular', rowId: row.id })}
                     onChange={(e) => {
                       form.setLedgerSearchTerm(e.target.value);
-                      if (!row.ledger)
-                        form.handleFieldFocus({ type: "particular", rowId: row.id });
+                      if (!row.ledger) form.handleFieldFocus({ type: 'particular', rowId: row.id });
                     }}
                     autoComplete="off"
                   />
                   {row.ledgerBalance ? (
                     <span className="text-xs text-gray-500 italic shrink-0">
-                      ({row.ledgerBalance})
+                      ({row.ledgerBalanceLabel || row.ledgerBalance})
                     </span>
                   ) : null}
                   {form.particulars.length > 1 && (
@@ -100,7 +96,7 @@ export default function AccountingVoucherBody({
                       form.handleUpdateParticularRow(row.id, { amountRaw: e.target.value })
                     }
                     onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
+                      if (e.key !== 'Enter') return;
                       e.preventDefault();
                       handleAmountConfirm(row, idx);
                     }}
@@ -126,11 +122,11 @@ export default function AccountingVoucherBody({
           </div>
           <div className="w-40 text-right text-sm font-semibold text-black pr-0">
             {form.particularsTotal > 0
-              ? form.particularsTotal.toLocaleString("en-IN", {
+              ? form.particularsTotal.toLocaleString('en-IN', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })
-              : ""}
+              : ''}
           </div>
         </div>
       </>
@@ -147,7 +143,7 @@ export default function AccountingVoucherBody({
       onFieldFocus={form.handleFieldFocus}
       onSearchChange={form.setLedgerSearchTerm}
       searchTerm={form.ledgerSearchTerm}
-      activeRowId={form.activeField?.type === "particular" ? form.activeField.rowId : null}
+      activeRowId={form.activeField?.type === 'particular' ? form.activeField.rowId : null}
       onAmountConfirm={handleAmountConfirm}
     />
   );

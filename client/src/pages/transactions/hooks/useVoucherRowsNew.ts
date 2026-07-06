@@ -4,11 +4,11 @@
 // Public API returned from this hook is 100% identical to the monolithic version.
 // No other hook or component file requires any modifications.
 
-import { useState, useCallback, useMemo } from "react";
-import type { LedgerType, StockItemType, UnitType, GodownType } from "../../../types/api";
-import type { ParticularRow, StockEntryRow, ActiveField } from "../types";
-import { useAccountingRows } from "./useAccountingRows";
-import { useInventoryRows } from "./useInventoryRows";
+import { useState, useCallback, useMemo } from 'react';
+import type { LedgerType, StockItemType, UnitType, GodownType } from '../../../types/api';
+import type { ParticularRow, StockEntryRow, ActiveField } from '../types';
+import { useAccountingRows } from './useAccountingRows';
+import { useInventoryRows } from './useInventoryRows';
 
 interface UseVoucherRowsOptions {
   initialParticulars?: ParticularRow[];
@@ -18,11 +18,11 @@ interface UseVoucherRowsOptions {
   initialPaymentDoubleRows?: ParticularRow[];
   initialStockEntries?: StockEntryRow[];
   initialAdditionalEntries?: ParticularRow[];
-  initialContraEntryMode?: "single" | "double";
-  initialReceiptEntryMode?: "single" | "double";
-  initialJournalEntryMode?: "single" | "double";
-  initialPaymentEntryMode?: "single" | "double";
-  fetchLedgerBalance: (ledgerId: number) => Promise<string>;
+  initialContraEntryMode?: 'single' | 'double';
+  initialReceiptEntryMode?: 'single' | 'double';
+  initialJournalEntryMode?: 'single' | 'double';
+  initialPaymentEntryMode?: 'single' | 'double';
+  fetchLedgerBalance: (ledgerId: number) => Promise<import('../types').LedgerBalanceInfo>;
   voucherType: string;
   allUnits: UnitType[];
   stockBalances: Record<number, number>;
@@ -36,10 +36,10 @@ export function useVoucherRows({
   initialPaymentDoubleRows,
   initialStockEntries,
   initialAdditionalEntries = [],
-  initialContraEntryMode = "double",
-  initialReceiptEntryMode = "double",
-  initialJournalEntryMode = "double",
-  initialPaymentEntryMode = "double",
+  initialContraEntryMode = 'double',
+  initialReceiptEntryMode = 'double',
+  initialJournalEntryMode = 'double',
+  initialPaymentEntryMode = 'double',
   fetchLedgerBalance,
   voucherType,
   allUnits,
@@ -69,28 +69,44 @@ export function useVoucherRows({
   });
 
   // ── Active field / search ──────────────────────────────────────────────────
-  const [ledgerSearchTerm, setLedgerSearchTerm] = useState("");
-  const [stockSearchTerm, setStockSearchTerm] = useState("");
+  const [ledgerSearchTerm, setLedgerSearchTerm] = useState('');
+  const [stockSearchTerm, setStockSearchTerm] = useState('');
   const [activeField, setActiveField] = useState<ActiveField | null>(null);
 
   // ─── Computed totals ───────────────────────────────────────────────────────
   const particularsTotal = useMemo(
     () => acct.particulars.reduce((s, p) => s + (Number(p.amountRaw) || 0), 0),
-    [acct.particulars]
+    [acct.particulars],
   );
 
   const debitTotal = useMemo(() => {
-    if (((voucherType === "Journal" || voucherType === "Reversing Journal") && acct.journalEntryMode === "double") || voucherType === "Memorandum") {
-      return acct.journalRows.reduce((sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+    if (
+      ((voucherType === 'Journal' || voucherType === 'Reversing Journal') &&
+        acct.journalEntryMode === 'double') ||
+      voucherType === 'Memorandum'
+    ) {
+      return acct.journalRows.reduce(
+        (sum, r) => sum + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
     }
-    if (voucherType === "Contra" && acct.contraEntryMode === "double") {
-      return acct.contraDoubleRows.reduce((sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+    if (voucherType === 'Contra' && acct.contraEntryMode === 'double') {
+      return acct.contraDoubleRows.reduce(
+        (sum, r) => sum + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
     }
-    if (voucherType === "Receipt" && acct.receiptEntryMode === "double") {
-      return acct.receiptDoubleRows.reduce((sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+    if (voucherType === 'Receipt' && acct.receiptEntryMode === 'double') {
+      return acct.receiptDoubleRows.reduce(
+        (sum, r) => sum + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
     }
-    if (voucherType === "Payment" && acct.paymentEntryMode === "double") {
-      return acct.paymentDoubleRows.reduce((sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+    if (voucherType === 'Payment' && acct.paymentEntryMode === 'double') {
+      return acct.paymentDoubleRows.reduce(
+        (sum, r) => sum + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
     }
     return particularsTotal;
   }, [
@@ -107,17 +123,33 @@ export function useVoucherRows({
   ]);
 
   const creditTotal = useMemo(() => {
-    if (((voucherType === "Journal" || voucherType === "Reversing Journal") && acct.journalEntryMode === "double") || voucherType === "Memorandum") {
-      return acct.journalRows.reduce((sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+    if (
+      ((voucherType === 'Journal' || voucherType === 'Reversing Journal') &&
+        acct.journalEntryMode === 'double') ||
+      voucherType === 'Memorandum'
+    ) {
+      return acct.journalRows.reduce(
+        (sum, r) => sum + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
     }
-    if (voucherType === "Contra" && acct.contraEntryMode === "double") {
-      return acct.contraDoubleRows.reduce((sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+    if (voucherType === 'Contra' && acct.contraEntryMode === 'double') {
+      return acct.contraDoubleRows.reduce(
+        (sum, r) => sum + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
     }
-    if (voucherType === "Receipt" && acct.receiptEntryMode === "double") {
-      return acct.receiptDoubleRows.reduce((sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+    if (voucherType === 'Receipt' && acct.receiptEntryMode === 'double') {
+      return acct.receiptDoubleRows.reduce(
+        (sum, r) => sum + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
     }
-    if (voucherType === "Payment" && acct.paymentEntryMode === "double") {
-      return acct.paymentDoubleRows.reduce((sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+    if (voucherType === 'Payment' && acct.paymentEntryMode === 'double') {
+      return acct.paymentDoubleRows.reduce(
+        (sum, r) => sum + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
     }
     return particularsTotal;
   }, [
@@ -134,27 +166,44 @@ export function useVoucherRows({
   ]);
 
   const totalAmount = useMemo(() => {
-    if (voucherType === "Receipt") return acct.receiptEntryMode === "double" ? debitTotal : particularsTotal;
-    if (voucherType === "Payment") return acct.paymentEntryMode === "double" ? debitTotal : particularsTotal;
-    if (voucherType === "Contra") return acct.contraEntryMode === "double" ? debitTotal : particularsTotal;
-    if (voucherType === "Journal" || voucherType === "Reversing Journal") return acct.journalEntryMode === "single" ? particularsTotal : debitTotal;
-    if (voucherType === "Memorandum") return debitTotal;
-    if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(voucherType)) {
+    if (voucherType === 'Receipt')
+      return acct.receiptEntryMode === 'double' ? debitTotal : particularsTotal;
+    if (voucherType === 'Payment')
+      return acct.paymentEntryMode === 'double' ? debitTotal : particularsTotal;
+    if (voucherType === 'Contra')
+      return acct.contraEntryMode === 'double' ? debitTotal : particularsTotal;
+    if (voucherType === 'Journal' || voucherType === 'Reversing Journal')
+      return acct.journalEntryMode === 'single' ? particularsTotal : debitTotal;
+    if (voucherType === 'Memorandum') return debitTotal;
+    if (
+      [
+        'Sales',
+        'Purchase',
+        'Credit Note',
+        'Debit Note',
+        'Delivery Note',
+        'Receipt Note',
+        'Rejection In',
+        'Rejection Out',
+        'Material In',
+        'Material Out',
+      ].includes(voucherType)
+    ) {
       const stockSum = inv.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
       const adjSum = inv.additionalEntries.reduce((s, r) => {
         const amt = Number(r.amountRaw) || 0;
-        if (voucherType === "Sales") return r.type === "Cr" ? s + amt : s - amt;
-        return r.type === "Dr" ? s + amt : s - amt;
+        if (voucherType === 'Sales') return r.type === 'Cr' ? s + amt : s - amt;
+        return r.type === 'Dr' ? s + amt : s - amt;
       }, 0);
       return Math.max(0, stockSum + adjSum);
     }
-    if (voucherType === "Physical Stock") {
+    if (voucherType === 'Physical Stock') {
       return inv.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
     }
-    if (voucherType === "Stock Journal" || voucherType === "Manufacturing Journal") {
+    if (voucherType === 'Stock Journal' || voucherType === 'Manufacturing Journal') {
       return inv.destinationStockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
     }
-    if (voucherType === "Payroll") {
+    if (voucherType === 'Payroll') {
       return acct.payrollEntriesFromGroups.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
     }
     return 0;
@@ -175,8 +224,8 @@ export function useVoucherRows({
   // ─── Active field / search panel ──────────────────────────────────────────
   const handleFieldFocus = useCallback((field: ActiveField) => {
     setActiveField(field);
-    setLedgerSearchTerm("");
-    setStockSearchTerm("");
+    setLedgerSearchTerm('');
+    setStockSearchTerm('');
   }, []);
 
   const handleFieldBlur = useCallback(() => {
@@ -189,86 +238,93 @@ export function useVoucherRows({
       if (!activeField) return;
 
       switch (activeField.type) {
-        case "account":
+        case 'account':
           acct.setAccountLedger(item as LedgerType);
           break;
-        case "party":
+        case 'party':
           inv.setPartyLedger(item as LedgerType);
           break;
-        case "salesPurchase":
+        case 'salesPurchase':
           inv.setSalesPurchaseLedger(item as LedgerType);
           break;
-        case "particular": {
+        case 'particular': {
           const ledger = item as LedgerType;
-          if (voucherType === "Journal" || voucherType === "Reversing Journal" || voucherType === "Memorandum") {
+          if (
+            voucherType === 'Journal' ||
+            voucherType === 'Reversing Journal' ||
+            voucherType === 'Memorandum'
+          ) {
             acct.handleUpdateJournalRow(activeField.rowId, { ledger });
-          } else if (voucherType === "Contra" && acct.contraEntryMode === "double") {
+          } else if (voucherType === 'Contra' && acct.contraEntryMode === 'double') {
             acct.handleUpdateContraDoubleRow(activeField.rowId, { ledger });
-          } else if (voucherType === "Receipt" && acct.receiptEntryMode === "double") {
+          } else if (voucherType === 'Receipt' && acct.receiptEntryMode === 'double') {
             acct.handleUpdateReceiptDoubleRow(activeField.rowId, { ledger });
-          } else if (voucherType === "Payment" && acct.paymentEntryMode === "double") {
+          } else if (voucherType === 'Payment' && acct.paymentEntryMode === 'double') {
             acct.handleUpdatePaymentDoubleRow(activeField.rowId, { ledger });
           } else {
             acct.handleUpdateParticularRow(activeField.rowId, { ledger });
           }
           break;
         }
-        case "additional":
+        case 'additional':
           inv.handleUpdateAdditionalRow(activeField.rowId, { ledger: item as LedgerType });
           break;
-        case "stockItem": {
+        case 'stockItem': {
           const stockItem = item as StockItemType;
           const matchingUnit = allUnits.find((u) => u.unit_id === stockItem.unit_id) ?? null;
-          if (inv.sourceStockEntries.some(r => r.id === activeField.rowId)) {
+          if (inv.sourceStockEntries.some((r) => r.id === activeField.rowId)) {
             inv.handleUpdateSourceStockRow(activeField.rowId, { stockItem, unit: matchingUnit });
-          } else if (inv.destinationStockEntries.some(r => r.id === activeField.rowId)) {
-            inv.handleUpdateDestinationStockRow(activeField.rowId, { stockItem, unit: matchingUnit });
+          } else if (inv.destinationStockEntries.some((r) => r.id === activeField.rowId)) {
+            inv.handleUpdateDestinationStockRow(activeField.rowId, {
+              stockItem,
+              unit: matchingUnit,
+            });
           } else {
             inv.handleUpdateStockRow(activeField.rowId, { stockItem, unit: matchingUnit });
           }
           break;
         }
-        case "stockGodown": {
+        case 'stockGodown': {
           const godown = item as GodownType;
-          if (inv.sourceStockEntries.some(r => r.id === activeField.rowId)) {
+          if (inv.sourceStockEntries.some((r) => r.id === activeField.rowId)) {
             inv.handleUpdateSourceStockRow(activeField.rowId, { godown });
-          } else if (inv.destinationStockEntries.some(r => r.id === activeField.rowId)) {
+          } else if (inv.destinationStockEntries.some((r) => r.id === activeField.rowId)) {
             inv.handleUpdateDestinationStockRow(activeField.rowId, { godown });
           } else {
             inv.handleUpdateStockRow(activeField.rowId, { godown });
           }
           break;
         }
-        case "employee": {
+        case 'employee': {
           const employee = item as any;
-          if (acct.attendanceEntries.some(r => r.id === activeField.rowId)) {
+          if (acct.attendanceEntries.some((r) => r.id === activeField.rowId)) {
             acct.handleUpdateAttendanceRow(activeField.rowId, { employee });
-          } else if (acct.payrollEntries.some(r => r.id === activeField.rowId)) {
+          } else if (acct.payrollEntries.some((r) => r.id === activeField.rowId)) {
             acct.handleUpdatePayrollRow(activeField.rowId, { employee });
           }
           break;
         }
-        case "attendanceType": {
+        case 'attendanceType': {
           const attendanceType = item as any;
           acct.handleUpdateAttendanceRow(activeField.rowId, { attendanceType });
           break;
         }
-        case "payHead": {
+        case 'payHead': {
           const payHead = item as any;
           acct.handleUpdatePayrollRow(activeField.rowId, { payHead });
           break;
         }
-        case "payrollCategory": {
+        case 'payrollCategory': {
           const { groupId } = activeField as any;
           acct.handleUpdatePayrollGroup(groupId, { category: item });
           break;
         }
-        case "payrollEmployee": {
+        case 'payrollEmployee': {
           const { groupId, empRowId } = activeField as any;
           acct.handleUpdatePayrollEmployeeRow(groupId, empRowId, { employee: item });
           break;
         }
-        case "payrollPayHead": {
+        case 'payrollPayHead': {
           const { groupId, empRowId, phRowId } = activeField as any;
           acct.handleUpdatePayrollPayHeadRow(groupId, empRowId, phRowId, { payHead: item });
           break;
@@ -278,8 +334,8 @@ export function useVoucherRows({
       }
 
       setActiveField(null);
-      setLedgerSearchTerm("");
-      setStockSearchTerm("");
+      setLedgerSearchTerm('');
+      setStockSearchTerm('');
     },
     [
       activeField,
@@ -309,23 +365,21 @@ export function useVoucherRows({
       acct.handleUpdatePayrollGroup,
       acct.handleUpdatePayrollEmployeeRow,
       acct.handleUpdatePayrollPayHeadRow,
-    ]
+    ],
   );
 
   // ─── Reset rows (called from full resetForm) ──────────────────────────────
   const resetRows = useCallback(
     (currentVoucherType: string) => {
-      const defaultParticular: "Dr" | "Cr" =
-        currentVoucherType === "Receipt" ? "Cr"
-        : currentVoucherType === "Payment" ? "Dr"
-        : "Dr";
+      const defaultParticular: 'Dr' | 'Cr' =
+        currentVoucherType === 'Receipt' ? 'Cr' : currentVoucherType === 'Payment' ? 'Dr' : 'Dr';
       acct.resetAccountingRows(defaultParticular, currentVoucherType);
       inv.resetInventoryRows();
       setActiveField(null);
-      setLedgerSearchTerm("");
-      setStockSearchTerm("");
+      setLedgerSearchTerm('');
+      setStockSearchTerm('');
     },
-    [acct.resetAccountingRows, inv.resetInventoryRows]
+    [acct.resetAccountingRows, inv.resetInventoryRows],
   );
 
   return {

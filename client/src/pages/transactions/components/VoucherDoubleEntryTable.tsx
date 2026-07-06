@@ -1,11 +1,11 @@
-import { useRef } from "react";
-import type { ParticularRow, ActiveField } from "../hooks/useVoucherForm";
-import BillRefLines from "./BillRefLines";
-import InventoryAllocLines from "./InventoryAllocLines";
+import { useRef } from 'react';
+import type { ParticularRow, ActiveField } from '../hooks/useVoucherForm';
+import BillRefLines from './BillRefLines';
+import InventoryAllocLines from './InventoryAllocLines';
 
 interface Props {
   rows: ParticularRow[];
-  onUpdateRow: (id: string, updates: Partial<Omit<ParticularRow, "id">>) => void;
+  onUpdateRow: (id: string, updates: Partial<Omit<ParticularRow, 'id'>>) => void;
   onAddRow: () => void;
   onRemoveRow: (id: string) => void;
   onFieldFocus: (field: ActiveField) => void;
@@ -16,9 +16,7 @@ interface Props {
 }
 
 const formatAmount = (n: number): string =>
-  n > 0
-    ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : "";
+  n > 0 ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 
 export default function VoucherDoubleEntryTable({
   rows,
@@ -38,11 +36,8 @@ export default function VoucherDoubleEntryTable({
     onUpdateRow(rowId, { amountRaw: value });
   };
 
-  const handleAmountKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    idx: number
-  ) => {
-    if (e.key !== "Enter") return;
+  const handleAmountKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
+    if (e.key !== 'Enter') return;
 
     const row = rowsRef.current[idx];
     if (!row?.ledger) return;
@@ -55,40 +50,30 @@ export default function VoucherDoubleEntryTable({
       setTimeout(() => {
         const nextIdx = idx + 1;
         const next = document.querySelector(
-          `[data-particular-ledger="${nextIdx + 1}"]`
+          `[data-particular-ledger="${nextIdx + 1}"]`,
         ) as HTMLInputElement | null;
         next?.focus();
       }, 50);
     }
   };
 
-  const drTotal = rows.reduce(
-    (s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0),
-    0
-  );
-  const crTotal = rows.reduce(
-    (s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0),
-    0
-  );
+  const drTotal = rows.reduce((s, r) => s + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0), 0);
+  const crTotal = rows.reduce((s, r) => s + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0), 0);
 
   const isBalanced = Math.abs(drTotal - crTotal) < 0.01;
   const diff = Math.abs(drTotal - crTotal);
 
   const hasNegativeBalances = rows.some(
-    (r) =>
-      r.ledger &&
-      r.ledgerBalance &&
-      parseFloat(r.ledgerBalance) < 0
+    (r) => r.ledger && r.ledgerBalance && parseFloat(r.ledgerBalance) < 0,
   );
 
   const amountWarningClass = (row: ParticularRow) =>
     row.ledgerBalance && parseFloat(row.ledgerBalance) < 0 && Number(row.amountRaw) > 0
-      ? "text-red-700"
-      : "text-black";
+      ? 'text-red-700'
+      : 'text-black';
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white text-xs">
-
       <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
         <div className="col-span-1" />
         <div className="col-span-7 text-sm font-semibold text-black">Particulars</div>
@@ -109,9 +94,7 @@ export default function VoucherDoubleEntryTable({
                 <select
                   className="bg-transparent font-bold outline-none text-black text-xs"
                   value={row.type}
-                  onChange={(e) =>
-                    onUpdateRow(row.id, { type: e.target.value as "Dr" | "Cr" })
-                  }
+                  onChange={(e) => onUpdateRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })}
                 >
                   <option value="Dr">Dr</option>
                   <option value="Cr">Cr</option>
@@ -124,27 +107,32 @@ export default function VoucherDoubleEntryTable({
                     data-particular-ledger={idx + 1}
                     type="text"
                     className="w-full bg-transparent outline-none px-1 border border-transparent focus:border-black text-sm text-black"
-                    value={isActive ? searchTerm : (row.ledger?.name ?? "")}
-                    placeholder={idx === 0 ? "Select Ledger…" : ""}
-                    onFocus={() => onFieldFocus({ type: "particular", rowId: row.id })}
+                    value={isActive ? searchTerm : (row.ledger?.name ?? '')}
+                    placeholder={idx === 0 ? 'Select Ledger…' : ''}
+                    onFocus={() => onFieldFocus({ type: 'particular', rowId: row.id })}
                     onChange={(e) => {
                       onSearchChange(e.target.value);
-                      if (!row.ledger) onFieldFocus({ type: "particular", rowId: row.id });
+                      if (!row.ledger) onFieldFocus({ type: 'particular', rowId: row.id });
                     }}
                     autoComplete="off"
                   />
                   {row.ledgerBalance && (
-                    <span className={`text-[10px] italic select-none ${
-                      parseFloat(row.ledgerBalance) < 0 ? "text-red-600" : "text-gray-500"
-                    }`}>
-                      Bal: {row.ledgerBalance}
+                    <span
+                      className={`text-[10px] italic select-none ${
+                        parseFloat(row.ledgerBalance) < 0 ? 'text-red-600' : 'text-gray-500'
+                      }`}
+                    >
+                      Bal: {row.ledgerBalanceLabel || row.ledgerBalance}
                     </span>
                   )}
                   <BillRefLines billReferences={row.billReferences} dcType={row.type} />
-                  <InventoryAllocLines inventoryAllocations={row.inventoryAllocations} dcType={row.type} />
+                  <InventoryAllocLines
+                    inventoryAllocations={row.inventoryAllocations}
+                    dcType={row.type}
+                  />
                   {row.costCentres?.length && !row.inventoryAllocations?.length ? (
                     <span className="text-[10px] text-zinc-500 select-none">
-                      {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
+                      {row.costCentres.length} cost centre{row.costCentres.length > 1 ? 's' : ''}
                     </span>
                   ) : null}
                 </div>
@@ -162,7 +150,7 @@ export default function VoucherDoubleEntryTable({
               </div>
 
               <div className="col-span-2 text-right pr-1">
-                {row.type === "Dr" ? (
+                {row.type === 'Dr' ? (
                   <input
                     type="text"
                     inputMode="decimal"
@@ -180,7 +168,7 @@ export default function VoucherDoubleEntryTable({
               </div>
 
               <div className="col-span-2 text-right">
-                {row.type === "Cr" ? (
+                {row.type === 'Cr' ? (
                   <input
                     type="text"
                     inputMode="decimal"
@@ -201,10 +189,7 @@ export default function VoucherDoubleEntryTable({
         })}
 
         {Array.from({ length: Math.max(0, 10 - rows.length) }).map((_, i) => (
-          <div
-            key={`ec-${i}`}
-            className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]"
-          />
+          <div key={`ec-${i}`} className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]" />
         ))}
       </div>
 
@@ -228,22 +213,18 @@ export default function VoucherDoubleEntryTable({
         <div className="grid grid-cols-12 items-center mt-0.5 border-t border-gray-200 pt-0.5">
           <div className="col-span-8 text-xs">
             {hasNegativeBalances && (
-              <span className="text-red-600 font-medium">
-                ⚠ Negative balance detected
-              </span>
+              <span className="text-red-600 font-medium">⚠ Negative balance detected</span>
             )}
             {drTotal > 0 && crTotal > 0 && !isBalanced && (
               <span className="text-red-700">
-                ⚠ Diff:{" "}
-                {diff.toLocaleString("en-IN", {
+                ⚠ Diff:{' '}
+                {diff.toLocaleString('en-IN', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </span>
             )}
-            {isBalanced && drTotal > 0 && (
-              <span className="text-gray-500">✓ Balanced</span>
-            )}
+            {isBalanced && drTotal > 0 && <span className="text-gray-500">✓ Balanced</span>}
           </div>
           <div className="col-span-4" />
         </div>

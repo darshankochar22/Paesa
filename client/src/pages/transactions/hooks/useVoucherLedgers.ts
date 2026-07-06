@@ -1,8 +1,15 @@
 // hooks/useVoucherLedgers.ts
 // ─── Master data fetching + ledger/cash/bank classification helpers ───────────
 
-import { useState, useCallback } from "react";
-import type { LedgerType, GroupType, StockItemType, GodownType, UnitType } from "../../../types/api";
+import { useState, useCallback } from 'react';
+import type {
+  LedgerType,
+  GroupType,
+  StockItemType,
+  GodownType,
+  UnitType,
+} from '../../../types/api';
+import type { LedgerBalanceInfo } from '../types';
 
 interface UseVoucherLedgersOptions {
   companyId: number | undefined;
@@ -29,18 +36,19 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
     if (!companyId) return;
     setLedgersLoading(true);
     try {
-      const [ledRes, grpRes, itemRes, godRes, unitRes, empRes, attRes, phRes, catRes, empCatRes] = await Promise.all([
-        window.api.ledger.getAll(companyId),
-        window.api.group.getAll(companyId),
-        window.api.stockItem.getAll(companyId),
-        window.api.godown.getAll(companyId),
-        window.api.unit.getAll(companyId),
-        window.api.employee.getAll(companyId),
-        window.api.attendanceType.getAll(companyId),
-        window.api.payHead.getAll(companyId),
-        window.api.costCategory.getAll(companyId),
-        window.api.employeeCategory.getAll(companyId),
-      ]);
+      const [ledRes, grpRes, itemRes, godRes, unitRes, empRes, attRes, phRes, catRes, empCatRes] =
+        await Promise.all([
+          window.api.ledger.getAll(companyId),
+          window.api.group.getAll(companyId),
+          window.api.stockItem.getAll(companyId),
+          window.api.godown.getAll(companyId),
+          window.api.unit.getAll(companyId),
+          window.api.employee.getAll(companyId),
+          window.api.attendanceType.getAll(companyId),
+          window.api.payHead.getAll(companyId),
+          window.api.costCategory.getAll(companyId),
+          window.api.employeeCategory.getAll(companyId),
+        ]);
       if (ledRes.success) setAllLedgers((ledRes as any).ledgers ?? []);
       if (grpRes.success) setAllGroups((grpRes as any).groups ?? []);
       if (itemRes.success) setAllStockItems((itemRes as any).stockItems ?? []);
@@ -49,14 +57,17 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
       if (empRes.success) setAllEmployees((empRes as any).employees ?? []);
       if (attRes.success) setAllAttendanceTypes((attRes as any).attendanceTypes ?? []);
       if (phRes.success) setAllPayHeads((phRes as any).payHeads ?? []);
-      if (catRes.success) setAllCostCategories((catRes as any).categories ?? (catRes as any).costCategories ?? []);
+      if (catRes.success)
+        setAllCostCategories((catRes as any).categories ?? (catRes as any).costCategories ?? []);
       if (empCatRes.success) setAllEmployeeCategories((empCatRes as any).employeeCategories ?? []);
 
       // Fetch stock balances
       try {
         const balRes = await window.api.stockItem.getStockBalances(companyId);
         if (balRes.success && balRes.balances) setStockBalances(balRes.balances);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     } catch {
       // silently ignore — user can retry
     } finally {
@@ -65,14 +76,18 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
   }, [companyId]);
 
   const fetchNextVoucherNumber = useCallback(
-    async (voucherType: string, setVoucherNumber: (n: string) => void, setLoading: (l: boolean) => void) => {
+    async (
+      voucherType: string,
+      setVoucherNumber: (n: string) => void,
+      setLoading: (l: boolean) => void,
+    ) => {
       if (!companyId || !fyId) return;
       setLoading(true);
       try {
         let res: any;
-        if (voucherType === "Physical Stock") {
+        if (voucherType === 'Physical Stock') {
           res = await window.api.physicalStock.getNextNumber(companyId);
-        } else if (voucherType === "Attendance") {
+        } else if (voucherType === 'Attendance') {
           res = await window.api.attendance.getNextNumber(companyId);
         } else {
           res = await window.api.voucher.getNextNumber(companyId, fyId, voucherType);
@@ -86,21 +101,25 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
         setLoading(false);
       }
     },
-    [companyId, fyId]
+    [companyId, fyId],
   );
 
   const fetchLedgerBalance = useCallback(
-    async (ledgerId: number): Promise<string> => {
-      if (!companyId || !fyId) return "";
+    async (ledgerId: number): Promise<LedgerBalanceInfo> => {
+      if (!companyId || !fyId) return { raw: '', label: '' };
       try {
         const res = await window.api.voucher.getLedgerBalance(ledgerId, companyId, fyId);
-        if (res.success && res.rawBalance != null) return String(res.rawBalance);
+        if (res.success && res.rawBalance != null) {
+          // raw keeps the signed number for logic (negative = unnatural side);
+          // label is the Tally-style "6,800.00 Dr / Cr" the UI shows.
+          return { raw: String(res.rawBalance), label: res.balance || String(res.rawBalance) };
+        }
       } catch {
         // ignore
       }
-      return "";
+      return { raw: '', label: '' };
     },
-    [companyId, fyId]
+    [companyId, fyId],
   );
 
   // ─── Group / ledger classification helpers ────────────────────────────────────
@@ -133,45 +152,44 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
       const group = findGroup(ledgerGroupId);
       return group ? check(group) : false;
     },
-    [allGroups]
+    [allGroups],
   );
 
   const checkIsCashOrBank = useCallback(
     (ledger: LedgerType | null): boolean =>
       checkLedgerGroup(ledger, [
-        "bank accounts",
-        "bank od accounts",
-        "bank od a/c",
-        "bank od account",
-        "bank occ a/c",
-        "cash-in-hand",
+        'bank accounts',
+        'bank od accounts',
+        'bank od a/c',
+        'bank od account',
+        'bank occ a/c',
+        'cash-in-hand',
       ]),
-    [checkLedgerGroup]
+    [checkLedgerGroup],
   );
 
   const checkIsCash = useCallback(
-    (ledger: LedgerType | null): boolean =>
-      checkLedgerGroup(ledger, ["cash-in-hand"]),
-    [checkLedgerGroup]
+    (ledger: LedgerType | null): boolean => checkLedgerGroup(ledger, ['cash-in-hand']),
+    [checkLedgerGroup],
   );
 
   const checkIsBank = useCallback(
     (ledger: LedgerType | null): boolean =>
       checkLedgerGroup(ledger, [
-        "bank accounts",
-        "bank od accounts",
-        "bank od a/c",
-        "bank od account",
-        "bank occ a/c",
+        'bank accounts',
+        'bank od accounts',
+        'bank od a/c',
+        'bank od account',
+        'bank occ a/c',
       ]),
-    [checkLedgerGroup]
+    [checkLedgerGroup],
   );
 
   /** Party ledger — Sundry Debtors / Sundry Creditors. Drives bill-wise allocation. */
   const checkIsParty = useCallback(
     (ledger: LedgerType | null): boolean =>
-      checkLedgerGroup(ledger, ["sundry debtors", "sundry creditors"]),
-    [checkLedgerGroup]
+      checkLedgerGroup(ledger, ['sundry debtors', 'sundry creditors']),
+    [checkLedgerGroup],
   );
 
   return {

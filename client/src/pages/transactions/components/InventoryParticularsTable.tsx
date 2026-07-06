@@ -1,5 +1,5 @@
-import type { StockEntryRow, ParticularRow, ActiveField } from "../hooks/useVoucherForm";
-import type { GodownType, UnitType } from "../../../types/api";
+import type { StockEntryRow, ParticularRow, ActiveField } from '../hooks/useVoucherForm';
+import type { GodownType, UnitType } from '../../../types/api';
 
 interface Props {
   stockEntries: StockEntryRow[];
@@ -36,18 +36,19 @@ export default function InventoryParticularsTable({
   onUpdateAdditionalRow,
   onAddAdditionalRow,
   onRemoveAdditionalRow,
-  onAmountConfirm
+  onAmountConfirm,
 }: Props) {
-
   // Key handlers to auto-add rows on Enter in stock grid
   const handleStockKeyDown = (e: React.KeyboardEvent, idx: number) => {
-    if (e.key === "Enter" || e.key === "Tab") {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       const row = stockEntries[idx];
       if (row?.stockItem && Number(row.amountRaw) > 0 && idx === stockEntries.length - 1) {
         e.preventDefault();
         onAddStockRow();
         setTimeout(() => {
-          const nextInput = document.querySelector(`[data-stock-item="${stockEntries.length + 1}"]`);
+          const nextInput = document.querySelector(
+            `[data-stock-item="${stockEntries.length + 1}"]`,
+          );
           (nextInput as HTMLInputElement)?.focus();
         }, 50);
       }
@@ -55,7 +56,7 @@ export default function InventoryParticularsTable({
   };
 
   const handleAdditionalKeyDown = (e: React.KeyboardEvent, idx: number) => {
-    if (e.key === "Enter" || e.key === "Tab") {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       const row = additionalEntries[idx];
       if (row?.ledger) {
         if (onAmountConfirm) {
@@ -65,7 +66,9 @@ export default function InventoryParticularsTable({
           e.preventDefault();
           onAddAdditionalRow();
           setTimeout(() => {
-            const nextInput = document.querySelector(`[data-additional-ledger="${additionalEntries.length + 1}"]`);
+            const nextInput = document.querySelector(
+              `[data-additional-ledger="${additionalEntries.length + 1}"]`,
+            );
             (nextInput as HTMLInputElement)?.focus();
           }, 50);
         }
@@ -90,10 +93,12 @@ export default function InventoryParticularsTable({
       {/* Main Stock entries */}
       <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 min-h-0">
         {stockEntries.map((row, idx) => {
-          const isActive = activeField?.type === "stockItem" && activeField.rowId === row.id;
+          const isActive = activeField?.type === 'stockItem' && activeField.rowId === row.id;
           return (
-            <div key={row.id} className="grid grid-cols-12 items-center px-3 py-1.5 hover:bg-zinc-50/50 group transition-colors">
-              
+            <div
+              key={row.id}
+              className="grid grid-cols-12 items-center px-3 py-1.5 hover:bg-zinc-50/50 group transition-colors"
+            >
               {/* 1. Item Name */}
               <div className="col-span-5 relative flex items-center gap-1">
                 <input
@@ -101,7 +106,7 @@ export default function InventoryParticularsTable({
                   type="text"
                   className="w-full bg-transparent border-b border-transparent outline-none focus:border-zinc-800 text-zinc-900 placeholder-zinc-400 py-0.5"
                   placeholder="Select Stock Item..."
-                  value={isActive ? stockSearchTerm : (row.stockItem ? row.stockItem.name : "")}
+                  value={isActive ? stockSearchTerm : row.stockItem ? row.stockItem.name : ''}
                   onFocus={() => onFieldFocus({ type: 'stockItem', rowId: row.id })}
                   onChange={(e) => {
                     onSearchChange(e.target.value);
@@ -122,16 +127,18 @@ export default function InventoryParticularsTable({
               <div className="col-span-2 px-1">
                 <select
                   className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none py-0.5 text-zinc-800"
-                  value={row.godown?.godown_id || ""}
+                  value={row.godown?.godown_id || ''}
                   onChange={(e) => {
                     const id = Number(e.target.value);
-                    const selected = allGodowns.find(g => g.godown_id === id) || null;
+                    const selected = allGodowns.find((g) => g.godown_id === id) || null;
                     onUpdateStockRow(row.id, { godown: selected });
                   }}
                 >
                   <option value="">Select Godown</option>
-                  {allGodowns.map(g => (
-                    <option key={g.godown_id} value={g.godown_id}>{g.name}</option>
+                  {allGodowns.map((g) => (
+                    <option key={g.godown_id} value={g.godown_id}>
+                      {g.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -163,25 +170,26 @@ export default function InventoryParticularsTable({
               <div className="col-span-1 px-1">
                 <select
                   className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none py-0.5 text-zinc-700"
-                  value={row.unit?.unit_id || ""}
+                  value={row.unit?.unit_id || ''}
                   onChange={(e) => {
                     const id = Number(e.target.value);
-                    const selected = allUnits.find(u => u.unit_id === id) || null;
+                    const selected = allUnits.find((u) => u.unit_id === id) || null;
                     onUpdateStockRow(row.id, { unit: selected });
                   }}
                 >
                   <option value="">—</option>
-                  {allUnits.map(u => (
-                    <option key={u.unit_id} value={u.unit_id}>{u.symbol}</option>
+                  {allUnits.map((u) => (
+                    <option key={u.unit_id} value={u.unit_id}>
+                      {u.symbol}
+                    </option>
                   ))}
                 </select>
               </div>
 
               {/* 6. Amount Display */}
               <div className="col-span-1 text-right font-bold text-zinc-900 pr-1 select-none">
-                {row.amountRaw ? Number(row.amountRaw).toFixed(2) : "0.00"}
+                {row.amountRaw ? Number(row.amountRaw).toFixed(2) : '0.00'}
               </div>
-
             </div>
           );
         })}
@@ -210,16 +218,21 @@ export default function InventoryParticularsTable({
 
           <div className="divide-y divide-zinc-50">
             {additionalEntries.map((row, idx) => {
-              const isAddActive = activeField?.type === "additional" && activeField.rowId === row.id;
+              const isAddActive =
+                activeField?.type === 'additional' && activeField.rowId === row.id;
               return (
-                <div key={row.id} className="grid grid-cols-12 items-center px-3 py-1.5 hover:bg-zinc-50/30 group transition-colors">
-                  
+                <div
+                  key={row.id}
+                  className="grid grid-cols-12 items-center px-3 py-1.5 hover:bg-zinc-50/30 group transition-colors"
+                >
                   {/* Dr/Cr Toggle */}
                   <div className="col-span-1 text-center font-bold">
                     <select
                       className="bg-transparent font-bold outline-none text-zinc-900 cursor-pointer"
                       value={row.type}
-                      onChange={(e) => onUpdateAdditionalRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })}
+                      onChange={(e) =>
+                        onUpdateAdditionalRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })
+                      }
                     >
                       <option value="Dr">Dr</option>
                       <option value="Cr">Cr</option>
@@ -233,7 +246,7 @@ export default function InventoryParticularsTable({
                       type="text"
                       className="w-full bg-transparent border-b border-transparent outline-none focus:border-zinc-800 text-zinc-900 placeholder-zinc-400 py-0.5"
                       placeholder="Select Ledger (GST, round off, discount...)"
-                      value={isAddActive ? searchTerm : (row.ledger ? row.ledger.name : "")}
+                      value={isAddActive ? searchTerm : row.ledger ? row.ledger.name : ''}
                       onFocus={() => onFieldFocus({ type: 'additional', rowId: row.id })}
                       onChange={(e) => {
                         onSearchChange(e.target.value);
@@ -242,7 +255,7 @@ export default function InventoryParticularsTable({
                     />
                     {row.ledgerBalance && (
                       <span className="text-[10px] text-zinc-400 font-sans italic absolute right-2 select-none">
-                        (Bal: {row.ledgerBalance})
+                        (Bal: {row.ledgerBalanceLabel || row.ledgerBalance})
                       </span>
                     )}
                     <button
@@ -268,13 +281,11 @@ export default function InventoryParticularsTable({
                       onKeyDown={(e) => handleAdditionalKeyDown(e, idx)}
                     />
                   </div>
-
                 </div>
               );
             })}
           </div>
         </div>
-
       </div>
     </div>
   );

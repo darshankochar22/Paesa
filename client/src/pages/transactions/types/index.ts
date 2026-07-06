@@ -1,14 +1,22 @@
+/** A ledger's running balance: raw signed number for logic (negative = balance on
+ *  the unnatural side), label = Tally-style display string ("6,800.00 Dr"). */
+export interface LedgerBalanceInfo {
+  raw: string;
+  label: string;
+}
 
 export interface ParticularRow {
   id: string;
-  type: "Dr" | "Cr";
-  ledger: import("../../../types/api").LedgerType | null;
+  type: 'Dr' | 'Cr';
+  ledger: import('../../../types/api').LedgerType | null;
   ledgerBalance: string;
+  /** Tally-style "Current balance" display label ("6,800.00 Dr"); ledgerBalance keeps the raw signed value. */
+  ledgerBalanceLabel?: string;
   amountRaw: string;
   costCentres?: { cost_centre_id: number; amount: number }[];
   billReferences?: {
     bill_name: string;
-    bill_type: "New Ref" | "Agst Ref" | "Advance" | "On Account";
+    bill_type: 'New Ref' | 'Agst Ref' | 'Advance' | 'On Account';
     amount: number;
     credit_period?: string;
     due_date?: string;
@@ -28,7 +36,7 @@ export interface InventoryAllocationItem {
   unit_id?: number | null;
   unit_symbol?: string;
   actual_quantity: number;
-  quantity: number;          // billed quantity — drives the amount
+  quantity: number; // billed quantity — drives the amount
   rate: number;
   amount: number;
   batches?: BatchAllocation[];
@@ -40,11 +48,11 @@ export interface BatchAllocation {
   /** TallyPrime tracking number linking a Delivery/Receipt Note to its later
    *  invoice. "" or "♦ Not Applicable" means no tracking. */
   tracking_no?: string;
-  godown?: string;            // godown / location name
-  mfg_date?: string;          // ISO yyyy-mm-dd
-  expiry_date?: string;       // ISO yyyy-mm-dd
-  quantity: number;           // billed quantity (drives amount + line total)
-  actual_quantity?: number;   // actual quantity (defaults to billed)
+  godown?: string; // godown / location name
+  mfg_date?: string; // ISO yyyy-mm-dd
+  expiry_date?: string; // ISO yyyy-mm-dd
+  quantity: number; // billed quantity (drives amount + line total)
+  actual_quantity?: number; // actual quantity (defaults to billed)
   rate: number;
   disc_percent?: number;
   // Material In job-work allocation (order tracking).
@@ -61,7 +69,7 @@ export interface BatchAllocation {
 /** One component line in the Job Work Components Allocation popup. */
 export interface ComponentAllocationRow {
   item_name: string;
-  track: "Pending to Issue" | "Pending to Receive" | "";
+  track: 'Pending to Issue' | 'Pending to Receive' | '';
   due_on: string;
   godown: string;
   batch_lot?: string;
@@ -87,9 +95,9 @@ export interface JobWorkItemAllocationRow {
 
 export interface StockEntryRow {
   id: string;
-  stockItem: import("../../../types/api").StockItemType | null;
-  godown: import("../../../types/api").GodownType | null;
-  unit: import("../../../types/api").UnitType | null;
+  stockItem: import('../../../types/api').StockItemType | null;
+  godown: import('../../../types/api').GodownType | null;
+  unit: import('../../../types/api').UnitType | null;
   quantityRaw: string;
   rateRaw: string;
   amountRaw: string;
@@ -104,44 +112,44 @@ export interface StockEntryRow {
   /** Job Work In/Out Order: godown+qty split with optional component sub-allocations. */
   jobWorkAllocations?: JobWorkItemAllocationRow[];
   /** Per-item Excise Details (Credit Note, excise-applicable items). */
-  exciseItemDetails?: import("../components/popups/ItemExciseDetailsPopup").ExciseItemDetails;
+  exciseItemDetails?: import('../components/popups/ItemExciseDetailsPopup').ExciseItemDetails;
 }
 
 export type ActiveField =
-  | { type: "account" }
-  | { type: "party" }
-  | { type: "salesPurchase" }
-  | { type: "particular"; rowId: string }
-  | { type: "additional"; rowId: string }
-  | { type: "stockItem"; rowId: string }
-  | { type: "stockGodown"; rowId: string }
-  | { type: "employee"; rowId: string }
-  | { type: "attendanceType"; rowId: string }
-  | { type: "payHead"; rowId: string }
-  | { type: "payrollCategory"; groupId: string }
-  | { type: "payrollEmployee"; groupId: string; empRowId: string }
-  | { type: "payrollPayHead"; groupId: string; empRowId: string; phRowId: string };
+  | { type: 'account' }
+  | { type: 'party' }
+  | { type: 'salesPurchase' }
+  | { type: 'particular'; rowId: string }
+  | { type: 'additional'; rowId: string }
+  | { type: 'stockItem'; rowId: string }
+  | { type: 'stockGodown'; rowId: string }
+  | { type: 'employee'; rowId: string }
+  | { type: 'attendanceType'; rowId: string }
+  | { type: 'payHead'; rowId: string }
+  | { type: 'payrollCategory'; groupId: string }
+  | { type: 'payrollEmployee'; groupId: string; empRowId: string }
+  | { type: 'payrollPayHead'; groupId: string; empRowId: string; phRowId: string };
 
 export type ActiveAllocation =
   | {
-      type: "billWise";
+      type: 'billWise';
       rowId: string;
       ledgerId: number;
       ledgerName: string;
       amount: number;
-      dcType?: "Dr" | "Cr";
+      dcType?: 'Dr' | 'Cr';
       initialAllocations?: any[];
     }
   | {
-      type: "billWiseParty";
+      type: 'billWiseParty';
       ledgerId: number;
       ledgerName: string;
       amount: number;
-      dcType?: "Dr" | "Cr";
+      dcType?: 'Dr' | 'Cr';
       initialAllocations?: any[];
     }
   | {
-      type: "costCentre";
+      type: 'costCentre';
       rowId: string;
       ledgerId: number;
       ledgerName: string;
@@ -149,7 +157,7 @@ export type ActiveAllocation =
       initialAllocations?: any[];
     }
   | {
-      type: "bankDetails";
+      type: 'bankDetails';
       rowId: string;
       ledgerId: number;
       ledgerName: string;
@@ -158,14 +166,14 @@ export type ActiveAllocation =
       allowCash?: boolean;
     }
   | {
-      type: "partyBankDetails";
+      type: 'partyBankDetails';
       ledgerId: number;
       ledgerName: string;
       amount: number;
       initialDetails?: any;
     }
   | {
-      type: "cashDenomination";
+      type: 'cashDenomination';
       rowId: string;
       ledgerId: number;
       ledgerName: string;
@@ -173,7 +181,7 @@ export type ActiveAllocation =
       initialDetails?: any;
     }
   | {
-      type: "batch";
+      type: 'batch';
       rowId: string;
       itemId: number;
       itemName: string;
@@ -191,7 +199,7 @@ export type ActiveAllocation =
       showBatch?: boolean;
     }
   | {
-      type: "materialIn";
+      type: 'materialIn';
       rowId: string;
       itemId: number;
       itemName: string;
@@ -203,7 +211,7 @@ export type ActiveAllocation =
       initialAllocations?: BatchAllocation[];
     }
   | {
-      type: "jobWork";
+      type: 'jobWork';
       rowId: string;
       itemId: number;
       itemName: string;
@@ -215,33 +223,33 @@ export type ActiveAllocation =
 
 export interface AttendanceEntryRow {
   id: string;
-  employee: import("../../../types/entities/Employee").EmployeeType | null;
-  attendanceType: import("../../../types/entities/Payroll").AttendanceTypeType | null;
+  employee: import('../../../types/entities/Employee').EmployeeType | null;
+  attendanceType: import('../../../types/entities/Payroll').AttendanceTypeType | null;
   valueRaw: string;
 }
 
 export interface PayrollEntryRow {
   id: string;
-  employee: import("../../../types/entities/Employee").EmployeeType | null;
-  payHead: import("../../../types/entities/Payroll").PayHeadType | null;
+  employee: import('../../../types/entities/Employee').EmployeeType | null;
+  payHead: import('../../../types/entities/Payroll').PayHeadType | null;
   amountRaw: string;
-  category?: import("../../../types/entities/CostCategory").CostCategoryType | null;
+  category?: import('../../../types/entities/CostCategory').CostCategoryType | null;
 }
 
 export interface PayrollPayHeadRow {
   id: string;
-  payHead: import("../../../types/entities/Payroll").PayHeadType | null;
+  payHead: import('../../../types/entities/Payroll').PayHeadType | null;
   amountRaw: string;
 }
 
 export interface PayrollEmployeeRow {
   id: string;
-  employee: import("../../../types/entities/Employee").EmployeeType | null;
+  employee: import('../../../types/entities/Employee').EmployeeType | null;
   payHeadRows: PayrollPayHeadRow[];
 }
 
 export interface PayrollGroupRow {
   id: string;
-  category: import("../../../types/entities/CostCategory").CostCategoryType | null;
+  category: import('../../../types/entities/CostCategory').CostCategoryType | null;
   employeeRows: PayrollEmployeeRow[];
 }
