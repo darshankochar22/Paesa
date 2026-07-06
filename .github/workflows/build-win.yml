@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Husky git-hooks are pointless on CI (and its prepare script was the innermost
+# failure in the Windows postinstall recursion) — husky v9 honours HUSKY=0.
+env:
+  HUSKY: 0
+
 jobs:
   # ── Fast test job — runs on every push/PR before builds ────────────────────
   test:
