@@ -13,19 +13,34 @@ const tallyFeatures = pgTable('tally_features', {
   maintainAccounts: boolean('maintain_accounts').notNull().default(true),
   enableBillWiseEntry: boolean('enable_bill_wise_entry').notNull().default(false),
   enableCostCentres: boolean('enable_cost_centres').notNull().default(false),
+  enableInterestCalculation: boolean('enable_interest_calculation').notNull().default(false),
   maintainInventory: boolean('maintain_inventory').notNull().default(true),
-  integrateAccountsWithInventory: boolean('integrate_accounts_with_inventory').notNull().default(true),
+  integrateAccountsWithInventory: boolean('integrate_accounts_with_inventory')
+    .notNull()
+    .default(true),
   enableMultiplePriceLevels: boolean('enable_multiple_price_levels').notNull().default(false),
   enableBatches: boolean('enable_batches').notNull().default(false),
-  maintainExpiryDateForBatches: boolean('maintain_expiry_date_for_batches').notNull().default(false),
+  maintainExpiryDateForBatches: boolean('maintain_expiry_date_for_batches')
+    .notNull()
+    .default(false),
+  enableJobOrderProcessing: boolean('enable_job_order_processing').notNull().default(false),
+  enableCostTracking: boolean('enable_cost_tracking').notNull().default(false),
+  enableJobCosting: boolean('enable_job_costing').notNull().default(false),
   useDiscountColumnInInvoices: boolean('use_discount_column_in_invoices').notNull().default(false),
   useSeparateActualBilledQty: boolean('use_separate_actual_billed_qty').notNull().default(false),
   enableGst: boolean('enable_gst').notNull().default(false),
   setAlterCompanyGstDetails: boolean('set_alter_company_gst_details').notNull().default(false),
   enableTds: boolean('enable_tds').notNull().default(false),
   enableTcs: boolean('enable_tcs').notNull().default(false),
-  enableBrowserAccessForReports: boolean('enable_browser_access_for_reports').notNull().default(false),
+  enableVat: boolean('enable_vat').notNull().default(false),
+  enableExcise: boolean('enable_excise').notNull().default(false),
+  enableServiceTax: boolean('enable_service_tax').notNull().default(false),
+  enableBrowserAccessForReports: boolean('enable_browser_access_for_reports')
+    .notNull()
+    .default(false),
   enableTallyNetServices: boolean('enable_tally_net_services').notNull().default(false),
+  maintainPayroll: boolean('maintain_payroll').notNull().default(false),
+  enablePayrollStatutory: boolean('enable_payroll_statutory').notNull().default(false),
   enablePaymentRequestQr: boolean('enable_payment_request_qr').notNull().default(true),
   enableMultipleAddresses: boolean('enable_multiple_addresses').notNull().default(false),
   markModifiedVouchers: boolean('mark_modified_vouchers').notNull().default(false),

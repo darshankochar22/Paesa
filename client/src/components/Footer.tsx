@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useCompany } from "../context/CompanyContext";
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useCompany } from '../context/CompanyContext';
+import CompanyFeatures from './CompanyFeatures';
 
 export default function Footer() {
   const navigate = useNavigate();
@@ -8,15 +9,16 @@ export default function Footer() {
   const { selectedCompany, activeFY } = useCompany();
 
   const [showConfigure, setShowConfigure] = useState(false);
+  const [showFeatures, setShowFeatures] = useState(false);
   const [enableSound, setEnableSound] = useState(true);
   const [highDensity, setHighDensity] = useState(false);
   const [showSubBadges, setShowSubBadges] = useState(true);
 
   const dispatchKey = (
     key: string,
-    modifiers: { ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean } = {}
+    modifiers: { ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean } = {},
   ) => {
-    const event = new KeyboardEvent("keydown", {
+    const event = new KeyboardEvent('keydown', {
       key: key,
       code: key,
       bubbles: true,
@@ -28,34 +30,38 @@ export default function Footer() {
     window.dispatchEvent(event);
   };
 
-  // Keyboard listener for global F12 triggers
+  // Keyboard listener for global F11 (Company Features) / F12 (Configure) triggers
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "F12" || e.key === "f12") {
+      if (e.key === 'F11' || e.key === 'f11') {
+        e.preventDefault();
+        setShowFeatures((prev) => !prev);
+      }
+      if (e.key === 'F12' || e.key === 'f12') {
         e.preventDefault();
         setShowConfigure((prev) => !prev);
       }
     };
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
   const handleQuit = () => {
     const currentPath = location.pathname;
-    dispatchKey("Escape");
+    dispatchKey('Escape');
 
     setTimeout(() => {
-      if (location.pathname === currentPath && currentPath !== "/") {
-        if (currentPath.startsWith("/master/coa/")) {
-          navigate("/master/coa");
-        } else if (currentPath.startsWith("/master/")) {
-          navigate("/");
-        } else if (currentPath.startsWith("/transactions/")) {
-          navigate("/");
-        } else if (currentPath.startsWith("/utilities/")) {
-          navigate("/");
-        } else if (currentPath.startsWith("/data/")) {
-          navigate("/");
+      if (location.pathname === currentPath && currentPath !== '/') {
+        if (currentPath.startsWith('/master/coa/')) {
+          navigate('/master/coa');
+        } else if (currentPath.startsWith('/master/')) {
+          navigate('/');
+        } else if (currentPath.startsWith('/transactions/')) {
+          navigate('/');
+        } else if (currentPath.startsWith('/utilities/')) {
+          navigate('/');
+        } else if (currentPath.startsWith('/data/')) {
+          navigate('/');
         } else {
           navigate(-1);
         }
@@ -64,39 +70,39 @@ export default function Footer() {
   };
 
   const handleAccept = () => {
-    dispatchKey("a", { ctrlKey: true });
+    dispatchKey('a', { ctrlKey: true });
   };
 
   const handleDelete = () => {
-    dispatchKey("d", { altKey: true });
+    dispatchKey('d', { altKey: true });
   };
 
   const handleCancel = () => {
-    dispatchKey("Escape");
+    dispatchKey('Escape');
   };
 
   const handleVch = () => {
-    dispatchKey("F8");
+    dispatchKey('F8');
 
     // Fallback: Navigate directly to Vouchers if no voucher entry catches it
     setTimeout(() => {
-      if (location.pathname !== "/transactions/vouchers") {
-        navigate("/transactions/vouchers");
+      if (location.pathname !== '/transactions/vouchers') {
+        navigate('/transactions/vouchers');
       }
     }, 60);
   };
 
   const handleConfigure = () => {
-    dispatchKey("F12");
+    dispatchKey('F12');
     setShowConfigure(true);
   };
 
   const formatDate = (d: string) => {
-    if (!d) return "—";
-    return new Date(d).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
     });
   };
 
@@ -106,19 +112,31 @@ export default function Footer() {
         <button onClick={handleQuit} className="hover:underline focus:outline-none transition-all">
           Quit
         </button>
-        <button onClick={handleAccept} className="hover:underline focus:outline-none transition-all">
+        <button
+          onClick={handleAccept}
+          className="hover:underline focus:outline-none transition-all"
+        >
           Accept
         </button>
-        <button onClick={handleDelete} className="hover:underline focus:outline-none transition-all">
+        <button
+          onClick={handleDelete}
+          className="hover:underline focus:outline-none transition-all"
+        >
           Delete
         </button>
-        <button onClick={handleCancel} className="hover:underline focus:outline-none transition-all">
+        <button
+          onClick={handleCancel}
+          className="hover:underline focus:outline-none transition-all"
+        >
           Cancel
         </button>
         <button onClick={handleVch} className="hover:underline focus:outline-none transition-all">
           Vch
         </button>
-        <button onClick={handleConfigure} className="hover:underline focus:outline-none transition-all">
+        <button
+          onClick={handleConfigure}
+          className="hover:underline focus:outline-none transition-all"
+        >
           Configure
         </button>
       </div>
@@ -126,7 +144,6 @@ export default function Footer() {
       {showConfigure && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 animate-fadeIn">
           <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-96 overflow-hidden select-none flex flex-col font-sans">
-            
             {/* Header */}
             <div className="bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-800 border-b border-zinc-200 flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -143,7 +160,6 @@ export default function Footer() {
 
             {/* Form Settings Content */}
             <div className="p-5 flex flex-col gap-5 text-xs text-zinc-700 flex-1 overflow-y-auto">
-              
               {/* Preferences Section */}
               <div className="flex flex-col gap-2.5">
                 <h4 className="font-bold text-[10px] uppercase tracking-wider text-zinc-400">
@@ -187,16 +203,22 @@ export default function Footer() {
                 </h4>
                 <div className="flex justify-between border-b border-zinc-100 pb-1.5">
                   <span className="text-zinc-450">Active Company</span>
-                  <span className="font-bold text-zinc-900">{selectedCompany?.name || "None Selected"}</span>
+                  <span className="font-bold text-zinc-900">
+                    {selectedCompany?.name || 'None Selected'}
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-zinc-100 pb-1.5">
                   <span className="text-zinc-450">Company Database</span>
-                  <span className="text-zinc-600 font-semibold">{selectedCompany?.company_id ? `Active (ID: ${selectedCompany.company_id})` : "No Connection"}</span>
+                  <span className="text-zinc-600 font-semibold">
+                    {selectedCompany?.company_id
+                      ? `Active (ID: ${selectedCompany.company_id})`
+                      : 'No Connection'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-450">Active FY Period</span>
                   <span className="text-zinc-700 font-semibold">
-                    {activeFY ? `${formatDate(activeFY.start_date)}` : "Not Configured"}
+                    {activeFY ? `${formatDate(activeFY.start_date)}` : 'Not Configured'}
                   </span>
                 </div>
               </div>
@@ -211,10 +233,15 @@ export default function Footer() {
                 Apply Settings
               </button>
             </div>
-
           </div>
         </div>
       )}
+
+      <CompanyFeatures
+        open={showFeatures}
+        onClose={() => setShowFeatures(false)}
+        company={selectedCompany}
+      />
     </>
   );
 }

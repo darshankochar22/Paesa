@@ -6,7 +6,7 @@ const auditTrailService = require('../auditTrail/auditTrailService');
 // Fetch a single tally_features row in the legacy snake_case shape (or undefined).
 const findRow = async (company_id) => {
   const rows = await db.all(
-    sql`SELECT * FROM ${tallyFeatures} WHERE ${tallyFeatures.companyId} = ${company_id}`
+    sql`SELECT * FROM ${tallyFeatures} WHERE ${tallyFeatures.companyId} = ${company_id}`,
   );
   return rows[0];
 };
@@ -17,19 +17,28 @@ const seedDefaultFeatures = async (company_id) => {
     maintainAccounts: 1,
     enableBillWiseEntry: 0,
     enableCostCentres: 1,
+    enableInterestCalculation: 0,
     maintainInventory: 1,
     integrateAccountsWithInventory: 1,
     enableMultiplePriceLevels: 0,
     enableBatches: 0,
     maintainExpiryDateForBatches: 0,
+    enableJobOrderProcessing: 0,
+    enableCostTracking: 0,
+    enableJobCosting: 0,
     useDiscountColumnInInvoices: 0,
     useSeparateActualBilledQty: 0,
     enableGst: 0,
     setAlterCompanyGstDetails: 0,
     enableTds: 0,
     enableTcs: 0,
+    enableVat: 0,
+    enableExcise: 0,
+    enableServiceTax: 0,
     enableBrowserAccessForReports: 0,
     enableTallyNetServices: 0,
+    maintainPayroll: 0,
+    enablePayrollStatutory: 0,
     enablePaymentRequestQr: 1,
     enableMultipleAddresses: 0,
     markModifiedVouchers: 0,
@@ -60,6 +69,8 @@ module.exports = {
           maintainAccounts: data.maintain_accounts ?? current.maintain_accounts,
           enableBillWiseEntry: data.enable_bill_wise_entry ?? current.enable_bill_wise_entry,
           enableCostCentres: data.enable_cost_centres ?? current.enable_cost_centres,
+          enableInterestCalculation:
+            data.enable_interest_calculation ?? current.enable_interest_calculation,
           maintainInventory: data.maintain_inventory ?? current.maintain_inventory,
           integrateAccountsWithInventory:
             data.integrate_accounts_with_inventory ?? current.integrate_accounts_with_inventory,
@@ -68,6 +79,10 @@ module.exports = {
           enableBatches: data.enable_batches ?? current.enable_batches,
           maintainExpiryDateForBatches:
             data.maintain_expiry_date_for_batches ?? current.maintain_expiry_date_for_batches,
+          enableJobOrderProcessing:
+            data.enable_job_order_processing ?? current.enable_job_order_processing,
+          enableCostTracking: data.enable_cost_tracking ?? current.enable_cost_tracking,
+          enableJobCosting: data.enable_job_costing ?? current.enable_job_costing,
           useDiscountColumnInInvoices:
             data.use_discount_column_in_invoices ?? current.use_discount_column_in_invoices,
           useSeparateActualBilledQty:
@@ -77,10 +92,15 @@ module.exports = {
             data.set_alter_company_gst_details ?? current.set_alter_company_gst_details,
           enableTds: data.enable_tds ?? current.enable_tds,
           enableTcs: data.enable_tcs ?? current.enable_tcs,
+          enableVat: data.enable_vat ?? current.enable_vat,
+          enableExcise: data.enable_excise ?? current.enable_excise,
+          enableServiceTax: data.enable_service_tax ?? current.enable_service_tax,
           enableBrowserAccessForReports:
             data.enable_browser_access_for_reports ?? current.enable_browser_access_for_reports,
           enableTallyNetServices:
             data.enable_tally_net_services ?? current.enable_tally_net_services,
+          maintainPayroll: data.maintain_payroll ?? current.maintain_payroll,
+          enablePayrollStatutory: data.enable_payroll_statutory ?? current.enable_payroll_statutory,
           enablePaymentRequestQr:
             data.enable_payment_request_qr ?? current.enable_payment_request_qr,
           enableMultipleAddresses:
@@ -117,19 +137,28 @@ module.exports = {
           maintainAccounts: 1,
           enableBillWiseEntry: 0,
           enableCostCentres: 1,
+          enableInterestCalculation: 0,
           maintainInventory: 1,
           integrateAccountsWithInventory: 1,
           enableMultiplePriceLevels: 0,
           enableBatches: 0,
           maintainExpiryDateForBatches: 0,
+          enableJobOrderProcessing: 0,
+          enableCostTracking: 0,
+          enableJobCosting: 0,
           useDiscountColumnInInvoices: 0,
           useSeparateActualBilledQty: 0,
           enableGst: 0,
           setAlterCompanyGstDetails: 0,
           enableTds: 0,
           enableTcs: 0,
+          enableVat: 0,
+          enableExcise: 0,
+          enableServiceTax: 0,
           enableBrowserAccessForReports: 0,
           enableTallyNetServices: 0,
+          maintainPayroll: 0,
+          enablePayrollStatutory: 0,
           enablePaymentRequestQr: 1,
           enableMultipleAddresses: 0,
           markModifiedVouchers: 0,
