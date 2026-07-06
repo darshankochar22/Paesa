@@ -282,6 +282,28 @@ const init = async (db) => {
   try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN supplier_note_date TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN nature_of_return TEXT`); } catch (err) {}
 
+  // "Provide GST/e-Way Bill details" Statutory Details (Sales/Credit Note/Debit Note).
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_gst_eway_details (
+      id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id              INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      reason_for_issuing_note TEXT,
+      buyers_note_no          TEXT,
+      buyers_note_date        TEXT,
+      eway_bill_no            TEXT,
+      eway_bill_date          TEXT,
+      dispatch_from           TEXT,
+      ship_to                 TEXT,
+      transporter_name        TEXT,
+      transporter_id          TEXT,
+      mode                    TEXT,
+      doc_lading_no           TEXT,
+      doc_lading_date         TEXT,
+      vehicle_number          TEXT,
+      vehicle_type            TEXT
+    )
+  `);
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_vat_details (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,

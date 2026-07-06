@@ -21,6 +21,7 @@ const {
   voucherVatDetails,
   voucherExciseDetails,
   voucherOrderDetails,
+  voucherGstEwayDetails,
   voucherPayrollEntries,
   ledgers,
   ledgerStatutoryDetails,
@@ -622,6 +623,32 @@ module.exports = {
             voucherId: data.voucher_id,
             dateTime: nullify(data.vat_details.date_time) || null,
             pointOfSale: nullify(data.vat_details.point_of_sale) || null,
+          });
+        }
+      }
+
+      if (data.gst_eway_details !== undefined) {
+        await db
+          .delete(voucherGstEwayDetails)
+          .where(eq(voucherGstEwayDetails.voucherId, data.voucher_id));
+        if (data.gst_eway_details) {
+          const ge = data.gst_eway_details;
+          await db.insert(voucherGstEwayDetails).values({
+            voucherId: data.voucher_id,
+            reasonForIssuingNote: nullify(ge.reason_for_issuing_note) || null,
+            buyersNoteNo: nullify(ge.buyers_note_no) || null,
+            buyersNoteDate: nullify(ge.buyers_note_date) || null,
+            ewayBillNo: nullify(ge.eway_bill_no) || null,
+            ewayBillDate: nullify(ge.eway_bill_date) || null,
+            dispatchFrom: nullify(ge.dispatch_from) || null,
+            shipTo: nullify(ge.ship_to) || null,
+            transporterName: nullify(ge.transporter_name) || null,
+            transporterId: nullify(ge.transporter_id) || null,
+            mode: nullify(ge.mode) || null,
+            docLadingNo: nullify(ge.doc_lading_no) || null,
+            docLadingDate: nullify(ge.doc_lading_date) || null,
+            vehicleNumber: nullify(ge.vehicle_number) || null,
+            vehicleType: nullify(ge.vehicle_type) || null,
           });
         }
       }

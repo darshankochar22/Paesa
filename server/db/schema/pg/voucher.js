@@ -413,6 +413,31 @@ const voucherDebitNoteDetails = pgTable('voucher_debit_note_details', {
 });
 
 // ---------------------------------------------------------------------------
+// voucher_gst_eway_details  ("Provide GST/e-Way Bill details" — Sales/Credit/Debit Note)
+// ---------------------------------------------------------------------------
+const voucherGstEwayDetails = pgTable('voucher_gst_eway_details', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  // FK -> vouchers.voucher_id ON DELETE CASCADE.
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  reasonForIssuingNote: text('reason_for_issuing_note'),
+  buyersNoteNo: text('buyers_note_no'),
+  buyersNoteDate: date('buyers_note_date'),
+  ewayBillNo: text('eway_bill_no'),
+  ewayBillDate: date('eway_bill_date'),
+  dispatchFrom: text('dispatch_from'),
+  shipTo: text('ship_to'),
+  transporterName: text('transporter_name'),
+  transporterId: text('transporter_id'),
+  mode: text('mode'),
+  docLadingNo: text('doc_lading_no'),
+  docLadingDate: date('doc_lading_date'),
+  vehicleNumber: text('vehicle_number'),
+  vehicleType: text('vehicle_type'),
+});
+
+// ---------------------------------------------------------------------------
 // voucher_payroll_entries
 // ---------------------------------------------------------------------------
 const voucherPayrollEntries = pgTable('voucher_payroll_entries', {
@@ -448,5 +473,6 @@ module.exports = {
   voucherExciseDetails,
   voucherVatDetails,
   voucherOrderDetails,
+  voucherGstEwayDetails,
   voucherPayrollEntries,
 };

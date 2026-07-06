@@ -21,6 +21,7 @@ const {
   voucherVatDetails,
   voucherExciseDetails,
   voucherOrderDetails,
+  voucherGstEwayDetails,
   voucherPayrollEntries,
   ledgers,
   ledgerStatutoryDetails,
@@ -249,6 +250,9 @@ module.exports = {
       const vatDetails = await db.all(
         sql`SELECT * FROM ${voucherVatDetails} WHERE ${voucherVatDetails.voucherId} = ${id}`,
       );
+      const gstEwayDetails = await db.all(
+        sql`SELECT * FROM ${voucherGstEwayDetails} WHERE ${voucherGstEwayDetails.voucherId} = ${id}`,
+      );
       const exciseDetails = await db.all(
         sql`SELECT * FROM ${voucherExciseDetails} WHERE ${voucherExciseDetails.voucherId} = ${id}`,
       );
@@ -293,6 +297,7 @@ module.exports = {
           credit_note_details: creditNoteDetails[0] || null,
           debit_note_details: debitNoteDetails[0] || null,
           vat_details: vatDetails[0] || null,
+          gst_eway_details: gstEwayDetails[0] || null,
           excise_details: exciseDetails[0] || null,
           order_details: orderDetails[0] || null,
           payroll_entries: payrollEntries,
