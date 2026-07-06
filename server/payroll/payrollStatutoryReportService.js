@@ -224,9 +224,98 @@ const getPFForm10 = async (company_id, { from, to } = {}) => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// PF Form 12A (#209) — the EPF monthly "Statement of Contribution". Reuses the
+// SAME PF buckets as the Summary (#206) so the figures tie out; member movement
+// ties to Form 5 joiners / Form 10 leavers. Remittance/challan details aren't
+// tracked yet — left blank, honest (like Tally's empty EDU preview).
+// ---------------------------------------------------------------------------
+const getPFForm12A = async (company_id, { from, to } = {}) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+
+    // PF contribution buckets — identical basis to the Summary's Provident Fund rows.
+    const heads = await loadPayHeadAmounts(company_id);
+    const pfHeads = heads.filter((ph) => matchesComponent(ph, 'pf'));
+    const bucket = (label) =>
+      pfHeads
+        .filter((ph) => matchesRowType(ph, label))
+        .reduce((s, ph) => s + (Number(ph.amount) || 0), 0);
+    const employee_share = bucket("Employees' Statutory Deductions");
+    const employer_share = bucket("Employer's Statutory Contributions");
+    const other_charges = bucket("Employer's Other Charges");
+
+    // Per (employee, pay head) lines across ACTIVE structures — PF membership and
+    // wages are derived in JS with the same matcher the summary uses.
+    const lines = await db.all(
+      sql`SELECT ss.employee_id, ph.name, ph.pay_head_type, ph.statutory_component,
+                 ph.statutory_pay_type, ss.amount
+          FROM salary_structures ss
+          JOIN pay_heads ph ON ph.pay_head_id = ss.pay_head_id
+          JOIN employees e ON e.employee_id = ss.employee_id AND e.is_active = 1
+          WHERE ph.company_id = ${company_id} AND ph.is_active = 1 AND ss.is_active = 1`,
+    );
+    const pfMembers = new Set(
+      lines.filter((l) => matchesComponent(l, 'pf')).map((l) => l.employee_id),
+    );
+    const wages = lines
+      .filter((l) => pfMembers.has(l.employee_id) && /earning/i.test(String(l.pay_head_type || '')))
+      .reduce((s, l) => s + (Number(l.amount) || 0), 0);
+
+    // Member movement — joiners (Form 5 basis) and leavers (Form 10 basis) in period.
+    const inPeriod = (d) => (d ? (!from || !to ? true : d >= from && d <= to) : false);
+    const activeEmps = await db.all(
+      sql`SELECT date_of_joining, date_of_joining_pf FROM employees
+          WHERE company_id = ${company_id} AND is_active = 1`,
+    );
+    const leaverEmps = await db.all(
+      sql`SELECT date_of_leaving FROM employees
+          WHERE company_id = ${company_id}
+            AND date_of_leaving IS NOT NULL AND TRIM(date_of_leaving) != ''`,
+    );
+    const added = activeEmps.filter((e) =>
+      inPeriod(e.date_of_joining_pf || e.date_of_joining),
+    ).length;
+    const left = leaverEmps.filter((e) => inPeriod(e.date_of_leaving)).length;
+    const closing = pfMembers.size;
+    const opening = Math.max(0, closing - added + left);
+
+    return {
+      success: true,
+      payload: {
+        establishment,
+        statutory_rate: '12%',
+        wages,
+        members: { opening, added, left, closing },
+        accounts: [
+          {
+            account: 'A/c No. 1',
+            label: "Provident Fund — Employees' Share",
+            amount: employee_share,
+          },
+          {
+            account: 'A/c No. 1',
+            label: "Provident Fund — Employer's Share",
+            amount: employer_share,
+          },
+          {
+            account: 'A/c No. 2, 10, 21 & 22',
+            label: "Employer's Other Charges (Pension / Admin / EDLI)",
+            amount: other_charges,
+          },
+        ],
+        total: employee_share + employer_share + other_charges,
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   getStatutorySummary,
   getStatutoryPayHeadDetails,
   getPFForm5,
   getPFForm10,
+  getPFForm12A,
 };

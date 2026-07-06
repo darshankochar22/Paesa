@@ -555,6 +555,7 @@ contextBridge.exposeInMainWorld('api', {
     getPayHeadDetails: (data) => invoke('payrollStatutory:getPayHeadDetails', data),
     getPFForm5: (data) => invoke('payrollStatutory:getPFForm5', data),
     getPFForm10: (data) => invoke('payrollStatutory:getPFForm10', data),
+    getPFForm12A: (data) => invoke('payrollStatutory:getPFForm12A', data),
   },
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),

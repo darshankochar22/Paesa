@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
 import { EmptyState } from '@/components/blocks/EmptyState';
@@ -15,7 +15,10 @@ const monthLabel = (activeFY?: { end_date?: string } | null) => {
   return d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 };
 
-function useFormData(kind: 'form5' | 'form10') {
+const fmtAmt = (n: number) =>
+  n ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+
+function useFormData(kind: 'form5' | 'form10' | 'form12a') {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const [payload, setPayload] = useState<any>(null);
@@ -30,10 +33,13 @@ function useFormData(kind: 'form5' | 'form10') {
         from: activeFY?.start_date,
         to: activeFY?.end_date,
       };
+      const api = window.api.payrollStatutory;
       const res =
         kind === 'form5'
-          ? await window.api.payrollStatutory.getPFForm5(params)
-          : await window.api.payrollStatutory.getPFForm10(params);
+          ? await api.getPFForm5(params)
+          : kind === 'form10'
+            ? await api.getPFForm10(params)
+            : await api.getPFForm12A(params);
       if (res.success) setPayload(res.payload);
       setLoading(false);
     })();
@@ -245,6 +251,114 @@ export function PFForm10() {
             </table>
 
             <SignatureFooter note={FORM10_NOTE} />
+          </div>
+        )}
+      </div>
+    </TallyReportLayout>
+  );
+}
+
+// PF Form 12A (#209) — the EPF monthly Statement of Contribution. PF figures reuse
+// the same buckets as the Statutory Summary (#206); member movement ties to the
+// Form 5 joiners / Form 10 leavers. Remittance/challan details aren't tracked — blank.
+export function PFForm12A() {
+  const { payload, loading, selectedCompany, activeFY } = useFormData('form12a');
+  const accounts: any[] = payload?.accounts ?? [];
+  const members = payload?.members ?? { opening: 0, added: 0, left: 0, closing: 0 };
+
+  const InfoRow = ({ label, value }: { label: string; value: ReactNode }) => (
+    <div className="flex">
+      <div className="w-96">{label}</div>
+      <div className="w-4">:</div>
+      <div className="font-bold">{value}</div>
+    </div>
+  );
+
+  return (
+    <TallyReportLayout
+      title="Form 12A"
+      companyName={selectedCompany?.name || 'Company'}
+      rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
+    >
+      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+        {loading && <EmptyState message="Preparing Form 12A…" className="italic" />}
+        {!loading && (
+          <div className="bg-white shadow px-10 py-8 w-[900px] text-[11px] text-black">
+            <div className="text-center font-bold text-sm mb-3">FORM 12A (Revised)</div>
+            <div className="text-center font-bold mb-1">
+              THE EMPLOYEES' PROVIDENT FUND SCHEME, 1952 (Paragraph 38(2))
+            </div>
+            <div className="text-center font-bold mb-1">
+              &amp; THE EMPLOYEES' PENSION SCHEME, 1995 (Paragraph 20(4))
+            </div>
+            <div className="text-center font-bold mb-4">
+              &amp; THE EMPLOYEES' DEPOSIT LINKED INSURANCE SCHEME, 1976 (Paragraph 10)
+            </div>
+            <div className="text-center font-bold mb-4">
+              Statement of Contribution for the month of <span>{monthLabel(activeFY)}</span>
+            </div>
+
+            <Establishment est={payload?.establishment} />
+
+            <div className="flex flex-col gap-1 mb-4 text-[11px]">
+              <InfoRow
+                label="Statutory rate of contribution"
+                value={payload?.statutory_rate || '12%'}
+              />
+              <InfoRow
+                label="No. of members at the beginning of the month"
+                value={members.opening}
+              />
+              <InfoRow
+                label="No. of members joined during the month (Form 5)"
+                value={members.added}
+              />
+              <InfoRow
+                label="No. of members left service during the month (Form 10)"
+                value={members.left}
+              />
+              <InfoRow label="No. of members at the close of the month" value={members.closing} />
+              <InfoRow
+                label="Total wages on which contributions are payable"
+                value={fmtAmt(payload?.wages ?? 0) || '—'}
+              />
+            </div>
+
+            <table className="w-full border-collapse text-[10px]">
+              <thead>
+                <tr>
+                  <th className={`${HEADCELL} w-40`}>Account No.</th>
+                  <th className={HEADCELL}>Particulars of Contribution / Charges</th>
+                  <th className={`${HEADCELL} w-40`}>Amount (Rs.)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map((a, i) => (
+                  <tr key={i}>
+                    <td className={CELL}>{a.account}</td>
+                    <td className={CELL}>{a.label}</td>
+                    <td className={`${CELL} text-right tabular-nums`}>
+                      {fmtAmt(a.amount) || '0.00'}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td className={`${CELL} font-bold`} />
+                  <td className={`${CELL} font-bold text-right`}>Total</td>
+                  <td className={`${CELL} font-bold text-right tabular-nums`}>
+                    {fmtAmt(payload?.total ?? 0) || '0.00'}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="mt-4 flex text-[11px]">
+              <div className="w-96">Details of remittance (Bank / Challan No. / Date)</div>
+              <div className="w-4">:</div>
+              <div className="font-bold" />
+            </div>
+
+            <SignatureFooter />
           </div>
         )}
       </div>
