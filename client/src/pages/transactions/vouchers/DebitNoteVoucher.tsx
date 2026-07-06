@@ -1,11 +1,10 @@
-
-
 // vouchers/DebitNoteVoucher.tsx
-import { useState } from "react";
-import type { useVoucherForm } from "../hooks/useVoucherForm";
-import FieldRow from "../components/FieldRow";
-import GstNoteAdditionalDetailsPopup from "../components/popups/GstNoteAdditionalDetailsPopup";
-import VatNatureOfReturnPopup from "../components/popups/VatNatureOfReturnPopup";
+import { useState } from 'react';
+import type { useVoucherForm } from '../hooks/useVoucherForm';
+import FieldRow from '../components/FieldRow';
+import GstNoteAdditionalDetailsPopup from '../components/popups/GstNoteAdditionalDetailsPopup';
+import VatNatureOfReturnPopup from '../components/popups/VatNatureOfReturnPopup';
+import { useCompany } from '../../../context/CompanyContext';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -21,6 +20,10 @@ export default function DebitNoteVoucher({
   focusStockRate,
   proceedToNextStockRow,
 }: Props) {
+  // F11 "Use separate Actual and Billed Quantity columns" — collapse to a single
+  // Quantity column when the flag is explicitly No.
+  const { features } = useCompany();
+  const showBilled = features?.use_separate_actual_billed_qty !== 0;
   return (
     <>
       {/* Party */}
@@ -61,8 +64,12 @@ export default function DebitNoteVoucher({
         <div className="flex px-3 py-0.5 border-t border-gray-200">
           <div className="flex-1" />
           <div className="w-44 flex">
-            <div className="flex-1 text-center text-xs text-zinc-600">Actual</div>
-            <div className="flex-1 text-center text-xs text-zinc-600">Billed</div>
+            {showBilled && (
+              <>
+                <div className="flex-1 text-center text-xs text-zinc-600">Actual</div>
+                <div className="flex-1 text-center text-xs text-zinc-600">Billed</div>
+              </>
+            )}
           </div>
           <div className="w-20" />
           <div className="w-12" />
@@ -75,8 +82,7 @@ export default function DebitNoteVoucher({
         {/* Stock item rows */}
         {form.stockEntries.map((row, idx) => {
           const isActive =
-            form.activeField?.type === "stockItem" &&
-            form.activeField.rowId === row.id;
+            form.activeField?.type === 'stockItem' && form.activeField.rowId === row.id;
           return (
             <div
               key={row.id}
@@ -87,18 +93,15 @@ export default function DebitNoteVoucher({
                   data-stock-item={idx + 1}
                   type="text"
                   className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? "")}
-                  placeholder={idx === 0 ? "Select Item…" : ""}
-                  onFocus={() =>
-                    form.handleFieldFocus({ type: "stockItem", rowId: row.id })
-                  }
+                  value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? '')}
+                  placeholder={idx === 0 ? 'Select Item…' : ''}
+                  onFocus={() => form.handleFieldFocus({ type: 'stockItem', rowId: row.id })}
                   onChange={(e) => {
                     form.setStockSearchTerm(e.target.value);
-                    if (!row.stockItem)
-                      form.handleFieldFocus({ type: "stockItem", rowId: row.id });
+                    if (!row.stockItem) form.handleFieldFocus({ type: 'stockItem', rowId: row.id });
                   }}
                   onKeyDown={(e) => {
-                    if (e.key !== "Enter" || !row.stockItem) return;
+                    if (e.key !== 'Enter' || !row.stockItem) return;
                     e.preventDefault();
                     focusStockQty(idx);
                   }}
@@ -130,24 +133,26 @@ export default function DebitNoteVoucher({
                       form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
                     }
                     onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
+                      if (e.key !== 'Enter') return;
                       e.preventDefault();
                       focusStockRate(idx);
                     }}
                   />
                 </div>
-                <div className="flex-1 text-right pr-1">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                    value={row.billedQtyRaw ?? row.quantityRaw}
-                    placeholder=""
-                    onChange={(e) =>
-                      form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value })
-                    }
-                  />
-                </div>
+                {showBilled && (
+                  <div className="flex-1 text-right pr-1">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                      value={row.billedQtyRaw ?? row.quantityRaw}
+                      placeholder=""
+                      onChange={(e) =>
+                        form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value })
+                      }
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="w-20 text-right pr-1">
@@ -158,27 +163,23 @@ export default function DebitNoteVoucher({
                   className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                   value={row.rateRaw}
                   placeholder=""
-                  onChange={(e) =>
-                    form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
-                  }
+                  onChange={(e) => form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })}
                   onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
+                    if (e.key !== 'Enter') return;
                     e.preventDefault();
                     proceedToNextStockRow(idx);
                   }}
                 />
               </div>
 
-              <div className="w-12 text-center text-xs text-gray-500">
-                {row.unit?.symbol ?? ""}
-              </div>
+              <div className="w-12 text-center text-xs text-gray-500">{row.unit?.symbol ?? ''}</div>
 
               <div className="w-16 text-right pr-1">
                 <input
                   type="text"
                   inputMode="decimal"
                   className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={row.discPercentRaw ?? ""}
+                  value={row.discPercentRaw ?? ''}
                   placeholder=""
                   onChange={(e) =>
                     form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
@@ -188,11 +189,11 @@ export default function DebitNoteVoucher({
 
               <div className="w-32 text-right text-sm font-semibold text-black select-none">
                 {row.amountRaw
-                  ? Number(row.amountRaw).toLocaleString("en-IN", {
+                  ? Number(row.amountRaw).toLocaleString('en-IN', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })
-                  : ""}
+                  : ''}
               </div>
             </div>
           );
@@ -200,10 +201,7 @@ export default function DebitNoteVoucher({
 
         {/* Filler rows */}
         {Array.from({ length: Math.max(0, 5 - form.stockEntries.length) }).map((_, i) => (
-          <div
-            key={`dnf-${i}`}
-            className="flex border-b border-gray-50 min-h-[22px] px-3"
-          />
+          <div key={`dnf-${i}`} className="flex border-b border-gray-50 min-h-[22px] px-3" />
         ))}
 
         {/* Stock subtotal */}
@@ -217,7 +215,7 @@ export default function DebitNoteVoucher({
             <div className="w-32 text-right text-sm font-semibold text-black">
               {form.stockEntries
                 .reduce((s, r) => s + (Number(r.amountRaw) || 0), 0)
-                .toLocaleString("en-IN", {
+                .toLocaleString('en-IN', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
@@ -226,26 +224,26 @@ export default function DebitNoteVoucher({
         )}
       </div>
 
- {/* Grand total footer */}
+      {/* Grand total footer */}
       <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
         <div className="flex-1 text-sm font-semibold text-black" />
         <div className="w-32 text-right text-sm font-semibold text-black">
           {form.totalAmount > 0
-            ? form.totalAmount.toLocaleString("en-IN", {
+            ? form.totalAmount.toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })
-            : ""}
+            : ''}
         </div>
       </div>
 
       {/* Provide GST details — only for a Purchase Accounts ledger */}
-      {form.checkLedgerGroup(form.salesPurchaseLedger, ["purchase accounts"]) && (
+      {form.checkLedgerGroup(form.salesPurchaseLedger, ['purchase accounts']) && (
         <DebitNoteGSTDetails form={form} />
       )}
 
       {/* Provide VAT details — only for a Sales Accounts ledger */}
-      {form.checkLedgerGroup(form.salesPurchaseLedger, ["sales accounts"]) && (
+      {form.checkLedgerGroup(form.salesPurchaseLedger, ['sales accounts']) && (
         <DebitNoteVATDetails form={form} />
       )}
     </>
@@ -254,7 +252,7 @@ export default function DebitNoteVoucher({
 
 // ── GST Details (Additional Details : Reason for Issuing Note) ────────────────
 function DebitNoteGSTDetails({ form }: { form: any }) {
-  const [provideGST, setProvideGST] = useState<"Yes" | "No">("No");
+  const [provideGST, setProvideGST] = useState<'Yes' | 'No'>('No');
   const [showPopup, setShowPopup] = useState(false);
 
   return (
@@ -265,15 +263,21 @@ function DebitNoteGSTDetails({ form }: { form: any }) {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => { setProvideGST("Yes"); setShowPopup(true); }}
-            className={`text-sm px-2 py-0 border ${provideGST === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+            onClick={() => {
+              setProvideGST('Yes');
+              setShowPopup(true);
+            }}
+            className={`text-sm px-2 py-0 border ${provideGST === 'Yes' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
           >
             Yes
           </button>
           <button
             type="button"
-            onClick={() => { setProvideGST("No"); setShowPopup(false); }}
-            className={`text-sm px-2 py-0 border ${provideGST === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+            onClick={() => {
+              setProvideGST('No');
+              setShowPopup(false);
+            }}
+            className={`text-sm px-2 py-0 border ${provideGST === 'No' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
           >
             No
           </button>
@@ -283,7 +287,10 @@ function DebitNoteGSTDetails({ form }: { form: any }) {
       {showPopup && (
         <GstNoteAdditionalDetailsPopup
           initialDetails={form.debitNoteDetails}
-          onClose={() => { setProvideGST("No"); setShowPopup(false); }}
+          onClose={() => {
+            setProvideGST('No');
+            setShowPopup(false);
+          }}
           onSave={(details) => {
             form.setDebitNoteDetails({ ...form.debitNoteDetails, ...details });
             setShowPopup(false);
@@ -296,7 +303,7 @@ function DebitNoteGSTDetails({ form }: { form: any }) {
 
 // ── VAT Details (Additional Details : Nature of Return) ───────────────────────
 function DebitNoteVATDetails({ form }: { form: any }) {
-  const [provideVAT, setProvideVAT] = useState<"Yes" | "No">("No");
+  const [provideVAT, setProvideVAT] = useState<'Yes' | 'No'>('No');
   const [showPopup, setShowPopup] = useState(false);
 
   return (
@@ -307,15 +314,21 @@ function DebitNoteVATDetails({ form }: { form: any }) {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => { setProvideVAT("Yes"); setShowPopup(true); }}
-            className={`text-sm px-2 py-0 border ${provideVAT === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+            onClick={() => {
+              setProvideVAT('Yes');
+              setShowPopup(true);
+            }}
+            className={`text-sm px-2 py-0 border ${provideVAT === 'Yes' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
           >
             Yes
           </button>
           <button
             type="button"
-            onClick={() => { setProvideVAT("No"); setShowPopup(false); }}
-            className={`text-sm px-2 py-0 border ${provideVAT === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+            onClick={() => {
+              setProvideVAT('No');
+              setShowPopup(false);
+            }}
+            className={`text-sm px-2 py-0 border ${provideVAT === 'No' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
           >
             No
           </button>
@@ -325,7 +338,10 @@ function DebitNoteVATDetails({ form }: { form: any }) {
       {showPopup && (
         <VatNatureOfReturnPopup
           initialDetails={form.debitNoteDetails}
-          onClose={() => { setProvideVAT("No"); setShowPopup(false); }}
+          onClose={() => {
+            setProvideVAT('No');
+            setShowPopup(false);
+          }}
           onSave={(details) => {
             form.setDebitNoteDetails({ ...form.debitNoteDetails, ...details });
             setShowPopup(false);

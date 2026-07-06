@@ -224,7 +224,11 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
       const payload: Partial<TallyFeaturesType> = { company_id: companyId };
       for (const r of ALL_ROWS) (payload as Record<string, number>)[r.key] = values[r.key] ? 1 : 0;
       const res = await window.api.tallyFeatures.update(payload);
-      if (res?.success) onClose();
+      if (res?.success) {
+        // Let the app (CompanyContext) re-read flags so gated UI updates live.
+        window.dispatchEvent(new Event('features-reload'));
+        onClose();
+      }
     } finally {
       setSaving(false);
     }
@@ -243,6 +247,7 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
         }
         setValues(next);
       }
+      window.dispatchEvent(new Event('features-reload'));
     } finally {
       setSaving(false);
     }
@@ -406,7 +411,8 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
   );
 }
 
-// Segmented Yes/No — strict black/white; active side is filled black.
+// Segmented Yes/No — strict grayscale; selected side gets a soft light-gray
+// fill (Tally-style highlight), never harsh black.
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div className="inline-flex border border-zinc-300 shrink-0 text-[11px]">
@@ -415,7 +421,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
         onClick={() => onChange(true)}
         className={cn(
           'px-2.5 py-0.5',
-          value ? 'bg-black text-white font-semibold' : 'text-zinc-500 hover:bg-zinc-100',
+          value ? 'bg-zinc-200 text-zinc-900 font-semibold' : 'text-zinc-400 hover:bg-zinc-50',
         )}
       >
         Yes
@@ -425,7 +431,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
         onClick={() => onChange(false)}
         className={cn(
           'px-2.5 py-0.5 border-l border-zinc-300',
-          !value ? 'bg-black text-white font-semibold' : 'text-zinc-500 hover:bg-zinc-100',
+          !value ? 'bg-zinc-200 text-zinc-900 font-semibold' : 'text-zinc-400 hover:bg-zinc-50',
         )}
       >
         No

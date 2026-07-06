@@ -279,6 +279,7 @@ import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
 import VatAdditionalDetailsPopup from '../components/popups/VatAdditionalDetailsPopup';
 import { gstRowInfo } from '../utils/gstRow';
+import { useCompany } from '../../../context/CompanyContext';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -306,6 +307,11 @@ export default function SalesVoucher({
   // ASSUMED: GST Registration / Tax Unit live on selectedCompany.
   // Confirm actual field names — these are guesses based on the screenshot labels.
   const [openList, setOpenList] = useState<null | 'regTax' | 'priceLevel'>(null);
+
+  // F11 "Use separate Actual and Billed Quantity columns" — when No, collapse
+  // the split into a single Quantity column. Shown unless the flag is explicitly 0.
+  const { features } = useCompany();
+  const showBilled = features?.use_separate_actual_billed_qty !== 0;
 
   const priceLevelLabel = form.priceLevel || '♦ Not Applicable';
 
@@ -404,8 +410,12 @@ export default function SalesVoucher({
         <div className="flex px-3 py-0.5 border-t border-gray-200">
           <div className="flex-1" />
           <div className="w-44 flex">
-            <div className="flex-1 text-center text-xs text-zinc-600">Actual</div>
-            <div className="flex-1 text-center text-xs text-zinc-600">Billed</div>
+            {showBilled && (
+              <>
+                <div className="flex-1 text-center text-xs text-zinc-600">Actual</div>
+                <div className="flex-1 text-center text-xs text-zinc-600">Billed</div>
+              </>
+            )}
           </div>
           <div className="w-20" />
           <div className="w-12" />
@@ -475,24 +485,26 @@ export default function SalesVoucher({
                     }}
                   />
                 </div>
-                <div className="flex-1 text-right pr-1">
-                  {/* ASSUMED — falls back to Actual qty if your hook has no separate Billed field */}
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                    value={(row as any).billedQtyRaw ?? row.quantityRaw}
-                    placeholder=""
-                    onChange={(e) =>
-                      form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value } as any)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key !== 'Enter') return;
-                      e.preventDefault();
-                      focusStockRate(idx);
-                    }}
-                  />
-                </div>
+                {showBilled && (
+                  <div className="flex-1 text-right pr-1">
+                    {/* ASSUMED — falls back to Actual qty if your hook has no separate Billed field */}
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                      value={(row as any).billedQtyRaw ?? row.quantityRaw}
+                      placeholder=""
+                      onChange={(e) =>
+                        form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value } as any)
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        focusStockRate(idx);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="w-20 text-right pr-1">
