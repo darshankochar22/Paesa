@@ -6,69 +6,198 @@ const { cashFlowReports, cashFlowViews } = require('../db/schema/sqlite/cashFlow
 module.exports = {
   calculateCashFlow: async (company_id, fy_id, from_date, to_date) => {
     try {
+      const openingResult = await rawDb.execute({
+        sql: `
+          WITH RECURSIVE cash_bank_groups AS (
+            SELECT group_id FROM "groups"
+            WHERE name IN ('Cash-in-hand', 'Bank Accounts')
+              AND company_id = ?
+            UNION ALL
+            SELECT g.group_id
+            FROM "groups" g
+            JOIN cash_bank_groups cbg ON g.parent_group_id = cbg.group_id
+          )
+          SELECT COALESCE(SUM(l.opening_balance), 0) AS opening
+          FROM ledgers l
+          WHERE l.company_id = ?
+            AND l.group_id IN (SELECT group_id FROM cash_bank_groups)
+        `,
+        args: [company_id, company_id],
+      });
+      const openingRows = openingResult.rows ?? openingResult;
+      const openingBalance = parseFloat(openingRows[0]?.opening) || 0;
+
       const result = await rawDb.execute({
         sql: `
+          WITH RECURSIVE cash_bank_groups AS (
+            SELECT group_id FROM "groups"
+            WHERE name IN ('Cash-in-hand', 'Bank Accounts')
+              AND company_id = ?
+            UNION ALL
+            SELECT g.group_id
+            FROM "groups" g
+            JOIN cash_bank_groups cbg ON g.parent_group_id = cbg.group_id
+          ),
+          relevant_vouchers AS (
+            SELECT DISTINCT v.voucher_id, v.date, v.voucher_type
+            FROM vouchers v
+            JOIN voucher_entries ve ON ve.voucher_id = v.voucher_id
+            JOIN ledgers l ON ve.ledger_id = l.ledger_id
+            WHERE v.company_id = ?
+              AND v.fy_id = ?
+              AND v.date BETWEEN ? AND ?
+              AND v.is_cancelled = 0
+              AND COALESCE(v.is_optional, 0) = 0
+              AND COALESCE(v.is_post_dated, 0) = 0
+              AND l.group_id IN (SELECT group_id FROM cash_bank_groups)
+          )
           SELECT
-            v.date           AS voucher_date,
-            v.voucher_type,
+            rv.voucher_id,
+            rv.date        AS voucher_date,
+            rv.voucher_type,
             ve.amount,
-            ve.type          AS line_type,
+            ve.type        AS line_type,
             ve.ledger_name,
             l.group_id,
-            g.name
-          FROM vouchers v
-          JOIN voucher_entries ve ON v.voucher_id = ve.voucher_id
+            g.name         AS group_name,
+            CASE WHEN l.group_id IN (SELECT group_id FROM cash_bank_groups) THEN 1 ELSE 0 END AS is_cash_bank
+          FROM relevant_vouchers rv
+          JOIN voucher_entries ve ON ve.voucher_id = rv.voucher_id
           LEFT JOIN ledgers l ON ve.ledger_id = l.ledger_id
           LEFT JOIN "groups" g ON l.group_id = g.group_id
-          WHERE v.company_id = ?
-            AND v.fy_id = ?
-            AND v.date BETWEEN ? AND ?
-            AND v.is_cancelled = 0
-            AND COALESCE(v.is_optional, 0) = 0
-            AND COALESCE(v.is_post_dated, 0) = 0
         `,
-        args: [company_id, fy_id, from_date, to_date],
+        args: [company_id, company_id, fy_id, from_date, to_date],
       });
 
       const logs = result.rows ?? result;
 
-      const monthNames = ["April", "May", "June", "July", "August", "September", "October", "November", "December", "January", "February", "March"];
+      const monthNames = [
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+        'January',
+        'February',
+        'March',
+      ];
       const monthsMap = {};
       monthNames.forEach((m, idx) => {
-        monthsMap[m] = { month_name: m, inflow: 0, outflow: 0, nett_flow: 0, display_order: idx + 1 };
+        monthsMap[m] = {
+          month_name: m,
+          inflow: 0,
+          outflow: 0,
+          nett_flow: 0,
+          display_order: idx + 1,
+        };
       });
 
-      const groupInflows = {};
-      const groupOutflows = {};
+      // Full-period group balances
+      const groupBalances = {};
+      // Per-month group balances for drill-down
+      const monthGroupBalances = {};
+      monthNames.forEach((m) => {
+        monthGroupBalances[m] = {};
+      });
 
-      logs.forEach(row => {
-        if (!row.voucher_date) return;
-        const dateObj = new Date(row.voucher_date);
-        const rawMonth = dateObj.toLocaleString('default', { month: 'long' });
-
-        if (!monthsMap[rawMonth]) return;
-        const amt = parseFloat(row.amount) || 0;
-
-        // Dr entries = money coming in (inflow), Cr entries = money going out (outflow)
-        if (row.line_type === 'Dr') {
-          monthsMap[rawMonth].inflow += amt;
-          if (row.group_id) {
-            if (!groupInflows[row.group_id]) {
-              groupInflows[row.group_id] = { group_id: row.group_id, group_name: row.name, balance: 0 };
-            }
-            groupInflows[row.group_id].balance += amt;
-          }
-        } else if (row.line_type === 'Cr') {
-          monthsMap[rawMonth].outflow += amt;
-          if (row.group_id) {
-            if (!groupOutflows[row.group_id]) {
-              groupOutflows[row.group_id] = { group_id: row.group_id, group_name: row.name, balance: 0 };
-            }
-            groupOutflows[row.group_id].balance += amt;
-          }
+      // Group all rows by voucher_id so we can net the cash/bank side of
+      // each voucher before touching the monthly totals.
+      const byVoucher = {};
+      for (const row of logs) {
+        if (!byVoucher[row.voucher_id]) {
+          byVoucher[row.voucher_id] = { date: row.voucher_date, cashRows: [], counterRows: [] };
         }
+        if (row.is_cash_bank) {
+          byVoucher[row.voucher_id].cashRows.push(row);
+        } else {
+          byVoucher[row.voucher_id].counterRows.push(row);
+        }
+      }
 
+      Object.values(byVoucher).forEach((voucher) => {
+        if (!voucher.date) return;
+        const dateObj = new Date(voucher.date);
+        const rawMonth = dateObj.toLocaleString('default', { month: 'long' });
+        if (!monthsMap[rawMonth]) return;
+
+        let cashDr = 0;
+        let cashCr = 0;
+        voucher.cashRows.forEach((r) => {
+          const amt = parseFloat(r.amount) || 0;
+          if (r.line_type === 'Dr') cashDr += amt;
+          else if (r.line_type === 'Cr') cashCr += amt;
+        });
+        const netCash = cashDr - cashCr;
+
+        if (netCash === 0) return; // Skip contra or non-cash-affecting
+
+        if (netCash > 0) {
+          monthsMap[rawMonth].inflow += netCash;
+        } else if (netCash < 0) {
+          monthsMap[rawMonth].outflow += Math.abs(netCash);
+        }
         monthsMap[rawMonth].nett_flow = monthsMap[rawMonth].inflow - monthsMap[rawMonth].outflow;
+
+        voucher.counterRows.forEach((r) => {
+          const amt = parseFloat(r.amount) || 0;
+          if (!r.group_id) return;
+          const contrib = r.line_type === 'Cr' ? amt : -amt;
+
+          // Full-period accumulator
+          if (!groupBalances[r.group_id]) {
+            groupBalances[r.group_id] = {
+              group_id: r.group_id,
+              group_name: r.group_name,
+              balance: 0,
+            };
+          }
+          groupBalances[r.group_id].balance += contrib;
+
+          // Per-month accumulator
+          const mgb = monthGroupBalances[rawMonth];
+          if (!mgb[r.group_id]) {
+            mgb[r.group_id] = { group_id: r.group_id, group_name: r.group_name, balance: 0 };
+          }
+          mgb[r.group_id].balance += contrib;
+        });
+      });
+
+      // Full-period inflows / outflows
+      const inflows = [];
+      const outflows = [];
+      Object.values(groupBalances).forEach((g) => {
+        if (g.balance > 0) {
+          inflows.push({ group_id: g.group_id, group_name: g.group_name, balance: g.balance });
+        } else if (g.balance < 0) {
+          outflows.push({
+            group_id: g.group_id,
+            group_name: g.group_name,
+            balance: Math.abs(g.balance),
+          });
+        }
+      });
+
+      // Per-month inflows / outflows for drill-down
+      const monthlySummary = {};
+      monthNames.forEach((m) => {
+        const mInflows = [];
+        const mOutflows = [];
+        Object.values(monthGroupBalances[m]).forEach((g) => {
+          if (g.balance > 0) {
+            mInflows.push({ group_id: g.group_id, group_name: g.group_name, balance: g.balance });
+          } else if (g.balance < 0) {
+            mOutflows.push({
+              group_id: g.group_id,
+              group_name: g.group_name,
+              balance: Math.abs(g.balance),
+            });
+          }
+        });
+        monthlySummary[m] = { inflows: mInflows, outflows: mOutflows };
       });
 
       const months = Object.values(monthsMap);
@@ -79,14 +208,19 @@ module.exports = {
       };
       grandTotal.nett_flow = grandTotal.inflow - grandTotal.outflow;
 
+      const closingBalance = openingBalance + grandTotal.nett_flow;
+
       return {
         success: true,
         months,
         summary: {
-          inflows: Object.values(groupInflows),
-          outflows: Object.values(groupOutflows),
+          inflows,
+          outflows,
         },
+        monthlySummary,
         grandTotal,
+        openingBalance,
+        closingBalance,
       };
     } catch (err) {
       return { success: false, error: err.message };
