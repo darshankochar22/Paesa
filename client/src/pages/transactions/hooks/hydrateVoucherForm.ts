@@ -63,6 +63,7 @@ export function hydrateVoucherForm(form: any, v: any) {
   if (v.credit_note_details) form.setCreditNoteDetails?.(v.credit_note_details);
   if (v.debit_note_details) form.setDebitNoteDetails?.(v.debit_note_details);
   if (v.vat_details) form.setVatDetails?.(v.vat_details);
+  if (v.gst_eway_details) form.setGstEwayDetails?.(v.gst_eway_details);
   if (v.order_details) form.setOrderDetails?.(v.order_details);
   if (v.excise_details) form.setExciseDetails?.(v.excise_details);
   if (Array.isArray(v.cash_denominations) && v.cash_denominations.length > 0) {
