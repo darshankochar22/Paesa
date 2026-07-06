@@ -8,10 +8,10 @@
   },
   "main": "main.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "scripts": {
-    "postinstall": "npm --prefix client install",
+    "postinstall": "cd client && npm install",
     "prepare": "husky",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
