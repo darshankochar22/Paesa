@@ -16,7 +16,7 @@ export default [
       'client/',
       'dist/',
       'build/',
-      'paisa/',
+      'paesa/',
       'coverage/',
       'drizzle/',
       'migrations/',
