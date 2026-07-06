@@ -36,7 +36,7 @@ import PayrollReportsStatutory, {
 import PayrollStatutorySummary, {
   PayrollStatutoryPayHeadDetails,
 } from '../pages/reports/payroll/PayrollStatutorySummary.tsx';
-import PFForm5, { PFForm10 } from '../pages/reports/payroll/PFForms.tsx';
+import PFForm5, { PFForm10, PFForm12A } from '../pages/reports/payroll/PFForms.tsx';
 import Form27Q from '../pages/master/statutory/tds-return/Form27Q.tsx';
 import {
   Form27QNotRelevant,
@@ -204,6 +204,7 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/statutory/payroll/pf', element: <PFReportsMenu /> },
   { path: '/reports/statutory/payroll/pf/form-5', element: <PFForm5 /> },
   { path: '/reports/statutory/payroll/pf/form-10', element: <PFForm10 /> },
+  { path: '/reports/statutory/payroll/pf/form-12a', element: <PFForm12A /> },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
   { path: '/reports/inventory-books', element: <InventoryBooks /> },
