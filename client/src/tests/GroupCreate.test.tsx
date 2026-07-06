@@ -43,7 +43,7 @@ function renderGroupCreate() {
       <CompanyProvider>
         <GroupCreate />
       </CompanyProvider>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -74,32 +74,26 @@ beforeEach(() => {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('GroupCreate — initial render', () => {
-  it('renders the "Create Group" heading', async () => {
+  it('renders the "Group Creation" heading', async () => {
     renderGroupCreate();
-    await waitFor(() =>
-      expect(screen.getByText('Create Group')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Group Creation')).toBeInTheDocument());
   });
 
   it('renders the Name input field', async () => {
     renderGroupCreate();
-    await waitFor(() =>
-      expect(screen.getAllByPlaceholderText('')[0]).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getAllByPlaceholderText('')[0]).toBeInTheDocument());
   });
 
   it('renders the Create submit button', async () => {
     renderGroupCreate();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
   });
 
   it('calls group.getAll with the company id on mount', async () => {
     renderGroupCreate();
-    await waitFor(() =>
-      expect(window.api.group.getAll).toHaveBeenCalledWith(1)
-    );
+    await waitFor(() => expect(window.api.group.getAll).toHaveBeenCalledWith(1));
   });
 });
 
@@ -109,14 +103,12 @@ describe('GroupCreate — validation', () => {
     renderGroupCreate();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
 
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText('Name is required.')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Name is required.')).toBeInTheDocument());
   });
 
   it('does NOT call group.create when validation fails', async () => {
@@ -124,7 +116,7 @@ describe('GroupCreate — validation', () => {
     renderGroupCreate();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
 
     await user.click(screen.getByRole('button', { name: /create/i }));
@@ -139,7 +131,7 @@ describe('GroupCreate — successful submission', () => {
     renderGroupCreate();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
 
     // Type a name
@@ -149,9 +141,7 @@ describe('GroupCreate — successful submission', () => {
 
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(window.api.group.create).toHaveBeenCalledTimes(1)
-    );
+    await waitFor(() => expect(window.api.group.create).toHaveBeenCalledTimes(1));
 
     const call = (window.api.group.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(call.name).toBe('My New Group');
@@ -163,7 +153,7 @@ describe('GroupCreate — successful submission', () => {
     renderGroupCreate();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
 
     const inputs = screen.getAllByRole('textbox');
@@ -171,7 +161,7 @@ describe('GroupCreate — successful submission', () => {
     await user.click(screen.getByRole('button', { name: /create/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/Group "My New Group" created/i)).toBeInTheDocument()
+      expect(screen.getByText(/Group "My New Group" created/i)).toBeInTheDocument(),
     );
   });
 
@@ -180,7 +170,7 @@ describe('GroupCreate — successful submission', () => {
     renderGroupCreate();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
 
     const inputs = screen.getAllByRole('textbox');
@@ -188,7 +178,7 @@ describe('GroupCreate — successful submission', () => {
     await user.click(screen.getByRole('button', { name: /create/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/Group "My New Group" created/i)).toBeInTheDocument()
+      expect(screen.getByText(/Group "My New Group" created/i)).toBeInTheDocument(),
     );
     // Name field should be reset to empty
     expect(inputs[0]).toHaveValue('');
@@ -206,16 +196,14 @@ describe('GroupCreate — API failure', () => {
     renderGroupCreate();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
 
     const inputs = screen.getAllByRole('textbox');
     await user.type(inputs[0], 'Duplicate Group');
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText('Group already exists')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Group already exists')).toBeInTheDocument());
   });
 
   it('shows error when window.api.group.create throws unexpectedly', async () => {
@@ -225,16 +213,14 @@ describe('GroupCreate — API failure', () => {
     renderGroupCreate();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
 
     const inputs = screen.getAllByRole('textbox');
     await user.type(inputs[0], 'ErrorGroup');
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText('Server crashed')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Server crashed')).toBeInTheDocument());
   });
 
   it('dismiss button removes the error banner', async () => {
@@ -247,22 +233,18 @@ describe('GroupCreate — API failure', () => {
     renderGroupCreate();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
     );
 
     const inputs = screen.getAllByRole('textbox');
     await user.type(inputs[0], 'Bad Group');
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText('Something went wrong')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Something went wrong')).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /dismiss/i }));
 
-    await waitFor(() =>
-      expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument());
   });
 });
 
@@ -275,16 +257,12 @@ describe('GroupCreate — Under / parent group panel', () => {
 
     await user.click(screen.getByText('Under'));
 
-    await waitFor(() =>
-      expect(screen.getByText('Under Group')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Under Group')).toBeInTheDocument());
   });
 
   it('defaults the Under field to "Capital Account" (loaded from API)', async () => {
     renderGroupCreate();
 
-    await waitFor(() =>
-      expect(screen.getByText('Capital Account')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Capital Account')).toBeInTheDocument());
   });
 });

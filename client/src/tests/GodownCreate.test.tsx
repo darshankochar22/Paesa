@@ -27,7 +27,7 @@ function renderGodownCreate() {
       <CompanyProvider>
         <GodownCreate />
       </CompanyProvider>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -68,6 +68,11 @@ beforeEach(() => {
       godown: { godown_id: 99, company_id: 1, name: 'Warehouse B' },
     }),
   } as any;
+
+  // GodownCreate also loads Tax Units on mount (for the GST tax-unit selector).
+  (window.api as any).taxUnits = {
+    getAll: vi.fn().mockResolvedValue({ success: true, taxUnits: [] }),
+  };
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -75,32 +80,22 @@ beforeEach(() => {
 describe('GodownCreate — initial render', () => {
   it('renders the "Godown Creation" page title', async () => {
     renderGodownCreate();
-    await waitFor(() =>
-      expect(screen.getByText('Godown Creation')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Godown Creation')).toBeInTheDocument());
   });
 
-  it('renders general section and address section fields', async () => {
+  it('renders general fields (Name, alias, Under, Excise Tax unit)', async () => {
     renderGodownCreate();
     await waitFor(() => {
-      // General
       expect(getFormRowField('Name')).toBeInTheDocument();
       expect(getFormRowField('(alias)')).toBeInTheDocument();
-      expect(getFormRowField('Allow Storage of Materials', 'select')).toHaveValue('1');
-
-      // Address Details
-      expect(getFormRowField('Address')).toBeInTheDocument();
-      expect(getFormRowField('City')).toBeInTheDocument();
-      expect(getFormRowField('State')).toBeInTheDocument();
-      expect(getFormRowField('Pincode')).toBeInTheDocument();
+      expect(screen.getByText('Under')).toBeInTheDocument();
+      expect(screen.getByText('Excise Tax unit')).toBeInTheDocument();
     });
   });
 
   it('calls godown.getAll with company id on mount', async () => {
     renderGodownCreate();
-    await waitFor(() =>
-      expect(window.api.godown.getAll).toHaveBeenCalledWith(1)
-    );
+    await waitFor(() => expect(window.api.godown.getAll).toHaveBeenCalledWith(1));
   });
 });
 
@@ -109,33 +104,16 @@ describe('GodownCreate — validation & submission', () => {
     const user = userEvent.setup();
     renderGodownCreate();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/Name is required/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/Name is required/i)).toBeInTheDocument());
     expect(window.api.godown.create).not.toHaveBeenCalled();
   });
 
-  it('shows validation error when pincode is not numeric or longer than 6 digits', async () => {
-    const user = userEvent.setup();
-    renderGodownCreate();
-
-    await waitFor(() => expect(getFormRowField('Name')).toBeInTheDocument());
-
-    await user.type(getFormRowField('Name'), 'Test Location');
-    await user.type(getFormRowField('Pincode'), 'abc123'); // non-numeric pincode
-
-    await user.click(screen.getByRole('button', { name: /create/i }));
-
-    await waitFor(() =>
-      expect(screen.getByText(/Pincode must be numeric/i)).toBeInTheDocument()
-    );
-    expect(window.api.godown.create).not.toHaveBeenCalled();
-  });
-
-  it('successfully submits form with primary godown and address details', async () => {
+  it('successfully submits form with primary godown', async () => {
     const user = userEvent.setup();
     renderGodownCreate();
 
@@ -143,10 +121,6 @@ describe('GodownCreate — validation & submission', () => {
 
     await user.type(getFormRowField('Name'), 'Central Warehouse');
     await user.type(getFormRowField('(alias)'), 'C-WH');
-    await user.type(getFormRowField('Address'), '456 Industrial Area');
-    await user.type(getFormRowField('City'), 'Mumbai');
-    await user.type(getFormRowField('State'), 'Maharashtra');
-    await user.type(getFormRowField('Pincode'), '400001');
 
     await user.click(screen.getByRole('button', { name: /create/i }));
 
@@ -157,15 +131,14 @@ describe('GodownCreate — validation & submission', () => {
         alias: 'C-WH',
         parent_godown_id: undefined,
         allow_storage_of_materials: 1,
-        address: '456 Industrial Area',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pincode: '400001',
-      })
+        excise_tax_unit: 'Not Applicable',
+      }),
     );
 
     await waitFor(() =>
-      expect(screen.getByText(/Godown "Central Warehouse" created successfully/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(/Godown "Central Warehouse" created successfully/i),
+      ).toBeInTheDocument(),
     );
   });
 });
@@ -201,11 +174,8 @@ describe('GodownCreate — parent godown selection panel', () => {
         alias: undefined,
         parent_godown_id: 11,
         allow_storage_of_materials: 1,
-        address: undefined,
-        city: undefined,
-        state: undefined,
-        pincode: undefined,
-      })
+        excise_tax_unit: 'Not Applicable',
+      }),
     );
   });
 });

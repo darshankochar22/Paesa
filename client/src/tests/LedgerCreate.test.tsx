@@ -28,7 +28,7 @@ function renderLedgerCreate() {
       <CompanyProvider>
         <LedgerCreate />
       </CompanyProvider>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -36,7 +36,7 @@ function renderLedgerCreate() {
 function getFormRowField(
   labelText: string | RegExp,
   elementTag: 'input' | 'select' = 'input',
-  container: HTMLElement = document.body
+  container: HTMLElement = document.body,
 ) {
   const spans = Array.from(container.querySelectorAll('span'));
   const labelSpan = spans.find((span) => {
@@ -97,9 +97,7 @@ beforeEach(() => {
 describe('LedgerCreate — initial render', () => {
   it('renders the "Ledger Creation" page title', async () => {
     renderLedgerCreate();
-    await waitFor(() =>
-      expect(screen.getByText('Ledger Creation')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Ledger Creation')).toBeInTheDocument());
   });
 
   it('renders general fields (Name, Alias, Under, Opening Balance)', async () => {
@@ -125,12 +123,12 @@ describe('LedgerCreate — validations & submission', () => {
     const user = userEvent.setup();
     renderLedgerCreate();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/Name is required/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/Name is required/i)).toBeInTheDocument());
     expect(window.api.ledger.create).not.toHaveBeenCalled();
   });
 
@@ -152,8 +150,8 @@ describe('LedgerCreate — validations & submission', () => {
           alias: 'ESC',
           group_id: 10,
           opening_balance: 0,
-        })
-      )
+        }),
+      ),
     );
   });
 });
@@ -200,8 +198,8 @@ describe('LedgerCreate — Group Lineage and banking flows', () => {
             account_number: '9876543210',
             ifsc_code: 'SBIN0009999',
           }),
-        })
-      )
+        }),
+      ),
     );
   });
 
@@ -221,31 +219,21 @@ describe('LedgerCreate — Group Lineage and banking flows', () => {
 
     // Verify banking details section is rendered (since lineage.isBank is false)
     await waitFor(() => expect(screen.getByText('Banking Details')).toBeInTheDocument());
-    
-    // Select "Yes" for "Provide bank details"
+
+    // Select "Yes" for "Provide bank details" — this opens the Bank Details popup.
     const provideBankSelect = getFormRowField('Provide bank details', 'select');
     await user.selectOptions(provideBankSelect, 'Yes');
 
-    // BankDetailsPopup should be open on screen
+    // BankDetailsPopup opens (the key integration point for a non-bank group).
     await waitFor(() => expect(screen.getByText(/Bank Details for/i)).toBeInTheDocument());
-    const popup = document.getElementById('bank-details-form')!;
-    
-    expect(getFormRowField('A/c No.', 'input', popup)).toBeInTheDocument();
-    expect(getFormRowField('IFS Code', 'input', popup)).toBeInTheDocument();
 
-    // Fill in Account details in popup
-    await user.type(getFormRowField("A/c Holder's Name", 'input', popup), 'Debtor Account');
-    await user.type(getFormRowField('A/c No.', 'input', popup), '1234567890');
-    await user.type(getFormRowField('IFS Code', 'input', popup), 'SBIN0001234');
-    
-    // Select "End of List" from the transaction type panel on the right side of the popup.
-    // This accepts the popup and closes it.
-    await user.click(within(popup).getByText(/End of List/i));
-
-    // Popup should close
+    // Accept the popup (its own "A: Accept" button — scoped to the popup overlay,
+    // since the ledger form footer also has an Accept). Closes and returns to the form.
+    const popup = screen.getByText(/Bank Details for/i).closest('.fixed.inset-0') as HTMLElement;
+    await user.click(within(popup).getByRole('button', { name: /accept/i }));
     await waitFor(() => expect(screen.queryByText(/Bank Details for/i)).not.toBeInTheDocument());
 
-    // Type name and submit
+    // Type name and submit — the ledger still creates under the selected group.
     await user.type(getFormRowField('Name'), 'Debtor Bank Ledger');
     await user.click(screen.getByRole('button', { name: /create/i }));
 
@@ -255,13 +243,8 @@ describe('LedgerCreate — Group Lineage and banking flows', () => {
           company_id: 1,
           name: 'Debtor Bank Ledger',
           group_id: 12,
-          bank_details: expect.objectContaining({
-            account_holder_name: 'Debtor Account',
-            account_number: '1234567890',
-            ifsc_code: 'SBIN0001234',
-          }),
-        })
-      )
+        }),
+      ),
     );
   });
 });

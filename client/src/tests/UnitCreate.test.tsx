@@ -14,8 +14,24 @@ const selectedCompany = {
 };
 
 const mockSimpleUnits = [
-  { unit_id: 10, company_id: 1, name: 'Kg', symbol: 'Kg', formal_name: 'Kilogram', unit_type: 'Simple', decimal_places: 2 },
-  { unit_id: 11, company_id: 1, name: 'Box', symbol: 'Box', formal_name: 'Box', unit_type: 'Simple', decimal_places: 0 },
+  {
+    unit_id: 10,
+    company_id: 1,
+    name: 'Kg',
+    symbol: 'Kg',
+    formal_name: 'Kilogram',
+    unit_type: 'Simple',
+    decimal_places: 2,
+  },
+  {
+    unit_id: 11,
+    company_id: 1,
+    name: 'Box',
+    symbol: 'Box',
+    formal_name: 'Box',
+    unit_type: 'Simple',
+    decimal_places: 0,
+  },
 ];
 
 // ─── Render Helper ────────────────────────────────────────────────────────────
@@ -26,7 +42,7 @@ function renderUnitCreate() {
       <CompanyProvider>
         <UnitCreate />
       </CompanyProvider>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -72,9 +88,7 @@ beforeEach(() => {
 describe('UnitCreate — initial render', () => {
   it('renders the "Unit Creation" page title', async () => {
     renderUnitCreate();
-    await waitFor(() =>
-      expect(screen.getByText('Unit Creation')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Unit Creation')).toBeInTheDocument());
   });
 
   it('defaults unit type to "Simple" and renders symbol field', async () => {
@@ -94,12 +108,12 @@ describe('UnitCreate — Simple Unit Flow', () => {
     const user = userEvent.setup();
     renderUnitCreate();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/Symbol is required/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/Symbol is required/i)).toBeInTheDocument());
     expect(window.api.unit.create).not.toHaveBeenCalled();
   });
 
@@ -123,10 +137,11 @@ describe('UnitCreate — Simple Unit Flow', () => {
         formal_name: 'Pieces',
         unit_type: 'Simple',
         decimal_places: 2,
-      })
+        unit_quantity_code: null,
+      }),
     );
     await waitFor(() =>
-      expect(screen.getByText(/Unit "DZN" created successfully/i)).toBeInTheDocument()
+      expect(screen.getByText(/Unit "DZN" created successfully/i)).toBeInTheDocument(),
     );
   });
 });
@@ -140,13 +155,13 @@ describe('UnitCreate — Compound Unit Flow', () => {
     await user.selectOptions(getFormRowField('Type', 'select'), 'Compound');
 
     // Should load the compound unit section header
-    await waitFor(() => expect(screen.getByText('Units with Multiplier Factors')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Units with Multiplier Factors')).toBeInTheDocument(),
+    );
 
     await user.click(screen.getByRole('button', { name: /create/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/First unit is required/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/First unit is required/i)).toBeInTheDocument());
     expect(window.api.unit.create).not.toHaveBeenCalled();
   });
 
@@ -163,7 +178,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
     const firstContainer = screen.getByText('First unit').closest('div')!;
     const firstBtn = within(firstContainer).getByRole('button');
     await user.click(firstBtn);
-    
+
     // There are multiple instances of 'Box' (symbol and formal name). Click the first one.
     const boxOption = screen.getAllByText(/Box/i)[0];
     await user.click(boxOption);
@@ -172,7 +187,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
     const secondContainer = screen.getByText('Second unit').closest('div')!;
     const secondBtn = within(secondContainer).getByRole('button');
     await user.click(secondBtn);
-    
+
     const kgOption = screen.getAllByText(/Kg/i)[0];
     await user.click(kgOption);
 
@@ -183,7 +198,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
     await user.click(screen.getByRole('button', { name: /create/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/Conversion factor must be greater than 0/i)).toBeInTheDocument()
+      expect(screen.getByText(/Conversion factor must be greater than 0/i)).toBeInTheDocument(),
     );
   });
 
@@ -200,7 +215,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
     const firstContainer = screen.getByText('First unit').closest('div')!;
     const firstBtn = within(firstContainer).getByRole('button');
     await user.click(firstBtn);
-    
+
     const boxOption = screen.getAllByText(/Box/i)[0];
     await user.click(boxOption);
 
@@ -208,7 +223,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
     const secondContainer = screen.getByText('Second unit').closest('div')!;
     const secondBtn = within(secondContainer).getByRole('button');
     await user.click(secondBtn);
-    
+
     const kgOption = screen.getAllByText(/Kg/i)[0];
     await user.click(kgOption);
 
@@ -225,7 +240,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
         first_unit_id: 11,
         second_unit_id: 10,
         conversion_factor: 10,
-      })
+      }),
     );
   });
 });
