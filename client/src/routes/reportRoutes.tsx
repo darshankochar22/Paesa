@@ -30,6 +30,12 @@ import {
   TCSLedgersWithoutPAN,
   TCSChallanDetailsOfBuyer,
 } from '../pages/master/statutory/tcs-return/TCSRegisters.tsx';
+import PayrollReportsStatutory, {
+  PFReportsMenu,
+} from '../pages/menu/reports/PayrollReportsStatutory.tsx';
+import PayrollStatutorySummary, {
+  PayrollStatutoryPayHeadDetails,
+} from '../pages/reports/payroll/PayrollStatutorySummary.tsx';
 import Form27Q from '../pages/master/statutory/tds-return/Form27Q.tsx';
 import {
   Form27QNotRelevant,
@@ -188,6 +194,13 @@ export const reportRoutes: RouteConfig[] = [
     path: '/reports/statutory/tcs/challan-details-of-buyer',
     element: <TCSChallanDetailsOfBuyer />,
   },
+  { path: '/reports/statutory/payroll', element: <PayrollReportsStatutory /> },
+  { path: '/reports/statutory/payroll/summary', element: <PayrollStatutorySummary /> },
+  {
+    path: '/reports/statutory/payroll/pay-head-details',
+    element: <PayrollStatutoryPayHeadDetails />,
+  },
+  { path: '/reports/statutory/payroll/pf', element: <PFReportsMenu /> },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
   { path: '/reports/inventory-books', element: <InventoryBooks /> },

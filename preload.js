@@ -550,6 +550,10 @@ contextBridge.exposeInMainWorld('api', {
     getLedgersWithoutPan: (data) => invoke('tcs:getLedgersWithoutPan', data),
     getChallanDetailsOfBuyer: (data) => invoke('tcs:getChallanDetailsOfBuyer', data),
   },
+  payrollStatutory: {
+    getSummary: (data) => invoke('payrollStatutory:getSummary', data),
+    getPayHeadDetails: (data) => invoke('payrollStatutory:getPayHeadDetails', data),
+  },
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),
   },

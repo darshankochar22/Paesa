@@ -3,6 +3,7 @@ const { ipcMain } = require('electron');
 const gstController = require('../gst/gstController');
 const tdsReportService = require('../tds/tdsReportService');
 const tcsReportService = require('../tcs/tcsReportService');
+const payrollStatutoryReportService = require('../payroll/payrollStatutoryReportService');
 const gstRegistrationController = require('../gstRegistration/gstRegistrationController');
 const gstClassificationController = require('../gstClassification/gstClassificationController');
 const tcsNatureOfGoodsController = require('../tcsNatureOfGoods/tcsNatureOfGoodsController');
@@ -77,6 +78,12 @@ function register() {
   );
   ipcMain.handle('tcs:getChallanDetailsOfBuyer', (event, { company_id, fy_id }) =>
     tcsReportService.getChallanDetailsOfBuyer(company_id, fy_id),
+  );
+  ipcMain.handle('payrollStatutory:getSummary', (event, { company_id }) =>
+    payrollStatutoryReportService.getStatutorySummary(company_id),
+  );
+  ipcMain.handle('payrollStatutory:getPayHeadDetails', (event, { company_id, ...params }) =>
+    payrollStatutoryReportService.getStatutoryPayHeadDetails(company_id, params),
   );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),

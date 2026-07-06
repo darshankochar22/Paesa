@@ -31,6 +31,9 @@ export default function StatutoryReports() {
     if (item === 'TCS Reports') {
       return '/reports/statutory/tcs';
     }
+    if (item === 'Payroll Reports') {
+      return '/reports/statutory/payroll';
+    }
     return null;
   };
 

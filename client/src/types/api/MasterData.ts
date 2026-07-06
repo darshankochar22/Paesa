@@ -530,6 +530,16 @@ export interface MasterDataAPI {
       fy_id: number;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
   };
+  payrollStatutory: {
+    getSummary: (data: {
+      company_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getPayHeadDetails: (data: {
+      company_id: number;
+      component?: string;
+      row_label?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+  };
   master: {
     getMenu: (
       company_id?: number,
