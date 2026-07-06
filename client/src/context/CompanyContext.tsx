@@ -61,9 +61,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         return;
       }
       await loadFYs(company.company_id);
-      await loadFeatures(company.company_id);
+      // features load via the selectedCompany effect below (single source).
     },
-    [loadFYs, loadFeatures],
+    [loadFYs],
   );
 
   const switchFY = useCallback(
@@ -81,6 +81,13 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     },
     [selectedCompany],
   );
+
+  // Always (re)load the F11 feature flags for whatever company is current —
+  // covers any path that sets selectedCompany without going through
+  // handleSetSelectedCompany (restore-from-storage, direct setter, etc.).
+  useEffect(() => {
+    if (selectedCompany?.company_id) loadFeatures(selectedCompany.company_id);
+  }, [selectedCompany?.company_id, loadFeatures]);
 
   useEffect(() => {
     const handler = () => {
