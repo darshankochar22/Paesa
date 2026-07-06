@@ -484,16 +484,15 @@ export default function GSTRegistrationFormFields({
                 </select>
               </FieldRow>
 
-              {/* Always rendered — disabled when "No", matching Tally behaviour */}
+              {/* Always editable — user can enter the applicable-from date regardless of toggle */}
               <FieldRow label="Applicable from" indent>
                 <input
                   ref={eWayBillAppFromRef}
                   type="date"
-                  className={`${getInputCls(activeField === "e_way_bill_applicable_from")} disabled:opacity-40 disabled:cursor-not-allowed`}
+                  className={getInputCls(activeField === "e_way_bill_applicable_from")}
                   value={form.e_way_bill_applicable_from}
                   onChange={setField("e_way_bill_applicable_from")}
                   onFocus={() => setActiveField("e_way_bill_applicable_from")}
-                  disabled={form.e_way_bill_applicable === "No"}
                 />
               </FieldRow>
 

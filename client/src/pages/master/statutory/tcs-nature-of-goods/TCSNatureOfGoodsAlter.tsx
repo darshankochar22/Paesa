@@ -90,7 +90,7 @@ export default function TCSNatureOfGoodsAlter() {
   ];
 
   return (
-    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none font-mono text-[11px] text-zinc-950">
+    <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-white select-none font-mono text-[11px] text-zinc-950">
       <PageTitleBar
         title={`TCS Nature of Goods Alteration: ${selectedTcs.name}`}
         subtitle={selectedCompany?.name}
@@ -142,7 +142,7 @@ export default function TCSNatureOfGoodsAlter() {
         </div>
 
         {/* Form Container */}
-        <div className="flex-1 flex min-h-0 relative z-10">
+        <div className="flex-1 flex min-h-0 relative z-10 items-start justify-start">
           <TCSNatureOfGoodsFormFields
             form={form}
             setForm={setForm}
@@ -185,7 +185,7 @@ export default function TCSNatureOfGoodsAlter() {
       )}
 
       {/* Footer bar */}
-      <div className="px-3 py-1 bg-zinc-900 text-white text-[10px] font-sans flex justify-between select-none shrink-0 z-30 font-mono">
+      <div className="px-3 py-1 bg-zinc-900 text-white text-[10px] font-sans flex justify-center select-none shrink-0 z-30 font-mono">
         <div className="flex gap-4">
           {!isPredefined && <span>Alt+A: Accept</span>}
           {!isPredefined && <span>Alt+D: Delete</span>}

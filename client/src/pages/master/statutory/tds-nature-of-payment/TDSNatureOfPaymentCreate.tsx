@@ -56,7 +56,7 @@ export default function TDSNatureOfPaymentCreate() {
   ];
 
   return (
-    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none font-mono">
+    <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-white select-none font-mono">
       <PageTitleBar title="TDS Nature of Payment Creation" subtitle={selectedCompany?.name} />
 
       {error && (
@@ -100,7 +100,7 @@ export default function TDSNatureOfPaymentCreate() {
         </div>
 
         {/* Form Container */}
-        <div className="flex-1 flex min-h-0 relative z-10">
+        <div className="flex-1 flex min-h-0 relative z-10 items-start justify-start">
           <TDSNatureOfPaymentFormFields
             form={form}
             setForm={setForm}
@@ -138,7 +138,7 @@ export default function TDSNatureOfPaymentCreate() {
       )}
 
       {/* Footer bar */}
-      <div className="px-3 py-1 bg-zinc-900 text-white text-[10px] font-sans flex justify-between select-none shrink-0 z-30 font-mono">
+      <div className="px-3 py-1 bg-zinc-900 text-white text-[10px] font-sans flex justify-center select-none shrink-0 z-30 font-mono">
         <div className="flex gap-4">
           <span>Alt+A: Accept</span>
           <span>Alt+C: Alter Mode</span>

@@ -156,7 +156,7 @@ export default function TDSNatureOfPaymentFormFields({
   const selectCls = (f: string) => (activeField === f ? selectActiveClass : selectInactiveClass);
 
   return (
-    <div className="bg-white border-4 border-double border-zinc-400 w-[550px] shadow-2xl p-5 relative select-none font-mono text-[11px] text-zinc-950 animate-fade-in self-start mt-12 ml-10">
+    <div className="bg-white border-4 border-double border-zinc-400 w-[550px] shadow-2xl p-5 relative select-none font-mono text-[11px] text-zinc-950 animate-fade-in">
       
       {/* Title */}
       <div className="font-bold text-xs pb-3 mb-4 border-b border-zinc-200 tracking-wide text-zinc-900">

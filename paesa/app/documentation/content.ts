@@ -15,6 +15,8 @@ export type DocSection = {
   shortcuts?: DocShortcut[];
   notes?: string[];
   screenshot: string;
+  image?: string;
+  images?: { src: string; caption: string }[];
 };
 
 export const GROUP_ORDER = [
@@ -59,6 +61,7 @@ export const SECTIONS: DocSection[] = [
       "Company Name is the only mandatory field on the create form — you're never blocked from finishing setup later.",
     ],
     screenshot: "Screenshot: Company Creation screen — full form with F2: Period panel on the right",
+    image: "/docs/company-creation.png",
   },
   {
     id: "masters-accounting",
@@ -96,6 +99,18 @@ export const SECTIONS: DocSection[] = [
       { key: "Esc", action: "Quit without saving" },
     ],
     screenshot: "Screenshot: Ledger Creation — Name/Under fields plus Statutory Details section expanded",
+    images: [
+      {
+        src: "/docs/ledger-creation.png",
+        caption:
+          "Ledger Creation — \"ABC Retail Store\" under Sundry Debtors, with Bill-wise, Statutory, and Tax Registration details and a 50,000 Dr opening balance.",
+      },
+      {
+        src: "/docs/group-creation.png",
+        caption:
+          "Group Creation — \"Retail Customers\" placed under Sundry Debtors, with sub-ledger and calculation options.",
+      },
+    ],
   },
   {
     id: "masters-inventory",
@@ -134,6 +149,18 @@ export const SECTIONS: DocSection[] = [
       { key: "Esc", action: "Quit without saving" },
     ],
     screenshot: "Screenshot: Stock Item Creation — batch/expiry toggles and Opening Balance row",
+    images: [
+      {
+        src: "/docs/stock-item-creation.png",
+        caption:
+          "Stock Item Creation — \"LED Bulb 12W\" under Primary/Lighting with HSN/SAC 9405, 12% GST, and a 200-unit opening balance (₹24,000).",
+      },
+      {
+        src: "/docs/godown-creation.png",
+        caption:
+          "Godown Creation — \"Main Warehouse\" under Primary, with Excise Tax unit Not Applicable.",
+      },
+    ],
   },
   {
     id: "cost-centres-budgets",
@@ -169,6 +196,23 @@ export const SECTIONS: DocSection[] = [
       "Budget and Scenario screens accept with Ctrl+A specifically, rather than the Alt+A used on most other masters.",
     ],
     screenshot: "Screenshot: Budget allocation editor — Groups / Ledgers / Cost Centres",
+    images: [
+      {
+        src: "/docs/cost-centre-creation.png",
+        caption:
+          "Cost Centre Creation — \"Sales Department\" (alias Sales) created under Primary.",
+      },
+      {
+        src: "/docs/budget-creation.png",
+        caption:
+          "Budget Creation — \"Office Expenses Budget\" for FY 2025–26, with Groups / Ledgers / Cost Centres allocation enabled.",
+      },
+      {
+        src: "/docs/scenario-creation.png",
+        caption:
+          "Scenario Creation — \"Year-End Reporting\" including actuals, with Sales/Purchase included and Memorandum excluded.",
+      },
+    ],
   },
   {
     id: "statutory-masters",
@@ -210,6 +254,33 @@ export const SECTIONS: DocSection[] = [
       },
     ],
     screenshot: "Screenshot: GST Registration form with E-Invoice / E-Way Bill sections expanded",
+    images: [
+      {
+        src: "/docs/gst-registration.png",
+        caption:
+          "GST Registration — registration status, type, GSTR-1 periodicity, plus e-Way Bill and e-Invoice details.",
+      },
+      {
+        src: "/docs/gst-classification-creation.png",
+        caption:
+          "GST Classification — \"Mobile Phones (18%)\" with HSN/SAC 8517 and an 18% taxable GST rate.",
+      },
+      {
+        src: "/docs/tds-nature-of-payment.png",
+        caption:
+          "TDS Nature of Payment — \"Professional Fees\" under Section 194J (code PF001), 10% with PAN and a ₹30,000 threshold.",
+      },
+      {
+        src: "/docs/tcs-nature-of-goods.png",
+        caption:
+          "TCS Nature of Goods — \"Scrap Sale\" under Section 206C(1) (code SCRAP001), 1% with PAN / 5% without, and a ₹50,000 threshold.",
+      },
+      {
+        src: "/docs/credit-limits.png",
+        caption:
+          "Credit Limits — Multi Ledger Limit Alteration across Sundry Debtors, setting per-party credit limit, credit period, and check-for-credit-days.",
+      },
+    ],
   },
   {
     id: "currency-pricing",
@@ -243,6 +314,28 @@ export const SECTIONS: DocSection[] = [
       },
     ],
     screenshot: "Screenshot: Price List by Stock Group — quantity-break rate table",
+    images: [
+      {
+        src: "/docs/currency-creation.png",
+        caption:
+          "Currency Creation — US Dollar (USD) with symbol, decimal places, and amount-in-words settings.",
+      },
+      {
+        src: "/docs/price-levels.png",
+        caption:
+          "Company Price Levels — three pricing tiers (Retail, Wholesale, Dealer); Enter adds the next, Backspace removes an empty row.",
+      },
+      {
+        src: "/docs/price-list.png",
+        caption:
+          "Price List (Stock Group) — Wholesale rate table with quantity breaks: Mouse Dell (1–50 @ 500) and Keyboard Dell (1–20 @ 700), applicable 5-Jul-26.",
+      },
+      {
+        src: "/docs/voucher-type-creation.png",
+        caption:
+          "Voucher Type Creation — \"Bank Receipt\" (alias BR) of type Receipt, with Automatic numbering and a Voucher Class \"Interest Received\".",
+      },
+    ],
   },
   {
     id: "vouchers",
@@ -295,6 +388,48 @@ export const SECTIONS: DocSection[] = [
       { key: "Q", action: "Quit" },
     ],
     screenshot: "Screenshot: Sales voucher entry — item table plus Bill-wise Allocation popup",
+    images: [
+      {
+        src: "/docs/voucher-contra.png",
+        caption:
+          "Contra voucher (double-entry) — ₹20,000 moved from Cash to HDFC, balanced, with the F4–F10 voucher-type switcher on the right.",
+      },
+      {
+        src: "/docs/voucher-payment.png",
+        caption:
+          "Payment voucher (double-entry) — ₹15,000 Rent Expenses paid from HDFC, balanced.",
+      },
+      {
+        src: "/docs/voucher-receipt.png",
+        caption:
+          "Receipt voucher (double-entry) — ₹25,000 received from ABC Customer into HDFC, balanced.",
+      },
+      {
+        src: "/docs/voucher-journal.png",
+        caption:
+          "Journal voucher (double-entry) — ₹5,000 depreciation: Depreciation Expenses Dr, Furniture A/c Cr, balanced.",
+      },
+      {
+        src: "/docs/voucher-sales.png",
+        caption:
+          "Sales voucher — ABC Customer billed for 2 × Desktop Computer @ ₹50,000 (₹1,00,000 total), with the item table and GST/e-Way Bill options.",
+      },
+      {
+        src: "/docs/voucher-purchase.png",
+        caption:
+          "Purchase voucher — XYZ Supplier (Invoice 101) for 20 × Mouse dell @ ₹300 (₹6,000 total), with Supplier Invoice No. and date.",
+      },
+      {
+        src: "/docs/voucher-credit-note.png",
+        caption:
+          "Credit Note (via F10 → Other Vouchers) — ₹50,000 sales return of 1 × Desktop Computer against ABC Customer.",
+      },
+      {
+        src: "/docs/voucher-debit-note.png",
+        caption:
+          "Debit Note (via F10 → Other Vouchers) — ₹1,500 purchase return of 5 × Mouse dell against XYZ Supplier.",
+      },
+    ],
   },
   {
     id: "manufacturing-jobwork",

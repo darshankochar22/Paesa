@@ -138,7 +138,20 @@ export default function DocumentationPage() {
                   </ul>
                 )}
 
-                <ScreenshotPlaceholder caption={s.screenshot} aspect="aspect-[21/9]" />
+                {s.images && s.images.length > 0 ? (
+                  <div className="space-y-8">
+                    {s.images.map((img) => (
+                      <ScreenshotPlaceholder
+                        key={img.src}
+                        caption={img.caption}
+                        src={img.src}
+                        aspect="aspect-[21/9]"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <ScreenshotPlaceholder caption={s.screenshot} src={s.image} aspect="aspect-[21/9]" />
+                )}
               </section>
             ))}
           </div>
