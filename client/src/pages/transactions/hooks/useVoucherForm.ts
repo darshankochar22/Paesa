@@ -1073,6 +1073,7 @@ export function useVoucherForm(
           excise_details: meta.exciseDetails || undefined,
           vat_details: meta.vatDetails || undefined,
           gst_eway_details: meta.gstEwayDetails || undefined,
+          manufacturer_importer_details: meta.manufacturerImporterDetails || undefined,
           order_details:
             meta.orderDetails || meta.sourceGodown
               ? {
@@ -1215,6 +1216,8 @@ export function useVoucherForm(
     setVatDetails: meta.setVatDetails,
     gstEwayDetails: meta.gstEwayDetails,
     setGstEwayDetails: meta.setGstEwayDetails,
+    manufacturerImporterDetails: meta.manufacturerImporterDetails,
+    setManufacturerImporterDetails: meta.setManufacturerImporterDetails,
     orderDetails: meta.orderDetails,
     setOrderDetails: meta.setOrderDetails,
     sourceGodown: meta.sourceGodown,

@@ -282,6 +282,24 @@ const init = async (db) => {
   try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN supplier_note_date TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN nature_of_return TEXT`); } catch (err) {}
 
+  // Purchase (excise) "Manufacturer / Importer Details" popup (after Party Details).
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_manufacturer_importer_details (
+      id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id             INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      name                   TEXT,
+      address_type           TEXT,
+      address                TEXT,
+      excise_regn_no         TEXT,
+      importer_exporter_code TEXT,
+      excise_range           TEXT,
+      division               TEXT,
+      commissionerate        TEXT,
+      invoice_no             TEXT,
+      invoice_date           TEXT
+    )
+  `);
+
   // "Provide GST/e-Way Bill details" Statutory Details (Sales/Credit Note/Debit Note).
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_gst_eway_details (

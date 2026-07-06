@@ -278,6 +278,7 @@ import { useState } from 'react';
 import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
 import VatAdditionalDetailsPopup from '../components/popups/VatAdditionalDetailsPopup';
+import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
 import { gstRowInfo } from '../utils/gstRow';
 
 interface Props {
@@ -669,32 +670,55 @@ export default function SalesVoucher({
 
 function SalesGstEwayRow({ form }: { form: any }) {
   const [provide, setProvide] = useState<'Yes' | 'No'>('No');
+  const [showPopup, setShowPopup] = useState(false);
   return (
-    <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
-      <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
-      <span className="text-sm text-black">:</span>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setProvide('Yes')}
-          className={`text-sm px-2 py-0 border ${provide === 'Yes' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
-        >
-          Yes
-        </button>
-        <button
-          type="button"
-          onClick={() => setProvide('No')}
-          className={`text-sm px-2 py-0 border ${provide === 'No' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
-        >
-          No
-        </button>
+    <>
+      <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
+        <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
+        <span className="text-sm text-black">:</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setProvide('Yes');
+              setShowPopup(true);
+            }}
+            className={`text-sm px-2 py-0 border ${provide === 'Yes' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setProvide('No');
+              setShowPopup(false);
+            }}
+            className={`text-sm px-2 py-0 border ${provide === 'No' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
+          >
+            No
+          </button>
+        </div>
+        {form.placeOfSupply !== undefined && (
+          <span className="ml-6 text-sm text-black/60">
+            Place of Supply : {form.placeOfSupply || '—'}
+          </span>
+        )}
       </div>
-      {form.placeOfSupply !== undefined && (
-        <span className="ml-6 text-sm text-black/60">
-          Place of Supply : {form.placeOfSupply || '—'}
-        </span>
+
+      {showPopup && (
+        <GstEwayBillDetailsPopup
+          initialDetails={form.gstEwayDetails}
+          onClose={() => {
+            setProvide('No');
+            setShowPopup(false);
+          }}
+          onSave={(details) => {
+            form.setGstEwayDetails({ ...form.gstEwayDetails, ...details });
+            setShowPopup(false);
+          }}
+        />
       )}
-    </div>
+    </>
   );
 }
 

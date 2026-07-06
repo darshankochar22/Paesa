@@ -420,6 +420,29 @@ const voucherGstEwayDetails = sqliteTable('voucher_gst_eway_details', {
 });
 
 // ---------------------------------------------------------------------------
+// voucher_manufacturer_importer_details
+// Purchase (excise) — "Manufacturer / Importer Details" popup shown after Party
+// Details.
+// ---------------------------------------------------------------------------
+const voucherManufacturerImporterDetails = sqliteTable('voucher_manufacturer_importer_details', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  // FK -> vouchers(voucher_id) ON DELETE CASCADE.
+  voucherId: integer('voucher_id')
+    .notNull()
+    .references(() => vouchers.voucherId),
+  name: text('name'),
+  addressType: text('address_type'),
+  address: text('address'),
+  exciseRegnNo: text('excise_regn_no'),
+  importerExporterCode: text('importer_exporter_code'),
+  exciseRange: text('excise_range'),
+  division: text('division'),
+  commissionerate: text('commissionerate'),
+  invoiceNo: text('invoice_no'),
+  invoiceDate: text('invoice_date'),
+});
+
+// ---------------------------------------------------------------------------
 // voucher_payroll_entries
 // ---------------------------------------------------------------------------
 const voucherPayrollEntries = sqliteTable('voucher_payroll_entries', {
@@ -454,5 +477,6 @@ module.exports = {
   voucherVatDetails,
   voucherOrderDetails,
   voucherGstEwayDetails,
+  voucherManufacturerImporterDetails,
   voucherPayrollEntries,
 };

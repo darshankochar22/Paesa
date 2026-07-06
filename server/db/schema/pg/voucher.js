@@ -438,6 +438,27 @@ const voucherGstEwayDetails = pgTable('voucher_gst_eway_details', {
 });
 
 // ---------------------------------------------------------------------------
+// voucher_manufacturer_importer_details  (Purchase excise — Manufacturer / Importer)
+// ---------------------------------------------------------------------------
+const voucherManufacturerImporterDetails = pgTable('voucher_manufacturer_importer_details', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  // FK -> vouchers.voucher_id ON DELETE CASCADE.
+  voucherId: bigint('voucher_id', { mode: 'number' })
+    .notNull()
+    .references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  name: text('name'),
+  addressType: text('address_type'),
+  address: text('address'),
+  exciseRegnNo: text('excise_regn_no'),
+  importerExporterCode: text('importer_exporter_code'),
+  exciseRange: text('excise_range'),
+  division: text('division'),
+  commissionerate: text('commissionerate'),
+  invoiceNo: text('invoice_no'),
+  invoiceDate: date('invoice_date'),
+});
+
+// ---------------------------------------------------------------------------
 // voucher_payroll_entries
 // ---------------------------------------------------------------------------
 const voucherPayrollEntries = pgTable('voucher_payroll_entries', {
@@ -474,5 +495,6 @@ module.exports = {
   voucherVatDetails,
   voucherOrderDetails,
   voucherGstEwayDetails,
+  voucherManufacturerImporterDetails,
   voucherPayrollEntries,
 };

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 import FieldRow from "../components/FieldRow";
 import GstNoteAdditionalDetailsPopup from "../components/popups/GstNoteAdditionalDetailsPopup";
+import GstEwayBillDetailsPopup from "../components/popups/GstEwayBillDetailsPopup";
 import VatNatureOfReturnPopup from "../components/popups/VatNatureOfReturnPopup";
 
 interface Props {
@@ -258,6 +259,53 @@ export default function CreditNoteVoucher({
       {/* Provide VAT details — only for a Sales Accounts ledger */}
       {form.checkLedgerGroup(form.salesPurchaseLedger, ["sales accounts"]) && (
         <CreditNoteVATDetails form={form} />
+      )}
+
+      {/* Provide GST/e-Way Bill details — Statutory Details popup */}
+      <CreditNoteGstEwayDetails form={form} />
+    </>
+  );
+}
+
+// ── GST / e-Way Bill Details (Statutory Details popup) ────────────────────────
+function CreditNoteGstEwayDetails({ form }: { form: any }) {
+  const [provide, setProvide] = useState<"Yes" | "No">("No");
+  const [showPopup, setShowPopup] = useState(false);
+
+  return (
+    <>
+      <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
+        <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
+        <span className="text-sm text-black">:</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setProvide("Yes"); setShowPopup(true); }}
+            className={`text-sm px-2 py-0 border ${provide === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => { setProvide("No"); setShowPopup(false); }}
+            className={`text-sm px-2 py-0 border ${provide === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          >
+            No
+          </button>
+        </div>
+      </div>
+
+      {showPopup && (
+        <GstEwayBillDetailsPopup
+          initialDetails={form.gstEwayDetails}
+          showNoteReason
+          noteNoLabel="Buyer's Debit Note No."
+          onClose={() => { setProvide("No"); setShowPopup(false); }}
+          onSave={(details) => {
+            form.setGstEwayDetails({ ...form.gstEwayDetails, ...details });
+            setShowPopup(false);
+          }}
+        />
       )}
     </>
   );

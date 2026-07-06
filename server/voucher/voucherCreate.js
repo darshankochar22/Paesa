@@ -22,6 +22,7 @@ const {
   voucherExciseDetails,
   voucherOrderDetails,
   voucherGstEwayDetails,
+  voucherManufacturerImporterDetails,
   voucherPayrollEntries,
   ledgers,
   ledgerStatutoryDetails,
@@ -541,6 +542,23 @@ module.exports = {
             voucherId: voucher_id,
             inspectionDocumentNo: nullify(ed.inspection_document_no) || null,
             inspectionDocumentDate: nullify(ed.inspection_document_date) || null,
+          });
+        }
+
+        if (data.manufacturer_importer_details) {
+          const mi = data.manufacturer_importer_details;
+          await db.insert(voucherManufacturerImporterDetails).values({
+            voucherId: voucher_id,
+            name: nullify(mi.name) || null,
+            addressType: nullify(mi.address_type) || null,
+            address: nullify(mi.address) || null,
+            exciseRegnNo: nullify(mi.excise_regn_no) || null,
+            importerExporterCode: nullify(mi.importer_exporter_code) || null,
+            exciseRange: nullify(mi.excise_range) || null,
+            division: nullify(mi.division) || null,
+            commissionerate: nullify(mi.commissionerate) || null,
+            invoiceNo: nullify(mi.invoice_no) || null,
+            invoiceDate: nullify(mi.invoice_date) || null,
           });
         }
 

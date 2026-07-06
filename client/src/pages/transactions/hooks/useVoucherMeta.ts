@@ -84,6 +84,8 @@ export function useVoucherMeta({
   const [vatDetails, setVatDetails] = useState<any | null>(null);
   // "Provide GST/e-Way Bill details" Statutory Details (Sales/Credit/Debit Note).
   const [gstEwayDetails, setGstEwayDetails] = useState<any | null>(null);
+  // Purchase (excise) "Manufacturer / Importer Details" — shown after Party Details.
+  const [manufacturerImporterDetails, setManufacturerImporterDetails] = useState<any | null>(null);
   const [orderDetails, setOrderDetails] = useState<any | null>(null);
   const [sourceGodown, setSourceGodown] = useState<any | null>(null);
 
@@ -113,6 +115,7 @@ export function useVoucherMeta({
     setExciseDetails(null);
     setVatDetails(null);
     setGstEwayDetails(null);
+    setManufacturerImporterDetails(null);
     setOrderDetails(null);
     setSourceGodown(null);
     setVoucherClass("");
@@ -181,6 +184,8 @@ export function useVoucherMeta({
     setVatDetails,
     gstEwayDetails,
     setGstEwayDetails,
+    manufacturerImporterDetails,
+    setManufacturerImporterDetails,
     orderDetails,
     setOrderDetails,
     sourceGodown,

@@ -190,11 +190,9 @@ export default function GstEwayBillDetailsPopup({
           <div className="flex items-center gap-2">
             <span className={labelCls}>Transporter Name</span>
             <span className={colonCls}>:</span>
-            <input
-              type="text"
-              className={inputCls}
-              value={form.transporter_name ?? ""}
-              onChange={(e) => set({ transporter_name: e.target.value })}
+            <TransporterNameField
+              value={form.transporter_name}
+              onChange={(v) => set({ transporter_name: v })}
             />
             <span className={colonCls}>Transporter ID</span>
             <span className={colonCls}>:</span>
@@ -264,5 +262,101 @@ export default function GstEwayBillDetailsPopup({
         </div>
       </div>
     </VoucherPopupShell>
+  );
+}
+
+// ── Transporter Name — "List of Ledger Accounts" picker (New / None) ──────────
+// Clicking opens New / None. "New" opens a small "Transporter for this shipment"
+// name-entry box (Enter accepts, Esc cancels) whose value becomes the name.
+function TransporterNameField({
+  value,
+  onChange,
+}: {
+  value?: string;
+  onChange: (v: string) => void;
+}) {
+  const [listOpen, setListOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const hasName = !!value && value.trim() !== "";
+  const display = hasName ? value : "♦ None";
+
+  return (
+    <div className="relative min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={() => setListOpen((o) => !o)}
+        className="w-full text-left text-sm bg-white border border-gray-400 px-2 py-1 outline-none focus:border-black"
+      >
+        {display}
+      </button>
+
+      {listOpen && (
+        <div className="absolute top-full left-0 z-[60] w-full min-w-[220px] bg-white border border-gray-400 shadow-lg">
+          <div className="bg-black text-white text-sm font-semibold px-2 py-1">
+            List of Ledger Accounts
+          </div>
+          <button
+            type="button"
+            className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-200"
+            onClick={() => {
+              setDraft(hasName ? (value as string) : "");
+              setListOpen(false);
+              setNewOpen(true);
+            }}
+          >
+            ♦ New
+          </button>
+          <button
+            type="button"
+            className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-200"
+            onClick={() => {
+              onChange("");
+              setListOpen(false);
+            }}
+          >
+            ♦ None
+          </button>
+        </div>
+      )}
+
+      {newOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40"
+          onClick={() => setNewOpen(false)}
+        >
+          <div
+            className="bg-white border border-gray-400 shadow-2xl min-w-[340px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center text-sm font-semibold text-black px-4 py-2 border-b border-gray-300">
+              Transporter for this shipment
+            </div>
+            <div className="px-4 py-3">
+              <input
+                autoFocus
+                type="text"
+                className="w-full text-sm bg-white border border-gray-500 px-2 py-1 outline-none focus:border-black"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    onChange(draft.trim());
+                    setNewOpen(false);
+                  } else if (e.key === "Escape") {
+                    // Cancel just this box — don't let the shell close too.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setNewOpen(false);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

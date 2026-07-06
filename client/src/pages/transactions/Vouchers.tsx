@@ -79,6 +79,7 @@ export default function Vouchers() {
   const [showDispatchDetails, setShowDispatchDetails] = useState(false);
   const [showReceiptDetails, setShowReceiptDetails] = useState(false);
   const [showPartyDetails, setShowPartyDetails] = useState(false);
+  const [showManufacturerDetails, setShowManufacturerDetails] = useState(false);
   const [showCreditNoteDetails, setShowCreditNoteDetails] = useState(false);
   const [showExciseDetails, setShowExciseDetails] = useState(false);
   const [showVatDetails, setShowVatDetails] = useState(false);
@@ -541,6 +542,33 @@ export default function Vouchers() {
     'Purchase Order',
   ];
 
+  // Voucher types that prompt the per-item "Excise Details for <item>" sub-screen
+  // once an item line is complete (mirrors TallyPrime). Gated further by the stock
+  // item itself being Excise Applicable, so ordinary non-excise items don't pop it.
+  const ITEM_EXCISE_VOUCHER_TYPES = ['Credit Note', 'Sales', 'Purchase'];
+
+  // After an item row is complete: open its Excise Details popup when excise
+  // applies to the item, otherwise just advance focus to the next item row.
+  const promptItemExciseOrAdvance = useCallback(
+    (rowId: string | undefined, idx: number) => {
+      const row = form.stockEntries.find((e) => e.id === rowId);
+      const applies =
+        ITEM_EXCISE_VOUCHER_TYPES.includes(effectiveVoucherType) &&
+        (row?.stockItem as any)?.excise_applicable === 'Applicable';
+      if (applies) {
+        setItemExcise({
+          rowId,
+          itemName: row?.stockItem?.name ?? '',
+          initial: row?.exciseItemDetails ?? null,
+        });
+        return;
+      }
+      if (idx >= 0) advanceStockRow(idx);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [form.stockEntries, effectiveVoucherType, advanceStockRow],
+  );
+
   const proceedToNextStockRow = useCallback(
     (idx: number) => {
       const row = form.stockEntries[idx];
@@ -563,10 +591,11 @@ export default function Vouchers() {
         });
         return; // advance happens after the popup is accepted
       }
-      advanceStockRow(idx);
+      // Non-batch item complete → prompt Excise Details (if applicable) or advance.
+      promptItemExciseOrAdvance(row?.id, idx);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form.stockEntries, form.setActiveAllocation, effectiveVoucherType, advanceStockRow],
+    [form.stockEntries, form.setActiveAllocation, effectiveVoucherType, advanceStockRow, promptItemExciseOrAdvance],
   );
 
   // Physical Stock: after entering a godown's quantity, add another godown row for
@@ -730,17 +759,9 @@ export default function Vouchers() {
       }
       form.setActiveAllocation(null);
       const idx = form.stockEntries.findIndex((e) => e.id === rowId);
-      // Credit Note: prompt per-item Excise Details right after the allocation.
-      const row = form.stockEntries.find((e) => e.id === rowId);
-      if (effectiveVoucherType === 'Credit Note') {
-        setItemExcise({
-          rowId,
-          itemName: row?.stockItem?.name ?? '',
-          initial: row?.exciseItemDetails ?? null,
-        });
-        return;
-      }
-      if (idx >= 0) advanceStockRow(idx);
+      // Batch item complete → prompt per-item Excise Details (Credit Note / Sales /
+      // Purchase, when the item is Excise Applicable) right after the allocation.
+      promptItemExciseOrAdvance(rowId, idx);
     },
     [
       form.activeAllocation,
@@ -749,6 +770,7 @@ export default function Vouchers() {
       form.stockEntries,
       effectiveVoucherType,
       advanceStockRow,
+      promptItemExciseOrAdvance,
       form.sourceStockEntries,
       form.destinationStockEntries,
       form.handleUpdateSourceStockRow,
@@ -1696,9 +1718,20 @@ export default function Vouchers() {
         setShowExciseDetails(true);
       } else if (effectiveVoucherType === 'Debit Note') {
         setShowDebitNoteExcise(true);
+      } else if (effectiveVoucherType === 'Purchase') {
+        // Purchase (excise) chains to the Manufacturer / Importer Details popup.
+        setShowManufacturerDetails(true);
       }
     },
     [form.setPartyDetails, form.setPlaceOfSupply, effectiveVoucherType],
+  );
+
+  const handleSaveManufacturerDetails = useCallback(
+    (details: any) => {
+      form.setManufacturerImporterDetails(details);
+      setShowManufacturerDetails(false);
+    },
+    [form.setManufacturerImporterDetails],
   );
   const handleSaveExciseDetails = useCallback(
     (details: any) => {
@@ -2424,6 +2457,7 @@ export default function Vouchers() {
         showOrderDetails={showOrderDetails}
         showReceiptDetails={showReceiptDetails}
         showPartyDetails={showPartyDetails}
+        showManufacturerDetails={showManufacturerDetails}
         showExciseDetails={showExciseDetails}
         showDebitNoteExcise={showDebitNoteExcise}
         showVatDetails={showVatDetails}
@@ -2437,6 +2471,7 @@ export default function Vouchers() {
         setShowOrderDetails={setShowOrderDetails}
         setShowReceiptDetails={setShowReceiptDetails}
         setShowPartyDetails={setShowPartyDetails}
+        setShowManufacturerDetails={setShowManufacturerDetails}
         setShowExciseDetails={setShowExciseDetails}
         setShowDebitNoteExcise={setShowDebitNoteExcise}
         setShowVatDetails={setShowVatDetails}
@@ -2460,6 +2495,7 @@ export default function Vouchers() {
         handleSaveMaterialInAllocations={handleSaveMaterialInAllocations}
         handleSaveOrderDetails={handleSaveOrderDetails}
         handleSavePartyDetails={handleSavePartyDetails}
+        handleSaveManufacturerDetails={handleSaveManufacturerDetails}
         handleSaveReceiptDetails={handleSaveReceiptDetails}
         handleSaveVatDetails={handleSaveVatDetails}
       />

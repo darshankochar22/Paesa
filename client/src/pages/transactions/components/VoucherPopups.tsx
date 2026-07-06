@@ -14,6 +14,7 @@ import DenominationPopup from './popups/DenominationPopup';
 import DispatchDetailsPopup from './popups/DispatchDetailsPopup';
 import ReceiptDetailsPopup from './popups/ReceiptDetailsPopup';
 import PartyDetailsPopup from './popups/PartyDetailsPopup';
+import ManufacturerImporterDetailsPopup from './popups/ManufacturerImporterDetailsPopup';
 import DatePickerPopup from './popups/DatePickerPopup';
 import CreditNoteDetailsPopup from './popups/CreditNoteDetailsPopup';
 import DebitNoteDetailsPopup from './popups/DebitNoteDetailsPopup';
@@ -44,6 +45,7 @@ interface VoucherPopupsProps {
   showOrderDetails: any;
   showReceiptDetails: any;
   showPartyDetails: any;
+  showManufacturerDetails: any;
   showExciseDetails: any;
   showDebitNoteExcise: any;
   showVatDetails: any;
@@ -57,6 +59,7 @@ interface VoucherPopupsProps {
   setShowOrderDetails: any;
   setShowReceiptDetails: any;
   setShowPartyDetails: any;
+  setShowManufacturerDetails: any;
   setShowExciseDetails: any;
   setShowDebitNoteExcise: any;
   setShowVatDetails: any;
@@ -80,6 +83,7 @@ interface VoucherPopupsProps {
   handleSaveMaterialInAllocations: any;
   handleSaveOrderDetails: any;
   handleSavePartyDetails: any;
+  handleSaveManufacturerDetails: any;
   handleSaveReceiptDetails: any;
   handleSaveVatDetails: any;
 }
@@ -101,6 +105,7 @@ export default function VoucherPopups({
   showOrderDetails,
   showReceiptDetails,
   showPartyDetails,
+  showManufacturerDetails,
   showExciseDetails,
   showDebitNoteExcise,
   showVatDetails,
@@ -114,6 +119,7 @@ export default function VoucherPopups({
   setShowOrderDetails,
   setShowReceiptDetails,
   setShowPartyDetails,
+  setShowManufacturerDetails,
   setShowExciseDetails,
   setShowDebitNoteExcise,
   setShowVatDetails,
@@ -137,6 +143,7 @@ export default function VoucherPopups({
   handleSaveMaterialInAllocations,
   handleSaveOrderDetails,
   handleSavePartyDetails,
+  handleSaveManufacturerDetails,
   handleSaveReceiptDetails,
   handleSaveVatDetails,
 }: VoucherPopupsProps) {
@@ -279,6 +286,16 @@ export default function VoucherPopups({
           natureOfReturnLabel={
             effectiveVoucherType === 'Credit Note' ? 'Nature of Sales Return' : undefined
           }
+        />
+      )}
+      {showManufacturerDetails && form.partyLedger && (
+        <ManufacturerImporterDetailsPopup
+          partyLedger={form.partyLedger}
+          allLedgers={form.allLedgers}
+          initialDetails={form.manufacturerImporterDetails}
+          onClose={() => setShowManufacturerDetails(false)}
+          onSave={handleSaveManufacturerDetails}
+          onCreateLedger={() => navigate('/master/create/ledger')}
         />
       )}
       {showExciseDetails && form.partyLedger && (
