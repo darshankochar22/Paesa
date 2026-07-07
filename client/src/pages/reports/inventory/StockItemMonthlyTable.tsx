@@ -1,31 +1,42 @@
-import * as React from "react";
-import type { ScaleFactor } from "./ScaleFactorPopup";
+import * as React from 'react';
+import type { ScaleFactor } from './ScaleFactorPopup';
 
-const NO_SCALE: ScaleFactor = { label: "Default", divisor: 1, suffix: "" };
+const NO_SCALE: ScaleFactor = { label: 'Default', divisor: 1, suffix: '' };
 
 const makeFmtVal = (scale: ScaleFactor) => (val: number | null | undefined) => {
   const n = (Number(val) || 0) / scale.divisor;
-  if (n === 0) return "";
-  return new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + scale.suffix;
+  if (n === 0) return '';
+  return (
+    new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      n,
+    ) + scale.suffix
+  );
 };
 
 const fmtQty = (val: number | null | undefined, unit?: string) => {
   const n = Number(val) || 0;
-  if (n === 0) return "";
-  const s = n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  if (n === 0) return '';
+  const s = n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
   return unit ? `${s} ${unit}` : s;
 };
 
-const fmtPct = (v: number) => (v === 0 ? "" : `${v.toFixed(2)} %`);
+const fmtPct = (v: number) => (v === 0 ? '' : `${v.toFixed(2)} %`);
 
 export interface MonthRow {
   month: string;
-  in_qty: number;  in_value: number;
-  out_qty: number; out_value: number;
-  closing_qty: number; closing_value: number;
+  in_qty: number;
+  in_value: number;
+  out_qty: number;
+  out_value: number;
+  closing_qty: number;
+  closing_value: number;
 }
 
-interface ProfitRow { consumption: number; gross_profit: number; perc: number; }
+interface ProfitRow {
+  consumption: number;
+  gross_profit: number;
+  perc: number;
+}
 
 interface Props {
   itemName: string;
@@ -37,17 +48,17 @@ interface Props {
   months: MonthRow[];
   loading?: boolean;
   error?: string | null;
-  selectedIndex: number;       // index into `months`; -1 = Opening Balance row
+  selectedIndex: number; // index into `months`; -1 = Opening Balance row
   onSelectIndex: (i: number) => void;
   onActivate?: (monthIndex: number) => void;
   footer?: React.ReactNode;
   // ── Issue #107 additions ──
-  title?: string;              // override "Stock Item Monthly Summary"
-  particularsLabel?: string;   // override "Particulars" header
-  showProfit?: boolean;        // F7 — add Consumption / Gross Profit / Perc% cols
-  scale?: ScaleFactor;         // Basis of Values scale factor
-  chart?: React.ReactNode;     // bar chart rendered above the Grand Total
-  sidebar?: React.ReactNode;   // right action panel
+  title?: string; // override "Stock Item Monthly Summary"
+  particularsLabel?: string; // override "Particulars" header
+  showProfit?: boolean; // F7 — add Consumption / Gross Profit / Perc% cols
+  scale?: ScaleFactor; // Basis of Values scale factor
+  chart?: React.ReactNode; // bar chart rendered above the Grand Total
+  sidebar?: React.ReactNode; // right action panel
 }
 
 /**
@@ -59,11 +70,11 @@ function computeProfit(openingQty: number, openingValue: number, months: MonthRo
   let qty = openingQty;
   let cost = openingValue; // cost-basis running value
   return months.map((m) => {
-    qty  += m.in_qty;
+    qty += m.in_qty;
     cost += m.in_value;
     const avg = qty !== 0 ? cost / qty : 0;
     const consumption = m.out_qty * avg;
-    qty  -= m.out_qty;
+    qty -= m.out_qty;
     cost -= consumption;
     const gross_profit = m.out_value - consumption;
     const perc = m.out_value ? (gross_profit / m.out_value) * 100 : 0;
@@ -79,82 +90,165 @@ function computeProfit(openingQty: number, openingValue: number, months: MonthRo
  * above the Grand Total. Presentational only; parent owns selection + keyboard nav.
  */
 export default function StockItemMonthlyTable({
-  itemName, companyName, periodLabel, unit, openingQty, openingValue, months,
-  loading, error, selectedIndex, onSelectIndex, onActivate, footer,
-  title = "Stock Item Monthly Summary", particularsLabel = "Particulars",
-  showProfit = false, scale = NO_SCALE, chart, sidebar,
+  itemName,
+  companyName,
+  periodLabel,
+  unit,
+  openingQty,
+  openingValue,
+  months,
+  loading,
+  error,
+  selectedIndex,
+  onSelectIndex,
+  onActivate,
+  footer,
+  title = 'Stock Item Monthly Summary',
+  particularsLabel = 'Particulars',
+  showProfit = false,
+  scale = NO_SCALE,
+  chart,
+  sidebar,
 }: Props) {
   const fmt = React.useMemo(() => makeFmtVal(scale), [scale]);
   const profit = React.useMemo(
     () => (showProfit ? computeProfit(openingQty, openingValue, months) : []),
-    [showProfit, openingQty, openingValue, months]
+    [showProfit, openingQty, openingValue, months],
   );
 
-  const tot = months.reduce((a, m) => ({
-    inQ: a.inQ + m.in_qty,  inV: a.inV + m.in_value,
-    outQ: a.outQ + m.out_qty, outV: a.outV + m.out_value,
-  }), { inQ: 0, inV: 0, outQ: 0, outV: 0 });
+  const tot = months.reduce(
+    (a, m) => ({
+      inQ: a.inQ + m.in_qty,
+      inV: a.inV + m.in_value,
+      outQ: a.outQ + m.out_qty,
+      outV: a.outV + m.out_value,
+    }),
+    { inQ: 0, inV: 0, outQ: 0, outV: 0 },
+  );
   const totCons = profit.reduce((s, p) => s + p.consumption, 0);
-  const totGP   = profit.reduce((s, p) => s + p.gross_profit, 0);
+  const totGP = profit.reduce((s, p) => s + p.gross_profit, 0);
   const totGPpc = tot.outV ? (totGP / tot.outV) * 100 : 0;
   const finalCQty = months.length ? months[months.length - 1].closing_qty : openingQty;
   const finalCVal = months.length ? months[months.length - 1].closing_value : openingValue;
 
-  const numCell = "px-2 py-1 text-right";
+  const numCell = 'px-2 py-1 text-right';
   const colSpanCount = showProfit ? 10 : 7;
 
   const body = (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px] min-w-0">
       <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
         <span className="font-bold text-sm tracking-wide">{title}</span>
-        <span className="font-bold text-sm">{companyName || "Company"}</span>
+        <span className="font-bold text-sm">{companyName || 'Company'}</span>
         <span />
       </div>
       <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
         <span className="font-semibold">{itemName}</span>
-        <span>{periodLabel}{scale.divisor !== 1 ? ` · Values in ${scale.label}` : ""}</span>
+        <span>
+          {periodLabel}
+          {scale.divisor !== 1 ? ` · Values in ${scale.label}` : ''}
+        </span>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
           <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
             <tr>
-              <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom border-b border-zinc-300">{particularsLabel}</th>
-              <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Inwards</th>
-              <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Outwards</th>
-              {showProfit && <>
-                <th rowSpan={2} className="px-2 py-1 text-right font-bold w-28 border-b border-l border-zinc-200 align-bottom">Consumption</th>
-                <th rowSpan={2} className="px-2 py-1 text-right font-bold w-28 border-b border-l border-zinc-200 align-bottom">Gross Profit</th>
-                <th rowSpan={2} className="px-2 py-1 text-right font-bold w-16 border-b border-l border-zinc-200 align-bottom">Perc %</th>
-              </>}
-              <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Closing Balance</th>
+              <th
+                rowSpan={2}
+                className="px-3 py-1 text-left font-bold align-bottom border-b border-zinc-300"
+              >
+                {particularsLabel}
+              </th>
+              <th
+                colSpan={2}
+                className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+              >
+                Inwards
+              </th>
+              <th
+                colSpan={2}
+                className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+              >
+                Outwards
+              </th>
+              {showProfit && (
+                <>
+                  <th
+                    rowSpan={2}
+                    className="px-2 py-1 text-right font-bold w-28 border-b border-l border-zinc-200 align-bottom"
+                  >
+                    Consumption
+                  </th>
+                  <th
+                    rowSpan={2}
+                    className="px-2 py-1 text-right font-bold w-28 border-b border-l border-zinc-200 align-bottom"
+                  >
+                    Gross Profit
+                  </th>
+                  <th
+                    rowSpan={2}
+                    className="px-2 py-1 text-right font-bold w-16 border-b border-l border-zinc-200 align-bottom"
+                  >
+                    Perc %
+                  </th>
+                </>
+              )}
+              <th
+                colSpan={2}
+                className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+              >
+                Closing Balance
+              </th>
             </tr>
             <tr>
-              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">Quantity</th>
+              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">
+                Quantity
+              </th>
               <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">Quantity</th>
+              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">
+                Quantity
+              </th>
               <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">Quantity</th>
+              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">
+                Quantity
+              </th>
               <th className="px-2 py-1 text-right font-bold w-28">Value</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={colSpanCount} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
+              <tr>
+                <td colSpan={colSpanCount} className="px-4 py-8 text-center text-zinc-400 italic">
+                  Loading...
+                </td>
+              </tr>
             ) : error ? (
-              <tr><td colSpan={colSpanCount} className="px-4 py-8 text-center text-zinc-600">{error}</td></tr>
+              <tr>
+                <td colSpan={colSpanCount} className="px-4 py-8 text-center text-zinc-600">
+                  {error}
+                </td>
+              </tr>
             ) : (
               <>
-                <tr className={`border-b border-zinc-100 ${selectedIndex === -1 ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "text-zinc-800"}`} onClick={() => onSelectIndex(-1)}>
+                <tr
+                  className={`border-b border-zinc-100 ${selectedIndex === -1 ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'text-zinc-800'}`}
+                  onClick={() => onSelectIndex(-1)}
+                >
                   <td className="px-3 py-1 italic">Opening Balance</td>
-                  <td className={`${numCell} border-l border-zinc-100`} /><td className={numCell} />
-                  <td className={`${numCell} border-l border-zinc-100`} /><td className={numCell} />
-                  {showProfit && <>
-                    <td className={`${numCell} border-l border-zinc-100`} />
-                    <td className={`${numCell} border-l border-zinc-100`} />
-                    <td className={`${numCell} border-l border-zinc-100`} />
-                  </>}
-                  <td className={`${numCell} border-l border-zinc-100`}>{fmtQty(openingQty, unit)}</td>
+                  <td className={`${numCell} border-l border-zinc-100`} />
+                  <td className={numCell} />
+                  <td className={`${numCell} border-l border-zinc-100`} />
+                  <td className={numCell} />
+                  {showProfit && (
+                    <>
+                      <td className={`${numCell} border-l border-zinc-100`} />
+                      <td className={`${numCell} border-l border-zinc-100`} />
+                      <td className={`${numCell} border-l border-zinc-100`} />
+                    </>
+                  )}
+                  <td className={`${numCell} border-l border-zinc-100`}>
+                    {fmtQty(openingQty, unit)}
+                  </td>
                   <td className={numCell}>{fmt(openingValue)}</td>
                 </tr>
                 {months.map((m, idx) => {
@@ -162,21 +256,37 @@ export default function StockItemMonthlyTable({
                   return (
                     <tr
                       key={m.month}
-                      onClick={() => onSelectIndex(idx)}
+                      // Single click drills into the period's vouchers (Tally's Enter);
+                      // falls back to plain selection when the row isn't drillable.
+                      onClick={() => (onActivate ? onActivate(idx) : onSelectIndex(idx))}
                       onDoubleClick={() => onActivate?.(idx)}
-                      className={`border-b border-zinc-100 ${onActivate ? "cursor-pointer" : ""} ${idx === selectedIndex ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                      className={`border-b border-zinc-100 ${onActivate ? 'cursor-pointer' : ''} ${idx === selectedIndex ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
                     >
                       <td className="px-3 py-1">{m.month}</td>
-                      <td className={`${numCell} border-l border-zinc-100`}>{fmtQty(m.in_qty, unit)}</td>
+                      <td className={`${numCell} border-l border-zinc-100`}>
+                        {fmtQty(m.in_qty, unit)}
+                      </td>
                       <td className={numCell}>{fmt(m.in_value)}</td>
-                      <td className={`${numCell} border-l border-zinc-100`}>{fmtQty(m.out_qty, unit)}</td>
+                      <td className={`${numCell} border-l border-zinc-100`}>
+                        {fmtQty(m.out_qty, unit)}
+                      </td>
                       <td className={numCell}>{fmt(m.out_value)}</td>
-                      {showProfit && p && <>
-                        <td className={`${numCell} border-l border-zinc-100`}>{fmt(p.consumption)}</td>
-                        <td className={`${numCell} border-l border-zinc-100`}>{fmt(p.gross_profit)}</td>
-                        <td className={`${numCell} border-l border-zinc-100`}>{fmtPct(p.perc)}</td>
-                      </>}
-                      <td className={`${numCell} border-l border-zinc-100`}>{fmtQty(m.closing_qty, unit)}</td>
+                      {showProfit && p && (
+                        <>
+                          <td className={`${numCell} border-l border-zinc-100`}>
+                            {fmt(p.consumption)}
+                          </td>
+                          <td className={`${numCell} border-l border-zinc-100`}>
+                            {fmt(p.gross_profit)}
+                          </td>
+                          <td className={`${numCell} border-l border-zinc-100`}>
+                            {fmtPct(p.perc)}
+                          </td>
+                        </>
+                      )}
+                      <td className={`${numCell} border-l border-zinc-100`}>
+                        {fmtQty(m.closing_qty, unit)}
+                      </td>
                       <td className={numCell}>{fmt(m.closing_value)}</td>
                     </tr>
                   );
@@ -191,16 +301,24 @@ export default function StockItemMonthlyTable({
 
       <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
         <span className="flex-1">Grand Total</span>
-        <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmtQty(tot.inQ, unit)}</span>
+        <span className="w-28 text-right border-l border-zinc-300 pr-1">
+          {fmtQty(tot.inQ, unit)}
+        </span>
         <span className="w-28 text-right pr-1">{fmt(tot.inV)}</span>
-        <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmtQty(tot.outQ, unit)}</span>
+        <span className="w-28 text-right border-l border-zinc-300 pr-1">
+          {fmtQty(tot.outQ, unit)}
+        </span>
         <span className="w-28 text-right pr-1">{fmt(tot.outV)}</span>
-        {showProfit && <>
-          <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmt(totCons)}</span>
-          <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmt(totGP)}</span>
-          <span className="w-16 text-right border-l border-zinc-300 pr-1">{fmtPct(totGPpc)}</span>
-        </>}
-        <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmtQty(finalCQty, unit)}</span>
+        {showProfit && (
+          <>
+            <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmt(totCons)}</span>
+            <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmt(totGP)}</span>
+            <span className="w-16 text-right border-l border-zinc-300 pr-1">{fmtPct(totGPpc)}</span>
+          </>
+        )}
+        <span className="w-28 text-right border-l border-zinc-300 pr-1">
+          {fmtQty(finalCQty, unit)}
+        </span>
         <span className="w-28 text-right pr-1">{fmt(finalCVal)}</span>
       </div>
 
@@ -209,5 +327,10 @@ export default function StockItemMonthlyTable({
   );
 
   if (!sidebar) return body;
-  return <div className="flex h-full w-full">{body}{sidebar}</div>;
+  return (
+    <div className="flex h-full w-full">
+      {body}
+      {sidebar}
+    </div>
+  );
 }
