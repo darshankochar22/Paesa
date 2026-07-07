@@ -82,6 +82,7 @@ import GSTVoucherMonthlyRegister from '../pages/master/statutory/gst-return/GSTV
 import GSTR1SectionDetail from '../pages/master/statutory/gst-return/GSTR1SectionDetail.tsx';
 import GSTRNotRelevant from '../pages/master/statutory/gst-return/GSTRNotRelevant.tsx';
 import GSTRUncertain from '../pages/master/statutory/gst-return/GSTRUncertain.tsx';
+import GSTRegistrationResolution from '../pages/master/statutory/gst-return/GSTRegistrationResolution.tsx';
 import AnnualSectionSummary from '../pages/master/statutory/gst-return/AnnualSectionSummary.tsx';
 import AnnualMonthlySummary from '../pages/master/statutory/gst-return/AnnualMonthlySummary.tsx';
 import GSTR1Reconciliation from '../pages/master/statutory/gst-return/GSTR1-Reconcilation.tsx';
@@ -285,6 +286,7 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gstr1/section', element: <GSTR1SectionDetail /> },
   { path: '/master/statutory/gst/not-relevant', element: <GSTRNotRelevant /> },
   { path: '/master/statutory/gst/uncertain', element: <GSTRUncertain /> },
+  { path: '/master/statutory/gst/uncertain/registration', element: <GSTRegistrationResolution /> },
   { path: '/master/statutory/gst/annual-section', element: <AnnualSectionSummary /> },
   { path: '/master/statutory/gst/annual-monthly', element: <AnnualMonthlySummary /> },
   { path: '/master/statutory/gstr1', element: <GSTR1View /> },

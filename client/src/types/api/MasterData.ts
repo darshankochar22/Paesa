@@ -13,6 +13,18 @@ import type { VATRegistrationDetails } from '../entities/VATRegistrationDetails'
 import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
 import type { TDSNatureOfPaymentType } from '../entities/TDSNatureOfPayment';
 
+// One row in the GST Rate Setup group-hierarchy view (a sub-group or a ledger).
+export interface GstRateSetupNode {
+  id: number;
+  name: string;
+  kind: 'group' | 'ledger' | 'stock_group' | 'stock_item';
+  taxability_type: string;
+  gst_rate: number;
+  hsn: string;
+  gst_applicability: string;
+  status: string;
+}
+
 export interface MasterDataAPI {
   companyGstDetails: {
     get: (company_id: number) => Promise<{
@@ -293,6 +305,29 @@ export interface MasterDataAPI {
       company_id: number;
       fy_id: number;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getRegistrationResolution: (data: {
+      company_id: number;
+      fy_id: number;
+      gst_registration_id?: number | null;
+    }) => Promise<{
+      success: boolean;
+      rows: Array<{
+        gst_id: number;
+        name: string;
+        voucher_count: number;
+        address: string;
+        state_id: string;
+        registration_status: string;
+        address_type: string;
+        registration_type: string;
+        assessee_of_other_territory: number;
+        periodicity_of_gstr1: string;
+        gstin: string;
+        place_of_supply: string;
+      }>;
+      address: string;
+      error?: string;
+    }>;
     getGSTR2AReconciliation: (data: {
       company_id: number;
       fy_id: number;
@@ -460,6 +495,75 @@ export interface MasterDataAPI {
       }[];
       error?: string;
     }>;
+    getGstRateSetup: (data: {
+      company_id: number;
+      master_type: 'group' | 'ledger' | 'stock_group' | 'stock_item';
+    }) => Promise<{
+      success: boolean;
+      masters?: {
+        id: number;
+        name: string;
+        taxability_type: string;
+        gst_rate: number;
+        hsn: string;
+        gst_applicability: string;
+        status: string;
+      }[];
+      error?: string;
+    }>;
+    getGstRateSetupTree: (data: {
+      company_id: number;
+      group_id?: number | null;
+    }) => Promise<{
+      success: boolean;
+      group?: { id: number; name: string } | null;
+      groups?: GstRateSetupNode[];
+      ledgers?: GstRateSetupNode[];
+      error?: string;
+    }>;
+    getGstRateSetupStockTree: (data: {
+      company_id: number;
+      stock_group_id?: number | null;
+    }) => Promise<{
+      success: boolean;
+      group?: { id: number; name: string } | null;
+      groups?: GstRateSetupNode[];
+      ledgers?: GstRateSetupNode[];
+      error?: string;
+    }>;
+    validatePartyGstin: (data: {
+      company_id: number;
+      group_name?: string;
+      ledger_name?: string;
+    }) => Promise<{
+      success: boolean;
+      parties?: Array<{
+        id: number;
+        name: string;
+        address: string;
+        state: string;
+        country: string;
+        registration_type: string;
+        gstin: string;
+        pan: string;
+        valid: boolean;
+        status: string;
+      }>;
+      error?: string;
+    }>;
+    createPartiesFromGstin: (data: {
+      company_id: number;
+      group_name?: string;
+      gstins: string[];
+    }) => Promise<{ success: boolean; results?: any[]; error?: string }>;
+    updatePartyGstDetails: (data: {
+      ledger_id: number;
+      registration_type?: string;
+      gstin?: string;
+      pan?: string;
+      state?: string;
+      country?: string;
+    }) => Promise<{ success: boolean; ledger?: any; error?: string }>;
   };
 
   tds: {

@@ -2,7 +2,7 @@
 
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { vouchers, ledgers, gstRegistrations, voucherStockEntries } = require('../db/schema');
+const { vouchers, ledgers, gstRegistrations, voucherStockEntries, companies } = require('../db/schema');
 // Attendance vouchers live in their own table; reuse the Day Book helper so the GST
 // drill engine sees them (as voucher_type 'Attendance') exactly as every other screen does.
 const { fetchAttendanceVoucherRows } = require('../voucher/voucherReads');
@@ -910,7 +910,6 @@ const getReturnActivities = async (company_id, fy_id) => {
                    COUNT(DISTINCT CASE WHEN (
                      (l.registration_type IS NOT NULL AND l.registration_type != 'Unregistered'
                         AND (l.gstin IS NULL OR l.gstin = '' OR length(l.gstin) != 15))
-                     OR COALESCE(v.place_of_supply, '') = ''
                    ) THEN v.voucher_id END) AS corr
             FROM ${vouchers} v
             LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
@@ -1005,7 +1004,6 @@ const getReturnActivities = async (company_id, fy_id) => {
             AND (
               (l.registration_type IS NOT NULL AND l.registration_type != 'Unregistered'
                  AND (l.gstin IS NULL OR l.gstin = '' OR length(l.gstin) != 15))
-              OR COALESCE(v.place_of_supply, '') = ''
             )`,
     );
     const corrections = Number(corrRows[0]?.n || 0);
@@ -1207,14 +1205,26 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
     return { bucket: 'not_relevant', group, category, section: null, exceptions: [] };
   }
 
+  // The company's own registration being invalid is a blocking, voucher-independent
+  // problem — Tally surfaces ONLY this exception for such vouchers (No. of Exceptions: 1),
+  // so short-circuit before the per-voucher data checks (avoids extra exception lines).
+  if (companyGstinInvalid) {
+    return {
+      bucket: 'uncertain',
+      group: null,
+      category: null,
+      section: null,
+      exceptions: ['GST Registration Details of the Company are invalid or not specified'],
+    };
+  }
+
   const exceptions = [];
-  if (companyGstinInvalid)
-    exceptions.push('GST Registration Details of the Company are invalid or not specified');
   const partyRegistered = v.party_reg_type && v.party_reg_type !== 'Unregistered';
   if (partyRegistered && (!v.party_gstin || String(v.party_gstin).length !== 15)) {
     exceptions.push('Party is registered but its GSTIN/UIN is missing or invalid');
   }
-  if (!String(v.place_of_supply || '').trim()) exceptions.push('Place of supply is not specified');
+  // Place of supply is auto-derived from the party/company state (as in TallyPrime), so a
+  // blank place-of-supply is never surfaced as an uncertain exception.
   if (Number(v.stock_count || 0) === 0)
     exceptions.push('No item or tax details available in the voucher');
   if (exceptions.length)
@@ -1861,10 +1871,15 @@ const getAnnualMonthly = async (company_id, fy_id, opts = {}) => {
 // All 4 master types keep their own GST columns; ledgers keep them in
 // ledger_statutory_details. This is a read view — editing is via the master screens.
 // ───────────────────────────────────────────────────────────────────────────────
-const rateSetupStatus = ({ gst_applicability, taxability_type, gst_rate, hsn }) => {
+const rateSetupStatus = ({ gst_applicability, taxability_type, gst_rate, hsn, gst_rate_source }) => {
   const taxability = String(taxability_type || '').trim();
   const rate = Number(gst_rate) || 0;
   if (String(gst_applicability || '') === 'Not Applicable') return 'GST Not Applicable';
+  // A ledger carrying gst_rate_source='As per Company/Group' has NOT specified a rate of its
+  // own — GST applies but the rate details are inherited/blank, so it is "not provided",
+  // regardless of the placeholder taxability_type='Taxable' the form leaves behind. (Stock
+  // items pass gst_rate_source undefined and fall through to the value-based logic below.)
+  if (String(gst_rate_source || '') === 'As per Company/Group') return 'GST Rate Details Not Provided';
   if (/exempt/i.test(taxability)) return 'Exempt';
   if (/nil/i.test(taxability)) return 'Nil Rated';
   if (/non[- ]?gst/i.test(taxability)) return 'Non-GST';
@@ -1875,19 +1890,25 @@ const rateSetupStatus = ({ gst_applicability, taxability_type, gst_rate, hsn }) 
 };
 
 const RATE_SETUP_QUERIES = {
+  // Stock items honour their own gst_applicable: an item explicitly set "Not Applicable"
+  // buckets under "GST Not Applicable", while an Applicable item with no rate is "Not
+  // Provided" (goods default to Applicable in the form, so Not Applicable is a deliberate choice).
   stock_item: (company_id) => sql`
     SELECT item_id AS id, name, gst_applicable AS gst_applicability,
            taxability_type, gst_rate, COALESCE(NULLIF(hsn_sac, ''), hsn_code) AS hsn
     FROM stock_items WHERE company_id = ${company_id} AND is_active = 1
     ORDER BY name COLLATE NOCASE`,
+  // GST tax ledgers (Duties & Taxes, type_of_duty_tax='GST') are excluded — Tally does not
+  // list tax-collection accounts in GST Rate Setup; you set rates on supplies, not on CGST/SGST/IGST.
   ledger: (company_id) => sql`
     SELECT l.ledger_id AS id, l.name,
-           COALESCE(sd.gst_applicability, 'Not Applicable') AS gst_applicability,
+           sd.gst_applicability AS gst_applicability,
            sd.taxability_type AS taxability_type, sd.gst_rate AS gst_rate,
-           sd.hsn_sac_code AS hsn
+           sd.hsn_sac_code AS hsn, sd.gst_rate_source AS gst_rate_source
     FROM ledgers l
     LEFT JOIN ledger_statutory_details sd ON sd.ledger_id = l.ledger_id
     WHERE l.company_id = ${company_id} AND l.is_active = 1
+      AND (sd.type_of_duty_tax IS NULL OR sd.type_of_duty_tax != 'GST')
     ORDER BY l.name COLLATE NOCASE`,
   group: (company_id) => sql`
     SELECT group_id AS id, name, NULL AS gst_applicability,
@@ -1916,6 +1937,143 @@ const getGstRateSetup = async (company_id, master_type) => {
       status: rateSetupStatus(r),
     }));
     return { success: true, masters };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// GST Rate Setup — group-hierarchy view. Mirrors TallyPrime's actual drill flow: the
+// screen opens at "Group: ♦ Primary" (group_id null) listing the top-level accounting
+// groups, and drilling into any group shows its sub-groups + ledgers bucketed by GST
+// status. Only groups that hold at least one ledger (directly or nested) are listed —
+// empty predefined groups (e.g. Suspense A/c) are hidden, exactly like Tally.
+const getGstRateSetupTree = async (company_id, group_id) => {
+  try {
+    const gid = group_id == null ? null : Number(group_id);
+    const parentFilter = gid == null ? sql`g.parent_group_id IS NULL` : sql`g.parent_group_id = ${gid}`;
+
+    // A group is "non-empty" if it directly holds a (non-GST-tax) ledger, or is an ancestor
+    // of one. GST tax ledgers (Duties & Taxes, type_of_duty_tax='GST') are excluded from GST
+    // Rate Setup like Tally — a group holding only tax ledgers is treated as empty and hidden.
+    const groupRows = await db.all(sql`
+      WITH RECURSIVE nonempty(gid) AS (
+        SELECT DISTINCT l.group_id FROM ledgers l
+          LEFT JOIN ledger_statutory_details sd ON sd.ledger_id = l.ledger_id
+          WHERE l.company_id = ${company_id} AND l.is_active = 1 AND l.group_id IS NOT NULL
+            AND (sd.type_of_duty_tax IS NULL OR sd.type_of_duty_tax != 'GST')
+        UNION
+        SELECT g2.parent_group_id FROM groups g2
+          JOIN nonempty n ON g2.group_id = n.gid
+          WHERE g2.parent_group_id IS NOT NULL
+      )
+      SELECT g.group_id AS id, g.name, NULL AS gst_applicability,
+             g.taxability_type, g.gst_rate, g.hsn_sac_code AS hsn
+      FROM groups g
+      WHERE g.company_id = ${company_id} AND g.is_active = 1
+        AND ${parentFilter}
+        AND g.group_id IN (SELECT gid FROM nonempty)
+      ORDER BY g.name COLLATE NOCASE`);
+
+    // Ledgers sit directly under a group; Primary (null) has none of its own.
+    const ledgerRows =
+      gid == null
+        ? []
+        : await db.all(sql`
+            SELECT l.ledger_id AS id, l.name,
+                   sd.gst_applicability AS gst_applicability,
+                   sd.taxability_type AS taxability_type, sd.gst_rate AS gst_rate,
+                   sd.hsn_sac_code AS hsn, sd.gst_rate_source AS gst_rate_source
+            FROM ledgers l
+            LEFT JOIN ledger_statutory_details sd ON sd.ledger_id = l.ledger_id
+            WHERE l.company_id = ${company_id} AND l.is_active = 1 AND l.group_id = ${gid}
+              AND (sd.type_of_duty_tax IS NULL OR sd.type_of_duty_tax != 'GST')
+            ORDER BY l.name COLLATE NOCASE`);
+
+    const mapMaster = (kind) => (r) => ({
+      id: r.id,
+      name: r.name,
+      kind,
+      taxability_type: r.taxability_type || '',
+      gst_rate: Number(r.gst_rate) || 0,
+      hsn: r.hsn || '',
+      gst_applicability: r.gst_applicability || '',
+      status: rateSetupStatus(r),
+    });
+
+    let current = null;
+    if (gid != null) {
+      const [g] = await db.all(
+        sql`SELECT group_id AS id, name FROM groups WHERE group_id = ${gid} AND company_id = ${company_id}`,
+      );
+      if (g) current = { id: g.id, name: g.name };
+    }
+
+    return {
+      success: true,
+      group: current,
+      groups: groupRows.map(mapMaster('group')),
+      ledgers: ledgerRows.map(mapMaster('ledger')),
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// GST Rate Setup — Stock Group hierarchy view. Same drill flow as getGstRateSetupTree, but
+// over the inventory tree: opens at "Stock Group: ♦ Primary" (stock_group_id null) listing
+// the top-level stock groups + the stock items sitting directly under Primary, and drilling
+// into a stock group shows its sub-groups + items bucketed by GST status. Stock items resolve
+// their status from their own value columns (no gst_rate_source), so an explicit Taxable @ 0%
+// stays "GST Rate-0%" while a blank item is "GST Rate Details Not Provided".
+const getGstRateSetupStockTree = async (company_id, stock_group_id) => {
+  try {
+    const sgid = stock_group_id == null ? null : Number(stock_group_id);
+    const groupFilter =
+      sgid == null ? sql`sg.parent_group_id IS NULL` : sql`sg.parent_group_id = ${sgid}`;
+    const itemFilter = sgid == null ? sql`si.group_id IS NULL` : sql`si.group_id = ${sgid}`;
+
+    const groupRows = await db.all(sql`
+      SELECT sg.sg_id AS id, sg.name, NULL AS gst_applicability,
+             sg.taxability_type, sg.gst_rate, sg.hsn_sac_code AS hsn
+      FROM stock_groups sg
+      WHERE sg.company_id = ${company_id} AND sg.is_active = 1
+        AND sg.is_primary = 0 AND ${groupFilter}
+      ORDER BY sg.name COLLATE NOCASE`);
+
+    // Items honour their own gst_applicable (see RATE_SETUP_QUERIES.stock_item).
+    const itemRows = await db.all(sql`
+      SELECT si.item_id AS id, si.name, si.gst_applicable AS gst_applicability,
+             si.taxability_type AS taxability_type, si.gst_rate AS gst_rate,
+             COALESCE(NULLIF(si.hsn_sac, ''), si.hsn_code) AS hsn
+      FROM stock_items si
+      WHERE si.company_id = ${company_id} AND si.is_active = 1 AND ${itemFilter}
+      ORDER BY si.name COLLATE NOCASE`);
+
+    const mapMaster = (kind) => (r) => ({
+      id: r.id,
+      name: r.name,
+      kind,
+      taxability_type: r.taxability_type || '',
+      gst_rate: Number(r.gst_rate) || 0,
+      hsn: r.hsn || '',
+      gst_applicability: r.gst_applicability || '',
+      status: rateSetupStatus(r),
+    });
+
+    let current = null;
+    if (sgid != null) {
+      const [g] = await db.all(
+        sql`SELECT sg_id AS id, name FROM stock_groups WHERE sg_id = ${sgid} AND company_id = ${company_id}`,
+      );
+      if (g) current = { id: g.id, name: g.name };
+    }
+
+    return {
+      success: true,
+      group: current,
+      groups: groupRows.map(mapMaster('stock_group')),
+      ledgers: itemRows.map(mapMaster('stock_item')),
+    };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -2099,6 +2257,84 @@ const createPartiesFromGstin = async (company_id, opts = {}) => {
 };
 
 // ───────────────────────────────────────────────────────────────────────────────
+// Validate Party GSTIN/UIN → F9 Update Details — persist the corrected GST identity
+// (Registration Type / GSTIN / PAN / State / Country) onto one party ledger. This is a
+// partial, GST-only write that never touches the ledger's other flags (unlike the
+// generic ledger.update). Values are saved exactly as entered — deriving PAN/State from
+// the GSTIN is an explicit, visible action ("Fetch Details Using GSTIN/UIN" in the popup),
+// never a silent side effect of Accept.
+// ───────────────────────────────────────────────────────────────────────────────
+const updatePartyGstDetails = async ({
+  ledger_id,
+  registration_type,
+  gstin,
+  pan,
+  state,
+  country,
+} = {}) => {
+  try {
+    if (!ledger_id) return { success: false, error: 'ledger_id is required' };
+
+    const found = await db.all(
+      sql`SELECT ledger_id, is_predefined, state, country, gstin, pan, registration_type
+          FROM ${ledgers} WHERE ledger_id = ${ledger_id} LIMIT 1`,
+    );
+    const led = found[0];
+    if (!led) return { success: false, error: 'Ledger not found' };
+    if (led.is_predefined) return { success: false, error: 'Cannot edit predefined ledgers' };
+
+    const cleanGstin = String(gstin ?? '').trim().toUpperCase();
+    if (cleanGstin && !GSTIN_RE.test(cleanGstin)) {
+      return { success: false, error: 'Invalid GSTIN/UIN format' };
+    }
+
+    // Save exactly what the popup provides — no silent PAN/State derivation. (The popup's
+    // "Fetch Details Using GSTIN/UIN" fills these from the GSTIN visibly, before Accept.)
+    const cleanPan = String(pan ?? led.pan ?? '').trim().toUpperCase();
+    // PAN: 5 letters, 4 digits, 1 letter (e.g. AAAPS1234A) — reject anything malformed.
+    if (cleanPan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(cleanPan)) {
+      return {
+        success: false,
+        error:
+          'Invalid PAN format. The PAN must contain 5 alphabets, followed by 4 numbers and then 1 alphabet. For example: AAAPS1234A',
+      };
+    }
+    const cleanState = String(state ?? led.state ?? '').trim();
+    const cleanCountry = String(country ?? led.country ?? '').trim();
+    const regType = String(registration_type ?? led.registration_type ?? 'Unregistered').trim();
+
+    await db.execute(
+      `UPDATE ledgers
+          SET registration_type = ?, gstin = ?, pan = ?, state = ?, country = ?,
+              updated_at = datetime('now')
+        WHERE ledger_id = ?`,
+      [
+        regType || 'Unregistered',
+        cleanGstin || null,
+        cleanPan || null,
+        cleanState || null,
+        cleanCountry || null,
+        ledger_id,
+      ],
+    );
+
+    return {
+      success: true,
+      ledger: {
+        ledger_id,
+        registration_type: regType || 'Unregistered',
+        gstin: cleanGstin,
+        pan: cleanPan,
+        state: cleanState,
+        country: cleanCountry,
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// ───────────────────────────────────────────────────────────────────────────────
 // GST Advances - Opening Balance (GST Utilities) — CRUD over gst_opening_advances,
 // the unadjusted advance receipts/payments carrying GST liability at the opening date.
 // The GST split (intra CGST+SGST vs inter IGST) is computed by the caller and stored.
@@ -2263,8 +2499,75 @@ const getReverseChargeSupplies = async () => {
   return { success: true, rows: [] };
 };
 
+// Resolution list for the "GST Registration Details of the Company are invalid or not
+// specified" exception. Groups the affected outward vouchers under each of the company's
+// own registrations whose GSTIN is missing/invalid — the rows the user edits (via the GST
+// Registration Details popup) to clear the exception. `gst_registration_id` scopes to one
+// registration; null lists every invalid one ("All Registrations").
+const getRegistrationResolution = async (
+  company_id,
+  fy_id,
+  { gst_registration_id = null } = {},
+) => {
+  try {
+    const comp =
+      (await db.all(sql`SELECT * FROM ${companies} WHERE company_id = ${company_id} LIMIT 1`))[0] ||
+      {};
+    const address = comp.address1 || comp.mailing_name || comp.city || comp.name || '';
+
+    const regRows = await db.all(
+      sql`SELECT * FROM ${gstRegistrations}
+          WHERE ${gstRegistrations.companyId} = ${company_id} AND ${gstRegistrations.isActive} = 1
+          ORDER BY gst_id ASC`,
+    );
+
+    const rows = [];
+    for (let idx = 0; idx < regRows.length; idx++) {
+      const reg = regRows[idx];
+      const invalid = !GSTIN_RE.test(String(reg.gstin || '').toUpperCase());
+      if (!invalid) continue;
+      if (gst_registration_id && reg.gst_id !== gst_registration_id) continue;
+
+      const isPrimary = idx === 0;
+      const regFilter = isPrimary
+        ? sql`(v.gst_registration_id = ${reg.gst_id} OR v.gst_registration_id IS NULL)`
+        : sql`v.gst_registration_id = ${reg.gst_id}`;
+      const cnt =
+        (
+          await db.all(sql`
+            SELECT COUNT(DISTINCT v.voucher_id) AS c
+            FROM ${vouchers} v
+            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+              AND v.voucher_type IN ('Sales', 'Credit Note', 'Debit Note')
+              AND ${regFilter}
+          `)
+        )[0]?.c || 0;
+
+      rows.push({
+        gst_id: reg.gst_id,
+        name: reg.state_id ? `${reg.state_id} Registration` : 'Company Registration',
+        voucher_count: cnt,
+        address,
+        state_id: reg.state_id || '',
+        registration_status: reg.registration_status || 'Active',
+        address_type: reg.address_type || 'Primary',
+        registration_type: reg.registration_type || 'Regular',
+        assessee_of_other_territory: reg.assessee_of_other_territory ? 1 : 0,
+        periodicity_of_gstr1: reg.periodicity_of_gstr1 || 'Monthly',
+        gstin: reg.gstin || '',
+        place_of_supply: reg.state_id || '',
+      });
+    }
+
+    return { success: true, rows, address };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   getGSTR1Reconciliation,
+  getRegistrationResolution,
   getGSTR2AReconciliation,
   getGSTR2BReconciliation,
   getGSTR1vs3BComparison,
@@ -2281,8 +2584,11 @@ module.exports = {
   getAnnualMonthly,
   annualCategoryOf,
   getGstRateSetup,
+  getGstRateSetupTree,
+  getGstRateSetupStockTree,
   validatePartyGstin,
   createPartiesFromGstin,
+  updatePartyGstDetails,
   getGstOpeningAdvances,
   createGstOpeningAdvance,
   deleteGstOpeningAdvance,

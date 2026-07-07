@@ -27,36 +27,7 @@ const findJoinedRow = async (unitId) => {
   return rows;
 };
 
-const seedDefaultUnits = async (company_id) => {
-  const defaults = [
-    { name: "Numbers", symbol: "Nos", unit_type: "Simple", decimal_places: 0 },
-    { name: "Kilograms", symbol: "Kg", unit_type: "Simple", decimal_places: 3 },
-    { name: "Grams", symbol: "g", unit_type: "Simple", decimal_places: 3 },
-    { name: "Litres", symbol: "Ltr", unit_type: "Simple", decimal_places: 3 },
-    { name: "Metres", symbol: "Mtr", unit_type: "Simple", decimal_places: 3 },
-    { name: "Pieces", symbol: "Pcs", unit_type: "Simple", decimal_places: 0 },
-    { name: "Box", symbol: "Box", unit_type: "Simple", decimal_places: 0 },
-  ];
-
-  for (const u of defaults) {
-    await db.insert(units).values({
-      companyId: company_id,
-      name: u.name,
-      symbol: u.symbol,
-      formalName: u.name,
-      decimalPlaces: u.decimal_places,
-      unitQuantityCode: null,
-      unitType: u.unit_type,
-      isSimple: 1,
-      isActive: 1,
-      isPredefined: 1,
-    });
-  }
-};
-
 module.exports = {
-  seedDefaultUnits,
-
   create: async (data) => {
     try {
       if (!data.company_id) return { success: false, error: "Company ID is required." };
@@ -117,6 +88,7 @@ module.exports = {
           formalName: data.formal_name || data.name,
           decimalPlaces: data.decimal_places || 0,
           unitQuantityCode: data.unit_quantity_code || null,
+          uqcEffectiveDate: data.uqc_effective_date || null,
           unitType: data.unit_type || "Simple",
           isSimple: data.unit_type === "Simple" ? 1 : 0,
           isActive: 1,
@@ -201,6 +173,7 @@ module.exports = {
           formalName: data.formal_name ?? unit.formal_name,
           decimalPlaces: data.decimal_places ?? unit.decimal_places,
           unitQuantityCode: data.unit_quantity_code ?? unit.unit_quantity_code,
+          uqcEffectiveDate: data.uqc_effective_date ?? unit.uqc_effective_date,
           unitType: nextUnitType,
           isSimple: nextUnitType === "Simple" ? 1 : 0,
           firstUnitId: isCompound ? data.first_unit_id : null,

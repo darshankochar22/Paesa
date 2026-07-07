@@ -361,7 +361,23 @@ export default function UpdatePartyMSMEDetails() {
 
       {/* Update MSME Registration Details */}
       <Dialog open={!!editParty} onOpenChange={(open) => !open && setEditParty(null)}>
-        <DialogContent className="sm:max-w-lg bg-white text-black border border-zinc-300">
+        <DialogContent
+          className="sm:max-w-lg bg-white text-black border border-zinc-300"
+          onInteractOutside={(e) => {
+            // Keep this dialog mounted while an Effective Date sub-popup is open.
+            if (showEffDate || showNewDate) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            // Escape closes the topmost sub-popup first, not the whole dialog.
+            if (showNewDate) {
+              e.preventDefault();
+              setShowNewDate(false);
+            } else if (showEffDate) {
+              e.preventDefault();
+              setShowEffDate(false);
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="font-bold text-sm">
               Update MSME Registration Details for : {editParty?.name}
@@ -419,21 +435,7 @@ export default function UpdatePartyMSMEDetails() {
                 ))}
               </select>
             </div>
-            {/* Effective Date is captured via the separate popup below. */}
-            <div className="flex items-center justify-between">
-              <label className="font-semibold">Effective Date</label>
-              <button
-                type="button"
-                onClick={() => setShowEffDate(true)}
-                className="w-56 h-8 border border-zinc-300 text-left px-2 text-xs hover:bg-zinc-50"
-              >
-                {form.effective_date ? (
-                  fmtDate(form.effective_date)
-                ) : (
-                  <span className="text-zinc-400">Select…</span>
-                )}
-              </button>
-            </div>
+            {/* Effective Date is captured only via the separate popup (Type of Enterprise / Activity Type). */}
           </div>
           <DialogFooter>
             {confirming ? (
@@ -472,108 +474,119 @@ export default function UpdatePartyMSMEDetails() {
               </>
             )}
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* Effective Date — separate popup with the List of Effective Dates */}
-      <Dialog open={showEffDate} onOpenChange={(o) => !o && setShowEffDate(false)}>
-        <DialogContent className="sm:max-w-md bg-white text-black border border-zinc-300">
-          <DialogHeader>
-            <DialogTitle className="font-bold text-sm">Effective Date</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 py-2 text-xs">
-            <div className="flex items-center justify-between gap-2">
-              <label className="font-semibold">Effective Date for MSME Registration Details</label>
-              <Input
-                type="date"
-                className="w-40 h-8 text-xs border-zinc-300 text-black shrink-0"
-                value={form.effective_date}
-                onChange={(e) => setForm((f) => ({ ...f, effective_date: e.target.value }))}
-              />
+          {/*
+            Effective Date + New Effective Date render INSIDE this dialog (absolute overlays),
+            not as separate modals — so closing them can never unmount the parent dialog.
+          */}
+          {showEffDate && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 p-4">
+              <div className="w-80 max-w-full bg-white border border-black text-black">
+                <div className="border-b border-black px-3 py-1.5 font-bold text-sm text-center">Effective Date</div>
+                <div className="p-3 flex flex-col gap-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="font-semibold">Effective Date for MSME Registration Details</label>
+                    <Input
+                      type="date"
+                      className="w-36 h-8 text-xs border-zinc-300 text-black shrink-0"
+                      value={form.effective_date}
+                      onChange={(e) => setForm((f) => ({ ...f, effective_date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="border border-zinc-300">
+                    <div className="bg-zinc-100 px-2 py-1 font-bold text-[11px] border-b border-zinc-300">
+                      List of Effective Dates
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewDate('');
+                        setShowNewDate(true);
+                      }}
+                      className="w-full text-left px-2 py-1 text-[11px] font-semibold hover:bg-zinc-100 border-b border-zinc-200"
+                    >
+                      New Effective Date
+                    </button>
+                    {[
+                      { label: 'Current Date of Company', val: companyDate },
+                      { label: 'Date of Last Entry', val: lastEntryDate || '' },
+                      { label: 'Today (Computer Date)', val: isoToday() },
+                      { label: 'Tomorrow (Computer Date)', val: isoTomorrow() },
+                    ]
+                      .filter((o) => o.val)
+                      .map((o) => (
+                        <button
+                          key={o.label}
+                          type="button"
+                          onClick={() => {
+                            setForm((f) => ({ ...f, effective_date: o.val }));
+                            setShowEffDate(false);
+                          }}
+                          className="w-full flex justify-between gap-4 px-2 py-1 text-[11px] hover:bg-zinc-100"
+                        >
+                          <span className="tabular-nums">{fmtDate(o.val)}</span>
+                          <span className="italic text-zinc-500">{o.label}</span>
+                        </button>
+                      ))}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowEffDate(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="text-xs bg-black text-white hover:bg-zinc-800"
+                      disabled={!form.effective_date}
+                      onClick={() => setShowEffDate(false)}
+                    >
+                      Accept
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="border border-zinc-200">
-              <div className="bg-zinc-100 px-2 py-1 font-bold text-[11px]">List of Effective Dates</div>
-              <button
-                type="button"
-                onClick={() => {
-                  setNewDate('');
-                  setShowNewDate(true);
-                }}
-                className="w-full text-left px-2 py-1 text-[11px] font-semibold hover:bg-zinc-100 border-b border-zinc-100"
-              >
-                New Effective Date
-              </button>
-              {[
-                { label: 'Current Date of Company', val: companyDate },
-                { label: 'Date of Last Entry', val: lastEntryDate || '' },
-                { label: 'Today (Computer Date)', val: isoToday() },
-                { label: 'Tomorrow (Computer Date)', val: isoTomorrow() },
-              ]
-                .filter((o) => o.val)
-                .map((o) => (
-                  <button
-                    key={o.label}
-                    type="button"
-                    onClick={() => {
-                      setForm((f) => ({ ...f, effective_date: o.val }));
-                      setShowEffDate(false);
+          )}
+
+          {showNewDate && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 p-4">
+              <div className="w-64 max-w-full bg-white border border-black text-black">
+                <div className="border-b border-black px-3 py-1.5 font-bold text-sm text-center">New Effective Date</div>
+                <div className="p-3">
+                  <Input
+                    type="date"
+                    autoFocus
+                    className="w-full h-8 text-xs border-zinc-300 text-black"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newDate) {
+                        setForm((f) => ({ ...f, effective_date: newDate }));
+                        setShowNewDate(false);
+                        setShowEffDate(false);
+                      }
                     }}
-                    className="w-full flex justify-between gap-4 px-2 py-1 text-[11px] hover:bg-zinc-100"
-                  >
-                    <span className="tabular-nums">{fmtDate(o.val)}</span>
-                    <span className="italic text-zinc-500">{o.label}</span>
-                  </button>
-                ))}
+                  />
+                  <div className="flex justify-end gap-2 mt-3">
+                    <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowNewDate(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="text-xs bg-black text-white hover:bg-zinc-800"
+                      disabled={!newDate}
+                      onClick={() => {
+                        setForm((f) => ({ ...f, effective_date: newDate }));
+                        setShowNewDate(false);
+                        setShowEffDate(false);
+                      }}
+                    >
+                      Accept
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowEffDate(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="text-xs bg-black text-white hover:bg-zinc-800"
-              disabled={!form.effective_date}
-              onClick={() => setShowEffDate(false)}
-            >
-              Accept
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* New Effective Date — custom date entry */}
-      <Dialog open={showNewDate} onOpenChange={(o) => !o && setShowNewDate(false)}>
-        <DialogContent className="sm:max-w-xs bg-white text-black border border-zinc-300">
-          <DialogHeader>
-            <DialogTitle className="font-bold text-sm">New Effective Date</DialogTitle>
-          </DialogHeader>
-          <div className="py-2">
-            <Input
-              type="date"
-              autoFocus
-              className="w-full h-8 text-xs border-zinc-300 text-black"
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowNewDate(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="text-xs bg-black text-white hover:bg-zinc-800"
-              disabled={!newDate}
-              onClick={() => {
-                setForm((f) => ({ ...f, effective_date: newDate }));
-                setShowNewDate(false);
-                setShowEffDate(false);
-              }}
-            >
-              Accept
-            </Button>
-          </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </TallyReportLayout>

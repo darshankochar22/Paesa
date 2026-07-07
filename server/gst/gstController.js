@@ -152,6 +152,12 @@ module.exports = {
     return await reconciliationService.getGSTR1Reconciliation(company_id, fy_id);
   },
 
+  getRegistrationResolution: async (event, { company_id, fy_id, gst_registration_id }) => {
+    return await reconciliationService.getRegistrationResolution(company_id, fy_id, {
+      gst_registration_id,
+    });
+  },
+
   getGSTR2AReconciliation: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getGSTR2AReconciliation(company_id, fy_id);
   },
@@ -184,12 +190,24 @@ module.exports = {
     return await reconciliationService.getGstRateSetup(company_id, master_type);
   },
 
+  getGstRateSetupTree: async (event, { company_id, group_id }) => {
+    return await reconciliationService.getGstRateSetupTree(company_id, group_id);
+  },
+
+  getGstRateSetupStockTree: async (event, { company_id, stock_group_id }) => {
+    return await reconciliationService.getGstRateSetupStockTree(company_id, stock_group_id);
+  },
+
   validatePartyGstin: async (event, { company_id, group_name, ledger_name }) => {
     return await reconciliationService.validatePartyGstin(company_id, { group_name, ledger_name });
   },
 
   createPartiesFromGstin: async (event, { company_id, gstins, group_name }) => {
     return await reconciliationService.createPartiesFromGstin(company_id, { gstins, group_name });
+  },
+
+  updatePartyGstDetails: async (event, payload) => {
+    return await reconciliationService.updatePartyGstDetails(payload);
   },
 
   getGstOpeningAdvances: async (event, { company_id }) => {

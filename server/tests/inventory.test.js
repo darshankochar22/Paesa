@@ -21,10 +21,10 @@ describe("Inventory Services Tests", () => {
   });
 
   describe("Unit Service", () => {
-    it("should verify default units are seeded", async () => {
+    it("starts with no units (units are not pre-seeded)", async () => {
       const res = await unitService.getAll(companyId);
       expect(res.success).toBe(true);
-      expect(res.units.length).toBeGreaterThan(0);
+      expect(res.units.length).toBe(0);
     });
 
     it("should create simple units of measure", async () => {

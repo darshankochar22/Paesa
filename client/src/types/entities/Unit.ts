@@ -6,6 +6,7 @@ export interface UnitType {
   formal_name?: string;
   decimal_places?: number;
   unit_quantity_code?: string;
+  uqc_effective_date?: string | null;
   unit_type?: string;
   is_simple?: number;
   is_active?: number;

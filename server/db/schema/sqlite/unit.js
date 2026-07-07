@@ -13,6 +13,7 @@ const units = sqliteTable('units', {
   formalName: text('formal_name'),
   decimalPlaces: integer('decimal_places').default(0),
   unitQuantityCode: text('unit_quantity_code'),
+  uqcEffectiveDate: text('uqc_effective_date'),
   unitType: text('unit_type').default('Simple'),
   isSimple: integer('is_simple').default(1),
   isActive: integer('is_active').default(1),

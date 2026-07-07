@@ -12,6 +12,7 @@ const units = pgTable('units', {
   formalName: text('formal_name'),
   decimalPlaces: integer('decimal_places').notNull().default(0),
   unitQuantityCode: text('unit_quantity_code'),
+  uqcEffectiveDate: text('uqc_effective_date'),
   unitType: text('unit_type').notNull().default('Simple'),
   isSimple: boolean('is_simple').notNull().default(true),
   isActive: boolean('is_active').notNull().default(true),

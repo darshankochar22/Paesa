@@ -11,7 +11,7 @@ export const INITIAL_FORM_STATE: FormData = {
   bom_name: "",
   opening_quantity: "",
   opening_rate: "",
-  gst_applicable: "Not Applicable",
+  gst_applicable: "Applicable",
   hsn_sac_details: "as_per_company",
   hsn_sac: "",
   hsn_sac_description: "",

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
-import { Button } from '@/components/shadcn/button';
 import {
   Table,
   TableHeader,
@@ -12,16 +12,7 @@ import {
 } from '@/components/shadcn/table';
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
-
-interface MasterRow {
-  id: number;
-  name: string;
-  taxability_type: string;
-  gst_rate: number;
-  hsn: string;
-  gst_applicability: string;
-  status: string;
-}
+import type { GstRateSetupNode } from '@/types/api/MasterData';
 
 type MasterType = 'group' | 'ledger' | 'stock_group' | 'stock_item';
 
@@ -56,51 +47,122 @@ function statusOrder(status: string): number {
   return tail[status] ?? 1500;
 }
 
-type Row = { type: 'header'; label: string } | { type: 'data'; master: MasterRow };
+type Crumb = { id: number; name: string };
+type Row = { type: 'header'; label: string } | { type: 'data'; node: GstRateSetupNode };
+
+// Group a flat master list into status buckets (rate buckets first, then Not Provided /
+// Not Applicable), each bucket sorted alphabetically — the shape of the Ledgers / Stock views.
+function bucketRows(items: GstRateSetupNode[]): Row[] {
+  const buckets = new Map<string, GstRateSetupNode[]>();
+  for (const n of items) {
+    if (!buckets.has(n.status)) buckets.set(n.status, []);
+    buckets.get(n.status)!.push(n);
+  }
+  const ordered = [...buckets.keys()].sort((a, b) => statusOrder(a) - statusOrder(b));
+  const rows: Row[] = [];
+  for (const status of ordered) {
+    rows.push({ type: 'header', label: status });
+    for (const node of buckets.get(status)!.sort((a, b) => a.name.localeCompare(b.name)))
+      rows.push({ type: 'data', node });
+  }
+  return rows;
+}
 
 export default function GSTRateSetup() {
+  const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
 
   const [masterType, setMasterType] = useState<MasterType | null>(null);
+  // Groups drill stack: [] = the "♦ Primary" root; each entry is a group drilled into.
+  const [path, setPath] = useState<Crumb[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [masters, setMasters] = useState<MasterRow[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [groups, setGroups] = useState<GstRateSetupNode[]>([]); // group-view sub-groups
+  const [ledgers, setLedgers] = useState<GstRateSetupNode[]>([]); // group-view ledgers
+  const [masters, setMasters] = useState<GstRateSetupNode[]>([]); // flat-view masters
+  const [selected, setSelected] = useState<string | null>(null);
 
+  const currentGroupId = path.length ? path[path.length - 1].id : null;
+  const atRoot = currentGroupId == null;
   const applicableFrom = fmtDate(activeFY?.start_date);
+  const typeLabel = MASTER_TYPES.find((t) => t.key === masterType)?.label ?? '';
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       if (!companyId || !masterType) return;
       try {
         setLoading(true);
         setError(null);
         setSelected(null);
-        const res = await window.api.gst.getGstRateSetup({
-          company_id: companyId,
-          master_type: masterType,
-        });
-        if (res.success) setMasters((res.masters as MasterRow[]) || []);
-        else {
-          setError(res.error || 'Failed to load masters.');
-          setMasters([]);
+        if (masterType === 'group' || masterType === 'stock_group') {
+          const res =
+            masterType === 'group'
+              ? await window.api.gst.getGstRateSetupTree({
+                  company_id: companyId,
+                  group_id: currentGroupId,
+                })
+              : await window.api.gst.getGstRateSetupStockTree({
+                  company_id: companyId,
+                  stock_group_id: currentGroupId,
+                });
+          if (cancelled) return;
+          if (res.success) {
+            setGroups(res.groups || []);
+            setLedgers(res.ledgers || []);
+          } else {
+            setError(res.error || 'Failed to load GST rate setup.');
+            setGroups([]);
+            setLedgers([]);
+          }
+        } else {
+          const res = await window.api.gst.getGstRateSetup({
+            company_id: companyId,
+            master_type: masterType,
+          });
+          if (cancelled) return;
+          if (res.success) setMasters((res.masters as GstRateSetupNode[]) || []);
+          else {
+            setError(res.error || 'Failed to load GST rate setup.');
+            setMasters([]);
+          }
         }
       } catch (e: any) {
-        setError(e.message || 'An unexpected error occurred.');
-        setMasters([]);
+        if (!cancelled) setError(e.message || 'An unexpected error occurred.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
-  }, [companyId, masterType]);
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId, masterType, currentGroupId]);
 
-  const typeLabel = MASTER_TYPES.find((t) => t.key === masterType)?.label ?? '';
-  const contextLabel =
-    masterType === 'stock_item' || masterType === 'stock_group' ? 'Stock Group' : 'Group';
+  const isGroupKind = (n: GstRateSetupNode) => n.kind === 'group' || n.kind === 'stock_group';
 
-  // ── Master-type selector (List of Masters) ────────────────────────────────
+  const drillInto = (node: GstRateSetupNode) => {
+    if (!isGroupKind(node)) return; // ledgers/items are leaf rows
+    setPath((p) => [...p, { id: node.id, name: node.name }]);
+  };
+
+  const goToLevel = (idx: number) => setPath((p) => p.slice(0, idx));
+
+  const backToChooser = () => {
+    setMasterType(null);
+    setPath([]);
+  };
+
+  const isTreeView = masterType === 'group' || masterType === 'stock_group';
+
+  const handleQuit = () => {
+    if (isTreeView && path.length) setPath((p) => p.slice(0, -1)); // climb one group…
+    else if (masterType) backToChooser(); // …then back to the master chooser…
+    else navigate(-1); // …then leave the report.
+  };
+
+  // ── List of Masters chooser ───────────────────────────────────────────────
   if (!masterType) {
     return (
       <TallyReportLayout title="GST Rate Setup" companyName={selectedCompany?.name || 'Company'}>
@@ -127,48 +189,78 @@ export default function GSTRateSetup() {
     );
   }
 
-  // ── Rate-wise grid, grouped by GST status ─────────────────────────────────
-  const buckets = new Map<string, MasterRow[]>();
-  for (const m of masters) {
-    if (!buckets.has(m.status)) buckets.set(m.status, []);
-    buckets.get(m.status)!.push(m);
-  }
-  const orderedStatuses = [...buckets.keys()].sort((a, b) => statusOrder(a) - statusOrder(b));
-  const rows: Row[] = [];
-  for (const status of orderedStatuses) {
-    rows.push({ type: 'header', label: status });
-    for (const master of buckets.get(status)!) rows.push({ type: 'data', master });
+  // ── Build the rows for the active view ────────────────────────────────────
+  let rows: Row[];
+  if (isTreeView) {
+    if (atRoot) {
+      // Primary root: sub-groups as a plain navigable list, then the masters sitting
+      // directly under Primary bucketed below (empty for Accounting, populated for Stock).
+      rows = [
+        ...groups.map((node): Row => ({ type: 'data', node })),
+        ...bucketRows(ledgers),
+      ];
+    } else {
+      rows = bucketRows([...groups, ...ledgers]);
+    }
+  } else {
+    // Ledgers / Stock Items: flat list, bucketed by GST status.
+    rows = bucketRows(masters.map((m) => ({ ...m, kind: masterType })));
   }
 
+  const treeLabel = masterType === 'stock_group' ? 'Stock Group' : 'Group';
   const HEAD = 'h-auto px-2 py-1 align-bottom font-bold text-black text-xs whitespace-nowrap';
 
   return (
     <TallyReportLayout
       title="GST Rate Setup"
       companyName={selectedCompany?.name || 'Company'}
+      onQuit={handleQuit}
       leftSubtitle={
         <>
           <div className="font-bold">Rate-wise</div>
-          <div className="flex gap-2">
-            <span>{contextLabel}:</span>
-            <span className="font-bold">{typeLabel}</span>
-          </div>
+          {isTreeView ? (
+            <div className="flex items-center gap-1">
+              <span>{treeLabel}:</span>
+              <button
+                onClick={() => goToLevel(0)}
+                className={cn('hover:underline', atRoot ? 'font-bold' : '')}
+                disabled={atRoot}
+              >
+                ♦ Primary
+              </button>
+              {path.map((c, i) => (
+                <span key={c.id} className="flex items-center gap-1">
+                  <span className="text-black">›</span>
+                  <button
+                    onClick={() => goToLevel(i + 1)}
+                    className={cn('hover:underline', i === path.length - 1 ? 'font-bold' : '')}
+                    disabled={i === path.length - 1}
+                  >
+                    {c.name}
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <span>List of:</span>
+              <span className="font-bold">{typeLabel}</span>
+            </div>
+          )}
         </>
       }
       footerControls={
-        <Button
-          onClick={() => setMasterType(null)}
-          variant="ghost"
-          size="xs"
-          className="h-auto p-0 ml-4 font-bold text-black hover:underline hover:bg-transparent"
+        <button
+          onClick={backToChooser}
+          className="ml-4 font-bold text-black hover:underline"
         >
           F4: Change Master
-        </Button>
+        </button>
       }
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
         {loading && <EmptyState message="Loading masters…" className="italic" />}
-        {error && <div className="p-2 text-center text-red-600 font-bold">{error}</div>}
+        {error && <div className="p-2 text-center font-bold">{error}</div>}
 
         {!loading && !error && (
           <Table className="text-xs table-fixed">
@@ -200,7 +292,7 @@ export default function GSTRateSetup() {
             </TableHeader>
 
             <TableBody>
-              {masters.length === 0 ? (
+              {rows.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={6} className="p-0">
                     <EmptyState message={`No ${typeLabel.toLowerCase()} found.`} />
@@ -220,32 +312,38 @@ export default function GSTRateSetup() {
                       </TableRow>
                     );
                   }
-                  const m = row.master;
-                  const hasRate = /taxable/i.test(m.taxability_type);
-                  const configured =
-                    m.status !== 'GST Rate Details Not Provided' &&
-                    m.status !== 'GST Not Applicable';
+                  const n = row.node;
+                  const rowKey = `${n.kind}-${n.id}`;
+                  // A "GST Not Applicable" master shows nothing in the GST columns (no dates,
+                  // taxability or rate) — matching Tally.
+                  const gstShown = n.status !== 'GST Not Applicable';
+                  const hasRate = gstShown && /taxable/i.test(n.taxability_type);
+                  const isGroup = isGroupKind(n);
                   return (
                     <TableRow
                       key={idx}
-                      onClick={() => setSelected(idx)}
+                      onClick={() => (isGroup ? drillInto(n) : setSelected(rowKey))}
                       className={cn(
-                        'border-0 cursor-pointer hover:bg-[#e6f2ff]',
-                        selected === idx ? 'bg-[#ffcc00] hover:bg-[#ffcc00]' : '',
+                        'border-0 hover:bg-[#e6f2ff]',
+                        isGroup ? 'cursor-pointer' : 'cursor-default',
+                        atRoot && isGroup ? 'font-bold' : '',
+                        selected === rowKey ? 'bg-[#ffcc00] hover:bg-[#ffcc00]' : '',
                       )}
                     >
-                      <TableCell className="px-2 py-0.5 pl-6">{m.name}</TableCell>
+                      <TableCell className="px-2 py-0.5 pl-6">{n.name}</TableCell>
                       <TableCell className="px-2 py-0.5 text-right tabular-nums">
-                        {configured ? applicableFrom : ''}
+                        {gstShown ? applicableFrom : ''}
                       </TableCell>
-                      <TableCell className="px-2 py-0.5">{m.taxability_type}</TableCell>
+                      <TableCell className="px-2 py-0.5">
+                        {gstShown ? n.taxability_type : ''}
+                      </TableCell>
                       <TableCell className="px-2 py-0.5 text-right tabular-nums">
-                        {hasRate ? `${m.gst_rate} %` : ''}
+                        {hasRate ? `${n.gst_rate} %` : ''}
                       </TableCell>
                       <TableCell className="px-2 py-0.5 text-right tabular-nums">
-                        {m.hsn || configured ? applicableFrom : ''}
+                        {gstShown ? applicableFrom : ''}
                       </TableCell>
-                      <TableCell className="px-2 py-0.5">{m.hsn}</TableCell>
+                      <TableCell className="px-2 py-0.5">{n.hsn}</TableCell>
                     </TableRow>
                   );
                 })

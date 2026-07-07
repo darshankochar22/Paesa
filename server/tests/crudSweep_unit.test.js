@@ -10,6 +10,8 @@
  */
 const { setupTestDB, createTestCompany } = require("./helpers");
 const unitController = require("../unit/unitController");
+const { db } = require("../db/index");
+const { units } = require("../db/schema");
 
 let company;
 let companyId;
@@ -18,9 +20,13 @@ beforeAll(async () => {
   await setupTestDB();
   company = await createTestCompany("Unit CRUD Co");
   companyId = company.company_id;
+  // Units are no longer pre-seeded — create the simple units the compound tests rely on.
+  for (const [name, symbol] of [["Numbers", "Nos"], ["Kilograms", "Kg"], ["Grams", "g"], ["Litres", "Ltr"], ["Metres", "Mtr"]]) {
+    await unitController.create(null, { company_id: companyId, name, symbol, formal_name: name, unit_type: "Simple", decimal_places: 0 });
+  }
 });
 
-// Resolve seeded simple units (createTestCompany seeds 7 predefined simple units).
+// Resolve the simple units created in beforeAll (+ any created by earlier tests).
 async function getSimpleSeeded() {
   const res = await unitController.getSimpleUnits(null, companyId);
   expect(res.success).toBe(true);
@@ -159,12 +165,24 @@ describe("unit module CRUD (UI parity)", () => {
   });
 
   test("predefined units cannot be updated or deleted", async () => {
-    const simple = await getSimpleSeeded();
-    const predef = simple.find((u) => Number(u.is_predefined) === 1);
-    expect(predef).toBeTruthy();
+    // Predefined units are no longer auto-seeded; insert one directly to exercise the guard.
+    const inserted = await db
+      .insert(units)
+      .values({
+        companyId,
+        name: "Predefined",
+        symbol: "Pdf",
+        formalName: "Predefined",
+        unitType: "Simple",
+        isSimple: 1,
+        isActive: 1,
+        isPredefined: 1,
+      })
+      .returning({ id: units.unitId });
+    const predefId = inserted[0].id;
 
     const upd = await unitController.update(null, {
-      unit_id: predef.unit_id,
+      unit_id: predefId,
       company_id: companyId,
       name: "Hacked",
       symbol: "Hk",
@@ -175,7 +193,7 @@ describe("unit module CRUD (UI parity)", () => {
     expect(upd.success).toBe(false);
     expect(upd.error).toMatch(/predefined/i);
 
-    const del = await unitController.delete(null, predef.unit_id);
+    const del = await unitController.delete(null, predefId);
     expect(del.success).toBe(false);
     expect(del.error).toMatch(/predefined/i);
   });
@@ -229,7 +247,7 @@ describe("unit module CRUD (UI parity)", () => {
 
   test("compound create rejects identical first/second units", async () => {
     const simple = await getSimpleSeeded();
-    const u = simple.find((x) => Number(x.is_predefined) === 1 && x.unit_type === "Simple");
+    const u = simple.find((x) => x.unit_type === "Simple");
     const res = await unitController.create(null, {
       company_id: companyId,
       unit_type: "Compound",

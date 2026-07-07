@@ -35,6 +35,7 @@ function register() {
   ipcMain.handle('gst:deleteHSNRate', gstController.deleteHSNRate);
   ipcMain.handle('gst:getAnnualComputation', gstController.getAnnualComputation);
   ipcMain.handle('gst:getGSTR1Reconciliation', gstController.getGSTR1Reconciliation);
+  ipcMain.handle('gst:getRegistrationResolution', gstController.getRegistrationResolution);
   ipcMain.handle('gst:getGSTR2AReconciliation', gstController.getGSTR2AReconciliation);
   ipcMain.handle('gst:getGSTR2BReconciliation', gstController.getGSTR2BReconciliation);
   ipcMain.handle('gst:importGSTR2B', gstController.importGSTR2B);
@@ -43,8 +44,11 @@ function register() {
   ipcMain.handle('gst:getIMSInwardSupplies', gstController.getIMSInwardSupplies);
   ipcMain.handle('gst:getChallanReconciliation', gstController.getChallanReconciliation);
   ipcMain.handle('gst:getGstRateSetup', gstController.getGstRateSetup);
+  ipcMain.handle('gst:getGstRateSetupTree', gstController.getGstRateSetupTree);
+  ipcMain.handle('gst:getGstRateSetupStockTree', gstController.getGstRateSetupStockTree);
   ipcMain.handle('gst:validatePartyGstin', gstController.validatePartyGstin);
   ipcMain.handle('gst:createPartiesFromGstin', gstController.createPartiesFromGstin);
+  ipcMain.handle('gst:updatePartyGstDetails', gstController.updatePartyGstDetails);
   ipcMain.handle('gst:getGstOpeningAdvances', gstController.getGstOpeningAdvances);
   ipcMain.handle('gst:createGstOpeningAdvance', gstController.createGstOpeningAdvance);
   ipcMain.handle('gst:deleteGstOpeningAdvance', gstController.deleteGstOpeningAdvance);

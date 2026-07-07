@@ -4,7 +4,6 @@ const { sql, eq } = require('drizzle-orm');
 const { companies } = require('../db/schema');
 const groupService = require('../group/groupService');
 const ledgerService = require('../ledger/ledgerService');
-const unitService = require('../unit/unitService');
 const stockGroupService = require('../stockGroup/stockGroupService');
 const godownService = require('../godown/godownService');
 const currencyService = require('../currency/currencyService');
@@ -63,7 +62,7 @@ module.exports = {
 
       try { await groupService.seedDefaultGroups(company_id); console.log('groups ok'); } catch(e) { console.error('groups failed:', e.message); }
       try { const allGroups = (await groupService.getAll(company_id)).groups; await ledgerService.seedDefaultLedgers(company_id, allGroups); console.log('ledgers ok'); } catch(e) { console.error('ledgers failed:', e.message); }
-      try { await unitService.seedDefaultUnits(company_id); console.log('units ok'); } catch(e) { console.error('units failed:', e.message); }
+      // Units are NOT pre-seeded — the user creates their own (the List of Units starts empty).
       try { await stockGroupService.seedDefaultStockGroups(company_id); console.log('stockGroups ok'); } catch(e) { console.error('stockGroups failed:', e.message); }
       try { await godownService.seedDefaultGodowns(company_id); console.log('godowns ok'); } catch(e) { console.error('godowns failed:', e.message); }
       try { await currencyService.seedDefaultCurrency(company_id); console.log('currency ok'); } catch(e) { console.error('currency failed:', e.message); }

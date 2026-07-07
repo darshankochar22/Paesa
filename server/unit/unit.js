@@ -8,6 +8,7 @@ const init = async (db) => {
       formal_name         TEXT,
       decimal_places      INTEGER DEFAULT 0,
       unit_quantity_code  TEXT,
+      uqc_effective_date  TEXT,
       unit_type           TEXT DEFAULT 'Simple',
       is_simple           INTEGER DEFAULT 1,
       is_active           INTEGER DEFAULT 1,
@@ -30,6 +31,17 @@ const init = async (db) => {
   try {
     await db.execute(`ALTER TABLE units ADD COLUMN conversion_factor REAL DEFAULT 1`);
   } catch (e) { /* ignore if already exists */ }
+  try {
+    await db.execute(`ALTER TABLE units ADD COLUMN uqc_effective_date TEXT`);
+  } catch (e) { /* ignore if already exists */ }
+
+  // Units are no longer pre-seeded. Retire any predefined units left behind by
+  // earlier versions so the List of Units shows only user-created units. Soft-delete
+  // (is_active = 0) rather than DELETE to avoid breaking stock items that may
+  // already reference them. Idempotent — safe to run on every boot.
+  try {
+    await db.execute(`UPDATE units SET is_active = 0 WHERE is_predefined = 1 AND is_active = 1`);
+  } catch (e) { /* ignore */ }
 };
 
 module.exports = { init };

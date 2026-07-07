@@ -123,8 +123,18 @@ export default function UncertainBreakdown() {
     }
   }
 
-  // Drill to the resolution voucher list, optionally scoped to one exception.
-  const drill = (exception?: string, detailsLabel?: string) =>
+  // The company-registration exception has a dedicated resolution screen (edit the
+  // registration to clear it); every other exception drills to the voucher list.
+  const REGISTRATION_EXCEPTION =
+    'GST Registration Details of the Company are invalid or not specified';
+
+  const drill = (exception?: string, detailsLabel?: string) => {
+    if (exception === REGISTRATION_EXCEPTION) {
+      navigate('/master/statutory/gst/uncertain/registration', {
+        state: { registration, returnType, reconciliation, reportName: reportTitle },
+      });
+      return;
+    }
     navigate('/master/statutory/gst/uncertain', {
       state: {
         registration,
@@ -136,6 +146,7 @@ export default function UncertainBreakdown() {
         detailsLabel: detailsLabel || TOP_LABEL,
       },
     });
+  };
 
   return (
     <TallyReportLayout

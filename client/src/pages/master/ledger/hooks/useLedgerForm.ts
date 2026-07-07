@@ -466,6 +466,13 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         payment_gateway_name: "",
       }));
       setInterestForm(EMPTY_INTEREST);
+      // GST-relevant groups default to "Applicable" (rate then inherited "As per Company/Group"
+      // → shows as "GST Rate Details Not Provided" until a rate is specified), like Tally; all
+      // other groups default to "Not Applicable".
+      setStatutoryForm((s) => ({
+        ...s,
+        gst_applicability: groupLineage.isInventory ? "Applicable" : "Not Applicable",
+      }));
       setGstDetails({ ...EMPTY_GST_DETAILS });
       setServiceTaxDetails({ ...EMPTY_SERVICE_TAX_DETAILS });
       setVatDetails({ ...EMPTY_VAT_DETAILS });
@@ -995,6 +1002,10 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
 
       if (
         groupLineage.isTax ||
+        // GST-relevant groups (Sales/Purchase/Direct+Indirect Inc/Exp) always persist their
+        // GST state — including an explicit "Not Applicable" — so GST Rate Setup can tell a
+        // deliberately not-applicable ledger apart from one that was never configured.
+        groupLineage.isInventory ||
         (statutoryForm.gst_applicability && statutoryForm.gst_applicability !== "Not Applicable") ||
         (statutoryForm.include_in_assessable_value_calculation &&
           statutoryForm.include_in_assessable_value_calculation !== "Not Applicable")
