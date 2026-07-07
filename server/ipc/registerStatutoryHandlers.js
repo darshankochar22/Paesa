@@ -117,6 +117,15 @@ function register() {
   ipcMain.handle('esi:getMonthlyStatement', (event, { company_id }) =>
     esiReportService.getESIMonthlyStatement(company_id),
   );
+  ipcMain.handle('esi:getEReturn', (event, { company_id }) =>
+    esiReportService.getESIEReturn(company_id),
+  );
+  ipcMain.handle('esi:getForm5', (event, { company_id }) =>
+    esiReportService.getESIForm5(company_id),
+  );
+  ipcMain.handle('esi:getForm6', (event, { company_id }) =>
+    esiReportService.getESIForm6(company_id),
+  );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),
   );

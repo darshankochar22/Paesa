@@ -156,9 +156,90 @@ const getESIMonthlyStatement = async (company_id) => {
   }
 };
 
+// #220 ESI E-Return — the ESIC monthly-contribution bulk-upload data (Tally exports
+// it as ESI_Upload.xlsx). Columns follow the ESIC upload template: IP Number, IP
+// Name, No. of days, Total Monthly Wages, Last Working Day.
+const getESIEReturn = async (company_id) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const daysRows = await db.all(
+      sql`SELECT esi_standard_working_days FROM payroll_statutory_details
+          WHERE company_id = ${company_id} LIMIT 1`,
+    );
+    const stdDays = Number(daysRows[0]?.esi_standard_working_days) || 0;
+    const emps = (await loadESIEmployees(company_id)).filter(isESIMember);
+    const rows = emps.map((e) => ({
+      ip_number: e.esi_number,
+      ip_name: e.name,
+      days: stdDays || '',
+      wages: round2(e.wages),
+      last_working_day: e.date_of_leaving || '',
+    }));
+    const totals = sumRows(rows, ['wages']);
+    return { success: true, payload: { establishment, rows, totals } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// #221 ESI Form 5 — "Return of Contributions" [Regulation 26]. Half-yearly return:
+// per insured person the number of days for which wages were paid, total wages and
+// the employee's contribution deducted, on the active salary-structure basis.
+const getESIForm5 = async (company_id) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const daysRows = await db.all(
+      sql`SELECT esi_standard_working_days FROM payroll_statutory_details
+          WHERE company_id = ${company_id} LIMIT 1`,
+    );
+    const stdDays = Number(daysRows[0]?.esi_standard_working_days) || 0;
+    const emps = (await loadESIEmployees(company_id)).filter(isESIMember);
+    const rows = emps.map((e, i) => ({
+      sl: i + 1,
+      esi_number: e.esi_number,
+      name: e.name,
+      days: stdDays || '',
+      wages: round2(e.wages),
+      ee: round2(e.ee),
+    }));
+    const totals = sumRows(rows, ['wages', 'ee']);
+    return { success: true, payload: { establishment, rows, totals } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// #222 ESI Form 6 — "Register of Employees" [Regulation 32]. The employer's register
+// of insured persons with fuller particulars (father/husband, date of appointment)
+// and both employee and employer contributions for the contribution period.
+const getESIForm6 = async (company_id) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const emps = (await loadESIEmployees(company_id)).filter(isESIMember);
+    const rows = emps.map((e, i) => ({
+      sl: i + 1,
+      esi_number: e.esi_number,
+      name: e.name,
+      father_or_husband: e.father_or_husband,
+      date_of_appointment: e.date_of_joining,
+      wages: round2(e.wages),
+      ee: round2(e.ee),
+      er: round2(e.er),
+      total: round2(e.ee + e.er),
+    }));
+    const totals = sumRows(rows, ['wages', 'ee', 'er', 'total']);
+    return { success: true, payload: { establishment, rows, totals } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   loadEstablishment,
   loadESIEmployees,
   getESIForm3,
   getESIMonthlyStatement,
+  getESIEReturn,
+  getESIForm5,
+  getESIForm6,
 };

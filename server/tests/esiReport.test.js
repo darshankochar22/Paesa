@@ -62,4 +62,40 @@ describe('ESI reports (#218)', () => {
     // A non-ESI employee (no number, no ESI pay head) is not a member.
     expect(res.payload.rows.find((r) => r.name === 'No ESI Emp')).toBeFalsy();
   });
+
+  it('E-Return emits ESIC upload rows for insured persons (#220)', async () => {
+    const res = await esiSvc.getESIEReturn(companyId);
+    expect(res.success).toBe(true);
+    const row = res.payload.rows.find((r) => r.ip_name === 'Insured Emp');
+    expect(row).toBeTruthy();
+    expect(row.ip_number).toBe('ESI/9988');
+    expect(row).toHaveProperty('wages');
+    expect(res.payload.totals).toBeDefined();
+    expect(res.payload.rows.find((r) => r.ip_name === 'No ESI Emp')).toBeFalsy();
+  });
+
+  it('Form 5 lists insured persons with wages + employee contribution (#221)', async () => {
+    const res = await esiSvc.getESIForm5(companyId);
+    expect(res.success).toBe(true);
+    const row = res.payload.rows.find((r) => r.name === 'Insured Emp');
+    expect(row).toBeTruthy();
+    expect(row.esi_number).toBe('ESI/9988');
+    expect(row).toHaveProperty('wages');
+    expect(row).toHaveProperty('ee');
+    expect(res.payload.totals).toBeDefined();
+    expect(res.payload.rows.find((r) => r.name === 'No ESI Emp')).toBeFalsy();
+  });
+
+  it('Form 6 register carries particulars + both contributions (#222)', async () => {
+    const res = await esiSvc.getESIForm6(companyId);
+    expect(res.success).toBe(true);
+    const row = res.payload.rows.find((r) => r.name === 'Insured Emp');
+    expect(row).toBeTruthy();
+    expect(row.esi_number).toBe('ESI/9988');
+    expect(row.father_or_husband).toBe('Papa Insured');
+    expect(row).toHaveProperty('ee');
+    expect(row).toHaveProperty('er');
+    expect(res.payload.totals).toBeDefined();
+    expect(res.payload.rows.find((r) => r.name === 'No ESI Emp')).toBeFalsy();
+  });
 });
