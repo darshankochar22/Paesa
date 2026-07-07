@@ -36,7 +36,9 @@ import {
 import PayrollReportsStatutory, {
   PFReportsMenu,
   PFEReturnMenu,
+  ESIReportsMenu,
 } from '../pages/menu/reports/PayrollReportsStatutory.tsx';
+import ESIForm3 from '../pages/reports/payroll/ESIForms.tsx';
 import PayrollStatutorySummary, {
   PayrollStatutoryPayHeadDetails,
 } from '../pages/reports/payroll/PayrollStatutorySummary.tsx';
@@ -228,6 +230,8 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/statutory/payroll/pf/e-return/form-10', element: <PFForm10 eReturn /> },
   { path: '/reports/statutory/payroll/pf/e-return/form-12a', element: <PFForm12A eReturn /> },
   { path: '/reports/statutory/payroll/pf/e-return/form-3a', element: <PFForm3A eReturn /> },
+  { path: '/reports/statutory/payroll/esi', element: <ESIReportsMenu /> },
+  { path: '/reports/statutory/payroll/esi/form-3', element: <ESIForm3 /> },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
   { path: '/reports/inventory-books', element: <InventoryBooks /> },

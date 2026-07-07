@@ -574,6 +574,9 @@ contextBridge.exposeInMainWorld('api', {
     getPFForm6A: (data) => invoke('payrollStatutory:getPFForm6A', data),
     getPFForm3A: (data) => invoke('payrollStatutory:getPFForm3A', data),
   },
+  esi: {
+    getForm3: (data) => invoke('esi:getForm3', data),
+  },
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),
   },

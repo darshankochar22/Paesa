@@ -6,6 +6,7 @@ const tcsReportService = require('../tcs/tcsReportService');
 const payrollStatutoryReportService = require('../payroll/payrollStatutoryReportService');
 const msmeReportService = require('../msme/msmeReportService');
 const msmePartyService = require('../msme/msmePartyService');
+const esiReportService = require('../payroll/esiReportService');
 const gstRegistrationController = require('../gstRegistration/gstRegistrationController');
 const gstClassificationController = require('../gstClassification/gstClassificationController');
 const tcsNatureOfGoodsController = require('../tcsNatureOfGoods/tcsNatureOfGoodsController');
@@ -109,6 +110,9 @@ function register() {
   );
   ipcMain.handle('payrollStatutory:getPFForm3A', (event, { company_id }) =>
     payrollStatutoryReportService.getPFForm3A(company_id),
+  );
+  ipcMain.handle('esi:getForm3', (event, { company_id, ...params }) =>
+    esiReportService.getESIForm3(company_id, params),
   );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),

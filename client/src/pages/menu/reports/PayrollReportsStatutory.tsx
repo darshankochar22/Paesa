@@ -13,7 +13,7 @@ export default function PayrollReportsStatutory() {
     { label: 'Provident Fund', route: '/reports/statutory/payroll/pf' },
     {
       label: 'Employee State Insurance',
-      route: '/reports/payroll-hr/employee-state-insurance-summary',
+      route: '/reports/statutory/payroll/esi',
     },
     { label: 'Professional Tax', route: '/reports/payroll-hr/professional-tax-summary' },
     { label: 'National Pension Scheme', route: '/reports/statutory/payroll/summary' },
@@ -125,6 +125,78 @@ export function PFReportsMenu() {
                 {sec.title}
               </div>
             )}
+            <div className="flex flex-col pl-3 gap-0.5">
+              {sec.items.map((item) => (
+                <Button
+                  key={item.label}
+                  asChild
+                  variant="ghost"
+                  size="xs"
+                  className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700"
+                >
+                  <Link to={item.route}>{item.label}</Link>
+                </Button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <Button
+          onClick={() => navigate(-1)}
+          variant="ghost"
+          size="xs"
+          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
+        >
+          Quit
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Payroll Reports → Employee State Insurance submenu (#218-#222). Monthly: Form 3 /
+// Monthly Statement / E-Return; Half-Yearly: Form 5 / Form 6.
+export function ESIReportsMenu() {
+  const navigate = useNavigate();
+
+  const sections: Array<{ title: string; items: Array<{ label: string; route: string }> }> = [
+    {
+      title: 'MONTHLY',
+      items: [
+        { label: 'Form 3', route: '/reports/statutory/payroll/esi/form-3' },
+        { label: 'Monthly Statement', route: '/reports/statutory/payroll/esi/monthly-statement' },
+        { label: 'E-Return', route: '/reports/statutory/payroll/esi/e-return' },
+      ],
+    },
+    {
+      title: 'HALF YEARLY',
+      items: [
+        { label: 'Form 5', route: '/reports/statutory/payroll/esi/form-5' },
+        { label: 'Form 6', route: '/reports/statutory/payroll/esi/form-6' },
+      ],
+    },
+  ];
+
+  return (
+    <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
+      <CardHeader className="gap-1 pb-1">
+        <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
+          <span>&gt;</span>
+          <Link to="/reports/statutory/payroll" className="hover:underline hover:text-zinc-900">
+            Payroll Reports
+          </Link>
+        </div>
+        <CardTitle className="text-base font-semibold">Employee State Insurance</CardTitle>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3">
+        {sections.map((sec, i) => (
+          <div key={i} className="flex flex-col gap-0.5">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+              {sec.title}
+            </div>
             <div className="flex flex-col pl-3 gap-0.5">
               {sec.items.map((item) => (
                 <Button
