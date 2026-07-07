@@ -13,6 +13,9 @@ interface Props {
   searchTerm: string;
   activeRowId: string | null;
   onAmountConfirm?: (row: ParticularRow, index: number) => void;
+  /** Overdrawn-balance warning only makes sense for Cash/Bank ledgers — a Cr
+   *  balance on an income/liability/capital ledger is natural, not negative. */
+  checkIsCashOrBank?: (ledger: ParticularRow['ledger']) => boolean;
 }
 
 const formatAmount = (n: number): string =>
@@ -28,6 +31,7 @@ export default function VoucherDoubleEntryTable({
   searchTerm,
   activeRowId,
   onAmountConfirm,
+  checkIsCashOrBank,
 }: Props) {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -63,14 +67,18 @@ export default function VoucherDoubleEntryTable({
   const isBalanced = Math.abs(drTotal - crTotal) < 0.01;
   const diff = Math.abs(drTotal - crTotal);
 
-  const hasNegativeBalances = rows.some(
-    (r) => r.ledger && r.ledgerBalance && parseFloat(r.ledgerBalance) < 0,
-  );
+  // Only Cash/Bank ledgers can be "overdrawn". A Cr balance elsewhere (income,
+  // liability, capital…) is the natural side, so it must not read as negative.
+  const isOverdrawn = (row: ParticularRow) =>
+    !!row.ledger &&
+    !!checkIsCashOrBank?.(row.ledger) &&
+    !!row.ledgerBalance &&
+    parseFloat(row.ledgerBalance) < 0;
+
+  const hasNegativeBalances = rows.some(isOverdrawn);
 
   const amountWarningClass = (row: ParticularRow) =>
-    row.ledgerBalance && parseFloat(row.ledgerBalance) < 0 && Number(row.amountRaw) > 0
-      ? 'text-red-700'
-      : 'text-black';
+    isOverdrawn(row) && Number(row.amountRaw) > 0 ? 'text-red-700' : 'text-black';
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white text-xs">
@@ -119,7 +127,7 @@ export default function VoucherDoubleEntryTable({
                   {row.ledgerBalance && (
                     <span
                       className={`text-[10px] italic select-none ${
-                        parseFloat(row.ledgerBalance) < 0 ? 'text-red-600' : 'text-gray-500'
+                        isOverdrawn(row) ? 'text-red-600' : 'text-gray-500'
                       }`}
                     >
                       Bal: {row.ledgerBalanceLabel || row.ledgerBalance}

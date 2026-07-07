@@ -15,7 +15,8 @@ export function computePanelItems(form: any, effectiveVoucherType: string): any[
 
   if (af.type === 'account') {
     if (effectiveVoucherType === 'Journal') {
-      return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
+      // Journal shows every ledger, including Cash/Bank (no restriction).
+      return form.allLedgers;
     }
     if (effectiveVoucherType === 'Payroll') {
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
@@ -129,9 +130,9 @@ export function computePanelItems(form: any, effectiveVoucherType: string): any[
     );
   }
 
-  // Journal Particulars: all ledgers except cash/bank
+  // Journal Particulars: all ledgers, including Cash/Bank (no restriction)
   if (effectiveVoucherType === 'Journal' && af.type === 'particular') {
-    return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
+    return form.allLedgers;
   }
 
   // Contra Particulars: also restricted to cash/bank (destination side)

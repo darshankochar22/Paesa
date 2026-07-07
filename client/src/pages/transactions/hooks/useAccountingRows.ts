@@ -79,7 +79,8 @@ export function useAccountingRows({
     initialJournalEntryMode,
   );
   const [journalRows, setJournalRows] = useState<ParticularRow[]>(
-    () => initialJournalRows ?? [makeParticularRow('Cr'), makeParticularRow('Dr')],
+    // Journal lists Dr above Cr (TallyPrime order).
+    () => initialJournalRows ?? [makeParticularRow('Dr'), makeParticularRow('Cr')],
   );
 
   // ─── Derived: particular type for single-entry layouts ──────────────────────
@@ -400,16 +401,12 @@ export function useAccountingRows({
 
   // ─── Reset accounting rows ────────────────────────────────────────────────
   const resetAccountingRows = useCallback(
-    (defaultParticular: 'Dr' | 'Cr', currentVoucherType?: string) => {
+    (defaultParticular: 'Dr' | 'Cr', _currentVoucherType?: string) => {
       setAccountLedger(null);
       setAccountBalance('');
       setParticulars([makeParticularRow(defaultParticular)]);
-      // Memorandum lists Dr above Cr (TallyPrime order); Journal keeps Cr above Dr.
-      setJournalRows(
-        currentVoucherType === 'Memorandum'
-          ? [makeParticularRow('Dr'), makeParticularRow('Cr')]
-          : [makeParticularRow('Cr'), makeParticularRow('Dr')],
-      );
+      // Journal / Memorandum both list Dr above Cr (TallyPrime order).
+      setJournalRows([makeParticularRow('Dr'), makeParticularRow('Cr')]);
       setContraDoubleRows([makeParticularRow('Cr'), makeParticularRow('Dr')]);
       setReceiptDoubleRows([makeParticularRow('Cr'), makeParticularRow('Dr')]);
       setPaymentDoubleRows([makeParticularRow('Dr'), makeParticularRow('Cr')]);

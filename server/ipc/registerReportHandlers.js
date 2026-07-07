@@ -129,6 +129,7 @@ function register() {
   ipcMain.handle('report:paymentRegister', reportController.paymentRegister);
   ipcMain.handle('report:receiptRegister', reportController.receiptRegister);
   ipcMain.handle('report:journalRegister', reportController.journalRegister);
+  ipcMain.handle('report:memorandumRegister', reportController.memorandumRegister);
   ipcMain.handle('report:debitNoteRegister', reportController.debitNoteRegister);
   ipcMain.handle('report:creditNoteRegister', reportController.creditNoteRegister);
   ipcMain.handle('report:purchaseRegister', reportController.purchaseRegister);
@@ -140,6 +141,7 @@ function register() {
   ipcMain.handle('report:salesRegisterVouchers', reportController.salesRegisterVouchers);
   ipcMain.handle('report:purchaseRegisterVouchers', reportController.purchaseRegisterVouchers);
   ipcMain.handle('report:journalRegisterVouchers', reportController.journalRegisterVouchers);
+  ipcMain.handle('report:memorandumRegisterVouchers', reportController.memorandumRegisterVouchers);
   ipcMain.handle('report:debitNoteRegisterVouchers', reportController.debitNoteRegisterVouchers);
   ipcMain.handle('report:creditNoteRegisterVouchers', reportController.creditNoteRegisterVouchers);
 

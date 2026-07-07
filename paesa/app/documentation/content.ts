@@ -103,12 +103,12 @@ export const SECTIONS: DocSection[] = [
       {
         src: "/docs/ledger-creation.png",
         caption:
-          "Ledger Creation — \"ABC Retail Store\" under Sundry Debtors, with Bill-wise, Statutory, and Tax Registration details and a 50,000 Dr opening balance.",
+          "Ledger Creation — \"Horizon Electricals Distributor\" (alias Horizon) under Sundry Debtors, with Bill-wise, Statutory, and Tax Registration details and a 75,000 Dr opening balance.",
       },
       {
         src: "/docs/group-creation.png",
         caption:
-          "Group Creation — \"Retail Customers\" placed under Sundry Debtors, with sub-ledger and calculation options.",
+          "Group Creation — \"LED Products\" (alias LED) placed under Sundry Debtors, with sub-ledger and calculation options.",
       },
     ],
   },
@@ -153,12 +153,12 @@ export const SECTIONS: DocSection[] = [
       {
         src: "/docs/stock-item-creation.png",
         caption:
-          "Stock Item Creation — \"LED Bulb 12W\" under Primary/Lighting with HSN/SAC 9405, 12% GST, and a 200-unit opening balance (₹24,000).",
+          "Stock Item Creation — \"LED Bulb 12v 9W\" (alias LED 12V) under Primary/Lighting with HSN/SAC 9405, 12% GST, and a 100-unit opening balance (₹15,000).",
       },
       {
         src: "/docs/godown-creation.png",
         caption:
-          "Godown Creation — \"Main Warehouse\" under Primary, with Excise Tax unit Not Applicable.",
+          "Godown Creation — \"Main Warehouses\" (alias MW) under Primary, with Excise Tax unit Not Applicable.",
       },
     ],
   },
@@ -205,12 +205,12 @@ export const SECTIONS: DocSection[] = [
       {
         src: "/docs/budget-creation.png",
         caption:
-          "Budget Creation — \"Office Expenses Budget\" for FY 2025–26, with Groups / Ledgers / Cost Centres allocation enabled.",
+          "Budget Creation — \"Annual Sales Budget\" for FY 2026–27, with Groups / Ledgers / Cost Centres allocation enabled.",
       },
       {
         src: "/docs/scenario-creation.png",
         caption:
-          "Scenario Creation — \"Year-End Reporting\" including actuals, with Sales/Purchase included and Memorandum excluded.",
+          "Scenario Creation — \"Projected Sales Scenario\" including actuals, with Sales/Purchase included and Contra/Payment excluded.",
       },
     ],
   },
@@ -263,22 +263,22 @@ export const SECTIONS: DocSection[] = [
       {
         src: "/docs/gst-classification-creation.png",
         caption:
-          "GST Classification — \"Mobile Phones (18%)\" with HSN/SAC 8517 and an 18% taxable GST rate.",
+          "GST Classification — \"LED Bulb -12% GST\" with HSN/SAC 9405 and a 12% taxable GST rate.",
       },
       {
         src: "/docs/tds-nature-of-payment.png",
         caption:
-          "TDS Nature of Payment — \"Professional Fees\" under Section 194J (code PF001), 10% with PAN and a ₹30,000 threshold.",
+          "TDS Nature of Payment — \"Contractor Payment\" under Section 194C (code TDS194C), 1% for individuals/HUF and 2% for other deductees with PAN, and a ₹30,000 threshold.",
       },
       {
         src: "/docs/tcs-nature-of-goods.png",
         caption:
-          "TCS Nature of Goods — \"Scrap Sale\" under Section 206C(1) (code SCRAP001), 1% with PAN / 5% without, and a ₹50,000 threshold.",
+          "TCS Nature of Goods — \"Scrap Sale\" under Section 206C(1) (code TCS206C1), 1% with PAN / 5% without, and a ₹50,000 threshold.",
       },
       {
         src: "/docs/credit-limits.png",
         caption:
-          "Credit Limits — Multi Ledger Limit Alteration across Sundry Debtors, setting per-party credit limit, credit period, and check-for-credit-days.",
+          "Credit Limits — Multi Ledger Limit Alteration across Sundry Creditors, setting per-party credit limit, credit period, and check-for-credit-days.",
       },
     ],
   },
@@ -323,17 +323,17 @@ export const SECTIONS: DocSection[] = [
       {
         src: "/docs/price-levels.png",
         caption:
-          "Company Price Levels — three pricing tiers (Retail, Wholesale, Dealer); Enter adds the next, Backspace removes an empty row.",
+          "Company Price Levels — two pricing tiers (Wholesale, Retailers); Enter adds the next, Backspace removes an empty row.",
       },
       {
         src: "/docs/price-list.png",
         caption:
-          "Price List (Stock Group) — Wholesale rate table with quantity breaks: Mouse Dell (1–50 @ 500) and Keyboard Dell (1–20 @ 700), applicable 5-Jul-26.",
+          "Price List (Stock Group) — details screen: Stock Group \"All Items\" at the Wholesale price level, applicable 6-Jul-26; Accept proceeds to per-item rate entry.",
       },
       {
         src: "/docs/voucher-type-creation.png",
         caption:
-          "Voucher Type Creation — \"Bank Receipt\" (alias BR) of type Receipt, with Automatic numbering and a Voucher Class \"Interest Received\".",
+          "Voucher Type Creation — \"Sales Invoice\" (alias SI) of type Sales, with Automatic numbering and a Voucher Class \"Standard Sales\".",
       },
     ],
   },
@@ -392,17 +392,17 @@ export const SECTIONS: DocSection[] = [
       {
         src: "/docs/voucher-contra.png",
         caption:
-          "Contra voucher (double-entry) — ₹20,000 moved from Cash to HDFC, balanced, with the F4–F10 voucher-type switcher on the right.",
+          "Contra voucher (double-entry) — ₹25,000 moved from Cash to ICICI Bank, balanced, with the F4–F10 voucher-type switcher on the right.",
       },
       {
         src: "/docs/voucher-payment.png",
         caption:
-          "Payment voucher (double-entry) — ₹15,000 Rent Expenses paid from HDFC, balanced.",
+          "Payment voucher (double-entry) — ₹15,000 Rent Expenses paid from ICICI Bank, balanced.",
       },
       {
         src: "/docs/voucher-receipt.png",
         caption:
-          "Receipt voucher (double-entry) — ₹25,000 received from ABC Customer into HDFC, balanced.",
+          "Receipt voucher (double-entry) — ₹35,000 received from ABC Customer into HDFC, balanced.",
       },
       {
         src: "/docs/voucher-journal.png",
@@ -412,22 +412,22 @@ export const SECTIONS: DocSection[] = [
       {
         src: "/docs/voucher-sales.png",
         caption:
-          "Sales voucher — ABC Customer billed for 2 × Desktop Computer @ ₹50,000 (₹1,00,000 total), with the item table and GST/e-Way Bill options.",
+          "Sales voucher — ABC Customer billed for 4 × Lenovo Laptop @ ₹50,000 (₹2,00,000 total), with the item table and GST/e-Way Bill options.",
       },
       {
         src: "/docs/voucher-purchase.png",
         caption:
-          "Purchase voucher — XYZ Supplier (Invoice 101) for 20 × Mouse dell @ ₹300 (₹6,000 total), with Supplier Invoice No. and date.",
+          "Purchase voucher — Chhattishgarh suppliers (Invoice 1) for 50 × LED Bulbs @ ₹200 (₹10,000 total), with Supplier Invoice No. and date.",
       },
       {
         src: "/docs/voucher-credit-note.png",
         caption:
-          "Credit Note (via F10 → Other Vouchers) — ₹50,000 sales return of 1 × Desktop Computer against ABC Customer.",
+          "Credit Note (via F10 → Other Vouchers) — ₹1,00,000 sales return of 2 × Lenovo Laptop against ABC Customer.",
       },
       {
         src: "/docs/voucher-debit-note.png",
         caption:
-          "Debit Note (via F10 → Other Vouchers) — ₹1,500 purchase return of 5 × Mouse dell against XYZ Supplier.",
+          "Debit Note (via F10 → Other Vouchers) — ₹2,000 purchase return of 10 × LED Bulbs against XYZ Supplier.",
       },
     ],
   },

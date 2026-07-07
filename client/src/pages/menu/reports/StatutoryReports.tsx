@@ -45,6 +45,9 @@ export default function StatutoryReports() {
     if (item === 'Payroll Reports') {
       return '/reports/statutory/payroll';
     }
+    if (item === 'MSME Reports') {
+      return '/reports/statutory/msme';
+    }
     return null;
   };
 

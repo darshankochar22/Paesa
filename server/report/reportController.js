@@ -37,6 +37,7 @@ const { debitNoteRegister } = require('./registers/debitNoteRegister');
 const { creditNoteRegister } = require('./registers/creditNoteRegister');
 const { purchaseRegister } = require('./registers/purchaseRegister');
 const { salesRegister } = require('./registers/salesRegister');
+const { memorandumRegister } = require('./registers/memorandumRegister');
 const outstandingReportService = require('./outstandingReportService');
 const advancedInventoryReportService = require('./advancedInventoryReportService');
 const interestReportService = require('./interestReportService');
@@ -52,6 +53,7 @@ const { contraRegisterVouchers } = require('./registers/contraRegisterVouchers')
 const { salesRegisterVouchers } = require('./registers/salesRegisterVouchers');
 const { purchaseRegisterVouchers } = require('./registers/purchaseRegisterVouchers');
 const { journalRegisterVouchers } = require('./registers/journalRegisterVouchers');
+const { memorandumRegisterVouchers } = require('./registers/memorandumRegisterVouchers');
 const { debitNoteRegisterVouchers } = require('./registers/debitNoteRegisterVouchers');
 const { creditNoteRegisterVouchers } = require('./registers/creditNoteRegisterVouchers');
 
@@ -182,6 +184,9 @@ module.exports = {
   },
   journalRegister: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await journalRegister(company_id, fy_id, from_date, to_date);
+  },
+  memorandumRegister: async (event, { company_id, fy_id }) => {
+    return await memorandumRegister(company_id, fy_id);
   },
   debitNoteRegister: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await debitNoteRegister(company_id, fy_id, from_date, to_date);
@@ -428,6 +433,9 @@ module.exports = {
   },
   journalRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await journalRegisterVouchers(company_id, fy_id, from_date, to_date);
+  },
+  memorandumRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await memorandumRegisterVouchers(company_id, fy_id, from_date, to_date);
   },
   debitNoteRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await debitNoteRegisterVouchers(company_id, fy_id, from_date, to_date);

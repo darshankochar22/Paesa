@@ -38,6 +38,7 @@ export const LAYOUT_ONLY_REPORTS = new Set([
   "credit-note-register",
   "debit-note-register",
   "journal-register",
+  "memorandum-register",
   "statistics",
   "pay-slip",
   "pay-sheet",

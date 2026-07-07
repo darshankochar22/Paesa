@@ -290,6 +290,13 @@ const init = async (db) => {
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_rate_slabs TEXT`);
   } catch (err) {}
+
+  // MSME (Micro, Small & Medium Enterprises) party registration details.
+  // Set via Statutory Reports → MSME Reports → Update Party MSME Details.
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN msme_type_of_enterprise TEXT DEFAULT 'Not Applicable'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN msme_udyam_reg_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN msme_activity_type TEXT DEFAULT 'Unknown'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN msme_effective_date TEXT`); } catch (err) {}
 };
 
 module.exports = { init };

@@ -496,6 +496,47 @@ export interface MasterDataAPI {
       company_id: number;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
   };
+  msme: {
+    getForm1: (
+      company_id: number,
+      fy_id: number,
+      to_date?: string,
+      group_id?: number | null,
+    ) => Promise<{
+      success: boolean;
+      payload: { rows: any[]; total: number; as_on: string };
+      error?: string;
+    }>;
+    getPartyList: (
+      company_id: number,
+      group_id?: number | null,
+      ledger_id?: number | null,
+    ) => Promise<{
+      success: boolean;
+      party_ledgers: Array<{
+        ledger_id: number;
+        name: string;
+        is_bill_wise: number;
+        default_credit_period: number | null;
+        state: string | null;
+        country: string | null;
+        type_of_enterprise: string | null;
+        udyam_reg_no: string | null;
+        activity_type: string | null;
+        effective_date: string | null;
+      }>;
+      group_id: number | null;
+      last_entry_date?: string | null;
+      error?: string;
+    }>;
+    updateDetails: (payload: {
+      ledger_id: number;
+      type_of_enterprise: string;
+      udyam_reg_no?: string | null;
+      activity_type?: string | null;
+      effective_date?: string | null;
+    }) => Promise<{ success: boolean; ledger?: any; error?: string }>;
+  };
   tcs: {
     getChallanReconciliation: (data: {
       company_id: number;

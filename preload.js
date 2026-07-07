@@ -412,6 +412,8 @@ contextBridge.exposeInMainWorld('api', {
     employeeHeadCount: (company_id, fy_id) =>
       invoke('report:employeeHeadCount', { company_id, fy_id }),
     journalRegister: (company_id, fy_id) => invoke('report:journalRegister', { company_id, fy_id }),
+    memorandumRegister: (company_id, fy_id) =>
+      invoke('report:memorandumRegister', { company_id, fy_id }),
     debitNoteRegister: (company_id, fy_id) =>
       invoke('report:debitNoteRegister', { company_id, fy_id }),
     creditNoteRegister: (company_id, fy_id) =>
@@ -434,6 +436,8 @@ contextBridge.exposeInMainWorld('api', {
       invoke('report:purchaseRegisterVouchers', { company_id, fy_id, from_date, to_date }),
     journalRegisterVouchers: (company_id, fy_id, from_date, to_date) =>
       invoke('report:journalRegisterVouchers', { company_id, fy_id, from_date, to_date }),
+    memorandumRegisterVouchers: (company_id, fy_id, from_date, to_date) =>
+      invoke('report:memorandumRegisterVouchers', { company_id, fy_id, from_date, to_date }),
     debitNoteRegisterVouchers: (company_id, fy_id, from_date, to_date) =>
       invoke('report:debitNoteRegisterVouchers', { company_id, fy_id, from_date, to_date }),
     creditNoteRegisterVouchers: (company_id, fy_id, from_date, to_date) =>
@@ -551,6 +555,13 @@ contextBridge.exposeInMainWorld('api', {
     getOutstandings: (data) => invoke('tcs:getOutstandings', data),
     getLedgersWithoutPan: (data) => invoke('tcs:getLedgersWithoutPan', data),
     getChallanDetailsOfBuyer: (data) => invoke('tcs:getChallanDetailsOfBuyer', data),
+  },
+  msme: {
+    getForm1: (company_id, fy_id, to_date, group_id) =>
+      invoke('msme:getForm1', { company_id, fy_id, to_date, group_id }),
+    getPartyList: (company_id, group_id, ledger_id) =>
+      invoke('msme:getPartyList', { company_id, group_id, ledger_id }),
+    updateDetails: (payload) => invoke('msme:updateDetails', payload),
   },
   payrollStatutory: {
     getSummary: (data) => invoke('payrollStatutory:getSummary', data),

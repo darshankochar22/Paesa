@@ -145,6 +145,7 @@ export default function AccountingVoucherBody({
       searchTerm={form.ledgerSearchTerm}
       activeRowId={form.activeField?.type === 'particular' ? form.activeField.rowId : null}
       onAmountConfirm={handleAmountConfirm}
+      checkIsCashOrBank={form.checkIsCashOrBank}
     />
   );
 }

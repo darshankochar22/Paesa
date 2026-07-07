@@ -44,7 +44,11 @@ const getRegisterData = async (company_id, fy_id, voucher_type) => {
   let cumulativeBalance = 0;
   const rows = months.map(m => {
     const monthVouchers = voucherRows.filter(v => v.date.startsWith(m.prefix));
-    const active = monthVouchers.filter(v => v.is_cancelled === 0 && (v.is_optional == null || v.is_optional === 0) && (v.is_post_dated == null || v.is_post_dated === 0));
+    // Memorandum vouchers are non-accounting and are stored with is_optional = 1 so
+    // they stay out of ledger/balance reports — but the Memorandum register itself
+    // must still list them, so don't exclude optional vouchers for that type.
+    const includeOptional = voucher_type === 'Memorandum';
+    const active = monthVouchers.filter(v => v.is_cancelled === 0 && (includeOptional || v.is_optional == null || v.is_optional === 0) && (v.is_post_dated == null || v.is_post_dated === 0));
     const cancelled = monthVouchers.filter(v => v.is_cancelled === 1);
 
     const count = active.length;

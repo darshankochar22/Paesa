@@ -92,6 +92,12 @@ const ledgers = sqliteTable('ledgers', {
   interestRoundingLimit: real('interest_rounding_limit').default(1),
   // JSON: [{ from_date, to_date, rate }] — date-ranged rate slabs.
   interestRateSlabs: text('interest_rate_slabs'),
+  // MSME party registration (Update Party MSME Details). Enterprise: Not Applicable/
+  // Micro/Small/Medium; activity: Unknown/Manufacturing/Services/Traders.
+  msmeTypeOfEnterprise: text('msme_type_of_enterprise').default('Not Applicable'),
+  msmeUdyamRegNo: text('msme_udyam_reg_no'),
+  msmeActivityType: text('msme_activity_type').default('Unknown'),
+  msmeEffectiveDate: text('msme_effective_date'),
   // Columns added to source init() (server/ledger/ledger.js) via ALTER after this
   // schema was first authored — mirrored here so the Drizzle migration matches init().
   behaveAsPaymentGateway: integer('behave_as_payment_gateway').default(0),

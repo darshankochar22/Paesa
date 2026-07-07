@@ -19,4 +19,5 @@ module.exports = {
   creditNoteRegister: require('./registers/creditNoteRegister'),
   purchaseRegister: require('./registers/purchaseRegister'),
   salesRegister: require('./registers/salesRegister'),
+  memorandumRegister: require('./registers/memorandumRegister'),
 };

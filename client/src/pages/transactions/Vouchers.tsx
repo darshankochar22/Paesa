@@ -454,7 +454,24 @@ export default function Vouchers() {
                   ? form.handleAddReceiptDoubleRow
                   : form.handleAddParticularRow;
 
-      if (idx === list.length - 1) addRow();
+      // Double-entry accounting vouchers are complete once Dr = Cr. Don't append an
+      // empty row (e.g. a stray "Cr") just because Enter landed on the last line —
+      // leave the balanced rows as-is so the user can Accept.
+      const isDoubleAccounting = isJDouble || isPayDouble || isContraDouble || isReceiptDouble;
+      const drTotal = (list as any[]).reduce(
+        (s: number, r: any) => s + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
+      const crTotal = (list as any[]).reduce(
+        (s: number, r: any) => s + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0),
+        0,
+      );
+      const isBalanced = drTotal > 0 && Math.abs(drTotal - crTotal) < 0.01;
+
+      if (idx === list.length - 1) {
+        if (isDoubleAccounting && isBalanced) return;
+        addRow();
+      }
 
       const sel = isInv
         ? `[data-additional-ledger="${idx + 2}"]`

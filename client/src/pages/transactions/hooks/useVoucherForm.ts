@@ -348,14 +348,7 @@ export function useVoucherForm(
       } else {
         const filled = rows.journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
         if (filled.length < 2) return 'At least two valid Journal entries are required.';
-        // A regular Journal forbids Cash/Bank ledgers; a Reversing Journal allows them
-        // (it is a non-posting scenario voucher — e.g. provisioning against a bank a/c).
-        if (effectiveVoucherType === 'Journal') {
-          for (const row of filled) {
-            if (ledgers.checkIsCashOrBank(row.ledger))
-              return 'Journal vouchers cannot use Cash or Bank ledgers.';
-          }
-        }
+        // Journal (like Reversing Journal) may use any ledger, including Cash/Bank.
         if (Math.abs(rows.debitTotal - rows.creditTotal) > 0.01)
           return `Debit (${rows.debitTotal.toFixed(2)}) and Credit (${rows.creditTotal.toFixed(2)}) totals must balance.`;
         if (rows.debitTotal <= 0) return 'Journal amount must be greater than zero.';

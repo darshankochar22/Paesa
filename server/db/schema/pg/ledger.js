@@ -81,6 +81,11 @@ const ledgers = pgTable('ledgers', {
   interestRoundingMethod: text('interest_rounding_method').default('No Rounding'),
   interestRoundingLimit: numeric('interest_rounding_limit', { precision: 18, scale: 4 }).default('1'),
   interestRateSlabs: text('interest_rate_slabs'),
+  // MSME party registration (Update Party MSME Details).
+  msmeTypeOfEnterprise: text('msme_type_of_enterprise').default('Not Applicable'),
+  msmeUdyamRegNo: text('msme_udyam_reg_no'),
+  msmeActivityType: text('msme_activity_type').default('Unknown'),
+  msmeEffectiveDate: text('msme_effective_date'),
   isActive: boolean('is_active').default(true),
   isPredefined: boolean('is_predefined').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),

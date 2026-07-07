@@ -5,6 +5,9 @@ import CategoryMenuPage from '../pages/reports/CategoryMenuPage.tsx';
 import DisplayMoreReports from '../pages/menu/reports/DisplayMoreReports.tsx';
 import StatutoryReports from '../pages/menu/reports/StatutoryReports.tsx';
 import GSTReports from '../pages/menu/reports/GSTReports.tsx';
+import MSMEReports from '../pages/menu/reports/MSMEReports.tsx';
+import MSMEForm1Statement from '../pages/reports/statutory/MSMEForm1Statement.tsx';
+import UpdatePartyMSMEDetails from '../pages/reports/statutory/UpdatePartyMSMEDetails.tsx';
 import TDSReportsStatutory from '../pages/menu/reports/TDSReportsStatutory.tsx';
 import TDSChallanReconciliation from '../pages/master/statutory/tds-return/TDSChallanReconciliation.tsx';
 import Form26Q from '../pages/master/statutory/tds-return/Form26Q.tsx';
@@ -162,6 +165,9 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/display-more', element: <DisplayMoreReports /> },
   { path: '/reports/statutory', element: <StatutoryReports /> },
   { path: '/reports/statutory/gst', element: <GSTReports /> },
+  { path: '/reports/statutory/msme', element: <MSMEReports /> },
+  { path: '/reports/statutory/msme/form-1', element: <MSMEForm1Statement /> },
+  { path: '/reports/statutory/msme/update-party', element: <UpdatePartyMSMEDetails /> },
   { path: '/reports/statutory/tds', element: <TDSReportsStatutory /> },
   { path: '/reports/statutory/tds/challan-reconciliation', element: <TDSChallanReconciliation /> },
   { path: '/reports/statutory/tds/form-26q', element: <Form26Q /> },

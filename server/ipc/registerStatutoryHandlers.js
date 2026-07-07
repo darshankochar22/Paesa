@@ -4,6 +4,8 @@ const gstController = require('../gst/gstController');
 const tdsReportService = require('../tds/tdsReportService');
 const tcsReportService = require('../tcs/tcsReportService');
 const payrollStatutoryReportService = require('../payroll/payrollStatutoryReportService');
+const msmeReportService = require('../msme/msmeReportService');
+const msmePartyService = require('../msme/msmePartyService');
 const gstRegistrationController = require('../gstRegistration/gstRegistrationController');
 const gstClassificationController = require('../gstClassification/gstClassificationController');
 const tcsNatureOfGoodsController = require('../tcsNatureOfGoods/tcsNatureOfGoodsController');
@@ -116,6 +118,15 @@ function register() {
   );
   ipcMain.handle('tds:getLedgersWithoutPan', (event, { company_id }) =>
     tdsReportService.getLedgersWithoutPan(company_id),
+  );
+  ipcMain.handle('msme:getForm1', (event, { company_id, fy_id, to_date, group_id }) =>
+    msmeReportService.getMsmeForm1(company_id, fy_id, { to_date, group_id }),
+  );
+  ipcMain.handle('msme:getPartyList', (event, { company_id, group_id, ledger_id }) =>
+    msmePartyService.getPartyMsmeList(company_id, { group_id, ledger_id }),
+  );
+  ipcMain.handle('msme:updateDetails', (event, payload) =>
+    msmePartyService.updateMsmeDetails(payload),
   );
   ipcMain.handle('gst:getReturnActivities', gstController.getReturnActivities);
   ipcMain.handle('gst:getReturnStatistics', gstController.getReturnStatistics);

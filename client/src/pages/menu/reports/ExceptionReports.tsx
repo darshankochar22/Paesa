@@ -8,7 +8,14 @@ export default function ExceptionReports() {
   const sections = [
     {
       title: 'REGISTERS',
-      items: ['Optional Vouchers', 'Cancelled Vouchers', 'Post-Dated Vouchers', 'Marked Vouchers'],
+      items: [
+        'Memorandum Register',
+        'Reversing Journal Register',
+        'Optional Vouchers',
+        'Cancelled Vouchers',
+        'Post-Dated Vouchers',
+        'Marked Vouchers',
+      ],
     },
     {
       title: 'REPORTS',
@@ -22,6 +29,8 @@ export default function ExceptionReports() {
 
   const getRoute = (_section: string, item: string) => {
     const routes: Record<string, string> = {
+      'Memorandum Register': '/reports/accounts/memorandum-register',
+      'Reversing Journal Register': '/reports/accounts/reversing-journal-register',
       'Optional Vouchers': '/reports/exception/optional-vouchers',
       'Cancelled Vouchers': '/reports/exception/cancelled-vouchers',
       'Post-Dated Vouchers': '/reports/exception/post-dated-vouchers',
