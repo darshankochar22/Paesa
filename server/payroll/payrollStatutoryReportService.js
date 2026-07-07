@@ -312,10 +312,199 @@ const getPFForm12A = async (company_id, { from, to } = {}) => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Employee-wise PF reports (#210 Monthly Statement, #211 ECR, #212 Form 3A,
+// #213 Form 6A). All share ONE basis: each active employee's PF figures from
+// their ACTIVE salary structures (no payroll-run engine). The employer share is
+// split EPS/EPF at the standard 8.33% / 3.67% ratio; EPS wages cap the ceiling.
+// Month-wise history isn't stored — annual forms show the current-period figure.
+// ---------------------------------------------------------------------------
+const PF_WAGE_CEILING = 15000;
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const splitEmployer = (er) => {
+  const eps = round2((Number(er) || 0) * (8.33 / 12));
+  return { eps, epf_er: round2((Number(er) || 0) - eps) };
+};
+const sumRows = (rows, keys) => {
+  const t = {};
+  for (const k of keys) t[k] = round2(rows.reduce((s, r) => s + (Number(r[k]) || 0), 0));
+  return t;
+};
+const isPFMember = (e) => e.ee_pf > 0 || e.er_pf > 0 || !!e.pf_account_number;
+
+// One record per active employee with PF wages + contribution buckets, using the
+// same component/row matchers the Summary uses (so figures tie out to #206).
+const loadPFEmployees = async (company_id) => {
+  const lines = await db.all(
+    sql`SELECT e.employee_id, e.name, e.uan, e.pf_account_number, e.eps_account_number,
+               e.father_name, e.spouse_name, e.date_of_joining, e.date_of_leaving,
+               ph.name AS ph_name, ph.pay_head_type, ph.statutory_component, ph.statutory_pay_type,
+               ss.amount
+        FROM employees e
+        LEFT JOIN salary_structures ss ON ss.employee_id = e.employee_id AND ss.is_active = 1
+        LEFT JOIN pay_heads ph ON ph.pay_head_id = ss.pay_head_id
+              AND ph.company_id = ${company_id} AND ph.is_active = 1
+        WHERE e.company_id = ${company_id} AND e.is_active = 1
+        ORDER BY COALESCE(e.pf_account_number, ''), e.name`,
+  );
+  const map = new Map();
+  for (const l of lines) {
+    if (!map.has(l.employee_id)) {
+      map.set(l.employee_id, {
+        employee_id: l.employee_id,
+        name: l.name,
+        uan: l.uan || '',
+        pf_account_number: l.pf_account_number || '',
+        eps_account_number: l.eps_account_number || '',
+        father_or_husband: l.father_name || l.spouse_name || '',
+        date_of_joining: l.date_of_joining || '',
+        date_of_leaving: l.date_of_leaving || '',
+        wages: 0,
+        ee_pf: 0,
+        er_pf: 0,
+        other: 0,
+      });
+    }
+    const emp = map.get(l.employee_id);
+    if (l.ph_name == null || l.amount == null) continue; // employee with no active structure line
+    const amt = Number(l.amount) || 0;
+    const ph = {
+      name: l.ph_name,
+      pay_head_type: l.pay_head_type,
+      statutory_component: l.statutory_component,
+      statutory_pay_type: l.statutory_pay_type,
+    };
+    if (/earning/i.test(String(l.pay_head_type || ''))) emp.wages += amt;
+    if (matchesComponent(ph, 'pf')) {
+      if (matchesRowType(ph, "Employees' Statutory Deductions")) emp.ee_pf += amt;
+      else if (matchesRowType(ph, "Employer's Statutory Contributions")) emp.er_pf += amt;
+      else if (matchesRowType(ph, "Employer's Other Charges")) emp.other += amt;
+    }
+  }
+  return [...map.values()];
+};
+
+// #210 PF Monthly Statement — employee-wise PF contribution register for the month.
+const getPFMonthlyStatement = async (company_id) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const emps = (await loadPFEmployees(company_id)).filter(isPFMember);
+    const rows = emps.map((e, i) => {
+      const { eps, epf_er } = splitEmployer(e.er_pf);
+      return {
+        sl: i + 1,
+        account_no: e.pf_account_number || e.uan || '',
+        name: e.name,
+        wages: round2(e.wages),
+        ee_share: round2(e.ee_pf),
+        epf_er,
+        eps,
+        total: round2(e.ee_pf + e.er_pf),
+      };
+    });
+    const totals = sumRows(rows, ['wages', 'ee_share', 'epf_er', 'eps', 'total']);
+    return { success: true, payload: { establishment, rows, totals } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// #211 ECR (Electronic Challan cum Return) — UAN-wise wages + contributions.
+const getPFECR = async (company_id) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const emps = (await loadPFEmployees(company_id)).filter(isPFMember);
+    const rows = emps.map((e) => {
+      const { eps, epf_er } = splitEmployer(e.er_pf);
+      const epsWages = Math.min(round2(e.wages), PF_WAGE_CEILING);
+      return {
+        uan: e.uan || '',
+        name: e.name,
+        gross_wages: round2(e.wages),
+        epf_wages: round2(e.wages),
+        eps_wages: epsWages,
+        edli_wages: epsWages,
+        ee: round2(e.ee_pf),
+        eps,
+        epf_er,
+        ncp: 0,
+        refund: 0,
+      };
+    });
+    const totals = sumRows(rows, [
+      'gross_wages',
+      'epf_wages',
+      'eps_wages',
+      'edli_wages',
+      'ee',
+      'eps',
+      'epf_er',
+      'refund',
+    ]);
+    return { success: true, payload: { establishment, rows, totals } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// #213 PF Form 6A — annual consolidated statement of contributions (all members).
+const getPFForm6A = async (company_id) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const emps = (await loadPFEmployees(company_id)).filter(isPFMember);
+    const rows = emps.map((e, i) => {
+      const { eps } = splitEmployer(e.er_pf);
+      return {
+        sl: i + 1,
+        account_no: e.pf_account_number || e.uan || '',
+        name: e.name,
+        wages: round2(e.wages),
+        ee: round2(e.ee_pf),
+        er: round2(e.er_pf),
+        eps,
+        refund: 0,
+        remarks: '',
+      };
+    });
+    const totals = sumRows(rows, ['wages', 'ee', 'er', 'eps', 'refund']);
+    return { success: true, payload: { establishment, rows, totals } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// #212 PF Form 3A — per-member annual contribution card. Month-wise history isn't
+// stored, so each card carries the current-period figure (client lays out the grid).
+const getPFForm3A = async (company_id) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const emps = (await loadPFEmployees(company_id)).filter(isPFMember);
+    const members = emps.map((e) => {
+      const { eps, epf_er } = splitEmployer(e.er_pf);
+      return {
+        account_no: e.pf_account_number || e.uan || '',
+        name: e.name,
+        father_or_husband: e.father_or_husband,
+        wages: round2(e.wages),
+        ee: round2(e.ee_pf),
+        epf_er,
+        eps,
+      };
+    });
+    return { success: true, payload: { establishment, members } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   getStatutorySummary,
   getStatutoryPayHeadDetails,
   getPFForm5,
   getPFForm10,
   getPFForm12A,
+  getPFMonthlyStatement,
+  getPFECR,
+  getPFForm6A,
+  getPFForm3A,
 };

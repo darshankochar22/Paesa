@@ -107,4 +107,39 @@ describe('Payroll Statutory reports (#206)', () => {
     expect(res.payload.members.closing).toBe(1);
     expect(res.payload.establishment.name).toBeTruthy();
   });
+
+  it('PF Monthly Statement lists the PF member with the ₹1800 EE share (#210)', async () => {
+    const res = await statSvc.getPFMonthlyStatement(companyId);
+    expect(res.success).toBe(true);
+    const row = res.payload.rows.find((r) => r.name === 'Stat Emp');
+    expect(row).toBeTruthy();
+    expect(row.ee_share).toBe(1800);
+    expect(res.payload.totals.ee_share).toBe(1800);
+  });
+
+  it('PF ECR carries UAN-wise wages + the EE contribution (#211)', async () => {
+    const res = await statSvc.getPFECR(companyId);
+    expect(res.success).toBe(true);
+    const row = res.payload.rows.find((r) => r.name === 'Stat Emp');
+    expect(row).toBeTruthy();
+    expect(row.ee).toBe(1800);
+    // EPS wages are capped at the ₹15,000 statutory ceiling.
+    expect(row.eps_wages).toBeLessThanOrEqual(15000);
+  });
+
+  it('PF Form 6A consolidates member contributions with a grand total (#213)', async () => {
+    const res = await statSvc.getPFForm6A(companyId);
+    expect(res.success).toBe(true);
+    expect(res.payload.rows.find((r) => r.name === 'Stat Emp').ee).toBe(1800);
+    expect(res.payload.totals.ee).toBe(1800);
+  });
+
+  it('PF Form 3A issues one annual card per member (#212)', async () => {
+    const res = await statSvc.getPFForm3A(companyId);
+    expect(res.success).toBe(true);
+    const card = res.payload.members.find((m) => m.name === 'Stat Emp');
+    expect(card).toBeTruthy();
+    expect(card.ee).toBe(1800);
+    expect(card.account_no).toBeDefined();
+  });
 });
