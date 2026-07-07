@@ -1,8 +1,8 @@
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import TwoColumnReport from "@/components/ui/TwoColumnReport";
-import { fmtAbs } from "@/lib/format";
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import TwoColumnReport from '@/components/ui/TwoColumnReport';
+import { fmtAbs } from '@/lib/format';
 
 interface GroupRow {
   group_id: number;
@@ -45,7 +45,7 @@ export function BalanceSheetLayout() {
       .balanceSheet(selectedCompany.company_id, activeFY.fy_id)
       .then((res: any) => {
         if (res?.success) setData(res);
-        else setError(res?.error || "Failed to load.");
+        else setError(res?.error || 'Failed to load.');
       })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
@@ -53,7 +53,7 @@ export function BalanceSheetLayout() {
 
   const openGroup = React.useCallback(
     (group: GroupRow) => navigate(`/reports/accounts/group-summary/${group.group_id}`),
-    [navigate]
+    [navigate],
   );
 
   const handleFocus = React.useCallback((key: string, group: GroupRow) => {
@@ -64,20 +64,21 @@ export function BalanceSheetLayout() {
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!focusedGroupRef.current) return;
-      if (e.key === "Enter") {
+      if (e.key === 'Enter') {
         e.preventDefault();
         openGroup(focusedGroupRef.current);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [openGroup]);
 
-  const periodLabel = activeFY ? `as at ${activeFY.start_date}` : "";
+  // A Balance Sheet is a snapshot as at the closing date (period end), not the start.
+  const periodLabel = activeFY ? `as at ${activeFY.end_date ?? activeFY.start_date}` : '';
 
   const renderRow = React.useCallback(
-    (group: GroupRow, side: "left" | "right") => {
-      const key = `${side === "left" ? "L" : "A"}-g-${group.group_id}`;
+    (group: GroupRow, side: 'left' | 'right') => {
+      const key = `${side === 'left' ? 'L' : 'A'}-g-${group.group_id}`;
       const isFocused = focusedId === key;
       return (
         <>
@@ -86,15 +87,15 @@ export function BalanceSheetLayout() {
             onDoubleClick={() => openGroup(group)}
             className={`flex justify-between items-center px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none transition-colors ${
               isFocused
-                ? "bg-zinc-200 text-zinc-950 font-bold"
-                : "hover:bg-zinc-50 text-zinc-800 font-semibold"
+                ? 'bg-zinc-200 text-zinc-950 font-bold'
+                : 'hover:bg-zinc-50 text-zinc-800 font-semibold'
             }`}
           >
             <span className="text-left">
               {group.group_name}
               {group.isPnL && (
                 <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
-                  (Net {(group.balance ?? 0) >= 0 ? "Profit" : "Loss"})
+                  (Net {(group.balance ?? 0) >= 0 ? 'Profit' : 'Loss'})
                 </span>
               )}
             </span>
@@ -106,7 +107,9 @@ export function BalanceSheetLayout() {
               <div className="flex justify-between px-3 py-1 pl-8 text-zinc-500 italic select-none text-[10px]">
                 <span>Opening Balance</span>
                 <span className="font-mono">
-                  {group.pnlBreakup.openingBalance !== 0 ? `₹${fmtAbs(group.pnlBreakup.openingBalance)}` : ""}
+                  {group.pnlBreakup.openingBalance !== 0
+                    ? `₹${fmtAbs(group.pnlBreakup.openingBalance)}`
+                    : ''}
                 </span>
               </div>
               <div className="flex justify-between px-3 py-1 pl-8 text-zinc-500 italic select-none text-[10px]">
@@ -118,21 +121,18 @@ export function BalanceSheetLayout() {
         </>
       );
     },
-    [focusedId, handleFocus, openGroup]
+    [focusedId, handleFocus, openGroup],
   );
 
-  if (loading)
-    return <Centered>Loading Balance Sheet...</Centered>;
-  if (error)
-    return <Centered>{error}</Centered>;
-  if (!data)
-    return <Centered>No data available.</Centered>;
+  if (loading) return <Centered>Loading Balance Sheet...</Centered>;
+  if (error) return <Centered>{error}</Centered>;
+  if (!data) return <Centered>No data available.</Centered>;
 
   return (
     <TwoColumnReport<GroupRow>
       periodLabel={periodLabel}
-      left={{ title: "Liabilities", rows: data.liabilities, total: data.totalLiabilities }}
-      right={{ title: "Assets", rows: data.assets, total: data.totalAssets }}
+      left={{ title: 'Liabilities', rows: data.liabilities, total: data.totalLiabilities }}
+      right={{ title: 'Assets', rows: data.assets, total: data.totalAssets }}
       renderRow={renderRow}
       rowKey={(g) => g.group_id}
     />
