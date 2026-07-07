@@ -3,6 +3,9 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const { vouchers, ledgers, gstRegistrations, voucherStockEntries } = require('../db/schema');
+// Attendance vouchers live in their own table; reuse the Day Book helper so the GST
+// drill engine sees them (as voucher_type 'Attendance') exactly as every other screen does.
+const { fetchAttendanceVoucherRows } = require('../voucher/voucherReads');
 
 const ZERO_ROW = () => ({
   vch_count: 0,
@@ -1076,7 +1079,7 @@ const INVENTORY_TYPES = [
   'Rejections Out',
 ];
 const ORDER_TYPES = ['Purchase Order', 'Sales Order', 'Job Work In Order', 'Job Work Out Order'];
-const PAYROLL_TYPES = ['Payroll', 'Salary Slip'];
+const PAYROLL_TYPES = ['Payroll', 'Salary Slip', 'Attendance'];
 const B2CL_THRESHOLD = 250000;
 
 // Load every non-cancelled voucher of a return period (optionally scoped to a
@@ -1157,7 +1160,22 @@ const fetchPeriodVouchers = async (
           ${regFilter}
         ORDER BY v.date ASC, v.voucher_id ASC`,
   );
-  return { rows, companyGstinInvalid };
+
+  // Attendance vouchers live in a separate table with no gst_registration_id, so they
+  // behave like registration-less vouchers (Contra/Journal): include them only when no
+  // specific registration is scoped, or when the scoped one is the primary registration.
+  const includeRegless = gstRegistrationId == null || Number(gstRegistrationId) === primaryId;
+  let attendanceRows = [];
+  if (includeRegless) {
+    // endDate is an exclusive upper bound (day after the period); attendance filter is
+    // inclusive, so shift back one day to the period's last date.
+    const end = new Date(endDate);
+    end.setDate(end.getDate() - 1);
+    const inclusiveEnd = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+    attendanceRows = await fetchAttendanceVoucherRows(company_id, fy_id, startDate, inclusiveEnd);
+  }
+
+  return { rows: [...rows, ...attendanceRows], companyGstinInvalid };
 };
 
 // Classify one voucher: bucket (included / not_relevant / uncertain), the
