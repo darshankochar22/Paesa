@@ -100,9 +100,10 @@ export default function LedgerTaxPanel({
   onExciseDetailsChange,
 }: LedgerTaxPanelProps) {
   const visibility = useTaxPanelVisibility(config, groupLineage, statutoryForm, form);
-  // F11 "Enable Value Added Tax (VAT)" — hide the VAT field + duty-type option when off.
+  // F11 tax features — hide each tax's Set/Alter field when its flag is off.
   const { features } = useCompany();
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
+  const exciseEnabled = isTaxFeatureEnabled(features, 'excise');
 
   return (
     <>
@@ -225,7 +226,7 @@ export default function LedgerTaxPanel({
             </FormRow>
           )}
 
-          {visibility.exciseField && (
+          {visibility.exciseField && exciseEnabled && (
             <FormRow
               label="Set/Alter excise details"
               labelWidth="w-44"
@@ -286,9 +287,16 @@ export function DutyTaxSection({
   ) => (e: React.ChangeEvent<HTMLInputElement>) => void;
   setStatutoryForm?: React.Dispatch<React.SetStateAction<StatutoryDetails>>;
 }) {
-  // F11 "Enable Value Added Tax (VAT)" — drop VAT from the Type of Duty/Tax list when off.
+  // F11 tax features — drop a Type of Duty/Tax option when its flag is off (CENVAT
+  // is an excise credit ledger; GST/Service Tax etc. are not gated yet).
   const { features } = useCompany();
-  const vatEnabled = isTaxFeatureEnabled(features, 'vat');
+  const typeEnabled = (t: string) => {
+    if (t === 'VAT') return isTaxFeatureEnabled(features, 'vat');
+    if (t === 'TDS') return isTaxFeatureEnabled(features, 'tds');
+    if (t === 'TCS') return isTaxFeatureEnabled(features, 'tcs');
+    if (t === 'CENVAT') return isTaxFeatureEnabled(features, 'excise');
+    return true;
+  };
   const dutyType = statutoryForm.type_of_duty_tax || 'Others';
   const gstTaxType = statutoryForm.gst_tax_type || 'IGST';
   const valuationType = statutoryForm.valuation_type || 'Any';
@@ -316,7 +324,7 @@ export function DutyTaxSection({
           value={dutyType}
           onChange={setStatutoryField('type_of_duty_tax')}
         >
-          {DUTY_TAX_TYPES.filter((t) => t !== 'VAT' || vatEnabled).map((t) => (
+          {DUTY_TAX_TYPES.filter(typeEnabled).map((t) => (
             <option key={t} value={t}>
               {t}
             </option>

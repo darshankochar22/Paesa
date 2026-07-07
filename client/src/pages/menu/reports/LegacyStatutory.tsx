@@ -3,7 +3,13 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/ca
 import { Button } from '@/components/shadcn/button';
 import { Separator } from '@/components/shadcn/separator';
 import { useCompany } from '@/context/CompanyContext';
-import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
+import { isTaxFeatureEnabled, type TaxFeature } from '@/lib/taxFeatures';
+
+// Report sections hidden when their F11 tax feature is off (Service Tax/MSME not gated).
+const SECTION_FEATURE: Record<string, TaxFeature> = {
+  VAT: 'vat',
+  'CENTRAL EXCISE': 'excise',
+};
 
 const BASE = '/reports/legacy-statutory';
 const slug = (s: string) =>
@@ -17,7 +23,6 @@ const items = (labels: string[]) =>
 export default function LegacyStatutory() {
   const navigate = useNavigate();
   const { features } = useCompany();
-  const vatEnabled = isTaxFeatureEnabled(features, 'vat');
 
   const allSections = [
     {
@@ -78,7 +83,10 @@ export default function LegacyStatutory() {
   ];
 
   // Hide the VAT report block when VAT is turned off in Company Features (F11).
-  const sections = allSections.filter((s) => s.title !== 'VAT' || vatEnabled);
+  const sections = allSections.filter((s) => {
+    const f = SECTION_FEATURE[s.title];
+    return !f || isTaxFeatureEnabled(features, f);
+  });
 
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">

@@ -5,6 +5,27 @@ const getMenu = async (company_id = 1) => {
     const featureResult = await tallyFeaturesService.get(company_id);
     const features = featureResult.success ? featureResult.features : {};
 
+    // Statutory master → the F11 flag required for it to appear. GST / Service Tax
+    // are not gated yet; items not listed here always show.
+    const MASTER_FEATURE = {
+      'TDS Details': 'enable_tds',
+      'TDS Nature of Payment': 'enable_tds',
+      'TCS Details': 'enable_tcs',
+      'TCS Nature of Goods': 'enable_tcs',
+      'VAT Registration Details': 'enable_vat',
+      'Excise Registration Details': 'enable_excise',
+      'Excise Duty Classification': 'enable_excise',
+      'Excise Book': 'enable_excise',
+      'CENVAT Opening Balance': 'enable_excise',
+      'PLA Opening Balance': 'enable_excise',
+      'Excise Opening Balance': 'enable_excise',
+      'Dealer Excise Opening Stock': 'enable_excise',
+    };
+    const gateItem = (item) => {
+      const flag = MASTER_FEATURE[item];
+      return !flag || features[flag];
+    };
+
     const menu = [];
 
     const accountingItems = [
@@ -48,7 +69,7 @@ const getMenu = async (company_id = 1) => {
         'Excise Duty Classification',
         'Excise Book',
         'Tax Units',
-      ],
+      ].filter(gateItem),
     });
 
     const statutoryDetails = [
@@ -64,9 +85,7 @@ const getMenu = async (company_id = 1) => {
       'Dealer Excise Opening Stock',
       'PAN / CIN Details',
       'Payroll Statutory Details',
-    ]
-      // VAT masters only when VAT is enabled in Company Features (F11).
-      .filter((item) => item !== 'VAT Registration Details' || features.enable_vat);
+    ].filter(gateItem);
     menu.push({ title: 'Statutory Details', items: statutoryDetails });
 
     menu.push({

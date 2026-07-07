@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import type { GroupType, SlabBasedRate } from '@/types/api';
 import { getConfig, TOGGLE_META, type StatutoryToggle } from '@/config/statutoryConfig';
 import { useCompany } from '@/context/CompanyContext';
-import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
+import { filterStatutorySectionsByFeature } from '@/lib/taxFeatures';
 import StatutoryModal from './StatutoryModal';
 import NatureOfPaymentDetailsModal from './NatureOfPaymentDetailsModal';
 import NatureOfGoodsDetailsModal from './NatureOfGoodsDetailsModal';
@@ -72,14 +72,14 @@ export default function StatutorySection({
   showOtherStatutory = true,
 }: StatutorySectionProps) {
   const { features } = useCompany();
-  const vatEnabled = isTaxFeatureEnabled(features, 'vat');
   const config = useMemo(
     () => getConfig(primaryGroupName, parentGroupName),
     [primaryGroupName, parentGroupName],
   );
-  // F11 "Enable Value Added Tax (VAT)" — drop the VAT toggle from the statutory modal when off.
-  const statutoryModalToggles = config.statutoryModalToggles.filter(
-    (t) => t !== 'vat' || vatEnabled,
+  // F11 tax features — drop VAT/TDS/TCS/Excise toggles from the statutory modal when off.
+  const statutoryModalToggles = filterStatutorySectionsByFeature(
+    config.statutoryModalToggles,
+    features,
   );
 
   const asPer = `As per Company/${entityWord}`;

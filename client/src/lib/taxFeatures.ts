@@ -29,14 +29,21 @@ export function isTaxFeatureEnabled(
   return features?.[TAX_FLAG[tax]] !== 0;
 }
 
+// Statutory sub-section keys that are feature-gated (their key doubles as the tax
+// name). Service Tax and GST are intentionally NOT gated yet.
+const GATED_SECTIONS: readonly TaxFeature[] = ['vat', 'tds', 'tcs', 'excise'];
+
 /**
  * Drop statutory sub-section keys (used by the ledger/group/stock-item statutory
- * modals) whose tax feature is turned off. Only VAT is gated today — the other
- * sections keep their existing always-on behaviour until they are gated one by one.
+ * modals) whose tax feature is turned off in F11. Sections outside GATED_SECTIONS
+ * (e.g. serviceTax) keep their existing always-on behaviour.
  */
 export function filterStatutorySectionsByFeature<T extends string>(
   sections: T[],
   features: TallyFeaturesType | null | undefined,
 ): T[] {
-  return sections.filter((s) => s !== 'vat' || isTaxFeatureEnabled(features, 'vat'));
+  return sections.filter(
+    (s) =>
+      !GATED_SECTIONS.includes(s as TaxFeature) || isTaxFeatureEnabled(features, s as TaxFeature),
+  );
 }

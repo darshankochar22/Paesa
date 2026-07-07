@@ -1,9 +1,19 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
+import { useCompany } from '@/context/CompanyContext';
+import { isTaxFeatureEnabled, type TaxFeature } from '@/lib/taxFeatures';
+
+// Report entries hidden when their F11 tax feature is off (GST/Service Tax not gated yet).
+const ITEM_FEATURE: Record<string, TaxFeature> = {
+  'TDS Reports': 'tds',
+  'TCS Reports': 'tcs',
+  'Central Excise Reports': 'excise',
+};
 
 export default function StatutoryReports() {
   const navigate = useNavigate();
+  const { features } = useCompany();
 
   const sections = [
     {
@@ -63,48 +73,53 @@ export default function StatutoryReports() {
 
             {section.items.length > 0 && (
               <div className="flex flex-col pl-4 gap-0.5">
-                {section.items.map((item) => {
-                  if (item === 'Quit') {
+                {section.items
+                  .filter((item) => {
+                    const f = ITEM_FEATURE[item];
+                    return !f || isTaxFeatureEnabled(features, f);
+                  })
+                  .map((item) => {
+                    if (item === 'Quit') {
+                      return (
+                        <Button
+                          key={item}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(-1)}
+                          className="h-auto justify-start px-2 py-1 font-semibold mt-2 text-xs"
+                        >
+                          {item}
+                        </Button>
+                      );
+                    }
+
+                    const route = getRoute(section.title, item);
+
+                    if (route) {
+                      return (
+                        <Button
+                          key={item}
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto justify-start px-2 py-1 font-normal text-xs"
+                        >
+                          <Link to={route}>{item}</Link>
+                        </Button>
+                      );
+                    }
+
                     return (
                       <Button
                         key={item}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(-1)}
-                        className="h-auto justify-start px-2 py-1 font-semibold mt-2 text-xs"
-                      >
-                        {item}
-                      </Button>
-                    );
-                  }
-
-                  const route = getRoute(section.title, item);
-
-                  if (route) {
-                    return (
-                      <Button
-                        key={item}
-                        asChild
                         variant="ghost"
                         size="sm"
                         className="h-auto justify-start px-2 py-1 font-normal text-xs"
                       >
-                        <Link to={route}>{item}</Link>
+                        {item}
                       </Button>
                     );
-                  }
-
-                  return (
-                    <Button
-                      key={item}
-                      variant="ghost"
-                      size="sm"
-                      className="h-auto justify-start px-2 py-1 font-normal text-xs"
-                    >
-                      {item}
-                    </Button>
-                  );
-                })}
+                  })}
               </div>
             )}
           </div>

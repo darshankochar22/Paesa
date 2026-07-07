@@ -49,6 +49,7 @@ export default function OtherStatutoryDetails({
 }: OtherStatutoryDetailsProps) {
   const { features } = useCompany();
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
+  const exciseEnabled = isTaxFeatureEnabled(features, 'excise');
   const [form, setForm] = useState<OtherStatutoryFormData>({
     excise_applicable: initialData?.excise_applicable || 'Not Applicable',
     set_alter_excise_details: initialData?.set_alter_excise_details || 'No',
@@ -110,189 +111,193 @@ export default function OtherStatutoryDetails({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1">
-          {/* ── Excise ── */}
-          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
-            Excise
-          </div>
-
-          <FormRow
-            label="Is Excise applicable"
-            labelWidth="w-52"
-            className="flex items-center min-h-[26px]"
-          >
-            <select
-              className={selectCls}
-              value={form.excise_applicable}
-              onChange={(e) => {
-                const val = e.target.value;
-                setVal('excise_applicable', val);
-                if (val !== 'Applicable') {
-                  setVal('set_alter_excise_details', 'No');
-                  setVal('set_alter_additional_info', 'No');
-                }
-              }}
-            >
-              <option value="Not Applicable">Not Applicable</option>
-              <option value="Applicable">Applicable</option>
-              <option value="Undefined">Undefined</option>
-            </select>
-          </FormRow>
-
-          <FormRow
-            label="Set/alter excise details"
-            labelWidth="w-52"
-            className="flex items-center min-h-[26px]"
-          >
-            <select
-              className={selectCls}
-              value={form.set_alter_excise_details}
-              disabled={!hasExcise}
-              onChange={(e) => setVal('set_alter_excise_details', e.target.value)}
-            >
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </FormRow>
-
-          <FormRow
-            label="Set/Alter Additional Info"
-            labelWidth="w-52"
-            className="flex items-center min-h-[26px]"
-          >
-            <select
-              className={selectCls}
-              value={form.set_alter_additional_info}
-              disabled={!hasExcise}
-              onChange={(e) => {
-                const val = e.target.value;
-                setVal('set_alter_additional_info', val);
-                if (val === 'Yes') setShowAdditionalInfoModal(true);
-              }}
-            >
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </FormRow>
-
-          {/* Show row count summary if additional info was filled */}
-          {form.set_alter_additional_info === 'Yes' && form.additional_info_rows.length > 0 && (
-            <div className="pl-52 ml-4">
-              <button
-                type="button"
-                className="text-xs text-zinc-500 underline hover:text-zinc-800"
-                onClick={() => setShowAdditionalInfoModal(true)}
-              >
-                {form.additional_info_rows.length} excise unit
-                {form.additional_info_rows.length !== 1 ? 's' : ''} configured — click to edit
-              </button>
-            </div>
-          )}
-
-          {showTariff && (
+          {/* ── Excise (hidden when the Excise company feature is off) ── */}
+          {exciseEnabled && (
             <>
-              <FormRow
-                label="Conversion factor"
-                labelWidth="w-52"
-                className="flex items-center min-h-[26px] pl-4"
-              >
-                <span className="text-sm text-zinc-600 px-1.5">1 {unitLabel || 'nos'} = 1</span>
-              </FormRow>
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
+                Excise
+              </div>
 
               <FormRow
-                label="Tariff name"
+                label="Is Excise applicable"
                 labelWidth="w-52"
-                className="flex items-center min-h-[26px] pl-4"
-              >
-                <input
-                  autoFocus
-                  className={inputCls}
-                  value={form.excise_tariff_name}
-                  onChange={(e) => setVal('excise_tariff_name', e.target.value)}
-                />
-              </FormRow>
-
-              <FormRow
-                label="HSN code"
-                labelWidth="w-52"
-                className="flex items-center min-h-[26px] pl-4"
-              >
-                <input
-                  className={inputCls}
-                  value={form.excise_tariff_hsn_code}
-                  onChange={(e) => setVal('excise_tariff_hsn_code', e.target.value)}
-                />
-              </FormRow>
-
-              <FormRow
-                label="Reporting unit of measure"
-                labelWidth="w-52"
-                className="flex items-center min-h-[26px] pl-4"
+                className="flex items-center min-h-[26px]"
               >
                 <select
                   className={selectCls}
-                  value={form.excise_tariff_uom}
-                  onChange={(e) => setVal('excise_tariff_uom', e.target.value)}
+                  value={form.excise_applicable}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setVal('excise_applicable', val);
+                    if (val !== 'Applicable') {
+                      setVal('set_alter_excise_details', 'No');
+                      setVal('set_alter_additional_info', 'No');
+                    }
+                  }}
                 >
-                  {EXCISE_REPORTING_UOM_OPTIONS.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label}
-                    </option>
-                  ))}
+                  <option value="Not Applicable">Not Applicable</option>
+                  <option value="Applicable">Applicable</option>
+                  <option value="Undefined">Undefined</option>
                 </select>
               </FormRow>
 
               <FormRow
-                label="Valuation type"
+                label="Set/alter excise details"
                 labelWidth="w-52"
-                className="flex items-center min-h-[26px] pl-4"
+                className="flex items-center min-h-[26px]"
               >
                 <select
                   className={selectCls}
-                  value={form.excise_tariff_valuation_type}
-                  onChange={(e) => setVal('excise_tariff_valuation_type', e.target.value)}
+                  value={form.set_alter_excise_details}
+                  disabled={!hasExcise}
+                  onChange={(e) => setVal('set_alter_excise_details', e.target.value)}
                 >
-                  {EXCISE_VALUATION_TYPE_OPTIONS.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label}
-                    </option>
-                  ))}
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
                 </select>
               </FormRow>
 
               <FormRow
-                label="Rate in %"
+                label="Set/Alter Additional Info"
                 labelWidth="w-52"
-                className="flex items-center min-h-[26px] pl-4"
+                className="flex items-center min-h-[26px]"
               >
-                <div className="flex items-center gap-1">
-                  <input
-                    className="w-20 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded text-right tabular-nums"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={form.excise_tariff_rate}
-                    onChange={(e) => setVal('excise_tariff_rate', e.target.value)}
-                  />
-                  <span className="text-sm text-zinc-500">%</span>
+                <select
+                  className={selectCls}
+                  value={form.set_alter_additional_info}
+                  disabled={!hasExcise}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setVal('set_alter_additional_info', val);
+                    if (val === 'Yes') setShowAdditionalInfoModal(true);
+                  }}
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </FormRow>
+
+              {/* Show row count summary if additional info was filled */}
+              {form.set_alter_additional_info === 'Yes' && form.additional_info_rows.length > 0 && (
+                <div className="pl-52 ml-4">
+                  <button
+                    type="button"
+                    className="text-xs text-zinc-500 underline hover:text-zinc-800"
+                    onClick={() => setShowAdditionalInfoModal(true)}
+                  >
+                    {form.additional_info_rows.length} excise unit
+                    {form.additional_info_rows.length !== 1 ? 's' : ''} configured — click to edit
+                  </button>
                 </div>
-              </FormRow>
+              )}
 
-              {showRatePerUnit && (
-                <FormRow
-                  label="Rate per Unit"
-                  labelWidth="w-52"
-                  className="flex items-center min-h-[26px] pl-4"
-                >
-                  <input
-                    className="w-24 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded text-right tabular-nums"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.excise_tariff_rate_per_unit}
-                    onChange={(e) => setVal('excise_tariff_rate_per_unit', e.target.value)}
-                  />
-                </FormRow>
+              {showTariff && (
+                <>
+                  <FormRow
+                    label="Conversion factor"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px] pl-4"
+                  >
+                    <span className="text-sm text-zinc-600 px-1.5">1 {unitLabel || 'nos'} = 1</span>
+                  </FormRow>
+
+                  <FormRow
+                    label="Tariff name"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px] pl-4"
+                  >
+                    <input
+                      autoFocus
+                      className={inputCls}
+                      value={form.excise_tariff_name}
+                      onChange={(e) => setVal('excise_tariff_name', e.target.value)}
+                    />
+                  </FormRow>
+
+                  <FormRow
+                    label="HSN code"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px] pl-4"
+                  >
+                    <input
+                      className={inputCls}
+                      value={form.excise_tariff_hsn_code}
+                      onChange={(e) => setVal('excise_tariff_hsn_code', e.target.value)}
+                    />
+                  </FormRow>
+
+                  <FormRow
+                    label="Reporting unit of measure"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px] pl-4"
+                  >
+                    <select
+                      className={selectCls}
+                      value={form.excise_tariff_uom}
+                      onChange={(e) => setVal('excise_tariff_uom', e.target.value)}
+                    >
+                      {EXCISE_REPORTING_UOM_OPTIONS.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </FormRow>
+
+                  <FormRow
+                    label="Valuation type"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px] pl-4"
+                  >
+                    <select
+                      className={selectCls}
+                      value={form.excise_tariff_valuation_type}
+                      onChange={(e) => setVal('excise_tariff_valuation_type', e.target.value)}
+                    >
+                      {EXCISE_VALUATION_TYPE_OPTIONS.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </FormRow>
+
+                  <FormRow
+                    label="Rate in %"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px] pl-4"
+                  >
+                    <div className="flex items-center gap-1">
+                      <input
+                        className="w-20 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded text-right tabular-nums"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={form.excise_tariff_rate}
+                        onChange={(e) => setVal('excise_tariff_rate', e.target.value)}
+                      />
+                      <span className="text-sm text-zinc-500">%</span>
+                    </div>
+                  </FormRow>
+
+                  {showRatePerUnit && (
+                    <FormRow
+                      label="Rate per Unit"
+                      labelWidth="w-52"
+                      className="flex items-center min-h-[26px] pl-4"
+                    >
+                      <input
+                        className="w-24 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded text-right tabular-nums"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.excise_tariff_rate_per_unit}
+                        onChange={(e) => setVal('excise_tariff_rate_per_unit', e.target.value)}
+                      />
+                    </FormRow>
+                  )}
+                </>
               )}
             </>
           )}
