@@ -9,6 +9,7 @@ import { isTaxFeatureEnabled, type TaxFeature } from '@/lib/taxFeatures';
 const SECTION_FEATURE: Record<string, TaxFeature> = {
   VAT: 'vat',
   'CENTRAL EXCISE': 'excise',
+  'SERVICE TAX': 'serviceTax',
 };
 
 const BASE = '/reports/legacy-statutory';

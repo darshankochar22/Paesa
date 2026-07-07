@@ -9,6 +9,7 @@ const ITEM_FEATURE: Record<string, TaxFeature> = {
   'TDS Reports': 'tds',
   'TCS Reports': 'tcs',
   'Central Excise Reports': 'excise',
+  'Service Tax Reports': 'serviceTax',
 };
 
 export default function StatutoryReports() {

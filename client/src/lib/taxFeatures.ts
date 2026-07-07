@@ -30,8 +30,8 @@ export function isTaxFeatureEnabled(
 }
 
 // Statutory sub-section keys that are feature-gated (their key doubles as the tax
-// name). Service Tax and GST are intentionally NOT gated yet.
-const GATED_SECTIONS: readonly TaxFeature[] = ['vat', 'tds', 'tcs', 'excise'];
+// name). GST is intentionally NOT gated yet.
+const GATED_SECTIONS: readonly TaxFeature[] = ['vat', 'tds', 'tcs', 'excise', 'serviceTax'];
 
 /**
  * Drop statutory sub-section keys (used by the ledger/group/stock-item statutory

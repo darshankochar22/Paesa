@@ -20,6 +20,7 @@ const getMenu = async (company_id = 1) => {
       'PLA Opening Balance': 'enable_excise',
       'Excise Opening Balance': 'enable_excise',
       'Dealer Excise Opening Stock': 'enable_excise',
+      'Service Tax Details': 'enable_service_tax',
     };
     const gateItem = (item) => {
       const flag = MASTER_FEATURE[item];

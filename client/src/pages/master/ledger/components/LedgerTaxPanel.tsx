@@ -104,6 +104,7 @@ export default function LedgerTaxPanel({
   const { features } = useCompany();
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
   const exciseEnabled = isTaxFeatureEnabled(features, 'excise');
+  const serviceTaxEnabled = isTaxFeatureEnabled(features, 'serviceTax');
 
   return (
     <>
@@ -192,7 +193,7 @@ export default function LedgerTaxPanel({
             </FormRow>
           )}
 
-          {visibility.serviceTaxField && (
+          {visibility.serviceTaxField && serviceTaxEnabled && (
             <FormRow
               label="Set/Alter service tax details"
               labelWidth="w-44"
@@ -288,13 +289,14 @@ export function DutyTaxSection({
   setStatutoryForm?: React.Dispatch<React.SetStateAction<StatutoryDetails>>;
 }) {
   // F11 tax features — drop a Type of Duty/Tax option when its flag is off (CENVAT
-  // is an excise credit ledger; GST/Service Tax etc. are not gated yet).
+  // is an excise credit ledger; GST is not gated yet).
   const { features } = useCompany();
   const typeEnabled = (t: string) => {
     if (t === 'VAT') return isTaxFeatureEnabled(features, 'vat');
     if (t === 'TDS') return isTaxFeatureEnabled(features, 'tds');
     if (t === 'TCS') return isTaxFeatureEnabled(features, 'tcs');
     if (t === 'CENVAT') return isTaxFeatureEnabled(features, 'excise');
+    if (t === 'Service Tax') return isTaxFeatureEnabled(features, 'serviceTax');
     return true;
   };
   const dutyType = statutoryForm.type_of_duty_tax || 'Others';
