@@ -134,3 +134,28 @@ describe('Balance Sheet — net loss lands on Assets and still balances', () => 
     expect(bs.liabilities.find((g) => g.isPnL)).toBeFalsy();
   });
 });
+
+describe('Balance Sheet — unbalanced openings get a "Difference in opening balances" line', () => {
+  const { ctx, mk, init } = scenario('BS Opening Diff Co');
+
+  beforeAll(async () => {
+    await init(200000); // Cash opening 200000 Dr
+    // Capital 200000 Cr + Loans 50000 Cr = 250000 Cr openings, but only 200000 Dr
+    // in assets → openings are short 50000 on the Dr (assets) side.
+    await mk('Owner Capital', 'Capital Account', 200000, 'Cr');
+    await mk('Bank Loan', 'Loans(Liability)', 50000, 'Cr');
+  });
+
+  it('adds the difference on the deficient side so both totals match', async () => {
+    const bs = await balanceSheet(ctx.companyId, ctx.fyId);
+    expect(bs.success).toBe(true);
+    expect(bs.totalAssets).toBe(bs.totalLiabilities); // balances
+    expect(bs.totalLiabilities).toBe(250000);
+    const diff = bs.assets.find((g) => g.isDifference);
+    expect(diff).toBeTruthy();
+    expect(diff.group_name).toBe('Difference in opening balances');
+    expect(diff.balance).toBe(50000);
+    // It sits on the assets (deficient) side, not liabilities.
+    expect(bs.liabilities.find((g) => g.isDifference)).toBeFalsy();
+  });
+});

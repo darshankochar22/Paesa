@@ -12,6 +12,7 @@ interface GroupRow {
   ledgers: { ledger_id: number; ledger_name: string; balance: number }[];
   childGroups: GroupRow[];
   isPnL?: boolean;
+  isDifference?: boolean;
   pnlBreakup?: { openingBalance: number; currentPeriod: number };
 }
 
@@ -52,7 +53,17 @@ export function BalanceSheetLayout() {
   }, [selectedCompany?.company_id, activeFY?.fy_id]);
 
   const openGroup = React.useCallback(
-    (group: GroupRow) => navigate(`/reports/accounts/group-summary/${group.group_id}`),
+    (group: GroupRow) => {
+      // The synthetic "Profit & Loss A/c" row has no real group_id (-1); drill it
+      // into the P&L report instead of an empty group-summary page.
+      if (group.isPnL) {
+        navigate('/reports/accounts/profit-loss');
+        return;
+      }
+      // The "Difference in opening balances" line is a balancing figure, not a group.
+      if (group.isDifference) return;
+      navigate(`/reports/accounts/group-summary/${group.group_id}`);
+    },
     [navigate],
   );
 
@@ -88,7 +99,9 @@ export function BalanceSheetLayout() {
             className={`flex justify-between items-center px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none transition-colors ${
               isFocused
                 ? 'bg-zinc-200 text-zinc-950 font-bold'
-                : 'hover:bg-zinc-50 text-zinc-800 font-semibold'
+                : group.isDifference
+                  ? 'hover:bg-zinc-50 text-zinc-500 italic font-normal'
+                  : 'hover:bg-zinc-50 text-zinc-800 font-semibold'
             }`}
           >
             <span className="text-left">

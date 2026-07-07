@@ -211,8 +211,33 @@ const balanceSheet = async (company_id, fy_id) => {
       }
     }
 
-    const totalAssets = assets.reduce((s, g) => s + Math.abs(g.balance), 0);
-    const totalLiabilities = liabilities.reduce((s, g) => s + Math.abs(g.balance), 0);
+    let totalAssets = assets.reduce((s, g) => s + Math.abs(g.balance), 0);
+    let totalLiabilities = liabilities.reduce((s, g) => s + Math.abs(g.balance), 0);
+
+    // Vouchers always balance, so any remaining gap is opening balances that don't
+    // self-tally. Tally closes it with a "Difference in opening balances" line on the
+    // deficient side so both totals match — otherwise the sheet looks broken.
+    const openingDiff = totalLiabilities - totalAssets;
+    if (Math.abs(openingDiff) >= 0.01) {
+      const onAssetsSide = openingDiff > 0; // liabilities heavier ⇒ assets are short
+      const diffEntry = {
+        group_id: -2,
+        group_name: 'Difference in opening balances',
+        nature: onAssetsSide ? 'Assets' : 'Liabilities',
+        balance: Math.abs(openingDiff),
+        ledgers: [],
+        childGroups: [],
+        isDifference: true,
+      };
+      if (onAssetsSide) {
+        assets.push(diffEntry);
+        totalAssets += Math.abs(openingDiff);
+      } else {
+        liabilities.push(diffEntry);
+        totalLiabilities += Math.abs(openingDiff);
+      }
+    }
+
     return {
       success: true,
       assets,
