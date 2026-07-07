@@ -1,3 +1,4 @@
+require('./server/loadEnv').loadEnv(); // load .env before anything reads process.env
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');

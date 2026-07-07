@@ -703,9 +703,6 @@ contextBridge.exposeInMainWorld('api', {
   },
   ai: {
     getKeyStatus: () => invoke('ai:getKeyStatus'),
-    setKey: (config) => invoke('ai:setKey', config),
-    clearKey: () => invoke('ai:clearKey'),
-    testKey: (config) => invoke('ai:testKey', config || {}),
     ask: (payload) => invoke('ai:ask', payload),
   },
   automation: {

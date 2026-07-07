@@ -60,9 +60,6 @@ function register() {
   ipcMain.handle('whatsapp:getCampaigns', whatsappController.getCampaigns);
 
   ipcMain.handle('ai:getKeyStatus', aiController.getKeyStatus);
-  ipcMain.handle('ai:setKey', aiController.setKey);
-  ipcMain.handle('ai:clearKey', aiController.clearKey);
-  ipcMain.handle('ai:testKey', aiController.testKey);
   ipcMain.handle('ai:ask', aiController.ask);
 
   ipcMain.handle('automation:getVoucherSchema', automationController.getVoucherSchema);

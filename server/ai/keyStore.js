@@ -1,78 +1,29 @@
-// BYOK / BYO-endpoint config store. The model config — provider, API key, base URL, model —
-// lives ONLY in the Electron main process; the API key is encrypted at rest with Electron
-// safeStorage and is NEVER exposed to the renderer (the UI only sees a masked status + the
-// non-secret provider/baseUrl/model). Falls back to an in-memory config when Electron/
-// safeStorage is unavailable (e.g. tests).
+// AI model config — developer-side, environment-only.
 //
-// config shape: { provider: 'anthropic' | 'openai', apiKey, baseUrl?, model? }
-//   - anthropic : native Claude via the Anthropic SDK (baseUrl unused)
-//   - openai    : ANY OpenAI-compatible /chat/completions endpoint (OpenAI, DeepSeek, Groq,
-//                 OpenRouter, local servers, …) — set baseUrl + model accordingly.
+// The key is provided by the OPERATOR via environment variables (loaded from .env at app
+// start by server/loadEnv.js), NOT entered through the app UI — the same approach as the
+// WhatsApp (WHATSAPP_API_KEY) and GST integrations. The renderer only ever sees a masked,
+// non-secret status; the raw key never leaves the main process.
+//
+//   AI_API_KEY    provider secret, e.g. a Groq key (gsk_…)            [required]
+//   AI_BASE_URL   OpenAI-compatible /chat/completions endpoint        [default: Groq]
+//   AI_MODEL      model id served by that endpoint                    [default below]
+//
+// Any OpenAI-compatible provider works by pointing AI_BASE_URL + AI_MODEL at it
+// (Groq, DeepSeek, OpenRouter, Together, a local server, …).
 
-const fs = require('fs');
-const path = require('path');
+const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
+const GROQ_DEFAULT_MODEL = 'llama-3.3-70b-versatile'; // tool-use capable; override via AI_MODEL
 
-let memoryConfig = process.env.AI_API_KEY
-  ? { provider: process.env.AI_PROVIDER || 'anthropic', apiKey: process.env.AI_API_KEY, baseUrl: process.env.AI_BASE_URL || null, model: process.env.AI_MODEL || null }
-  : null;
-
-function electron() {
-  try {
-    const e = require('electron');
-    if (e && e.app && e.safeStorage) return e;
-  } catch {}
-  return null;
-}
-
-function configPath(e) {
-  return path.join(e.app.getPath('userData'), 'ai-config.json');
-}
-
-function setConfig({ provider, apiKey, baseUrl = null, model = null } = {}) {
-  const clean = { provider: provider || 'anthropic', apiKey: (apiKey || '').trim(), baseUrl: baseUrl || null, model: model || null };
-  const e = electron();
-  if (!e) { memoryConfig = clean; return true; }
-  try {
-    const keyField = e.safeStorage.isEncryptionAvailable()
-      ? { enc: e.safeStorage.encryptString(clean.apiKey).toString('base64') }
-      : { plain: clean.apiKey };
-    fs.writeFileSync(configPath(e), JSON.stringify({ provider: clean.provider, baseUrl: clean.baseUrl, model: clean.model, ...keyField }));
-    return true;
-  } catch (err) {
-    console.error('keyStore.setConfig failed:', err);
-    return false;
-  }
-}
-
+// Returns { apiKey, baseUrl, model } or null when AI_API_KEY isn't configured.
 function getConfig() {
-  if (memoryConfig) return memoryConfig;
-  const e = electron();
-  if (!e) return null;
-  try {
-    const p = configPath(e);
-    if (!fs.existsSync(p)) return null;
-    const data = JSON.parse(fs.readFileSync(p, 'utf8'));
-    const apiKey = data.enc ? e.safeStorage.decryptString(Buffer.from(data.enc, 'base64')) : (data.plain || null);
-    if (!apiKey) return null;
-    return { provider: data.provider || 'anthropic', apiKey, baseUrl: data.baseUrl || null, model: data.model || null };
-  } catch (err) {
-    console.error('keyStore.getConfig failed:', err);
-    return null;
-  }
-}
-
-function clearConfig() {
-  memoryConfig = null;
-  const e = electron();
-  if (!e) return true;
-  try {
-    const p = configPath(e);
-    if (fs.existsSync(p)) fs.unlinkSync(p);
-    return true;
-  } catch (err) {
-    console.error('keyStore.clearConfig failed:', err);
-    return false;
-  }
+  const apiKey = (process.env.AI_API_KEY || '').trim();
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    baseUrl: (process.env.AI_BASE_URL || GROQ_BASE_URL).trim(),
+    model: (process.env.AI_MODEL || GROQ_DEFAULT_MODEL).trim(),
+  };
 }
 
 function maskKey(k) {
@@ -83,8 +34,8 @@ function maskKey(k) {
 // Non-secret status for the renderer (never includes the raw key).
 function getStatus() {
   const cfg = getConfig();
-  if (!cfg) return { hasKey: false, provider: null, baseUrl: null, model: null, masked: null };
-  return { hasKey: true, provider: cfg.provider, baseUrl: cfg.baseUrl, model: cfg.model, masked: maskKey(cfg.apiKey) };
+  if (!cfg) return { hasKey: false, baseUrl: null, model: null, masked: null };
+  return { hasKey: true, baseUrl: cfg.baseUrl, model: cfg.model, masked: maskKey(cfg.apiKey) };
 }
 
-module.exports = { setConfig, getConfig, clearConfig, getStatus, maskKey };
+module.exports = { getConfig, getStatus, maskKey, GROQ_BASE_URL, GROQ_DEFAULT_MODEL };
