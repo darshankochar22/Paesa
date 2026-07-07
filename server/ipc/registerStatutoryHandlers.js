@@ -114,6 +114,9 @@ function register() {
   ipcMain.handle('esi:getForm3', (event, { company_id, ...params }) =>
     esiReportService.getESIForm3(company_id, params),
   );
+  ipcMain.handle('esi:getMonthlyStatement', (event, { company_id }) =>
+    esiReportService.getESIMonthlyStatement(company_id),
+  );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),
   );

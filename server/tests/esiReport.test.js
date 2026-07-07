@@ -49,4 +49,17 @@ describe('ESI reports (#218)', () => {
     expect(res.success).toBe(true);
     expect(res.payload.employees.length).toBe(0);
   });
+
+  it('Monthly Statement lists ESI members with contribution columns (#219)', async () => {
+    const res = await esiSvc.getESIMonthlyStatement(companyId);
+    expect(res.success).toBe(true);
+    const row = res.payload.rows.find((r) => r.name === 'Insured Emp');
+    expect(row).toBeTruthy();
+    expect(row.esi_number).toBe('ESI/9988');
+    expect(row).toHaveProperty('ee');
+    expect(row).toHaveProperty('er');
+    expect(res.payload.totals).toBeDefined();
+    // A non-ESI employee (no number, no ESI pay head) is not a member.
+    expect(res.payload.rows.find((r) => r.name === 'No ESI Emp')).toBeFalsy();
+  });
 });

@@ -69,7 +69,96 @@ const getESIForm3 = async (company_id, { from, to } = {}) => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Employee-wise ESI contribution basis (shared by Monthly Statement / Form 5 /
+// Form 6 / E-Return). ESI amounts come from the same active salary-structure basis
+// the PF reports use; components are matched by the pay head's statutory fields.
+// ---------------------------------------------------------------------------
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const ESI_RE = /state insurance|(^|\W)esi(\W|$)/i;
+const matchesESI = (l) =>
+  ESI_RE.test(
+    [l.statutory_pay_type, l.statutory_component, l.ph_name]
+      .map((s) => String(s || ''))
+      .join(' | '),
+  );
+const isEEDeduction = (t) => /deduction/i.test(t) && !/employer/i.test(t);
+const isEREmployer = (t) => /employer/i.test(t) && /contribution/i.test(t);
+const isESIMember = (e) => e.ee > 0 || e.er > 0 || !!e.esi_number;
+
+// One record per active employee with ESI wages + employee/employer contributions.
+const loadESIEmployees = async (company_id) => {
+  const lines = await db.all(
+    sql`SELECT e.employee_id, e.name, e.esi_number, e.father_name, e.spouse_name,
+               e.date_of_joining, e.date_of_leaving, e.gender, e.esi_dispensary_name,
+               ph.name AS ph_name, ph.pay_head_type, ph.statutory_component, ph.statutory_pay_type,
+               ss.amount
+        FROM employees e
+        LEFT JOIN salary_structures ss ON ss.employee_id = e.employee_id AND ss.is_active = 1
+        LEFT JOIN pay_heads ph ON ph.pay_head_id = ss.pay_head_id
+              AND ph.company_id = ${company_id} AND ph.is_active = 1
+        WHERE e.company_id = ${company_id} AND e.is_active = 1
+        ORDER BY COALESCE(e.esi_number, ''), e.name`,
+  );
+  const map = new Map();
+  for (const l of lines) {
+    if (!map.has(l.employee_id)) {
+      map.set(l.employee_id, {
+        employee_id: l.employee_id,
+        name: l.name,
+        esi_number: l.esi_number || '',
+        father_or_husband: l.father_name || l.spouse_name || '',
+        date_of_joining: l.date_of_joining || '',
+        date_of_leaving: l.date_of_leaving || '',
+        gender: l.gender || '',
+        dispensary: l.esi_dispensary_name || '',
+        wages: 0,
+        ee: 0,
+        er: 0,
+      });
+    }
+    const emp = map.get(l.employee_id);
+    if (l.ph_name == null || l.amount == null) continue;
+    const amt = Number(l.amount) || 0;
+    if (/earning/i.test(String(l.pay_head_type || ''))) emp.wages += amt;
+    if (matchesESI(l)) {
+      if (isEEDeduction(l.pay_head_type || '')) emp.ee += amt;
+      else if (isEREmployer(l.pay_head_type || '')) emp.er += amt;
+    }
+  }
+  return [...map.values()];
+};
+
+const sumRows = (rows, keys) => {
+  const t = {};
+  for (const k of keys) t[k] = round2(rows.reduce((s, r) => s + (Number(r[k]) || 0), 0));
+  return t;
+};
+
+// #219 ESI Monthly Statement — employee-wise ESI contribution register for the month.
+const getESIMonthlyStatement = async (company_id) => {
+  try {
+    const establishment = await loadEstablishment(company_id);
+    const emps = (await loadESIEmployees(company_id)).filter(isESIMember);
+    const rows = emps.map((e, i) => ({
+      sl: i + 1,
+      esi_number: e.esi_number,
+      name: e.name,
+      wages: round2(e.wages),
+      ee: round2(e.ee),
+      er: round2(e.er),
+      total: round2(e.ee + e.er),
+    }));
+    const totals = sumRows(rows, ['wages', 'ee', 'er', 'total']);
+    return { success: true, payload: { establishment, rows, totals } };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   loadEstablishment,
+  loadESIEmployees,
   getESIForm3,
+  getESIMonthlyStatement,
 };

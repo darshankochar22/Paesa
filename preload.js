@@ -576,6 +576,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   esi: {
     getForm3: (data) => invoke('esi:getForm3', data),
+    getMonthlyStatement: (data) => invoke('esi:getMonthlyStatement', data),
   },
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),
