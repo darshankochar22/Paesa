@@ -1,6 +1,6 @@
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
 
 /* ─────────────────────────── Types ─────────────────────────────────── */
 
@@ -50,16 +50,16 @@ const toNum = (v: unknown): number => {
 };
 
 const fmt = (val: number) =>
-  new Intl.NumberFormat("en-IN", {
+  new Intl.NumberFormat('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Math.abs(toNum(val)));
 
 /* TallyPrime period label format: "1-Apr-26" */
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtTallyDate = (iso?: string): string => {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-").map(Number);
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
   if (!y || !m || !d) return iso;
   return `${d}-${MONTHS[m - 1]}-${String(y).slice(2)}`;
 };
@@ -67,7 +67,7 @@ const fmtTallyDate = (iso?: string): string => {
 function normalizeLedger(raw: any): LedgerRow {
   return {
     ledger_id: toNum(raw?.ledger_id),
-    ledger_name: raw?.ledger_name ?? "Unnamed Ledger",
+    ledger_name: raw?.ledger_name ?? 'Unnamed Ledger',
     balance: toNum(raw?.balance),
   };
 }
@@ -75,7 +75,7 @@ function normalizeLedger(raw: any): LedgerRow {
 function normalizeGroup(raw: any): GroupRow {
   return {
     group_id: toNum(raw?.group_id),
-    group_name: raw?.group_name ?? "Unnamed Group",
+    group_name: raw?.group_name ?? 'Unnamed Group',
     balance: toNum(raw?.balance),
     ledgers: Array.isArray(raw?.ledgers) ? raw.ledgers.map(normalizeLedger) : [],
     childGroups: Array.isArray(raw?.childGroups) ? raw.childGroups.map(normalizeGroup) : [],
@@ -87,53 +87,79 @@ function normalizeGroupList(raw: any): GroupRow[] {
 }
 
 function normalizePnL(raw: any): PnLData {
-  const purchaseAccounts   = normalizeGroupList(raw?.purchaseAccounts);
-  const directExpenses     = normalizeGroupList(raw?.directExpenses);
-  const indirectExpenses   = normalizeGroupList(raw?.indirectExpenses);
-  const salesAccounts      = normalizeGroupList(raw?.salesAccounts);
-  const directIncomes      = normalizeGroupList(raw?.directIncomes);
-  const indirectIncomes    = normalizeGroupList(raw?.indirectIncomes);
+  const purchaseAccounts = normalizeGroupList(raw?.purchaseAccounts);
+  const directExpenses = normalizeGroupList(raw?.directExpenses);
+  const indirectExpenses = normalizeGroupList(raw?.indirectExpenses);
+  const salesAccounts = normalizeGroupList(raw?.salesAccounts);
+  const directIncomes = normalizeGroupList(raw?.directIncomes);
+  const indirectIncomes = normalizeGroupList(raw?.indirectIncomes);
 
-  const openingStock       = toNum(raw?.openingStock);
-  const closingStock       = toNum(raw?.closingStock);
+  const openingStock = toNum(raw?.openingStock);
+  const closingStock = toNum(raw?.closingStock);
 
-  const totalPurchase         = toNum(raw?.totalPurchase)         || purchaseAccounts.reduce((s, g) => s + Math.abs(g.balance), 0);
-  const totalDirectExpenses   = toNum(raw?.totalDirectExpenses)   || directExpenses.reduce((s, g) => s + Math.abs(g.balance), 0);
-  const totalIndirectExpenses = toNum(raw?.totalIndirectExpenses) || indirectExpenses.reduce((s, g) => s + Math.abs(g.balance), 0);
-  const totalSales            = toNum(raw?.totalSales)            || salesAccounts.reduce((s, g) => s + Math.abs(g.balance), 0);
-  const totalDirectIncomes    = toNum(raw?.totalDirectIncomes)    || directIncomes.reduce((s, g) => s + Math.abs(g.balance), 0);
-  const totalIndirectIncomes  = toNum(raw?.totalIndirectIncomes)  || indirectIncomes.reduce((s, g) => s + Math.abs(g.balance), 0);
+  const totalPurchase =
+    toNum(raw?.totalPurchase) || purchaseAccounts.reduce((s, g) => s + Math.abs(g.balance), 0);
+  const totalDirectExpenses =
+    toNum(raw?.totalDirectExpenses) || directExpenses.reduce((s, g) => s + Math.abs(g.balance), 0);
+  const totalIndirectExpenses =
+    toNum(raw?.totalIndirectExpenses) ||
+    indirectExpenses.reduce((s, g) => s + Math.abs(g.balance), 0);
+  const totalSales =
+    toNum(raw?.totalSales) || salesAccounts.reduce((s, g) => s + Math.abs(g.balance), 0);
+  const totalDirectIncomes =
+    toNum(raw?.totalDirectIncomes) || directIncomes.reduce((s, g) => s + Math.abs(g.balance), 0);
+  const totalIndirectIncomes =
+    toNum(raw?.totalIndirectIncomes) ||
+    indirectIncomes.reduce((s, g) => s + Math.abs(g.balance), 0);
 
   const tradingCredit = totalSales + totalDirectIncomes + closingStock;
-  const tradingDebit  = openingStock + totalPurchase + totalDirectExpenses;
-  const grossProfit   = toNum(raw?.grossProfit) !== 0 ? toNum(raw?.grossProfit) : tradingCredit - tradingDebit;
-  const isGrossProfit = typeof raw?.isGrossProfit === "boolean" ? raw.isGrossProfit : grossProfit >= 0;
+  const tradingDebit = openingStock + totalPurchase + totalDirectExpenses;
+  const grossProfit =
+    toNum(raw?.grossProfit) !== 0 ? toNum(raw?.grossProfit) : tradingCredit - tradingDebit;
+  const isGrossProfit =
+    typeof raw?.isGrossProfit === 'boolean' ? raw.isGrossProfit : grossProfit >= 0;
 
-  const netProfit  = toNum(raw?.netProfit) !== 0 ? toNum(raw?.netProfit) : grossProfit + totalIndirectIncomes - totalIndirectExpenses;
-  const isProfit   = typeof raw?.isProfit === "boolean" ? raw.isProfit : netProfit >= 0;
+  const netProfit =
+    toNum(raw?.netProfit) !== 0
+      ? toNum(raw?.netProfit)
+      : grossProfit + totalIndirectIncomes - totalIndirectExpenses;
+  const isProfit = typeof raw?.isProfit === 'boolean' ? raw.isProfit : netProfit >= 0;
 
   return {
-    openingStock, closingStock,
-    purchaseAccounts, totalPurchase,
-    directExpenses,   totalDirectExpenses,
-    indirectExpenses, totalIndirectExpenses,
-    salesAccounts,    totalSales,
-    directIncomes,    totalDirectIncomes,
-    indirectIncomes,  totalIndirectIncomes,
-    grossProfit, isGrossProfit,
-    netProfit,   isProfit,
+    openingStock,
+    closingStock,
+    purchaseAccounts,
+    totalPurchase,
+    directExpenses,
+    totalDirectExpenses,
+    indirectExpenses,
+    totalIndirectExpenses,
+    salesAccounts,
+    totalSales,
+    directIncomes,
+    totalDirectIncomes,
+    indirectIncomes,
+    totalIndirectIncomes,
+    grossProfit,
+    isGrossProfit,
+    netProfit,
+    isProfit,
   };
 }
 
 /* ─────────────────────────── Error Boundary ────────────────────────── */
 
-interface BoundaryState { error: Error | null; }
+interface BoundaryState {
+  error: Error | null;
+}
 
 class ReportErrorBoundary extends React.Component<{ children: React.ReactNode }, BoundaryState> {
   state: BoundaryState = { error: null };
-  static getDerivedStateFromError(error: Error): BoundaryState { return { error }; }
+  static getDerivedStateFromError(error: Error): BoundaryState {
+    return { error };
+  }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("Profit & Loss report crashed:", error, info.componentStack);
+    console.error('Profit & Loss report crashed:', error, info.componentStack);
   }
   render() {
     if (this.state.error) {
@@ -176,30 +202,26 @@ function TRow({
   showZero = false,
 }: TRowProps) {
   const amountDisplay =
-    amount === null || amount === undefined
-      ? ""
-      : amount === 0 && !showZero
-      ? ""
-      : fmt(amount);
+    amount === null || amount === undefined ? '' : amount === 0 && !showZero ? '' : fmt(amount);
 
   return (
     <tr
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       className={[
-        "border-b border-transparent select-none",
-        onClick ? "cursor-pointer hover:bg-zinc-50" : "",
-        isFocused ? "bg-[#e4e4e7] text-zinc-950" : "",
-        isTotal || isGrossEntry ? "font-semibold" : "",
-        isGrossEntry ? "italic" : "",
-      ].join(" ")}
+        'border-b border-transparent select-none',
+        onClick ? 'cursor-pointer hover:bg-zinc-50' : '',
+        isFocused ? 'bg-[#e4e4e7] text-zinc-950' : '',
+        isTotal || isGrossEntry ? 'font-semibold' : '',
+        isGrossEntry ? 'italic' : '',
+      ].join(' ')}
     >
       <td
         className={[
-          "py-[3px] text-left text-[13px]",
-          isSubItem ? "pl-8 pr-2 text-zinc-500" : "px-2",
-          isTotal || isGrossEntry ? "font-semibold" : "font-normal",
-        ].join(" ")}
+          'py-[3px] text-left text-[13px]',
+          isSubItem ? 'pl-8 pr-2 text-zinc-500' : 'px-2',
+          isTotal || isGrossEntry ? 'font-semibold' : 'font-normal',
+        ].join(' ')}
       >
         {label}
       </td>
@@ -284,18 +306,10 @@ function GroupSection({
 
 /* ─────────────────────────── Column header ─────────────────────────── */
 
-function ColHeader({
-  companyName,
-  periodLabel,
-}: {
-  companyName: string;
-  periodLabel: string;
-}) {
+function ColHeader({ companyName, periodLabel }: { companyName: string; periodLabel: string }) {
   return (
     <div className="flex justify-between items-start px-3 py-2 border-b border-zinc-300">
-      <div className="text-[16px] tracking-[0.2em] font-semibold text-zinc-800">
-        Particulars
-      </div>
+      <div className="text-[16px] tracking-[0.2em] font-semibold text-zinc-800">Particulars</div>
       <div className="text-right text-[11px] leading-tight text-zinc-700">
         <div className="font-semibold text-[12px]">{companyName}</div>
         <div>{periodLabel}</div>
@@ -333,8 +347,8 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
     setError(null);
 
     const reportApi = (window as any)?.api?.report?.profitLoss;
-    if (typeof reportApi !== "function") {
-      setError("Report service is not available.");
+    if (typeof reportApi !== 'function') {
+      setError('Report service is not available.');
       setLoading(false);
       return;
     }
@@ -342,21 +356,21 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
     reportApi(selectedCompany.company_id, activeFY.fy_id, fromDate, toDate)
       .then((res: any) => {
         if (res?.success) setData(normalizePnL(res));
-        else setError(res?.error || "Failed to load Profit & Loss report.");
+        else setError(res?.error || 'Failed to load Profit & Loss report.');
       })
-      .catch((e: any) => setError(e?.message || "Unknown error"))
+      .catch((e: any) => setError(e?.message || 'Unknown error'))
       .finally(() => setLoading(false));
   }, [selectedCompany?.company_id, activeFY?.fy_id, fromDate, toDate]);
 
   const drillGroup = React.useCallback(
     (group: GroupRow) => navigate(`/reports/accounts/group-summary/${group.group_id}`),
-    [navigate]
+    [navigate],
   );
 
   /* Opening / Closing Stock both drill into the Stock Summary (gold screenshots). */
   const drillStock = React.useCallback(
-    () => navigate("/reports/inventory/stock-summary"),
-    [navigate]
+    () => navigate('/reports/inventory/stock-summary'),
+    [navigate],
   );
 
   const focus = React.useCallback((key: string, drill?: () => void) => {
@@ -367,13 +381,13 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
   /* Enter on a focused, drillable row opens its drill-down. */
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Enter" || !focusedDrillRef.current) return;
+      if (e.key !== 'Enter' || !focusedDrillRef.current) return;
       const el = document.activeElement;
       if (
         el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "SELECT" ||
-          el.tagName === "TEXTAREA" ||
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'SELECT' ||
+          el.tagName === 'TEXTAREA' ||
           el.closest("[role='dialog']"))
       ) {
         return;
@@ -381,8 +395,8 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
       e.preventDefault();
       focusedDrillRef.current();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   if (loading) {
@@ -415,7 +429,7 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
   }
 
   const absGross = Math.abs(data.grossProfit);
-  const absNet   = Math.abs(data.netProfit);
+  const absNet = Math.abs(data.netProfit);
 
   /* Whether we have any trading-account data */
   const showTrading =
@@ -427,16 +441,12 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
     data.directIncomes.length > 0;
 
   const companyName =
-    (selectedCompany as any)?.company_name ??
-    (selectedCompany as any)?.name ??
-    "Company";
+    (selectedCompany as any)?.company_name ?? (selectedCompany as any)?.name ?? 'Company';
 
   const periodStart = fromDate || activeFY?.start_date;
   const periodEnd = toDate || activeFY?.end_date;
   const periodLabel =
-    periodStart && periodEnd
-      ? `${fmtTallyDate(periodStart)} to ${fmtTallyDate(periodEnd)}`
-      : "";
+    periodStart && periodEnd ? `${fmtTallyDate(periodStart)} to ${fmtTallyDate(periodEnd)}` : '';
 
   /*
    * Trading subtotal: sum of both debit and credit sides of the trading section
@@ -461,18 +471,14 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
 
   const tradingSubtotal = Math.max(tradingDebitTotal, tradingCreditTotal);
 
-  /* Grand total (both sides must balance) */
-  const leftTotal =
-    (showTrading ? (data.openingStock + data.totalPurchase + data.totalDirectExpenses) : 0) +
-    (showTrading ? absGross : 0) +
-    data.totalIndirectExpenses +
-    (data.isProfit ? absNet : 0);
+  /* Bottom "Total" = the P&L (below-the-line) section only. The trading section is
+     already closed by its own subtotal above, so it is NOT re-added here (that was
+     inflating the total). Gross profit/loss is carried into this section as b/f. */
+  const grossLossBf = showTrading && !data.isGrossProfit ? absGross : 0;
+  const grossProfitBf = showTrading && data.isGrossProfit ? absGross : 0;
 
-  const rightTotal =
-    (showTrading ? (data.totalSales + data.totalDirectIncomes + data.closingStock) : 0) +
-    (showTrading ? absGross : 0) +
-    data.totalIndirectIncomes +
-    (!data.isProfit ? absNet : 0);
+  const leftTotal = data.totalIndirectExpenses + grossLossBf + (data.isProfit ? absNet : 0);
+  const rightTotal = data.totalIndirectIncomes + grossProfitBf + (!data.isProfit ? absNet : 0);
 
   const grandTotal = Math.max(leftTotal, rightTotal);
 
@@ -485,7 +491,6 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
 
       {/* Two-column body */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
-
         {/* ══════════════ LEFT SIDE (Debit) ══════════════ */}
         <div className="flex-1 border-r border-zinc-300 flex flex-col">
           <ColHeader companyName={companyName} periodLabel={periodLabel} />
@@ -493,7 +498,6 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
           <div className="flex-1 overflow-y-auto">
             <table className="w-full border-collapse">
               <tbody>
-
                 {/* ── Trading section (debit) ── */}
                 {showTrading && (
                   <>
@@ -502,8 +506,8 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                       label="Opening Stock"
                       amount={data.openingStock}
                       showZero
-                      isFocused={focusedId === "opening-stock"}
-                      onClick={() => focus("opening-stock", drillStock)}
+                      isFocused={focusedId === 'opening-stock'}
+                      onClick={() => focus('opening-stock', drillStock)}
                       onDoubleClick={drillStock}
                     />
 
@@ -518,13 +522,6 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                         prefix="pur"
                       />
                     ))}
-                    {data.purchaseAccounts.length > 0 && (
-                      <TRow
-                        label="Purchase Accounts"
-                        amount={data.totalPurchase}
-                        isTotal
-                      />
-                    )}
 
                     {/* Direct Expenses groups */}
                     {data.directExpenses.map((g) => (
@@ -537,13 +534,6 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                         prefix="dexp"
                       />
                     ))}
-                    {data.directExpenses.length > 0 && (
-                      <TRow
-                        label="Direct Expenses"
-                        amount={data.totalDirectExpenses}
-                        isTotal
-                      />
-                    )}
 
                     {/* Gross Profit c/o goes on LEFT only if there's a gross PROFIT */}
                     {data.isGrossProfit && (
@@ -551,8 +541,8 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                         label="Gross Profit c/o"
                         amount={absGross}
                         isGrossEntry
-                        isFocused={focusedId === "gross-co"}
-                        onClick={() => focus("gross-co")}
+                        isFocused={focusedId === 'gross-co'}
+                        onClick={() => focus('gross-co')}
                       />
                     )}
 
@@ -565,8 +555,8 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                         label="Gross Loss b/f"
                         amount={absGross}
                         isGrossEntry
-                        isFocused={focusedId === "gross-bf"}
-                        onClick={() => focus("gross-bf")}
+                        isFocused={focusedId === 'gross-bf'}
+                        onClick={() => focus('gross-bf')}
                       />
                     )}
                   </>
@@ -583,13 +573,6 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                     prefix="iexp"
                   />
                 ))}
-                {data.indirectExpenses.length > 0 && (
-                  <TRow
-                    label="Indirect Expenses"
-                    amount={data.totalIndirectExpenses}
-                    isTotal
-                  />
-                )}
 
                 {/* Net Profit on LEFT (debit) if profit */}
                 {data.isProfit && (
@@ -597,11 +580,10 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                     label="Nett Profit"
                     amount={absNet}
                     isGrossEntry
-                    isFocused={focusedId === "net-profit"}
-                    onClick={() => focus("net-profit")}
+                    isFocused={focusedId === 'net-profit'}
+                    onClick={() => focus('net-profit')}
                   />
                 )}
-
               </tbody>
             </table>
           </div>
@@ -620,7 +602,6 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
           <div className="flex-1 overflow-y-auto">
             <table className="w-full border-collapse">
               <tbody>
-
                 {/* ── Trading section (credit) ── */}
                 {showTrading && (
                   <>
@@ -635,13 +616,6 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                         prefix="sal"
                       />
                     ))}
-                    {data.salesAccounts.length > 0 && (
-                      <TRow
-                        label="Sales Accounts"
-                        amount={data.totalSales}
-                        isTotal
-                      />
-                    )}
 
                     {/* Direct Incomes */}
                     {data.directIncomes.map((g) => (
@@ -654,21 +628,14 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                         prefix="dinc"
                       />
                     ))}
-                    {data.directIncomes.length > 0 && (
-                      <TRow
-                        label="Direct Incomes"
-                        amount={data.totalDirectIncomes}
-                        isTotal
-                      />
-                    )}
 
                     {/* Closing Stock — credit side (integrated P&L); drills to Stock Summary */}
                     <TRow
                       label="Closing Stock"
                       amount={data.closingStock}
                       showZero
-                      isFocused={focusedId === "closing-stock"}
-                      onClick={() => focus("closing-stock", drillStock)}
+                      isFocused={focusedId === 'closing-stock'}
+                      onClick={() => focus('closing-stock', drillStock)}
                       onDoubleClick={drillStock}
                     />
 
@@ -678,8 +645,8 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                         label="Gross Loss c/o"
                         amount={absGross}
                         isGrossEntry
-                        isFocused={focusedId === "gross-co-r"}
-                        onClick={() => focus("gross-co-r")}
+                        isFocused={focusedId === 'gross-co-r'}
+                        onClick={() => focus('gross-co-r')}
                       />
                     )}
 
@@ -692,8 +659,8 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                         label="Gross Profit b/f"
                         amount={absGross}
                         isGrossEntry
-                        isFocused={focusedId === "gross-bf-r"}
-                        onClick={() => focus("gross-bf-r")}
+                        isFocused={focusedId === 'gross-bf-r'}
+                        onClick={() => focus('gross-bf-r')}
                       />
                     )}
                   </>
@@ -710,13 +677,6 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                     prefix="iinc"
                   />
                 ))}
-                {data.indirectIncomes.length > 0 && (
-                  <TRow
-                    label="Indirect Incomes"
-                    amount={data.totalIndirectIncomes}
-                    isTotal
-                  />
-                )}
 
                 {/* Net Loss on RIGHT (credit) if loss — balancing entry */}
                 {!data.isProfit && (
@@ -724,11 +684,10 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                     label="Nett Loss"
                     amount={absNet}
                     isGrossEntry
-                    isFocused={focusedId === "net-loss"}
-                    onClick={() => focus("net-loss")}
+                    isFocused={focusedId === 'net-loss'}
+                    onClick={() => focus('net-loss')}
                   />
                 )}
-
               </tbody>
             </table>
           </div>
