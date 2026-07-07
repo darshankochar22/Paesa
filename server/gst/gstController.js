@@ -164,6 +164,14 @@ module.exports = {
     return await reconciliationService.importGSTR2B(company_id, fy_id, return_period, payload);
   },
 
+  importGSTR2A: async (event, { company_id, fy_id, return_period, payload }) => {
+    return await reconciliationService.importGSTR2A(company_id, fy_id, return_period, payload);
+  },
+
+  getGSTR1vs3BComparison: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getGSTR1vs3BComparison(company_id, fy_id);
+  },
+
   getIMSInwardSupplies: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getIMSInwardSupplies(company_id, fy_id);
   },

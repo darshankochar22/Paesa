@@ -271,14 +271,15 @@ module.exports = {
               : data.computedGST
                 ? data.computedGST.company_state || null
                 : nullify(current.company_state),
-          isInterstate:
-            current.gst_registration_id != null
-              ? current.is_interstate
-              : data.computedGST
-                ? data.computedGST.is_inter_state
-                  ? 1
-                  : 0
-                : (current.is_interstate ?? 0),
+          // Interstate follows the re-derivation (company state stays pinned via the
+          // registration above, but changing the party/place-of-supply on an edit must
+          // update the CGST/SGST-vs-IGST split so the header matches the recomputed tax
+          // lines). Only fall back to the stored flag when GST wasn't recomputed.
+          isInterstate: data.computedGST
+            ? data.computedGST.is_inter_state
+              ? 1
+              : 0
+            : (current.is_interstate ?? 0),
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(vouchers.voucherId, data.voucher_id));
@@ -742,7 +743,13 @@ module.exports = {
         after: updated[0],
       });
       await db.execute({ sql: 'COMMIT', args: [] });
-      return { success: true, voucher: updated[0] };
+      // Surface non-blocking GST data-quality warnings (unconfigured rate → zero tax, etc.).
+      const gstWarnings = (data.computedGST && data.computedGST.warnings) || [];
+      return {
+        success: true,
+        voucher: updated[0],
+        ...(gstWarnings.length ? { warnings: gstWarnings } : {}),
+      };
     } catch (err) {
       try {
         await db.execute({ sql: 'ROLLBACK', args: [] });

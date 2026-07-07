@@ -514,6 +514,8 @@ contextBridge.exposeInMainWorld('api', {
     getGSTR2AReconciliation: (data) => invoke('gst:getGSTR2AReconciliation', data),
     getGSTR2BReconciliation: (data) => invoke('gst:getGSTR2BReconciliation', data),
     importGSTR2B: (data) => invoke('gst:importGSTR2B', data),
+    importGSTR2A: (data) => invoke('gst:importGSTR2A', data),
+    getGSTR1vs3BComparison: (data) => invoke('gst:getGSTR1vs3BComparison', data),
     getIMSInwardSupplies: (data) => invoke('gst:getIMSInwardSupplies', data),
     getChallanReconciliation: (data) => invoke('gst:getChallanReconciliation', data),
     getGstRateSetup: (data) => invoke('gst:getGstRateSetup', data),

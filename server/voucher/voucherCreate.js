@@ -770,7 +770,14 @@ module.exports = {
         const voucherRows = await db.all(
           sql`SELECT * FROM ${vouchers} WHERE ${vouchers.voucherId} = ${voucher_id}`,
         );
-        return { success: true, voucher: voucherRows[0] };
+        // Surface non-blocking GST data-quality warnings (e.g. an item with no configured
+        // rate saved at zero tax) so the UI can flag them instead of silently understating tax.
+        const gstWarnings = (data.computedGST && data.computedGST.warnings) || [];
+        return {
+          success: true,
+          voucher: voucherRows[0],
+          ...(gstWarnings.length ? { warnings: gstWarnings } : {}),
+        };
       } catch (innerErr) {
         await db.execute({ sql: 'ROLLBACK', args: [] });
         throw innerErr;

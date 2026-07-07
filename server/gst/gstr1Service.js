@@ -13,9 +13,9 @@ const {
 const { resolveStateCode, resolveTaxRate, computeVoucherTaxLines } = require('./gstTaxEngine');
 
 const formatGSTDate = (dateStr) => {
-  if (!dateStr) return "";
+  if (!dateStr) return '';
   // DB date is usually YYYY-MM-DD
-  const parts = dateStr.split("-");
+  const parts = dateStr.split('-');
   if (parts.length === 3) {
     return `${parts[2]}-${parts[1]}-${parts[0]}`; // DD-MM-YYYY
   }
@@ -26,6 +26,28 @@ const validateGSTIN = (gstin) => {
   const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
   return gstinRegex.test(gstin);
 };
+
+// A GSTR-1 HSN summary is mandatory and GSTN rejects blank/malformed HSN/SAC. A valid code
+// is 4, 6, or 8 digits (SAC is 6). Returns null when acceptable, else a reason string.
+const validateHsn = (hsn) => {
+  if (!hsn || String(hsn).trim() === '' || hsn === 'OTH') return 'missing HSN/SAC code';
+  if (!/^\d{4}$|^\d{6}$|^\d{8}$/.test(String(hsn).trim())) return `malformed HSN/SAC "${hsn}"`;
+  return null;
+};
+
+// Maps an item's taxability to the GSTR-1 nil/exempt/non-GST bucket (table 8). Returns
+// 'nil' | 'exempt' | 'nongst' for a NON-taxed supply, or null when it is a normal taxable
+// supply (or the taxability is unconfigured — that is surfaced as an error elsewhere).
+const classifyTaxability = (taxability) => {
+  const s = String(taxability || '').toLowerCase();
+  if (s.includes('non')) return 'nongst';
+  if (s.includes('exempt')) return 'exempt';
+  if (s.includes('nil')) return 'nil';
+  return null;
+};
+
+// Export supplies are flagged by an explicit "Export" place of supply.
+const isExportPos = (placeOfSupply) => /export/i.test(String(placeOfSupply || ''));
 
 const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_id = null) => {
   try {
@@ -40,7 +62,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
 
     // 1. Fetch Company details and active GST registration
     const companyRows = await db.all(
-      sql`SELECT * FROM ${companies} WHERE ${companies.companyId} = ${company_id}`
+      sql`SELECT * FROM ${companies} WHERE ${companies.companyId} = ${company_id}`,
     );
     const company = companyRows[0];
     if (!company) return { success: false, error: 'Company not found' };
@@ -52,23 +74,25 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       sql`SELECT gst_id, gstin, state_id FROM ${gstRegistrations}
           WHERE ${gstRegistrations.companyId} = ${company_id}
             AND ${gstRegistrations.isActive} = 1
-          ORDER BY gst_id ASC`
+          ORDER BY gst_id ASC`,
     );
     const primaryId = activeRegs[0] ? Number(activeRegs[0].gst_id) : null;
-    const companyReg = gst_registration_id != null
-      ? activeRegs.find((r) => Number(r.gst_id) === Number(gst_registration_id))
-      : activeRegs[0];
-    const companyGSTIN = companyReg ? companyReg.gstin : "";
-    const companyState = companyReg ? companyReg.state_id : "";
+    const companyReg =
+      gst_registration_id != null
+        ? activeRegs.find((r) => Number(r.gst_id) === Number(gst_registration_id))
+        : activeRegs[0];
+    const companyGSTIN = companyReg ? companyReg.gstin : '';
+    const companyState = companyReg ? companyReg.state_id : '';
     const companyStateCode = resolveStateCode(companyState, companyGSTIN);
 
     // The primary (first active) registration also owns legacy vouchers whose
     // gst_registration_id is NULL; a secondary registration matches its id exactly.
     let regFilter = sql``;
     if (gst_registration_id != null) {
-      regFilter = Number(gst_registration_id) === primaryId
-        ? sql`AND (v.gst_registration_id = ${gst_registration_id} OR v.gst_registration_id IS NULL)`
-        : sql`AND v.gst_registration_id = ${gst_registration_id}`;
+      regFilter =
+        Number(gst_registration_id) === primaryId
+          ? sql`AND (v.gst_registration_id = ${gst_registration_id} OR v.gst_registration_id IS NULL)`
+          : sql`AND v.gst_registration_id = ${gst_registration_id}`;
     }
 
     // 2. Fetch all vouchers in the date range (scoped to the registration if given)
@@ -79,20 +103,32 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
           AND v.date >= ${startDate} AND v.date < ${endDate}
           ${regFilter}
-          ORDER BY v.date ASC`
+          ORDER BY v.date ASC`,
     );
 
     const b2b = [];
     const b2cl = [];
     const b2cs = [];
     const cdnr = [];
+    const cdnur = []; // credit/debit notes to UNREGISTERED parties (table 9B unregistered)
+    const exp = []; // export invoices (table 6A), grouped WPAY/WOPAY
     const hsnSummary = {};
     const errors = [];
+
+    // Nil-rated / exempted / non-GST outward supplies (table 8), split by supply category.
+    // Each key holds { nil, expt, ngsup } rupee totals.
+    const nilCat = {
+      inter_reg: { nil: 0, expt: 0, ngsup: 0 },
+      intra_reg: { nil: 0, expt: 0, ngsup: 0 },
+      inter_unreg: { nil: 0, expt: 0, ngsup: 0 },
+      intra_unreg: { nil: 0, expt: 0, ngsup: 0 },
+    };
 
     // Helper maps to avoid duplicates
     const b2bMap = {};
     const b2clMap = {};
     const cdnrMap = {};
+    const expMap = {}; // keyed by WPAY | WOPAY
 
     let serialCounter = 1;
 
@@ -105,29 +141,39 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
 
       // Fetch stock entries
       const stockEntries = await db.all(
-        sql`SELECT * FROM ${voucherStockEntries} WHERE ${voucherStockEntries.voucherId} = ${voucher.voucher_id}`
+        sql`SELECT * FROM ${voucherStockEntries} WHERE ${voucherStockEntries.voucherId} = ${voucher.voucher_id}`,
       );
 
       if (stockEntries.length === 0) continue;
 
       // Fetch entries to calculate total invoice value
       const entries = await db.all(
-        sql`SELECT * FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${voucher.voucher_id}`
+        sql`SELECT * FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${voucher.voucher_id}`,
       );
 
       // Sum invoice total (the party ledger amount)
       let invoiceValue = 0;
-      const partyEntry = entries.find(e => Number(e.ledger_id) === Number(voucher.party_ledger_id));
+      const partyEntry = entries.find(
+        (e) => Number(e.ledger_id) === Number(voucher.party_ledger_id),
+      );
       if (partyEntry) {
         invoiceValue = partyEntry.amount;
       } else {
         // Fallback: sum of all Cr or Dr entries
-        invoiceValue = stockEntries.reduce((sum, s) => sum + (s.amount || 0) + (s.cgst_amount || 0) + (s.sgst_amount || 0) + (s.igst_amount || 0), 0);
+        invoiceValue = stockEntries.reduce(
+          (sum, s) =>
+            sum +
+            (s.amount || 0) +
+            (s.cgst_amount || 0) +
+            (s.sgst_amount || 0) +
+            (s.igst_amount || 0),
+          0,
+        );
       }
 
       // Fetch tax lines (audit trail) or compute on-the-fly
       let taxLines = await db.all(
-        sql`SELECT * FROM ${gstVoucherTaxLines} WHERE ${gstVoucherTaxLines.voucherId} = ${voucher.voucher_id}`
+        sql`SELECT * FROM ${gstVoucherTaxLines} WHERE ${gstVoucherTaxLines.voucherId} = ${voucher.voucher_id}`,
       );
 
       if (taxLines.length === 0) {
@@ -140,18 +186,36 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
             place_of_supply: voucher.place_of_supply,
             stock_entries: stockEntries,
             entries: entries,
-            voucher_type: vtype
+            voucher_type: vtype,
           });
           taxLines = [];
-          computed.stock_entries.forEach(entry => {
-            const hsn = entry.hsn_code || "OTH";
+          computed.stock_entries.forEach((entry) => {
+            const hsn = entry.hsn_code || 'OTH';
             const isInter = computed.is_inter_state;
             if (entry.gst_rate > 0) {
               if (isInter) {
-                taxLines.push({ hsn_code: hsn, assessable_value: entry.assessable_value, tax_type: 'IGST', rate: entry.gst_rate, amount: entry.igst_amount });
+                taxLines.push({
+                  hsn_code: hsn,
+                  assessable_value: entry.assessable_value,
+                  tax_type: 'IGST',
+                  rate: entry.gst_rate,
+                  amount: entry.igst_amount,
+                });
               } else {
-                taxLines.push({ hsn_code: hsn, assessable_value: entry.assessable_value, tax_type: 'CGST', rate: entry.gst_rate / 2, amount: entry.cgst_amount });
-                taxLines.push({ hsn_code: hsn, assessable_value: entry.assessable_value, tax_type: 'SGST', rate: entry.gst_rate / 2, amount: entry.sgst_amount });
+                taxLines.push({
+                  hsn_code: hsn,
+                  assessable_value: entry.assessable_value,
+                  tax_type: 'CGST',
+                  rate: entry.gst_rate / 2,
+                  amount: entry.cgst_amount,
+                });
+                taxLines.push({
+                  hsn_code: hsn,
+                  assessable_value: entry.assessable_value,
+                  tax_type: 'SGST',
+                  rate: entry.gst_rate / 2,
+                  amount: entry.sgst_amount,
+                });
               }
             }
           });
@@ -159,7 +223,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           errors.push({
             voucher_id: voucher.voucher_id,
             voucher_number: voucher.voucher_number,
-            error: `Failed to compute tax details: ${err.message}`
+            error: `Failed to compute tax details: ${err.message}`,
           });
           continue;
         }
@@ -173,7 +237,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         errors.push({
           voucher_id: voucher.voucher_id,
           voucher_number: voucher.voucher_number,
-          error: `Party is marked as registered (${voucher.party_reg_type}) but has no GSTIN`
+          error: `Party is marked as registered (${voucher.party_reg_type}) but has no GSTIN`,
         });
       }
 
@@ -181,11 +245,11 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         errors.push({
           voucher_id: voucher.voucher_id,
           voucher_number: voucher.voucher_number,
-          error: `Invalid GSTIN format for party: ${voucher.party_gstin}`
+          error: `Invalid GSTIN format for party: ${voucher.party_gstin}`,
         });
       }
 
-      const partyState = voucher.party_state || "";
+      const partyState = voucher.party_state || '';
       const partyStateCode = resolveStateCode(partyState, voucher.party_gstin);
 
       if (hasGSTIN) {
@@ -194,7 +258,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           errors.push({
             voucher_id: voucher.voucher_id,
             voucher_number: voucher.voucher_number,
-            error: `GSTIN state prefix (${stateDigits}) does not match party state (${partyStateCode} - ${partyState})`
+            error: `GSTIN state prefix (${stateDigits}) does not match party state (${partyStateCode} - ${partyState})`,
           });
         }
       }
@@ -202,10 +266,10 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       // Group tax lines by rate for this invoice
       // GSTN expects items grouped by tax rate
       const itemsByRate = {};
-      taxLines.forEach(line => {
+      taxLines.forEach((line) => {
         const rate = Number(line.rate);
         // If local CGST/SGST rate is X, the full GST rate is 2 * X
-        const fullRate = (line.tax_type === 'CGST' || line.tax_type === 'SGST') ? rate * 2 : rate;
+        const fullRate = line.tax_type === 'CGST' || line.tax_type === 'SGST' ? rate * 2 : rate;
 
         if (!itemsByRate[fullRate]) {
           itemsByRate[fullRate] = {
@@ -214,7 +278,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
             iamt: 0,
             camt: 0,
             samt: 0,
-            csamt: 0
+            csamt: 0,
           };
         }
 
@@ -237,95 +301,129 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           iamt: Number(item.iamt.toFixed(2)),
           camt: Number(item.camt.toFixed(2)),
           samt: Number(item.samt.toFixed(2)),
-          csamt: Number(item.csamt.toFixed(2))
-        }
+          csamt: Number(item.csamt.toFixed(2)),
+        },
       }));
 
-      // Classify Transaction
-      const isInterState = companyStateCode !== partyStateCode;
+      // Classify Transaction.
+      // Place of Supply drives B2CL/B2CS and the inter/intra split — NOT the party's home
+      // state — matching how the tax was actually computed in the engine. Export supplies
+      // are their own section regardless of the numeric POS.
+      const isExport = isExportPos(voucher.place_of_supply);
+      const posState = voucher.place_of_supply || partyState;
+      const posStateCode = isExport ? '96' : resolveStateCode(posState, voucher.party_gstin);
+      const isInterState = isExport ? true : companyStateCode !== posStateCode;
+      const invIgst = Object.values(itemsByRate).reduce((s, it) => s + it.iamt, 0);
+
+      // Aggregate a set of per-rate items into the shared B2CS accumulator. `sign` is -1 for
+      // small unregistered credit notes, which GSTN nets against B2CS rather than CDNUR.
+      const addToB2cs = (pos, supplyType, sign) => {
+        Object.values(itemsByRate).forEach((item) => {
+          const match = b2cs.find(
+            (x) => x.pos === pos && x.rt === item.rt && x.sply_ty === supplyType,
+          );
+          const target = match || {
+            sply_ty: supplyType,
+            pos,
+            rt: item.rt,
+            txval: 0,
+            iamt: 0,
+            camt: 0,
+            samt: 0,
+            csamt: 0,
+          };
+          target.txval += sign * item.txval;
+          target.iamt += sign * item.iamt;
+          target.camt += sign * item.camt;
+          target.samt += sign * item.samt;
+          target.csamt += sign * item.csamt;
+          if (!match) b2cs.push(target);
+        });
+      };
 
       if (vtype === 'Credit Note' || vtype === 'Debit Note') {
-        // CDNR or CDNUR
+        const ntty = vtype === 'Credit Note' ? 'C' : 'D';
         if (hasGSTIN && isRegistered) {
+          // CDNR — notes to registered parties.
           const ctin = voucher.party_gstin;
           if (!cdnrMap[ctin]) {
             cdnrMap[ctin] = { ctin, nt: [] };
           }
           cdnrMap[ctin].nt.push({
-            ntty: vtype === 'Credit Note' ? 'C' : 'D',
+            ntty,
             nt_num: voucher.voucher_number,
             nt_dt: formatGSTDate(voucher.date),
             val: Number(invoiceValue.toFixed(2)),
-            inum: voucher.reference_number || "N/A",
+            inum: voucher.reference_number || 'N/A',
             idt: formatGSTDate(voucher.reference_date || voucher.date),
-            p_gst: "Y", // normal supply
-            itms: itmsList
+            p_gst: 'Y',
+            pos: posStateCode,
+            itms: itmsList,
           });
-        } else {
-          // CDNUR (Credit Debit Note Unregistered) - skip or push to errors if details missing
-          // Standard simplifies CDNUR to B2CS or similar, or we can handle it if needed
-        }
-      } else {
-        // Sales Invoices
-        if (hasGSTIN && isRegistered) {
-          // B2B
-          const ctin = voucher.party_gstin;
-          if (!b2bMap[ctin]) {
-            b2bMap[ctin] = { ctin, inv: [] };
-          }
-          b2bMap[ctin].inv.push({
-            inum: voucher.voucher_number,
-            idt: formatGSTDate(voucher.date),
+        } else if (isExport || (isInterState && invoiceValue > 250000)) {
+          // CDNUR — notes to unregistered parties that have an explicit home:
+          // exports (EXPWP/EXPWOP) or large inter-state (B2CL). Small ones net into B2CS.
+          cdnur.push({
+            ntty,
+            nt_num: voucher.voucher_number,
+            nt_dt: formatGSTDate(voucher.date),
             val: Number(invoiceValue.toFixed(2)),
-            pos: partyStateCode,
-            rchrg: "N",
-            inv_typ: "R", // Regular
-            itms: itmsList
+            typ: isExport ? (invIgst > 0 ? 'EXPWP' : 'EXPWOP') : 'B2CL',
+            pos: posStateCode,
+            itms: itmsList,
           });
         } else {
-          // B2C
-          if (isInterState && invoiceValue > 250000) {
-            // B2CL Large Unregistered
-            const pos = partyStateCode;
-            if (!b2clMap[pos]) {
-              b2clMap[pos] = { pos, inv: [] };
-            }
-            b2clMap[pos].inv.push({
-              inum: voucher.voucher_number,
-              idt: formatGSTDate(voucher.date),
-              val: Number(invoiceValue.toFixed(2)),
-              itms: itmsList
-            });
-          } else {
-            // B2CS Small Unregistered
-            // B2CS aggregates by POS and Tax Rate
-            const pos = partyStateCode || companyStateCode;
-            const supplyType = isInterState ? "INTER" : "INTRA";
-
-            Object.values(itemsByRate).forEach(item => {
-              const match = b2cs.find(x => x.pos === pos && x.rt === item.rt && x.sply_ty === supplyType);
-              if (match) {
-                match.txval += item.txval;
-                match.iamt += item.iamt;
-                match.camt += item.camt;
-                match.samt += item.samt;
-                match.csamt += item.csamt;
-              } else {
-                b2cs.push({
-                  sply_ty: supplyType,
-                  pos: pos,
-                  rt: item.rt,
-                  txval: item.txval,
-                  iamt: item.iamt,
-                  camt: item.camt,
-                  samt: item.samt,
-                  csamt: item.csamt
-                });
-              }
-            });
-          }
+          // Small unregistered note → reduce B2CS.
+          addToB2cs(posStateCode || companyStateCode, isInterState ? 'INTER' : 'INTRA', -1);
         }
+      } else if (isExport) {
+        // Export invoices (table 6A). With-payment (WPAY) when IGST was charged, else LUT/bond.
+        const expTyp = invIgst > 0 ? 'WPAY' : 'WOPAY';
+        if (!expMap[expTyp]) expMap[expTyp] = { exp_typ: expTyp, inv: [] };
+        expMap[expTyp].inv.push({
+          inum: voucher.voucher_number,
+          idt: formatGSTDate(voucher.date),
+          val: Number(invoiceValue.toFixed(2)),
+          itms: itmsList.map((i) => ({
+            txval: i.itm_det.txval,
+            rt: i.itm_det.rt,
+            iamt: i.itm_det.iamt,
+            csamt: i.itm_det.csamt,
+          })),
+        });
+      } else if (hasGSTIN && isRegistered) {
+        // B2B — sales to registered parties.
+        const ctin = voucher.party_gstin;
+        if (!b2bMap[ctin]) {
+          b2bMap[ctin] = { ctin, inv: [] };
+        }
+        b2bMap[ctin].inv.push({
+          inum: voucher.voucher_number,
+          idt: formatGSTDate(voucher.date),
+          val: Number(invoiceValue.toFixed(2)),
+          pos: posStateCode,
+          rchrg: 'N',
+          inv_typ: 'R',
+          itms: itmsList,
+        });
+      } else if (isInterState && invoiceValue > 250000) {
+        // B2CL — large inter-state sales to unregistered consumers.
+        if (!b2clMap[posStateCode]) {
+          b2clMap[posStateCode] = { pos: posStateCode, inv: [] };
+        }
+        b2clMap[posStateCode].inv.push({
+          inum: voucher.voucher_number,
+          idt: formatGSTDate(voucher.date),
+          val: Number(invoiceValue.toFixed(2)),
+          itms: itmsList,
+        });
+      } else {
+        // B2CS — small sales to unregistered consumers, aggregated by POS + rate.
+        addToB2cs(posStateCode || companyStateCode, isInterState ? 'INTER' : 'INTRA', 1);
       }
+
+      // Category for the nil/exempt/non-GST table (table 8).
+      const nilCatKey = `${isInterState ? 'inter' : 'intra'}_${isRegistered ? 'reg' : 'unreg'}`;
 
       // Add to HSN summary
       for (const entry of stockEntries) {
@@ -334,27 +432,49 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           stock_item_id: entry.stock_item_id,
           ledger_id: entry.ledger_id,
           hsn_code: entry.hsn_code,
-          date: voucher.date
+          date: voucher.date,
         });
 
-        const hsn = rateDetails.hsn_code || entry.hsn_code || "OTH";
-        const desc = rateDetails.hsn_sac_description || entry.item_name || "Goods/Services";
+        const resolvedHsn = rateDetails.hsn_code || entry.hsn_code;
+        const hsn = resolvedHsn || 'OTH';
+        const desc = rateDetails.hsn_sac_description || entry.item_name || 'Goods/Services';
         const qty = entry.quantity || 0;
         const value = entry.amount || 0;
         const taxableVal = value - (entry.discount_amount || 0);
+
+        // GSTN rejects blank/malformed HSN — surface it so it is fixed before filing,
+        // rather than silently filing everything under "OTH".
+        const hsnErr = validateHsn(resolvedHsn);
+        if (hsnErr) {
+          errors.push({
+            voucher_id: voucher.voucher_id,
+            voucher_number: voucher.voucher_number,
+            error: `${hsnErr} for ${entry.item_name || 'an item'} — GSTR-1 HSN summary requires a 4/6/8-digit code`,
+          });
+        }
+
+        // Non-taxed supply → nil / exempt / non-GST buckets (table 8) instead of being
+        // dropped. Taxable lines already flow through itemsByRate above.
+        if ((rateDetails.gst_rate || 0) === 0) {
+          const bucket = classifyTaxability(rateDetails.taxability);
+          if (bucket) {
+            const col = bucket === 'nongst' ? 'ngsup' : bucket === 'exempt' ? 'expt' : 'nil';
+            nilCat[nilCatKey][col] += taxableVal;
+          }
+        }
 
         if (!hsnSummary[hsn]) {
           hsnSummary[hsn] = {
             hsn_sc: hsn,
             desc: desc.substring(0, 30), // standard character limit
-            uqc: "OTH",
+            uqc: 'OTH',
             qty: 0,
             val: 0,
             txval: 0,
             iamt: 0,
             camt: 0,
             samt: 0,
-            csamt: 0
+            csamt: 0,
           };
         }
 
@@ -372,15 +492,37 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
     const formattedB2b = Object.values(b2bMap);
     const formattedB2cl = Object.values(b2clMap);
     const formattedCdnr = Object.values(cdnrMap);
+    const formattedExp = Object.values(expMap);
+    const round2 = (n) => Number(Number(n || 0).toFixed(2));
 
-    // Format B2CS amounts to 2 decimals
-    b2cs.forEach(x => {
-      x.txval = Number(x.txval.toFixed(2));
-      x.iamt = Number(x.iamt.toFixed(2));
-      x.camt = Number(x.camt.toFixed(2));
-      x.samt = Number(x.samt.toFixed(2));
-      x.csamt = Number(x.csamt.toFixed(2));
+    // Format B2CS amounts to 2 decimals, dropping rows fully netted to zero by credit notes.
+    b2cs.forEach((x) => {
+      x.txval = round2(x.txval);
+      x.iamt = round2(x.iamt);
+      x.camt = round2(x.camt);
+      x.samt = round2(x.samt);
+      x.csamt = round2(x.csamt);
     });
+    const b2csFiltered = b2cs.filter((x) => x.txval || x.iamt || x.camt || x.samt || x.csamt);
+
+    // Round CDNUR note amounts.
+    const formattedCdnur = cdnur.map((n) => ({ ...n, val: round2(n.val) }));
+
+    // Build the nil/exempt/non-GST section (table 8).
+    const NIL_SPLY_TY = {
+      intra_reg: 'INTRB2B',
+      intra_unreg: 'INTRB2C',
+      inter_reg: 'INTERB2B',
+      inter_unreg: 'INTERB2C',
+    };
+    const nilInv = Object.entries(nilCat)
+      .filter(([, v]) => v.nil || v.expt || v.ngsup)
+      .map(([k, v]) => ({
+        sply_ty: NIL_SPLY_TY[k],
+        nil_amt: round2(v.nil),
+        expt_amt: round2(v.expt),
+        ngsup_amt: round2(v.ngsup),
+      }));
 
     // Format HSN summaries to 2 decimals and compile list
     const hsnList = Object.values(hsnSummary).map((x, idx) => ({
@@ -394,7 +536,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       iamt: Number(x.iamt.toFixed(2)),
       camt: Number(x.camt.toFixed(2)),
       samt: Number(x.samt.toFixed(2)),
-      csamt: Number(x.csamt.toFixed(2))
+      csamt: Number(x.csamt.toFixed(2)),
     }));
 
     // Construct full GSTR-1 payload
@@ -404,11 +546,14 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       cur_gt: 0.0, // gross turnover helper
       b2b: formattedB2b,
       b2cl: formattedB2cl,
-      b2cs: b2cs,
+      b2cs: b2csFiltered,
       cdnr: formattedCdnr,
+      cdnur: formattedCdnur,
+      exp: formattedExp,
+      nil: { inv: nilInv },
       hsn: {
-        data: hsnList
-      }
+        data: hsnList,
+      },
     };
 
     // Persist the snapshot only for the company-wide return. A registration-scoped
@@ -423,8 +568,8 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
             eq(gstr1Exports.companyId, company_id),
             eq(gstr1Exports.fyId, fy_id),
             eq(gstr1Exports.returnPeriod, return_period),
-            eq(gstr1Exports.status, 'Draft')
-          )
+            eq(gstr1Exports.status, 'Draft'),
+          ),
         );
 
       const inserted = await db
@@ -436,7 +581,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           status: 'Draft',
           b2bJson: JSON.stringify(formattedB2b),
           b2clJson: JSON.stringify(formattedB2cl),
-          b2csJson: JSON.stringify(b2cs),
+          b2csJson: JSON.stringify(b2csFiltered),
           cdnrJson: JSON.stringify(formattedCdnr),
           hsnJson: JSON.stringify(hsnList),
           errorsJson: JSON.stringify(errors),
@@ -450,9 +595,8 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       success: true,
       export_id,
       payload,
-      errors
+      errors,
     };
-
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -470,7 +614,7 @@ const getGSTR1 = async (company_id, fy_id, return_period, gst_registration_id = 
           WHERE ${gstr1Exports.companyId} = ${company_id}
             AND ${gstr1Exports.fyId} = ${fy_id}
             AND ${gstr1Exports.returnPeriod} = ${return_period}
-          ORDER BY ${gstr1Exports.exportId} DESC LIMIT 1`
+          ORDER BY ${gstr1Exports.exportId} DESC LIMIT 1`,
     );
 
     if (rows.length === 0) {
@@ -485,7 +629,7 @@ const getGSTR1 = async (company_id, fy_id, return_period, gst_registration_id = 
       status: row.status,
       filed_date: row.filed_date,
       payload: JSON.parse(row.full_payload_json),
-      errors: JSON.parse(row.errors_json)
+      errors: JSON.parse(row.errors_json),
     };
   } catch (err) {
     return { success: false, error: err.message };
@@ -494,5 +638,5 @@ const getGSTR1 = async (company_id, fy_id, return_period, gst_registration_id = 
 
 module.exports = {
   generateGSTR1,
-  getGSTR1
+  getGSTR1,
 };

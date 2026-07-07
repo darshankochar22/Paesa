@@ -64,6 +64,45 @@ const resolveStateCode = (stateName, gstin) => {
   return STATE_CODE_MAP[nameLower] || '27';
 };
 
+// Taxability values that make a ZERO GST rate legitimate (the supply is genuinely
+// exempt/nil/non-GST). Anything else that resolves to a zero rate with source 'default'
+// means NO rate configuration was found — a silent-zero-tax hazard we surface as a warning.
+const EXEMPT_TAXABILITIES = new Set([
+  'exempt',
+  'exempted',
+  'nil rated',
+  'nil-rated',
+  'nil',
+  'non-gst',
+  'non gst',
+  'nongst',
+]);
+
+// Collects per-item GST data-quality warnings (unconfigured rate, negative taxable value)
+// so a save can flag them instead of silently emitting a zero-tax or negative-tax voucher
+// that later corrupts GSTR-1/3B totals. Non-blocking by design.
+const collectRateWarnings = (warnings, entry, rateDetails, assessableValue) => {
+  const taxability = String(rateDetails.taxability || '').toLowerCase();
+  const label = entry.item_name || rateDetails.hsn_code || entry.hsn_code || 'an item';
+  if (
+    assessableValue !== 0 &&
+    rateDetails.source === 'default' &&
+    (rateDetails.gst_rate || 0) === 0 &&
+    (rateDetails.cess_rate || 0) === 0 &&
+    !EXEMPT_TAXABILITIES.has(taxability)
+  ) {
+    warnings.push(
+      `No GST rate configured for ${label} (HSN ${rateDetails.hsn_code || 'unset'}); saved with ZERO tax. ` +
+        `Set a rate on the item, its stock group, the ledger, or an HSN override — or mark it Exempt/Nil-rated if that is intended.`,
+    );
+  }
+  if (assessableValue < 0) {
+    warnings.push(
+      `Negative taxable value (${assessableValue}) on ${label} — discount exceeds the line amount; this will subtract from GST totals.`,
+    );
+  }
+};
+
 /**
  * Walks the statutory configuration hierarchy to resolve HSN and GST rate details.
  * Hierarchy: Item -> Stock Group -> Ledger (if item not used) -> Company HSN Override
@@ -146,6 +185,7 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
           WHERE ${gstHsnRates.companyId} = ${company_id}
             AND ${gstHsnRates.hsnCode} = ${queryHsn}
             AND ${gstHsnRates.effectiveFrom} <= ${effectiveDate}
+            AND (${gstHsnRates.effectiveTo} IS NULL OR ${gstHsnRates.effectiveTo} >= ${effectiveDate})
           ORDER BY ${gstHsnRates.effectiveFrom} DESC LIMIT 1`,
     );
     const hsnRate = hsnRateRows[0];
@@ -398,14 +438,17 @@ const validateAndComputeVoucherGst = async (db, payload) => {
   }
   const destinationState = place_of_supply || partyState || companyState || '';
   const destinationStateCode = resolveStateCode(destinationState, partyGSTIN);
-  const isInterState =
-    gst_snapshot && gst_snapshot.is_interstate != null
-      ? Boolean(gst_snapshot.is_interstate)
-      : companyStateCode !== destinationStateCode;
+  // Interstate is derived LIVE from the (registration-frozen) company state vs the current
+  // destination state — NOT frozen as a boolean. The pinned registration already keeps the
+  // company side stable when the company's default registration changes, while re-deriving
+  // here means editing the voucher's party or place-of-supply to another state correctly
+  // flips the CGST/SGST-vs-IGST split (the old frozen-boolean kept the wrong split).
+  const isInterState = companyStateCode !== destinationStateCode;
 
   // 3. Per-item assessable value + rate + taxability.
   const items = [];
   const processedStockEntries = [];
+  const rateWarnings = [];
   for (const entry of stock_entries) {
     const assessable_value =
       (entry.quantity || 0) * (entry.rate || 0) - (entry.discount_amount || 0);
@@ -416,6 +459,7 @@ const validateAndComputeVoucherGst = async (db, payload) => {
       hsn_code: entry.hsn_code,
       date,
     });
+    collectRateWarnings(rateWarnings, entry, rateDetails, assessable_value);
     items.push({
       assessable_value,
       gst_rate: rateDetails.gst_rate,
@@ -449,7 +493,12 @@ const validateAndComputeVoucherGst = async (db, payload) => {
   });
   errors.push(...combo.errors);
   if (errors.length > 0) {
-    return { errors, warnings: combo.warnings, entries, stock_entries: processedStockEntries };
+    return {
+      errors,
+      warnings: [...combo.warnings, ...rateWarnings],
+      entries,
+      stock_entries: processedStockEntries,
+    };
   }
 
   // 6. Compute each selected tax ledger's amount PER ITEM, then sum (bug 7) — never a
@@ -510,7 +559,7 @@ const validateAndComputeVoucherGst = async (db, payload) => {
 
   return {
     errors: [],
-    warnings: combo.warnings,
+    warnings: [...combo.warnings, ...rateWarnings],
     is_inter_state: isInterState ? 1 : 0,
     gst_registration_id: gstRegistrationId,
     company_state: companyState,
@@ -662,12 +711,13 @@ const computeVoucherTaxLines = async (db, payload) => {
   const destinationState = place_of_supply || partyState || companyState || '';
   const destinationStateCode = resolveStateCode(destinationState, partyGSTIN);
 
-  // FREEZE: on the edit path, honor the snapshotted interstate flag verbatim so it is
-  // "computed once, never recomputed" (spec STEP 5/7). Fresh saves derive it live.
-  const isInterState =
-    gst_snapshot && gst_snapshot.is_interstate != null
-      ? Boolean(gst_snapshot.is_interstate)
-      : companyStateCode !== destinationStateCode;
+  // Interstate is derived LIVE from the (registration-frozen) company state vs the current
+  // destination state. The pinned registration snapshot already keeps the company side
+  // stable when the company's default registration changes; re-deriving here means editing
+  // the voucher's party or place-of-supply to another state correctly flips the
+  // CGST/SGST-vs-IGST split. (Previously the boolean itself was frozen, so a party change on
+  // an edit silently kept the wrong split.)
+  const isInterState = companyStateCode !== destinationStateCode;
 
   let totalCGST = 0;
   let totalSGST = 0;
@@ -677,6 +727,7 @@ const computeVoucherTaxLines = async (db, payload) => {
 
   const processedStockEntries = [];
   const taxLinesBreakdown = [];
+  const rateWarnings = [];
 
   // 3. Compute tax for each stock entry
   for (const entry of stock_entries) {
@@ -691,6 +742,7 @@ const computeVoucherTaxLines = async (db, payload) => {
       hsn_code: entry.hsn_code,
       date,
     });
+    collectRateWarnings(rateWarnings, entry, rateDetails, assessable_value);
 
     let cgst_amount = 0;
     let sgst_amount = 0;
@@ -840,6 +892,7 @@ const computeVoucherTaxLines = async (db, payload) => {
 
   return {
     is_inter_state: isInterState ? 1 : 0,
+    warnings: rateWarnings,
     // Header GST snapshot to persist on the voucher (immutable after first save).
     gst_registration_id: gstRegistrationId,
     company_state: companyState,

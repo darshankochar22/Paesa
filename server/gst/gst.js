@@ -72,6 +72,19 @@ const init = async (db) => {
     )
   `);
 
+  // 4b. Create gstr2a_imports table (dynamic GSTR-2A portal statement) — mirrors
+  // gstr2b_imports. Without this, GSTR-2A reconciliation had nothing to match against.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS gstr2a_imports (
+      import_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
+      fy_id INTEGER NOT NULL REFERENCES financial_years(fy_id) ON DELETE CASCADE,
+      return_period TEXT NOT NULL,
+      payload_json TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   // 5. Create gst_opening_advances table (GST Utilities → GST Advances - Opening Balance).
   // Unadjusted advance receipts/payments carrying GST liability at the opening date.
   await db.execute(`

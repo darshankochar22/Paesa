@@ -143,6 +143,121 @@ const getGSTR1Reconciliation = async (company_id, fy_id) => {
   }
 };
 
+// ── Shared books-vs-portal matching ────────────────────────────────────────────────
+// Normalizes a document/invoice number so trivial formatting differences don't create
+// false "unreconciled" rows: uppercase, drop non-alphanumerics, strip leading zeros —
+// "INV-001", "inv001" and "1" all collapse to the same key.
+const normalizeInvNo = (s) =>
+  String(s || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .replace(/^0+(?=.)/, '');
+
+const invMatchKey = (gstin, invNo) =>
+  `${String(gstin || '').toUpperCase()}-${normalizeInvNo(invNo)}`;
+
+// Tax/taxable amounts within this many rupees count as an exact match (vendor-side fraction
+// rounding). Anything larger is a Mismatch — never silently reconciled.
+const RECON_TOLERANCE = 10;
+const withinTolerance = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) <= RECON_TOLERANCE;
+
+// Totals a portal invoice (GSTN inv shape) into { txval, tax, val, hasItms }. When the
+// portal invoice carries no itemized tax breakdown (only an invoice value), hasItms is
+// false and matching falls back to comparing the invoice value.
+const portalInvoiceTotals = (inv) => {
+  let txval = 0;
+  let tax = 0;
+  const itms = inv.itms || [];
+  for (const it of itms) {
+    const d = it.itm_det || it;
+    txval += Number(d.txval) || 0;
+    tax += (Number(d.iamt) || 0) + (Number(d.camt) || 0) + (Number(d.samt) || 0);
+  }
+  return { txval, tax, val: Number(inv.val) || 0, hasItms: itms.length > 0 };
+};
+
+// Builds Map(normalizedKey → { ctin, inum, totals, matched:false }) from imported portal
+// rows. Handles b2b (and b2ba amendments) invoice arrays.
+const buildPortalMap = (importedRows) => {
+  const map = new Map();
+  for (const row of importedRows) {
+    let payload;
+    try {
+      payload = JSON.parse(row.payload_json);
+    } catch (_) {
+      continue;
+    }
+    for (const section of ['b2b', 'b2ba']) {
+      for (const p of payload[section] || []) {
+        for (const inv of p.inv || []) {
+          map.set(invMatchKey(p.ctin, inv.inum), {
+            ctin: p.ctin,
+            inum: inv.inum,
+            totals: portalInvoiceTotals(inv),
+            matched: false,
+          });
+        }
+      }
+    }
+  }
+  return map;
+};
+
+// Reconciles one book document against the portal map, updating counters and marking the
+// matched portal entry. Returns the status string for the row.
+const matchBookDoc = (v, portalMap, counters) => {
+  const key = invMatchKey(v.party_gstin, v.reference_number || v.voucher_number);
+  const portal = portalMap.get(key);
+  if (portal) {
+    portal.matched = true;
+    const bookTax = (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
+    const t = portal.totals;
+    // Compare itemized tax/taxable when the portal provides it; otherwise fall back to the
+    // invoice value; if the portal gives neither, a key match is the best we can assert.
+    const matched = t.hasItms
+      ? withinTolerance(t.tax, bookTax) && withinTolerance(t.txval, Number(v.taxable) || 0)
+      : t.val
+        ? withinTolerance(t.val, invoiceOf(v))
+        : true;
+    if (matched) {
+      counters.reconciled++;
+      return 'Reconciled';
+    }
+    counters.mismatch++;
+    counters.mismatches.push({
+      gstin: v.party_gstin,
+      invoice_no: v.reference_number || v.voucher_number,
+      book_taxable: Number(v.taxable) || 0,
+      book_tax: bookTax,
+      book_invoice: invoiceOf(v),
+      portal_taxable: t.txval,
+      portal_tax: t.tax,
+      portal_invoice: t.val,
+    });
+    return 'Mismatch';
+  }
+  if (portalMap.size > 0) {
+    // In books, but the supplier has not filed it — ITC at risk.
+    counters.missing_in_portal++;
+    return 'Missing in Portal';
+  }
+  // No portal data imported at all — cannot reconcile.
+  counters.unreconciled_noportal++;
+  return 'Unreconciled';
+};
+
+// Portal invoices never matched by any book document — filed by the vendor but missing from
+// the books (unclaimed ITC / un-entered purchase).
+const collectPortalOnly = (portalMap) => {
+  const only = [];
+  for (const p of portalMap.values()) {
+    if (!p.matched) {
+      only.push({ gstin: p.ctin, invoice_no: p.inum, taxable: p.totals.txval, tax: p.totals.tax });
+    }
+  }
+  return only;
+};
+
 const getGSTR2BReconciliation = async (company_id, fy_id) => {
   try {
     const { fyLabel } = await getDatesForFY(fy_id);
@@ -177,30 +292,20 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
       return_view[k] = ZERO_ROW();
     });
 
-    let reconciledCount = 0;
-    let unreconciledCount = 0;
     let uncertainCount = 0;
+    const counters = {
+      reconciled: 0,
+      mismatch: 0,
+      missing_in_portal: 0,
+      unreconciled_noportal: 0,
+      mismatches: [],
+    };
 
     // Real reconciliation logic against imported GSTR-2B data
     const importedRows = await db.all(
       sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
     );
-
-    // Parse portal invoices
-    const portalInvoices = new Map();
-    for (const row of importedRows) {
-      try {
-        const payload = JSON.parse(row.payload_json);
-        // Standard JSON structure for 2B: { b2b: [ { inv: [ { inum: "INV-1", val: 100 } ] } ] }
-        if (payload.b2b) {
-          for (const p of payload.b2b) {
-            for (const inv of p.inv) {
-              portalInvoices.set(`${p.ctin}-${inv.inum}`.toUpperCase(), inv);
-            }
-          }
-        }
-      } catch (e) {}
-    }
+    const portalMap = buildPortalMap(importedRows);
 
     for (const v of rows) {
       if (!INWARD_RECON_TYPES.includes(v.voucher_type)) continue;
@@ -226,26 +331,31 @@ const getGSTR2BReconciliation = async (company_id, fy_id) => {
       row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
       row.invoice_amount += invoiceOf(v);
 
-      // Reconciliation: match GSTIN and Invoice Number
-      const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
-      if (portalInvoices.has(key)) {
-        row.status = 'Reconciled';
-        reconciledCount++;
-      } else {
-        row.status = 'Unreconciled';
-        unreconciledCount++;
-      }
+      // Match GSTIN + normalized invoice number, compare amounts within tolerance, and
+      // categorise as Reconciled / Mismatch / Missing-in-Portal.
+      row.status = matchBookDoc(v, portalMap, counters);
     }
+
+    // Portal invoices the vendor filed that never matched a book document.
+    const portalOnly = collectPortalOnly(portalMap);
 
     return {
       success: true,
       payload: {
         return_view,
         voucher_status: {
-          reconciled: reconciledCount,
-          unreconciled: unreconciledCount,
+          reconciled: counters.reconciled,
+          // Back-compat top-line: everything from books that is not a clean match.
+          unreconciled:
+            counters.mismatch + counters.missing_in_portal + counters.unreconciled_noportal,
           uncertain: uncertainCount,
+          // Detailed breakdown (new):
+          mismatch: counters.mismatch,
+          missing_in_portal: counters.missing_in_portal, // in books, vendor hasn't filed
+          missing_in_books: portalOnly.length, // filed by vendor, not entered in books
         },
+        mismatches: counters.mismatches,
+        portal_only: portalOnly,
         period_label: fyLabel,
         last_gst_activity:
           importedRows.length > 0
@@ -278,6 +388,138 @@ const importGSTR2B = async (company_id, fy_id, return_period, payload) => {
   }
 };
 
+const importGSTR2A = async (company_id, fy_id, return_period, payload) => {
+  try {
+    await db.execute(`DELETE FROM gstr2a_imports WHERE company_id = ? AND return_period = ?`, [
+      company_id,
+      return_period,
+    ]);
+    await db.execute(
+      `INSERT INTO gstr2a_imports (company_id, fy_id, return_period, payload_json)
+       VALUES (?, ?, ?, ?)`,
+      [company_id, fy_id, return_period, JSON.stringify(payload)],
+    );
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// ── GSTR-1 vs GSTR-3B cross-check ───────────────────────────────────────────────────
+// Sums the taxable value + output tax of the TAXED outward supplies in a GSTR-1 payload
+// (exempt/nil are excluded so both sides compare like-for-like). Credit notes reduce,
+// debit notes add.
+const sumGstr1Outward = (payload = {}) => {
+  let taxable = 0;
+  let tax = 0;
+  const addItms = (itms, sign) => {
+    for (const it of itms || []) {
+      const d = it.itm_det || it;
+      taxable += sign * (Number(d.txval) || 0);
+      tax +=
+        sign *
+        ((Number(d.iamt) || 0) +
+          (Number(d.camt) || 0) +
+          (Number(d.samt) || 0) +
+          (Number(d.csamt) || 0));
+    }
+  };
+  for (const p of payload.b2b || []) for (const inv of p.inv || []) addItms(inv.itms, 1);
+  for (const p of payload.b2cl || []) for (const inv of p.inv || []) addItms(inv.itms, 1);
+  for (const p of payload.exp || []) for (const inv of p.inv || []) addItms(inv.itms, 1);
+  for (const r of payload.b2cs || []) {
+    taxable += Number(r.txval) || 0;
+    tax +=
+      (Number(r.iamt) || 0) +
+      (Number(r.camt) || 0) +
+      (Number(r.samt) || 0) +
+      (Number(r.csamt) || 0);
+  }
+  for (const p of payload.cdnr || [])
+    for (const nt of p.nt || []) addItms(nt.itms, nt.ntty === 'C' ? -1 : 1);
+  for (const nt of payload.cdnur || []) addItms(nt.itms, nt.ntty === 'C' ? -1 : 1);
+  return { taxable, tax };
+};
+
+// Sums GSTR-3B's taxable outward liability (3.1a regular + 3.1b zero-rated).
+const sumGstr3bOutward = (payload = {}) => {
+  const s = payload.sup_details || {};
+  const val = (o = {}) => ({
+    txval: Number(o.txval) || 0,
+    tax:
+      (Number(o.iamt) || 0) + (Number(o.camt) || 0) + (Number(o.samt) || 0) + (Number(o.cess) || 0),
+  });
+  const det = val(s.osup_det);
+  const zero = val(s.osup_zero);
+  return { taxable: det.txval + zero.txval, tax: det.tax + zero.tax };
+};
+
+// Compares GSTR-1 (outward supplies filed) against GSTR-3B (liability declared) month by
+// month across a financial year — the classic "sales reported ≠ tax paid" audit red flag.
+const getGSTR1vs3BComparison = async (company_id, fy_id) => {
+  try {
+    const gstr1Service = require('./gstr1Service');
+    const gstr3bService = require('./gstr3bService');
+    const { fyStartDate, fyLabel } = await getDatesForFY(fy_id);
+    const [sy, sm] = fyStartDate.split('-').map(Number);
+
+    const rows = [];
+    const totals = { gstr1_taxable: 0, gstr1_tax: 0, gstr3b_taxable: 0, gstr3b_tax: 0 };
+    let mismatchCount = 0;
+
+    for (let i = 0; i < 12; i++) {
+      const monthIndex = sm + i;
+      const y = sy + Math.floor((monthIndex - 1) / 12);
+      const m = ((monthIndex - 1) % 12) + 1;
+      const period = `${String(m).padStart(2, '0')}${y}`;
+
+      const g1 = await gstr1Service.getGSTR1(company_id, fy_id, period);
+      const g3 = await gstr3bService.getGSTR3B(company_id, fy_id, period);
+      const one = g1 && g1.success ? sumGstr1Outward(g1.payload) : { taxable: 0, tax: 0 };
+      const three = g3 && g3.success ? sumGstr3bOutward(g3.payload) : { taxable: 0, tax: 0 };
+
+      const taxDiff = Number((one.tax - three.tax).toFixed(2));
+      const taxableDiff = Number((one.taxable - three.taxable).toFixed(2));
+      const matched =
+        withinTolerance(one.tax, three.tax) && withinTolerance(one.taxable, three.taxable);
+      if (!matched) mismatchCount++;
+
+      // Skip fully-empty months from the detail rows but still surface them if mismatched.
+      if (one.tax || three.tax || one.taxable || three.taxable) {
+        rows.push({
+          period,
+          gstr1_taxable: Number(one.taxable.toFixed(2)),
+          gstr1_tax: Number(one.tax.toFixed(2)),
+          gstr3b_taxable: Number(three.taxable.toFixed(2)),
+          gstr3b_tax: Number(three.tax.toFixed(2)),
+          taxable_diff: taxableDiff,
+          tax_diff: taxDiff,
+          status: matched ? 'Matched' : 'Mismatch',
+        });
+      }
+      totals.gstr1_taxable += one.taxable;
+      totals.gstr1_tax += one.tax;
+      totals.gstr3b_taxable += three.taxable;
+      totals.gstr3b_tax += three.tax;
+    }
+
+    Object.keys(totals).forEach((k) => (totals[k] = Number(totals[k].toFixed(2))));
+
+    return {
+      success: true,
+      payload: {
+        period_label: fyLabel,
+        rows,
+        totals,
+        mismatch_count: mismatchCount,
+        tax_diff_total: Number((totals.gstr1_tax - totals.gstr3b_tax).toFixed(2)),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 const getGSTR2AReconciliation = async (company_id, fy_id) => {
   try {
     const { fyLabel } = await getDatesForFY(fy_id);
@@ -300,30 +542,24 @@ const getGSTR2AReconciliation = async (company_id, fy_id) => {
     });
 
     // Reconcile against imported GSTR-2A portal data (if the user has imported any).
-    const portalInvoices = new Map();
+    let portalMap = new Map();
     try {
       const importedRows = await db.all(
         sql`SELECT * FROM gstr2a_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
       );
-      for (const row of importedRows) {
-        try {
-          const payload = JSON.parse(row.payload_json);
-          for (const p of payload.b2b || []) {
-            for (const inv of p.inv || []) {
-              portalInvoices.set(`${p.ctin}-${inv.inum}`.toUpperCase(), inv);
-            }
-          }
-        } catch (_) {
-          /* skip malformed import */
-        }
-      }
+      portalMap = buildPortalMap(importedRows);
     } catch (_) {
-      /* no gstr2a_imports table yet — books-only view */
+      /* gstr2a_imports table missing / unreadable — books-only view */
     }
 
-    let reconciled = 0;
-    let unreconciled = 0;
     let uncertain = 0;
+    const counters = {
+      reconciled: 0,
+      mismatch: 0,
+      missing_in_portal: 0,
+      unreconciled_noportal: 0,
+      mismatches: [],
+    };
 
     for (const v of rows) {
       if (!INWARD_RECON_TYPES.includes(v.voucher_type)) continue;
@@ -346,23 +582,28 @@ const getGSTR2AReconciliation = async (company_id, fy_id) => {
       row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
       row.invoice_amount += invoiceOf(v);
 
-      const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
-      if (portalInvoices.size > 0 && portalInvoices.has(key)) {
-        row.status = 'Reconciled';
-        reconciled++;
-      } else {
-        row.status = 'Unreconciled';
-        unreconciled++;
-      }
+      row.status = matchBookDoc(v, portalMap, counters);
     }
+
+    const portalOnly = collectPortalOnly(portalMap);
 
     return {
       success: true,
       payload: {
         return_view,
-        voucher_status: { reconciled, unreconciled, uncertain },
+        voucher_status: {
+          reconciled: counters.reconciled,
+          unreconciled:
+            counters.mismatch + counters.missing_in_portal + counters.unreconciled_noportal,
+          uncertain,
+          mismatch: counters.mismatch,
+          missing_in_portal: counters.missing_in_portal,
+          missing_in_books: portalOnly.length,
+        },
+        mismatches: counters.mismatches,
+        portal_only: portalOnly,
         period_label: fyLabel,
-        last_gst_activity: portalInvoices.size > 0 ? 'GSTR-2A imported' : 'No portal 2A imported',
+        last_gst_activity: portalMap.size > 0 ? 'GSTR-2A imported' : 'No portal 2A imported',
       },
     };
   } catch (err) {
@@ -2008,7 +2249,9 @@ module.exports = {
   getGSTR1Reconciliation,
   getGSTR2AReconciliation,
   getGSTR2BReconciliation,
+  getGSTR1vs3BComparison,
   importGSTR2B,
+  importGSTR2A,
   getIMSInwardSupplies,
   getChallanReconciliation,
   getReturnActivities,
