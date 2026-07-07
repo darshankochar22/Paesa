@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
 import { EmptyState } from '@/components/blocks/EmptyState';
+import { downloadTextFile, fixedRow } from '@/lib/exportText';
 
 // PF Form 5 (#207) & Form 10 (#208) — EPF statutory print documents rendered as a
 // white sheet (Tally's print preview look). Rows come from the employee master:
@@ -17,6 +18,123 @@ const monthLabel = (activeFY?: { end_date?: string } | null) => {
 
 const fmtAmt = (n: number) =>
   n ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+
+// "2026-04-01" → "1-Apr-26" (Tally's currency-period date style).
+const fmtDate = (s?: string) => {
+  if (!s) return '';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d
+    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
+    .replace(/ /g, '-');
+};
+
+// ---------------------------------------------------------------------------
+// PF E-Return (#214) — E-Return items export an SDF (fixed-width) .txt data file
+// (Tally exports, it doesn't print). The screen still previews the document and
+// exposes an Export action (button + Alt+E) that builds + downloads the file.
+// ---------------------------------------------------------------------------
+const num2 = (n: unknown) => (Number(n) || 0).toFixed(2);
+
+const eReturnFileName = (form: string, activeFY: any) => {
+  const end = activeFY?.end_date ? new Date(activeFY.end_date) : new Date(2000, 0, 1);
+  const mm = String(end.getMonth() + 1).padStart(2, '0');
+  return `${form}(${mm}${end.getFullYear()}).txt`;
+};
+
+// Each builder turns a form payload into fixed-width SDF records (one line/record).
+const buildEReturnForm5 = (p: any) =>
+  (p?.employees ?? [])
+    .map((e: any, i: number) =>
+      fixedRow([
+        [i + 1, 5, 'right'],
+        [e.account_no, 15],
+        [e.name, 40],
+        [e.father_or_husband, 40],
+        [e.date_of_birth, 12],
+        [e.sex, 3],
+        [e.date_of_joining_fund, 12],
+        [e.previous_service, 15],
+        [e.remarks, 15],
+      ]),
+    )
+    .join('\r\n');
+
+const buildEReturnForm10 = (p: any) =>
+  (p?.employees ?? [])
+    .map((e: any, i: number) =>
+      fixedRow([
+        [i + 1, 5, 'right'],
+        [e.account_no, 15],
+        [e.name, 40],
+        [e.father_or_husband, 40],
+        [e.date_of_leaving, 12],
+        [e.reason, 20],
+        [e.remarks, 15],
+      ]),
+    )
+    .join('\r\n');
+
+const buildEReturnForm12A = (p: any) => {
+  const lines = (p?.accounts ?? []).map((a: any) =>
+    fixedRow([
+      [a.account, 22],
+      [a.label, 50],
+      [num2(a.amount), 15, 'right'],
+    ]),
+  );
+  lines.push(
+    fixedRow([
+      ['', 22],
+      ['TOTAL', 50],
+      [num2(p?.total), 15, 'right'],
+    ]),
+  );
+  return lines.join('\r\n');
+};
+
+const buildEReturnForm3A = (p: any) =>
+  (p?.members ?? [])
+    .map((m: any, i: number) =>
+      fixedRow([
+        [i + 1, 5, 'right'],
+        [m.account_no, 15],
+        [m.name, 40],
+        [m.father_or_husband, 40],
+        [num2(m.wages), 12, 'right'],
+        [num2(m.ee), 12, 'right'],
+        [num2(m.epf_er), 12, 'right'],
+        [num2(m.eps), 12, 'right'],
+      ]),
+    )
+    .join('\r\n');
+
+// Export button shown in the footer of every E-Return screen (+ Alt+E shortcut).
+function EReturnExportBar({ onExport }: { onExport: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onExport}
+      className="px-3 h-7 bg-black text-white text-[11px] font-semibold hover:bg-zinc-800"
+    >
+      Export E-Return File (Alt+E)
+    </button>
+  );
+}
+
+function useAltEExport(enabled: boolean, onExport: () => void) {
+  useEffect(() => {
+    if (!enabled) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        onExport();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [enabled, onExport]);
+}
 
 type PFKind = 'form5' | 'form10' | 'form12a' | 'monthly' | 'ecr' | 'form6a' | 'form3a';
 
@@ -120,6 +238,7 @@ function PFSheet({
   selectedCompany,
   activeFY,
   loadingMsg,
+  footerControls,
 }: {
   title: string;
   loading: boolean;
@@ -127,12 +246,14 @@ function PFSheet({
   selectedCompany: any;
   activeFY: any;
   loadingMsg: string;
+  footerControls?: ReactNode;
 }) {
   return (
     <TallyReportLayout
       title={title}
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
+      footerControls={footerControls}
     >
       <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
         {loading && <EmptyState message={loadingMsg} className="italic" />}
@@ -194,15 +315,19 @@ function SignatureFooter({ note }: { note?: string }) {
   );
 }
 
-export default function PFForm5() {
+export default function PFForm5({ eReturn = false }: { eReturn?: boolean }) {
   const { payload, loading, selectedCompany, activeFY } = useFormData('form5');
   const rows: any[] = payload?.employees ?? [];
+  const onExport = () =>
+    downloadTextFile(eReturnFileName('Form 5', activeFY), buildEReturnForm5(payload));
+  useAltEExport(eReturn, onExport);
 
   return (
     <TallyReportLayout
-      title="Form 5"
+      title={eReturn ? 'Form 5 (E-Return)' : 'Form 5'}
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
+      footerControls={eReturn ? <EReturnExportBar onExport={onExport} /> : undefined}
     >
       <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 5…" className="italic" />}
@@ -286,15 +411,19 @@ const FORM10_NOTE = `Please state whether the member is (a)retiring according to
 
 Certified that the member mentioned at serial No.______________ Shri____________was paid/not paid retrenchment compensation of Rs____________under the Industrial Dispute Act, 1947.`;
 
-export function PFForm10() {
+export function PFForm10({ eReturn = false }: { eReturn?: boolean }) {
   const { payload, loading, selectedCompany, activeFY } = useFormData('form10');
   const rows: any[] = payload?.employees ?? [];
+  const onExport = () =>
+    downloadTextFile(eReturnFileName('Form 10', activeFY), buildEReturnForm10(payload));
+  useAltEExport(eReturn, onExport);
 
   return (
     <TallyReportLayout
-      title="Form 10"
+      title={eReturn ? 'Form 10 (E-Return)' : 'Form 10'}
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
+      footerControls={eReturn ? <EReturnExportBar onExport={onExport} /> : undefined}
     >
       <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 10…" className="italic" />}
@@ -369,16 +498,20 @@ export function PFForm10() {
 // PF Form 12A (#209) — the EPF monthly Statement of Contribution. PF figures reuse
 // the same buckets as the Statutory Summary (#206); member movement ties to the
 // Form 5 joiners / Form 10 leavers. Remittance/challan details aren't tracked — blank.
-export function PFForm12A() {
+export function PFForm12A({ eReturn = false }: { eReturn?: boolean }) {
   const { payload, loading, selectedCompany, activeFY } = useFormData('form12a');
   const accounts: any[] = payload?.accounts ?? [];
   const members = payload?.members ?? { opening: 0, added: 0, left: 0, closing: 0 };
+  const onExport = () =>
+    downloadTextFile(eReturnFileName('Form 12A', activeFY), buildEReturnForm12A(payload));
+  useAltEExport(eReturn, onExport);
 
   return (
     <TallyReportLayout
-      title="Form 12A"
+      title={eReturn ? 'Form 12A (E-Return)' : 'Form 12A'}
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
+      footerControls={eReturn ? <EReturnExportBar onExport={onExport} /> : undefined}
     >
       <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 12A…" className="italic" />}
@@ -536,17 +669,10 @@ export function PFECR() {
 // #213 PF Form 6A — annual consolidated statement of contributions (all members).
 export function PFForm6A() {
   const { payload, loading, selectedCompany, activeFY } = useFormData('form6a');
-  const columns: SheetCol[] = [
-    { key: 'sl', label: 'Sl No.' },
-    { key: 'account_no', label: 'Account No.' },
-    { key: 'name', label: 'Name of Member' },
-    { key: 'wages', label: 'Wages on which contributions payable', num: true },
-    { key: 'ee', label: "Workers' Contribution", num: true },
-    { key: 'er', label: "Employer's Share (EPF + EPS)", num: true },
-    { key: 'eps', label: 'of which EPS', num: true },
-    { key: 'refund', label: 'Refund of Advances', num: true },
-    { key: 'remarks', label: 'Remarks' },
-  ];
+  const rows: any[] = payload?.rows ?? [];
+  const totals = payload?.totals ?? {};
+  const est = payload?.establishment;
+
   return (
     <PFSheet
       title="Form 6A"
@@ -555,22 +681,127 @@ export function PFForm6A() {
       selectedCompany={selectedCompany}
       activeFY={activeFY}
     >
-      <div className="text-center font-bold text-sm mb-1">FORM 6A</div>
-      <div className="text-center font-bold mb-1">THE EMPLOYEES' PROVIDENT FUNDS SCHEME, 1952</div>
-      <div className="text-center mb-4">
-        Annual Consolidated Statement of Contributions for the year ending{' '}
-        <span className="font-bold">{monthLabel(activeFY)}</span>
+      <div className="text-center font-bold text-sm mb-1">FORM 6 A</div>
+      <div className="text-center font-bold">
+        THE EMPLOYEE'S PROVIDENT FUND SCHEME, 1952. [Paragraph 43]
       </div>
-      <Establishment est={payload?.establishment} />
-      <SheetTable columns={columns} rows={payload?.rows ?? []} totals={payload?.totals} />
+      <div className="text-center font-bold mb-4">
+        AND THE EMPLOYEES' PENSION SCHEME, 1995 [Paragraph 20(4)]
+      </div>
+      <div className="font-bold mb-3">
+        Annual Statement of contribution for the currency period from{' '}
+        {fmtDate(activeFY?.start_date)} to {fmtDate(activeFY?.end_date)}
+      </div>
+
+      <div className="flex flex-col gap-1 mb-4 text-[11px]">
+        <div className="flex">
+          <div className="w-96">Name &amp; Address of the Establishment</div>
+          <div className="w-4">:</div>
+          <div className="font-bold whitespace-pre-line">
+            {est?.name}
+            {est?.address ? `\n${est.address}` : ''}
+          </div>
+        </div>
+        <InfoRow label="Statutory Rate of Contribution" value={payload?.statutory_rate || '12 %'} />
+        <InfoRow label="Code No. of the Establishment" value={est?.pf_code || ''} />
+        <InfoRow
+          label="No. of members voluntarily contributing at a higher rate"
+          value={payload?.higher_rate_members ?? 0}
+        />
+      </div>
+
+      <table className="w-full border-collapse text-[9px]">
+        <thead>
+          <tr>
+            <th className={HEADCELL} rowSpan={2}>
+              S. No.
+            </th>
+            <th className={HEADCELL} rowSpan={2}>
+              Account Number
+            </th>
+            <th className={HEADCELL} rowSpan={2}>
+              Name of the Member (in block letters)
+            </th>
+            <th className={HEADCELL} rowSpan={2}>
+              Wages, retaining allowance (if any) &amp; DA including cash value of food concession
+              paid during the currency period
+            </th>
+            <th className={HEADCELL} rowSpan={2}>
+              Amount of Worker's Contributions deducted from the wages on % E.P.F.
+            </th>
+            <th className={HEADCELL} colSpan={2}>
+              Employer's Contribution
+            </th>
+            <th className={HEADCELL} rowSpan={2}>
+              Refund of Advance
+            </th>
+            <th className={HEADCELL} rowSpan={2}>
+              Rate of higher voluntary Contribution (if any)
+            </th>
+            <th className={HEADCELL} rowSpan={2}>
+              Remarks
+            </th>
+          </tr>
+          <tr>
+            <th className={HEADCELL}>E.P.F. Difference between % &amp; %</th>
+            <th className={HEADCELL}>Pension Fund %</th>
+          </tr>
+          <tr>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+              <th key={n} className={HEADCELL}>
+                {n}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <td key={i} className={`${CELL} h-72`} />
+              ))}
+            </tr>
+          ) : (
+            rows.map((r, i) => (
+              <tr key={i}>
+                <td className={CELL}>{r.sl}</td>
+                <td className={CELL}>{r.account_no}</td>
+                <td className={`${CELL} uppercase`}>{r.name}</td>
+                <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.wages)}</td>
+                <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.ee)}</td>
+                <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.epf_er)}</td>
+                <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.eps)}</td>
+                <td className={`${CELL} text-right tabular-nums`} />
+                <td className={CELL} />
+                <td className={CELL} />
+              </tr>
+            ))
+          )}
+          <tr>
+            <td className={`${CELL} font-bold`} />
+            <td className={`${CELL} font-bold`} />
+            <td className={`${CELL} font-bold`}>Total</td>
+            <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(totals.wages)}</td>
+            <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(totals.ee)}</td>
+            <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(totals.epf_er)}</td>
+            <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(totals.eps)}</td>
+            <td className={`${CELL} font-bold`} />
+            <td className={`${CELL} font-bold`} />
+            <td className={`${CELL} font-bold`} />
+          </tr>
+        </tbody>
+      </table>
+
       <SignatureFooter />
     </PFSheet>
   );
 }
 
-// #212 PF Form 3A — per-member annual contribution card. Month-wise history isn't
-// stored, so the current-period figure lands on the last month; others stay blank.
-const FY_MONTHS = [
+// #212 PF Form 3A — per-member annual contribution card. The EPF contribution year
+// runs March→February; month-wise history isn't stored, so the current-period figure
+// lands on the last month (Feb) and the rest stay blank.
+const PF_YEAR_MONTHS = [
+  'Mar',
   'Apr',
   'May',
   'Jun',
@@ -582,25 +813,37 @@ const FY_MONTHS = [
   'Dec',
   'Jan',
   'Feb',
-  'Mar',
 ];
-export function PFForm3A() {
+export function PFForm3A({ eReturn = false }: { eReturn?: boolean }) {
   const { payload, loading, selectedCompany, activeFY } = useFormData('form3a');
   const members: any[] = payload?.members ?? [];
   const est = payload?.establishment;
+  const startYear = activeFY?.start_date ? new Date(activeFY.start_date).getFullYear() : 2000;
+  const onExport = () =>
+    downloadTextFile(eReturnFileName('Form 3A', activeFY), buildEReturnForm3A(payload));
+  useAltEExport(eReturn, onExport);
 
   return (
     <PFSheet
-      title="Form 3A"
+      title={eReturn ? 'Form 3A (E-Return)' : 'Form 3A'}
       loading={loading}
       loadingMsg="Preparing Form 3A…"
       selectedCompany={selectedCompany}
       activeFY={activeFY}
+      footerControls={eReturn ? <EReturnExportBar onExport={onExport} /> : undefined}
     >
       <div className="text-center font-bold text-sm mb-1">FORM 3A (Revised)</div>
-      <div className="text-center font-bold mb-4">
-        THE EMPLOYEES' PROVIDENT FUNDS SCHEME, 1952 &amp; EMPLOYEES' PENSION SCHEME, 1995 — Member's
-        Annual Contribution Card
+      <div className="text-center font-bold">
+        THE EMPLOYEES' PROVIDENT FUND SCHEME, 1952 [Paras 35 &amp; 42]
+      </div>
+      <div className="text-center font-bold mb-2">
+        &amp; THE EMPLOYEES' PENSION SCHEME, 1995 [Para 19]
+      </div>
+      <div className="text-center mb-4">
+        Contribution Card for Currency Period from{' '}
+        <span className="font-bold">
+          1-Mar-{String(startYear).slice(-2)} to 28-Feb-{String(startYear + 1).slice(-2)}
+        </span>
       </div>
       {members.length === 0 && (
         <div className="px-4 py-6 italic text-gray-500 text-center">
@@ -609,27 +852,42 @@ export function PFForm3A() {
       )}
       {members.map((m, mi) => (
         <div key={mi} className={mi > 0 ? 'mt-8 pt-6 border-t-2 border-black' : ''}>
-          <div className="flex flex-col gap-1 mb-3">
+          <div className="flex flex-col gap-1 mb-3 text-[11px]">
             <InfoRow label="Account No." value={m.account_no} />
-            <InfoRow label="Name of the Member" value={m.name} />
+            <InfoRow
+              label="Name / Surname (in block letters)"
+              value={<span className="uppercase">{m.name}</span>}
+            />
             <InfoRow label="Father's / Husband's Name" value={m.father_or_husband || ''} />
-            <InfoRow label="Name & Address of the Establishment" value={est?.name || ''} />
-            <InfoRow label="Statutory rate of contribution" value="12%" />
+            <div className="flex">
+              <div className="w-96">Name &amp; Address of the Factory / Establishment</div>
+              <div className="w-4">:</div>
+              <div className="font-bold whitespace-pre-line">
+                {est?.name}
+                {est?.address ? `\n${est.address}` : ''}
+              </div>
+            </div>
+            <InfoRow label="Statutory rate of contribution" value="12 %" />
+            <InfoRow label="Voluntary higher rate of contribution (if any)" value="—" />
           </div>
           <table className="w-full border-collapse text-[10px]">
             <thead>
               <tr>
                 <th className={HEADCELL}>Month</th>
-                <th className={HEADCELL}>Amount of Wages</th>
-                <th className={HEADCELL}>Workers' Contribution (EPF)</th>
-                <th className={HEADCELL}>Employer's Contribution (EPF)</th>
-                <th className={HEADCELL}>Pension Fund (EPS)</th>
+                <th className={HEADCELL}>
+                  Amount of Wages, Retaining Allowance (if any) &amp; D.A.
+                </th>
+                <th className={HEADCELL}>Worker's Contribution</th>
+                <th className={HEADCELL}>Employer's Contribution (E.P.F. Difference)</th>
+                <th className={HEADCELL}>Pension Fund Contribution (E.P.S.)</th>
                 <th className={HEADCELL}>Refund of Advances</th>
+                <th className={HEADCELL}>No. of days of N.C.P.</th>
+                <th className={HEADCELL}>Remarks</th>
               </tr>
             </thead>
             <tbody>
-              {FY_MONTHS.map((mon, idx) => {
-                const isLast = idx === FY_MONTHS.length - 1; // current period lands on the last month
+              {PF_YEAR_MONTHS.map((mon, idx) => {
+                const isLast = idx === PF_YEAR_MONTHS.length - 1; // current period lands on the last month
                 return (
                   <tr key={mon}>
                     <td className={CELL}>{mon}</td>
@@ -646,6 +904,8 @@ export function PFForm3A() {
                       {isLast ? fmtAmt(m.eps) : ''}
                     </td>
                     <td className={`${CELL} text-right tabular-nums`} />
+                    <td className={CELL} />
+                    <td className={CELL} />
                   </tr>
                 );
               })}
@@ -655,10 +915,16 @@ export function PFForm3A() {
                 <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(m.ee)}</td>
                 <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(m.epf_er)}</td>
                 <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(m.eps)}</td>
-                <td className={`${CELL} font-bold text-right tabular-nums`} />
+                <td className={`${CELL} font-bold`} />
+                <td className={`${CELL} font-bold`} />
+                <td className={`${CELL} font-bold`} />
               </tr>
             </tbody>
           </table>
+          <div className="mt-3 text-[10px]">
+            Certified that the total amount of contribution (both shares) indicated in this card has
+            been remitted in full in the E.P.F. A/c No. 1 and the Pension Fund A/c No. 10.
+          </div>
         </div>
       ))}
       <SignatureFooter />

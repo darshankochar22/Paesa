@@ -130,8 +130,13 @@ describe('Payroll Statutory reports (#206)', () => {
   it('PF Form 6A consolidates member contributions with a grand total (#213)', async () => {
     const res = await statSvc.getPFForm6A(companyId);
     expect(res.success).toBe(true);
-    expect(res.payload.rows.find((r) => r.name === 'Stat Emp').ee).toBe(1800);
+    const row = res.payload.rows.find((r) => r.name === 'Stat Emp');
+    expect(row.ee).toBe(1800);
     expect(res.payload.totals.ee).toBe(1800);
+    // Employer share splits into EPF-difference + Pension Fund columns (Form 6A cols 6 & 7).
+    expect(row).toHaveProperty('epf_er');
+    expect(row).toHaveProperty('eps');
+    expect(res.payload.statutory_rate).toBeTruthy();
   });
 
   it('PF Form 3A issues one annual card per member (#212)', async () => {

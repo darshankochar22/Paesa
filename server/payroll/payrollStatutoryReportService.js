@@ -448,26 +448,38 @@ const getPFECR = async (company_id) => {
 };
 
 // #213 PF Form 6A — annual consolidated statement of contributions (all members).
+// Layout follows the EPFO Form 6A: employer share splits into EPF-difference
+// (A/c 1) and Pension Fund (A/c 10) columns.
 const getPFForm6A = async (company_id) => {
   try {
     const establishment = await loadEstablishment(company_id);
     const emps = (await loadPFEmployees(company_id)).filter(isPFMember);
     const rows = emps.map((e, i) => {
-      const { eps } = splitEmployer(e.er_pf);
+      const { eps, epf_er } = splitEmployer(e.er_pf);
       return {
         sl: i + 1,
         account_no: e.pf_account_number || e.uan || '',
         name: e.name,
         wages: round2(e.wages),
-        ee: round2(e.ee_pf),
-        er: round2(e.er_pf),
-        eps,
+        ee: round2(e.ee_pf), // worker's contribution deducted (A/c 1)
+        epf_er, // employer's EPF difference (A/c 1)
+        eps, // employer's pension fund (A/c 10)
         refund: 0,
+        higher_rate: '',
         remarks: '',
       };
     });
-    const totals = sumRows(rows, ['wages', 'ee', 'er', 'eps', 'refund']);
-    return { success: true, payload: { establishment, rows, totals } };
+    const totals = sumRows(rows, ['wages', 'ee', 'epf_er', 'eps', 'refund']);
+    return {
+      success: true,
+      payload: {
+        establishment,
+        statutory_rate: '12 %',
+        higher_rate_members: 0,
+        rows,
+        totals,
+      },
+    };
   } catch (err) {
     return { success: false, error: err.message };
   }
