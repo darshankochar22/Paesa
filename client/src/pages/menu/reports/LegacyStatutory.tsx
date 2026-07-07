@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 import { Separator } from '@/components/shadcn/separator';
+import { useCompany } from '@/context/CompanyContext';
+import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
 
 const BASE = '/reports/legacy-statutory';
 const slug = (s: string) =>
@@ -14,8 +16,10 @@ const items = (labels: string[]) =>
 
 export default function LegacyStatutory() {
   const navigate = useNavigate();
+  const { features } = useCompany();
+  const vatEnabled = isTaxFeatureEnabled(features, 'vat');
 
-  const sections = [
+  const allSections = [
     {
       title: 'VAT',
       items: items([
@@ -72,6 +76,9 @@ export default function LegacyStatutory() {
       ]),
     },
   ];
+
+  // Hide the VAT report block when VAT is turned off in Company Features (F11).
+  const sections = allSections.filter((s) => s.title !== 'VAT' || vatEnabled);
 
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">

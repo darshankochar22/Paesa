@@ -281,6 +281,7 @@ import VatAdditionalDetailsPopup from '../components/popups/VatAdditionalDetails
 import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
 import { gstRowInfo } from '../utils/gstRow';
 import { useCompany } from '../../../context/CompanyContext';
+import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -315,6 +316,8 @@ export default function SalesVoucher({
   const showBilled = features?.use_separate_actual_billed_qty !== 0;
   // F11 "Use Discount column in invoices" — hide the Disc % column when No.
   const showDisc = features?.use_discount_column_in_invoices !== 0;
+  // F11 "Enable Value Added Tax (VAT)" — hide the Provide VAT details block when No.
+  const vatEnabled = isTaxFeatureEnabled(features, 'vat');
 
   const priceLevelLabel = form.priceLevel || '♦ Not Applicable';
 
@@ -681,7 +684,7 @@ export default function SalesVoucher({
       {/* Provide GST/e-Way Bill details */}
       {!hideAdditionalLedgers && <SalesGstEwayRow form={form} />}
 
-      {!hideVatDetails && <SalesVATDetails form={form} />}
+      {vatEnabled && !hideVatDetails && <SalesVATDetails form={form} />}
     </div>
   );
 }

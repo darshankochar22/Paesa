@@ -7,6 +7,7 @@ import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopu
 import VatNatureOfReturnPopup from '../components/popups/VatNatureOfReturnPopup';
 import AdditionalTaxLedgerRows from '../components/AdditionalTaxLedgerRows';
 import { useCompany } from '../../../context/CompanyContext';
+import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -29,6 +30,8 @@ export default function DebitNoteVoucher({
   const showBilled = features?.use_separate_actual_billed_qty !== 0;
   // F11 "Use Discount column in invoices" — hide the Disc % column when No.
   const showDisc = features?.use_discount_column_in_invoices !== 0;
+  // F11 "Enable Value Added Tax (VAT)" — hide the Provide VAT details block when No.
+  const vatEnabled = isTaxFeatureEnabled(features, 'vat');
   return (
     <>
       {/* Party */}
@@ -264,8 +267,8 @@ export default function DebitNoteVoucher({
         <DebitNoteGSTDetails form={form} />
       )}
 
-      {/* Provide VAT details — only for a Sales Accounts ledger */}
-      {form.checkLedgerGroup(form.salesPurchaseLedger, ['sales accounts']) && (
+      {/* Provide VAT details — only for a Sales Accounts ledger, and only when VAT is on */}
+      {vatEnabled && form.checkLedgerGroup(form.salesPurchaseLedger, ['sales accounts']) && (
         <DebitNoteVATDetails form={form} />
       )}
 
@@ -277,7 +280,7 @@ export default function DebitNoteVoucher({
 
 // ── GST / e-Way Bill Details (Statutory Details popup) ────────────────────────
 function DebitNoteGstEwayDetails({ form }: { form: any }) {
-  const [provide, setProvide] = useState<"Yes" | "No">("No");
+  const [provide, setProvide] = useState<'Yes' | 'No'>('No');
   const [showPopup, setShowPopup] = useState(false);
 
   return (
@@ -288,15 +291,21 @@ function DebitNoteGstEwayDetails({ form }: { form: any }) {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => { setProvide("Yes"); setShowPopup(true); }}
-            className={`text-sm px-2 py-0 border ${provide === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+            onClick={() => {
+              setProvide('Yes');
+              setShowPopup(true);
+            }}
+            className={`text-sm px-2 py-0 border ${provide === 'Yes' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
           >
             Yes
           </button>
           <button
             type="button"
-            onClick={() => { setProvide("No"); setShowPopup(false); }}
-            className={`text-sm px-2 py-0 border ${provide === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+            onClick={() => {
+              setProvide('No');
+              setShowPopup(false);
+            }}
+            className={`text-sm px-2 py-0 border ${provide === 'No' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
           >
             No
           </button>
@@ -308,7 +317,10 @@ function DebitNoteGstEwayDetails({ form }: { form: any }) {
           initialDetails={form.gstEwayDetails}
           showNoteReason
           noteNoLabel="Supplier's Credit Note No."
-          onClose={() => { setProvide("No"); setShowPopup(false); }}
+          onClose={() => {
+            setProvide('No');
+            setShowPopup(false);
+          }}
           onSave={(details) => {
             form.setGstEwayDetails({ ...form.gstEwayDetails, ...details });
             setShowPopup(false);
