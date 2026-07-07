@@ -18,7 +18,9 @@ const monthLabel = (activeFY?: { end_date?: string } | null) => {
 const fmtAmt = (n: number) =>
   n ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 
-function useFormData(kind: 'form5' | 'form10' | 'form12a') {
+type PFKind = 'form5' | 'form10' | 'form12a' | 'monthly' | 'ecr' | 'form6a' | 'form3a';
+
+function useFormData(kind: PFKind) {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const [payload, setPayload] = useState<any>(null);
@@ -34,18 +36,114 @@ function useFormData(kind: 'form5' | 'form10' | 'form12a') {
         to: activeFY?.end_date,
       };
       const api = window.api.payrollStatutory;
-      const res =
-        kind === 'form5'
-          ? await api.getPFForm5(params)
-          : kind === 'form10'
-            ? await api.getPFForm10(params)
-            : await api.getPFForm12A(params);
+      const fetchers: Record<PFKind, (p: typeof params) => Promise<any>> = {
+        form5: api.getPFForm5,
+        form10: api.getPFForm10,
+        form12a: api.getPFForm12A,
+        monthly: api.getPFMonthlyStatement,
+        ecr: api.getPFECR,
+        form6a: api.getPFForm6A,
+        form3a: api.getPFForm3A,
+      };
+      const res = await fetchers[kind](params);
       if (res.success) setPayload(res.payload);
       setLoading(false);
     })();
   }, [companyId, activeFY?.start_date, activeFY?.end_date, kind]);
 
   return { payload, loading, selectedCompany, activeFY };
+}
+
+// Shared column-driven register table for the employee-wise PF documents
+// (Monthly Statement / ECR / Form 6A). `num` columns are right-aligned + money-formatted.
+type SheetCol = { key: string; label: string; num?: boolean };
+function SheetTable({
+  columns,
+  rows,
+  totals,
+}: {
+  columns: SheetCol[];
+  rows: any[];
+  totals?: Record<string, number>;
+}) {
+  return (
+    <table className="w-full border-collapse text-[10px]">
+      <thead>
+        <tr>
+          {columns.map((c) => (
+            <th key={c.key} className={HEADCELL}>
+              {c.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr>
+            {columns.map((c) => (
+              <td key={c.key} className={`${CELL} h-24`} />
+            ))}
+          </tr>
+        ) : (
+          rows.map((r, i) => (
+            <tr key={i}>
+              {columns.map((c) => (
+                <td key={c.key} className={`${CELL} ${c.num ? 'text-right tabular-nums' : ''}`}>
+                  {c.num ? fmtAmt(r[c.key]) || '0.00' : r[c.key]}
+                </td>
+              ))}
+            </tr>
+          ))
+        )}
+        {totals && rows.length > 0 && (
+          <tr>
+            {columns.map((c, ci) => (
+              <td
+                key={c.key}
+                className={`${CELL} font-bold ${c.num ? 'text-right tabular-nums' : ''}`}
+              >
+                {ci === 0 ? 'Total' : c.num && totals[c.key] != null ? fmtAmt(totals[c.key]) : ''}
+              </td>
+            ))}
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+}
+
+// Common white-sheet chrome shared by every PF document screen.
+function PFSheet({
+  title,
+  loading,
+  children,
+  selectedCompany,
+  activeFY,
+  loadingMsg,
+}: {
+  title: string;
+  loading: boolean;
+  children: ReactNode;
+  selectedCompany: any;
+  activeFY: any;
+  loadingMsg: string;
+}) {
+  return (
+    <TallyReportLayout
+      title={title}
+      companyName={selectedCompany?.name || 'Company'}
+      rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
+    >
+      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+        {loading && <EmptyState message={loadingMsg} className="italic" />}
+        {!loading && (
+          <div className="bg-white shadow px-10 py-8 w-[980px] text-[11px] text-black">
+            {children}
+          </div>
+        )}
+      </div>
+    </TallyReportLayout>
+  );
 }
 
 function Establishment({ est }: { est: any }) {
@@ -365,5 +463,205 @@ export function PFForm12A() {
         )}
       </div>
     </TallyReportLayout>
+  );
+}
+
+// #210 PF Monthly Statement — employee-wise PF contribution register for the month.
+export function PFMonthlyStatement() {
+  const { payload, loading, selectedCompany, activeFY } = useFormData('monthly');
+  const columns: SheetCol[] = [
+    { key: 'sl', label: 'Sl No.' },
+    { key: 'account_no', label: 'PF A/c No. / UAN' },
+    { key: 'name', label: 'Name of Employee' },
+    { key: 'wages', label: 'EPF Wages', num: true },
+    { key: 'ee_share', label: "Employee's Share (EPF)", num: true },
+    { key: 'epf_er', label: "Employer's Share (EPF)", num: true },
+    { key: 'eps', label: 'Pension (EPS)', num: true },
+    { key: 'total', label: 'Total', num: true },
+  ];
+  return (
+    <PFSheet
+      title="Monthly Statement"
+      loading={loading}
+      loadingMsg="Preparing Monthly Statement…"
+      selectedCompany={selectedCompany}
+      activeFY={activeFY}
+    >
+      <div className="text-center font-bold text-sm mb-1">PROVIDENT FUND — MONTHLY STATEMENT</div>
+      <div className="text-center mb-4">
+        for the month of <span className="font-bold">{monthLabel(activeFY)}</span>
+      </div>
+      <Establishment est={payload?.establishment} />
+      <SheetTable columns={columns} rows={payload?.rows ?? []} totals={payload?.totals} />
+      <SignatureFooter />
+    </PFSheet>
+  );
+}
+
+// #211 PF ECR — Electronic Challan cum Return, UAN-wise wages + contributions.
+export function PFECR() {
+  const { payload, loading, selectedCompany, activeFY } = useFormData('ecr');
+  const columns: SheetCol[] = [
+    { key: 'uan', label: 'UAN' },
+    { key: 'name', label: 'Member Name' },
+    { key: 'gross_wages', label: 'Gross Wages', num: true },
+    { key: 'epf_wages', label: 'EPF Wages', num: true },
+    { key: 'eps_wages', label: 'EPS Wages', num: true },
+    { key: 'edli_wages', label: 'EDLI Wages', num: true },
+    { key: 'ee', label: 'EPF Contri (EE)', num: true },
+    { key: 'eps', label: 'EPS Contri', num: true },
+    { key: 'epf_er', label: 'Diff EPF (ER)', num: true },
+    { key: 'ncp', label: 'NCP Days' },
+    { key: 'refund', label: 'Refunds', num: true },
+  ];
+  return (
+    <PFSheet
+      title="E-Challan Cum Return (ECR)"
+      loading={loading}
+      loadingMsg="Preparing ECR…"
+      selectedCompany={selectedCompany}
+      activeFY={activeFY}
+    >
+      <div className="text-center font-bold text-sm mb-1">ELECTRONIC CHALLAN CUM RETURN (ECR)</div>
+      <div className="text-center mb-4">
+        Wage month <span className="font-bold">{monthLabel(activeFY)}</span>
+      </div>
+      <Establishment est={payload?.establishment} />
+      <SheetTable columns={columns} rows={payload?.rows ?? []} totals={payload?.totals} />
+      <SignatureFooter />
+    </PFSheet>
+  );
+}
+
+// #213 PF Form 6A — annual consolidated statement of contributions (all members).
+export function PFForm6A() {
+  const { payload, loading, selectedCompany, activeFY } = useFormData('form6a');
+  const columns: SheetCol[] = [
+    { key: 'sl', label: 'Sl No.' },
+    { key: 'account_no', label: 'Account No.' },
+    { key: 'name', label: 'Name of Member' },
+    { key: 'wages', label: 'Wages on which contributions payable', num: true },
+    { key: 'ee', label: "Workers' Contribution", num: true },
+    { key: 'er', label: "Employer's Share (EPF + EPS)", num: true },
+    { key: 'eps', label: 'of which EPS', num: true },
+    { key: 'refund', label: 'Refund of Advances', num: true },
+    { key: 'remarks', label: 'Remarks' },
+  ];
+  return (
+    <PFSheet
+      title="Form 6A"
+      loading={loading}
+      loadingMsg="Preparing Form 6A…"
+      selectedCompany={selectedCompany}
+      activeFY={activeFY}
+    >
+      <div className="text-center font-bold text-sm mb-1">FORM 6A</div>
+      <div className="text-center font-bold mb-1">THE EMPLOYEES' PROVIDENT FUNDS SCHEME, 1952</div>
+      <div className="text-center mb-4">
+        Annual Consolidated Statement of Contributions for the year ending{' '}
+        <span className="font-bold">{monthLabel(activeFY)}</span>
+      </div>
+      <Establishment est={payload?.establishment} />
+      <SheetTable columns={columns} rows={payload?.rows ?? []} totals={payload?.totals} />
+      <SignatureFooter />
+    </PFSheet>
+  );
+}
+
+// #212 PF Form 3A — per-member annual contribution card. Month-wise history isn't
+// stored, so the current-period figure lands on the last month; others stay blank.
+const FY_MONTHS = [
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+];
+export function PFForm3A() {
+  const { payload, loading, selectedCompany, activeFY } = useFormData('form3a');
+  const members: any[] = payload?.members ?? [];
+  const est = payload?.establishment;
+
+  return (
+    <PFSheet
+      title="Form 3A"
+      loading={loading}
+      loadingMsg="Preparing Form 3A…"
+      selectedCompany={selectedCompany}
+      activeFY={activeFY}
+    >
+      <div className="text-center font-bold text-sm mb-1">FORM 3A (Revised)</div>
+      <div className="text-center font-bold mb-4">
+        THE EMPLOYEES' PROVIDENT FUNDS SCHEME, 1952 &amp; EMPLOYEES' PENSION SCHEME, 1995 — Member's
+        Annual Contribution Card
+      </div>
+      {members.length === 0 && (
+        <div className="px-4 py-6 italic text-gray-500 text-center">
+          No PF members found for this company.
+        </div>
+      )}
+      {members.map((m, mi) => (
+        <div key={mi} className={mi > 0 ? 'mt-8 pt-6 border-t-2 border-black' : ''}>
+          <div className="flex flex-col gap-1 mb-3">
+            <InfoRow label="Account No." value={m.account_no} />
+            <InfoRow label="Name of the Member" value={m.name} />
+            <InfoRow label="Father's / Husband's Name" value={m.father_or_husband || ''} />
+            <InfoRow label="Name & Address of the Establishment" value={est?.name || ''} />
+            <InfoRow label="Statutory rate of contribution" value="12%" />
+          </div>
+          <table className="w-full border-collapse text-[10px]">
+            <thead>
+              <tr>
+                <th className={HEADCELL}>Month</th>
+                <th className={HEADCELL}>Amount of Wages</th>
+                <th className={HEADCELL}>Workers' Contribution (EPF)</th>
+                <th className={HEADCELL}>Employer's Contribution (EPF)</th>
+                <th className={HEADCELL}>Pension Fund (EPS)</th>
+                <th className={HEADCELL}>Refund of Advances</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FY_MONTHS.map((mon, idx) => {
+                const isLast = idx === FY_MONTHS.length - 1; // current period lands on the last month
+                return (
+                  <tr key={mon}>
+                    <td className={CELL}>{mon}</td>
+                    <td className={`${CELL} text-right tabular-nums`}>
+                      {isLast ? fmtAmt(m.wages) : ''}
+                    </td>
+                    <td className={`${CELL} text-right tabular-nums`}>
+                      {isLast ? fmtAmt(m.ee) : ''}
+                    </td>
+                    <td className={`${CELL} text-right tabular-nums`}>
+                      {isLast ? fmtAmt(m.epf_er) : ''}
+                    </td>
+                    <td className={`${CELL} text-right tabular-nums`}>
+                      {isLast ? fmtAmt(m.eps) : ''}
+                    </td>
+                    <td className={`${CELL} text-right tabular-nums`} />
+                  </tr>
+                );
+              })}
+              <tr>
+                <td className={`${CELL} font-bold`}>Total</td>
+                <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(m.wages)}</td>
+                <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(m.ee)}</td>
+                <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(m.epf_er)}</td>
+                <td className={`${CELL} font-bold text-right tabular-nums`}>{fmtAmt(m.eps)}</td>
+                <td className={`${CELL} font-bold text-right tabular-nums`} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ))}
+      <SignatureFooter />
+    </PFSheet>
   );
 }
