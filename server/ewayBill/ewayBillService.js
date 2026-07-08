@@ -66,6 +66,18 @@ const generateByIrn = async (company_id, voucher_id, irn, transport = {}) => {
   } catch (_) {
     /* best-effort */
   }
+  // Mirror the EWB no/date onto the voucher's e-invoice record so it shows on the
+  // voucher block, the invoice bill, and the IRN register.
+  if (voucher_id && d.EwbNo) {
+    try {
+      await db
+        .update(einvoiceRecords)
+        .set({ ewbNo: String(d.EwbNo), ewbDt: d.EwbDt || null, updatedAt: sql`datetime('now')` })
+        .where(eq(einvoiceRecords.voucherId, voucher_id));
+    } catch (_) {
+      /* best-effort */
+    }
+  }
   return { success: true, data: d };
 };
 

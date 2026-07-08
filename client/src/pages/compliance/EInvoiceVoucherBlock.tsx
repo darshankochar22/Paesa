@@ -9,9 +9,48 @@ type Rec = EInvoiceRecord & { signed_qr_code?: string; ewb_no?: string | null };
 // Tally-style "e-Invoice Details" block shown on a sales voucher once its IRN is generated.
 // Renders the IRN / Ack No / Ack Date / Status plus the signed QR code, and lives inside the
 // printable area so it appears on the exported invoice too.
-export default function EInvoiceVoucherBlock({ record }: { record: Rec }) {
+export default function EInvoiceVoucherBlock({
+  record,
+  companyId,
+  onChanged,
+}: {
+  record: Rec;
+  companyId: number;
+  onChanged?: () => void;
+}) {
   const [qr, setQr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+
+  const cancelIrn = async () => {
+    if (!record.irn) return;
+    const reason = window.prompt(
+      'Cancellation reason:\n1 = Duplicate\n2 = Data entry mistake\n3 = Order cancelled\n4 = Others',
+      '3',
+    );
+    if (!reason || !['1', '2', '3', '4'].includes(reason.trim())) return;
+    const remarks = (window.prompt('Remarks (min 3 characters):', 'Cancelled') || '').trim();
+    if (remarks.length < 3) {
+      window.alert('Remarks must be at least 3 characters.');
+      return;
+    }
+    if (
+      !window.confirm(
+        'Cancel this IRN? Allowed only within 24 hours of generation and cannot be undone.',
+      )
+    )
+      return;
+    setBusy(true);
+    const r = await window.api.eInvoice.cancelIRN({
+      company_id: companyId,
+      irn: record.irn,
+      cancel_reason: Number(reason.trim()),
+      cancel_remarks: remarks,
+    });
+    setBusy(false);
+    window.alert(r.success ? 'IRN cancelled.' : `Cancel failed: ${r.error}`);
+    if (r.success) onChanged?.();
+  };
 
   useEffect(() => {
     let alive = true;
@@ -51,6 +90,17 @@ export default function EInvoiceVoucherBlock({ record }: { record: Rec }) {
               className="h-auto rounded-none border-zinc-400 px-2 py-0 text-[11px] text-zinc-800 hover:bg-zinc-100"
             >
               View Invoice Bill →
+            </Button>
+          ) : null}
+          {record.irn && String(record.status).toUpperCase() !== 'CANCELLED' ? (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={cancelIrn}
+              disabled={busy}
+              className="h-auto rounded-none border-zinc-400 px-2 py-0 text-[11px] text-zinc-800 hover:bg-zinc-100"
+            >
+              {busy ? 'Cancelling…' : 'Cancel IRN'}
             </Button>
           ) : null}
         </div>

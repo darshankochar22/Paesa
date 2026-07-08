@@ -50,8 +50,14 @@ module.exports = {
   },
 
   cancelIRN: async (event, { irn, cancel_reason, cancel_remarks, company_id }) => {
-    const creds = await eInvoiceService.getCredentials(company_id);
-    if (!creds.success) return creds;
+    // WhiteBooks path is developer-side (.env) — no per-company DB credentials needed.
+    const { getWhitebooksConfig } = require('../integrations/gspConfig');
+    let credentials = null;
+    if (!getWhitebooksConfig()) {
+      const creds = await eInvoiceService.getCredentials(company_id);
+      if (!creds.success) return creds;
+      credentials = creds.credentials;
+    }
 
     let before = null;
     try {
@@ -61,12 +67,7 @@ module.exports = {
       console.error('Error fetching e-invoice snapshot before cancel:', err);
     }
 
-    const result = await eInvoiceService.cancelIRN(
-      irn,
-      cancel_reason,
-      cancel_remarks,
-      creds.credentials,
-    );
+    const result = await eInvoiceService.cancelIRN(irn, cancel_reason, cancel_remarks, credentials);
     if (result && result.success) {
       try {
         const afterSnap = await eInvoiceService.getRecordByIRN(irn);

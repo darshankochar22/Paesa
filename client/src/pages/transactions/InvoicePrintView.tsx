@@ -224,6 +224,12 @@ export default function InvoicePrintView() {
                 <span className="text-neutral-600">Ack Date: </span>
                 {inv.AckDt}
               </div>
+              {rec.ewb_no ? (
+                <div>
+                  <span className="text-neutral-600">e-Way Bill No.: </span>
+                  <span className="font-bold">{rec.ewb_no}</span>
+                </div>
+              ) : null}
               <div className="mt-1">
                 <span className="text-neutral-600">Invoice No.: </span>
                 <span className="font-bold">{inv.DocDtls?.No}</span>

@@ -48,6 +48,8 @@ export default function VoucherView() {
     | null
   >(null);
 
+  const [partyGstin, setPartyGstin] = useState<string | null>(null);
+
   // Pull the e-Invoice (IRN) record for this voucher, if one was generated.
   useEffect(() => {
     if (!voucher?.voucher_id) {
@@ -59,6 +61,20 @@ export default function VoucherView() {
       .then((r) => setEinv(r.success && r.record ? r.record : null))
       .catch(() => setEinv(null));
   }, [voucher?.voucher_id]);
+
+  // Party GSTIN — e-Invoice/e-Way only apply to B2B (registered buyer), so the actions
+  // are hidden when the party has no GSTIN.
+  useEffect(() => {
+    const pid = voucher?.party_ledger_id;
+    if (!pid) {
+      setPartyGstin(null);
+      return;
+    }
+    window.api.ledger
+      .getById(pid)
+      .then((r: any) => setPartyGstin(r?.success ? r.ledger?.gstin || null : null))
+      .catch(() => setPartyGstin(null));
+  }, [voucher?.party_ledger_id]);
 
   useEffect(() => {
     if (!id) return;
@@ -265,7 +281,19 @@ export default function VoucherView() {
             <span className="flex-1 text-sm text-black ml-2">{voucher.narration || '—'}</span>
           </div>
 
-          {einv && einv.irn && <EInvoiceVoucherBlock record={einv} />}
+          {einv && einv.irn && selectedCompany?.company_id && (
+            <EInvoiceVoucherBlock
+              record={einv}
+              companyId={selectedCompany.company_id}
+              onChanged={() =>
+                voucher.voucher_id &&
+                window.api.eInvoice
+                  .getByVoucher(voucher.voucher_id)
+                  .then((r) => setEinv(r.success && r.record ? r.record : null))
+                  .catch(() => {})
+              }
+            />
+          )}
         </div>
 
         <FKeyPanel voucherType={voucher.voucher_type} />
@@ -284,6 +312,7 @@ export default function VoucherView() {
           {['Sales', 'Credit Note', 'Debit Note'].includes(voucher.voucher_type) &&
             !voucher.is_cancelled &&
             voucher.party_ledger_id &&
+            partyGstin &&
             selectedCompany?.company_id && (
               <GstVoucherActions companyId={selectedCompany.company_id} voucher={voucher} />
             )}
