@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useCompany } from "../../context/CompanyContext";
-import { AlertBanner } from "../../components/ui";
-import { Button } from "@/components/shadcn/button";
-import { exportElementToPdf } from "@/lib/exportDomPdf";
-import { EDITABLE_VOUCHER_TYPES } from "./hooks/hydrateVoucherForm";
-import { type Voucher, formatDateBox, FKeyPanel } from "./voucher-views/shared";
-import VoucherBody from "./voucher-views/VoucherBody";
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useCompany } from '../../context/CompanyContext';
+import { AlertBanner } from '../../components/ui';
+import { Button } from '@/components/shadcn/button';
+import { exportElementToPdf } from '@/lib/exportDomPdf';
+import { EDITABLE_VOUCHER_TYPES } from './hooks/hydrateVoucherForm';
+import { type Voucher, formatDateBox, FKeyPanel } from './voucher-views/shared';
+import VoucherBody from './voucher-views/VoucherBody';
+import GstVoucherActions from '@/pages/compliance/GstVoucherActions';
 
 // Loader + shared chrome for a voucher. The type-specific body is dispatched to
 // a dedicated per-type page (see ./voucher-views/VoucherBody). Every navigation
@@ -14,9 +15,19 @@ import VoucherBody from "./voucher-views/VoucherBody";
 // the per-type views for free.
 
 const INVENTORY_ONLY = [
-  "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out",
-  "Physical Stock", "Stock Journal", "Manufacturing Journal", "Sales Order", "Purchase Order",
-  "Job Work In Order", "Job Work Out Order",
+  'Delivery Note',
+  'Receipt Note',
+  'Rejection In',
+  'Rejection Out',
+  'Material In',
+  'Material Out',
+  'Physical Stock',
+  'Stock Journal',
+  'Manufacturing Journal',
+  'Sales Order',
+  'Purchase Order',
+  'Job Work In Order',
+  'Job Work Out Order',
 ];
 
 export default function VoucherView() {
@@ -37,7 +48,7 @@ export default function VoucherView() {
       try {
         const res = await window.api.voucher.getById(Number(id));
         if (res.success) setVoucher(res.voucher as Voucher);
-        else setError(res.error || "Voucher not found");
+        else setError(res.error || 'Voucher not found');
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -49,19 +60,21 @@ export default function VoucherView() {
   useEffect(() => {
     if (!voucher || !selectedCompany?.company_id || !activeFY?.fy_id) return;
     const uniqueLedgerIds = Array.from(
-      new Set([...voucher.entries.map(e => e.ledger_id), voucher.party_ledger_id].filter(Boolean))
+      new Set(
+        [...voucher.entries.map((e) => e.ledger_id), voucher.party_ledger_id].filter(Boolean),
+      ),
     );
     if (uniqueLedgerIds.length === 0) return;
 
     (async () => {
       try {
         const results = await Promise.all(
-          uniqueLedgerIds.map(lid =>
+          uniqueLedgerIds.map((lid) =>
             window.api.voucher
               .getLedgerBalance(lid, selectedCompany.company_id, activeFY.fy_id)
               .then((r: any) => [lid, r?.success ? r.balance : null] as const)
-              .catch(() => [lid, null] as const)
-          )
+              .catch(() => [lid, null] as const),
+          ),
         );
         const map: Record<number, string> = {};
         for (const [lid, bal] of results) if (bal) map[lid] = bal;
@@ -78,11 +91,12 @@ export default function VoucherView() {
     try {
       // Attendance vouchers live in their own table under a negated id — route
       // the delete to the matching API instead of the main voucher one.
-      const res = voucher.voucher_type === "Attendance"
-        ? await window.api.attendance.delete(Math.abs(voucher.voucher_id))
-        : await window.api.voucher.delete(voucher.voucher_id);
+      const res =
+        voucher.voucher_type === 'Attendance'
+          ? await window.api.attendance.delete(Math.abs(voucher.voucher_id))
+          : await window.api.voucher.delete(voucher.voucher_id);
       if (res.success) navigate(-1);
-      else setError(res.error || "Failed to delete");
+      else setError(res.error || 'Failed to delete');
     } catch (e: any) {
       setError(e.message);
     }
@@ -94,7 +108,7 @@ export default function VoucherView() {
     try {
       const res = await window.api.voucher.cancel(voucher.voucher_id);
       if (res.success) setVoucher({ ...voucher, is_cancelled: 1 });
-      else setError(res.error || "Failed to cancel");
+      else setError(res.error || 'Failed to cancel');
     } catch (e: any) {
       setError(e.message);
     }
@@ -102,14 +116,14 @@ export default function VoucherView() {
 
   const handleExportPdf = async () => {
     if (!voucher) return;
-    const el = document.getElementById("voucher-print-area");
+    const el = document.getElementById('voucher-print-area');
     if (!el) return;
     setExporting(true);
     setError(null);
     try {
       const name = `${voucher.voucher_type}_${voucher.voucher_number || voucher.voucher_id}`;
       const res = await exportElementToPdf(el as HTMLElement, name);
-      if (!res.success && !res.canceled) setError(res.error || "Failed to export PDF");
+      if (!res.success && !res.canceled) setError(res.error || 'Failed to export PDF');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -144,10 +158,11 @@ export default function VoucherView() {
   if (!voucher) return null;
 
   const getTitle = () => {
-    if (voucher.voucher_type === "Attendance") return "Attendance Voucher Alteration (Secondary)";
-    if (voucher.voucher_type === "Payroll") return "Payroll Voucher Alteration (Secondary)";
-    if (INVENTORY_ONLY.includes(voucher.voucher_type)) return "Inventory Voucher Alteration (Secondary)";
-    return "Accounting Voucher Alteration (Secondary)";
+    if (voucher.voucher_type === 'Attendance') return 'Attendance Voucher Alteration (Secondary)';
+    if (voucher.voucher_type === 'Payroll') return 'Payroll Voucher Alteration (Secondary)';
+    if (INVENTORY_ONLY.includes(voucher.voucher_type))
+      return 'Inventory Voucher Alteration (Secondary)';
+    return 'Accounting Voucher Alteration (Secondary)';
   };
 
   const { date: dateStr, day: dayStr } = formatDateBox(voucher.date);
@@ -159,9 +174,9 @@ export default function VoucherView() {
       <div className="flex items-center justify-between px-3 py-0.5 border-b border-black bg-zinc-900 shrink-0">
         <span className="text-xs font-bold text-white">{getTitle()}</span>
         <span className="text-xs font-bold text-white">
-          {selectedCompany?.name ?? ""}
-          {voucher.is_cancelled ? " · CANCELLED" : ""}
-          {voucher.is_post_dated ? " · POST-DATED" : ""}
+          {selectedCompany?.name ?? ''}
+          {voucher.is_cancelled ? ' · CANCELLED' : ''}
+          {voucher.is_post_dated ? ' · POST-DATED' : ''}
         </span>
         <button
           onClick={() => navigate(-1)}
@@ -195,7 +210,7 @@ export default function VoucherView() {
           {/* Narration */}
           <div className="flex items-center border-t border-gray-300 shrink-0 px-3 py-1.5 bg-white">
             <span className="text-sm text-black shrink-0">Narration:</span>
-            <span className="flex-1 text-sm text-black ml-2">{voucher.narration || "—"}</span>
+            <span className="flex-1 text-sm text-black ml-2">{voucher.narration || '—'}</span>
           </div>
         </div>
 
@@ -212,6 +227,12 @@ export default function VoucherView() {
           <span className="underline">Q</span>: Quit
         </Button>
         <div className="flex items-center gap-3">
+          {voucher.voucher_type === 'Sales' &&
+            !voucher.is_cancelled &&
+            voucher.party_ledger_id &&
+            selectedCompany?.company_id && (
+              <GstVoucherActions companyId={selectedCompany.company_id} voucher={voucher} />
+            )}
           {!voucher.is_cancelled && EDITABLE_VOUCHER_TYPES.has(voucher.voucher_type) && (
             <Button
               onClick={() => navigate(`/transactions/voucher/${voucher.voucher_id}/edit`)}
@@ -228,9 +249,9 @@ export default function VoucherView() {
             size="xs"
             className="h-auto rounded-none text-sm px-3 py-0.5 border-zinc-400 text-zinc-800 hover:bg-zinc-100"
           >
-            <span className="underline">P</span>: {exporting ? "Exporting…" : "Export PDF"}
+            <span className="underline">P</span>: {exporting ? 'Exporting…' : 'Export PDF'}
           </Button>
-          {!voucher.is_cancelled && voucher.voucher_type !== "Attendance" && (
+          {!voucher.is_cancelled && voucher.voucher_type !== 'Attendance' && (
             <Button
               onClick={handleCancel}
               variant="outline"

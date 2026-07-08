@@ -22,8 +22,11 @@ const request = (method, path, headers = {}, body = null) =>
       let data = '';
       res.on('data', (chunk) => (data += chunk));
       res.on('end', () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-        catch { resolve({ status: res.statusCode, body: data }); }
+        try {
+          resolve({ status: res.statusCode, body: JSON.parse(data) });
+        } catch {
+          resolve({ status: res.statusCode, body: data });
+        }
       });
     });
     req.on('error', reject);
@@ -32,21 +35,20 @@ const request = (method, path, headers = {}, body = null) =>
   });
 
 const post = (path, body, headers) => request('POST', path, headers, body);
-const get  = (path, headers)       => request('GET',  path, headers);
+const get = (path, headers) => request('GET', path, headers);
 
 let _cache = null;
 
-const isTokenValid = () =>
-  _cache && new Date() < new Date(_cache.expiry);
+const isTokenValid = () => _cache && new Date() < new Date(_cache.expiry);
 
 const getCache = () => _cache;
 
 const authHeaders = (creds) => ({
-  'client_id':     creds.client_id,
-  'client_secret': creds.client_secret,
-  'Gstin':         creds.gstin,
-  'user_name':     creds.username,
-  'authtoken':     _cache?.token || '',
+  client_id: creds.client_id,
+  client_secret: creds.client_secret,
+  Gstin: creds.gstin,
+  user_name: creds.username,
+  authtoken: _cache?.token || '',
 });
 
 const authenticate = async (creds) => {
@@ -56,21 +58,21 @@ const authenticate = async (creds) => {
       {
         UserName: creds.username,
         Password: creds.password,
-        AppKey:   creds.app_key,
+        AppKey: creds.app_key,
         ForceRefreshAccessToken: false,
       },
       {
-        'client_id':     creds.client_id,
-        'client_secret': creds.client_secret,
-        'Gstin':         creds.gstin,
-      }
+        client_id: creds.client_id,
+        client_secret: creds.client_secret,
+        Gstin: creds.gstin,
+      },
     );
 
     if (res.body?.Status === '1') {
       const d = res.body.Data;
       _cache = {
-        token:  d.AuthToken,
-        sek:    d.Sek,
+        token: d.AuthToken,
+        sek: d.Sek,
         expiry: d.TokenExpiry,
       };
       return { success: true, token: _cache.token };
@@ -92,13 +94,19 @@ const ensureAuth = async (creds) => {
 
 const getGSTINDetails = async (gstin, creds) => {
   try {
+    if (getWhitebooksConfig()) {
+      const r = await wb.einv.request(
+        'GET',
+        WB_EINV.GSTNDETAILS,
+        null,
+        `&param1=${encodeURIComponent(gstin)}`,
+      );
+      return r.ok ? { success: true, data: r.data } : { success: false, error: r.error };
+    }
     const auth = await ensureAuth(creds);
     if (!auth.success) return auth;
 
-    const res = await get(
-      `/eivital/v1.04/Master/gstin/${gstin}`,
-      authHeaders(creds)
-    );
+    const res = await get(`/eivital/v1.04/Master/gstin/${gstin}`, authHeaders(creds));
 
     if (res.body?.Status === '1') return { success: true, data: res.body.Data };
     return {
@@ -115,34 +123,28 @@ const generateIRN = async (company_id, voucher_id, invoice_payload, creds) => {
     const auth = await ensureAuth(creds);
     if (!auth.success) return auth;
 
-    const res = await post(
-      '/eicore/v1.03/Invoice',
-      invoice_payload,
-      authHeaders(creds)
-    );
+    const res = await post('/eicore/v1.03/Invoice', invoice_payload, authHeaders(creds));
 
     if (res.body?.Status === '1') {
       const d = res.body.Data;
 
       // Save to DB
-      await db
-        .insert(einvoiceRecords)
-        .values({
-          companyId: company_id,
-          voucherId: voucher_id || null,
-          invoiceNumber: invoice_payload.DocDtls?.No,
-          invoiceDate: invoice_payload.DocDtls?.Dt,
-          buyerGstin: invoice_payload.BuyerDtls?.Gstin,
-          irn: d.Irn,
-          ackNo: d.AckNo,
-          ackDt: d.AckDt,
-          signedInvoice: d.SignedInvoice,
-          signedQrCode: d.SignedQRCode,
-          ewbNo: d.EwbNo || null,
-          ewbDt: d.EwbDt || null,
-          status: 'GENERATED',
-          rawResponse: JSON.stringify(res.body),
-        });
+      await db.insert(einvoiceRecords).values({
+        companyId: company_id,
+        voucherId: voucher_id || null,
+        invoiceNumber: invoice_payload.DocDtls?.No,
+        invoiceDate: invoice_payload.DocDtls?.Dt,
+        buyerGstin: invoice_payload.BuyerDtls?.Gstin,
+        irn: d.Irn,
+        ackNo: d.AckNo,
+        ackDt: d.AckDt,
+        signedInvoice: d.SignedInvoice,
+        signedQrCode: d.SignedQRCode,
+        ewbNo: d.EwbNo || null,
+        ewbDt: d.EwbDt || null,
+        status: 'GENERATED',
+        rawResponse: JSON.stringify(res.body),
+      });
 
       return { success: true, data: d };
     }
@@ -156,9 +158,17 @@ const generateIRN = async (company_id, voucher_id, invoice_payload, creds) => {
   }
 };
 
-
 const getIRNDetails = async (irn, creds) => {
   try {
+    if (getWhitebooksConfig()) {
+      const r = await wb.einv.request(
+        'GET',
+        WB_EINV.GETIRN,
+        null,
+        `&param1=${encodeURIComponent(irn)}`,
+      );
+      return r.ok ? { success: true, data: r.data } : { success: false, error: r.error };
+    }
     const auth = await ensureAuth(creds);
     if (!auth.success) return auth;
 
@@ -174,15 +184,41 @@ const getIRNDetails = async (irn, creds) => {
   }
 };
 
+const markCancelled = (irn, cancel_reason, cancel_remarks) =>
+  db
+    .update(einvoiceRecords)
+    .set({
+      status: 'CANCELLED',
+      cancelReason: cancel_reason,
+      cancelRemarks: cancel_remarks,
+      cancelledAt: sql`datetime('now')`,
+      updatedAt: sql`datetime('now')`,
+    })
+    .where(eq(einvoiceRecords.irn, irn));
+
 const cancelIRN = async (irn, cancel_reason, cancel_remarks, creds) => {
   try {
+    if (getWhitebooksConfig()) {
+      const r = await wb.einv.request('POST', WB_EINV.CANCEL, {
+        Irn: irn,
+        CnlRsn: String(cancel_reason),
+        CnlRem: cancel_remarks,
+      });
+      if (!r.ok) return { success: false, error: r.error };
+      try {
+        await markCancelled(irn, cancel_reason, cancel_remarks);
+      } catch (_) {
+        /* best-effort */
+      }
+      return { success: true, data: r.data };
+    }
     const auth = await ensureAuth(creds);
     if (!auth.success) return auth;
 
     const res = await post(
       '/eicore/v1.03/Invoice/Cancel',
       { Irn: irn, CnlRsn: cancel_reason, CnlRem: cancel_remarks },
-      authHeaders(creds)
+      authHeaders(creds),
     );
 
     if (res.body?.Status === '1') {
@@ -212,7 +248,7 @@ const saveCredentials = async (data) => {
   try {
     const existing = await db.all(
       sql`SELECT * FROM ${einvoiceCredentials}
-          WHERE ${einvoiceCredentials.companyId} = ${data.company_id}`
+          WHERE ${einvoiceCredentials.companyId} = ${data.company_id}`,
     );
 
     if (existing.length > 0) {
@@ -229,17 +265,15 @@ const saveCredentials = async (data) => {
         })
         .where(eq(einvoiceCredentials.companyId, data.company_id));
     } else {
-      await db
-        .insert(einvoiceCredentials)
-        .values({
-          companyId: data.company_id,
-          clientId: data.client_id,
-          clientSecret: data.client_secret,
-          username: data.username,
-          password: data.password,
-          appKey: data.app_key,
-          isSandbox: data.is_sandbox ?? 1,
-        });
+      await db.insert(einvoiceCredentials).values({
+        companyId: data.company_id,
+        clientId: data.client_id,
+        clientSecret: data.client_secret,
+        username: data.username,
+        password: data.password,
+        appKey: data.app_key,
+        isSandbox: data.is_sandbox ?? 1,
+      });
     }
     return { success: true };
   } catch (err) {
@@ -251,7 +285,7 @@ const getCredentials = async (company_id) => {
   try {
     const rows = await db.all(
       sql`SELECT * FROM ${einvoiceCredentials}
-          WHERE ${einvoiceCredentials.companyId} = ${company_id}`
+          WHERE ${einvoiceCredentials.companyId} = ${company_id}`,
     );
     if (rows.length === 0) return { success: false, error: 'No credentials found' };
     return { success: true, credentials: rows[0] };
@@ -265,7 +299,7 @@ const getRecords = async (company_id) => {
     const rows = await db.all(
       sql`SELECT * FROM ${einvoiceRecords}
           WHERE ${einvoiceRecords.companyId} = ${company_id}
-          ORDER BY ${einvoiceRecords.createdAt} DESC`
+          ORDER BY ${einvoiceRecords.createdAt} DESC`,
     );
     return { success: true, records: rows };
   } catch (err) {
@@ -277,7 +311,7 @@ const getRecordByIRN = async (irn) => {
   try {
     const rows = await db.all(
       sql`SELECT * FROM ${einvoiceRecords}
-          WHERE ${einvoiceRecords.irn} = ${irn}`
+          WHERE ${einvoiceRecords.irn} = ${irn}`,
     );
     if (rows.length === 0) return { success: false, error: 'Record not found' };
     return { success: true, record: rows[0] };
@@ -290,21 +324,32 @@ const getRecordByIRN = async (irn) => {
 // Mirrors ewayBillService: credentials come from gspConfig/.env, never the renderer.
 
 const nic = require('../integrations/nicClient');
-const { getGspConfig } = require('../integrations/gspConfig');
+const wb = require('../integrations/whitebooksClient');
+const { getGspConfig, getWhitebooksConfig } = require('../integrations/gspConfig');
 const { buildIrnPayload } = require('./eInvoicePayload');
+
+// WhiteBooks e-Invoice endpoints (plain JSON; auth handled by whitebooksClient).
+const WB_EINV = {
+  GENERATE: '/einvoice/type/GENERATE/version/V1_03',
+  CANCEL: '/einvoice/type/CANCEL/version/V1_03',
+  GETIRN: '/einvoice/type/GETIRN/version/V1_03',
+  GSTNDETAILS: '/einvoice/type/GSTNDETAILS/version/V1_03',
+};
 
 const EINV = () => getGspConfig()?.einvoiceBaseUrl || SANDBOX_HOST;
 
 // Renderer-safe status (no secret) + how many IRNs exist for this company.
 const getStatus = async (company_id) => {
-  const st = nic.getStatus();
+  const st = getWhitebooksConfig() ? wb.getStatus() : nic.getStatus();
   let records = 0;
   try {
     const r = await db.all(
-      sql`SELECT COUNT(*) AS n FROM ${einvoiceRecords} WHERE ${einvoiceRecords.companyId} = ${company_id}`
+      sql`SELECT COUNT(*) AS n FROM ${einvoiceRecords} WHERE ${einvoiceRecords.companyId} = ${company_id}`,
     );
     records = r[0]?.n || 0;
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   return { success: true, ...st, records };
 };
 
@@ -316,22 +361,25 @@ const generateFromVoucher = async (company_id, voucher_id) => {
                  l.address1 AS party_address, l.pincode AS party_pincode
           FROM vouchers v
           LEFT JOIN ledgers l ON l.ledger_id = v.party_ledger_id
-          WHERE v.voucher_id = ${voucher_id} AND v.company_id = ${company_id}`
+          WHERE v.voucher_id = ${voucher_id} AND v.company_id = ${company_id}`,
     );
     if (vRows.length === 0) return { success: false, error: 'Voucher not found' };
     const voucher = vRows[0];
 
     voucher.stock_entries = await db.all(
-      sql`SELECT * FROM voucher_stock_entries WHERE voucher_id = ${voucher_id}`
+      sql`SELECT * FROM voucher_stock_entries WHERE voucher_id = ${voucher_id}`,
     );
     if (voucher.stock_entries.length === 0) {
-      return { success: false, error: 'Voucher has no stock items — an e-Invoice needs at least one line item.' };
+      return {
+        success: false,
+        error: 'Voucher has no stock items — an e-Invoice needs at least one line item.',
+      };
     }
 
     const compRows = await db.all(sql`SELECT * FROM companies WHERE company_id = ${company_id}`);
     const company = compRows[0] || {};
     const regRows = await db.all(
-      sql`SELECT * FROM gst_registrations WHERE company_id = ${company_id} AND is_active = 1 LIMIT 1`
+      sql`SELECT * FROM gst_registrations WHERE company_id = ${company_id} AND is_active = 1 LIMIT 1`,
     );
     const reg = regRows[0] || {};
 
@@ -353,10 +401,16 @@ const generateFromVoucher = async (company_id, voucher_id) => {
     };
 
     const payload = buildIrnPayload(voucher, seller, buyer);
-    const r = await nic.authedRequest(EINV(), 'POST', '/eicore/v1.03/Invoice', payload);
-    if (!r.ok) return { success: false, error: r.error };
-
-    const d = r.body.Data || {};
+    let r, d;
+    if (getWhitebooksConfig()) {
+      r = await wb.einv.request('POST', WB_EINV.GENERATE, payload);
+      if (!r.ok) return { success: false, error: r.error };
+      d = r.data || {};
+    } else {
+      r = await nic.authedRequest(EINV(), 'POST', '/eicore/v1.03/Invoice', payload);
+      if (!r.ok) return { success: false, error: r.error };
+      d = r.body.Data || {};
+    }
     try {
       await db.insert(einvoiceRecords).values({
         companyId: company_id,
@@ -374,7 +428,9 @@ const generateFromVoucher = async (company_id, voucher_id) => {
         status: 'GENERATED',
         rawResponse: JSON.stringify(r.body),
       });
-    } catch (_) { /* best-effort persist */ }
+    } catch (_) {
+      /* best-effort persist */
+    }
 
     return { success: true, data: d };
   } catch (err) {

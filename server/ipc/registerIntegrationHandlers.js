@@ -36,6 +36,10 @@ function register() {
   ipcMain.handle('gstFiling:markAsFiled', gstFilingController.markAsFiled);
   ipcMain.handle('gstFiling:updateArn', gstFilingController.updateArn);
   ipcMain.handle('gstFiling:getFilingInfo', gstFilingController.getFilingInfo);
+  ipcMain.handle('gstFiling:requestOtp', gstFilingController.requestOtp);
+  ipcMain.handle('gstFiling:authenticate', gstFilingController.authenticate);
+  ipcMain.handle('gstFiling:requestEvc', gstFilingController.requestEvc);
+  ipcMain.handle('gstFiling:getReturnStatus', gstFilingController.getReturnStatus);
 
   ipcMain.handle('whatsapp:saveConfig', whatsappController.saveConfig);
   ipcMain.handle('whatsapp:getConfig', whatsappController.getConfig);

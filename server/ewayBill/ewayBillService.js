@@ -5,17 +5,22 @@ const { db } = require('../db/index');
 const { sql, eq } = require('drizzle-orm');
 const { ewaybillRecords, einvoiceRecords } = require('../db/schema');
 const nic = require('../integrations/nicClient');
-const { getGspConfig } = require('../integrations/gspConfig');
+const wb = require('../integrations/whitebooksClient');
+const { getGspConfig, getWhitebooksConfig } = require('../integrations/gspConfig');
 
 const EWB = () => getGspConfig()?.ewaybillBaseUrl || 'einv-apisandbox.nic.in';
 
 const getStatus = async (company_id) => {
-  const st = nic.getStatus();
+  const st = getWhitebooksConfig() ? wb.getStatus() : nic.getStatus();
   let records = 0;
   try {
-    const r = await db.all(sql`SELECT COUNT(*) AS n FROM ${ewaybillRecords} WHERE ${ewaybillRecords.companyId} = ${company_id}`);
+    const r = await db.all(
+      sql`SELECT COUNT(*) AS n FROM ${ewaybillRecords} WHERE ${ewaybillRecords.companyId} = ${company_id}`,
+    );
     records = r[0]?.n || 0;
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   return { success: true, ...st, records };
 };
 
@@ -33,17 +38,34 @@ const generateByIrn = async (company_id, voucher_id, irn, transport = {}) => {
     VehNo: transport.veh_no || undefined,
     VehType: transport.veh_type || undefined,
   };
-  const r = await nic.authedRequest(EWB(), 'POST', '/eiewb/v1.03/ewaybill', body);
-  if (!r.ok) return { success: false, error: r.error };
-  const d = r.body.Data || {};
+  // WhiteBooks generates the EWB from an existing IRN via its e-Invoice product endpoint.
+  let r, d;
+  if (getWhitebooksConfig()) {
+    r = await wb.einv.request('POST', '/einvoice/type/GENERATE_EWAYBILL/version/V1_03', body);
+    if (!r.ok) return { success: false, error: r.error };
+    d = r.data || {};
+  } else {
+    r = await nic.authedRequest(EWB(), 'POST', '/eiewb/v1.03/ewaybill', body);
+    if (!r.ok) return { success: false, error: r.error };
+    d = r.body.Data || {};
+  }
   try {
     await db.insert(ewaybillRecords).values({
-      companyId: company_id, voucherId: voucher_id || null, irn,
-      ewbNo: String(d.EwbNo || ''), ewbDate: d.EwbDt || null, validUpto: d.EwbValidTill || null,
-      transMode: String(transport.trans_mode || ''), vehNo: transport.veh_no || null,
-      distance: Number(transport.distance) || 0, status: 'GENERATED', rawResponse: JSON.stringify(r.body),
+      companyId: company_id,
+      voucherId: voucher_id || null,
+      irn,
+      ewbNo: String(d.EwbNo || ''),
+      ewbDate: d.EwbDt || null,
+      validUpto: d.EwbValidTill || null,
+      transMode: String(transport.trans_mode || ''),
+      vehNo: transport.veh_no || null,
+      distance: Number(transport.distance) || 0,
+      status: 'GENERATED',
+      rawResponse: JSON.stringify(r.body),
     });
-  } catch (_) { /* best-effort */ }
+  } catch (_) {
+    /* best-effort */
+  }
   return { success: true, data: d };
 };
 
@@ -53,10 +75,11 @@ const generateFromVoucher = async (company_id, voucher_id, transport) => {
     const rows = await db.all(
       sql`SELECT irn FROM ${einvoiceRecords}
           WHERE ${einvoiceRecords.voucherId} = ${voucher_id} AND ${einvoiceRecords.status} = 'GENERATED'
-          ORDER BY ${einvoiceRecords.createdAt} DESC LIMIT 1`
+          ORDER BY ${einvoiceRecords.createdAt} DESC LIMIT 1`,
     );
     const irn = rows[0]?.irn;
-    if (!irn) return { success: false, error: 'Generate the e-Invoice (IRN) first, then the e-Way Bill.' };
+    if (!irn)
+      return { success: false, error: 'Generate the e-Invoice (IRN) first, then the e-Way Bill.' };
     return await generateByIrn(company_id, voucher_id, irn, transport);
   } catch (err) {
     return { success: false, error: err.message };
@@ -64,28 +87,52 @@ const generateFromVoucher = async (company_id, voucher_id, transport) => {
 };
 
 const cancel = async (ewbNo, cancel_reason, cancel_remarks) => {
-  const r = await nic.authedRequest(EWB(), 'POST', '/eiewb/v1.03/ewaybill/cancel', {
-    ewbNo: Number(ewbNo), cancelRsnCode: Number(cancel_reason) || 2, cancelRmrk: cancel_remarks || 'Cancelled',
-  });
+  const isWb = !!getWhitebooksConfig();
+  const cancelBody = {
+    ewbNo: Number(ewbNo),
+    cancelRsnCode: Number(cancel_reason) || 2,
+    cancelRmrk: cancel_remarks || 'Cancelled',
+  };
+  const r = isWb
+    ? await wb.eway.request('POST', '/ewaybillapi/v1.03/ewayapi/canewb', cancelBody)
+    : await nic.authedRequest(EWB(), 'POST', '/eiewb/v1.03/ewaybill/cancel', cancelBody);
   if (!r.ok) return { success: false, error: r.error };
   try {
-    await db.update(ewaybillRecords).set({
-      status: 'CANCELLED', cancelReason: String(cancel_reason), cancelRemarks: cancel_remarks,
-      cancelledAt: sql`datetime('now')`, updatedAt: sql`datetime('now')`,
-    }).where(eq(ewaybillRecords.ewbNo, String(ewbNo)));
-  } catch (_) { /* best-effort */ }
-  return { success: true, data: r.body.Data };
+    await db
+      .update(ewaybillRecords)
+      .set({
+        status: 'CANCELLED',
+        cancelReason: String(cancel_reason),
+        cancelRemarks: cancel_remarks,
+        cancelledAt: sql`datetime('now')`,
+        updatedAt: sql`datetime('now')`,
+      })
+      .where(eq(ewaybillRecords.ewbNo, String(ewbNo)));
+  } catch (_) {
+    /* best-effort */
+  }
+  return { success: true, data: isWb ? r.data : r.body.Data };
 };
 
 const get = async (ewbNo) => {
-  const r = await nic.authedRequest(EWB(), 'GET', `/eiewb/v1.03/ewaybill?ewbNo=${ewbNo}`);
-  return r.ok ? { success: true, data: r.body.Data } : { success: false, error: r.error };
+  const isWb = !!getWhitebooksConfig();
+  const r = isWb
+    ? await wb.eway.request(
+        'GET',
+        '/ewaybillapi/v1.03/ewayapi/getewaybill',
+        null,
+        `&ewbNo=${encodeURIComponent(ewbNo)}`,
+      )
+    : await nic.authedRequest(EWB(), 'GET', `/eiewb/v1.03/ewaybill?ewbNo=${ewbNo}`);
+  return r.ok
+    ? { success: true, data: isWb ? r.data : r.body.Data }
+    : { success: false, error: r.error };
 };
 
 const getRecords = async (company_id) => {
   try {
     const rows = await db.all(
-      sql`SELECT * FROM ${ewaybillRecords} WHERE ${ewaybillRecords.companyId} = ${company_id} ORDER BY ${ewaybillRecords.createdAt} DESC`
+      sql`SELECT * FROM ${ewaybillRecords} WHERE ${ewaybillRecords.companyId} = ${company_id} ORDER BY ${ewaybillRecords.createdAt} DESC`,
     );
     return { success: true, records: rows };
   } catch (err) {

@@ -9,9 +9,36 @@ const { db } = require('../db/index');
 const { sql, eq } = require('drizzle-orm');
 const { gstFilings } = require('../db/schema');
 const filing = require('../integrations/gstFilingClient');
-const { getFilingConfig } = require('../integrations/gspConfig');
+const wb = require('../integrations/whitebooksClient');
+const { getFilingConfig, getWhitebooksConfig } = require('../integrations/gspConfig');
 const gstr1Service = require('../gst/gstr1Service');
 const gstr3bService = require('../gst/gstr3bService');
+
+// WhiteBooks GSTN return endpoints (retsave = save data; retevcfile = file with EVC OTP).
+const WB_RET = {
+  GSTR1: { save: '/gstr1/retsave', file: '/gstr1/retevcfile' },
+  GSTR3B: { save: '/gstr3b/retsave', file: '/gstr3b/retevcfile' },
+};
+const panOf = (gstin) => (gstin && gstin.length >= 12 ? gstin.slice(2, 12) : '');
+
+// GSTN rejects empty optional sections (e.g. hsn:{data:[]}, nil:{inv:[]}, b2b:[]) with a
+// "only 1 subschema matches" error, so strip empty arrays/objects before save/file. Keeps
+// gstin/fp and any zero-valued numeric rows (those are objects with keys, not empty).
+const pruneEmptyGstn = (v) => {
+  if (Array.isArray(v)) {
+    const arr = v.map(pruneEmptyGstn).filter((x) => x !== undefined);
+    return arr.length ? arr : undefined;
+  }
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, val] of Object.entries(v)) {
+      const pv = pruneEmptyGstn(val);
+      if (pv !== undefined) out[k] = pv;
+    }
+    return Object.keys(out).length ? out : undefined;
+  }
+  return v;
+};
 
 const compute = (return_type, company_id, fy_id, return_period) =>
   return_type === 'GSTR3B'
@@ -23,15 +50,23 @@ const upsertFiling = async (company_id, return_type, return_period, fields) => {
     sql`SELECT filing_id FROM ${gstFilings}
         WHERE ${gstFilings.companyId} = ${company_id}
           AND ${gstFilings.returnType} = ${return_type}
-          AND ${gstFilings.returnPeriod} = ${return_period}`
+          AND ${gstFilings.returnPeriod} = ${return_period}`,
   );
   if (existing.length) {
-    await db.update(gstFilings).set({ ...fields, updatedAt: sql`datetime('now')` })
+    await db
+      .update(gstFilings)
+      .set({ ...fields, updatedAt: sql`datetime('now')` })
       .where(eq(gstFilings.filingId, existing[0].filing_id));
     return existing[0].filing_id;
   }
-  const ins = await db.insert(gstFilings)
-    .values({ companyId: company_id, returnType: return_type, returnPeriod: return_period, ...fields })
+  const ins = await db
+    .insert(gstFilings)
+    .values({
+      companyId: company_id,
+      returnType: return_type,
+      returnPeriod: return_period,
+      ...fields,
+    })
     .returning({ id: gstFilings.filingId });
   return ins?.[0]?.id;
 };
@@ -40,10 +75,78 @@ const getStatus = async (company_id) => {
   const cfg = getFilingConfig();
   let records = 0;
   try {
-    const r = await db.all(sql`SELECT COUNT(*) AS n FROM ${gstFilings} WHERE ${gstFilings.companyId} = ${company_id}`);
+    const r = await db.all(
+      sql`SELECT COUNT(*) AS n FROM ${gstFilings} WHERE ${gstFilings.companyId} = ${company_id}`,
+    );
     records = r[0]?.n || 0;
-  } catch (_) { /* ignore */ }
-  return { success: true, configured: !!cfg, gstin: cfg?.gstin || null, sandbox: cfg?.sandbox ?? true, records };
+  } catch (_) {
+    /* ignore */
+  }
+  const wbc = getWhitebooksConfig();
+  if (wbc) {
+    const st = wb.getStatus();
+    return {
+      success: true,
+      configured: !!st.gstReady,
+      provider: 'whitebooks',
+      gstin: wbc.gst.gstin || null,
+      sandbox: st.sandbox,
+      gstSession: st.gstSession,
+      records,
+    };
+  }
+  return {
+    success: true,
+    configured: !!cfg,
+    gstin: cfg?.gstin || null,
+    sandbox: cfg?.sandbox ?? true,
+    records,
+  };
+};
+
+// --- WhiteBooks GSTN session (return filing needs the taxpayer's live OTP) ----------
+// Flow: requestOtp -> authenticate(otp) [login session] -> saveToPortal -> requestEvc
+//       -> fileReturn(evc_otp). The two OTPs are distinct: login vs EVC-for-filing.
+
+// Send the GSTN login OTP to the taxpayer's registered mobile.
+const requestOtp = async () => {
+  if (!getWhitebooksConfig())
+    return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
+  const r = await wb.gst.otpRequest();
+  return r.ok
+    ? { success: true, message: 'OTP sent to the taxpayer’s registered mobile.' }
+    : { success: false, error: r.error };
+};
+
+// Exchange the login OTP for a GSTN session (required before save/file).
+const authenticate = async (company_id, { otp } = {}) => {
+  if (!getWhitebooksConfig())
+    return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
+  if (!otp) return { success: false, error: 'OTP is required.' };
+  const r = await wb.gst.authenticate(String(otp).trim());
+  return r.ok ? { success: true } : { success: false, error: r.error };
+};
+
+// Request an EVC OTP for the actual filing (separate from the login OTP above).
+const requestEvc = async () => {
+  const wbc = getWhitebooksConfig();
+  if (!wbc) return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
+  const r = await wb.gst.request('GET', '/authentication/otpforevc', {
+    query: { pan: panOf(wbc.gst.gstin) },
+  });
+  return r.ok
+    ? { success: true, message: 'EVC OTP sent to the taxpayer’s registered mobile.' }
+    : { success: false, error: r.error };
+};
+
+// Live GSTN-side status of a return period (as opposed to the local gst_filings record).
+const getReturnStatus = async (company_id, { return_period } = {}) => {
+  const wbc = getWhitebooksConfig();
+  if (!wbc) return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
+  const r = await wb.gst.request('GET', '/gstr/retstatus', {
+    query: { gstin: wbc.gst.gstin, returnperiod: return_period },
+  });
+  return r.ok ? { success: true, data: r.data } : { success: false, error: r.error };
 };
 
 // Compute the return locally and store it as a DRAFT (no network).
@@ -51,41 +154,114 @@ const prepare = async (company_id, { return_type = 'GSTR1', fy_id, return_period
   const res = await compute(return_type, company_id, fy_id, return_period);
   if (!res.success) return res;
   const payload = res.payload || res;
-  await upsertFiling(company_id, return_type, return_period, { status: 'DRAFT', summary: JSON.stringify(payload), fyId: fy_id });
+  await upsertFiling(company_id, return_type, return_period, {
+    status: 'DRAFT',
+    summary: JSON.stringify(payload),
+    fyId: fy_id,
+  });
   return { success: true, return_type, return_period, payload };
 };
 
 // Push the computed return to the GSP (save to GSTN — reversible, before filing).
 const saveToPortal = async (company_id, { return_type = 'GSTR1', fy_id, return_period }) => {
+  const wbc = getWhitebooksConfig();
+  if (wbc) {
+    const res = await compute(return_type, company_id, fy_id, return_period);
+    if (!res.success) return res;
+    const payload = pruneEmptyGstn(res.payload || res) || {
+      gstin: wbc.gst.gstin,
+      fp: return_period,
+    };
+    const paths = WB_RET[return_type] || WB_RET.GSTR1;
+    const r = await wb.gst.request('PUT', paths.save, {
+      headers: { gstin: wbc.gst.gstin, ret_period: return_period },
+      body: payload,
+    });
+    const refId = (r.data && (r.data.reference_id || r.data.ref_id)) || null;
+    await upsertFiling(company_id, return_type, return_period, {
+      status: r.ok ? 'SAVED' : 'ERROR',
+      summary: JSON.stringify(payload),
+      referenceId: refId,
+      rawResponse: JSON.stringify(r.body || r.error),
+      fyId: fy_id,
+    });
+    return r.ok ? { success: true, reference_id: refId } : { success: false, error: r.error };
+  }
   const cfg = getFilingConfig();
   if (!cfg) return { success: false, error: 'GST filing not configured (.env)' };
   const res = await compute(return_type, company_id, fy_id, return_period);
   if (!res.success) return res;
   const payload = res.payload || res;
   const r = await filing.request('POST', `/gsp/gstn/${return_type.toLowerCase()}/save`, {
-    gstin: cfg.gstin, ret_period: return_period, data: payload,
+    gstin: cfg.gstin,
+    ret_period: return_period,
+    data: payload,
   });
   const refId = r.body?.reference_id || r.body?.ref_id || null;
   await upsertFiling(company_id, return_type, return_period, {
-    status: r.ok ? 'SAVED' : 'ERROR', summary: JSON.stringify(payload),
-    referenceId: refId, rawResponse: JSON.stringify(r.body || r.error), fyId: fy_id,
+    status: r.ok ? 'SAVED' : 'ERROR',
+    summary: JSON.stringify(payload),
+    referenceId: refId,
+    rawResponse: JSON.stringify(r.body || r.error),
+    fyId: fy_id,
   });
   return r.ok ? { success: true, reference_id: refId } : { success: false, error: r.error };
 };
 
 // File the return with EVC/OTP (the irreversible commit). Caller must confirm first.
-const fileReturn = async (company_id, { return_type = 'GSTR1', return_period, evc_otp }) => {
+const fileReturn = async (company_id, { return_type = 'GSTR1', fy_id, return_period, evc_otp }) => {
+  const wbc = getWhitebooksConfig();
+  if (wbc) {
+    if (!evc_otp) return { success: false, error: 'EVC OTP is required to file.' };
+    const res = await compute(return_type, company_id, fy_id, return_period);
+    if (!res.success) return res;
+    const payload = pruneEmptyGstn(res.payload || res) || {
+      gstin: wbc.gst.gstin,
+      fp: return_period,
+    };
+    const paths = WB_RET[return_type] || WB_RET.GSTR1;
+    const r = await wb.gst.request('POST', paths.file, {
+      query: { pan: panOf(wbc.gst.gstin), evcotp: String(evc_otp).trim() },
+      headers: { gstin: wbc.gst.gstin, ret_period: return_period },
+      body: payload,
+    });
+    if (!r.ok) {
+      await upsertFiling(company_id, return_type, return_period, {
+        status: 'ERROR',
+        rawResponse: JSON.stringify(r.body || r.error),
+      });
+      return { success: false, error: r.error };
+    }
+    const arn = (r.data && (r.data.arn || r.data.ARN)) || null;
+    await upsertFiling(company_id, return_type, return_period, {
+      status: 'FILED',
+      arn,
+      filedAt: sql`datetime('now')`,
+      rawResponse: JSON.stringify(r.body),
+    });
+    return { success: true, arn };
+  }
   const cfg = getFilingConfig();
   if (!cfg) return { success: false, error: 'GST filing not configured (.env)' };
   const r = await filing.request('POST', `/gsp/gstn/${return_type.toLowerCase()}/file`, {
-    gstin: cfg.gstin, ret_period: return_period, evc: evc_otp,
+    gstin: cfg.gstin,
+    ret_period: return_period,
+    evc: evc_otp,
   });
   if (!r.ok) {
-    await upsertFiling(company_id, return_type, return_period, { status: 'ERROR', rawResponse: JSON.stringify(r.body || r.error) });
+    await upsertFiling(company_id, return_type, return_period, {
+      status: 'ERROR',
+      rawResponse: JSON.stringify(r.body || r.error),
+    });
     return { success: false, error: r.error };
   }
   const arn = r.body?.arn || r.body?.ARN || null;
-  await upsertFiling(company_id, return_type, return_period, { status: 'FILED', arn, filedAt: sql`datetime('now')`, rawResponse: JSON.stringify(r.body) });
+  await upsertFiling(company_id, return_type, return_period, {
+    status: 'FILED',
+    arn,
+    filedAt: sql`datetime('now')`,
+    rawResponse: JSON.stringify(r.body),
+  });
   return { success: true, arn };
 };
 
@@ -93,7 +269,7 @@ const getFilings = async (company_id) => {
   try {
     const rows = await db.all(
       sql`SELECT filing_id, company_id, fy_id, return_type, return_period, status, arn, reference_id, filed_at, created_at, updated_at
-          FROM ${gstFilings} WHERE ${gstFilings.companyId} = ${company_id} ORDER BY ${gstFilings.updatedAt} DESC`
+          FROM ${gstFilings} WHERE ${gstFilings.companyId} = ${company_id} ORDER BY ${gstFilings.updatedAt} DESC`,
     );
     return { success: true, filings: rows };
   } catch (err) {
@@ -104,7 +280,10 @@ const getFilings = async (company_id) => {
 // Manual "Mark as Filed" (Tally F10) — records the return as FILED in gst_filings
 // without any GSP round-trip. Track GST Return Activities reads this same table,
 // so marking here flips that dashboard's "Pending to Be Filed" to No.
-const markAsFiled = async (company_id, { return_type = 'GSTR1', fy_id, return_period, arn = null, filed_date = null }) => {
+const markAsFiled = async (
+  company_id,
+  { return_type = 'GSTR1', fy_id, return_period, arn = null, filed_date = null },
+) => {
   try {
     const fields = {
       status: 'FILED',
@@ -113,14 +292,23 @@ const markAsFiled = async (company_id, { return_type = 'GSTR1', fy_id, return_pe
       filedAt: filed_date || new Date().toISOString().slice(0, 10),
     };
     const id = await upsertFiling(company_id, return_type, return_period, fields);
-    return { success: true, filing_id: id, status: 'FILED', arn: fields.arn, filed_at: fields.filedAt };
+    return {
+      success: true,
+      filing_id: id,
+      status: 'FILED',
+      arn: fields.arn,
+      filed_at: fields.filedAt,
+    };
   } catch (err) {
     return { success: false, error: err.message };
   }
 };
 
 // Update only the ARN/ARN-date of an existing (or new) filing record ("A: Manually Update ARN").
-const updateArn = async (company_id, { return_type = 'GSTR1', fy_id, return_period, arn, arn_date = null }) => {
+const updateArn = async (
+  company_id,
+  { return_type = 'GSTR1', fy_id, return_period, arn, arn_date = null },
+) => {
   try {
     const id = await upsertFiling(company_id, return_type, return_period, {
       fyId: fy_id ?? null,
@@ -141,7 +329,7 @@ const getFilingInfo = async (company_id, { return_type = 'GSTR1', return_period 
           WHERE ${gstFilings.companyId} = ${company_id}
             AND ${gstFilings.returnType} = ${return_type}
             AND ${gstFilings.returnPeriod} = ${return_period}
-          ORDER BY ${gstFilings.filingId} DESC LIMIT 1`
+          ORDER BY ${gstFilings.filingId} DESC LIMIT 1`,
     );
     const row = rows[0];
     return {
@@ -155,4 +343,17 @@ const getFilingInfo = async (company_id, { return_type = 'GSTR1', return_period 
   }
 };
 
-module.exports = { getStatus, prepare, saveToPortal, fileReturn, getFilings, markAsFiled, updateArn, getFilingInfo };
+module.exports = {
+  getStatus,
+  prepare,
+  saveToPortal,
+  fileReturn,
+  getFilings,
+  markAsFiled,
+  updateArn,
+  getFilingInfo,
+  requestOtp,
+  authenticate,
+  requestEvc,
+  getReturnStatus,
+};
