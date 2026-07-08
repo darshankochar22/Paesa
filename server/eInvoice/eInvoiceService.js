@@ -397,6 +397,29 @@ const generateFromVoucher = async (company_id, voucher_id) => {
       };
     }
 
+    // Credit/Debit notes must carry the original invoice reference (NIC PrecDocDtls).
+    if (voucher.voucher_type === 'Credit Note' || voucher.voucher_type === 'Debit Note') {
+      const table =
+        voucher.voucher_type === 'Credit Note'
+          ? 'voucher_credit_note_details'
+          : 'voucher_debit_note_details';
+      const ndRows = await db.all(
+        table === 'voucher_credit_note_details'
+          ? sql`SELECT original_invoice_no AS no, original_invoice_date AS dt FROM voucher_credit_note_details WHERE voucher_id = ${voucher_id} LIMIT 1`
+          : sql`SELECT original_invoice_no AS no, original_invoice_date AS dt FROM voucher_debit_note_details WHERE voucher_id = ${voucher_id} LIMIT 1`,
+      );
+      const nd = ndRows[0] || {};
+      if (!nd.no || !nd.dt) {
+        return {
+          success: false,
+          error:
+            'Enter the original invoice number & date on this note before generating the e-Invoice (required for Credit/Debit Note IRN).',
+        };
+      }
+      voucher.orig_invoice_no = nd.no;
+      voucher.orig_invoice_date = nd.dt;
+    }
+
     const compRows = await db.all(sql`SELECT * FROM companies WHERE company_id = ${company_id}`);
     const company = compRows[0] || {};
     const regRows = await db.all(

@@ -281,7 +281,7 @@ export default function VoucherView() {
           <span className="underline">Q</span>: Quit
         </Button>
         <div className="flex items-center gap-3">
-          {voucher.voucher_type === 'Sales' &&
+          {['Sales', 'Credit Note', 'Debit Note'].includes(voucher.voucher_type) &&
             !voucher.is_cancelled &&
             voucher.party_ledger_id &&
             selectedCompany?.company_id && (

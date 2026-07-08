@@ -31,8 +31,12 @@ function toPin(pin) {
   return Number.isInteger(n) && n >= 100000 ? n : 999999;
 }
 
+// NIC document type by voucher type — only these three are e-invoiced (Sales/CRN/DBN).
+const DOC_TYP = { Sales: 'INV', 'Credit Note': 'CRN', 'Debit Note': 'DBN' };
+
 function buildIrnPayload(voucher, seller, buyer) {
   const items = voucher.stock_entries || [];
+  const typ = DOC_TYP[voucher.voucher_type] || 'INV';
 
   const sellerStcd = stcd(seller.gstin, seller.state);
   const buyerStcd = stcd(buyer.gstin, buyer.state) || sellerStcd;
@@ -98,10 +102,21 @@ function buildIrnPayload(voucher, seller, buyer) {
     Version: '1.1',
     TranDtls: { TaxSch: 'GST', SupTyp: 'B2B', RegRev: 'N', IgstOnIntra: 'N' },
     DocDtls: {
-      Typ: 'INV',
+      Typ: typ,
       No: voucher.voucher_number || String(voucher.voucher_id),
       Dt: toNicDate(voucher.date),
     },
+    // Credit/Debit notes must reference the original invoice (NIC requires PrecDocDtls).
+    ...(typ !== 'INV' && voucher.orig_invoice_no
+      ? {
+          PrecDocDtls: [
+            {
+              InvNo: String(voucher.orig_invoice_no),
+              InvDt: toNicDate(voucher.orig_invoice_date),
+            },
+          ],
+        }
+      : {}),
     SellerDtls: {
       Gstin: seller.gstin || '',
       LglNm: seller.name || '',
