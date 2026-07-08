@@ -39,6 +39,13 @@ interface FetchedOrder { name: string; batch?: string | null; godown?: string | 
 interface FetchedBatch { name: string; mfg_date?: string | null; expiry_date?: string | null; balance?: number | null; }
 
 const NOT_APPLICABLE = "♦ Not Applicable";
+
+// Per-godown balance label — Tally shows negatives as "(-)9 Box"; blank when zero.
+const fmtQty = (q: number | undefined, unit?: string) => {
+  if (!q) return "";
+  const u = unit || "";
+  return q < 0 ? `(-)${Math.abs(q)} ${u}`.trim() : `${q} ${u}`.trim();
+};
 // Right block = Quantity + Rate + per + Amount; "Component of" spans the same.
 const RIGHT = "w-[360px]";
 const BATCH = "w-56";
@@ -53,6 +60,18 @@ export default function MaterialInAllocationPopup({
 }: Props) {
   const defaultGodown = godowns[0]?.name ?? "";
   const unit = unitSymbol ?? "";
+
+  // Per-godown balances for this item — appended to each godown option label.
+  const [godownBal, setGodownBal] = useState<Record<number, number>>({});
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.stockItem
+      .getStockBalancesByGodown({ company_id: companyId, item_id: itemId })
+      .then((res: any) => {
+        if (res?.success && res.balances) setGodownBal(res.balances);
+      })
+      .catch(() => {});
+  }, [companyId, itemId]);
   // Mfg Dt. defaults to the voucher's date, not the machine's — local-timezone
   // today only as a fallback when the caller doesn't pass one.
   const today =
@@ -350,7 +369,14 @@ export default function MaterialInAllocationPopup({
                     {godowns.length > 0 ? (
                       <select value={row.godown ?? ""} onChange={(e) => update(i, { godown: e.target.value })} className={`${cell} w-full`}>
                         <option value="" />
-                        {godowns.map((g) => <option key={g.godown_id ?? g.name} value={g.name}>{g.name}</option>)}
+                        {godowns.map((g) => {
+                          const q = g.godown_id != null ? fmtQty(godownBal[g.godown_id], unitSymbol) : "";
+                          return (
+                            <option key={g.godown_id ?? g.name} value={g.name}>
+                              {q ? `${g.name} — ${q}` : g.name}
+                            </option>
+                          );
+                        })}
                       </select>
                     ) : (
                       <input type="text" value={row.godown ?? ""} onChange={(e) => update(i, { godown: e.target.value })} placeholder="Location" className={`${cell} w-full`} />

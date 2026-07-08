@@ -52,6 +52,10 @@ export function useVoucherMeta({
   // ── Date / status ─────────────────────────────────────────────────────────────
   const [date, setDate] = useState<string>(todayStr());
   const [status, setStatus] = useState<"Regular" | "Post-Dated">("Regular");
+  // Optional (L:Optional) — independent of Post-Dated. When true the voucher is excluded
+  // from the books (ledger balances/reports) and appears only in the Optional Voucher
+  // Register. Toggled from the right action panel.
+  const [isOptional, setIsOptional] = useState(false);
   // Reversing Journal — date the entry is applicable up to (defaults to voucher date).
   const [applicableUpto, setApplicableUpto] = useState<string>("");
 
@@ -101,6 +105,7 @@ export function useVoucherMeta({
     setSupplierInvoiceNo("");
     setSupplierInvoiceDate("");
     setStatus("Regular");
+    setIsOptional(false);
     setDate(todayStr());
     setApplicableUpto("");
     setActiveAllocation(null);
@@ -135,6 +140,8 @@ export function useVoucherMeta({
     dateDisplay,
     status,
     setStatus,
+    isOptional,
+    setIsOptional,
     applicableUpto,
     setApplicableUpto,
     // narration / invoice

@@ -29,6 +29,8 @@ interface Props {
   totalAmount: number;
   dcType: "Dr" | "Cr";
   voucherDate: string;
+  /** Current voucher number — used to pre-fill a New Ref's name (editable). */
+  voucherNumber?: string;
   initialAllocations?: BillReference[];
   onClose: () => void;
   onSave: (allocations: BillReference[]) => void;
@@ -65,10 +67,14 @@ export default function BillWiseAllocationPopup({
   totalAmount,
   dcType,
   voucherDate,
+  voucherNumber,
   initialAllocations = [],
   onClose,
   onSave,
 }: Props) {
+  // Default reference name for a New Ref = the voucher number (Tally behaviour),
+  // e.g. Sales No. 21 → "21". Always a string so bill_name.trim() is safe.
+  const defaultRefName = String(voucherNumber ?? "").trim();
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -138,7 +144,7 @@ export default function BillWiseAllocationPopup({
       const dd = (checkCreditDays === 1 && defaultCreditPeriod > 0) ? addDays(voucherDate, defaultCreditPeriod) : "";
       setAllocations([{
         ledger_id: ledgerId,
-        bill_name: "",
+        bill_name: defaultRefName,
         bill_type: "New Ref",
         amount: totalAmount,
         credit_period: cp,
@@ -179,8 +185,9 @@ export default function BillWiseAllocationPopup({
       // No name, no due date — the whole amount sits on account.
       base.bill_name = "On Account";
     } else if (type === "New Ref") {
-      // User types the new reference name; carries a credit period.
-      base.bill_name = "";
+      // Pre-fill the new reference name with the voucher number (editable); carries
+      // a credit period.
+      base.bill_name = defaultRefName;
       base.credit_period = shouldAutoFill ? String(defaultCreditPeriod) : "";
       base.due_date = shouldAutoFill ? addDays(voucherDate, defaultCreditPeriod) : "";
     } else if (type === "Advance") {

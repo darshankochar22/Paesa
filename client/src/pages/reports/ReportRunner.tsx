@@ -33,6 +33,7 @@ import CreditNoteRegisterLayout from "@/components/reports/CreditNoteRegisterLay
 import DebitNoteRegisterLayout from "@/components/reports/DebitNoteRegisterLayout";
 import JournalRegisterLayout from "@/components/reports/JournalRegisterLayout";
 import MemorandumRegisterLayout from "@/components/reports/MemorandumRegisterLayout";
+import ReversingJournalRegisterLayout from "@/components/reports/ReversingJournalRegisterLayout";
 import VoucherClarificationLayout from "@/components/reports/VoucherClarificationLayout";
 import BillsLayout from "@/components/reports/BillsLayout";
 import LedgerOutstandingsLayout from "@/components/reports/LedgerOutstandingsLayout";
@@ -695,6 +696,8 @@ export function ReportRunner() {
           <JournalRegisterLayout />
          ): reportType === "memorandum-register" ?(
           <MemorandumRegisterLayout />
+         ): reportType === "reversing-journal-register" ?(
+          <ReversingJournalRegisterLayout />
          ):reportType === "voucher-clarification" ?(
             <VoucherClarificationLayout />
          ):reportType === "cost-category-summary" ? (

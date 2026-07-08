@@ -414,6 +414,8 @@ contextBridge.exposeInMainWorld('api', {
     journalRegister: (company_id, fy_id) => invoke('report:journalRegister', { company_id, fy_id }),
     memorandumRegister: (company_id, fy_id) =>
       invoke('report:memorandumRegister', { company_id, fy_id }),
+    reversingJournalRegister: (company_id, fy_id) =>
+      invoke('report:reversingJournalRegister', { company_id, fy_id }),
     debitNoteRegister: (company_id, fy_id) =>
       invoke('report:debitNoteRegister', { company_id, fy_id }),
     creditNoteRegister: (company_id, fy_id) =>
@@ -438,6 +440,8 @@ contextBridge.exposeInMainWorld('api', {
       invoke('report:journalRegisterVouchers', { company_id, fy_id, from_date, to_date }),
     memorandumRegisterVouchers: (company_id, fy_id, from_date, to_date) =>
       invoke('report:memorandumRegisterVouchers', { company_id, fy_id, from_date, to_date }),
+    reversingJournalRegisterVouchers: (company_id, fy_id, from_date, to_date) =>
+      invoke('report:reversingJournalRegisterVouchers', { company_id, fy_id, from_date, to_date }),
     debitNoteRegisterVouchers: (company_id, fy_id, from_date, to_date) =>
       invoke('report:debitNoteRegisterVouchers', { company_id, fy_id, from_date, to_date }),
     creditNoteRegisterVouchers: (company_id, fy_id, from_date, to_date) =>

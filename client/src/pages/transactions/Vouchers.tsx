@@ -95,7 +95,9 @@ export default function Vouchers() {
   const [subDropdownType, setSubDropdownType] = useState<string | null>(null);
 
   const hasAutoOpenedReceipt = useRef(false);
-  const hasAutoOpenedDispatch = useRef(false);
+  // Sales: track the party the dispatch→party→VAT chain last fired for, so it
+  // re-fires every time a DIFFERENT party is picked (not just the first time).
+  const lastDispatchParty = useRef<number | null>(null);
   const hasAutoOpenedCreditNote = useRef(false);
   const hasAutoOpenedDebitNote = useRef(false);
   const hasAutoOpenedDeliveryDispatch = useRef(false);
@@ -136,8 +138,9 @@ export default function Vouchers() {
   );
 
   useEffect(() => {
-    if (effectiveVoucherType === 'Sales' && form.partyLedger && !hasAutoOpenedDispatch.current) {
-      hasAutoOpenedDispatch.current = true;
+    const partyId = form.partyLedger?.ledger_id ?? null;
+    if (effectiveVoucherType === 'Sales' && partyId && lastDispatchParty.current !== partyId) {
+      lastDispatchParty.current = partyId;
       setShowDispatchDetails(true);
     }
   }, [form.partyLedger, effectiveVoucherType]);
@@ -255,7 +258,7 @@ export default function Vouchers() {
   useEffect(() => {
     if (!form.partyLedger) {
       hasAutoOpenedReceipt.current = false;
-      hasAutoOpenedDispatch.current = false;
+      lastDispatchParty.current = null;
       hasAutoOpenedCreditNote.current = false;
       hasAutoOpenedDebitNote.current = false;
       hasAutoOpenedDeliveryDispatch.current = false;
@@ -267,6 +270,23 @@ export default function Vouchers() {
       hasAutoOpenedJobWorkOut.current = false;
     }
   }, [form.partyLedger]);
+
+  // Whenever a main-form Godown field is focused, load that row's item's
+  // per-godown balances so the shared List of Godowns panel shows a quantity
+  // for every voucher (Stock Journal, Stock Transfer, Delivery/Receipt Note,
+  // Physical Stock, …) — not just Physical Stock. The active row can live in the
+  // single-table (stockEntries) or the Stock/Mfg Journal source/destination tables.
+  useEffect(() => {
+    if (form.activeField?.type !== 'stockGodown') return;
+    const rowId = (form.activeField as any).rowId;
+    const row =
+      form.stockEntries.find((r) => r.id === rowId) ??
+      form.sourceStockEntries.find((r) => r.id === rowId) ??
+      form.destinationStockEntries.find((r) => r.id === rowId);
+    const itemId = row?.stockItem?.item_id;
+    if (itemId) form.fetchGodownBalances(itemId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.activeField]);
 
   // ─── handleAccept ────────────────────────────────────────────────────
 
@@ -765,11 +785,22 @@ export default function Vouchers() {
           0,
         );
         const effRate = totalBilled > 0 ? totalAmt / totalBilled : 0;
+        // Persist the chosen godown on the row so voucher_stock_entries.godown_id
+        // is set — every per-godown balance/report reads that column. Without this
+        // the godown only lived on the batch rows and the item read as "no godown"
+        // (dumped into Main Location). Mirrors the Stock Journal branch above. A
+        // single-godown allocation is the common case; a multi-godown split uses
+        // the first allocation's godown (one stock entry carries one godown_id).
+        const firstGodownName = allocations.find((a) => a.godown)?.godown;
+        const godownObj = firstGodownName
+          ? (form.allGodowns.find((g: any) => g.name === firstGodownName) ?? null)
+          : null;
         form.handleUpdateStockRow(rowId, {
           batchAllocations: allocations,
           quantityRaw: totalActual ? String(totalActual) : '',
           billedQtyRaw: totalBilled ? String(totalBilled) : '',
           rateRaw: effRate ? String(effRate) : '',
+          ...(godownObj ? { godown: godownObj } : {}),
         });
       } else {
         form.handleUpdateStockRow(rowId, { batchAllocations: allocations });
@@ -1738,6 +1769,9 @@ export default function Vouchers() {
       } else if (effectiveVoucherType === 'Purchase') {
         // Purchase (excise) chains to the Manufacturer / Importer Details popup.
         setShowManufacturerDetails(true);
+      } else if (effectiveVoucherType === 'Sales') {
+        // Tally Sales chain: Dispatch → Party → VAT Details.
+        setShowVatDetails(true);
       }
     },
     [form.setPartyDetails, form.setPlaceOfSupply, effectiveVoucherType],
@@ -2053,11 +2087,7 @@ export default function Vouchers() {
       <PageTitleBar
         title={`${effectiveVoucherType === 'Attendance' ? 'Attendance' : effectiveVoucherType === 'Payroll' ? 'Payroll' : ['Purchase Order', 'Sales Order', 'Job Work In Order', 'Job Work Out Order'].includes(effectiveVoucherType) ? 'Order' : INVENTORY_CREATION_TYPES.includes(effectiveVoucherType) ? 'Inventory' : 'Accounting'} Voucher ${editVoucherId ? 'Alteration' : 'Creation'}`}
         subtitle={selectedCompany?.name ?? ''}
-        subtitleCenter={
-          INVENTORY_CREATION_TYPES.includes(effectiveVoucherType) ||
-          ORDER_CREATION_TYPES.includes(effectiveVoucherType) ||
-          effectiveVoucherType === 'Attendance'
-        }
+        subtitleCenter
         actions={
           <button
             onClick={() => navigate('/')}
@@ -2132,6 +2162,15 @@ export default function Vouchers() {
               <div>{form.taxUnit ? form.taxUnit.name : '♦ Not Applicable'}</div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Status : Optional — shown (all voucher types) only when L:Optional is on ── */}
+      {form.isOptional && (
+        <div className="flex justify-center gap-2 px-3 py-1 border-b border-zinc-200 bg-white shrink-0 text-sm">
+          <div className="text-right text-zinc-500">Status</div>
+          <div className="text-zinc-500">:</div>
+          <div className="font-semibold italic text-black">Optional</div>
         </div>
       )}
 
@@ -2359,14 +2398,17 @@ export default function Vouchers() {
             }
             stockBalances={form.activeField?.type === 'stockItem' ? form.stockBalances : undefined}
             godownBalances={
-              form.activeField?.type === 'stockGodown' && effectiveVoucherType === 'Physical Stock'
-                ? form.godownBalances
-                : undefined
+              form.activeField?.type === 'stockGodown' ? form.godownBalances : undefined
             }
             balanceUnit={
               form.activeField?.type === 'stockGodown'
-                ? (form.stockEntries.find((r) => r.id === (form.activeField as any).rowId)?.unit
-                    ?.symbol ?? '')
+                ? ((form.stockEntries.find((r) => r.id === (form.activeField as any).rowId) ??
+                    form.sourceStockEntries.find(
+                      (r) => r.id === (form.activeField as any).rowId,
+                    ) ??
+                    form.destinationStockEntries.find(
+                      (r) => r.id === (form.activeField as any).rowId,
+                    ))?.unit?.symbol ?? '')
                 : undefined
             }
             allUnits={form.activeField?.type === 'stockItem' ? form.allUnits : undefined}
@@ -2417,6 +2459,8 @@ export default function Vouchers() {
           onStatusChange={() =>
             form.setStatus((p: string) => (p === 'Regular' ? 'Post-Dated' : 'Regular'))
           }
+          isOptional={form.isOptional}
+          onOptionalToggle={() => form.setIsOptional((p: boolean) => !p)}
           entryMode={
             effectiveVoucherType === 'Receipt'
               ? form.receiptEntryMode

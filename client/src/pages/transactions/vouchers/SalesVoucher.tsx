@@ -719,11 +719,6 @@ function SalesGstEwayRow({ form }: { form: any }) {
             No
           </button>
         </div>
-        {form.placeOfSupply !== undefined && (
-          <span className="ml-6 text-sm text-black/60">
-            Place of Supply : {form.placeOfSupply || '—'}
-          </span>
-        )}
       </div>
 
       {showPopup && (

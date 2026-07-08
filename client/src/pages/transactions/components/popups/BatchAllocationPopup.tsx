@@ -111,6 +111,13 @@ const num = (v: number | undefined) =>
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
+// Per-godown balance label — Tally shows negatives as "(-)9 Box"; blank when zero.
+const fmtQty = (q: number | undefined, unit?: string) => {
+  if (!q) return '';
+  const u = unit || '';
+  return q < 0 ? `(-)${Math.abs(q)} ${u}`.trim() : `${q} ${u}`.trim();
+};
+
 export default function BatchAllocationPopup({
   companyId,
   itemId,
@@ -137,6 +144,19 @@ export default function BatchAllocationPopup({
   const showBilled = features?.use_separate_actual_billed_qty !== 0;
   // F11 "Use Discount column in invoices" — hide the Disc % column when No.
   const showDisc = features?.use_discount_column_in_invoices !== 0;
+
+  // Per-godown balances for this item — drives the quantity column in the
+  // "List of Godowns" side panel (same as the other allocation popups).
+  const [godownBal, setGodownBal] = useState<Record<number, number>>({});
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.stockItem
+      .getStockBalancesByGodown({ company_id: companyId, item_id: itemId })
+      .then((res: any) => {
+        if (res?.success && res.balances) setGodownBal(res.balances);
+      })
+      .catch(() => {});
+  }, [companyId, itemId]);
 
   // Enter-to-advance: focus the given field on a row (actual → billed → rate →
   // disc → next row / accept). rAF waits for the row to (re)render.
@@ -1152,8 +1172,11 @@ export default function BatchAllocationPopup({
                         onMouseEnter={() => setPanelHi(idx + 1)}
                       >
                         <span className="truncate">{g.name}</span>
-                        <span className="text-gray-500 text-[10px] shrink-0 ml-2">
-                          &#9670; {parentName(g)}
+                        <span className="text-gray-500 text-[10px] shrink-0 ml-2 flex items-center gap-2">
+                          <span>&#9670; {parentName(g)}</span>
+                          <span className="font-mono text-gray-600 w-12 text-right">
+                            {g.godown_id != null ? fmtQty(godownBal[g.godown_id], unitSymbol) : ''}
+                          </span>
                         </span>
                       </div>
                     ))}

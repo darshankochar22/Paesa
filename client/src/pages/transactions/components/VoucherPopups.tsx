@@ -358,6 +358,7 @@ export default function VoucherPopups({
           totalAmount={form.activeAllocation.amount}
           dcType={form.activeAllocation.dcType ?? 'Dr'}
           voucherDate={form.date}
+          voucherNumber={form.voucherNumber}
           initialAllocations={form.activeAllocation.initialAllocations ?? []}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBillWise}
@@ -371,6 +372,7 @@ export default function VoucherPopups({
           totalAmount={form.activeAllocation.amount}
           dcType={form.activeAllocation.dcType ?? 'Cr'}
           voucherDate={form.date}
+          voucherNumber={form.voucherNumber}
           initialAllocations={form.partyBillReferences}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBillWise}
@@ -482,6 +484,8 @@ export default function VoucherPopups({
 
       {form.activeAllocation?.type === 'jobWork' && (
         <JobWorkItemAllocationPopup
+          companyId={selectedCompany!.company_id}
+          itemId={form.activeAllocation.itemId}
           itemName={form.activeAllocation.itemName}
           orderNo={form.activeAllocation.orderNo}
           unitSymbol={form.activeAllocation.unitSymbol}

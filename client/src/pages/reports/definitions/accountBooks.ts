@@ -351,11 +351,11 @@ export const ACCOUNT_BOOKS_DEFINITIONS: Record<string, ReportConfig> = {
     reportId: "optional_voucher_register",
     columns: [
       { header: "Date", field: "date", type: "date" },
-      { header: "Particulars", field: "particulars" },
-      { header: "Type/Section", field: "type_section" },
-      { header: "Ref/Vch No.", field: "ref_vch_no" },
-      { header: "Amount", field: "amount", type: "currency", align: "right" },
-      { header: "Status", field: "status" },
+      { header: "Particulars", field: "particulars", align: "left" },
+      { header: "Vch Type", field: "voucher_type", align: "left" },
+      { header: "Vch No.", field: "voucher_number", align: "right" },
+      { header: "Debit Amount", field: "debit", type: "currency", align: "right" },
+      { header: "Credit Amount", field: "credit", type: "currency", align: "right" },
     ],
   },
   "cancelled-voucher-register": {

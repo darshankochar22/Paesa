@@ -59,6 +59,13 @@ interface CompRow {
 const num = (v: number) =>
   v ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 
+// Per-godown balance label — Tally shows negatives as "(-)9 Box"; blank when zero.
+const fmtQty = (q: number | undefined, unit?: string) => {
+  if (!q) return "";
+  const u = unit || "";
+  return q < 0 ? `(-)${Math.abs(q)} ${u}`.trim() : `${q} ${u}`.trim();
+};
+
 const focusEl = (sel: string) =>
   setTimeout(() => (document.querySelector(sel) as HTMLElement | null)?.focus(), 30);
 
@@ -69,6 +76,20 @@ export default function ComponentsAllocationPopup({
 }: Props) {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
+
+  // Per-godown balances, cached per component item id (each row can hold a
+  // different item). Fetched lazily when a row's godown picker opens.
+  const [godownBalByItem, setGodownBalByItem] = useState<Record<number, Record<number, number>>>({});
+  const ensureGodownBal = (iid?: number) => {
+    if (!companyId || !iid || godownBalByItem[iid]) return;
+    (window as any).api.stockItem
+      .getStockBalancesByGodown({ company_id: companyId, item_id: iid })
+      .then((res: any) => {
+        if (res?.success && res.balances)
+          setGodownBalByItem((prev) => ({ ...prev, [iid]: res.balances }));
+      })
+      .catch(() => {});
+  };
 
   const rowIdRef = useRef(0);
   const nextRowId = () => ++rowIdRef.current;
@@ -380,7 +401,7 @@ export default function ComponentsAllocationPopup({
                   data-ca-godown={idx}
                   value={row.godown}
                   onChange={(e) => update(row.id, { godown: e.target.value })}
-                  onFocus={() => update(row.id, { showGodownDD: true })}
+                  onFocus={() => { update(row.id, { showGodownDD: true }); ensureGodownBal(row.item_id); }}
                   onBlur={() => setTimeout(() => update(row.id, { showGodownDD: false }), 150)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -403,8 +424,13 @@ export default function ComponentsAllocationPopup({
                             update(row.id, { godown: g.name, showGodownDD: false });
                             focusEl(row.isBatch ? `[data-ca-batch="${idx}"]` : `[data-ca-actual="${idx}"]`);
                           }}
-                          className="block w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
-                          {g.name}
+                          className="flex w-full items-center justify-between text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
+                          <span className="truncate">{g.name}</span>
+                          <span className="font-mono text-gray-600 shrink-0 ml-2">
+                            {g.godown_id != null
+                              ? fmtQty(godownBalByItem[row.item_id as number]?.[g.godown_id], row.unit_symbol)
+                              : ""}
+                          </span>
                         </button>
                       ))}
                   </div>

@@ -21,6 +21,7 @@ const {
   voucherStockEntries,
   physicalStockEntries,
   physicalStockEntryLines,
+  godowns,
 } = require('../db/schema');
 const { trackingBilledExpr } = require('../report/services/stockMovement');
 // Goods billed by a Purchase/Sales that were already brought in by a linked
@@ -506,9 +507,84 @@ module.exports = {
         `
       );
 
+      // Seed each godown from its OPENING allocation, so an item whose per-godown
+      // stock came from an opening balance (not a voucher movement) still reports
+      // a quantity — matching getStockBalances' total, which includes opening.
+      const openingRows = await db.all(
+        sql`
+          SELECT ${stockItemOpeningAllocations.godownId} AS godown_id,
+                 COALESCE(SUM(${stockItemOpeningAllocations.quantity}), 0) AS qty
+          FROM ${stockItemOpeningAllocations}
+          WHERE ${stockItemOpeningAllocations.itemId} = ${item_id}
+            AND ${stockItemOpeningAllocations.godownId} IS NOT NULL
+          GROUP BY ${stockItemOpeningAllocations.godownId}
+        `
+      );
+
       const balances = {};
-      for (const r of moveRows) {
+      for (const r of openingRows) {
         if (r.godown_id != null) balances[r.godown_id] = Number(r.qty) || 0;
+      }
+      for (const r of moveRows) {
+        if (r.godown_id != null)
+          balances[r.godown_id] = (balances[r.godown_id] || 0) + (Number(r.qty) || 0);
+      }
+
+      // Reconcile with the item's TOTAL closing balance. Opening entered as a
+      // plain item-level quantity (stock_items.opening_quantity, not allocated to
+      // a specific godown) and any voucher movement saved with NO godown are both
+      // counted in the item's total (see getStockBalances) but attributed to no
+      // godown above. Tally shows such stock under the default "Main Location"
+      // godown — do the same, so the per-godown view sums to the same total the
+      // stock-item list shows. Without this an item with only item-level opening
+      // reads 0 in every godown and any sale looks like negative stock.
+      const itemRow = await db.all(
+        sql`SELECT ${stockItems.openingQuantity} AS opening_quantity
+            FROM ${stockItems}
+            WHERE ${stockItems.itemId} = ${item_id}
+              AND ${stockItems.companyId} = ${company_id}`
+      );
+      const openingScalar = Number(itemRow[0]?.opening_quantity) || 0;
+      const allocatedOpening = openingRows.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+      const unallocatedOpening = Math.max(0, openingScalar - allocatedOpening);
+
+      const nullMoveRows = await db.all(
+        sql`
+          SELECT COALESCE(SUM(
+            CASE
+              WHEN ${sql.raw(TRACKING_BILLED)} THEN 0
+              WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                THEN ${voucherStockEntries.quantity}
+              WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                THEN -${voucherStockEntries.quantity}
+              WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
+                THEN ${voucherStockEntries.quantity}
+              WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 1
+                THEN -${voucherStockEntries.quantity}
+              ELSE 0
+            END
+          ), 0) AS qty
+          FROM ${voucherStockEntries}
+          JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId} AND ${vouchers.isCancelled} = 0
+          WHERE ${voucherStockEntries.stockItemId} = ${item_id}
+            AND ${vouchers.companyId} = ${company_id}
+            AND ${voucherStockEntries.godownId} IS NULL
+        `
+      );
+      const nullGodownMovement = Number(nullMoveRows[0]?.qty) || 0;
+
+      const mainLocationRemainder = unallocatedOpening + nullGodownMovement;
+      if (mainLocationRemainder !== 0) {
+        const mainRows = await db.all(
+          sql`SELECT ${godowns.godownId} AS godown_id
+              FROM ${godowns}
+              WHERE ${godowns.companyId} = ${company_id}
+                AND ${godowns.isMainLocation} = 1
+                AND ${godowns.isActive} = 1
+              LIMIT 1`
+        );
+        const mainId = mainRows[0]?.godown_id;
+        if (mainId != null) balances[mainId] = (balances[mainId] || 0) + mainLocationRemainder;
       }
 
       // Physical Stock overrides per godown (latest count wins, + post-count movement).

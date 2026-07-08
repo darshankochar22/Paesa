@@ -164,6 +164,7 @@ import PendingDocuments from '../pages/reports/exception/PendingDocuments.tsx';
 import NegativeStock from '../pages/reports/exception/NegativeStock.tsx';
 import NegativeLedger from '../pages/reports/exception/NegativeLedger.tsx';
 import EditLogSummary from '../pages/reports/exception/EditLogSummary.tsx';
+import CancelledVouchers from '../pages/reports/exception/CancelledVouchers.tsx';
 
 import type { RouteConfig } from './types';
 
@@ -660,6 +661,7 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/exception/pending-documents', element: <PendingDocuments /> },
   { path: '/reports/exception/negative-stock', element: <NegativeStock /> },
   { path: '/reports/exception/negative-ledger', element: <NegativeLedger /> },
+  { path: '/reports/exception/cancelled-vouchers', element: <CancelledVouchers /> },
   { path: '/reports/exception/edit-log', element: <EditLogSummary /> },
 
   // Dynamic report runner (catch-all must be last)

@@ -490,35 +490,32 @@ export function ReadOnlyStockTable({
           </div>
         ))}
 
-        {additionalRows.length === 0 &&
-          Array.from({ length: Math.max(0, 5 - entries.length) }).map((_, i) => (
-            <div key={`sf-${i}`} className="flex border-b border-gray-50 min-h-[22px] px-3" />
-          ))}
-
-        {grandTotal != null
-          ? grandTotal > 0 && (
-              <div className="flex border-t border-black border-b border-gray-300 px-3 py-1 bg-white">
-                <div className="flex-1 text-sm font-bold text-black">Total</div>
-                {withGodown && <div className="w-28" />}
-                <div className="w-24" />
-                <div className="w-32" />
-                <div className="w-32 text-right text-sm font-bold text-black">
-                  {formatAmount(grandTotal)}
-                </div>
-              </div>
-            )
-          : total > 0 && (
-              <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
-                <div className="flex-1 text-xs text-gray-700">Subtotal</div>
-                {withGodown && <div className="w-28" />}
-                <div className="w-24 text-right pr-1" />
-                <div className="w-32 text-right pr-1" />
-                <div className="w-32 text-right text-sm font-bold text-black">
-                  {formatAmount(total)}
-                </div>
-              </div>
-            )}
       </div>
+
+      {/* Total pinned to the bottom of the panel (Tally-style), below the empty item space. */}
+      {grandTotal != null
+        ? grandTotal > 0 && (
+            <div className="flex border-t border-black border-b border-gray-300 px-3 py-1 bg-white shrink-0">
+              <div className="flex-1 text-sm font-bold text-black">Total</div>
+              {withGodown && <div className="w-28" />}
+              <div className="w-24" />
+              <div className="w-32" />
+              <div className="w-32 text-right text-sm font-bold text-black">
+                {formatAmount(grandTotal)}
+              </div>
+            </div>
+          )
+        : total > 0 && (
+            <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white shrink-0">
+              <div className="flex-1 text-xs text-gray-700">Subtotal</div>
+              {withGodown && <div className="w-28" />}
+              <div className="w-24 text-right pr-1" />
+              <div className="w-32 text-right pr-1" />
+              <div className="w-32 text-right text-sm font-bold text-black">
+                {formatAmount(total)}
+              </div>
+            </div>
+          )}
     </>
   );
 }
@@ -527,57 +524,83 @@ export function ReadOnlyStockTable({
  *  (Source/Consumption left, Destination/Production right) with its own Godown
  *  column + subtotal per side (StockJournalVoucher.tsx / ManufacturingJournalVoucher.tsx).
  *  is_source already tags each saved line, so the split needs no backend change. */
-export function ReadOnlySplitSection({ title, entries }: { title: string; entries: StockEntry[] }) {
-  const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
+export function ReadOnlySplitSection({
+  title,
+  entries,
+  className,
+}: {
+  title: string;
+  entries: StockEntry[];
+  className?: string;
+}) {
+  const totalAmount = entries.reduce((s, e) => s + (e.amount || 0), 0);
+  const totalQty = entries.reduce((s, e) => s + (e.quantity || 0), 0);
+  // Tally shows the total quantity with its unit ("8 nos") only when the whole
+  // side shares one unit; mixed units drop the symbol to avoid a wrong total.
+  const units = Array.from(new Set(entries.map((e) => e.unit_symbol).filter(Boolean)));
+  const qtyUnit = units.length === 1 ? units[0] : '';
   return (
-    <div className="border-b border-gray-300 shrink-0">
-      <div className="bg-zinc-900 text-white text-xs font-bold uppercase tracking-wider text-center py-1">
+    <div className={`flex flex-col ${className ?? ''}`}>
+      <div className="bg-zinc-900 text-white text-xs font-bold uppercase tracking-wider text-center py-1 shrink-0">
         {title}
       </div>
-      <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
+      <div className="flex border-b border-gray-300 px-3 py-0.5 bg-white shrink-0">
         <div className="flex-1 text-sm font-semibold text-black">Name of Item</div>
-        <div className="w-28 text-sm font-semibold text-black">Godown</div>
-        <div className="w-24 text-right text-sm font-semibold text-black">Quantity</div>
-        <div className="w-24 text-right text-sm font-semibold text-black">Rate</div>
-        <div className="w-32 text-right text-sm font-semibold text-black">Amount</div>
+        <div className="w-20 text-sm font-semibold text-black">Godown</div>
+        <div className="w-16 text-right text-sm font-semibold text-black">Quantity</div>
+        <div className="w-16 text-right text-sm font-semibold text-black">Rate</div>
+        <div className="w-24 text-right text-sm font-semibold text-black">Amount</div>
       </div>
-      {entries.length === 0 ? (
-        <div className="px-3 py-2 text-sm text-gray-400 italic">No items</div>
-      ) : (
-        entries.map((item) => (
-          <div
-            key={item.stock_entry_id}
-            className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0"
-          >
-            <div className="flex-1 text-sm text-black font-semibold">{item.item_name || '—'}</div>
-            <div className="w-28 text-sm text-black">{item.godown_name || '—'}</div>
-            <div className="w-24 text-right text-sm text-black">{formatQty(item.quantity)}</div>
-            <div className="w-24 text-right text-sm text-black">{formatAmount(item.rate)}</div>
-            <div className="w-32 text-right text-sm font-bold text-black">
-              {formatAmount(item.amount)}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {entries.length === 0 ? (
+          <div className="px-3 py-2 text-sm text-gray-400 italic">No items</div>
+        ) : (
+          entries.map((item) => (
+            <div
+              key={item.stock_entry_id}
+              className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0"
+            >
+              <div className="flex-1 text-sm text-black font-semibold">{item.item_name || '—'}</div>
+              <div className="w-20 text-sm text-black truncate">{item.godown_name || '—'}</div>
+              <div className="w-16 text-right text-sm text-black">{formatQty(item.quantity)}</div>
+              <div className="w-16 text-right text-sm text-black">{formatAmount(item.rate)}</div>
+              <div className="w-24 text-right text-sm font-bold text-black">
+                {formatAmount(item.amount)}
+              </div>
             </div>
-          </div>
-        ))
-      )}
-      <div className="flex px-3 py-0.5 bg-white">
-        <div className="flex-1 text-xs text-gray-700">Subtotal</div>
-        <div className="w-28" />
-        <div className="w-24" />
-        <div className="w-24" />
-        <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(total)}</div>
+          ))
+        )}
+      </div>
+      <div className="flex items-center border-t border-gray-300 px-3 py-0.5 bg-white shrink-0">
+        <div className="flex-1" />
+        <div className="w-20" />
+        <div className="w-16 text-right text-sm font-bold text-black">
+          {totalQty ? `${formatQty(totalQty)}${qtyUnit ? ` ${qtyUnit}` : ''}` : ''}
+        </div>
+        <div className="w-16" />
+        <div className="w-24 text-right text-sm font-bold text-black">
+          {formatAmount(totalAmount)}
+        </div>
       </div>
     </div>
   );
 }
 
+/** Stock Journal / Manufacturing Journal read-only view: Source (Consumption)
+ *  and Destination (Production) sit SIDE BY SIDE — matching TallyPrime's dual
+ *  pane — rather than stacked, with a per-side quantity + amount total row. */
 export function ReadOnlySplitStockTable({ entries }: { entries: StockEntry[] }) {
   const source = entries.filter((e) => e.is_source === 1);
   const destination = entries.filter((e) => e.is_source !== 1);
   return (
-    <>
-      <ReadOnlySplitSection title="Source (Consumption)" entries={source} />
-      <ReadOnlySplitSection title="Destination (Production)" entries={destination} />
-    </>
+    <div className="flex items-stretch border-b border-gray-300 flex-1 min-h-0">
+      <ReadOnlySplitSection
+        title="Source (Consumption)"
+        entries={source}
+        className="flex-1 border-r border-gray-300"
+      />
+      <ReadOnlySplitSection title="Destination (Production)" entries={destination} className="flex-1" />
+    </div>
   );
 }
 

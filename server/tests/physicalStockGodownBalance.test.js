@@ -81,6 +81,57 @@ describe("Physical Stock — per-godown balance", () => {
     expect(Number(res.balances[g2])).toBe(8); // g2 unaffected
   });
 
+  it("includes per-godown OPENING allocations, plus later movements", async () => {
+    // Item created with an opening stock of 15 in godown g1 (no vouchers yet).
+    const openRes = await stockItemService.create({
+      company_id: companyId,
+      name: "Table",
+      allocations: [{ godown_id: g1, quantity: 15, rate: 200 }],
+    });
+    const tableId = openRes.item?.item_id ?? openRes.itemId ?? openRes.id;
+
+    let res = await stockItemService.getStockBalancesByGodown(companyId, tableId);
+    expect(res.success).toBe(true);
+    expect(Number(res.balances[g1])).toBe(15); // opening balance shows with no movement
+
+    // Move 5 out of g1 → opening 15 − 5 = 10.
+    const outRes = await voucherService.create({
+      company_id: companyId, fy_id: fyId, voucher_type: "Material Out",
+      date: "2026-04-20", party_name: "XYZ Customer", is_inventory_voucher: 1, entries: [],
+      stock_entries: [
+        { stock_item_id: tableId, item_name: "Table", godown_id: g1, quantity: 5, rate: 300 },
+      ],
+    });
+    expect(outRes.success).toBe(true);
+
+    res = await stockItemService.getStockBalancesByGodown(companyId, tableId);
+    expect(Number(res.balances[g1])).toBe(10); // opening 15 − 5 out
+  });
+
+  it("attributes item-level opening (no godown allocation) to Main Location", async () => {
+    // Desktop Computer scenario: opening 13 entered at item level, not allocated
+    // to any specific godown. The total shows 13, so the per-godown view must
+    // attribute it to Main Location (else every godown reads 0 and any sale is
+    // reported as negative stock).
+    const dcRes = await stockItemService.create({
+      company_id: companyId,
+      name: "Desktop Computer",
+      opening_quantity: 13,
+      opening_rate: 1000,
+    });
+    const dcId = dcRes.item?.item_id ?? dcRes.itemId ?? dcRes.id;
+
+    const mainRow = await db.execute(
+      `SELECT godown_id FROM godowns WHERE company_id = ? AND is_main_location = 1 LIMIT 1`,
+      [companyId]
+    );
+    const mainId = mainRow.rows[0].godown_id;
+
+    const res = await stockItemService.getStockBalancesByGodown(companyId, dcId);
+    expect(res.success).toBe(true);
+    expect(Number(res.balances[mainId])).toBe(13); // unallocated opening → Main Location
+  });
+
   it("returns empty for an unknown item", async () => {
     const res = await stockItemService.getStockBalancesByGodown(companyId, 999999);
     expect(res.success).toBe(true);

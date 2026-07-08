@@ -5,6 +5,8 @@ import ComponentsAllocationPopup from "./ComponentsAllocationPopup";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 interface Props {
+  companyId?: number;
+  itemId?: number;
   itemName: string;
   orderNo?: string;
   unitSymbol?: string;
@@ -27,6 +29,13 @@ function fmtDate(iso: string) {
 
 const num = (v: number) =>
   v ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+
+// Per-godown balance label — Tally shows negatives as "(-)9 Box"; blank when zero.
+const fmtQty = (q: number | undefined, unit?: string) => {
+  if (!q) return "";
+  const u = unit || "";
+  return q < 0 ? `(-)${Math.abs(q)} ${u}`.trim() : `${q} ${u}`.trim();
+};
 
 interface AllocRow {
   id: number;
@@ -60,10 +69,21 @@ const focusEl = (sel: string) =>
   setTimeout(() => (document.querySelector(sel) as HTMLElement | null)?.focus(), 30);
 
 export default function JobWorkItemAllocationPopup({
-  itemName, orderNo, unitSymbol, voucherDate,
+  companyId, itemId, itemName, orderNo, unitSymbol, voucherDate,
   allGodowns, allStockItems, allUnits,
   initialAllocations, onClose, onSave,
 }: Props) {
+  // Per-godown balances for this item — drives the qty column in List of Godowns.
+  const [godownBal, setGodownBal] = useState<Record<number, number>>({});
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.stockItem
+      .getStockBalancesByGodown({ company_id: companyId, item_id: itemId })
+      .then((res: any) => {
+        if (res?.success && res.balances) setGodownBal(res.balances);
+      })
+      .catch(() => {});
+  }, [companyId, itemId]);
   // Hydrate: any saved row carrying components means tracking was on.
   const [trackComponents, setTrackComponents] = useState<"Yes" | "No">(() =>
     initialAllocations?.some((r) => (r.components?.length ?? 0) > 0) ? "Yes" : "No"
@@ -280,8 +300,11 @@ export default function JobWorkItemAllocationPopup({
                               update(row.id, { godown: g.name, showGodownDD: false });
                               focusEl(`[data-jw-qty="${idx}"]`);
                             }}
-                            className="block w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
-                            {g.name}
+                            className="flex w-full items-center justify-between text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
+                            <span className="truncate">{g.name}</span>
+                            <span className="font-mono text-gray-600 shrink-0 ml-2">
+                              {g.godown_id != null ? fmtQty(godownBal[g.godown_id], unitSymbol) : ""}
+                            </span>
                           </button>
                         ))}
                     </div>,

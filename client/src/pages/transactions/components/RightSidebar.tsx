@@ -10,6 +10,8 @@ export default function RightSidebar({
   onSubDropdownToggle,
   status,
   onStatusChange,
+  isOptional,
+  onOptionalToggle,
   entryMode,
   onEntryModeChange,
   onDateClick,
@@ -27,6 +29,8 @@ export default function RightSidebar({
   onSubDropdownToggle: (type: string) => void;
   status: string;
   onStatusChange: () => void;
+  isOptional: boolean;
+  onOptionalToggle: () => void;
   entryMode: 'single' | 'double';
   onEntryModeChange: () => void;
   onDateClick: () => void;
@@ -207,6 +211,22 @@ export default function RightSidebar({
           <span className="text-gray-500">Alt+C</span>: Create Ldgr
         </Button>
       </div>
+
+      {/* Memorandum & Reversing Journal are inherently non-posting (always stored
+          is_optional = 1) and live in their own registers — the L:Optional toggle is
+          meaningless for them, so it's hidden to match Tally. */}
+      {!['Memorandum', 'Reversing Journal'].includes(voucherType) && (
+        <div className="border-b border-gray-200">
+          <Button
+            variant="ghost"
+            onClick={onOptionalToggle}
+            className="w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal text-black hover:bg-gray-100"
+          >
+            {/* Tally shows the action you can take: "Optional" when Regular, "Regular" when Optional. */}
+            <span className="text-gray-500">L</span>: {isOptional ? 'Regular' : 'Optional'}
+          </Button>
+        </div>
+      )}
 
       <div className="border-b border-gray-200">
         <Button

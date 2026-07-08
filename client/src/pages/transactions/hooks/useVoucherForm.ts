@@ -939,7 +939,7 @@ export function useVoucherForm(
           voucher_date: meta.date,
           reference_no: meta.referenceNumber || null,
           narration: meta.narration || null,
-          is_optional: 0,
+          is_optional: meta.isOptional ? 1 : 0,
           is_post_dated: meta.status === 'Post-Dated' ? 1 : 0,
           lines: physicalLines,
         });
@@ -1047,7 +1047,7 @@ export function useVoucherForm(
             ].includes(effectiveVoucherType) || isOrderVoucher
               ? 1
               : 0,
-          is_optional: isNonAccounting || isReversingJournal ? 1 : 0,
+          is_optional: meta.isOptional || isNonAccounting || isReversingJournal ? 1 : 0,
           is_post_dated: meta.status === 'Post-Dated' ? 1 : 0,
           applicable_upto: isReversingJournal ? meta.applicableUpto || meta.date : null,
           entries: isInventoryOnly || isOrderVoucher ? [] : entries,
@@ -1163,6 +1163,8 @@ export function useVoucherForm(
     dateDisplay: meta.dateDisplay,
     status: meta.status,
     setStatus: meta.setStatus,
+    isOptional: meta.isOptional,
+    setIsOptional: meta.setIsOptional,
     applicableUpto: meta.applicableUpto,
     setApplicableUpto: meta.setApplicableUpto,
     supplierInvoiceNo: meta.supplierInvoiceNo,

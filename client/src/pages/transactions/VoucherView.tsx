@@ -165,6 +165,19 @@ export default function VoucherView() {
     return 'Accounting Voucher Alteration (Secondary)';
   };
 
+  // Voucher types whose alteration view shows a "Tax Unit" line under GST Registration
+  // (mirrors TallyPrime — inventory/order vouchers that carry a tax unit).
+  const TAX_UNIT_TYPES = [
+    "Sales", "Purchase", "Stock Journal", "Purchase Order",
+    "Job Work In Order", "Job Work Out Order", "Material In", "Material Out",
+  ];
+  const showTaxUnit = TAX_UNIT_TYPES.includes(voucher.voucher_type);
+  // "Status : Optional" shows only for vouchers a user explicitly marked Optional
+  // (L:Optional) — not Memorandum / Reversing Journal, which store is_optional = 1
+  // as an internal detail but are not "Optional" vouchers.
+  const showOptionalStatus =
+    !!voucher.is_optional && !["Memorandum", "Reversing Journal"].includes(voucher.voucher_type);
+
   const { date: dateStr, day: dayStr } = formatDateBox(voucher.date);
 
   return (
@@ -184,6 +197,25 @@ export default function VoucherView() {
         >
           ✕
         </button>
+      </div>
+
+      {/* ── GST Registration (+ Tax Unit) — centered under the company name (Tally-style) ── */}
+      <div className="flex justify-center gap-2 px-3 py-1 border-b border-gray-300 bg-white shrink-0 text-sm">
+        <div className="text-right text-zinc-500">
+          <div>GST Registration</div>
+          {showTaxUnit && <div>Tax Unit</div>}
+          {showOptionalStatus && <div>Status</div>}
+        </div>
+        <div className="text-zinc-500">
+          <div>:</div>
+          {showTaxUnit && <div>:</div>}
+          {showOptionalStatus && <div>:</div>}
+        </div>
+        <div className="font-semibold text-black">
+          <div>♦ Not Applicable</div>
+          {showTaxUnit && <div>♦ Not Applicable</div>}
+          {showOptionalStatus && <div className="italic">Optional</div>}
+        </div>
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">

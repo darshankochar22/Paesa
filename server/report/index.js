@@ -20,4 +20,5 @@ module.exports = {
   purchaseRegister: require('./registers/purchaseRegister'),
   salesRegister: require('./registers/salesRegister'),
   memorandumRegister: require('./registers/memorandumRegister'),
+  reversingJournalRegister: require('./registers/reversingJournalRegister'),
 };

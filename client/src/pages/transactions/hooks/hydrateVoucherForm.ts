@@ -54,6 +54,7 @@ export function hydrateVoucherForm(form: any, v: any) {
   }
   form.setVoucherClass?.(v.voucher_class || "");
   form.setStatus?.(v.is_post_dated ? "Post-Dated" : "Regular");
+  form.setIsOptional?.(!!v.is_optional);
 
   // Detail sub-screens round-trip in their stored (snake_case) shape.
   if (v.bank_details) form.setBankDetails?.(v.bank_details);

@@ -31,7 +31,7 @@ export default function ExceptionReports() {
     const routes: Record<string, string> = {
       'Memorandum Register': '/reports/accounts/memorandum-register',
       'Reversing Journal Register': '/reports/accounts/reversing-journal-register',
-      'Optional Vouchers': '/reports/exception/optional-vouchers',
+      'Optional Vouchers': '/reports/exception/optional-voucher-register',
       'Cancelled Vouchers': '/reports/exception/cancelled-vouchers',
       'Post-Dated Vouchers': '/reports/exception/post-dated-vouchers',
       'Marked Vouchers': '/reports/exception/marked-vouchers',

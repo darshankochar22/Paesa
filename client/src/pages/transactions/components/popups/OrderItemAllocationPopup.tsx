@@ -180,6 +180,10 @@ export default function OrderItemAllocationPopup({
     batch: [],
   });
   const [error, setError] = useState<string | null>(null);
+  // Per-godown negative-stock warning (outward vouchers). Shown once; the
+  // "Continue" button re-saves with the check skipped — Tally warns about
+  // negative stock but still lets you continue.
+  const [negWarn, setNegWarn] = useState<string | null>(null);
   const listRefs = useRef<(HTMLDivElement | null)[]>([]);
   // Anchors for the four row-level dropdowns (Tracking/Order/Godown/Batch), each
   // portaled to <body> with fixed coordinates below — the allocations list sits
@@ -247,6 +251,22 @@ export default function OrderItemAllocationPopup({
       .getStockBalancesByGodown({ company_id: companyId, item_id: itemId })
       .then((res: any) => {
         if (res?.success && res.balances) setGodownBal(res.balances);
+      })
+      .catch(() => {});
+  }, [companyId, itemId]);
+
+  // Autofill the rate from the item's purchase history (most recent Purchase
+  // rate) when no rate is set yet — Tally pre-fills this so Amount computes as
+  // qty × rate the moment a quantity is typed. A rate already on a row (typed by
+  // the user, or restored from a saved allocation) is left untouched.
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.stockItem
+      .getLastPurchaseRate({ company_id: companyId, item_id: itemId })
+      .then((res: any) => {
+        if (res?.success && res.rate) {
+          setRows((prev) => prev.map((r) => (Number(r.rate) > 0 ? r : { ...r, rate: res.rate })));
+        }
       })
       .catch(() => {});
   }, [companyId, itemId]);
@@ -458,7 +478,7 @@ export default function OrderItemAllocationPopup({
   };
 
   const saveAllocations = useCallback(
-    (list: BatchAllocation[]) => {
+    (list: BatchAllocation[], skipNegCheck = false) => {
       const isFilled = (r: BatchAllocation) =>
         !!(r.godown || Number(r.quantity) > 0 || (r.batch_number || '').trim());
       // A row with only Rate / Disc typed would be dropped silently — surface it
@@ -488,6 +508,34 @@ export default function OrderItemAllocationPopup({
         setError('Enter a quantity for at least one allocation.');
         return;
       }
+      // Per-godown negative-stock guard (outward vouchers only). Sum billed qty
+      // per godown and compare to that godown's on-hand balance — this catches
+      // selling more than a godown holds even when the item's TOTAL is still
+      // positive (e.g. 8 from a godown that holds 0). Warn once; the "Continue"
+      // button re-saves with skipNegCheck, matching Tally's "press any key".
+      if (!isInward && !skipNegCheck) {
+        const idByName = new Map<string, number | undefined>(
+          godowns.map((g) => [g.name, g.godown_id] as [string, number | undefined]),
+        );
+        const outByGodown = new Map<number, number>();
+        for (const r of filled) {
+          const gid = r.godown ? idByName.get(r.godown) : undefined;
+          if (gid == null) continue;
+          outByGodown.set(gid, (outByGodown.get(gid) || 0) + (Number(r.quantity) || 0));
+        }
+        const short: string[] = [];
+        Array.from(outByGodown.entries()).forEach(([gid, out]) => {
+          const avail = Number(godownBal[gid]) || 0;
+          if (out > avail) {
+            const gName = godowns.find((g) => g.godown_id === gid)?.name ?? '';
+            short.push(`${gName ? gName + ': ' : ''}(-)${out - avail} ${unitSymbol ?? ''}`.trim());
+          }
+        });
+        if (short.length) {
+          setNegWarn(`Negative stock.\n${short.join('\n')}`);
+          return;
+        }
+      }
       const baseDate = voucherDate || toLocalIsoDate(new Date());
       onSave(
         filled.map((r): SavedAllocation => {
@@ -511,7 +559,7 @@ export default function OrderItemAllocationPopup({
         }),
       );
     },
-    [showBatch, trackMfg, trackExpiry, rate, onSave, voucherDate],
+    [showBatch, trackMfg, trackExpiry, rate, onSave, voucherDate, isInward, godowns, godownBal, unitSymbol],
   );
 
   const handleSave = useCallback(() => saveAllocations(rows), [saveAllocations, rows]);
@@ -541,11 +589,11 @@ export default function OrderItemAllocationPopup({
   // Esc / Alt+A are handled by VoucherPopupShell; these wrappers keep the old
   // guard — the New Number popup owns the keyboard while it is open.
   const guardedClose = () => {
-    if (newNumber) return;
+    if (newNumber || negWarn) return;
     onClose();
   };
   const guardedAccept = () => {
-    if (newNumber) return;
+    if (newNumber || negWarn) return;
     handleSave();
   };
 
@@ -1222,6 +1270,41 @@ export default function OrderItemAllocationPopup({
             }
           }}
         />
+      )}
+
+      {/* Negative-stock warning — allocating more than a godown holds. Tally
+          shows this as a warning you acknowledge before it accepts the entry. */}
+      {negWarn && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40">
+          <div className="bg-white border-2 border-black w-80 shadow-xl">
+            <div className="text-center font-bold text-xs uppercase tracking-wide border-b border-gray-300 py-1.5">
+              Warning
+            </div>
+            <div className="px-4 py-8 text-center text-xs font-semibold whitespace-pre-line">
+              {negWarn}
+            </div>
+            <div className="flex border-t border-gray-300">
+              <button
+                type="button"
+                onClick={() => setNegWarn(null)}
+                className="flex-1 text-[11px] py-2 border-r border-gray-300 hover:bg-gray-100 font-bold uppercase tracking-wide"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => {
+                  setNegWarn(null);
+                  saveAllocations(rows, true);
+                }}
+                className="flex-1 text-[11px] py-2 bg-black text-white hover:bg-gray-800 font-bold uppercase tracking-wide"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
