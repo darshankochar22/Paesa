@@ -5,7 +5,9 @@ const { companies } = require('./company');
 // Mirrors server/companyGstDetails/companyGstDetails.js CREATE TABLE company_gst_details.
 // One row per company; PK == company_id, which is also a FK to companies(company_id).
 const companyGstDetails = sqliteTable('company_gst_details', {
-  companyId: integer('company_id').primaryKey().references(() => companies.companyId, { onDelete: 'cascade' }),
+  companyId: integer('company_id')
+    .primaryKey()
+    .references(() => companies.companyId, { onDelete: 'cascade' }),
   hsnSacType: text('hsn_sac_type').default('Not Defined'),
   hsnSacCode: text('hsn_sac_code'),
   description: text('description'),
@@ -24,6 +26,9 @@ const companyGstDetails = sqliteTable('company_gst_details', {
   downloadReturnType: text('download_return_type').default('All Returns'),
   setStateWiseThresholdLimit: integer('set_state_wise_threshold_limit').default(0),
   stateWiseLimits: text('state_wise_limits'),
+  // 1 = company exports/SEZ-supplies under LUT/Bond (zero-rated, no IGST); 0 = with payment
+  // of tax (IGST charged, refund route). Drives export supply-type + zero-rating.
+  exportsUnderLut: integer('exports_under_lut').default(1),
   gstAdvancesApplicableFrom: text('gst_advances_applicable_from'),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),

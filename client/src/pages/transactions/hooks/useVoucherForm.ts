@@ -1099,13 +1099,19 @@ export function useVoucherForm(
 
       if (res.success) {
         const savedNumber = meta.voucherNumber;
+        // Surface any GST computation warnings (missing/zero rate, negative taxable value,
+        // etc.) the engine returned — otherwise they were silently dropped on save.
+        const warn =
+          Array.isArray(res.warnings) && res.warnings.length
+            ? ` Note: ${res.warnings.join(' ')}`
+            : '';
         if (editVoucherId) {
-          meta.setSuccess(`Voucher No. ${savedNumber} updated successfully.`);
+          meta.setSuccess(`Voucher No. ${savedNumber} updated successfully.${warn}`);
           ledgers.fetchContextData();
           onSaved?.();
         } else {
           resetForm();
-          meta.setSuccess(`Voucher No. ${savedNumber} saved successfully.`);
+          meta.setSuccess(`Voucher No. ${savedNumber} saved successfully.${warn}`);
           ledgers.fetchContextData();
         }
       } else {

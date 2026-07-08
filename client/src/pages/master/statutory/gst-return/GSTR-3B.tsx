@@ -25,6 +25,54 @@ interface TaxAmount {
 
 const ZERO: TaxAmount = { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 };
 
+// GST state codes → name, for labelling table 3.2's per-state rows.
+const GST_STATE_NAMES: Record<string, string> = {
+  '01': 'Jammu & Kashmir',
+  '02': 'Himachal Pradesh',
+  '03': 'Punjab',
+  '04': 'Chandigarh',
+  '05': 'Uttarakhand',
+  '06': 'Haryana',
+  '07': 'Delhi',
+  '08': 'Rajasthan',
+  '09': 'Uttar Pradesh',
+  '10': 'Bihar',
+  '11': 'Sikkim',
+  '12': 'Arunachal Pradesh',
+  '13': 'Nagaland',
+  '14': 'Manipur',
+  '15': 'Mizoram',
+  '16': 'Tripura',
+  '17': 'Meghalaya',
+  '18': 'Assam',
+  '19': 'West Bengal',
+  '20': 'Jharkhand',
+  '21': 'Odisha',
+  '22': 'Chhattisgarh',
+  '23': 'Madhya Pradesh',
+  '24': 'Gujarat',
+  '25': 'Daman & Diu',
+  '26': 'Dadra & Nagar Haveli',
+  '27': 'Maharashtra',
+  '28': 'Andhra Pradesh',
+  '29': 'Karnataka',
+  '30': 'Goa',
+  '31': 'Lakshadweep',
+  '32': 'Kerala',
+  '33': 'Tamil Nadu',
+  '34': 'Puducherry',
+  '35': 'Andaman & Nicobar',
+  '36': 'Telangana',
+  '37': 'Andhra Pradesh (New)',
+  '38': 'Ladakh',
+  '96': 'Foreign',
+  '97': 'Other Territory',
+};
+const posStateLabel = (pos: any) => {
+  const code = String(pos ?? '').padStart(2, '0');
+  return GST_STATE_NAMES[code] || `State ${pos ?? '?'}`;
+};
+
 function fmt(n: number) {
   return n ? n.toFixed(2) : '';
 }
@@ -197,10 +245,30 @@ export default function GSTR3BView() {
   const s31_isup_rev: TaxAmount = gstr3bData?.sup_details?.isup_rev ?? ZERO; // (d) inward reverse charge
   const s31_osup_nongst: TaxAmount = gstr3bData?.sup_details?.osup_nongst ?? ZERO; // (e) non-GST
 
-  // 3.2 Interstate Supplies
-  const s32_unreg: TaxAmount = gstr3bData?.inter_sup?.unreg_details?.[0] ?? ZERO;
-  const s32_comp: TaxAmount = gstr3bData?.inter_sup?.comp_details?.[0] ?? ZERO;
-  const s32_uin: TaxAmount = gstr3bData?.inter_sup?.uin_details?.[0] ?? ZERO;
+  // 3.2 Interstate Supplies — GSTN requires one row per destination state (pos). The backend
+  // emits per-state arrays; expand each recipient category into a row per state (falling back
+  // to a single zero row when there were none of that kind).
+  const buildInterSupRows = (label: string, details: any[]): any[] => {
+    const arr = (details || []).filter((r: any) => r && (r.txval || r.iamt));
+    if (arr.length === 0) return [{ type: 'data', label, data: ZERO, indent: 1 }];
+    return arr.map((r: any) => ({
+      type: 'data',
+      label: `${label} — ${posStateLabel(r.pos)}`,
+      data: { txval: r.txval || 0, iamt: r.iamt || 0, camt: 0, samt: 0, cess: 0 },
+      indent: 1,
+    }));
+  };
+  const interSupRows = [
+    ...buildInterSupRows(
+      'Supplies made to Unregistered Persons',
+      gstr3bData?.inter_sup?.unreg_details,
+    ),
+    ...buildInterSupRows(
+      'Supplies made to Composition Taxable Persons',
+      gstr3bData?.inter_sup?.comp_details,
+    ),
+    ...buildInterSupRows('Supplies made to UIN holders', gstr3bData?.inter_sup?.uin_details),
+  ];
 
   // 4 ITC
   const s4A_itc_avl_impg: TaxAmount = gstr3bData?.itc_elg?.itc_avl?.[0] ?? ZERO; // import of goods
@@ -309,14 +377,7 @@ export default function GSTR3BView() {
     { type: 'data', label: '(e) Non-GST outward supplies', data: s31_osup_nongst, indent: 1 },
     // ── 3.2 ──
     { type: 'section', label: '3.2 Interstate Supplies' },
-    { type: 'data', label: 'Supplies made to Unregistered Persons', data: s32_unreg, indent: 1 },
-    {
-      type: 'data',
-      label: 'Supplies made to Composition Taxable Persons',
-      data: s32_comp,
-      indent: 1,
-    },
-    { type: 'data', label: 'Supplies made to UIN holders', data: s32_uin, indent: 1 },
+    ...interSupRows,
     // ── 4 ──
     { type: 'section', label: '4 Eligible for Input Tax Credit' },
     { type: 'subsection', label: 'A. Input Tax Credit Available (either in part or in full)' },

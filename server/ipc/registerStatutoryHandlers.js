@@ -45,6 +45,9 @@ function register() {
   ipcMain.handle('gst:importGSTR2B', gstController.importGSTR2B);
   ipcMain.handle('gst:importGSTR2A', gstController.importGSTR2A);
   ipcMain.handle('gst:getGSTR1vs3BComparison', gstController.getGSTR1vs3BComparison);
+  ipcMain.handle('gst:rebuildCreditLedger', gstController.rebuildCreditLedger);
+  ipcMain.handle('gst:getCreditLedger', gstController.getCreditLedger);
+  ipcMain.handle('gst:getGSTR9C', gstController.getGSTR9C);
   ipcMain.handle('gst:getIMSInwardSupplies', gstController.getIMSInwardSupplies);
   ipcMain.handle('gst:getChallanReconciliation', gstController.getChallanReconciliation);
   ipcMain.handle('gst:getGstRateSetup', gstController.getGstRateSetup);

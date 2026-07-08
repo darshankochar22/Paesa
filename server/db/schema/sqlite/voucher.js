@@ -21,6 +21,8 @@ const vouchers = sqliteTable('vouchers', {
   gstRegistrationId: integer('gst_registration_id'),
   companyState: text('company_state'),
   isInterstate: integer('is_interstate').default(0),
+  // Export/SEZ supply nature snapshot: EXPWP|EXPWOP|SEZWP|SEZWOP (null = domestic B2B/B2C).
+  supplyType: text('supply_type'),
   isInvoice: integer('is_invoice').default(0),
   isAccountingVoucher: integer('is_accounting_voucher').default(1),
   isInventoryVoucher: integer('is_inventory_voucher').default(0),

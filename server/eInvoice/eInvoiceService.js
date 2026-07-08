@@ -346,7 +346,7 @@ const getRecordByIRN = async (irn) => {
 const nic = require('../integrations/nicClient');
 const wb = require('../integrations/whitebooksClient');
 const { getGspConfig, getWhitebooksConfig } = require('../integrations/gspConfig');
-const { buildIrnPayload } = require('./eInvoicePayload');
+const { buildIrnPayload, validateIrnInputs } = require('./eInvoicePayload');
 
 // WhiteBooks e-Invoice endpoints (plain JSON; auth handled by whitebooksClient).
 const WB_EINV = {
@@ -387,14 +387,34 @@ const generateFromVoucher = async (company_id, voucher_id) => {
     if (vRows.length === 0) return { success: false, error: 'Voucher not found' };
     const voucher = vRows[0];
 
+    // Join the unit master so each line carries its real UQC (NIC rejects a free-text unit).
     voucher.stock_entries = await db.all(
-      sql`SELECT * FROM voucher_stock_entries WHERE voucher_id = ${voucher_id}`,
+      sql`SELECT se.*, u.unit_quantity_code AS uqc
+          FROM voucher_stock_entries se
+          LEFT JOIN units u ON u.unit_id = se.unit_id
+          WHERE se.voucher_id = ${voucher_id}`,
     );
     if (voucher.stock_entries.length === 0) {
       return {
         success: false,
         error: 'Voucher has no stock items — an e-Invoice needs at least one line item.',
       };
+    }
+
+    // Cess is persisted only on gst_voucher_tax_lines (never on the stock line). Pull it back
+    // and attach to the matching stock entry by HSN + item name so CesAmt is carried through.
+    const cessLines = await db.all(
+      sql`SELECT hsn_code AS hsn, description AS desc, SUM(amount) AS cess
+          FROM gst_voucher_tax_lines
+          WHERE voucher_id = ${voucher_id} AND tax_type = 'CESS'
+          GROUP BY hsn_code, description`,
+    );
+    const cessByKey = new Map(
+      cessLines.map((c) => [`${c.hsn || ''}||${c.desc || ''}`, c.cess || 0]),
+    );
+    for (const se of voucher.stock_entries) {
+      const cess = cessByKey.get(`${se.hsn_code || ''}||${se.item_name || ''}`);
+      if (cess) se.cess_amount = cess;
     }
 
     // Credit/Debit notes must carry the original invoice reference (NIC PrecDocDtls).
@@ -427,6 +447,10 @@ const generateFromVoucher = async (company_id, voucher_id) => {
     );
     const reg = regRows[0] || {};
 
+    // Export/SEZ supply nature snapshot (EXPWP/EXPWOP/SEZWP/SEZWOP) maps 1:1 to NIC's SupTyp;
+    // domestic vouchers leave it null and the payload builder defaults to B2B.
+    voucher.sup_typ = voucher.supply_type || 'B2B';
+
     const seller = {
       gstin: reg.gstin || getGspConfig()?.gstin || '',
       name: company.mailing_name || company.name || '',
@@ -445,6 +469,34 @@ const generateFromVoucher = async (company_id, voucher_id) => {
     };
 
     const payload = buildIrnPayload(voucher, seller, buyer);
+
+    // Reconcile the invoice total to the books: the party ledger line carries the actual
+    // invoice value. A sub-rupee gap is Tally-style round-off → send it as RndOffAmt so NIC's
+    // total matches the books exactly. A larger gap means unmodeled charges — flag, don't fake.
+    try {
+      const ptRows = await db.all(
+        sql`SELECT ABS(SUM(amount)) AS total FROM voucher_entries
+            WHERE voucher_id = ${voucher_id} AND ledger_id = ${voucher.party_ledger_id}`,
+      );
+      const partyTotal = Number(ptRows[0]?.total) || 0;
+      if (partyTotal > 0) {
+        const diff = Math.round((partyTotal - payload.ValDtls.TotInvVal) * 100) / 100;
+        if (Math.abs(diff) > 0 && Math.abs(diff) <= 1) {
+          payload.ValDtls.RndOffAmt = diff;
+          payload.ValDtls.TotInvVal = Math.round((payload.ValDtls.TotInvVal + diff) * 100) / 100;
+        }
+      }
+    } catch (_) {
+      /* round-off is best-effort */
+    }
+
+    // Pre-flight against NIC's hard rules — surface a clear, specific error instead of a
+    // cryptic IRP rejection (missing GSTIN/pincode/HSN, or a rated line with no tax).
+    const problems = validateIrnInputs(payload);
+    if (problems.length) {
+      return { success: false, error: `Cannot generate e-Invoice:\n- ${problems.join('\n- ')}` };
+    }
+
     let r, d;
     if (getWhitebooksConfig()) {
       // NIC sandbox intermittently returns 5001/5002 ("application error, please try

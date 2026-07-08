@@ -301,22 +301,84 @@ export default function GSTR1View() {
     return { count, txval, iamt, camt, samt, csamt, val };
   }, [gstr1Data]);
 
+  // Exports (table 6A) — IGST-only (WPAY) or zero-rated (WOPAY); itms are flat, not itm_det.
+  const exportsData = useMemo(() => {
+    if (!gstr1Data || !gstr1Data.exp)
+      return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
+    let count = 0,
+      txval = 0,
+      iamt = 0,
+      csamt = 0,
+      val = 0;
+    gstr1Data.exp.forEach((grp: any) => {
+      (grp.inv || []).forEach((inv: any) => {
+        count++;
+        val += inv.val || 0;
+        (inv.itms || []).forEach((it: any) => {
+          txval += it.txval || 0;
+          iamt += it.iamt || 0;
+          csamt += it.csamt || 0;
+        });
+      });
+    });
+    return { count, txval, iamt, camt: 0, samt: 0, csamt, val };
+  }, [gstr1Data]);
+
+  // CDNUR — credit/debit notes to unregistered (exports/B2CL); itms carry itm_det.
+  const cdnurData = useMemo(() => {
+    if (!gstr1Data || !gstr1Data.cdnur)
+      return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
+    let count = 0,
+      txval = 0,
+      iamt = 0,
+      camt = 0,
+      samt = 0,
+      csamt = 0,
+      val = 0;
+    gstr1Data.cdnur.forEach((note: any) => {
+      count++;
+      val += note.val || 0;
+      (note.itms || []).forEach((itm: any) => {
+        const d = itm.itm_det || itm;
+        txval += d.txval || 0;
+        iamt += d.iamt || 0;
+        camt += d.camt || 0;
+        samt += d.samt || 0;
+        csamt += d.csamt || 0;
+      });
+    });
+    return { count, txval, iamt, camt, samt, csamt, val };
+  }, [gstr1Data]);
+
+  // Nil rated / exempt / non-GST (table 8) — value only, no tax.
+  const nilData = useMemo(() => {
+    if (!gstr1Data || !gstr1Data.nil || !gstr1Data.nil.inv)
+      return { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
+    let count = 0,
+      txval = 0;
+    gstr1Data.nil.inv.forEach((r: any) => {
+      count++;
+      txval += (r.nil_amt || 0) + (r.expt_amt || 0) + (r.ngsup_amt || 0);
+    });
+    return { count, txval, iamt: 0, camt: 0, samt: 0, csamt: 0, val: txval };
+  }, [gstr1Data]);
+
   const EMPTY = { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 };
   // `section` keys map to the drill engine's classifier; null = a section with no
   // book data (amendments/advances) — its drill shows an honestly empty screen.
   const rows = [
     { label: 'B2B Invoices - 4A, 4B, 4C, 6B, 6C', data: b2bData, bold: true, section: 'b2b' },
     { label: 'B2C (Large) Invoices - 5A, 5B', data: b2clData, section: 'b2cl' },
-    { label: 'Exports Invoices - 6A', data: EMPTY, section: 'exports' },
+    { label: 'Exports Invoices - 6A', data: exportsData, section: 'exports' },
     { label: 'Credit or Debit Notes (Registered) - 9B', data: cdnrData, section: 'cdnr' },
-    { label: 'Credit or Debit Notes (Unregistered) - 9B', data: EMPTY, section: 'cdnur' },
+    { label: 'Credit or Debit Notes (Unregistered) - 9B', data: cdnurData, section: 'cdnur' },
     { label: 'Amended B2B Invoices - 9A', data: EMPTY, section: null },
     { label: 'Amended B2C (Large) Invoices - 9A', data: EMPTY, section: null },
     { label: 'Amended Exports Invoices - 9A', data: EMPTY, section: null },
     { label: 'Amended Credit or Debit Notes (Registered) - 9C', data: EMPTY, section: null },
     { label: 'Amended Credit or Debit Notes (Unregistered) - 9C', data: EMPTY, section: null },
     { label: 'B2C (Small) Invoices - 7', data: b2csData, section: 'b2cs' },
-    { label: 'Nil Rated Invoices - 8A, 8B, 8C, 8D', data: EMPTY, section: 'nil' },
+    { label: 'Nil Rated Invoices - 8A, 8B, 8C, 8D', data: nilData, section: 'nil' },
     { label: 'Amendment B2C (Small) Invoices - 10', data: EMPTY, section: null },
     { label: 'Tax Liability (Advances Received) - 11A(1), 11A(2)', data: EMPTY, section: null },
     { label: 'Adjustment of Advances - 11B(1), 11B(2)', data: EMPTY, section: null },
@@ -326,7 +388,15 @@ export default function GSTR1View() {
     { label: 'Document Summary - 13', data: EMPTY, section: 'docs' },
   ];
 
-  const grandTotal = [b2bData, b2clData, b2csData, cdnrData].reduce(
+  const grandTotal = [
+    b2bData,
+    b2clData,
+    b2csData,
+    cdnrData,
+    exportsData,
+    cdnurData,
+    nilData,
+  ].reduce(
     (acc, d) => ({
       count: acc.count + d.count,
       txval: acc.txval + d.txval,

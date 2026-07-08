@@ -111,6 +111,25 @@ const init = async (db) => {
     )
   `);
 
+  // 6. Create gst_credit_ledger (persistent electronic credit ledger). One row per
+  // (company, registration, return period, tax head); the closing balance carries forward to
+  // the next period's opening across financial years. Rebuilt from monthly GSTR-3B figures.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS gst_credit_ledger (
+      ledger_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
+      gst_registration_id INTEGER,
+      return_period TEXT NOT NULL,     -- MMYYYY
+      head TEXT NOT NULL,              -- IGST | CGST | SGST | CESS
+      opening REAL DEFAULT 0,
+      credit REAL DEFAULT 0,
+      liability REAL DEFAULT 0,
+      utilized REAL DEFAULT 0,
+      closing REAL DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   // Migrations: Alter stock_groups to add igst_rate and cess_rate
   try {
     await db.execute(`

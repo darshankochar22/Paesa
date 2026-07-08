@@ -81,4 +81,21 @@ const gstr2bImports = sqliteTable('gstr2b_imports', {
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 });
 
-module.exports = { gstHsnRates, gstVoucherTaxLines, gstr1Exports, gstr2bImports };
+// 5. gst_credit_ledger — persistent electronic credit ledger. One row per
+// (company, registration, return period, tax head); closing carries to the next period's
+// opening, across financial years. Rebuilt from the monthly GSTR-3B figures.
+const gstCreditLedger = sqliteTable('gst_credit_ledger', {
+  ledgerId: integer('ledger_id').primaryKey({ autoIncrement: true }),
+  companyId: integer('company_id').notNull(),
+  gstRegistrationId: integer('gst_registration_id'),
+  returnPeriod: text('return_period').notNull(), // MMYYYY
+  head: text('head').notNull(), // IGST | CGST | SGST | CESS
+  opening: real('opening').default(0),
+  credit: real('credit').default(0),
+  liability: real('liability').default(0),
+  utilized: real('utilized').default(0),
+  closing: real('closing').default(0),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+});
+
+module.exports = { gstHsnRates, gstVoucherTaxLines, gstr1Exports, gstr2bImports, gstCreditLedger };

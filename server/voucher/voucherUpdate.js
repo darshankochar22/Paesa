@@ -280,6 +280,9 @@ module.exports = {
               ? 1
               : 0
             : (current.is_interstate ?? 0),
+          supplyType: data.computedGST
+            ? data.computedGST.supply_type || null
+            : (current.supply_type ?? null),
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(vouchers.voucherId, data.voucher_id));

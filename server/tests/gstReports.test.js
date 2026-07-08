@@ -441,6 +441,44 @@ describe('GST Reports engine', () => {
     expect(p.itc_elg.itc_avl[3]).toEqual({ txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 }); // ISD slot present and empty
   });
 
+  it('GSTR-9C reconciles annual-return turnover/tax/ITC and exposes the turnover gap', async () => {
+    const gstr9cService = require('../gst/gstr9cService');
+    const res = await gstr9cService.generateGSTR9C(companyId, fyId);
+    expect(res.success).toBe(true);
+    const p = res.payload;
+    // Return-side turnover = the 10000 taxable outward supply.
+    expect(p.table5_turnover.return_turnover).toBe(10000);
+    // 5Q is internally consistent: audited − return.
+    expect(p.table5_turnover.unreconciled).toBe(
+      Number((p.table5_turnover.audited_turnover - p.table5_turnover.return_turnover).toFixed(2)),
+    );
+    // Tax reconciliation is head-wise, books == return in this single-source system.
+    const cgstTax = p.table9_tax.find((r) => r.head === 'CGST');
+    expect(cgstTax.as_per_books).toBe(900);
+    expect(cgstTax.as_per_return).toBe(900);
+    expect(cgstTax.difference).toBe(0);
+    // ITC reconciliation: purchase gave CGST 450.
+    const cgstItc = p.table12_itc.find((r) => r.head === 'CGST');
+    expect(cgstItc.as_per_books).toBe(450);
+  });
+
+  it('persistent credit ledger: rebuild sets off ITC against liability and persists per head', async () => {
+    const gstCreditLedgerService = require('../gst/gstCreditLedgerService');
+    const rb = await gstCreditLedgerService.rebuild(companyId);
+    expect(rb.success).toBe(true);
+
+    const led = await gstCreditLedgerService.getLedger(companyId);
+    expect(led.success).toBe(true);
+    // Period 042026, CGST: liability 900, credit 450 → utilise 450, net payable 450, closing 0.
+    const cgst = led.rows.find((r) => r.return_period === '042026' && r.head === 'CGST');
+    expect(cgst).toBeTruthy();
+    expect(cgst.opening).toBe(0);
+    expect(cgst.credit).toBe(450);
+    expect(cgst.liability).toBe(900);
+    expect(cgst.utilized).toBe(450);
+    expect(cgst.closing).toBe(0); // full credit consumed, nothing carried forward
+  });
+
   it('Track GST Return Activities reports real filing status from books', async () => {
     const res = await reconciliationService.getReturnActivities(companyId, fyId);
     expect(res.success).toBe(true);
@@ -780,7 +818,9 @@ describe('GST Reports engine', () => {
       bucket: 'uncertain',
     });
     expect(all.rows).toHaveLength(1);
-    expect(all.rows[0].exceptions).toContain('Party is registered but its GSTIN/UIN is missing or invalid');
+    expect(all.rows[0].exceptions).toContain(
+      'Party is registered but its GSTIN/UIN is missing or invalid',
+    );
 
     const matched = await reconciliationService.getReturnVouchers(companyId, fyId, null, {
       return_type: 'GSTR1',
@@ -809,7 +849,9 @@ describe('GST Reports engine', () => {
     });
     expect(annualUnc.success).toBe(true);
     expect(annualUnc.rows).toHaveLength(1);
-    expect(annualUnc.rows[0].exceptions).toContain('Party is registered but its GSTIN/UIN is missing or invalid');
+    expect(annualUnc.rows[0].exceptions).toContain(
+      'Party is registered but its GSTIN/UIN is missing or invalid',
+    );
   });
 
   it('GSTR-2A Reconciliation counts uncertain inward vouchers and excludes them from the Return View', async () => {
@@ -864,7 +906,9 @@ describe('GST Reports engine', () => {
     });
     expect(unc.rows).toHaveLength(1);
     expect(unc.rows[0].voucher_type).toBe('Purchase');
-    expect(unc.rows[0].exceptions).toContain('Party is registered but its GSTIN/UIN is missing or invalid');
+    expect(unc.rows[0].exceptions).toContain(
+      'Party is registered but its GSTIN/UIN is missing or invalid',
+    );
   });
 
   it('GSTR-2B Reconciliation counts uncertain inward vouchers and excludes them from the Return View', async () => {
@@ -883,7 +927,9 @@ describe('GST Reports engine', () => {
     });
     expect(unc.rows).toHaveLength(1);
     expect(unc.rows[0].voucher_type).toBe('Purchase');
-    expect(unc.rows[0].exceptions).toContain('Party is registered but its GSTIN/UIN is missing or invalid');
+    expect(unc.rows[0].exceptions).toContain(
+      'Party is registered but its GSTIN/UIN is missing or invalid',
+    );
   });
 
   it('Challan Reconciliation lists only GST tax payments with the real amount from entries', async () => {
@@ -1038,7 +1084,10 @@ describe('GST Reports engine', () => {
     );
     const led = (name) =>
       db
-        .execute(`SELECT ledger_id FROM ledgers WHERE company_id = ? AND name = ?`, [companyId, name])
+        .execute(`SELECT ledger_id FROM ledgers WHERE company_id = ? AND name = ?`, [
+          companyId,
+          name,
+        ])
         .then((r) => r.rows[0].ledger_id);
     // Rate specified here → real rate bucket.
     await db.execute(

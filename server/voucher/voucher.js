@@ -85,22 +85,54 @@ const init = async (db) => {
   `);
 
   // Columns added later — ALTER for DBs created before they existed.
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN mfg_date TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN godown TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN actual_quantity REAL DEFAULT 0`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN disc_percent REAL DEFAULT 0`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN order_no TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN due_on TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN component_of TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN consider_as_scrap TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN tracking_no TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN due_on_date TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN track_components TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN favouring_name TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN transfer_mode TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN allocations_json TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_receipt_details ADD COLUMN receipt_doc_date TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_cost_centres ADD COLUMN cost_category_id INTEGER`); } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN mfg_date TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN godown TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN actual_quantity REAL DEFAULT 0`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN disc_percent REAL DEFAULT 0`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN order_no TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN due_on TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN component_of TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN consider_as_scrap TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN tracking_no TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN due_on_date TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_batches ADD COLUMN track_components TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN favouring_name TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN transfer_mode TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN allocations_json TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_receipt_details ADD COLUMN receipt_doc_date TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_cost_centres ADD COLUMN cost_category_id INTEGER`);
+  } catch (err) {}
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_item_excise (
@@ -247,10 +279,20 @@ const init = async (db) => {
   `);
 
   // Columns added later — ALTER for DBs created before they existed.
-  try { await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN reason_for_issuing_note TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN supplier_note_no TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN supplier_note_date TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN nature_of_return TEXT`); } catch (err) {}
+  try {
+    await db.execute(
+      `ALTER TABLE voucher_credit_note_details ADD COLUMN reason_for_issuing_note TEXT`,
+    );
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN supplier_note_no TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN supplier_note_date TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN nature_of_return TEXT`);
+  } catch (err) {}
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_debit_note_details (
@@ -275,12 +317,26 @@ const init = async (db) => {
     )
   `);
 
-  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN date_time_of_invoice TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN date_time_of_removal TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN reason_for_issuing_note TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN supplier_note_no TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN supplier_note_date TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN nature_of_return TEXT`); } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN date_time_of_invoice TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN date_time_of_removal TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(
+      `ALTER TABLE voucher_debit_note_details ADD COLUMN reason_for_issuing_note TEXT`,
+    );
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN supplier_note_no TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN supplier_note_date TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN nature_of_return TEXT`);
+  } catch (err) {}
 
   // Purchase (excise) "Manufacturer / Importer Details" popup (after Party Details).
   await db.execute(`
@@ -352,18 +408,38 @@ const init = async (db) => {
     )
   `);
 
-  try { await db.execute(`ALTER TABLE voucher_order_details ADD COLUMN source_godown_id INTEGER`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_order_details ADD COLUMN source_godown_name TEXT`); } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_order_details ADD COLUMN source_godown_id INTEGER`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_order_details ADD COLUMN source_godown_name TEXT`);
+  } catch (err) {}
 
   // Add new columns to existing tables (fail silently if already exist)
-  try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN delivery_note_nos TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN dispatch_doc_no TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN dispatched_through TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN destination TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN carrier_name TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN bill_of_lading_no TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN bill_of_lading_date TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN motor_vehicle_no TEXT`); } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN delivery_note_nos TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN dispatch_doc_no TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN dispatched_through TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN destination TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN carrier_name TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN bill_of_lading_no TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN bill_of_lading_date TEXT`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN motor_vehicle_no TEXT`);
+  } catch (err) {}
 
   try {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN status TEXT DEFAULT 'Regular'`);
@@ -405,6 +481,9 @@ const init = async (db) => {
   } catch (err) {}
   try {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN is_interstate INTEGER DEFAULT 0`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN supply_type TEXT`);
   } catch (err) {}
 
   try {

@@ -13,6 +13,7 @@ const {
   gstClassifications,
 } = require('../db/schema');
 const { resolveStateCode, computeVoucherTaxLines } = require('./gstTaxEngine');
+const { computeItcSetOff } = require('./itcSetOff');
 
 /**
  * Annual Computation Report
@@ -397,42 +398,20 @@ const generateAnnualComputation = async (company_id, fy_id) => {
     //   4. Cess credit only against Cess.
     // Whatever credit remains is the balance carried forward (electronic credit ledger),
     // surfaced instead of dropped.
-    const liab = {
-      igst: tax_payable.igst,
-      cgst: tax_payable.cgst,
-      sgst: tax_payable.sgst,
-      cess: tax_payable.cess,
-    };
-    const cr = {
-      igst: total_itc_availed.iamt,
-      cgst: total_itc_availed.camt,
-      sgst: total_itc_availed.samt,
-      cess: total_itc_availed.cess,
-    };
-    const setOff = (payHead, creditHead) => {
-      const u = Math.min(Math.max(0, liab[payHead]), Math.max(0, cr[creditHead]));
-      liab[payHead] -= u;
-      cr[creditHead] -= u;
-    };
-    ['igst', 'cgst', 'sgst', 'cess'].forEach((h) => setOff(h, h)); // same-head first
-    setOff('cgst', 'igst'); // IGST surplus → CGST
-    setOff('sgst', 'igst'); // IGST surplus → SGST
-    setOff('igst', 'cgst'); // CGST surplus → IGST
-    setOff('igst', 'sgst'); // SGST surplus → IGST
-
-    const net_tax = {
-      igst: Number(Math.max(0, liab.igst).toFixed(2)),
-      cgst: Number(Math.max(0, liab.cgst).toFixed(2)),
-      sgst: Number(Math.max(0, liab.sgst).toFixed(2)),
-      cess: Number(Math.max(0, liab.cess).toFixed(2)),
-    };
-    // Excess input tax credit carried forward to the next period (per head).
-    const itc_carried_forward = {
-      igst: Number(Math.max(0, cr.igst).toFixed(2)),
-      cgst: Number(Math.max(0, cr.cgst).toFixed(2)),
-      sgst: Number(Math.max(0, cr.sgst).toFixed(2)),
-      cess: Number(Math.max(0, cr.cess).toFixed(2)),
-    };
+    const { net_liability: net_tax, closing: itc_carried_forward } = computeItcSetOff(
+      {
+        igst: tax_payable.igst,
+        cgst: tax_payable.cgst,
+        sgst: tax_payable.sgst,
+        cess: tax_payable.cess,
+      },
+      {
+        igst: total_itc_availed.iamt,
+        cgst: total_itc_availed.camt,
+        sgst: total_itc_availed.samt,
+        cess: total_itc_availed.cess,
+      },
+    );
 
     // Monthly summary (sorted by FY order Apr→Mar)
     const monthly_summary = Object.values(monthlyMap)

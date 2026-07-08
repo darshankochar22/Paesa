@@ -221,10 +221,10 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
       // Place of Supply drives the inter/intra split — matching the engine's tax
       // computation (destination = place_of_supply || party state), not the party's
       // home state alone. posStateCode is also the pos reported in table 3.2.
-      const posStateCode = resolveStateCode(
-        voucher.place_of_supply || partyState,
-        voucher.party_gstin,
-      );
+      // Unknown destination → treat as local (company's own state), never a phantom Maharashtra.
+      const posStateCode =
+        resolveStateCode(voucher.place_of_supply || partyState, voucher.party_gstin) ||
+        companyStateCode;
       const partyStateCode = posStateCode;
       const isInterState = companyStateCode !== posStateCode;
       const isRegistered = voucher.party_reg_type && voucher.party_reg_type !== 'Unregistered';

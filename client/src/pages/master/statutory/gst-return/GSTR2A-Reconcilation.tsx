@@ -147,6 +147,47 @@ export default function GSTR2AReconciliation() {
   const reconciled = data?.voucher_status?.reconciled ?? 0;
   const unreconciled = data?.voucher_status?.unreconciled ?? 0;
   const uncertain = data?.voucher_status?.uncertain ?? 0;
+  // Detailed unreconciled breakdown from the service.
+  const mismatch = data?.voucher_status?.mismatch ?? 0;
+  const missingInPortal = data?.voucher_status?.missing_in_portal ?? 0;
+  const missingInBooks = data?.voucher_status?.missing_in_books ?? 0;
+
+  // Import a downloaded GSTR-2A JSON (portal) and re-run the reconciliation. The return
+  // period comes from the file's `fp`; mirrors the GSTR-2B import flow.
+  const handleImportJson = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        setLoading(true);
+        const payload = JSON.parse(await file.text());
+        if (!payload.fp) {
+          setError('This GSTR-2A JSON has no return period (fp). Please use a portal export.');
+          return;
+        }
+        const res = await window.api.gst.importGSTR2A({
+          company_id: companyId,
+          fy_id: fyId,
+          return_period: payload.fp,
+          payload,
+        });
+        if (res.success) {
+          await loadData();
+          alert('GSTR-2A JSON imported successfully! Reconciliation updated.');
+        } else {
+          setError(res.error || 'Failed to import JSON');
+        }
+      } catch (err: any) {
+        setError('Invalid JSON file: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    input.click();
+  };
 
   const periodLabel =
     data?.period_label ?? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '');
@@ -201,15 +242,26 @@ export default function GSTR2AReconciliation() {
         </>
       }
       footerControls={
-        <Button
-          onClick={loadData}
-          variant="ghost"
-          size="xs"
-          disabled={loading}
-          className="h-auto p-0 ml-4 font-bold text-black hover:underline hover:bg-transparent"
-        >
-          F5: Refresh
-        </Button>
+        <>
+          <Button
+            onClick={loadData}
+            variant="ghost"
+            size="xs"
+            disabled={loading}
+            className="h-auto p-0 ml-4 font-bold text-black hover:underline hover:bg-transparent"
+          >
+            F5: Refresh
+          </Button>
+          <Button
+            onClick={handleImportJson}
+            variant="ghost"
+            size="xs"
+            disabled={loading}
+            className="h-auto p-0 ml-4 font-bold text-black hover:underline hover:bg-transparent"
+          >
+            Import GSTR-2A JSON
+          </Button>
+        </>
       }
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
@@ -234,6 +286,20 @@ export default function GSTR2AReconciliation() {
               <div className="flex px-4 py-0.5 text-red-600">
                 <div className="flex-1">Unreconciled</div>
                 <div className="w-32 text-right font-semibold">{fmtCount(unreconciled)}</div>
+              </div>
+
+              {/* Breakdown of what's unreconciled — value mismatches vs one-sided documents. */}
+              <div className="flex px-8 py-0.5 text-gray-600">
+                <div className="flex-1">Value mismatch (books vs portal)</div>
+                <div className="w-32 text-right">{fmtCount(mismatch)}</div>
+              </div>
+              <div className="flex px-8 py-0.5 text-gray-600">
+                <div className="flex-1">In books, not yet filed by vendor</div>
+                <div className="w-32 text-right">{fmtCount(missingInPortal)}</div>
+              </div>
+              <div className="flex px-8 py-0.5 text-gray-600">
+                <div className="flex-1">Filed by vendor, not in books</div>
+                <div className="w-32 text-right">{fmtCount(missingInBooks)}</div>
               </div>
 
               <div

@@ -336,6 +336,22 @@ export interface MasterDataAPI {
       company_id: number;
       fy_id: number;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getGSTR1vs3BComparison: (data: {
+      company_id: number;
+      fy_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    rebuildCreditLedger: (data: {
+      company_id: number;
+      gst_registration_id?: number | null;
+    }) => Promise<{ success: boolean; rows?: any[]; closing_balance?: any; error?: string }>;
+    getCreditLedger: (data: {
+      company_id: number;
+      gst_registration_id?: number | null;
+    }) => Promise<{ success: boolean; rows?: any[]; error?: string }>;
+    getGSTR9C: (data: {
+      company_id: number;
+      fy_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
     importGSTR2B: (data: {
       company_id: number;
       fy_id: number;

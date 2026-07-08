@@ -8,7 +8,7 @@ export default function GSTReports() {
   const sections = [
     {
       title: 'GST RETURNS/COMPUTATIONS',
-      items: ['Track GST Return Activities', 'GSTR-1', 'GSTR-3B', 'Annual Computation'],
+      items: ['Track GST Return Activities', 'GSTR-1', 'GSTR-3B', 'Annual Computation', 'GSTR-9C'],
     },
     {
       title: 'EXCHANGE REPORTS',
@@ -20,6 +20,7 @@ export default function GSTReports() {
         'GSTR-1 Reconciliation',
         'GSTR-2A Reconciliation',
         'GSTR-2B Reconciliation',
+        'GSTR-1 vs 3B',
         'Challan Reconciliation',
       ],
     },
@@ -42,6 +43,9 @@ export default function GSTReports() {
     if (item === 'Annual Computation') {
       return '/master/statutory/annual-computation';
     }
+    if (item === 'GSTR-9C') {
+      return '/master/statutory/gstr9c';
+    }
     if (item === 'GSTR-1 Reconciliation') {
       return '/master/statutory/gstr1/reconciliation';
     }
@@ -50,6 +54,9 @@ export default function GSTReports() {
     }
     if (item === 'GSTR-2B Reconciliation') {
       return '/master/statutory/gstr2b/reconciliation';
+    }
+    if (item === 'GSTR-1 vs 3B') {
+      return '/master/statutory/gstr1-vs-3b';
     }
     if (item === 'Challan Reconciliation') {
       return '/master/statutory/challan/reconciliation';

@@ -222,6 +222,7 @@ module.exports = {
               : null,
             companyState: data.computedGST ? data.computedGST.company_state || null : null,
             isInterstate: data.computedGST ? (data.computedGST.is_inter_state ? 1 : 0) : 0,
+            supplyType: data.computedGST ? data.computedGST.supply_type || null : null,
           })
           .returning({ id: vouchers.voucherId });
 

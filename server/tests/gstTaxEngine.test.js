@@ -97,28 +97,24 @@ describe('GST tax engine — manual tax ledger model', () => {
     });
     exemptItemId = itemId(exempt);
 
-    await db
-      .insert(gstHsnRates)
-      .values({
-        companyId,
-        hsnCode: '8471',
-        effectiveFrom: '2026-01-01',
-        gstRate: 18,
-        cgstRate: 9,
-        sgstRate: 9,
-        igstRate: 18,
-      });
-    await db
-      .insert(gstHsnRates)
-      .values({
-        companyId,
-        hsnCode: '6109',
-        effectiveFrom: '2026-01-01',
-        gstRate: 12,
-        cgstRate: 6,
-        sgstRate: 6,
-        igstRate: 12,
-      });
+    await db.insert(gstHsnRates).values({
+      companyId,
+      hsnCode: '8471',
+      effectiveFrom: '2026-01-01',
+      gstRate: 18,
+      cgstRate: 9,
+      sgstRate: 9,
+      igstRate: 18,
+    });
+    await db.insert(gstHsnRates).values({
+      companyId,
+      hsnCode: '6109',
+      effectiveFrom: '2026-01-01',
+      gstRate: 12,
+      cgstRate: 6,
+      sgstRate: 6,
+      igstRate: 12,
+    });
   });
 
   const createVoucher = (extra) =>
@@ -541,10 +537,34 @@ describe('GST tax engine — manual tax ledger model', () => {
       voucher_type: 'Debit Note',
       reference_number: `DN-GST-${Date.now()}-${Math.random()}`,
       entries: [
-        { ledger_id: partyId, ledger_name: 'Manual Customer', type: 'Dr', amount: 11800, currency: 'INR' },
-        { ledger_id: salesId, ledger_name: 'Manual Sales A/c', type: 'Cr', amount: 10000, currency: 'INR' },
-        { ledger_id: cgstId, ledger_name: 'Output CGST @9%', type: 'Cr', amount: 900, currency: 'INR' },
-        { ledger_id: sgstId, ledger_name: 'Output SGST @9%', type: 'Cr', amount: 900, currency: 'INR' },
+        {
+          ledger_id: partyId,
+          ledger_name: 'Manual Customer',
+          type: 'Dr',
+          amount: 11800,
+          currency: 'INR',
+        },
+        {
+          ledger_id: salesId,
+          ledger_name: 'Manual Sales A/c',
+          type: 'Cr',
+          amount: 10000,
+          currency: 'INR',
+        },
+        {
+          ledger_id: cgstId,
+          ledger_name: 'Output CGST @9%',
+          type: 'Cr',
+          amount: 900,
+          currency: 'INR',
+        },
+        {
+          ledger_id: sgstId,
+          ledger_name: 'Output SGST @9%',
+          type: 'Cr',
+          amount: 900,
+          currency: 'INR',
+        },
       ],
       stock_entries: [{ item_name: 'Widget', quantity: 10, rate: 1000, hsn_code: '8471' }],
     });
@@ -569,6 +589,14 @@ describe('GST tax engine — Voucher Type Class ledger override (opt-in auto-inj
     await setupTestDB();
     const company = await createTestCompany('GST Voucher Class Test Co');
     companyId = company.company_id;
+    // A GST-transacting company must have a registration; its state (Maharashtra) is what
+    // the engine reads for the intra/inter split — no longer a silent '27' default.
+    await gstRegistrationController.create(null, {
+      company_id: companyId,
+      registration_type: 'Regular',
+      state_id: 'Maharashtra',
+      gstin: '27ABCDE1234F1Z5',
+    });
     fyId = (
       await db.execute(`SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`, [
         companyId,
@@ -611,17 +639,15 @@ describe('GST tax engine — Voucher Type Class ledger override (opt-in auto-inj
       await ledgerService.create({ company_id: companyId, name: 'Voucher Class Sales A/c' }),
     );
 
-    await db
-      .insert(gstHsnRates)
-      .values({
-        companyId,
-        hsnCode: '8472',
-        effectiveFrom: '2026-01-01',
-        gstRate: 18,
-        cgstRate: 9,
-        sgstRate: 9,
-        igstRate: 18,
-      });
+    await db.insert(gstHsnRates).values({
+      companyId,
+      hsnCode: '8472',
+      effectiveFrom: '2026-01-01',
+      gstRate: 18,
+      cgstRate: 9,
+      sgstRate: 9,
+      igstRate: 18,
+    });
 
     const vtRes = await voucherTypeService.getAll(companyId);
     const salesVtId = vtRes.voucherTypes.find((vt) => vt.name === 'Sales').vt_id;
@@ -735,5 +761,47 @@ describe('GST tax engine — assertGstSidesExclusive invariant', () => {
         4,
       ),
     ).not.toThrow();
+  });
+});
+
+describe('resolveSupplyType — export/SEZ nature (Tally-style)', () => {
+  const { resolveSupplyType } = require('../gst/gstTaxEngine');
+
+  it('returns null for a domestic party', () => {
+    expect(resolveSupplyType({ partyCountry: 'India', partyRegType: 'Regular' })).toBeNull();
+    expect(resolveSupplyType({ partyCountry: '', partyRegType: 'Unregistered' })).toBeNull();
+  });
+
+  it('overseas party → EXPWOP under LUT, EXPWP with payment', () => {
+    expect(resolveSupplyType({ partyCountry: 'USA', exportsUnderLut: 1 })).toBe('EXPWOP');
+    expect(resolveSupplyType({ partyCountry: 'USA', exportsUnderLut: 0 })).toBe('EXPWP');
+  });
+
+  it('SEZ party → SEZWOP under LUT, SEZWP with payment (even if in India)', () => {
+    expect(
+      resolveSupplyType({ partyCountry: 'India', partyRegType: 'SEZ', exportsUnderLut: 1 }),
+    ).toBe('SEZWOP');
+    expect(
+      resolveSupplyType({ partyCountry: 'India', partyRegType: 'SEZ', exportsUnderLut: 0 }),
+    ).toBe('SEZWP');
+  });
+
+  it('defaults to LUT (zero-rated) when the company setting is absent', () => {
+    expect(resolveSupplyType({ partyCountry: 'Germany' })).toBe('EXPWOP');
+  });
+});
+
+describe('resolveStateCode — no phantom Maharashtra default', () => {
+  const { resolveStateCode } = require('../gst/gstTaxEngine');
+
+  it('resolves a known state name and a numeric-GSTIN prefix', () => {
+    expect(resolveStateCode('Karnataka')).toBe('29');
+    expect(resolveStateCode('', '29ABCDE1234F1Z5')).toBe('29');
+  });
+
+  it('returns "" (not "27") for a blank or unrecognised state', () => {
+    expect(resolveStateCode('')).toBe('');
+    expect(resolveStateCode('Atlantis')).toBe('');
+    expect(resolveStateCode(null)).toBe('');
   });
 });

@@ -309,9 +309,15 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       // Place of Supply drives B2CL/B2CS and the inter/intra split — NOT the party's home
       // state — matching how the tax was actually computed in the engine. Export supplies
       // are their own section regardless of the numeric POS.
-      const isExport = isExportPos(voucher.place_of_supply);
+      // Export is flagged by the supply-type snapshot (overseas party) or an explicit
+      // "Export" place of supply. SEZ (SEZWP/SEZWOP) is a B2B invoice type, not table 6A.
+      const isExport =
+        isExportPos(voucher.place_of_supply) || /^EXP/.test(String(voucher.supply_type || ''));
       const posState = voucher.place_of_supply || partyState;
-      const posStateCode = isExport ? '96' : resolveStateCode(posState, voucher.party_gstin);
+      // Unknown destination → treat as local (company's own state), never a phantom Maharashtra.
+      const posStateCode = isExport
+        ? '96'
+        : resolveStateCode(posState, voucher.party_gstin) || companyStateCode;
       const isInterState = isExport ? true : companyStateCode !== posStateCode;
       const invIgst = Object.values(itemsByRate).reduce((s, it) => s + it.iamt, 0);
 
@@ -554,7 +560,10 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       uqc: x.uqc,
       rt: x.rt,
       qty: Number(x.qty.toFixed(2)),
-      val: Number(x.val.toFixed(2)),
+      // GSTN's HSN (table 12) record schema has no `val` key — total value isn't
+      // submitted. The `hsn` node is a 2-subschema oneOf with record-level
+      // additionalProperties:false, so an extra `val` fails both subschemas
+      // ("#/hsn: no subschema matched"). Emit only schema-defined keys.
       txval: Number(x.txval.toFixed(2)),
       iamt: Number(x.iamt.toFixed(2)),
       camt: Number(x.camt.toFixed(2)),

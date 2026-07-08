@@ -59,9 +59,13 @@ const resolveStateCode = (stateName, gstin) => {
       return code;
     }
   }
-  if (!stateName) return '27'; // Default to Maharashtra if nothing specified
+  // Unresolved state → '' (honest "unknown"), NOT a silent Maharashtra guess. Callers that
+  // need a concrete code fall back to the company's own state (a stateless/unknown party is
+  // treated as a local supply, Tally-style), so a non-Maharashtra company is never
+  // misclassified as inter-state against a phantom '27'.
+  if (!stateName) return '';
   const nameLower = stateName.trim().toLowerCase();
-  return STATE_CODE_MAP[nameLower] || '27';
+  return STATE_CODE_MAP[nameLower] || '';
 };
 
 // Taxability values that make a ZERO GST rate legitimate (the supply is genuinely
@@ -437,7 +441,8 @@ const validateAndComputeVoucherGst = async (db, payload) => {
     }
   }
   const destinationState = place_of_supply || partyState || companyState || '';
-  const destinationStateCode = resolveStateCode(destinationState, partyGSTIN);
+  // Unknown destination → treat as local (company's own state), never a phantom Maharashtra.
+  const destinationStateCode = resolveStateCode(destinationState, partyGSTIN) || companyStateCode;
   // Interstate is derived LIVE from the (registration-frozen) company state vs the current
   // destination state — NOT frozen as a boolean. The pinned registration already keeps the
   // company side stable when the company's default registration changes, while re-deriving
@@ -614,6 +619,34 @@ const saveManualVoucherTaxLines = async (db, voucher_id, result) => {
   }
 };
 
+// A blank/India country means a domestic supply; anything else on the party is an export.
+const isIndiaCountry = (c) => {
+  const s = String(c || '')
+    .trim()
+    .toLowerCase();
+  return s === '' || s === 'india' || s === 'in' || s === 'bharat';
+};
+
+/**
+ * Resolve a voucher's export/SEZ supply nature (Tally-style), from the party's country +
+ * GST registration type and the company's LUT setting. Returns EXPWP|EXPWOP|SEZWP|SEZWOP,
+ * or null for a domestic (B2B/B2C) supply.
+ *   - SEZ party      -> SEZWOP (under LUT/Bond) | SEZWP (with payment of tax)
+ *   - Overseas party -> EXPWOP (under LUT/Bond) | EXPWP (with payment of tax)
+ * WOP (LUT/Bond) is zero-rated (no IGST); WP charges IGST (refund route). Both are always
+ * treated as inter-state.
+ */
+const resolveSupplyType = ({ partyCountry, partyRegType, exportsUnderLut } = {}) => {
+  const lut = exportsUnderLut == null ? true : !!Number(exportsUnderLut);
+  const isSez = String(partyRegType || '')
+    .toLowerCase()
+    .includes('sez');
+  const isOverseas = !isIndiaCountry(partyCountry);
+  if (isSez) return lut ? 'SEZWOP' : 'SEZWP';
+  if (isOverseas) return lut ? 'EXPWOP' : 'EXPWP';
+  return null;
+};
+
 /**
  * Computes GST tax lines for a voucher payload.
  */
@@ -695,6 +728,8 @@ const computeVoucherTaxLines = async (db, payload) => {
   // 2. Resolve Party State
   let partyState = '';
   let partyGSTIN = '';
+  let partyCountry = '';
+  let partyRegType = '';
   if (party_ledger_id) {
     const partyRows = await db.all(
       sql`SELECT * FROM ${ledgers}
@@ -704,12 +739,30 @@ const computeVoucherTaxLines = async (db, payload) => {
     if (party) {
       partyState = party.state || '';
       partyGSTIN = party.gstin || '';
+      partyCountry = party.country || '';
+      partyRegType = party.registration_type || '';
     }
   }
 
+  // Export/SEZ supply nature (Tally-style) from the party + the company's LUT setting.
+  let exportsUnderLut = 1;
+  try {
+    const gstCfg = await db.all(
+      sql`SELECT exports_under_lut FROM company_gst_details WHERE company_id = ${company_id}`,
+    );
+    if (gstCfg[0] && gstCfg[0].exports_under_lut != null)
+      exportsUnderLut = gstCfg[0].exports_under_lut;
+  } catch (_) {
+    /* default to LUT (zero-rated) */
+  }
+  const supplyType = resolveSupplyType({ partyCountry, partyRegType, exportsUnderLut });
+  const isExportSupply = !!supplyType;
+  const isZeroRated = isExportSupply && supplyType.endsWith('WOP');
+
   // Destination State: place_of_supply overrides party state
   const destinationState = place_of_supply || partyState || companyState || '';
-  const destinationStateCode = resolveStateCode(destinationState, partyGSTIN);
+  // Unknown destination → treat as local (company's own state), never a phantom Maharashtra.
+  const destinationStateCode = resolveStateCode(destinationState, partyGSTIN) || companyStateCode;
 
   // Interstate is derived LIVE from the (registration-frozen) company state vs the current
   // destination state. The pinned registration snapshot already keeps the company side
@@ -718,6 +771,9 @@ const computeVoucherTaxLines = async (db, payload) => {
   // CGST/SGST-vs-IGST split. (Previously the boolean itself was frozen, so a party change on
   // an edit silently kept the wrong split.)
   const isInterState = companyStateCode !== destinationStateCode;
+  // Export & SEZ supplies are always inter-state (IGST) when taxed; under LUT they're
+  // zero-rated (no tax at all). A domestic supply uses the live state-vs-state split.
+  const effectiveInterState = isExportSupply ? true : isInterState;
 
   let totalCGST = 0;
   let totalSGST = 0;
@@ -750,8 +806,10 @@ const computeVoucherTaxLines = async (db, payload) => {
     let cess_amount = 0;
 
     const gst_rate = rateDetails.gst_rate;
-    if (gst_rate > 0) {
-      if (isInterState) {
+    // Zero-rated (export/SEZ under LUT): the supply keeps its rate for reporting but carries
+    // no tax amount. Otherwise split IGST vs CGST/SGST by the effective inter-state flag.
+    if (gst_rate > 0 && !isZeroRated) {
+      if (effectiveInterState) {
         igst_amount = Number((assessable_value * (gst_rate / 100)).toFixed(2));
         totalIGST += igst_amount;
       } else {
@@ -762,7 +820,7 @@ const computeVoucherTaxLines = async (db, payload) => {
       }
     }
 
-    if (rateDetails.cess_rate > 0) {
+    if (rateDetails.cess_rate > 0 && !isZeroRated) {
       cess_amount = Number((assessable_value * (rateDetails.cess_rate / 100)).toFixed(2));
       totalCess += cess_amount;
     }
@@ -891,7 +949,7 @@ const computeVoucherTaxLines = async (db, payload) => {
   }
 
   return {
-    is_inter_state: isInterState ? 1 : 0,
+    is_inter_state: effectiveInterState ? 1 : 0,
     warnings: rateWarnings,
     // Header GST snapshot to persist on the voucher (immutable after first save).
     gst_registration_id: gstRegistrationId,
@@ -899,6 +957,7 @@ const computeVoucherTaxLines = async (db, payload) => {
     company_registration_type: companyRegistrationType,
     party_gstin: partyGSTIN,
     party_state: partyState,
+    supply_type: supplyType || null,
     total_cgst: totalCGST,
     total_sgst: totalSGST,
     total_igst: totalIGST,
@@ -1013,4 +1072,5 @@ module.exports = {
   computeVoucherTaxLines,
   saveVoucherTaxLines,
   assertGstSidesExclusive,
+  resolveSupplyType,
 };

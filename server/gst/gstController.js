@@ -5,6 +5,8 @@ const gstTaxEngine = require('./gstTaxEngine');
 const gstr1Service = require('./gstr1Service');
 const gstr3bService = require('./gstr3bService');
 const reconciliationService = require('./reconciliationService');
+const gstCreditLedgerService = require('./gstCreditLedgerService');
+const gstr9cService = require('./gstr9cService');
 
 module.exports = {
   computeTax: async (event, data) => {
@@ -176,6 +178,18 @@ module.exports = {
 
   getGSTR1vs3BComparison: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getGSTR1vs3BComparison(company_id, fy_id);
+  },
+
+  rebuildCreditLedger: async (event, { company_id, gst_registration_id }) => {
+    return await gstCreditLedgerService.rebuild(company_id, gst_registration_id ?? null);
+  },
+
+  getCreditLedger: async (event, { company_id, gst_registration_id }) => {
+    return await gstCreditLedgerService.getLedger(company_id, gst_registration_id ?? null);
+  },
+
+  getGSTR9C: async (event, { company_id, fy_id }) => {
+    return await gstr9cService.generateGSTR9C(company_id, fy_id);
   },
 
   getIMSInwardSupplies: async (event, { company_id, fy_id }) => {
