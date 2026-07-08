@@ -333,6 +333,7 @@ const WB_EINV = {
   GENERATE: '/einvoice/type/GENERATE/version/V1_03',
   CANCEL: '/einvoice/type/CANCEL/version/V1_03',
   GETIRN: '/einvoice/type/GETIRN/version/V1_03',
+  GETIRNBYDOCDETAILS: '/einvoice/type/GETIRNBYDOCDETAILS/version/V1_03',
   GSTNDETAILS: '/einvoice/type/GSTNDETAILS/version/V1_03',
 };
 
@@ -408,6 +409,22 @@ const generateFromVoucher = async (company_id, voucher_id) => {
       for (let attempt = 0; attempt < 3; attempt++) {
         r = await wb.einv.request('POST', WB_EINV.GENERATE, payload);
         if (r.ok || !/500[12]/.test(String(r.error || ''))) break;
+      }
+      // Already registered (invoice re-submitted): recover the existing IRN by doc details
+      // and treat it as success rather than surfacing a scary "Duplicate IRN".
+      if (!r.ok && /2150|Duplicate IRN/i.test(String(r.error || ''))) {
+        const dup = await wb.einv.request(
+          'GET',
+          WB_EINV.GETIRNBYDOCDETAILS,
+          null,
+          `&param1=${payload.DocDtls.Typ}&supplier_gstn=${encodeURIComponent(payload.SellerDtls.Gstin)}`,
+          { docnum: String(payload.DocDtls.No), docdate: payload.DocDtls.Dt },
+        );
+        if (dup.ok && dup.data && dup.data.Irn) {
+          r = dup;
+        } else {
+          return { success: false, error: 'This invoice already has an IRN (generated earlier).' };
+        }
       }
       if (!r.ok) return { success: false, error: r.error };
       d = r.data || {};
