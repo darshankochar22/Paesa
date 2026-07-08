@@ -15,10 +15,10 @@ export default function PayrollReportsStatutory() {
       label: 'Employee State Insurance',
       route: '/reports/statutory/payroll/esi',
     },
-    { label: 'Professional Tax', route: '/reports/payroll-hr/professional-tax-summary' },
-    { label: 'National Pension Scheme', route: '/reports/statutory/payroll/summary' },
-    { label: 'Gratuity', route: '/reports/payroll-hr/gratuity-report' },
-    { label: 'Income Tax', route: '/reports/statutory/payroll/summary' },
+    { label: 'Professional Tax', route: '/reports/statutory/payroll/professional-tax' },
+    { label: 'National Pension Scheme', route: '/reports/statutory/payroll/nps' },
+    { label: 'Gratuity', route: '/reports/statutory/payroll/gratuity' },
+    { label: 'Income Tax', route: '/reports/statutory/payroll/income-tax' },
   ];
 
   return (
@@ -189,6 +189,140 @@ export function ESIReportsMenu() {
           </Link>
         </div>
         <CardTitle className="text-base font-semibold">Employee State Insurance</CardTitle>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3">
+        {sections.map((sec, i) => (
+          <div key={i} className="flex flex-col gap-0.5">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+              {sec.title}
+            </div>
+            <div className="flex flex-col pl-3 gap-0.5">
+              {sec.items.map((item) => (
+                <Button
+                  key={item.label}
+                  asChild
+                  variant="ghost"
+                  size="xs"
+                  className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700"
+                >
+                  <Link to={item.route}>{item.label}</Link>
+                </Button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <Button
+          onClick={() => navigate(-1)}
+          variant="ghost"
+          size="xs"
+          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
+        >
+          Quit
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Payroll Reports → National Pension Scheme submenu (#224-#226).
+export function NPSReportsMenu() {
+  const navigate = useNavigate();
+
+  const items: Array<{ label: string; route: string }> = [
+    {
+      label: 'Subscriber Contribution Details',
+      route: '/reports/statutory/payroll/nps/contribution-details',
+    },
+    { label: 'NPS Summary', route: '/reports/statutory/payroll/nps/summary' },
+    { label: 'PRAN Not Available', route: '/reports/statutory/payroll/nps/pran-not-available' },
+  ];
+
+  return (
+    <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
+      <CardHeader className="gap-1 pb-1">
+        <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
+          <span>&gt;</span>
+          <Link to="/reports/statutory/payroll" className="hover:underline hover:text-zinc-900">
+            Payroll Reports
+          </Link>
+        </div>
+        <CardTitle className="text-base font-semibold">National Pension Scheme</CardTitle>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col pl-3 gap-0.5">
+          {items.map((item) => (
+            <Button
+              key={item.label}
+              asChild
+              variant="ghost"
+              size="xs"
+              className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700"
+            >
+              <Link to={item.route}>{item.label}</Link>
+            </Button>
+          ))}
+          <Button
+            onClick={() => navigate(-1)}
+            variant="ghost"
+            size="xs"
+            className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
+          >
+            Quit
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Payroll Reports → Income Tax submenu (#228-#233). Computation/Projection/Challan
+// Reconciliation, plus the e-TDS return forms (E-24Q / Form 27A / Form 24Q).
+export function IncomeTaxReportsMenu() {
+  const navigate = useNavigate();
+
+  const sections: Array<{ title: string; items: Array<{ label: string; route: string }> }> = [
+    {
+      title: 'STATEMENTS',
+      items: [
+        { label: 'Computation', route: '/reports/statutory/payroll/income-tax/computation' },
+        {
+          label: 'Salary Projection',
+          route: '/reports/statutory/payroll/income-tax/salary-projection',
+        },
+        {
+          label: 'Challan Reconciliation',
+          route: '/reports/statutory/payroll/income-tax/challan-reconciliation',
+        },
+      ],
+    },
+    {
+      title: 'RETURNS',
+      items: [
+        { label: 'E-24Q', route: '/reports/statutory/payroll/income-tax/e-24q' },
+        { label: 'Form 27A', route: '/reports/statutory/payroll/income-tax/form-27a' },
+        { label: 'Form 24Q', route: '/reports/statutory/payroll/income-tax/form-24q' },
+      ],
+    },
+  ];
+
+  return (
+    <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
+      <CardHeader className="gap-1 pb-1">
+        <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
+          <Link to="/" className="hover:underline hover:text-zinc-900">
+            Gateway
+          </Link>
+          <span>&gt;</span>
+          <Link to="/reports/statutory/payroll" className="hover:underline hover:text-zinc-900">
+            Payroll Reports
+          </Link>
+        </div>
+        <CardTitle className="text-base font-semibold">Income Tax</CardTitle>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">

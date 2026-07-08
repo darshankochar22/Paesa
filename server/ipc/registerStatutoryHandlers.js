@@ -7,6 +7,10 @@ const payrollStatutoryReportService = require('../payroll/payrollStatutoryReport
 const msmeReportService = require('../msme/msmeReportService');
 const msmePartyService = require('../msme/msmePartyService');
 const esiReportService = require('../payroll/esiReportService');
+const professionalTaxReportService = require('../payroll/professionalTaxReportService');
+const npsReportService = require('../payroll/npsReportService');
+const gratuityReportService = require('../payroll/gratuityReportService');
+const incomeTaxReportService = require('../payroll/incomeTaxReportService');
 const gstRegistrationController = require('../gstRegistration/gstRegistrationController');
 const gstClassificationController = require('../gstClassification/gstClassificationController');
 const tcsNatureOfGoodsController = require('../tcsNatureOfGoods/tcsNatureOfGoodsController');
@@ -129,6 +133,39 @@ function register() {
   );
   ipcMain.handle('esi:getForm6', (event, { company_id }) =>
     esiReportService.getESIForm6(company_id),
+  );
+  ipcMain.handle('payrollStatutory:getProfessionalTax', (event, { company_id }) =>
+    professionalTaxReportService.getProfessionalTax(company_id),
+  );
+  ipcMain.handle('payrollStatutory:getGratuity', (event, { company_id }) =>
+    gratuityReportService.getGratuity(company_id),
+  );
+  ipcMain.handle('nps:getContributionDetails', (event, { company_id }) =>
+    npsReportService.getContributionDetails(company_id),
+  );
+  ipcMain.handle('nps:getSummary', (event, { company_id }) =>
+    npsReportService.getSummary(company_id),
+  );
+  ipcMain.handle('nps:getPranNotAvailable', (event, { company_id }) =>
+    npsReportService.getPranNotAvailable(company_id),
+  );
+  ipcMain.handle('incomeTax:getComputation', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getComputation(company_id, params),
+  );
+  ipcMain.handle('incomeTax:getSalaryProjection', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getSalaryProjection(company_id, params),
+  );
+  ipcMain.handle('incomeTax:getChallanReconciliation', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getChallanReconciliation(company_id, params),
+  );
+  ipcMain.handle('incomeTax:getE24Q', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getE24Q(company_id, params),
+  );
+  ipcMain.handle('incomeTax:getForm27A', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getForm27A(company_id, params),
+  );
+  ipcMain.handle('incomeTax:getForm24Q', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getForm24Q(company_id, params),
   );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),

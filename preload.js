@@ -581,6 +581,8 @@ contextBridge.exposeInMainWorld('api', {
     getPFECR: (data) => invoke('payrollStatutory:getPFECR', data),
     getPFForm6A: (data) => invoke('payrollStatutory:getPFForm6A', data),
     getPFForm3A: (data) => invoke('payrollStatutory:getPFForm3A', data),
+    getProfessionalTax: (data) => invoke('payrollStatutory:getProfessionalTax', data),
+    getGratuity: (data) => invoke('payrollStatutory:getGratuity', data),
   },
   esi: {
     getForm3: (data) => invoke('esi:getForm3', data),
@@ -588,6 +590,19 @@ contextBridge.exposeInMainWorld('api', {
     getEReturn: (data) => invoke('esi:getEReturn', data),
     getForm5: (data) => invoke('esi:getForm5', data),
     getForm6: (data) => invoke('esi:getForm6', data),
+  },
+  nps: {
+    getContributionDetails: (data) => invoke('nps:getContributionDetails', data),
+    getSummary: (data) => invoke('nps:getSummary', data),
+    getPranNotAvailable: (data) => invoke('nps:getPranNotAvailable', data),
+  },
+  incomeTax: {
+    getComputation: (data) => invoke('incomeTax:getComputation', data),
+    getSalaryProjection: (data) => invoke('incomeTax:getSalaryProjection', data),
+    getChallanReconciliation: (data) => invoke('incomeTax:getChallanReconciliation', data),
+    getE24Q: (data) => invoke('incomeTax:getE24Q', data),
+    getForm27A: (data) => invoke('incomeTax:getForm27A', data),
+    getForm24Q: (data) => invoke('incomeTax:getForm24Q', data),
   },
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),

@@ -37,6 +37,8 @@ import PayrollReportsStatutory, {
   PFReportsMenu,
   PFEReturnMenu,
   ESIReportsMenu,
+  NPSReportsMenu,
+  IncomeTaxReportsMenu,
 } from '../pages/menu/reports/PayrollReportsStatutory.tsx';
 import ESIForm3, {
   ESIMonthlyStatement,
@@ -44,6 +46,19 @@ import ESIForm3, {
   ESIForm5,
   ESIForm6,
 } from '../pages/reports/payroll/ESIForms.tsx';
+import ProfessionalTaxReport from '../pages/reports/payroll/ProfessionalTaxReport.tsx';
+import GratuityReport from '../pages/reports/payroll/GratuityReport.tsx';
+import NPSContributionDetails, {
+  NPSSummary,
+  NPSPranNotAvailable,
+} from '../pages/reports/payroll/NPSReports.tsx';
+import IncomeTaxComputation, {
+  SalaryProjection,
+  ITChallanReconciliation,
+  E24Q,
+  Form27A,
+  Form24Q,
+} from '../pages/reports/payroll/IncomeTaxReports.tsx';
 import PayrollStatutorySummary, {
   PayrollStatutoryPayHeadDetails,
 } from '../pages/reports/payroll/PayrollStatutorySummary.tsx';
@@ -242,6 +257,28 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/statutory/payroll/esi/e-return', element: <ESIEReturn /> },
   { path: '/reports/statutory/payroll/esi/form-5', element: <ESIForm5 /> },
   { path: '/reports/statutory/payroll/esi/form-6', element: <ESIForm6 /> },
+  { path: '/reports/statutory/payroll/professional-tax', element: <ProfessionalTaxReport /> },
+  { path: '/reports/statutory/payroll/gratuity', element: <GratuityReport /> },
+  { path: '/reports/statutory/payroll/nps', element: <NPSReportsMenu /> },
+  {
+    path: '/reports/statutory/payroll/nps/contribution-details',
+    element: <NPSContributionDetails />,
+  },
+  { path: '/reports/statutory/payroll/nps/summary', element: <NPSSummary /> },
+  { path: '/reports/statutory/payroll/nps/pran-not-available', element: <NPSPranNotAvailable /> },
+  { path: '/reports/statutory/payroll/income-tax', element: <IncomeTaxReportsMenu /> },
+  { path: '/reports/statutory/payroll/income-tax/computation', element: <IncomeTaxComputation /> },
+  {
+    path: '/reports/statutory/payroll/income-tax/salary-projection',
+    element: <SalaryProjection />,
+  },
+  {
+    path: '/reports/statutory/payroll/income-tax/challan-reconciliation',
+    element: <ITChallanReconciliation />,
+  },
+  { path: '/reports/statutory/payroll/income-tax/e-24q', element: <E24Q /> },
+  { path: '/reports/statutory/payroll/income-tax/form-27a', element: <Form27A /> },
+  { path: '/reports/statutory/payroll/income-tax/form-24q', element: <Form24Q /> },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
   { path: '/reports/inventory-books', element: <InventoryBooks /> },

@@ -511,10 +511,7 @@ export interface MasterDataAPI {
       }[];
       error?: string;
     }>;
-    getGstRateSetupTree: (data: {
-      company_id: number;
-      group_id?: number | null;
-    }) => Promise<{
+    getGstRateSetupTree: (data: { company_id: number; group_id?: number | null }) => Promise<{
       success: boolean;
       group?: { id: number; name: string } | null;
       groups?: GstRateSetupNode[];
@@ -690,6 +687,55 @@ export interface MasterDataAPI {
       to?: string;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
     getPFForm10: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getProfessionalTax: (data: {
+      company_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getGratuity: (data: {
+      company_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+  };
+  nps: {
+    getContributionDetails: (data: {
+      company_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getSummary: (data: {
+      company_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getPranNotAvailable: (data: {
+      company_id: number;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+  };
+  incomeTax: {
+    getComputation: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getSalaryProjection: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getChallanReconciliation: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getE24Q: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getForm27A: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getForm24Q: (data: {
       company_id: number;
       from?: string;
       to?: string;
