@@ -170,7 +170,11 @@ export default function EInvoiceEWayBillReport({ mode }: { mode: Mode }) {
               ) : (
                 <>
                   {statusRows.map(([status, count]) => (
-                    <TableRow key={status} className="border-0 hover:bg-transparent">
+                    <TableRow
+                      key={status}
+                      onClick={() => setView('register')}
+                      className="border-0 cursor-pointer hover:bg-[#e6f2ff]"
+                    >
                       <TableCell className="px-2 py-0.5 pl-4">{status}</TableCell>
                       <TableCell className="px-2 py-0.5 text-right tabular-nums">{count}</TableCell>
                     </TableRow>
