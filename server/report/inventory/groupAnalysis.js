@@ -1,10 +1,20 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
-const { vouchers, stockItems, ledgers, voucherEntries, voucherStockEntries, units } = require('../../db/schema');
+const {
+  vouchers,
+  stockItems,
+  ledgers,
+  voucherEntries,
+  voucherStockEntries,
+  units,
+} = require('../../db/schema');
 const { entryDirection } = require('../services/stockMovement');
-
-const INWARD  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-const OUTWARD = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
+// Party (Group/Ledger) Analysis is a purchase-side vs sales-side view — use the
+// canonical document-type lists from reportHelpers rather than a local copy (and
+// NOT stockMovement's physical-flow entryDirection, which would put a sales-return
+// Credit Note on the purchase side). The per-voucher drill below still uses
+// entryDirection for physical goods direction.
+const { INWARD_TYPES, OUTWARD_TYPES } = require('../services/reportHelpers');
 
 /**
  * Shared core: per stock-item purchase & sales movement, restricted to vouchers
@@ -16,13 +26,25 @@ const partyMovementAnalysis = async (company_id, fy_id, ledgerFilter) => {
       si.item_id,
       si.name      AS item_name,
       u.name       AS unit_name,
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN v.voucher_type IN (${sql.join(
+        INWARD_TYPES.map((t) => sql`${t}`),
+        sql`, `,
+      )})
                THEN COALESCE(vse.quantity, 0) ELSE 0 END) AS purchase_qty,
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN v.voucher_type IN (${sql.join(
+        INWARD_TYPES.map((t) => sql`${t}`),
+        sql`, `,
+      )})
                THEN COALESCE(vse.amount, 0)   ELSE 0 END) AS purchase_value,
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN v.voucher_type IN (${sql.join(
+        OUTWARD_TYPES.map((t) => sql`${t}`),
+        sql`, `,
+      )})
                THEN COALESCE(vse.quantity, 0) ELSE 0 END) AS sales_qty,
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN v.voucher_type IN (${sql.join(
+        OUTWARD_TYPES.map((t) => sql`${t}`),
+        sql`, `,
+      )})
                THEN COALESCE(vse.amount, 0)   ELSE 0 END) AS sales_value
     FROM ${voucherStockEntries} vse
     INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
@@ -43,16 +65,16 @@ const partyMovementAnalysis = async (company_id, fy_id, ledgerFilter) => {
     ORDER BY si.name ASC
   `);
 
-  return rows.map(r => ({
-    item_id:        r.item_id,
-    item_name:      r.item_name,
-    unit_name:      r.unit_name || '',
-    purchase_qty:   r.purchase_qty   || 0,
+  return rows.map((r) => ({
+    item_id: r.item_id,
+    item_name: r.item_name,
+    unit_name: r.unit_name || '',
+    purchase_qty: r.purchase_qty || 0,
     purchase_value: r.purchase_value || 0,
-    purchase_rate:  r.purchase_qty ? (r.purchase_value / r.purchase_qty) : 0,
-    sales_qty:      r.sales_qty      || 0,
-    sales_value:    r.sales_value    || 0,
-    sales_rate:     r.sales_qty ? (r.sales_value / r.sales_qty) : 0,
+    purchase_rate: r.purchase_qty ? r.purchase_value / r.purchase_qty : 0,
+    sales_qty: r.sales_qty || 0,
+    sales_value: r.sales_value || 0,
+    sales_rate: r.sales_qty ? r.sales_value / r.sales_qty : 0,
   }));
 };
 
@@ -125,13 +147,22 @@ const partyItemVouchers = async (company_id, fy_id, ledgerFilter, item_id) => {
   for (const r of rows) {
     const dir = entryDirection(r.voucher_type, r.is_source);
     if (!dir) continue;
-    const qty = Number(r.quantity) || 0, amt = Number(r.amount) || 0, addl = Number(r.additional_amount) || 0;
+    const qty = Number(r.quantity) || 0,
+      amt = Number(r.amount) || 0,
+      addl = Number(r.additional_amount) || 0;
     out.push({
-      voucher_id: r.voucher_id, date: r.date, particulars: r.particulars || '',
-      voucher_type: r.voucher_type, voucher_number: r.voucher_number,
-      inwards_qty:  dir === 'in'  ? qty : null, inwards_value:  dir === 'in'  ? amt : null,
-      outwards_qty: dir === 'out' ? qty : null, outwards_value: dir === 'out' ? amt : null,
-      addl_cost: addl, closing_qty: 0, closing_value: 0,
+      voucher_id: r.voucher_id,
+      date: r.date,
+      particulars: r.particulars || '',
+      voucher_type: r.voucher_type,
+      voucher_number: r.voucher_number,
+      inwards_qty: dir === 'in' ? qty : null,
+      inwards_value: dir === 'in' ? amt : null,
+      outwards_qty: dir === 'out' ? qty : null,
+      outwards_value: dir === 'out' ? amt : null,
+      addl_cost: addl,
+      closing_qty: 0,
+      closing_value: 0,
     });
   }
   return out;
@@ -140,7 +171,9 @@ const partyItemVouchers = async (company_id, fy_id, ledgerFilter, item_id) => {
 /** Item Voucher Analysis under a ledger group (drill from Group Analysis). */
 const groupItemVouchers = async (company_id, fy_id, group_id, item_id) => {
   try {
-    const itemRow = await db.all(sql`SELECT name FROM ${stockItems} WHERE item_id = ${item_id} AND company_id = ${company_id}`);
+    const itemRow = await db.all(
+      sql`SELECT name FROM ${stockItems} WHERE item_id = ${item_id} AND company_id = ${company_id}`,
+    );
     const rows = await partyItemVouchers(company_id, fy_id, sql`l.group_id = ${group_id}`, item_id);
     return { success: true, item_name: itemRow.length ? itemRow[0].name : '', rows };
   } catch (err) {
@@ -151,8 +184,15 @@ const groupItemVouchers = async (company_id, fy_id, group_id, item_id) => {
 /** Item Voucher Analysis under a single ledger (drill from Ledger Analysis). */
 const ledgerItemVouchers = async (company_id, fy_id, ledger_id, item_id) => {
   try {
-    const itemRow = await db.all(sql`SELECT name FROM ${stockItems} WHERE item_id = ${item_id} AND company_id = ${company_id}`);
-    const rows = await partyItemVouchers(company_id, fy_id, sql`l.ledger_id = ${ledger_id}`, item_id);
+    const itemRow = await db.all(
+      sql`SELECT name FROM ${stockItems} WHERE item_id = ${item_id} AND company_id = ${company_id}`,
+    );
+    const rows = await partyItemVouchers(
+      company_id,
+      fy_id,
+      sql`l.ledger_id = ${ledger_id}`,
+      item_id,
+    );
     return { success: true, item_name: itemRow.length ? itemRow[0].name : '', rows };
   } catch (err) {
     return { success: false, error: err.message };
