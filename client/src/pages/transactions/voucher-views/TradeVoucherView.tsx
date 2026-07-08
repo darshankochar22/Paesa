@@ -21,35 +21,45 @@ export default function TradeVoucherView({
   balances: Record<number, string>;
 }) {
   const t = voucher.voucher_type;
-  const isSalesLike = ['Sales', 'Credit Note'].includes(t);
-  const mainLedger =
-    voucher.entries.find((e) => (isSalesLike ? e.type === 'Cr' : e.type === 'Dr')) || null;
+
+  const isTaxEntry = (e: (typeof voucher.entries)[number]) =>
+    e.type_of_duty_tax === 'GST' || !!e.gst_tax_type;
+  const isParty = (e: (typeof voucher.entries)[number]) =>
+    e.ledger_id === voucher.party_ledger_id || e.ledger_name === voucher.party_name;
+
+  // The main sales/purchase ledger is the non-party, non-tax accounting entry.
+  // Picking by Dr/Cr type is wrong: on a Debit/Credit Note the party sits on the
+  // same side as the main ledger, so type-matching grabs the party by mistake and
+  // the real ledger leaks into the additional rows (double-counting the total).
+  const nonPartyEntries = voucher.entries.filter((e) => !isParty(e));
+  const mainLedger = nonPartyEntries.find((e) => !isTaxEntry(e)) || nonPartyEntries[0] || null;
 
   const stockSubtotal = voucher.stock_entries.reduce((s, e) => s + (e.amount || 0), 0);
 
   // Everything that isn't the party or the sales/purchase ledger is a tax / additional
   // ledger line. Show its GST % when it is a GST ledger — prefer the ledger's configured
   // rate, else derive it from amount ÷ taxable subtotal (many tax ledgers store rate 0).
-  const additionalRows: AdditionalRow[] = (
-    mainLedger
-      ? voucher.entries.filter(
-          (e) => e.ledger_name !== mainLedger.ledger_name && e.ledger_name !== voucher.party_name,
-        )
-      : []
-  ).map((e) => {
-    const isGst = e.type_of_duty_tax === 'GST' || !!e.gst_tax_type;
-    const configured = Number(e.gst_tax_rate) || 0;
-    const derived = stockSubtotal > 0 && e.amount ? (e.amount / stockSubtotal) * 100 : 0;
-    const rate = configured > 0 ? configured : derived;
-    return {
-      name: e.ledger_name,
-      ratePct: isGst && rate > 0 ? Number(rate.toFixed(2)) : null,
-      amount: e.amount,
-    };
-  });
+  const additionalRows: AdditionalRow[] = nonPartyEntries
+    .filter((e) => e !== mainLedger)
+    .map((e) => {
+      const isGst = isTaxEntry(e);
+      const configured = Number(e.gst_tax_rate) || 0;
+      const derived = stockSubtotal > 0 && e.amount ? (e.amount / stockSubtotal) * 100 : 0;
+      const rate = configured > 0 ? configured : derived;
+      return {
+        name: e.ledger_name,
+        ratePct: isGst && rate > 0 ? Number(rate.toFixed(2)) : null,
+        amount: e.amount,
+      };
+    });
 
   const additionalTotal = additionalRows.reduce((s, r) => s + (r.amount || 0), 0);
   const grandTotal = stockSubtotal + additionalTotal;
+
+  // Price Level — header field shown on the invoice (Tally always renders it,
+  // "♦ Not Applicable" when none). Not persisted on the voucher yet, so it reads
+  // from the record defensively and falls back to the default label.
+  const priceLevel = (voucher as { price_level?: string | null }).price_level || '';
 
   const noteDetails =
     t === 'Credit Note'
@@ -58,7 +68,9 @@ export default function TradeVoucherView({
         ? voucher.debit_note_details
         : null;
   const hasStock = voucher.stock_entries.length > 0;
-  const stockTableVariant = STOCK_TABLE_VARIANT[t] ?? 'default';
+  // Trade vouchers render the Tally accounting-invoice layout: Actual/Billed
+  // quantity, Rate + per unit, tax rows continuing the table, one bold total.
+  const stockTableVariant = STOCK_TABLE_VARIANT[t] ?? 'invoice';
 
   return (
     <>
@@ -90,16 +102,26 @@ export default function TradeVoucherView({
       )}
 
       {voucher.party_name && (
-        <ReadOnlyFieldRow
-          label="Party A/c name"
-          value={voucher.party_name}
-          balance={voucher.party_ledger_id != null ? balances[voucher.party_ledger_id] : undefined}
-        />
+        <div className="relative">
+          <ReadOnlyFieldRow
+            label="Party A/c name"
+            value={voucher.party_name}
+            balance={
+              voucher.party_ledger_id != null ? balances[voucher.party_ledger_id] : undefined
+            }
+          />
+          {/* Price Level — right side of the party band (TallyPrime invoice header). */}
+          <div className="absolute top-1 right-3 flex items-center gap-2 text-sm">
+            <span className="text-black">Price Level</span>
+            <span className="text-black">:</span>
+            <span className="font-semibold text-black">{priceLevel || '♦ Not Applicable'}</span>
+          </div>
+        </div>
       )}
 
       {mainLedger && (
         <ReadOnlyFieldRow
-          label={isSalesLike ? 'Sales ledger' : 'Purchase ledger'}
+          label="Ledger account"
           value={mainLedger.ledger_name}
           balance={balances[mainLedger.ledger_id]}
         />
@@ -113,8 +135,14 @@ export default function TradeVoucherView({
         <ReadOnlyStockTable
           entries={voucher.stock_entries}
           variant={stockTableVariant}
-          additionalRows={stockTableVariant === 'default' ? additionalRows : []}
-          grandTotal={stockTableVariant === 'default' ? grandTotal : undefined}
+          additionalRows={
+            stockTableVariant === 'default' || stockTableVariant === 'invoice' ? additionalRows : []
+          }
+          grandTotal={
+            stockTableVariant === 'default' || stockTableVariant === 'invoice'
+              ? grandTotal
+              : undefined
+          }
         />
       )}
 

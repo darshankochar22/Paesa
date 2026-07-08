@@ -184,6 +184,16 @@ module.exports = {
       if (voucherRows.length === 0) return { success: false, error: 'Voucher not found' };
       const voucher = voucherRows[0];
 
+      // Only the id is stored for the Sales/Purchase ledger; resolve its name so
+      // the voucher view can show a "Purchase ledger / Sales ledger" header row
+      // alongside Party A/c name, matching TallyPrime's order-voucher layout.
+      if (voucher.sales_purchase_ledger_id) {
+        const spLedgerRows = await db.all(
+          sql`SELECT name FROM ${ledgers} WHERE ${ledgers.ledgerId} = ${voucher.sales_purchase_ledger_id}`,
+        );
+        voucher.sales_purchase_ledger_name = spLedgerRows.length > 0 ? spLedgerRows[0].name : null;
+      }
+
       // Enrich each entry with its GST tax tagging (LEFT JOIN ledger_statutory_details,
       // 1:1) so the voucher view can show a tax ledger's rate % next to it, Tally-style.
       const entries = await db.all(

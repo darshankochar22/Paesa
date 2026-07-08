@@ -86,6 +86,10 @@ export interface ComponentAllocationRow {
 export interface JobWorkItemAllocationRow {
   due_on: string;
   godown: string;
+  /** Batch / Lot allocation — batch-tracked parent items only. */
+  batch_lot?: string;
+  mfg_date?: string;
+  expiry_date?: string;
   quantity: number;
   rate: number;
   unit_symbol?: string;

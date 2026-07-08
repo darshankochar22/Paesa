@@ -76,7 +76,6 @@ export default function OrderDueOnAllocationPopup({
   voucherDate,
   trackMfg,
   trackExpiry,
-  isInward,
   godowns = [],
   initialAllocations = [],
   showBatch = true,
@@ -463,19 +462,18 @@ export default function OrderDueOnAllocationPopup({
                             <div className="w-16">Expiry</div>
                             <div className="w-14 text-right">Balance</div>
                           </div>
-                          {/* New Number — opens the New Number popup to type a fresh lot (inward only). */}
-                          {isInward && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenListRow(null);
-                                setNewBatchRow(i);
-                              }}
-                              className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
-                            >
-                              New Number
-                            </button>
-                          )}
+                          {/* New Number — opens the New Number popup to type a fresh
+                              lot. Always available (Tally shows it for outward too). */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenListRow(null);
+                              setNewBatchRow(i);
+                            }}
+                            className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
+                          >
+                            New Number
+                          </button>
                           {/* Any — no specific lot. */}
                           <button
                             type="button"

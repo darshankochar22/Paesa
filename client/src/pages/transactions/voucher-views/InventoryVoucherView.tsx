@@ -6,6 +6,8 @@ import {
   ReadOnlySplitStockTable,
   ReadOnlyDoubleEntryTable,
   ReadOnlyBillReferences,
+  ReadOnlyLedgerPartyHeader,
+  ReadOnlyTrackingStockTable,
   STOCK_TABLE_VARIANT,
 } from './shared';
 
@@ -22,6 +24,15 @@ export default function InventoryVoucherView({
 }) {
   const t = voucher.voucher_type;
   const isReceiptNote = t === 'Receipt Note';
+  // Rejection In/Out use Tally's tracking layout — a two-column Ledger Account /
+  // party name & address header + Actual/Billed item table with a godown sub-row.
+  const isTracking = t === 'Rejection In' || t === 'Rejection Out';
+  const trackingPartyLabel =
+    t === 'Rejection Out' ? "Supplier's Name and Address" : "Customer's Name and Address";
+  const trackingAddress =
+    [voucher.party_details?.address, voucher.party_details?.state, voucher.party_details?.country]
+      .filter(Boolean)
+      .join('\n') || null;
   const isSplitStock = ['Stock Journal', 'Manufacturing Journal'].includes(t);
   const stockTableVariant = STOCK_TABLE_VARIANT[t] ?? 'default';
   const sourceGodownRowLabel =
@@ -57,11 +68,37 @@ export default function InventoryVoucherView({
         </div>
       )}
 
-      {voucher.party_name && (
+      {voucher.party_name &&
+        (isTracking ? (
+          <ReadOnlyLedgerPartyHeader
+            ledgerName={voucher.party_name}
+            partyLabel={trackingPartyLabel}
+            partyName={
+              voucher.party_details?.mailing_name ||
+              voucher.party_details?.supplier_name ||
+              voucher.party_name
+            }
+            address={trackingAddress}
+          />
+        ) : (
+          <ReadOnlyFieldRow
+            label="Party A/c name"
+            value={voucher.party_name}
+            balance={
+              voucher.party_ledger_id != null ? balances[voucher.party_ledger_id] : undefined
+            }
+          />
+        ))}
+
+      {voucher.sales_purchase_ledger_name && (
         <ReadOnlyFieldRow
-          label="Party A/c name"
-          value={voucher.party_name}
-          balance={voucher.party_ledger_id != null ? balances[voucher.party_ledger_id] : undefined}
+          label={t === 'Sales Order' || t === 'Delivery Note' ? 'Sales ledger' : 'Purchase ledger'}
+          value={voucher.sales_purchase_ledger_name}
+          balance={
+            voucher.sales_purchase_ledger_id != null
+              ? balances[voucher.sales_purchase_ledger_id]
+              : undefined
+          }
         />
       )}
 
@@ -72,16 +109,28 @@ export default function InventoryVoucherView({
         />
       )}
 
-      {['Sales Order', 'Purchase Order', 'Job Work In Order'].includes(t) &&
-        voucher.order_details?.order_nos && (
-          <ReadOnlyFieldRow label="Order no." value={voucher.order_details.order_nos} />
-        )}
+      {(() => {
+        const isJobWork = t === 'Job Work In Order' || t === 'Job Work Out Order';
+        const isOrder = t === 'Sales Order' || t === 'Purchase Order';
+        if (!isJobWork && !isOrder) return null;
+        // Job Work orders mirror Tally — Order no. defaults to the voucher number
+        // when it wasn't explicitly captured. Sales/Purchase Orders show it only
+        // when set.
+        const orderNo =
+          voucher.order_details?.order_nos || (isJobWork ? voucher.voucher_number : '');
+        return orderNo ? <ReadOnlyFieldRow label="Order no." value={orderNo} /> : null;
+      })()}
 
       {(hasStock || hasEntries) && <div className="border-b border-gray-300 shrink-0" />}
 
       {hasStock &&
         (isSplitStock ? (
-          <ReadOnlySplitStockTable entries={voucher.stock_entries} />
+          <ReadOnlySplitStockTable
+            entries={voucher.stock_entries}
+            heading={t === 'Manufacturing Journal' ? 'Manufacturing' : 'Transfer of Materials'}
+          />
+        ) : isTracking ? (
+          <ReadOnlyTrackingStockTable entries={voucher.stock_entries} />
         ) : (
           <ReadOnlyStockTable entries={voucher.stock_entries} variant={stockTableVariant} />
         ))}

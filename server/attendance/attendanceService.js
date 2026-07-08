@@ -5,13 +5,14 @@ const {
   attendanceVoucherEntries,
   employees,
   attendanceTypes,
+  units,
 } = require('../db/schema');
 
 const generateVoucherNumber = async (company_id) => {
   const prefix = 'ATT-';
   const rows = await db.all(
     sql`SELECT COALESCE(MAX(CAST(REPLACE(${attendanceVouchers.voucherNumber}, ${prefix}, '') AS INTEGER)), 0) + 1 as next_num
-        FROM ${attendanceVouchers} WHERE ${attendanceVouchers.companyId} = ${company_id}`
+        FROM ${attendanceVouchers} WHERE ${attendanceVouchers.companyId} = ${company_id}`,
   );
   const next = Number(rows[0].next_num);
   return `${prefix}${String(next).padStart(5, '0')}`;
@@ -28,7 +29,7 @@ const getNextVoucherNumber = async (company_id) => {
 
 const create = async (data) => {
   try {
-    const voucher_number = data.voucher_number || await generateVoucherNumber(data.company_id);
+    const voucher_number = data.voucher_number || (await generateVoucherNumber(data.company_id));
     await db.run(sql`BEGIN TRANSACTION`);
     try {
       const inserted = await db
@@ -44,14 +45,12 @@ const create = async (data) => {
 
       if (data.entries && data.entries.length > 0) {
         for (const entry of data.entries) {
-          await db
-            .insert(attendanceVoucherEntries)
-            .values({
-              attendanceVoucherId: attendance_voucher_id,
-              employeeId: entry.employee_id || null,
-              attendanceTypeId: entry.attendance_type_id || null,
-              value: Number(entry.value) || 0,
-            });
+          await db.insert(attendanceVoucherEntries).values({
+            attendanceVoucherId: attendance_voucher_id,
+            employeeId: entry.employee_id || null,
+            attendanceTypeId: entry.attendance_type_id || null,
+            value: Number(entry.value) || 0,
+          });
         }
       }
 
@@ -71,7 +70,7 @@ const getAll = async (company_id) => {
     const rows = await db.all(
       sql`SELECT * FROM ${attendanceVouchers}
           WHERE ${attendanceVouchers.companyId} = ${company_id}
-          ORDER BY ${attendanceVouchers.date} DESC, ${attendanceVouchers.attendanceVoucherId} DESC`
+          ORDER BY ${attendanceVouchers.date} DESC, ${attendanceVouchers.attendanceVoucherId} DESC`,
     );
     return { success: true, vouchers: rows };
   } catch (err) {
@@ -82,17 +81,34 @@ const getAll = async (company_id) => {
 const getById = async (id) => {
   try {
     const voucherRows = await db.all(
-      sql`SELECT * FROM ${attendanceVouchers} WHERE ${attendanceVouchers.attendanceVoucherId} = ${id}`
+      sql`SELECT * FROM ${attendanceVouchers} WHERE ${attendanceVouchers.attendanceVoucherId} = ${id}`,
     );
     if (voucherRows.length === 0) return { success: false, error: 'Voucher not found' };
     const voucher = voucherRows[0];
 
+    // TallyPrime shows, per row: the attendance/production type's Unit ("Days")
+    // and the running "Cur Bal" — the cumulative value for that employee + type
+    // up to and including this entry (all earlier-dated vouchers, plus this
+    // voucher up to this line). Computed here so the read-only view needs no
+    // extra round-trip. Unit falls back to "Days" (attendance is day-based).
     const entries = await db.all(
-      sql`SELECT e.*, emp.name as employee_name, emp.employee_code AS employee_number, t.name as attendance_type_name
+      sql`SELECT e.*, emp.name as employee_name, emp.employee_code AS employee_number,
+                 t.name as attendance_type_name, u.symbol AS unit,
+                 (SELECT COALESCE(SUM(e2.value), 0)
+                    FROM ${attendanceVoucherEntries} e2
+                    JOIN ${attendanceVouchers} av2 ON av2.attendance_voucher_id = e2.attendance_voucher_id
+                   WHERE e2.employee_id = e.employee_id
+                     AND e2.attendance_type_id = e.attendance_type_id
+                     AND av2.company_id = ${voucher.company_id}
+                     AND (av2.date < ${voucher.date}
+                          OR (e2.attendance_voucher_id = ${id} AND e2.entry_id <= e.entry_id))
+                 ) AS cur_bal
           FROM ${attendanceVoucherEntries} e
           LEFT JOIN ${employees} emp ON emp.employee_id = e.employee_id
           LEFT JOIN ${attendanceTypes} t ON t.attendance_type_id = e.attendance_type_id
-          WHERE e.attendance_voucher_id = ${id}`
+          LEFT JOIN ${units} u ON u.unit_id = t.unit_id
+          WHERE e.attendance_voucher_id = ${id}
+          ORDER BY e.entry_id ASC`,
     );
 
     return {
@@ -109,9 +125,7 @@ const getById = async (id) => {
 
 const deleteVoucher = async (id) => {
   try {
-    await db
-      .delete(attendanceVouchers)
-      .where(eq(attendanceVouchers.attendanceVoucherId, id));
+    await db.delete(attendanceVouchers).where(eq(attendanceVouchers.attendanceVoucherId, id));
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };

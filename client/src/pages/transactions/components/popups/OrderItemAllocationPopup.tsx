@@ -559,7 +559,18 @@ export default function OrderItemAllocationPopup({
         }),
       );
     },
-    [showBatch, trackMfg, trackExpiry, rate, onSave, voucherDate, isInward, godowns, godownBal, unitSymbol],
+    [
+      showBatch,
+      trackMfg,
+      trackExpiry,
+      rate,
+      onSave,
+      voucherDate,
+      isInward,
+      godowns,
+      godownBal,
+      unitSymbol,
+    ],
   );
 
   const handleSave = useCallback(() => saveAllocations(rows), [saveAllocations, rows]);
@@ -1051,20 +1062,19 @@ export default function OrderItemAllocationPopup({
                                   <div className="w-16">Expiry</div>
                                   <div className="w-14 text-right">Balance</div>
                                 </div>
-                                {/* New Number — opens the New Number popup (inward only). */}
-                                {isInward && (
-                                  <button
-                                    type="button"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      setOpenListRow(null);
-                                      setNewNumber({ row: i, field: 'batch' });
-                                    }}
-                                    className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
-                                  >
-                                    New Number
-                                  </button>
-                                )}
+                                {/* New Number — opens the New Number popup. Always
+                                    available (Tally shows it for outward too). */}
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setOpenListRow(null);
+                                    setNewNumber({ row: i, field: 'batch' });
+                                  }}
+                                  className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
+                                >
+                                  New Number
+                                </button>
                                 {/* Any — no specific lot. */}
                                 <button
                                   type="button"

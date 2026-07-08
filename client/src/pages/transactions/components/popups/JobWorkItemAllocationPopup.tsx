@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import type { JobWorkItemAllocationRow, ComponentAllocationRow } from "../../types";
-import ComponentsAllocationPopup from "./ComponentsAllocationPopup";
-import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import type { JobWorkItemAllocationRow, ComponentAllocationRow } from '../../types';
+import ComponentsAllocationPopup from './ComponentsAllocationPopup';
+import NewNumberPopup from './NewNumberPopup';
+import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
 
 interface Props {
   companyId?: number;
@@ -19,28 +20,38 @@ interface Props {
   onSave: (rows: JobWorkItemAllocationRow[]) => void;
 }
 
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function fmtDate(iso: string) {
-  if (!iso) return "";
+  if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return `${d.getDate()}-${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
 }
 
 const num = (v: number) =>
-  v ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+  v ? v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 
 // Per-godown balance label — Tally shows negatives as "(-)9 Box"; blank when zero.
 const fmtQty = (q: number | undefined, unit?: string) => {
-  if (!q) return "";
-  const u = unit || "";
+  if (!q) return '';
+  const u = unit || '';
   return q < 0 ? `(-)${Math.abs(q)} ${u}`.trim() : `${q} ${u}`.trim();
 };
+
+interface BatchOption {
+  name: string;
+  mfg_date?: string | null;
+  expiry_date?: string | null;
+  balance?: number;
+}
 
 interface AllocRow {
   id: number;
   due_on: string;
   godown: string;
+  batch_lot: string;
+  mfg_date: string;
+  expiry_date: string;
   quantity: string;
   rate: string;
   amount: number;
@@ -48,31 +59,70 @@ interface AllocRow {
   amountRaw?: string;
   components?: ComponentAllocationRow[];
   showGodownDD?: boolean;
+  showBatchDD?: boolean;
 }
 
-const compTotal = (r: Pick<AllocRow, "components">) =>
+const compTotal = (r: Pick<AllocRow, 'components'>) =>
   (r.components ?? []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
+
+const ANY = '♦ Any'; // ♦ Any
 
 let _rowId = 0;
 const newAllocRow = (voucherDate: string): AllocRow => ({
   id: ++_rowId,
   due_on: voucherDate,
-  godown: "",
-  quantity: "",
-  rate: "",
+  godown: '',
+  batch_lot: '',
+  mfg_date: '',
+  expiry_date: '',
+  quantity: '',
+  rate: '',
   amount: 0,
   components: [],
   showGodownDD: false,
+  showBatchDD: false,
 });
 
 const focusEl = (sel: string) =>
   setTimeout(() => (document.querySelector(sel) as HTMLElement | null)?.focus(), 30);
 
 export default function JobWorkItemAllocationPopup({
-  companyId, itemId, itemName, orderNo, unitSymbol, voucherDate,
-  allGodowns, allStockItems, allUnits,
-  initialAllocations, onClose, onSave,
+  companyId,
+  itemId,
+  itemName,
+  orderNo,
+  unitSymbol,
+  voucherDate,
+  allGodowns,
+  allStockItems,
+  allUnits,
+  initialAllocations,
+  onClose,
+  onSave,
 }: Props) {
+  // Batch-tracked parent item? Drives the extra Batch / Lot No. column (Tally
+  // shows it only for items that maintain batches). Flags come from the master.
+  const parentItem = allStockItems.find((s: any) => s.item_id === itemId);
+  const isBatch = Boolean(Number(parentItem?.track_batches));
+  const trackMfg = Boolean(Number(parentItem?.track_date_of_manufacturing));
+  const trackExpiry = Boolean(Number(parentItem?.track_expiry));
+
+  // Active batches (name + expiry + balance) for the List of Active Batches.
+  const [activeBatches, setActiveBatches] = useState<BatchOption[]>([]);
+  const [createdBatches, setCreatedBatches] = useState<string[]>([]);
+  useEffect(() => {
+    if (!companyId || !itemId || !isBatch) return;
+    (window as any).api.report
+      .batchBalances?.(companyId, itemId)
+      .then((res: any) => {
+        if (res?.success) setActiveBatches(res.batches ?? []);
+      })
+      .catch(() => {});
+  }, [companyId, itemId, isBatch]);
+
+  // New Number popup — creates a fresh batch/lot for the given row.
+  const [newBatchRow, setNewBatchRow] = useState<number | null>(null);
+
   // Per-godown balances for this item — drives the qty column in List of Godowns.
   const [godownBal, setGodownBal] = useState<Record<number, number>>({});
   useEffect(() => {
@@ -84,9 +134,34 @@ export default function JobWorkItemAllocationPopup({
       })
       .catch(() => {});
   }, [companyId, itemId]);
+
+  // Pre-fill Rate from the item's last Purchase rate so Amount auto-computes the
+  // moment a Quantity is typed (Tally behaviour). Rows that already carry a rate
+  // — typed by the user, restored from a saved allocation, or component-based —
+  // are left untouched.
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.stockItem
+      .getLastPurchaseRate({ company_id: companyId, item_id: itemId })
+      .then((res: any) => {
+        if (!res?.success || !res.rate) return;
+        setRows((prev) =>
+          prev.map((r) => {
+            if (Number(r.rate) > 0 || (r.components?.length ?? 0) > 0) return r;
+            const qty = Number(r.quantity) || 0;
+            return {
+              ...r,
+              rate: String(res.rate),
+              amount: qty > 0 ? qty * res.rate : r.amount,
+            };
+          }),
+        );
+      })
+      .catch(() => {});
+  }, [companyId, itemId]);
   // Hydrate: any saved row carrying components means tracking was on.
-  const [trackComponents, setTrackComponents] = useState<"Yes" | "No">(() =>
-    initialAllocations?.some((r) => (r.components?.length ?? 0) > 0) ? "Yes" : "No"
+  const [trackComponents, setTrackComponents] = useState<'Yes' | 'No'>(() =>
+    initialAllocations?.some((r) => (r.components?.length ?? 0) > 0) ? 'Yes' : 'No',
   );
   const [showTrackDD, setShowTrackDD] = useState(false);
 
@@ -96,11 +171,15 @@ export default function JobWorkItemAllocationPopup({
         id: ++_rowId,
         due_on: r.due_on || voucherDate,
         godown: r.godown,
-        quantity: r.quantity ? String(r.quantity) : "",
-        rate: r.rate ? String(r.rate) : "",
+        batch_lot: r.batch_lot ?? '',
+        mfg_date: r.mfg_date ?? '',
+        expiry_date: r.expiry_date ?? '',
+        quantity: r.quantity ? String(r.quantity) : '',
+        rate: r.rate ? String(r.rate) : '',
         amount: r.amount,
         components: r.components ?? [],
         showGodownDD: false,
+        showBatchDD: false,
       }));
     }
     return [newAllocRow(voucherDate)];
@@ -110,6 +189,7 @@ export default function JobWorkItemAllocationPopup({
   const [compPopupData, setCompPopupData] = useState<{
     rowId: number;
     forGodown: string;
+    forBatch: string;
     quantity: number;
   } | null>(null);
 
@@ -117,17 +197,36 @@ export default function JobWorkItemAllocationPopup({
   const hasOpenedCompRef = useRef<Record<number, boolean>>({});
 
   const update = (id: number, patch: Partial<AllocRow>) =>
-    setRows((prev) => prev.map((r) => r.id === id ? { ...r, ...patch } : r));
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  // Inline validation message (Mfg Date vs Due on).
+  const [error, setError] = useState<string | null>(null);
+
+  // Manufacturing Date can't be after the row's Due on date (Tally rejects it) —
+  // the goods must exist by the time they're due. Reject the entry and flag why.
+  const setMfgDate = (row: AllocRow, value: string) => {
+    if (value && row.due_on && value > row.due_on) {
+      setError(`Manufacturing Date can't be after the Due on date (${fmtDate(row.due_on)}).`);
+      return;
+    }
+    setError(null);
+    update(row.id, { mfg_date: value });
+  };
 
   // Godown dropdown anchors, portaled to <body> with fixed coordinates below —
   // rows sit inside a scrollable (overflow-y-auto) body, so a plain
   // absolute-positioned dropdown gets clipped by that ancestor.
   const godownAnchorRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const [godownPos, setGodownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [godownPos, setGodownPos] = useState<{ top: number; left: number; width: number } | null>(
+    null,
+  );
   const openGodownRowId = rows.find((r) => r.showGodownDD)?.id ?? null;
 
   useEffect(() => {
-    if (openGodownRowId === null) { setGodownPos(null); return; }
+    if (openGodownRowId === null) {
+      setGodownPos(null);
+      return;
+    }
     const reposition = () => {
       const el = godownAnchorRefs.current[openGodownRowId];
       if (!el) return;
@@ -135,11 +234,11 @@ export default function JobWorkItemAllocationPopup({
       setGodownPos({ top: r.bottom + 2, left: r.left, width: 176 });
     };
     reposition();
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
     return () => {
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
     };
   }, [openGodownRowId]);
 
@@ -147,6 +246,12 @@ export default function JobWorkItemAllocationPopup({
   const totalAmount = rows.reduce((s, r) => s + r.amount, 0);
 
   const handleAccept = () => {
+    // Manufacturing Date can't be after that row's Due on date.
+    const badMfg = rows.find((r) => r.mfg_date && r.due_on && r.mfg_date > r.due_on);
+    if (badMfg) {
+      setError(`Manufacturing Date can't be after the Due on date (${fmtDate(badMfg.due_on)}).`);
+      return;
+    }
     // Keep any row carrying meaningful data — not only qty > 0. A row with a
     // godown/rate/components but no quantity yet must not be silently dropped.
     const filled = rows.filter(
@@ -154,25 +259,29 @@ export default function JobWorkItemAllocationPopup({
         Number(r.quantity) > 0 ||
         Number(r.rate) > 0 ||
         (Number(r.amount) || 0) > 0 ||
-        r.godown.trim() !== "" ||
-        (r.components?.length ?? 0) > 0
+        r.godown.trim() !== '' ||
+        (r.components?.length ?? 0) > 0,
     );
     // Additive per-row flag (track_components) — callers that don't know the key
     // simply ignore it; hydration reads it back via components presence too.
-    const payload: (JobWorkItemAllocationRow & { track_components?: "Yes" | "No" })[] =
-      filled.map((r) => {
+    const payload: (JobWorkItemAllocationRow & { track_components?: 'Yes' | 'No' })[] = filled.map(
+      (r) => {
         const qty = Number(r.quantity) || 0;
         const rate = Number(r.rate) || 0;
         // Recompute the amount at save so stale display values never persist:
         // component-based rows are worth their component total, plain rows qty*rate.
-        const amount = (r.components?.length ?? 0) > 0
-          ? compTotal(r)
-          : qty > 0 && rate > 0
-            ? qty * rate
-            : Number(r.amount) || 0;
+        const amount =
+          (r.components?.length ?? 0) > 0
+            ? compTotal(r)
+            : qty > 0 && rate > 0
+              ? qty * rate
+              : Number(r.amount) || 0;
         return {
           due_on: r.due_on,
           godown: r.godown,
+          batch_lot: isBatch ? r.batch_lot || undefined : undefined,
+          mfg_date: isBatch && trackMfg && r.mfg_date ? r.mfg_date : undefined,
+          expiry_date: isBatch && trackExpiry && r.expiry_date ? r.expiry_date : undefined,
           quantity: qty,
           rate,
           unit_symbol: unitSymbol,
@@ -180,16 +289,22 @@ export default function JobWorkItemAllocationPopup({
           components: r.components,
           track_components: trackComponents,
         };
-      });
+      },
+    );
     onSave(payload);
   };
 
   // Shell handles Esc / Alt+A; suppress both while the nested Components popup
   // is open so its own keys don't also close/accept this parent.
-  const shellClose = () => { if (!compPopupData) onClose(); };
-  const shellAccept = () => { if (!compPopupData) handleAccept(); };
+  const shellClose = () => {
+    if (!compPopupData && newBatchRow === null) onClose();
+  };
+  const shellAccept = () => {
+    if (!compPopupData && newBatchRow === null) handleAccept();
+  };
 
-  const inputCls = "text-xs px-1 py-0.5 border border-gray-400 w-full outline-none focus:border-black bg-white";
+  const inputCls =
+    'text-xs px-1 py-0.5 border border-gray-400 w-full outline-none focus:border-black bg-white';
 
   return (
     <>
@@ -200,6 +315,14 @@ export default function JobWorkItemAllocationPopup({
         onAccept={shellAccept}
         bodyClassName="p-0"
       >
+        {error && (
+          <div className="mx-6 mt-2 border border-gray-400 border-l-2 border-l-black text-black font-semibold text-xs px-3 py-2 flex justify-between items-center">
+            <span>&bull; {error}</span>
+            <button onClick={() => setError(null)} className="font-bold">
+              &times;
+            </button>
+          </div>
+        )}
         {/* Info block */}
         <div className="px-6 pt-3 pb-2 text-xs space-y-0.5 border-b border-gray-300 select-none">
           <div className="flex gap-2">
@@ -224,11 +347,20 @@ export default function JobWorkItemAllocationPopup({
               </button>
               {showTrackDD && (
                 <div className="absolute left-0 top-full mt-0.5 w-20 bg-white border border-gray-400 shadow-xl z-50">
-                  <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 border-b border-gray-300">Track Components</div>
-                  {(["Yes", "No"] as const).map((opt) => (
-                    <button key={opt} type="button"
-                      onMouseDown={(e) => { e.preventDefault(); setTrackComponents(opt); setShowTrackDD(false); }}
-                      className={`block w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 ${opt === trackComponents ? "font-bold" : ""}`}>
+                  <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 border-b border-gray-300">
+                    Track Components
+                  </div>
+                  {(['Yes', 'No'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setTrackComponents(opt);
+                        setShowTrackDD(false);
+                      }}
+                      className={`block w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 ${opt === trackComponents ? 'font-bold' : ''}`}
+                    >
                       {opt === trackComponents ? `♦ ${opt}` : opt}
                     </button>
                   ))}
@@ -238,13 +370,29 @@ export default function JobWorkItemAllocationPopup({
           </div>
         </div>
 
-        {/* Column headers */}
-        <div className="flex items-center border-b border-gray-300 bg-white px-6 py-1 gap-2 text-[10px] font-bold uppercase tracking-wide text-black select-none">
-          <div className="w-24 shrink-0">Godown</div>
-          <div className="w-24 text-right shrink-0">Quantity</div>
-          <div className="w-24 text-right shrink-0">Rate</div>
-          <div className="w-10 text-center shrink-0">per</div>
-          <div className="flex-1 text-right">Amount</div>
+        {/* Column headers — Batch / Lot No. column shown only for batch items. */}
+        <div className="border-b border-gray-300 bg-white px-6 pt-1 gap-2 text-[10px] font-bold uppercase tracking-wide text-black select-none">
+          <div className="flex items-center gap-2">
+            <div className="w-24 shrink-0">Godown</div>
+            {isBatch && <div className="w-40 shrink-0 text-center">Batch / Lot No.</div>}
+            <div className="w-24 text-right shrink-0">Quantity</div>
+            <div className="w-24 text-right shrink-0">Rate</div>
+            <div className="w-10 text-center shrink-0">per</div>
+            <div className="flex-1 text-right">Amount</div>
+          </div>
+          {isBatch && (trackMfg || trackExpiry) && (
+            <div className="flex items-center gap-2 pb-1 text-[9px] text-gray-500">
+              <div className="w-24 shrink-0" />
+              <div className="w-40 shrink-0 flex gap-1 text-center">
+                <div className="flex-1">{trackMfg ? 'Mfg Dt.' : ''}</div>
+                <div className="flex-1">{trackExpiry ? 'Expiry Date' : ''}</div>
+              </div>
+              <div className="w-24 shrink-0" />
+              <div className="w-24 shrink-0" />
+              <div className="w-10 shrink-0" />
+              <div className="flex-1" />
+            </div>
+          )}
         </div>
 
         {/* Rows */}
@@ -258,7 +406,12 @@ export default function JobWorkItemAllocationPopup({
                   type="date"
                   value={row.due_on}
                   onChange={(e) => update(row.id, { due_on: e.target.value })}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-jw-godown="${idx}"]`); }}}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      focusEl(`[data-jw-godown="${idx}"]`);
+                    }
+                  }}
                   className="text-[10px] border-b border-gray-400 outline-none bg-white ml-0.5 focus:border-black"
                   title={fmtDate(row.due_on)}
                 />
@@ -272,7 +425,12 @@ export default function JobWorkItemAllocationPopup({
               {/* Data row */}
               <div className="flex items-center px-6 pb-1 gap-2">
                 {/* Godown */}
-                <div className="w-24 shrink-0 relative" ref={(el) => { godownAnchorRefs.current[row.id] = el; }}>
+                <div
+                  className="w-24 shrink-0 relative"
+                  ref={(el) => {
+                    godownAnchorRefs.current[row.id] = el;
+                  }}
+                >
                   <input
                     type="text"
                     data-jw-godown={idx}
@@ -281,36 +439,188 @@ export default function JobWorkItemAllocationPopup({
                     onChange={(e) => update(row.id, { godown: e.target.value })}
                     onFocus={() => update(row.id, { showGodownDD: true })}
                     onBlur={() => setTimeout(() => update(row.id, { showGodownDD: false }), 150)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-jw-qty="${idx}"]`); }}}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        focusEl(isBatch ? `[data-jw-batch="${idx}"]` : `[data-jw-qty="${idx}"]`);
+                      }
+                    }}
                     placeholder="Location"
                     className={inputCls}
                   />
-                  {row.showGodownDD && godownPos && createPortal(
-                    <div
-                      style={{ position: "fixed", top: godownPos.top, left: godownPos.left, width: godownPos.width }}
-                      className="bg-white border border-gray-400 shadow-xl z-[60] max-h-40 overflow-y-auto"
-                    >
-                      <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 border-b border-gray-300">List of Godowns</div>
-                      {allGodowns
-                        .filter((g) => !row.godown || g.name.toLowerCase().includes(row.godown.toLowerCase()))
-                        .map((g: any) => (
-                          <button key={g.godown_id ?? g.name} type="button"
+                  {row.showGodownDD &&
+                    godownPos &&
+                    createPortal(
+                      <div
+                        style={{
+                          position: 'fixed',
+                          top: godownPos.top,
+                          left: godownPos.left,
+                          width: godownPos.width,
+                        }}
+                        className="bg-white border border-gray-400 shadow-xl z-[60] max-h-40 overflow-y-auto"
+                      >
+                        <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 border-b border-gray-300">
+                          List of Godowns
+                        </div>
+                        {allGodowns
+                          .filter(
+                            (g) =>
+                              !row.godown ||
+                              g.name.toLowerCase().includes(row.godown.toLowerCase()),
+                          )
+                          .map((g: any) => (
+                            <button
+                              key={g.godown_id ?? g.name}
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                update(row.id, { godown: g.name, showGodownDD: false });
+                                focusEl(`[data-jw-qty="${idx}"]`);
+                              }}
+                              className="flex w-full items-center justify-between text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
+                            >
+                              <span className="truncate">{g.name}</span>
+                              <span className="font-mono text-gray-600 shrink-0 ml-2">
+                                {g.godown_id != null
+                                  ? fmtQty(godownBal[g.godown_id], unitSymbol)
+                                  : ''}
+                              </span>
+                            </button>
+                          ))}
+                      </div>,
+                      document.body,
+                    )}
+                </div>
+
+                {/* Batch / Lot No. — batch-tracked parent items only. Opens the
+                    List of Active Batches (♦ Any + New Number + existing lots). */}
+                {isBatch && (
+                  <div className="w-40 shrink-0 relative">
+                    <input
+                      type="text"
+                      data-jw-batch={idx}
+                      value={row.batch_lot}
+                      onChange={(e) => update(row.id, { batch_lot: e.target.value })}
+                      onFocus={() => update(row.id, { showBatchDD: true })}
+                      onBlur={() => setTimeout(() => update(row.id, { showBatchDD: false }), 150)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          update(row.id, { showBatchDD: false });
+                          focusEl(`[data-jw-qty="${idx}"]`);
+                        }
+                      }}
+                      placeholder="Any / New Number…"
+                      className={`${inputCls} font-semibold`}
+                    />
+                    {(trackMfg || trackExpiry) && (
+                      <div className="flex gap-1 mt-0.5">
+                        <div className="flex-1">
+                          {trackMfg && (
+                            <input
+                              type="date"
+                              value={row.mfg_date}
+                              max={row.due_on || undefined}
+                              onChange={(e) => setMfgDate(row, e.target.value)}
+                              className={`${inputCls} font-mono text-[9px] px-0.5`}
+                              title="Mfg Dt."
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          {trackExpiry && (
+                            <input
+                              type="date"
+                              value={row.expiry_date}
+                              onChange={(e) => update(row.id, { expiry_date: e.target.value })}
+                              className={`${inputCls} font-mono text-[9px] px-0.5`}
+                              title="Expiry Date"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {row.showBatchDD && (
+                      <div className="absolute left-0 top-full mt-0.5 w-44 bg-white border border-gray-400 shadow-xl z-[60] max-h-44 overflow-y-auto">
+                        <div className="bg-white text-black text-[10px] font-bold px-2 py-1 border-b border-gray-400 flex justify-between items-center">
+                          <span>List of Active Batches</span>
+                          {/* New Number — always available (Tally shows it for outward too). */}
+                          <button
+                            type="button"
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              update(row.id, { godown: g.name, showGodownDD: false });
-                              focusEl(`[data-jw-qty="${idx}"]`);
+                              update(row.id, { showBatchDD: false });
+                              setNewBatchRow(row.id);
                             }}
-                            className="flex w-full items-center justify-between text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
-                            <span className="truncate">{g.name}</span>
-                            <span className="font-mono text-gray-600 shrink-0 ml-2">
-                              {g.godown_id != null ? fmtQty(godownBal[g.godown_id], unitSymbol) : ""}
-                            </span>
+                            className="underline font-semibold hover:text-gray-600"
+                          >
+                            New Number
                           </button>
-                        ))}
-                    </div>,
-                    document.body
-                  )}
-                </div>
+                        </div>
+                        <div className="flex text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-200">
+                          <div className="flex-1">Name</div>
+                          <div className="w-14 text-center">Expiry</div>
+                          <div className="w-12 text-right">Balance</div>
+                        </div>
+                        {/* Any — no specific lot. */}
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            update(row.id, {
+                              batch_lot: 'Any',
+                              mfg_date: '',
+                              expiry_date: '',
+                              showBatchDD: false,
+                            });
+                            focusEl(`[data-jw-qty="${idx}"]`);
+                          }}
+                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
+                        >
+                          {ANY}
+                        </button>
+                        {[
+                          ...activeBatches,
+                          ...createdBatches
+                            .filter((n) => !activeBatches.some((b) => b.name === n))
+                            .map((n) => ({ name: n }) as BatchOption),
+                        ]
+                          .filter(
+                            (b) =>
+                              !row.batch_lot ||
+                              row.batch_lot === 'Any' ||
+                              b.name.toLowerCase().includes(row.batch_lot.toLowerCase()),
+                          )
+                          .map((b) => (
+                            <button
+                              key={b.name}
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                update(row.id, {
+                                  batch_lot: b.name,
+                                  mfg_date: b.mfg_date ?? row.mfg_date,
+                                  expiry_date: b.expiry_date ?? row.expiry_date,
+                                  showBatchDD: false,
+                                });
+                                focusEl(`[data-jw-qty="${idx}"]`);
+                              }}
+                              className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+                            >
+                              <div className="flex-1 font-semibold truncate">{b.name}</div>
+                              <div className="w-14 text-center font-mono text-gray-600">
+                                {fmtDate(b.expiry_date ?? '')}
+                              </div>
+                              <div className="w-12 text-right font-mono text-gray-600">
+                                {b.balance ? fmtQty(b.balance, unitSymbol) : ''}
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Quantity */}
                 <div className="w-24 shrink-0">
@@ -341,12 +651,21 @@ export default function JobWorkItemAllocationPopup({
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (e.key === 'Enter') {
                         e.preventDefault();
                         const qty = Number(row.quantity) || 0;
-                        if (trackComponents === "Yes" && qty > 0 && !hasOpenedCompRef.current[row.id]) {
+                        if (
+                          trackComponents === 'Yes' &&
+                          qty > 0 &&
+                          !hasOpenedCompRef.current[row.id]
+                        ) {
                           hasOpenedCompRef.current[row.id] = true;
-                          setCompPopupData({ rowId: row.id, forGodown: row.godown, quantity: qty });
+                          setCompPopupData({
+                            rowId: row.id,
+                            forGodown: row.godown || ANY,
+                            forBatch: row.batch_lot || ANY,
+                            quantity: qty,
+                          });
                         } else {
                           focusEl(`[data-jw-rate="${idx}"]`);
                         }
@@ -369,7 +688,7 @@ export default function JobWorkItemAllocationPopup({
                       update(row.id, { rate: v, amount: amt, amountRaw: undefined });
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (e.key === 'Enter') {
                         e.preventDefault();
                         if (idx === rows.length - 1) {
                           setRows((prev) => [...prev, newAllocRow(voucherDate)]);
@@ -384,7 +703,9 @@ export default function JobWorkItemAllocationPopup({
                 </div>
 
                 {/* per */}
-                <div className="w-10 shrink-0 text-center text-[11px] text-gray-600 font-mono">{unitSymbol}</div>
+                <div className="w-10 shrink-0 text-center text-[11px] text-gray-600 font-mono">
+                  {unitSymbol}
+                </div>
 
                 {/* Amount — editable; typing an amount back-calculates the rate */}
                 <div className="flex-1">
@@ -392,7 +713,7 @@ export default function JobWorkItemAllocationPopup({
                     type="text"
                     inputMode="decimal"
                     data-jw-amount={idx}
-                    value={row.amountRaw ?? (row.amount > 0 ? String(row.amount) : "")}
+                    value={row.amountRaw ?? (row.amount > 0 ? String(row.amount) : '')}
                     onChange={(e) => {
                       const v = e.target.value;
                       const amt = Number(v) || 0;
@@ -410,16 +731,22 @@ export default function JobWorkItemAllocationPopup({
               </div>
 
               {/* Components indicator (if trackComponents=Yes and filled) */}
-              {trackComponents === "Yes" && (row.components?.length ?? 0) > 0 && (
+              {trackComponents === 'Yes' && (row.components?.length ?? 0) > 0 && (
                 <div className="px-6 pb-1 flex items-center gap-2">
                   <span className="text-[10px] text-gray-600 italic">
-                    {row.components!.length} component{row.components!.length > 1 ? "s" : ""} allocated
+                    {row.components!.length} component{row.components!.length > 1 ? 's' : ''}{' '}
+                    allocated
                   </span>
                   <button
                     type="button"
                     onClick={() => {
                       hasOpenedCompRef.current[row.id] = true;
-                      setCompPopupData({ rowId: row.id, forGodown: row.godown, quantity: Number(row.quantity) || 0 });
+                      setCompPopupData({
+                        rowId: row.id,
+                        forGodown: row.godown || ANY,
+                        forBatch: row.batch_lot || ANY,
+                        quantity: Number(row.quantity) || 0,
+                      });
                     }}
                     className="text-[10px] underline text-gray-600 hover:text-black"
                   >
@@ -434,10 +761,11 @@ export default function JobWorkItemAllocationPopup({
         {/* Totals */}
         <div className="flex items-center border-t border-black px-6 py-1 gap-2 font-bold text-xs font-mono">
           <div className="w-24 shrink-0" />
-          <div className="w-24 shrink-0 text-right">{totalQty > 0 ? totalQty : ""}</div>
+          {isBatch && <div className="w-40 shrink-0" />}
+          <div className="w-24 shrink-0 text-right">{totalQty > 0 ? totalQty : ''}</div>
           <div className="w-24 shrink-0" />
           <div className="w-10 shrink-0" />
-          <div className="flex-1 text-right">{totalAmount > 0 ? num(totalAmount) : ""}</div>
+          <div className="flex-1 text-right">{totalAmount > 0 ? num(totalAmount) : ''}</div>
         </div>
       </VoucherPopupShell>
 
@@ -446,6 +774,7 @@ export default function JobWorkItemAllocationPopup({
         <ComponentsAllocationPopup
           parentItemName={itemName}
           forGodown={compPopupData.forGodown}
+          forBatch={isBatch ? compPopupData.forBatch : undefined}
           quantity={compPopupData.quantity}
           unitSymbol={unitSymbol}
           voucherDate={voucherDate}
@@ -466,6 +795,23 @@ export default function JobWorkItemAllocationPopup({
             });
             setCompPopupData(null);
           }}
+        />
+      )}
+
+      {/* New Number — type a fresh batch/lot; it then joins the List of Active Batches. */}
+      {newBatchRow !== null && (
+        <NewNumberPopup
+          title="New Number"
+          label="Batch / Lot No."
+          onConfirm={(v) => {
+            const id = newBatchRow;
+            setCreatedBatches((prev) => (prev.includes(v) ? prev : [...prev, v]));
+            update(id, { batch_lot: v });
+            setNewBatchRow(null);
+            const i = rows.findIndex((r) => r.id === id);
+            if (i >= 0) focusEl(`[data-jw-qty="${i}"]`);
+          }}
+          onClose={() => setNewBatchRow(null)}
         />
       )}
     </>

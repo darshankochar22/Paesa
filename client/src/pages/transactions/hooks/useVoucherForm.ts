@@ -7,6 +7,7 @@ import { useVoucherMeta } from './useVoucherMeta';
 import { useVoucherLedgers } from './useVoucherLedgers';
 import { useVoucherRows as useVoucherRowsInternal } from './useVoucherRowsNew';
 import { pickDefaultRegistrationFrom } from '../utils/defaultRegistration';
+import { parseDueOn } from '@/lib/dueDate';
 
 // Re-export types so any file that previously imported from this hook still works
 export type { ParticularRow, StockEntryRow, ActiveField, ActiveAllocation } from '../types';
@@ -471,8 +472,23 @@ export function useVoucherForm(
         return 'At least one Payroll entry with a positive amount is required.';
     }
 
+    // Manufacturing Date can never be later than the voucher date — Tally rejects
+    // a future manufacture date. Applies to every batch-tracked stock row across
+    // all voucher types (main table + Stock/Mfg Journal source & destination).
+    const allStockRows = [
+      ...rows.stockEntries,
+      ...(rows.sourceStockEntries ?? []),
+      ...(rows.destinationStockEntries ?? []),
+    ];
+    const futureMfg = allStockRows.find((r) => {
+      const iso = parseDueOn((r as any).mfgDate, meta.date);
+      return iso && meta.date && iso > meta.date;
+    });
+    if (futureMfg)
+      return `Manufacturing Date (${(futureMfg as any).mfgDate}) cannot be after the voucher date (${meta.date}).`;
+
     return null;
-  }, [companyId, fyId, effectiveVoucherType, rows, ledgers.checkIsCashOrBank]);
+  }, [companyId, fyId, effectiveVoucherType, rows, meta.date, ledgers.checkIsCashOrBank]);
 
   // ── handleSubmit ───────────────────────────────────────────────────────────
 
@@ -1019,14 +1035,21 @@ export function useVoucherForm(
           gst_registration_id: gstRegistration?.gst_id ?? null,
           voucher_class: meta.voucherClass || null,
           narration: meta.narration || null,
+          // Payroll posts its net pay against the top "Account" (cash/bank) ledger, which
+          // the payroll layout stores in accountLedger — not partyLedger. The backend needs
+          // this id to add the balancing entry, else Dr/Cr won't equal on save.
           party_ledger_id:
-            effectiveVoucherType === 'Payroll' || partyLedgerTypes.includes(effectiveVoucherType)
-              ? (rows.partyLedger?.ledger_id ?? null)
-              : null,
+            effectiveVoucherType === 'Payroll'
+              ? (rows.accountLedger?.ledger_id ?? null)
+              : partyLedgerTypes.includes(effectiveVoucherType)
+                ? (rows.partyLedger?.ledger_id ?? null)
+                : null,
           party_name:
-            effectiveVoucherType === 'Payroll' || partyLedgerTypes.includes(effectiveVoucherType)
-              ? (rows.partyLedger?.name ?? null)
-              : null,
+            effectiveVoucherType === 'Payroll'
+              ? (rows.accountLedger?.name ?? null)
+              : partyLedgerTypes.includes(effectiveVoucherType)
+                ? (rows.partyLedger?.name ?? null)
+                : null,
           // Non-accounting vouchers (Receipt Note, orders) keep their Sales/Purchase
           // ledger on the voucher row since no accounting entry is posted for it.
           sales_purchase_ledger_id: rows.salesPurchaseLedger?.ledger_id ?? null,
