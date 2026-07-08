@@ -268,7 +268,7 @@ export default function InvoicePrintView() {
                   isIgst ? '' : 'SGST',
                   'Amount',
                 ]
-                  .filter((h, i) => !(i === 8 && isIgst))
+                  .filter((_, i) => !(i === 8 && isIgst))
                   .map((h) => (
                     <th key={h} className="border border-black px-1 py-0.5 text-left font-bold">
                       {h}

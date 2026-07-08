@@ -680,12 +680,12 @@ export default function PurchaseVoucher({
       </div>
 
       {/* Provide GST/e-Way Bill details */}
-      <PurchaseGstEwayRow form={form} />
+      <PurchaseGstEwayRow />
     </>
   );
 }
 
-function PurchaseGstEwayRow({ form }: { form: any }) {
+function PurchaseGstEwayRow() {
   const [provide, setProvide] = useState<'Yes' | 'No'>('No');
   return (
     <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
