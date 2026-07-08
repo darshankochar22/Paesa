@@ -40,10 +40,12 @@ const pruneEmptyGstn = (v) => {
   return v;
 };
 
+// Filing always uses a FRESH computation (generateGSTR1), never the cached gstr1_exports
+// snapshot that the report screens read — you must save/file the current books, not stale data.
 const compute = (return_type, company_id, fy_id, return_period) =>
   return_type === 'GSTR3B'
     ? gstr3bService.getGSTR3B(company_id, fy_id, return_period)
-    : gstr1Service.getGSTR1(company_id, fy_id, return_period);
+    : gstr1Service.generateGSTR1(company_id, fy_id, return_period);
 
 const upsertFiling = async (company_id, return_type, return_period, fields) => {
   const existing = await db.all(

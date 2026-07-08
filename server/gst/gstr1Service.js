@@ -478,12 +478,29 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           };
         }
 
+        // Per-entry tax is often 0 on the stock line (the real split lives in the tax
+        // lines), so derive CGST/SGST/IGST from the rate + supply type — otherwise the
+        // HSN summary reports zero tax and fails to reconcile with the return.
+        const hsnRate = rateDetails.gst_rate || entry.gst_rate || 0;
+        const isInter = taxLines.some((l) => l.tax_type === 'IGST');
+        let hIamt = entry.igst_amount || 0,
+          hCamt = entry.cgst_amount || 0,
+          hSamt = entry.sgst_amount || 0;
+        if (hsnRate > 0 && !hIamt && !hCamt && !hSamt) {
+          if (isInter) {
+            hIamt = Number(((taxableVal * hsnRate) / 100).toFixed(2));
+          } else {
+            hCamt = Number(((taxableVal * hsnRate) / 200).toFixed(2));
+            hSamt = hCamt;
+          }
+        }
+
         hsnSummary[hsn].qty += qty;
         hsnSummary[hsn].val += value;
         hsnSummary[hsn].txval += taxableVal;
-        hsnSummary[hsn].iamt += entry.igst_amount || 0;
-        hsnSummary[hsn].camt += entry.cgst_amount || 0;
-        hsnSummary[hsn].samt += entry.sgst_amount || 0;
+        hsnSummary[hsn].iamt += hIamt;
+        hsnSummary[hsn].camt += hCamt;
+        hsnSummary[hsn].samt += hSamt;
         hsnSummary[hsn].csamt += entry.cess_amount || 0;
       }
     }
