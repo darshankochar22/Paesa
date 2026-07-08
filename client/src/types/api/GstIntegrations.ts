@@ -91,6 +91,13 @@ export interface GstIntegrationsAPI {
       company_id: number,
     ) => Promise<{ success: boolean; records: EInvoiceRecord[]; error?: string }>;
     getRecordByIRN: (p: { irn: string }) => Promise<ApiResult>;
+    getByVoucher: (
+      voucher_id: number,
+    ) => Promise<{
+      success: boolean;
+      record?: EInvoiceRecord & { signed_qr_code?: string; ewb_no?: string | null };
+      error?: string;
+    }>;
   };
   ewayBill: {
     getStatus: (company_id: number) => Promise<IntegrationStatus>;

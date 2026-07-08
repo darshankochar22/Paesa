@@ -8,6 +8,7 @@ import { EDITABLE_VOUCHER_TYPES } from './hooks/hydrateVoucherForm';
 import { type Voucher, formatDateBox, FKeyPanel } from './voucher-views/shared';
 import VoucherBody from './voucher-views/VoucherBody';
 import GstVoucherActions from '@/pages/compliance/GstVoucherActions';
+import EInvoiceVoucherBlock from '@/pages/compliance/EInvoiceVoucherBlock';
 
 // Loader + shared chrome for a voucher. The type-specific body is dispatched to
 // a dedicated per-type page (see ./voucher-views/VoucherBody). Every navigation
@@ -39,6 +40,25 @@ export default function VoucherView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [einv, setEinv] = useState<
+    | (import('@/types/api/GstIntegrations').EInvoiceRecord & {
+        signed_qr_code?: string;
+        ewb_no?: string | null;
+      })
+    | null
+  >(null);
+
+  // Pull the e-Invoice (IRN) record for this voucher, if one was generated.
+  useEffect(() => {
+    if (!voucher?.voucher_id) {
+      setEinv(null);
+      return;
+    }
+    window.api.eInvoice
+      .getByVoucher(voucher.voucher_id)
+      .then((r) => setEinv(r.success && r.record ? r.record : null))
+      .catch(() => setEinv(null));
+  }, [voucher?.voucher_id]);
 
   useEffect(() => {
     if (!id) return;
@@ -244,6 +264,8 @@ export default function VoucherView() {
             <span className="text-sm text-black shrink-0">Narration:</span>
             <span className="flex-1 text-sm text-black ml-2">{voucher.narration || '—'}</span>
           </div>
+
+          {einv && einv.irn && <EInvoiceVoucherBlock record={einv} />}
         </div>
 
         <FKeyPanel voucherType={voucher.voucher_type} />

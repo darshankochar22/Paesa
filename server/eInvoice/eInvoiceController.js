@@ -19,7 +19,12 @@ module.exports = {
   generateIRN: async (event, { company_id, voucher_id, invoice_payload }) => {
     const creds = await eInvoiceService.getCredentials(company_id);
     if (!creds.success) return creds;
-    const result = await eInvoiceService.generateIRN(company_id, voucher_id, invoice_payload, creds.credentials);
+    const result = await eInvoiceService.generateIRN(
+      company_id,
+      voucher_id,
+      invoice_payload,
+      creds.credentials,
+    );
     if (result && result.success && result.data) {
       try {
         const record = await eInvoiceService.getRecordByIRN(result.data.Irn);
@@ -56,11 +61,16 @@ module.exports = {
       console.error('Error fetching e-invoice snapshot before cancel:', err);
     }
 
-    const result = await eInvoiceService.cancelIRN(irn, cancel_reason, cancel_remarks, creds.credentials);
+    const result = await eInvoiceService.cancelIRN(
+      irn,
+      cancel_reason,
+      cancel_remarks,
+      creds.credentials,
+    );
     if (result && result.success) {
       try {
         const afterSnap = await eInvoiceService.getRecordByIRN(irn);
-        const after = (afterSnap && afterSnap.success) ? afterSnap.record : null;
+        const after = afterSnap && afterSnap.success ? afterSnap.record : null;
         await auditTrailService.record({
           company_id: company_id,
           entity_type: ENTITY_TYPE,
@@ -90,6 +100,10 @@ module.exports = {
 
   getRecordByIRN: async (event, { irn }) => {
     return await eInvoiceService.getRecordByIRN(irn);
+  },
+
+  getByVoucher: async (event, { voucher_id }) => {
+    return await eInvoiceService.getByVoucher(voucher_id);
   },
 
   // ---- developer-side (.env) path via the shared NIC client ----

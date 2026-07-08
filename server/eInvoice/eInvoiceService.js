@@ -296,12 +296,32 @@ const getCredentials = async (company_id) => {
 
 const getRecords = async (company_id) => {
   try {
+    // Join the voucher + party so the IRN Register shows a real Date + Party (neither is
+    // stored on einvoice_records itself).
     const rows = await db.all(
-      sql`SELECT * FROM ${einvoiceRecords}
-          WHERE ${einvoiceRecords.companyId} = ${company_id}
-          ORDER BY ${einvoiceRecords.createdAt} DESC`,
+      sql`SELECT er.*, v.date AS date, v.voucher_number AS voucher_number,
+                 COALESCE(l.name, v.party_name) AS party_name
+          FROM einvoice_records er
+          LEFT JOIN vouchers v ON v.voucher_id = er.voucher_id
+          LEFT JOIN ledgers l ON l.ledger_id = v.party_ledger_id
+          WHERE er.company_id = ${company_id}
+          ORDER BY er.created_at DESC`,
     );
     return { success: true, records: rows };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Latest e-Invoice record for one voucher — drives the IRN/QR block on the voucher view.
+const getByVoucher = async (voucher_id) => {
+  try {
+    const rows = await db.all(
+      sql`SELECT * FROM einvoice_records WHERE voucher_id = ${voucher_id}
+          ORDER BY irn_id DESC LIMIT 1`,
+    );
+    if (rows.length === 0) return { success: false, error: 'No e-Invoice for this voucher' };
+    return { success: true, record: rows[0] };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -469,6 +489,7 @@ module.exports = {
   saveCredentials,
   getCredentials,
   getRecords,
+  getByVoucher,
   getRecordByIRN,
   isTokenValid,
   getCache,

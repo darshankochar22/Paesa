@@ -753,6 +753,7 @@ contextBridge.exposeInMainWorld('api', {
     generateFromVoucher: (payload) => invoke('eInvoice:generateFromVoucher', payload),
     getRecords: (company_id) => invoke('eInvoice:getRecords', { company_id }),
     getRecordByIRN: (irn) => invoke('eInvoice:getRecordByIRN', { irn }),
+    getByVoucher: (voucher_id) => invoke('eInvoice:getByVoucher', { voucher_id }),
     cancelIRN: (payload) => invoke('eInvoice:cancelIRN', payload),
   },
   ewayBill: {

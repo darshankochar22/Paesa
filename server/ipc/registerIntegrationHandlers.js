@@ -18,6 +18,7 @@ function register() {
   ipcMain.handle('eInvoice:getCredentials', eInvoiceController.getCredentials);
   ipcMain.handle('eInvoice:getRecords', eInvoiceController.getRecords);
   ipcMain.handle('eInvoice:getRecordByIRN', eInvoiceController.getRecordByIRN);
+  ipcMain.handle('eInvoice:getByVoucher', eInvoiceController.getByVoucher);
   ipcMain.handle('eInvoice:getStatus', eInvoiceController.getStatus);
   ipcMain.handle('eInvoice:generateFromVoucher', eInvoiceController.generateFromVoucher);
 
