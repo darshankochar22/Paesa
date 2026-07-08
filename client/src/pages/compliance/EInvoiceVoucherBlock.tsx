@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
+import { Button } from '@/components/shadcn/button';
 import type { EInvoiceRecord } from '@/types/api/GstIntegrations';
 
 type Rec = EInvoiceRecord & { signed_qr_code?: string; ewb_no?: string | null };
@@ -9,6 +11,7 @@ type Rec = EInvoiceRecord & { signed_qr_code?: string; ewb_no?: string | null };
 // printable area so it appears on the exported invoice too.
 export default function EInvoiceVoucherBlock({ record }: { record: Rec }) {
   const [qr, setQr] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let alive = true;
@@ -36,8 +39,20 @@ export default function EInvoiceVoucherBlock({ record }: { record: Rec }) {
   return (
     <div className="flex items-start justify-between gap-4 border-t border-gray-300 shrink-0 px-3 py-2 bg-white">
       <div>
-        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-black">
-          e-Invoice Details
+        <div className="mb-1 flex items-center gap-3">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-black">
+            e-Invoice Details
+          </span>
+          {record.voucher_id ? (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => navigate(`/transactions/voucher/${record.voucher_id}/invoice`)}
+              className="h-auto rounded-none border-zinc-400 px-2 py-0 text-[11px] text-zinc-800 hover:bg-zinc-100"
+            >
+              View Invoice Bill →
+            </Button>
+          ) : null}
         </div>
         <div className="space-y-0.5 text-[13px]">
           <Row label="IRN" value={record.irn} />
