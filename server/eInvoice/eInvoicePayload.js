@@ -3,7 +3,11 @@
 // are still required for the sandbox to accept it.
 
 let resolveStateCode;
-try { ({ resolveStateCode } = require('../gst/gstTaxEngine')); } catch { resolveStateCode = null; }
+try {
+  ({ resolveStateCode } = require('../gst/gstTaxEngine'));
+} catch {
+  resolveStateCode = null;
+}
 
 const round = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -30,13 +34,31 @@ function toPin(pin) {
 function buildIrnPayload(voucher, seller, buyer) {
   const items = voucher.stock_entries || [];
 
+  const sellerStcd = stcd(seller.gstin, seller.state);
+  const buyerStcd = stcd(buyer.gstin, buyer.state) || sellerStcd;
+  const isIntra = !!sellerStcd && sellerStcd === buyerStcd;
+
   const itemList = items.map((it, i) => {
     const qty = Number(it.quantity) || 0;
     const unitPrice = Number(it.rate) || 0;
     const totAmt = round(qty * unitPrice);
     const disc = Number(it.discount_amount) || 0;
     const assAmt = round(totAmt - disc);
-    const cgst = round(it.cgst_amount), sgst = round(it.sgst_amount), igst = round(it.igst_amount);
+    const rate = Number(it.gst_rate) || 0;
+    // Per-entry tax is often 0 on the stock line (the real split lives in
+    // gst_voucher_tax_lines), so derive CGST/SGST/IGST from the rate + supply type
+    // when the stored amounts are empty. NIC rejects a rated item with zero tax.
+    let cgst = round(it.cgst_amount),
+      sgst = round(it.sgst_amount),
+      igst = round(it.igst_amount);
+    if (rate > 0 && !cgst && !sgst && !igst) {
+      if (isIntra) {
+        cgst = round((assAmt * rate) / 200);
+        sgst = cgst;
+      } else {
+        igst = round((assAmt * rate) / 100);
+      }
+    }
     return {
       SlNo: String(i + 1),
       PrdDesc: it.item_name || `Item ${i + 1}`,
@@ -48,10 +70,12 @@ function buildIrnPayload(voucher, seller, buyer) {
       TotAmt: totAmt,
       Discount: disc,
       AssAmt: assAmt,
-      GstRt: Number(it.gst_rate) || 0,
+      GstRt: rate,
       IgstAmt: igst,
       CgstAmt: cgst,
       SgstAmt: sgst,
+      CesRt: 0,
+      CesAmt: 0,
       TotItemVal: round(assAmt + cgst + sgst + igst),
     };
   });
@@ -62,12 +86,13 @@ function buildIrnPayload(voucher, seller, buyer) {
     CgstVal: sum('CgstAmt'),
     SgstVal: sum('SgstAmt'),
     IgstVal: sum('IgstAmt'),
+    CesVal: 0,
+    StCesVal: 0,
     Discount: sum('Discount'),
+    OthChrg: 0,
+    RndOffAmt: 0,
     TotInvVal: sum('TotItemVal'),
   };
-
-  const sellerStcd = stcd(seller.gstin, seller.state);
-  const buyerStcd = stcd(buyer.gstin, buyer.state) || sellerStcd;
 
   return {
     Version: '1.1',

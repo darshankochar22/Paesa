@@ -403,7 +403,12 @@ const generateFromVoucher = async (company_id, voucher_id) => {
     const payload = buildIrnPayload(voucher, seller, buyer);
     let r, d;
     if (getWhitebooksConfig()) {
-      r = await wb.einv.request('POST', WB_EINV.GENERATE, payload);
+      // NIC sandbox intermittently returns 5001/5002 ("application error, please try
+      // again"); retry those transient failures a couple of times before surfacing.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        r = await wb.einv.request('POST', WB_EINV.GENERATE, payload);
+        if (r.ok || !/500[12]/.test(String(r.error || ''))) break;
+      }
       if (!r.ok) return { success: false, error: r.error };
       d = r.data || {};
     } else {

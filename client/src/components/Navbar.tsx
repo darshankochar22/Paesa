@@ -72,8 +72,9 @@ export default function Navbar() {
       name: 'Exchange',
       options: [
         { label: 'Get' },
-        { label: 'Send for e-Invoicing' },
-        { label: 'Send for e-Way Bill' },
+        { label: 'Send for e-Invoicing', path: '/compliance/einvoice' },
+        { label: 'Send for e-Way Bill', path: '/compliance/eway' },
+        { label: 'GST Filing', path: '/compliance/filing' },
         { label: 'GSTR-1 Return', path: '/master/statutory/gstr1' },
         { label: 'All GST Options', path: '/data/gstRegistration' },
         { label: 'Banking', path: '/utilities/banking' },

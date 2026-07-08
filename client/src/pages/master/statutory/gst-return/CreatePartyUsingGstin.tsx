@@ -12,7 +12,7 @@ interface CreateResult {
 
 // Mirrors the server's GSTIN_RE (server/gst/reconciliationService.js) so the client
 // blocks an invalid GSTIN/UIN at entry, exactly like Tally's "Specify GSTINs/UINs" list.
-const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{3}$/;
 
 export default function CreatePartyUsingGstin() {
   const { selectedCompany } = useCompany();
@@ -117,7 +117,7 @@ export default function CreatePartyUsingGstin() {
         gstins: list,
       });
       if (res.success) {
-        const rs = ((res.results || []) as CreateResult[]);
+        const rs = (res.results || []) as CreateResult[];
         const okCount = rs.filter((r) => r.success).length;
         const failed = rs.filter((r) => !r.success);
         // Reset the form clean (like Tally) and report the outcome as a transient popup —
@@ -196,7 +196,6 @@ export default function CreatePartyUsingGstin() {
             </button>
           </div>
         </div>
-
       </div>
 
       {error && !confirmAccept && (

@@ -150,7 +150,7 @@ async function einvAuth(cfg) {
   return { ok: false, error: errOf(res) };
 }
 
-async function einvRequest(method, path, body, extraQuery = '') {
+async function einvRequest(method, path, body, extraQuery = '', extraHeaders = {}) {
   const cfg = getWhitebooksConfig();
   if (!cfg) return { ok: false, error: 'WhiteBooks not configured (.env)' };
   if (!tokenValid(caches.einv)) {
@@ -169,6 +169,7 @@ async function einvRequest(method, path, body, extraQuery = '') {
       username: g.username,
       'auth-token': caches.einv.token,
       gstin: cfg.gstin,
+      ...extraHeaders,
     },
     body,
   );

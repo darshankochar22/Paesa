@@ -2,7 +2,13 @@
 
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { vouchers, ledgers, gstRegistrations, voucherStockEntries, companies } = require('../db/schema');
+const {
+  vouchers,
+  ledgers,
+  gstRegistrations,
+  voucherStockEntries,
+  companies,
+} = require('../db/schema');
 // Attendance vouchers live in their own table; reuse the Day Book helper so the GST
 // drill engine sees them (as voucher_type 'Attendance') exactly as every other screen does.
 const { fetchAttendanceVoucherRows } = require('../voucher/voucherReads');
@@ -813,7 +819,7 @@ const MONTH_ABBR = [
   'Nov',
   'Dec',
 ];
-const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{3}$/;
 
 // Build the 12 months of a financial year from its start date ('YYYY-MM-DD').
 // Each entry carries the keys used downstream: `ym` for GROUP BY substr(date,1,7),
@@ -1871,7 +1877,13 @@ const getAnnualMonthly = async (company_id, fy_id, opts = {}) => {
 // All 4 master types keep their own GST columns; ledgers keep them in
 // ledger_statutory_details. This is a read view — editing is via the master screens.
 // ───────────────────────────────────────────────────────────────────────────────
-const rateSetupStatus = ({ gst_applicability, taxability_type, gst_rate, hsn, gst_rate_source }) => {
+const rateSetupStatus = ({
+  gst_applicability,
+  taxability_type,
+  gst_rate,
+  hsn,
+  gst_rate_source,
+}) => {
   const taxability = String(taxability_type || '').trim();
   const rate = Number(gst_rate) || 0;
   if (String(gst_applicability || '') === 'Not Applicable') return 'GST Not Applicable';
@@ -1879,7 +1891,8 @@ const rateSetupStatus = ({ gst_applicability, taxability_type, gst_rate, hsn, gs
   // own — GST applies but the rate details are inherited/blank, so it is "not provided",
   // regardless of the placeholder taxability_type='Taxable' the form leaves behind. (Stock
   // items pass gst_rate_source undefined and fall through to the value-based logic below.)
-  if (String(gst_rate_source || '') === 'As per Company/Group') return 'GST Rate Details Not Provided';
+  if (String(gst_rate_source || '') === 'As per Company/Group')
+    return 'GST Rate Details Not Provided';
   if (/exempt/i.test(taxability)) return 'Exempt';
   if (/nil/i.test(taxability)) return 'Nil Rated';
   if (/non[- ]?gst/i.test(taxability)) return 'Non-GST';
@@ -1950,7 +1963,8 @@ const getGstRateSetup = async (company_id, master_type) => {
 const getGstRateSetupTree = async (company_id, group_id) => {
   try {
     const gid = group_id == null ? null : Number(group_id);
-    const parentFilter = gid == null ? sql`g.parent_group_id IS NULL` : sql`g.parent_group_id = ${gid}`;
+    const parentFilter =
+      gid == null ? sql`g.parent_group_id IS NULL` : sql`g.parent_group_id = ${gid}`;
 
     // A group is "non-empty" if it directly holds a (non-GST-tax) ledger, or is an ancestor
     // of one. GST tax ledgers (Duties & Taxes, type_of_duty_tax='GST') are excluded from GST
@@ -2283,14 +2297,18 @@ const updatePartyGstDetails = async ({
     if (!led) return { success: false, error: 'Ledger not found' };
     if (led.is_predefined) return { success: false, error: 'Cannot edit predefined ledgers' };
 
-    const cleanGstin = String(gstin ?? '').trim().toUpperCase();
+    const cleanGstin = String(gstin ?? '')
+      .trim()
+      .toUpperCase();
     if (cleanGstin && !GSTIN_RE.test(cleanGstin)) {
       return { success: false, error: 'Invalid GSTIN/UIN format' };
     }
 
     // Save exactly what the popup provides — no silent PAN/State derivation. (The popup's
     // "Fetch Details Using GSTIN/UIN" fills these from the GSTIN visibly, before Accept.)
-    const cleanPan = String(pan ?? led.pan ?? '').trim().toUpperCase();
+    const cleanPan = String(pan ?? led.pan ?? '')
+      .trim()
+      .toUpperCase();
     // PAN: 5 letters, 4 digits, 1 letter (e.g. AAAPS1234A) — reject anything malformed.
     if (cleanPan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(cleanPan)) {
       return {

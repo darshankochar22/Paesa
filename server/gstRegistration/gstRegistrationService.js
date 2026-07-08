@@ -3,7 +3,7 @@ const { sql, eq, and } = require('drizzle-orm');
 const { gstRegistrations } = require('../db/schema');
 
 const validateGSTIN = (gstin) => {
-  const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{3}$/;
   return gstinRegex.test(gstin);
 };
 
@@ -24,7 +24,7 @@ module.exports = {
         sql`SELECT * FROM ${gstRegistrations}
             WHERE ${gstRegistrations.companyId} = ${data.company_id}
               AND ${gstRegistrations.gstin} = ${data.gstin}
-              AND ${gstRegistrations.isActive} = 1`
+              AND ${gstRegistrations.isActive} = 1`,
       );
       if (exists.length > 0) return { success: false, error: 'GSTIN already registered' };
 
@@ -70,7 +70,7 @@ module.exports = {
     try {
       const rows = await db.all(
         sql`SELECT * FROM ${gstRegistrations}
-            WHERE ${gstRegistrations.companyId} = ${company_id}`
+            WHERE ${gstRegistrations.companyId} = ${company_id}`,
       );
       return { success: true, gstRegistrations: rows };
     } catch (err) {
@@ -110,7 +110,8 @@ module.exports = {
           eInvoiceDetails: data.e_invoice_details ?? current.e_invoice_details,
           eInvoiceApplication: data.e_invoice_application ? 1 : 0,
           eWayBillApplicable: data.e_way_bill_applicable ? 1 : 0,
-          eWayBillApplicableFrom: data.e_way_bill_applicable_from ?? current.e_way_bill_applicable_from,
+          eWayBillApplicableFrom:
+            data.e_way_bill_applicable_from ?? current.e_way_bill_applicable_from,
           applicableForIntrastat: data.applicable_for_intrastat ? 1 : 0,
           legalName: data.legal_name ?? current.legal_name,
           tradeName: data.trade_name ?? current.trade_name,
@@ -119,10 +120,13 @@ module.exports = {
           effectiveFrom: data.effective_from ?? current.effective_from,
           addressType: data.address_type ?? current.address_type,
           goodsDispatchedFrom: data.goods_dispatched_from ?? current.goods_dispatched_from,
-          eInvoiceApplicableFrom: data.e_invoice_applicable_from ?? current.e_invoice_applicable_from,
-          eInvoiceBillFromPlace: data.e_invoice_bill_from_place ?? current.e_invoice_bill_from_place,
+          eInvoiceApplicableFrom:
+            data.e_invoice_applicable_from ?? current.e_invoice_applicable_from,
+          eInvoiceBillFromPlace:
+            data.e_invoice_bill_from_place ?? current.e_invoice_bill_from_place,
           compositionTaxRate: data.composition_tax_rate ?? current.composition_tax_rate,
-          compositionTaxCalcBasis: data.composition_tax_calc_basis ?? current.composition_tax_calc_basis,
+          compositionTaxCalcBasis:
+            data.composition_tax_calc_basis ?? current.composition_tax_calc_basis,
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(gstRegistrations.gstId, data.gst_id));
@@ -139,10 +143,7 @@ module.exports = {
       const existing = await findRow(sql`${gstRegistrations.gstId} = ${id}`);
       if (!existing) return { success: false, error: 'GST Registration not found' };
 
-      await db
-        .update(gstRegistrations)
-        .set({ isActive: 0 })
-        .where(eq(gstRegistrations.gstId, id));
+      await db.update(gstRegistrations).set({ isActive: 0 }).where(eq(gstRegistrations.gstId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
