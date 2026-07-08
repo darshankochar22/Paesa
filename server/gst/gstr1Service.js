@@ -349,15 +349,16 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           if (!cdnrMap[ctin]) {
             cdnrMap[ctin] = { ctin, nt: [] };
           }
+          // GSTN de-linked notes from the original invoice in 2020, so no inum/idt/p_gst;
+          // rchrg + inv_typ are required.
           cdnrMap[ctin].nt.push({
             ntty,
             nt_num: voucher.voucher_number,
             nt_dt: formatGSTDate(voucher.date),
             val: Number(invoiceValue.toFixed(2)),
-            inum: voucher.reference_number || 'N/A',
-            idt: formatGSTDate(voucher.reference_date || voucher.date),
-            p_gst: 'Y',
             pos: posStateCode,
+            rchrg: 'N',
+            inv_typ: 'R',
             itms: itmsList,
           });
         } else if (isExport || (isInterState && invoiceValue > 250000)) {
@@ -463,21 +464,6 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           }
         }
 
-        if (!hsnSummary[hsn]) {
-          hsnSummary[hsn] = {
-            hsn_sc: hsn,
-            desc: desc.substring(0, 30), // standard character limit
-            uqc: 'OTH',
-            qty: 0,
-            val: 0,
-            txval: 0,
-            iamt: 0,
-            camt: 0,
-            samt: 0,
-            csamt: 0,
-          };
-        }
-
         // Per-entry tax is often 0 on the stock line (the real split lives in the tax
         // lines), so derive CGST/SGST/IGST from the rate + supply type — otherwise the
         // HSN summary reports zero tax and fails to reconcile with the return.
@@ -495,13 +481,32 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           }
         }
 
-        hsnSummary[hsn].qty += qty;
-        hsnSummary[hsn].val += value;
-        hsnSummary[hsn].txval += taxableVal;
-        hsnSummary[hsn].iamt += hIamt;
-        hsnSummary[hsn].camt += hCamt;
-        hsnSummary[hsn].samt += hSamt;
-        hsnSummary[hsn].csamt += entry.cess_amount || 0;
+        // GSTN's HSN summary (table 12) is keyed by HSN + rate; a taxable row needs both
+        // the rate (rt) and the total value (val).
+        const hsnKey = `${hsn}_${hsnRate}`;
+        if (!hsnSummary[hsnKey]) {
+          hsnSummary[hsnKey] = {
+            hsn_sc: hsn,
+            desc: desc.substring(0, 30), // standard character limit
+            uqc: 'OTH',
+            rt: hsnRate,
+            qty: 0,
+            val: 0,
+            txval: 0,
+            iamt: 0,
+            camt: 0,
+            samt: 0,
+            csamt: 0,
+          };
+        }
+
+        hsnSummary[hsnKey].qty += qty;
+        hsnSummary[hsnKey].val += value;
+        hsnSummary[hsnKey].txval += taxableVal;
+        hsnSummary[hsnKey].iamt += hIamt;
+        hsnSummary[hsnKey].camt += hCamt;
+        hsnSummary[hsnKey].samt += hSamt;
+        hsnSummary[hsnKey].csamt += entry.cess_amount || 0;
       }
     }
 
@@ -547,6 +552,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       hsn_sc: x.hsn_sc,
       desc: x.desc,
       uqc: x.uqc,
+      rt: x.rt,
       qty: Number(x.qty.toFixed(2)),
       val: Number(x.val.toFixed(2)),
       txval: Number(x.txval.toFixed(2)),
