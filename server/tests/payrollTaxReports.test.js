@@ -203,4 +203,37 @@ describe('Payroll statutory reports (#223-#233)', () => {
     expect(row.tax_deducted).toBe(60000);
     expect(res.payload.quarter).toMatch(/Q[1-4]/);
   });
+
+  it('#234 Annexure I gives the deductee-wise TDS break-up with section 192', async () => {
+    const res = await itSvc.getAnnexureI(companyId, FY);
+    expect(res.success).toBe(true);
+    const row = res.payload.rows.find((r) => r.name === 'Tax Emp');
+    expect(row.section).toBe('192');
+    expect(row.amount_paid).toBe(360000);
+    expect(row.total_deducted).toBe(60000);
+    expect(res.payload.totals.total_deducted).toBe(60000);
+    expect(res.payload.quarter).toMatch(/Q[1-4]/);
+  });
+
+  it('#235 Annexure II gives the year-end salary detail build-up', async () => {
+    const res = await itSvc.getAnnexureII(companyId, FY);
+    expect(res.success).toBe(true);
+    const row = res.payload.rows.find((r) => r.name === 'Tax Emp');
+    expect(row.gross_salary).toBe(360000);
+    expect(row.deductions_16).toBe(2400);
+    expect(row.taxable_income).toBe(357600);
+    expect(row.tds).toBe(60000);
+    expect(res.payload.totals.gross_salary).toBeGreaterThanOrEqual(360000);
+  });
+
+  it('#236 Form 16 issues a per-employee certificate with Part B build-up', async () => {
+    const res = await itSvc.getForm16(companyId, FY);
+    expect(res.success).toBe(true);
+    const cert = res.payload.certificates.find((c) => c.name === 'Tax Emp');
+    expect(cert).toBeTruthy();
+    expect(cert.pan).toBe('ABCDE1234F');
+    expect(cert.gross_salary).toBe(360000);
+    expect(cert.taxable_income).toBe(357600);
+    expect(cert.tds).toBe(60000);
+  });
 });

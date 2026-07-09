@@ -252,6 +252,110 @@ const getForm24Q = async (company_id, params = {}) => {
   }
 };
 
+// #234 Annexure I to 24Q — the quarterly deductee-wise break-up of tax deducted
+// under section 192. Amount paid and TDS are real; surcharge/cess stay zero (no
+// tax-slab engine) and deposit dates blank until reconciled — not fabricated.
+const getAnnexureI = async (company_id, params = {}) => {
+  try {
+    const establishment = await loadCompanyHeader(company_id);
+    const emps = (await loadITEmployees(company_id)).filter(isTaxable);
+    const rows = emps.map((e, i) => ({
+      sl: i + 1,
+      pan: e.pan,
+      name: e.name,
+      section: '192',
+      amount_paid: e.gross_annual,
+      tds: e.tds_annual,
+      surcharge: 0,
+      cess: 0,
+      total_deducted: e.tds_annual,
+      total_deposited: e.tds_annual,
+    }));
+    const totals = {
+      amount_paid: sumField(rows, 'amount_paid'),
+      tds: sumField(rows, 'tds'),
+      total_deducted: sumField(rows, 'total_deducted'),
+      total_deposited: sumField(rows, 'total_deposited'),
+    };
+    return {
+      success: true,
+      payload: {
+        establishment,
+        rows,
+        totals,
+        quarter: quarterLabel(params.to),
+        period_label: periodLabel(params),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// #235 Annexure II to 24Q — the year-end salary detail (filed with the Q4 return):
+// per employee the gross salary, section-16 deductions (Professional Tax), income
+// chargeable, Chapter VI-A deductions, taxable income and tax deducted. Chapter VI-A
+// and computed tax stay zero shells (no investment-declaration / slab engine).
+const getAnnexureII = async (company_id, params = {}) => {
+  try {
+    const establishment = await loadCompanyHeader(company_id);
+    const emps = (await loadITEmployees(company_id)).filter(isTaxable);
+    const rows = emps.map((e, i) => ({
+      sl: i + 1,
+      pan: e.pan,
+      name: e.name,
+      gross_salary: e.gross_annual,
+      deductions_16: e.pt_annual,
+      income_chargeable: e.taxable_annual,
+      chapter_via: 0,
+      taxable_income: e.taxable_annual,
+      tax_payable: 0,
+      tds: e.tds_annual,
+    }));
+    const totals = {
+      gross_salary: sumField(rows, 'gross_salary'),
+      deductions_16: sumField(rows, 'deductions_16'),
+      taxable_income: sumField(rows, 'taxable_income'),
+      tds: sumField(rows, 'tds'),
+    };
+    return {
+      success: true,
+      payload: { establishment, rows, totals, period_label: periodLabel(params) },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// #236 Form 16 — the section-203 TDS certificate, one per employee. Part A carries the
+// deductor/deductee identity and the tax deducted & deposited; Part B is the salary
+// build-up to taxable income. Computed tax liability stays a zero shell (no slab engine).
+const getForm16 = async (company_id, params = {}) => {
+  try {
+    const establishment = await loadCompanyHeader(company_id);
+    const emps = (await loadITEmployees(company_id)).filter(isTaxable);
+    const certificates = emps.map((e, i) => ({
+      sl: i + 1,
+      pan: e.pan,
+      name: e.name,
+      designation: e.designation,
+      gross_salary: e.gross_annual,
+      deductions_16: e.pt_annual,
+      income_chargeable: e.taxable_annual,
+      chapter_via: 0,
+      taxable_income: e.taxable_annual,
+      tax_payable: 0,
+      tds: e.tds_annual,
+    }));
+    return {
+      success: true,
+      payload: { establishment, certificates, period_label: periodLabel(params) },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   loadITEmployees,
   getComputation,
@@ -260,4 +364,7 @@ module.exports = {
   getE24Q,
   getForm27A,
   getForm24Q,
+  getAnnexureI,
+  getAnnexureII,
+  getForm16,
 };

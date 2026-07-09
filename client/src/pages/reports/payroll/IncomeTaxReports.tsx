@@ -550,3 +550,283 @@ export function Form24Q() {
     </TallyReportLayout>
   );
 }
+
+// #234 Annexure I to 24Q — quarterly deductee-wise break-up of TDS under section 192.
+export function AnnexureI() {
+  const { payload, loading, selectedCompany, activeFY } = usePayrollReport((p) =>
+    window.api.incomeTax.getAnnexureI(p),
+  );
+  const rows: any[] = payload?.rows ?? [];
+  const totals = payload?.totals ?? {};
+
+  return (
+    <TallyReportLayout
+      title="Annexure I to 24Q"
+      companyName={selectedCompany?.name || 'Company'}
+      rightSubtitle={<div>{fyRange(activeFY)}</div>}
+    >
+      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+        {loading && <EmptyState message="Preparing Annexure I…" className="italic" />}
+        {!loading && (
+          <div className="bg-white shadow px-10 py-8 w-[1080px] text-[11px] text-black">
+            <div className="text-center font-bold text-sm mb-1">FORM 24Q — ANNEXURE I</div>
+            <div className="text-center font-bold mb-1">
+              Deductee-wise break-up of TDS [Section 192]
+            </div>
+            <div className="text-center mb-4">
+              {payload?.quarter ? <span className="font-bold">{payload.quarter} — </span> : null}
+              <span className="font-bold">{fyRange(activeFY)}</span>
+            </div>
+
+            <Deductor est={payload?.establishment} />
+
+            <table className="w-full border-collapse text-[10px]">
+              <thead>
+                <tr>
+                  <th className={HEADCELL}>Sl No.</th>
+                  <th className={HEADCELL}>PAN of Employee</th>
+                  <th className={HEADCELL}>Name of Employee</th>
+                  <th className={HEADCELL}>Section</th>
+                  <th className={HEADCELL}>Amount Paid / Credited</th>
+                  <th className={HEADCELL}>TDS</th>
+                  <th className={HEADCELL}>Surcharge</th>
+                  <th className={HEADCELL}>Education Cess</th>
+                  <th className={HEADCELL}>Total Tax Deducted</th>
+                  <th className={HEADCELL}>Total Tax Deposited</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <td key={i} className={`${CELL} h-24`} />
+                    ))}
+                  </tr>
+                ) : (
+                  rows.map((r, i) => (
+                    <tr key={i}>
+                      <td className={CELL}>{r.sl}</td>
+                      <td className={CELL}>{r.pan}</td>
+                      <td className={`${CELL} uppercase`}>{r.name}</td>
+                      <td className={`${CELL} text-center`}>{r.section}</td>
+                      <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.amount_paid)}</td>
+                      <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.tds)}</td>
+                      <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.surcharge)}</td>
+                      <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.cess)}</td>
+                      <td className={`${CELL} text-right tabular-nums`}>
+                        {fmtAmt(r.total_deducted)}
+                      </td>
+                      <td className={`${CELL} text-right tabular-nums`}>
+                        {fmtAmt(r.total_deposited)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+                {rows.length > 0 && (
+                  <tr>
+                    <td className={`${CELL} font-bold`} colSpan={4}>
+                      Total
+                    </td>
+                    <td className={`${CELL} font-bold text-right tabular-nums`}>
+                      {fmtAmt(totals.amount_paid)}
+                    </td>
+                    <td className={`${CELL} font-bold text-right tabular-nums`}>
+                      {fmtAmt(totals.tds)}
+                    </td>
+                    <td className={CELL} />
+                    <td className={CELL} />
+                    <td className={`${CELL} font-bold text-right tabular-nums`}>
+                      {fmtAmt(totals.total_deducted)}
+                    </td>
+                    <td className={`${CELL} font-bold text-right tabular-nums`}>
+                      {fmtAmt(totals.total_deposited)}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <SignatureFooter note="Signature of the Person Responsible for deducting tax at source" />
+          </div>
+        )}
+      </div>
+    </TallyReportLayout>
+  );
+}
+
+// #235 Annexure II to 24Q — year-end salary detail filed with the Q4 return.
+export function AnnexureII() {
+  const { payload, loading, selectedCompany, activeFY } = usePayrollReport((p) =>
+    window.api.incomeTax.getAnnexureII(p),
+  );
+  const rows: any[] = payload?.rows ?? [];
+  const totals = payload?.totals ?? {};
+
+  return (
+    <TallyReportLayout
+      title="Annexure II to 24Q"
+      companyName={selectedCompany?.name || 'Company'}
+      rightSubtitle={<div>{fyRange(activeFY)}</div>}
+    >
+      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+        {loading && <EmptyState message="Preparing Annexure II…" className="italic" />}
+        {!loading && (
+          <div className="bg-white shadow px-10 py-8 w-[1120px] text-[11px] text-black">
+            <div className="text-center font-bold text-sm mb-1">FORM 24Q — ANNEXURE II</div>
+            <div className="text-center font-bold mb-1">
+              Salary Detail (Year-end) — Statement under section 192
+            </div>
+            <div className="text-center mb-4">
+              for the financial year <span className="font-bold">{fyRange(activeFY)}</span>
+            </div>
+
+            <Deductor est={payload?.establishment} />
+
+            <table className="w-full border-collapse text-[10px]">
+              <thead>
+                <tr>
+                  <th className={HEADCELL}>Sl No.</th>
+                  <th className={HEADCELL}>PAN of Employee</th>
+                  <th className={HEADCELL}>Name of Employee</th>
+                  <th className={HEADCELL}>Gross Salary</th>
+                  <th className={HEADCELL}>Deductions u/s 16</th>
+                  <th className={HEADCELL}>Income Chargeable</th>
+                  <th className={HEADCELL}>Chapter VI-A</th>
+                  <th className={HEADCELL}>Total Taxable Income</th>
+                  <th className={HEADCELL}>Tax Payable</th>
+                  <th className={HEADCELL}>Total Tax Deducted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <td key={i} className={`${CELL} h-24`} />
+                    ))}
+                  </tr>
+                ) : (
+                  rows.map((r, i) => (
+                    <tr key={i}>
+                      <td className={CELL}>{r.sl}</td>
+                      <td className={CELL}>{r.pan}</td>
+                      <td className={`${CELL} uppercase`}>{r.name}</td>
+                      <td className={`${CELL} text-right tabular-nums`}>
+                        {fmtAmt(r.gross_salary)}
+                      </td>
+                      <td className={`${CELL} text-right tabular-nums`}>
+                        {fmtAmt(r.deductions_16)}
+                      </td>
+                      <td className={`${CELL} text-right tabular-nums`}>
+                        {fmtAmt(r.income_chargeable)}
+                      </td>
+                      <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.chapter_via)}</td>
+                      <td className={`${CELL} text-right tabular-nums`}>
+                        {fmtAmt(r.taxable_income)}
+                      </td>
+                      <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.tax_payable)}</td>
+                      <td className={`${CELL} text-right tabular-nums`}>{fmtAmt(r.tds)}</td>
+                    </tr>
+                  ))
+                )}
+                {rows.length > 0 && (
+                  <tr>
+                    <td className={`${CELL} font-bold`} colSpan={3}>
+                      Total
+                    </td>
+                    <td className={`${CELL} font-bold text-right tabular-nums`}>
+                      {fmtAmt(totals.gross_salary)}
+                    </td>
+                    <td className={`${CELL} font-bold text-right tabular-nums`}>
+                      {fmtAmt(totals.deductions_16)}
+                    </td>
+                    <td className={CELL} />
+                    <td className={CELL} />
+                    <td className={`${CELL} font-bold text-right tabular-nums`}>
+                      {fmtAmt(totals.taxable_income)}
+                    </td>
+                    <td className={CELL} />
+                    <td className={`${CELL} font-bold text-right tabular-nums`}>
+                      {fmtAmt(totals.tds)}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            <SignatureFooter note="Signature of the Person Responsible for deducting tax at source" />
+          </div>
+        )}
+      </div>
+    </TallyReportLayout>
+  );
+}
+
+// #236 Form 16 — section-203 TDS certificate, rendered one card per employee (Part A
+// deductor/deductee + tax deducted; Part B salary build-up to taxable income).
+export function Form16() {
+  const { payload, loading, selectedCompany, activeFY } = usePayrollReport((p) =>
+    window.api.incomeTax.getForm16(p),
+  );
+  const certificates: any[] = payload?.certificates ?? [];
+  const est = payload?.establishment ?? {};
+
+  return (
+    <TallyReportLayout
+      title="Form 16"
+      companyName={selectedCompany?.name || 'Company'}
+      rightSubtitle={<div>{fyRange(activeFY)}</div>}
+    >
+      <div className="w-full flex flex-col items-center bg-gray-200 py-6 font-sans gap-6">
+        {loading && <EmptyState message="Preparing Form 16 certificates…" className="italic" />}
+        {!loading && certificates.length === 0 && (
+          <EmptyState message="No taxable employees for Form 16." className="italic" />
+        )}
+        {!loading &&
+          certificates.map((c) => (
+            <div key={c.sl} className="bg-white shadow px-10 py-8 w-[820px] text-[11px] text-black">
+              <div className="text-center font-bold text-sm mb-1">FORM 16</div>
+              <div className="text-center font-bold mb-1">
+                Certificate under section 203 for tax deducted at source on salary
+              </div>
+              <div className="text-center mb-4">
+                for the financial year <span className="font-bold">{fyRange(activeFY)}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-4">
+                <HeaderRow label="Deductor" value={est?.name} />
+                <HeaderRow label="Employee" value={c.name} />
+                <HeaderRow label="TAN" value={est?.it_tan} />
+                <HeaderRow label="Employee PAN" value={c.pan} />
+                <HeaderRow label="Deductor PAN" value={est?.it_pan} />
+                <HeaderRow label="Designation" value={c.designation} />
+              </div>
+
+              <div className="font-bold mb-1 text-[11px] border-t border-black pt-2">
+                Part B — Computation of Income &amp; Tax
+              </div>
+              <div>
+                <StatementLine label="Gross Salary" value={fmtAmt(c.gross_salary)} />
+                <StatementLine
+                  label="Less: Deductions under section 16"
+                  value={fmtAmt(c.deductions_16)}
+                />
+                <StatementLine
+                  label="Income Chargeable under Salaries"
+                  value={fmtAmt(c.income_chargeable)}
+                />
+                <StatementLine
+                  label="Less: Deductions under Chapter VI-A"
+                  value={fmtAmt(c.chapter_via)}
+                />
+                <StatementLine label="Total Taxable Income" value={fmtAmt(c.taxable_income)} />
+                <StatementLine label="Tax Payable" value={fmtAmt(c.tax_payable)} />
+                <StatementLine label="Total Tax Deducted at Source" value={fmtAmt(c.tds)} bold />
+              </div>
+
+              <SignatureFooter note="Signature of the Person Responsible for deduction of tax" />
+            </div>
+          ))}
+      </div>
+    </TallyReportLayout>
+  );
+}

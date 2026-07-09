@@ -58,6 +58,9 @@ import IncomeTaxComputation, {
   E24Q,
   Form27A,
   Form24Q,
+  AnnexureI,
+  AnnexureII,
+  Form16,
 } from '../pages/reports/payroll/IncomeTaxReports.tsx';
 import PayrollStatutorySummary, {
   PayrollStatutoryPayHeadDetails,
@@ -279,6 +282,9 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/statutory/payroll/income-tax/e-24q', element: <E24Q /> },
   { path: '/reports/statutory/payroll/income-tax/form-27a', element: <Form27A /> },
   { path: '/reports/statutory/payroll/income-tax/form-24q', element: <Form24Q /> },
+  { path: '/reports/statutory/payroll/income-tax/annexure-i', element: <AnnexureI /> },
+  { path: '/reports/statutory/payroll/income-tax/annexure-ii', element: <AnnexureII /> },
+  { path: '/reports/statutory/payroll/income-tax/form-16', element: <Form16 /> },
   { path: '/reports/account-books', element: <AccountBooks /> },
   { path: '/reports/statements-of-accounts', element: <StatementsOfAccounts /> },
   { path: '/reports/inventory-books', element: <InventoryBooks /> },

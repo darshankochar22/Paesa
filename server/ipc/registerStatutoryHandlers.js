@@ -170,6 +170,15 @@ function register() {
   ipcMain.handle('incomeTax:getForm24Q', (event, { company_id, ...params }) =>
     incomeTaxReportService.getForm24Q(company_id, params),
   );
+  ipcMain.handle('incomeTax:getAnnexureI', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getAnnexureI(company_id, params),
+  );
+  ipcMain.handle('incomeTax:getAnnexureII', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getAnnexureII(company_id, params),
+  );
+  ipcMain.handle('incomeTax:getForm16', (event, { company_id, ...params }) =>
+    incomeTaxReportService.getForm16(company_id, params),
+  );
   ipcMain.handle('tds:getReturnTransactionBook', (event, { company_id, fy_id }) =>
     tdsReportService.getReturnTransactionBook(company_id, fy_id),
   );

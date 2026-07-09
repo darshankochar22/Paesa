@@ -606,6 +606,9 @@ contextBridge.exposeInMainWorld('api', {
     getE24Q: (data) => invoke('incomeTax:getE24Q', data),
     getForm27A: (data) => invoke('incomeTax:getForm27A', data),
     getForm24Q: (data) => invoke('incomeTax:getForm24Q', data),
+    getAnnexureI: (data) => invoke('incomeTax:getAnnexureI', data),
+    getAnnexureII: (data) => invoke('incomeTax:getAnnexureII', data),
+    getForm16: (data) => invoke('incomeTax:getForm16', data),
   },
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),

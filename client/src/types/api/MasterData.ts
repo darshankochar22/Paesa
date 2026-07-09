@@ -756,6 +756,21 @@ export interface MasterDataAPI {
       from?: string;
       to?: string;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getAnnexureI: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getAnnexureII: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getForm16: (data: {
+      company_id: number;
+      from?: string;
+      to?: string;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
   };
   master: {
     getMenu: (

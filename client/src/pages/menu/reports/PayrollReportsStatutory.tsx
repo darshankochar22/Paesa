@@ -306,7 +306,13 @@ export function IncomeTaxReportsMenu() {
         { label: 'E-24Q', route: '/reports/statutory/payroll/income-tax/e-24q' },
         { label: 'Form 27A', route: '/reports/statutory/payroll/income-tax/form-27a' },
         { label: 'Form 24Q', route: '/reports/statutory/payroll/income-tax/form-24q' },
+        { label: 'Annexure I to 24Q', route: '/reports/statutory/payroll/income-tax/annexure-i' },
+        { label: 'Annexure II to 24Q', route: '/reports/statutory/payroll/income-tax/annexure-ii' },
       ],
+    },
+    {
+      title: 'CERTIFICATES',
+      items: [{ label: 'Form 16', route: '/reports/statutory/payroll/income-tax/form-16' }],
     },
   ];
 
