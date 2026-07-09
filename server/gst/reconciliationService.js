@@ -1086,6 +1086,24 @@ const ORDER_TYPES = ['Purchase Order', 'Sales Order', 'Job Work In Order', 'Job 
 const PAYROLL_TYPES = ['Payroll', 'Salary Slip', 'Attendance'];
 const B2CL_THRESHOLD = 250000;
 
+// Credit / Debit notes are directional. A note booked against a customer (Sundry
+// Debtors) is an outward sales return → GSTR-1 (CDN). A note against a supplier
+// (Sundry Creditors) is an inward purchase return → belongs to GSTR-2/3B, so it is
+// NOT relevant to GSTR-1. Resolve by the party ledger's group; fall back to the
+// Tally convention (Credit Note = sales return/outward, Debit Note = purchase
+// return/inward) when the group can't be determined.
+const noteDirection = (v) => {
+  const grp = String(v.party_group || '');
+  if (/creditor/i.test(grp)) return 'inward';
+  if (/debtor/i.test(grp)) return 'outward';
+  return v.voucher_type === 'Credit Note' ? 'outward' : 'inward';
+};
+const isNote = (t) => t === 'Credit Note' || t === 'Debit Note';
+const isOutwardVoucher = (v) =>
+  v.voucher_type === 'Sales' || (isNote(v.voucher_type) && noteDirection(v) === 'outward');
+const isInwardVoucher = (v) =>
+  v.voucher_type === 'Purchase' || (isNote(v.voucher_type) && noteDirection(v) === 'inward');
+
 // Load every non-cancelled voucher of a return period (optionally scoped to a
 // registration) with party info + tax sums aggregated from voucher_stock_entries.
 const fetchPeriodVouchers = async (
@@ -1137,20 +1155,26 @@ const fetchPeriodVouchers = async (
     sql`SELECT v.voucher_id, v.date, v.voucher_type, v.voucher_number, v.reference_number, v.party_name,
                v.place_of_supply, v.is_interstate,
                l.name AS ledger_name, l.gstin AS party_gstin, l.registration_type AS party_reg_type,
+               pg.name AS party_group,
                COALESCE(s.stock_count, 0) AS stock_count,
                COALESCE(s.taxable, 0) AS taxable,
                COALESCE(s.igst, 0) AS igst,
                COALESCE(s.cgst, 0) AS cgst,
                COALESCE(s.sgst, 0) AS sgst,
                COALESCE(s.max_rate, 0) AS max_rate,
+               COALESCE(s.bad_hsn, 0) AS bad_hsn,
                COALESCE(e.dr_total, 0) AS dr_total,
-               COALESCE(e.cr_total, 0) AS cr_total
+               COALESCE(e.cr_total, 0) AS cr_total,
+               COALESCE(g.gst_ledger_lines, 0) AS gst_ledger_lines
         FROM ${vouchers} v
         LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+        LEFT JOIN groups pg ON pg.group_id = l.group_id
         LEFT JOIN (
           SELECT voucher_id, COUNT(*) AS stock_count, SUM(amount) AS taxable,
                  SUM(igst_amount) AS igst, SUM(cgst_amount) AS cgst,
-                 SUM(sgst_amount) AS sgst, MAX(gst_rate) AS max_rate
+                 SUM(sgst_amount) AS sgst, MAX(gst_rate) AS max_rate,
+                 SUM(CASE WHEN hsn_code IS NULL OR TRIM(hsn_code) = ''
+                          OR LENGTH(TRIM(hsn_code)) NOT IN (4, 6, 8) THEN 1 ELSE 0 END) AS bad_hsn
           FROM ${voucherStockEntries} GROUP BY voucher_id
         ) s ON s.voucher_id = v.voucher_id
         LEFT JOIN (
@@ -1159,6 +1183,13 @@ const fetchPeriodVouchers = async (
                  SUM(CASE WHEN type = 'Cr' THEN amount ELSE 0 END) AS cr_total
           FROM voucher_entries GROUP BY voucher_id
         ) e ON e.voucher_id = v.voucher_id
+        LEFT JOIN (
+          SELECT ve.voucher_id, COUNT(*) AS gst_ledger_lines
+          FROM voucher_entries ve
+          JOIN ledger_statutory_details sd
+            ON sd.ledger_id = ve.ledger_id AND sd.type_of_duty_tax = 'GST'
+          GROUP BY ve.voucher_id
+        ) g ON g.voucher_id = v.voucher_id
         WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
           AND v.date >= ${startDate} AND v.date < ${endDate}
           ${regFilter}
@@ -1186,22 +1217,26 @@ const fetchPeriodVouchers = async (
 // Not-Relevant grouping (non_gst category or other_returns), the GSTR-1 section
 // it lands in when included, and the concrete exceptions when uncertain.
 const classifyVoucher = (v, returnType, companyGstinInvalid) => {
-  const isOutward = OUTWARD_TYPES.includes(v.voucher_type);
-  const isInward = v.voucher_type === 'Purchase';
+  const isOutward = isOutwardVoucher(v);
+  const isInward = isInwardVoucher(v);
   // GSTR-2A/2B reconciliation is inward (purchase + purchase-side notes).
   const inwardRecon = returnType === 'GSTR2A' || returnType === 'GSTR2B';
   // GSTR-3B and Annual Computation treat both outward + inward as relevant.
   const bothSides = returnType === 'GSTR3B' || returnType === 'ANNUAL';
-  const relevant = inwardRecon
-    ? INWARD_RECON_TYPES.includes(v.voucher_type)
-    : bothSides
-      ? isOutward || isInward
-      : isOutward;
+  const relevant = inwardRecon ? isInward : bothSides ? isOutward || isInward : isOutward;
 
   if (!relevant) {
     let group = 'non_gst';
     let category = 'Other Transactions';
-    if (!bothSides && isInward) {
+    // Anything that carries GST but doesn't belong to THIS return is an inward/ITC
+    // transaction of another GST return: purchases, purchase-side notes, and any
+    // GST-bearing journal/payment (an entry against a Duties & Taxes GST ledger, or a
+    // taxed stock line). Everything else is a genuinely Non-GST transaction.
+    const carriesGst =
+      isInward ||
+      Number(v.gst_ledger_lines || 0) > 0 ||
+      Number(v.igst || 0) + Number(v.cgst || 0) + Number(v.sgst || 0) > 0;
+    if (!bothSides && carriesGst) {
       group = 'other_returns';
       category = 'Transactions of Other GST Returns';
     } else if (v.voucher_type === 'Contra') category = 'Contra Vouchers';
@@ -1233,6 +1268,10 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   // blank place-of-supply is never surfaced as an uncertain exception.
   if (Number(v.stock_count || 0) === 0)
     exceptions.push('No item or tax details available in the voucher');
+  // A stock line without a valid HSN/SAC (blank, or not a 4/6/8-digit code) makes the
+  // voucher's tax rate indeterminate — Tally parks it in Uncertain until corrected.
+  else if (Number(v.bad_hsn || 0) > 0)
+    exceptions.push('HSN/SAC is invalid, mismatched, or not specified');
   if (exceptions.length)
     return { bucket: 'uncertain', group: null, category: null, section: null, exceptions };
 
@@ -1243,7 +1282,7 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   // GSTR-1 section for an included outward voucher.
   const hasGstin = !!v.party_gstin;
   let section = null;
-  if (v.voucher_type === 'Credit Note') section = hasGstin ? 'cdnr' : 'cdnur';
+  if (isNote(v.voucher_type)) section = hasGstin ? 'cdnr' : 'cdnur';
   else if (Number(v.max_rate || 0) === 0) section = 'nil';
   else if (hasGstin) section = 'b2b';
   else if (Number(v.is_interstate || 0) === 1 && invoiceOf(v) > B2CL_THRESHOLD) section = 'b2cl';
@@ -1310,7 +1349,10 @@ const getReturnStatistics = async (company_id, fy_id, return_period, opts = {}) 
       const cls = classifyVoucher(v, returnType, companyGstinInvalid);
       if (cls.bucket === 'not_relevant') b.not_relevant++;
       else if (cls.bucket === 'uncertain') b.uncertain++;
-      else b.included_ok++;
+      // Included vouchers are "Action Pending" until uploaded to the portal; this
+      // offline clone has no upload round-trip, so a booked-and-included voucher is
+      // always pending (No-Action-Required is reserved for portal-accepted rows).
+      else b.included_pending++;
     }
 
     const list = Object.values(byType).sort((a, b) => a.voucher_type.localeCompare(b.voucher_type));

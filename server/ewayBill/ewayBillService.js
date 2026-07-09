@@ -81,7 +81,31 @@ const generateByIrn = async (company_id, voucher_id, irn, transport = {}) => {
   return { success: true, data: d };
 };
 
-// Look up the voucher's IRN, then generate the EWB against it.
+// Map the voucher's stored "Provide GST/e-Way Bill details" popup (voucher_gst_eway_details)
+// to the NIC transport shape so the data the user entered at voucher entry actually flows into
+// EWB generation (previously it was captured but ignored). Distance isn't stored — NIC computes
+// it pin-to-pin when 0.
+const ISO_TO_NIC_DATE = (d) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : d || undefined;
+};
+const mapEwayDetailsToTransport = (ge) => {
+  if (!ge) return {};
+  const modeDigit = /^\s*([1-4])/.exec(String(ge.mode || ''));
+  const vt = String(ge.vehicle_type || '').toLowerCase();
+  return {
+    trans_mode: modeDigit ? modeDigit[1] : undefined,
+    trans_id: ge.transporter_id || undefined,
+    trans_name: ge.transporter_name || undefined,
+    trans_doc_no: ge.doc_lading_no || undefined,
+    trans_doc_dt: ge.doc_lading_date ? ISO_TO_NIC_DATE(ge.doc_lading_date) : undefined,
+    veh_no: ge.vehicle_number || undefined,
+    veh_type: vt.includes('over dimensional') ? 'O' : vt.includes('regular') ? 'R' : undefined,
+  };
+};
+
+// Look up the voucher's IRN, merge the stored transport details with any explicitly-passed
+// transport (explicit wins), then generate the EWB against the IRN.
 const generateFromVoucher = async (company_id, voucher_id, transport) => {
   try {
     const rows = await db.all(
@@ -92,7 +116,22 @@ const generateFromVoucher = async (company_id, voucher_id, transport) => {
     const irn = rows[0]?.irn;
     if (!irn)
       return { success: false, error: 'Generate the e-Invoice (IRN) first, then the e-Way Bill.' };
-    return await generateByIrn(company_id, voucher_id, irn, transport);
+
+    let stored = {};
+    try {
+      const ge = await db.all(
+        sql`SELECT * FROM voucher_gst_eway_details WHERE voucher_id = ${voucher_id} LIMIT 1`,
+      );
+      stored = mapEwayDetailsToTransport(ge[0]);
+    } catch (_) {
+      /* details are optional */
+    }
+    // Explicit caller values override the stored ones; drop empty keys so they don't clobber.
+    const clean = Object.fromEntries(
+      Object.entries(transport || {}).filter(([, v]) => v != null && v !== ''),
+    );
+    const merged = { ...stored, ...clean };
+    return await generateByIrn(company_id, voucher_id, irn, merged);
   } catch (err) {
     return { success: false, error: err.message };
   }

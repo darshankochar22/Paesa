@@ -146,6 +146,19 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
 
       if (stockEntries.length === 0) continue;
 
+      // Exclude "Uncertain" vouchers from the return sections, matching the Statistics /
+      // Track-Activities classifier: an invalid company/party GSTIN or any missing/invalid
+      // HSN/SAC makes the voucher not ready to file, so Tally parks it under Uncertain
+      // (Corrections needed) and keeps it OUT of B2B/B2CS/CDN. This keeps the Return View
+      // section totals equal to the "Included in Return" count shown in the summary.
+      const partyRegistered = voucher.party_reg_type && voucher.party_reg_type !== 'Unregistered';
+      const partyGstinBad =
+        partyRegistered && (!voucher.party_gstin || !validateGSTIN(voucher.party_gstin));
+      const hsnBad = stockEntries.some((s) => validateHsn(s.hsn_code) !== null);
+      if (!validateGSTIN(companyGSTIN) || partyGstinBad || hsnBad) {
+        continue;
+      }
+
       // Fetch entries to calculate total invoice value
       const entries = await db.all(
         sql`SELECT * FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${voucher.voucher_id}`,

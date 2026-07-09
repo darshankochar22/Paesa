@@ -83,7 +83,9 @@ export default function GstVoucherActions({
       >
         <div className="space-y-2">
           <div className="text-[11px] text-zinc-500">
-            Requires an e-Invoice (IRN) on this voucher first.
+            Requires an e-Invoice (IRN) on this voucher first. Transporter ID, vehicle type and doc
+            details are taken from the voucher's "Provide GST/e-Way Bill details"; the fields below
+            override them.
           </div>
           <label className="block">
             <span className="text-[10px] text-zinc-500">Distance (km)</span>

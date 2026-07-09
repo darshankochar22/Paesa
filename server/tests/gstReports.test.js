@@ -541,16 +541,20 @@ describe('GST Reports engine', () => {
     const sales = rows.find((r) => r.voucher_type === 'Sales');
     const purchase = rows.find((r) => r.voucher_type === 'Purchase');
 
-    // Outward sales with valid party GSTIN + place of supply → Included (no action needed).
+    // Outward sales with valid party GSTIN + place of supply → Included. Until uploaded to
+    // the portal an Included voucher is "Action Pending" (offline clone has no upload path),
+    // so it counts under included_pending, not included_ok.
     expect(sales.total).toBe(1);
-    expect(sales.included_ok).toBe(1);
+    expect(sales.included_pending).toBe(1);
+    expect(sales.included_ok).toBe(0);
     expect(sales.uncertain).toBe(0);
     // Purchase is inward → Not Relevant for GSTR-1.
     expect(purchase.total).toBe(1);
     expect(purchase.not_relevant).toBe(1);
 
     expect(totals.total).toBe(2);
-    expect(totals.included_ok).toBe(1);
+    expect(totals.included_pending).toBe(1);
+    expect(totals.included_ok).toBe(0);
     expect(totals.not_relevant).toBe(1);
   });
 
@@ -1686,5 +1690,144 @@ describe('GST Reports engine', () => {
     });
     expect(reso.payload.mode).toBe('ledgers');
     expect(reso.payload.ledgers.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('GSTR-1: missing HSN → Uncertain (excluded from Return View); purchase Debit Note → Not Relevant', async () => {
+    // July, kept separate from every other month so these three vouchers stand alone.
+    // (1) Sales to a valid GSTIN party but with a BLANK HSN on its stock line → Uncertain.
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Sales',
+      date: '2026-07-04',
+      status: 'Regular',
+      reference_number: 'INV-NOHSN',
+      place_of_supply: 'Maharashtra',
+      party_ledger_id: partyId,
+      party_name: 'GST Customer',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      entries: [
+        {
+          ledger_id: partyId,
+          ledger_name: 'GST Customer',
+          type: 'Dr',
+          amount: 1180,
+          currency: 'INR',
+        },
+        {
+          ledger_id: salesId,
+          ledger_name: 'GST Sales A/c',
+          type: 'Cr',
+          amount: 1180,
+          currency: 'INR',
+        },
+      ],
+      stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 1000, hsn_code: '' }],
+    });
+    // (2) Sales to the same party WITH a valid HSN → Included (Action Pending).
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Sales',
+      date: '2026-07-05',
+      status: 'Regular',
+      reference_number: 'INV-OK',
+      place_of_supply: 'Maharashtra',
+      party_ledger_id: partyId,
+      party_name: 'GST Customer',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      entries: [
+        {
+          ledger_id: partyId,
+          ledger_name: 'GST Customer',
+          type: 'Dr',
+          amount: 1180,
+          currency: 'INR',
+        },
+        {
+          ledger_id: salesId,
+          ledger_name: 'GST Sales A/c',
+          type: 'Cr',
+          amount: 1180,
+          currency: 'INR',
+        },
+      ],
+      stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 1000, hsn_code: '8471' }],
+    });
+    // (3) Debit Note against the supplier (a purchase return) → inward, so Not Relevant
+    //     for GSTR-1 and grouped under "Transactions of Other GST Returns".
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Debit Note',
+      date: '2026-07-06',
+      status: 'Regular',
+      reference_number: 'DN-1',
+      party_ledger_id: creditorId,
+      party_name: 'GST Supplier',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      entries: [
+        {
+          ledger_id: creditorId,
+          ledger_name: 'GST Supplier',
+          type: 'Dr',
+          amount: 1180,
+          currency: 'INR',
+        },
+        {
+          ledger_id: purchaseId,
+          ledger_name: 'GST Purchase A/c',
+          type: 'Cr',
+          amount: 1180,
+          currency: 'INR',
+        },
+      ],
+      stock_entries: [{ item_name: 'Component', quantity: 1, rate: 1000, hsn_code: '8473' }],
+    });
+
+    // Statistics: 2 Sales (1 Action-Pending, 1 Uncertain) + 1 Debit Note (Not Relevant).
+    const stats = await reconciliationService.getReturnStatistics(companyId, fyId, '072026', {
+      return_type: 'GSTR1',
+    });
+    const sales = stats.statistics.rows.find((r) => r.voucher_type === 'Sales');
+    const dn = stats.statistics.rows.find((r) => r.voucher_type === 'Debit Note');
+    expect(sales.total).toBe(2);
+    expect(sales.included_pending).toBe(1);
+    expect(sales.uncertain).toBe(1);
+    expect(dn.not_relevant).toBe(1);
+
+    // Uncertain drill surfaces the HSN reason for the blank-HSN sale.
+    const unc = await reconciliationService.getReturnVouchers(companyId, fyId, '072026', {
+      bucket: 'uncertain',
+    });
+    expect(unc.rows).toHaveLength(1);
+    expect(unc.rows[0].exceptions.join(' ')).toMatch(/HSN\/SAC/);
+
+    // Not-Relevant breakdown: the purchase Debit Note lands under "Transactions of Other
+    // GST Returns", NOT under Non-GST (it carries ITC and belongs to GSTR-2/3B).
+    const nrDn = await reconciliationService.getReturnVouchers(companyId, fyId, '072026', {
+      bucket: 'not_relevant',
+      category: 'Transactions of Other GST Returns',
+      voucher_type: 'Debit Note',
+    });
+    expect(nrDn.rows).toHaveLength(1);
+    expect(nrDn.rows[0].voucher_type).toBe('Debit Note');
+
+    // Return View (generateGSTR1): only the valid-HSN B2B invoice appears — the blank-HSN
+    // sale and the inward Debit Note are excluded, so the section total == Included (1).
+    const reg = await db.execute(
+      `SELECT gst_id FROM gst_registrations WHERE company_id = ? AND is_active = 1 ORDER BY gst_id ASC LIMIT 1`,
+      [companyId],
+    );
+    const regId = reg.rows[0].gst_id;
+    const g1 = await gstr1Service.generateGSTR1(companyId, fyId, '072026', regId);
+    const b2bInv = (g1.payload.b2b || []).reduce((n, p) => n + (p.inv?.length || 0), 0);
+    expect(b2bInv).toBe(1);
   });
 });
