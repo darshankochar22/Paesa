@@ -49,6 +49,19 @@ module.exports = {
     return await eInvoiceService.getIRNDetails(irn, creds.credentials);
   },
 
+  // WhiteBooks (.env) developer-side lookups — no per-company DB credentials.
+  syncGSTINFromCP: async (event, { gstin }) => {
+    return await eInvoiceService.syncGSTINFromCP(gstin);
+  },
+
+  getRejectedIRNs: async (event, { date }) => {
+    return await eInvoiceService.getRejectedIRNs(date);
+  },
+
+  getB2CQRCode: async (event, params) => {
+    return await eInvoiceService.getB2CQRCode(params);
+  },
+
   cancelIRN: async (event, { irn, cancel_reason, cancel_remarks, company_id }) => {
     // WhiteBooks path is developer-side (.env) — no per-company DB credentials needed.
     const { getWhitebooksConfig } = require('../integrations/gspConfig');

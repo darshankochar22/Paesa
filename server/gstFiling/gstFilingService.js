@@ -19,6 +19,15 @@ const WB_RET = {
   GSTR1: { save: '/gstr1/retsave', file: '/gstr1/retevcfile' },
   GSTR3B: { save: '/gstr3b/retsave', file: '/gstr3b/retevcfile' },
 };
+// Any other return type follows the same /{type}/retsave + /{type}/retevcfile convention.
+const retPathsFor = (t) =>
+  WB_RET[t] || {
+    save: `/${String(t).toLowerCase()}/retsave`,
+    file: `/${String(t).toLowerCase()}/retevcfile`,
+  };
+// Return types we can BUILD from the books. Everything else must be saved/filed with an
+// externally-supplied payload (no local source model for composition/TDS/TCS/IMS/etc.).
+const LOCAL_COMPUTE = new Set(['GSTR1', 'GSTR3B']);
 const panOf = (gstin) => (gstin && gstin.length >= 12 ? gstin.slice(2, 12) : '');
 
 // GSTN rejects empty optional sections (e.g. hsn:{data:[]}, nil:{inv:[]}, b2b:[]) with a
@@ -165,16 +174,28 @@ const prepare = async (company_id, { return_type = 'GSTR1', fy_id, return_period
 };
 
 // Push the computed return to the GSP (save to GSTN — reversible, before filing).
-const saveToPortal = async (company_id, { return_type = 'GSTR1', fy_id, return_period }) => {
+// `payload` (optional) lets the caller save a return we can't build from books (GSTR-9/9C and
+// the composition/TDS/TCS/IMS family) by supplying the GSTN JSON directly.
+const saveToPortal = async (
+  company_id,
+  { return_type = 'GSTR1', fy_id, return_period, payload: externalPayload } = {},
+) => {
   const wbc = getWhitebooksConfig();
   if (wbc) {
-    const res = await compute(return_type, company_id, fy_id, return_period);
-    if (!res.success) return res;
-    const payload = pruneEmptyGstn(res.payload || res) || {
-      gstin: wbc.gst.gstin,
-      fp: return_period,
-    };
-    const paths = WB_RET[return_type] || WB_RET.GSTR1;
+    let payload;
+    if (externalPayload) {
+      payload = pruneEmptyGstn(externalPayload) || { gstin: wbc.gst.gstin, fp: return_period };
+    } else if (LOCAL_COMPUTE.has(return_type)) {
+      const res = await compute(return_type, company_id, fy_id, return_period);
+      if (!res.success) return res;
+      payload = pruneEmptyGstn(res.payload || res) || { gstin: wbc.gst.gstin, fp: return_period };
+    } else {
+      return {
+        success: false,
+        error: `No local builder for ${return_type} — pass a payload to save it.`,
+      };
+    }
+    const paths = retPathsFor(return_type);
     const r = await wb.gst.request('PUT', paths.save, {
       headers: { gstin: wbc.gst.gstin, ret_period: return_period },
       body: payload,
@@ -211,17 +232,28 @@ const saveToPortal = async (company_id, { return_type = 'GSTR1', fy_id, return_p
 };
 
 // File the return with EVC/OTP (the irreversible commit). Caller must confirm first.
-const fileReturn = async (company_id, { return_type = 'GSTR1', fy_id, return_period, evc_otp }) => {
+// `payload` (optional) files a caller-supplied return (see saveToPortal).
+const fileReturn = async (
+  company_id,
+  { return_type = 'GSTR1', fy_id, return_period, evc_otp, payload: externalPayload } = {},
+) => {
   const wbc = getWhitebooksConfig();
   if (wbc) {
     if (!evc_otp) return { success: false, error: 'EVC OTP is required to file.' };
-    const res = await compute(return_type, company_id, fy_id, return_period);
-    if (!res.success) return res;
-    const payload = pruneEmptyGstn(res.payload || res) || {
-      gstin: wbc.gst.gstin,
-      fp: return_period,
-    };
-    const paths = WB_RET[return_type] || WB_RET.GSTR1;
+    let payload;
+    if (externalPayload) {
+      payload = pruneEmptyGstn(externalPayload) || { gstin: wbc.gst.gstin, fp: return_period };
+    } else if (LOCAL_COMPUTE.has(return_type)) {
+      const res = await compute(return_type, company_id, fy_id, return_period);
+      if (!res.success) return res;
+      payload = pruneEmptyGstn(res.payload || res) || { gstin: wbc.gst.gstin, fp: return_period };
+    } else {
+      return {
+        success: false,
+        error: `No local builder for ${return_type} — pass a payload to file it.`,
+      };
+    }
+    const paths = retPathsFor(return_type);
     const r = await wb.gst.request('POST', paths.file, {
       query: { pan: panOf(wbc.gst.gstin), evcotp: String(evc_otp).trim() },
       headers: { gstin: wbc.gst.gstin, ret_period: return_period },

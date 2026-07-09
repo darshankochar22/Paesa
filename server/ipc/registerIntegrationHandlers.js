@@ -13,6 +13,9 @@ function register() {
   ipcMain.handle('eInvoice:getGSTINDetails', eInvoiceController.getGSTINDetails);
   ipcMain.handle('eInvoice:generateIRN', eInvoiceController.generateIRN);
   ipcMain.handle('eInvoice:getIRNDetails', eInvoiceController.getIRNDetails);
+  ipcMain.handle('eInvoice:syncGSTINFromCP', eInvoiceController.syncGSTINFromCP);
+  ipcMain.handle('eInvoice:getRejectedIRNs', eInvoiceController.getRejectedIRNs);
+  ipcMain.handle('eInvoice:getB2CQRCode', eInvoiceController.getB2CQRCode);
   ipcMain.handle('eInvoice:cancelIRN', eInvoiceController.cancelIRN);
   ipcMain.handle('eInvoice:saveCredentials', eInvoiceController.saveCredentials);
   ipcMain.handle('eInvoice:getCredentials', eInvoiceController.getCredentials);
@@ -27,7 +30,35 @@ function register() {
   ipcMain.handle('ewayBill:generateByIrn', ewayBillController.generateByIrn);
   ipcMain.handle('ewayBill:cancel', ewayBillController.cancel);
   ipcMain.handle('ewayBill:get', ewayBillController.get);
+  ipcMain.handle('ewayBill:getByIrn', ewayBillController.getByIrn);
   ipcMain.handle('ewayBill:getRecords', ewayBillController.getRecords);
+  ipcMain.handle('ewayBill:generate', ewayBillController.generate);
+  ipcMain.handle('ewayBill:updatePartB', ewayBillController.updatePartB);
+  ipcMain.handle('ewayBill:generateConsolidated', ewayBillController.generateConsolidated);
+  ipcMain.handle('ewayBill:reject', ewayBillController.reject);
+  ipcMain.handle('ewayBill:updateTransporter', ewayBillController.updateTransporter);
+  ipcMain.handle('ewayBill:extendValidity', ewayBillController.extendValidity);
+  ipcMain.handle('ewayBill:regenerateConsolidated', ewayBillController.regenerateConsolidated);
+  ipcMain.handle('ewayBill:initMultiVehicle', ewayBillController.initMultiVehicle);
+  ipcMain.handle('ewayBill:addMultiVehicle', ewayBillController.addMultiVehicle);
+  ipcMain.handle('ewayBill:closeEwb', ewayBillController.closeEwb);
+  ipcMain.handle('ewayBill:forTransporterByDate', ewayBillController.forTransporterByDate);
+  ipcMain.handle('ewayBill:forTransporterByState', ewayBillController.forTransporterByState);
+  ipcMain.handle('ewayBill:forTransporterByGstin', ewayBillController.forTransporterByGstin);
+  ipcMain.handle(
+    'ewayBill:reportByTransporterAssignedDate',
+    ewayBillController.reportByTransporterAssignedDate,
+  );
+  ipcMain.handle('ewayBill:byDate', ewayBillController.byDate);
+  ipcMain.handle('ewayBill:rejectedByOthers', ewayBillController.rejectedByOthers);
+  ipcMain.handle('ewayBill:ofOtherParty', ewayBillController.ofOtherParty);
+  ipcMain.handle('ewayBill:getConsolidated', ewayBillController.getConsolidated);
+  ipcMain.handle('ewayBill:byConsigner', ewayBillController.byConsigner);
+  ipcMain.handle('ewayBill:getErrorList', ewayBillController.getErrorList);
+  ipcMain.handle('ewayBill:getGstinDetails', ewayBillController.getGstinDetails);
+  ipcMain.handle('ewayBill:getTransporterDetails', ewayBillController.getTransporterDetails);
+  ipcMain.handle('ewayBill:getHsnDetails', ewayBillController.getHsnDetails);
+  ipcMain.handle('ewayBill:ewayRequest', ewayBillController.ewayRequest);
 
   ipcMain.handle('gstFiling:getStatus', gstFilingController.getStatus);
   ipcMain.handle('gstFiling:prepare', gstFilingController.prepare);
@@ -41,6 +72,17 @@ function register() {
   ipcMain.handle('gstFiling:authenticate', gstFilingController.authenticate);
   ipcMain.handle('gstFiling:requestEvc', gstFilingController.requestEvc);
   ipcMain.handle('gstFiling:getReturnStatus', gstFilingController.getReturnStatus);
+  ipcMain.handle('gstFiling:portalRequest', gstFilingController.portalRequest);
+  ipcMain.handle('gstFiling:getSection', gstFilingController.getSection);
+  ipcMain.handle('gstFiling:getSummary', gstFilingController.getSummary);
+  ipcMain.handle('gstFiling:retTrack', gstFilingController.retTrack);
+  ipcMain.handle('gstFiling:publicSearch', gstFilingController.publicSearch);
+  ipcMain.handle('gstFiling:publicRetTrack', gstFilingController.publicRetTrack);
+  ipcMain.handle('gstFiling:getPreferences', gstFilingController.getPreferences);
+  ipcMain.handle('gstFiling:urdDetails', gstFilingController.urdDetails);
+  ipcMain.handle('gstFiling:urdValidate', gstFilingController.urdValidate);
+  ipcMain.handle('gstFiling:refreshToken', gstFilingController.refreshToken);
+  ipcMain.handle('gstFiling:requestEvcFor', gstFilingController.requestEvcFor);
 
   ipcMain.handle('whatsapp:saveConfig', whatsappController.saveConfig);
   ipcMain.handle('whatsapp:getConfig', whatsappController.getConfig);

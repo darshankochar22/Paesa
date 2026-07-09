@@ -91,9 +91,7 @@ export interface GstIntegrationsAPI {
       company_id: number,
     ) => Promise<{ success: boolean; records: EInvoiceRecord[]; error?: string }>;
     getRecordByIRN: (p: { irn: string }) => Promise<ApiResult>;
-    getByVoucher: (
-      voucher_id: number,
-    ) => Promise<{
+    getByVoucher: (voucher_id: number) => Promise<{
       success: boolean;
       record?: EInvoiceRecord & { signed_qr_code?: string; ewb_no?: string | null };
       error?: string;
@@ -118,9 +116,40 @@ export interface GstIntegrationsAPI {
       cancel_remarks: string;
     }) => Promise<ApiResult>;
     get: (p: { ewb_no: string }) => Promise<ApiResult>;
+    getByIrn: (irn: string) => Promise<ApiResult>;
     getRecords: (
       company_id: number,
     ) => Promise<{ success: boolean; records: EwayRecord[]; error?: string }>;
+    // full e-Way Bill product surface (writes take a NIC-shaped body)
+    generate: (body: unknown) => Promise<ApiResult>;
+    updatePartB: (body: unknown) => Promise<ApiResult>;
+    generateConsolidated: (body: unknown) => Promise<ApiResult>;
+    reject: (body: unknown) => Promise<ApiResult>;
+    updateTransporter: (body: unknown) => Promise<ApiResult>;
+    extendValidity: (body: unknown) => Promise<ApiResult>;
+    regenerateConsolidated: (body: unknown) => Promise<ApiResult>;
+    initMultiVehicle: (body: unknown) => Promise<ApiResult>;
+    addMultiVehicle: (body: unknown) => Promise<ApiResult>;
+    closeEwb: (body: unknown) => Promise<ApiResult>;
+    forTransporterByDate: (date: string) => Promise<ApiResult>;
+    forTransporterByState: (state_code: string, date: string) => Promise<ApiResult>;
+    forTransporterByGstin: (gen_gstin: string, date: string) => Promise<ApiResult>;
+    reportByTransporterAssignedDate: (date: string, state_code: string) => Promise<ApiResult>;
+    byDate: (date: string) => Promise<ApiResult>;
+    rejectedByOthers: (date: string) => Promise<ApiResult>;
+    ofOtherParty: (date: string) => Promise<ApiResult>;
+    getConsolidated: (trip_sheet_no: string) => Promise<ApiResult>;
+    byConsigner: (doc_type: string, doc_no: string) => Promise<ApiResult>;
+    getErrorList: () => Promise<ApiResult>;
+    getGstinDetails: (gstin: string) => Promise<ApiResult>;
+    getTransporterDetails: (trn_no: string) => Promise<ApiResult>;
+    getHsnDetails: (hsncode: string) => Promise<ApiResult>;
+    ewayRequest: (p: {
+      method?: string;
+      path: string;
+      query?: Record<string, string | number>;
+      body?: unknown;
+    }) => Promise<ApiResult>;
   };
   gstFiling: {
     getStatus: (company_id: number) => Promise<IntegrationStatus>;
@@ -191,5 +220,27 @@ export interface GstIntegrationsAPI {
       filed_at?: string | null;
       error?: string;
     }>;
+    // GST portal read/download surface — the whole /gstapis catalog (needs an OTP session).
+    getSection: (
+      type: string,
+      section: string,
+      query?: Record<string, string | number>,
+    ) => Promise<ApiResult>;
+    getSummary: (type: string, query?: Record<string, string | number>) => Promise<ApiResult>;
+    retTrack: (query?: Record<string, string | number>) => Promise<ApiResult>;
+    publicSearch: (query?: Record<string, string | number>) => Promise<ApiResult>;
+    publicRetTrack: (query?: Record<string, string | number>) => Promise<ApiResult>;
+    getPreferences: (query?: Record<string, string | number>) => Promise<ApiResult>;
+    urdDetails: (query?: Record<string, string | number>) => Promise<ApiResult>;
+    urdValidate: (query?: Record<string, string | number>) => Promise<ApiResult>;
+    refreshToken: () => Promise<ApiResult>;
+    requestEvcFor: (form_type: string) => Promise<ApiResult>;
+    portalRequest: (p: {
+      method?: string;
+      path: string;
+      query?: Record<string, string | number>;
+      headers?: Record<string, string>;
+      body?: unknown;
+    }) => Promise<ApiResult>;
   };
 }

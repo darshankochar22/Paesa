@@ -141,6 +141,92 @@ const get = async (ewbNo) => {
     : { success: false, error: r.error };
 };
 
+// Fetch EWB details for an existing IRN (WhiteBooks serves this off the e-Invoice product;
+// NIC exposes the same lookup under its e-Way base path).
+const getByIrn = async (irn) => {
+  if (!irn) return { success: false, error: 'IRN is required.' };
+  const isWb = !!getWhitebooksConfig();
+  const r = isWb
+    ? await wb.einv.request(
+        'GET',
+        '/einvoice/type/GETEWAYBILLIRN/version/V1_03',
+        null,
+        `&param1=${encodeURIComponent(irn)}`,
+      )
+    : await nic.authedRequest(EWB(), 'GET', `/eiewb/v1.03/ewaybill/irn/${irn}`);
+  return r.ok
+    ? { success: true, data: isWb ? r.data : r.body.Data }
+    : { success: false, error: r.error };
+};
+
+// ---- full WhiteBooks e-Way Bill product surface -----------------------------------
+// Every operation on developer.whitebooks.in/ewaybillapis. Writes take a NIC-shaped JSON
+// body (caller-supplied); reads take the documented query params. All ride wb.eway.request
+// (client-cred auth — no taxpayer OTP). WhiteBooks-only (.env GSP path); the IRN-linked
+// generate/cancel/get above keep their NIC fallback.
+const EWB_API = '/ewaybillapi/v1.03/ewayapi';
+const wbGuard = () =>
+  getWhitebooksConfig()
+    ? null
+    : { success: false, error: 'WhiteBooks e-Way Bill not configured (.env)' };
+const wrapEwb = (r) =>
+  r.ok ? { success: true, data: r.data } : { success: false, error: r.error };
+const qstr = (params = {}) =>
+  Object.entries(params)
+    .filter(([, v]) => v != null && v !== '')
+    .map(([k, v]) => `&${k}=${encodeURIComponent(v)}`)
+    .join('');
+const ewbPost = async (op, body) => {
+  const g = wbGuard();
+  if (g) return g;
+  return wrapEwb(await wb.eway.request('POST', `${EWB_API}/${op}`, body || {}));
+};
+const ewbGet = async (op, query) => {
+  const g = wbGuard();
+  if (g) return g;
+  return wrapEwb(await wb.eway.request('GET', `${EWB_API}/${op}`, null, qstr(query)));
+};
+
+// writes (caller supplies the NIC-shaped JSON body)
+const generate = (body) => ewbPost('genewaybill', body);
+const updatePartB = (body) => ewbPost('vehewb', body);
+const generateConsolidated = (body) => ewbPost('gencewb', body);
+const reject = (body) => ewbPost('rejewb', body);
+const updateTransporter = (body) => ewbPost('updatetransporter', body);
+const extendValidity = (body) => ewbPost('extendvalidity', body);
+const regenerateConsolidated = (body) => ewbPost('regentripsheet', body);
+const initMultiVehicle = (body) => ewbPost('initmulti', body);
+const addMultiVehicle = (body) => ewbPost('addmulti', body);
+const closeEwb = (body) => ewbPost('clsewb', body);
+
+// reads / lookups
+const forTransporterByDate = (date) => ewbGet('getewaybillsfortransporter', { date });
+const forTransporterByState = (stateCode, date) =>
+  ewbGet('getewaybillsfortransporterbystate', { stateCode, date });
+const forTransporterByGstin = (genGstin, date) =>
+  ewbGet('getewaybillsfortransporterbygstin', { Gen_gstin: genGstin, date });
+const reportByTransporterAssignedDate = (date, stateCode) =>
+  ewbGet('getewaybillreportbytransporterassigneddate', { date, stateCode });
+const byDate = (date) => ewbGet('getewaybillsbydate', { date });
+const rejectedByOthers = (date) => ewbGet('getewaybillsrejectedbyothers', { date });
+const ofOtherParty = (date) => ewbGet('getewaybillsofotherparty', { date });
+const getConsolidated = (tripSheetNo) => ewbGet('gettripsheet', { tripSheetNo });
+const byConsigner = (docType, docNo) =>
+  ewbGet('getewaybillgeneratedbyconsigner', { docType, docNo });
+const getErrorList = () => ewbGet('geterrorlist', {});
+const getGstinDetails = (gstin) => ewbGet('getgstindetails', { GSTIN: gstin });
+const getTransporterDetails = (trnNo) => ewbGet('gettransporterdetails', { trn_no: trnNo });
+const getHsnDetails = (hsncode) => ewbGet('gethsndetailsbyhsncode', { hsncode });
+
+// generic seam — any e-Way endpoint by path (namespace-guarded).
+const ewayRequest = async ({ method = 'GET', path, query = {}, body = null } = {}) => {
+  const g = wbGuard();
+  if (g) return g;
+  if (!path || !/^\/ewaybillapi\//.test(path))
+    return { success: false, error: 'Path is not in the e-Way Bill namespace.' };
+  return wrapEwb(await wb.eway.request(String(method).toUpperCase(), path, body, qstr(query)));
+};
+
 const getRecords = async (company_id) => {
   try {
     const rows = await db.all(
@@ -152,4 +238,37 @@ const getRecords = async (company_id) => {
   }
 };
 
-module.exports = { getStatus, generateByIrn, generateFromVoucher, cancel, get, getRecords };
+module.exports = {
+  getStatus,
+  generateByIrn,
+  generateFromVoucher,
+  cancel,
+  get,
+  getByIrn,
+  getRecords,
+  // full e-Way Bill product surface
+  generate,
+  updatePartB,
+  generateConsolidated,
+  reject,
+  updateTransporter,
+  extendValidity,
+  regenerateConsolidated,
+  initMultiVehicle,
+  addMultiVehicle,
+  closeEwb,
+  forTransporterByDate,
+  forTransporterByState,
+  forTransporterByGstin,
+  reportByTransporterAssignedDate,
+  byDate,
+  rejectedByOthers,
+  ofOtherParty,
+  getConsolidated,
+  byConsigner,
+  getErrorList,
+  getGstinDetails,
+  getTransporterDetails,
+  getHsnDetails,
+  ewayRequest,
+};

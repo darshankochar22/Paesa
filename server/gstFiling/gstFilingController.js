@@ -1,4 +1,5 @@
 const s = require('./gstFilingService');
+const p = require('./gstPortalService');
 
 module.exports = {
   getStatus: (e, { company_id }) => s.getStatus(company_id),
@@ -13,4 +14,17 @@ module.exports = {
   authenticate: (e, payload) => s.authenticate(payload.company_id, payload),
   requestEvc: (e, { company_id }) => s.requestEvc(company_id),
   getReturnStatus: (e, payload) => s.getReturnStatus(payload.company_id, payload),
+
+  // ---- GST portal read/download surface (gstPortalService) ----
+  portalRequest: (e, payload) => p.portalRequest(payload),
+  getSection: (e, { type, section, query }) => p.getSection(type, section, query),
+  getSummary: (e, { type, query }) => p.getSummary(type, query),
+  retTrack: (e, { query }) => p.retTrack(query),
+  publicSearch: (e, { query }) => p.publicSearch(query),
+  publicRetTrack: (e, { query }) => p.publicRetTrack(query),
+  getPreferences: (e, { query }) => p.getPreferences(query),
+  urdDetails: (e, { query }) => p.urdDetails(query),
+  urdValidate: (e, { query }) => p.urdValidate(query),
+  refreshToken: () => p.refreshToken(),
+  requestEvcFor: (e, { form_type }) => p.requestEvcFor(form_type),
 };

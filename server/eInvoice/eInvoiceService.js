@@ -355,9 +355,64 @@ const WB_EINV = {
   GETIRN: '/einvoice/type/GETIRN/version/V1_03',
   GETIRNBYDOCDETAILS: '/einvoice/type/GETIRNBYDOCDETAILS/version/V1_03',
   GSTNDETAILS: '/einvoice/type/GSTNDETAILS/version/V1_03',
+  SYNCGSTIN: '/einvoice/type/SYNC_GSTIN_FROMCP/version/V1_03',
+  GETREJECTEDIRNS: '/einvoice/type/GETREJECTEDIRNS/version/V1_03',
+  B2CQRCODE: '/einvoice/qrcode',
 };
 
 const EINV = () => getGspConfig()?.einvoiceBaseUrl || SANDBOX_HOST;
+
+// Pull fresh party GSTIN details straight from the GST common portal (bypasses the IRP
+// cache). WhiteBooks-only — the NIC path already covers the cached lookup via getGSTINDetails.
+const syncGSTINFromCP = async (gstin) => {
+  if (!getWhitebooksConfig())
+    return {
+      success: false,
+      error: 'Sync GSTIN from Common Portal needs GST_PROVIDER=whitebooks.',
+    };
+  const r = await wb.einv.request(
+    'GET',
+    WB_EINV.SYNCGSTIN,
+    null,
+    `&param1=${encodeURIComponent(gstin)}`,
+  );
+  return r.ok ? { success: true, data: r.data } : { success: false, error: r.error };
+};
+
+// IRNs the IRP rejected for a given date (dd/mm/yyyy) — for reconciliation of failed pushes.
+const getRejectedIRNs = async (date) => {
+  if (!getWhitebooksConfig())
+    return { success: false, error: 'Get Rejected IRNs needs GST_PROVIDER=whitebooks.' };
+  if (!date) return { success: false, error: 'A date (dd/mm/yyyy) is required.' };
+  const r = await wb.einv.request(
+    'GET',
+    WB_EINV.GETREJECTEDIRNS,
+    null,
+    `&param1=${encodeURIComponent(date)}`,
+  );
+  return r.ok ? { success: true, data: r.data } : { success: false, error: r.error };
+};
+
+// B2C dynamic-QR payload. WhiteBooks quirk: every input goes in headers, not the body/query.
+const getB2CQRCode = async (params = {}) => {
+  if (!getWhitebooksConfig())
+    return { success: false, error: 'B2C QR Code needs GST_PROVIDER=whitebooks.' };
+  const headers = {
+    sgstin: params.sgstin || '',
+    docno: params.docno || '',
+    docdate: params.docdate || '',
+    totinvval: String(params.totinvval ?? ''),
+    bankaccno: params.bankaccno || '',
+    bankifsccode: params.bankifsccode || '',
+    accountholdername: params.accountholdername || '',
+    igstamount: String(params.igstamount ?? ''),
+    cgstamount: String(params.cgstamount ?? ''),
+    sgstamount: String(params.sgstamount ?? ''),
+    cessamount: String(params.cessamount ?? ''),
+  };
+  const r = await wb.einv.request('GET', WB_EINV.B2CQRCODE, null, '', headers);
+  return r.ok ? { success: true, data: r.data } : { success: false, error: r.error };
+};
 
 // Renderer-safe status (no secret) + how many IRNs exist for this company.
 const getStatus = async (company_id) => {
@@ -570,4 +625,7 @@ module.exports = {
   getCache,
   getStatus,
   generateFromVoucher,
+  syncGSTINFromCP,
+  getRejectedIRNs,
+  getB2CQRCode,
 };
