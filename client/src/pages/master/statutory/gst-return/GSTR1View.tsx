@@ -517,12 +517,15 @@ export default function GSTR1View() {
           <div
             className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2 cursor-pointer hover:underline"
             onClick={() =>
-              navigate('/master/statutory/gst/uncertain', {
+              navigate('/master/statutory/gst/uncertain/breakdown', {
                 state: {
                   registration: activeRegistration,
                   month: selectedMonth,
                   year: selectedYear,
                   returnType: 'GSTR1',
+                  annual: false,
+                  reportTitle: 'GSTR-1',
+                  supplyGroupLabel: 'Outward Supplies',
                 },
               })
             }

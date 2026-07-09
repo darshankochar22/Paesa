@@ -385,7 +385,9 @@ export type StockTableVariant =
   'default' | 'invoice' | 'withGodown' | 'actualBilled' | 'physicalStock';
 
 export const STOCK_TABLE_VARIANT: Record<string, StockTableVariant> = {
-  'Delivery Note': 'withGodown',
+  // Delivery Note hides the Godown column at entry (Tally shows Name/Quantity/
+  // Rate/Amount only) — the view mirrors that with the plain 'default' layout.
+  'Delivery Note': 'default',
   'Rejection In': 'withGodown',
   'Rejection Out': 'withGodown',
   // Job Work In/Out Order hide the Godown column at entry (hideGodownColumn) —
@@ -537,6 +539,10 @@ export function ReadOnlyStockTable({
     // isn't persisted separately today (see plan notes), so both columns read
     // the one quantity that IS stored, matching what Tally shows when there's
     // no batch-level split.
+    const qtyTotal = entries.reduce((s, e) => s + (e.quantity || 0), 0);
+    const abUnits = Array.from(new Set(entries.map((e) => e.unit_symbol).filter(Boolean)));
+    const abUnit = abUnits.length === 1 ? (abUnits[0] as string) : '';
+    const abQtyLabel = qtyTotal ? `${formatQty(qtyTotal)}${abUnit ? ` ${abUnit}` : ''}` : '';
     return (
       <>
         <div className="border-b border-gray-300 shrink-0 bg-white">
@@ -605,7 +611,10 @@ export function ReadOnlyStockTable({
         {total > 0 && (
           <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white shrink-0">
             <div className="flex-1 text-xs text-gray-700">Subtotal</div>
-            <div className="w-32" />
+            <div className="w-32 flex">
+              <div className="flex-1 text-right text-sm font-bold text-black">{abQtyLabel}</div>
+              <div className="flex-1 text-right text-sm font-bold text-black">{abQtyLabel}</div>
+            </div>
             <div className="w-20" />
             <div className="w-10" />
             <div className="w-16" />
@@ -668,7 +677,9 @@ export function ReadOnlyStockTable({
               <div className="w-24" />
               <div className="w-24" />
               <div className="w-24" />
-              <div className="w-20" />
+              <div className="w-20 text-right text-sm font-bold text-black">
+                {formatQty(entries.reduce((s, e) => s + (e.quantity || 0), 0))}
+              </div>
               <div className="w-28 text-right text-sm font-bold text-black">
                 {formatAmount(total)}
               </div>

@@ -8,6 +8,8 @@ import { useVoucherLedgers } from './useVoucherLedgers';
 import { useVoucherRows as useVoucherRowsInternal } from './useVoucherRowsNew';
 import { pickDefaultRegistrationFrom } from '../utils/defaultRegistration';
 import { parseDueOn } from '@/lib/dueDate';
+import { makePayrollPayHeadRow } from '../utils/rowFactories';
+import type { PayrollPayHeadRow } from '../types';
 
 // Re-export types so any file that previously imported from this hook still works
 export type { ParticularRow, StockEntryRow, ActiveField, ActiveAllocation } from '../types';
@@ -215,6 +217,48 @@ export function useVoucherForm(
     stockBalances: ledgers.stockBalances,
   });
 
+  // ── Payroll Autofill ───────────────────────────────────────────────────────
+  // TallyPrime fills each employee's pay heads from their saved Salary Details
+  // when the employee is picked in a Payroll voucher — the user doesn't retype
+  // the amounts. On employee selection we fetch their latest salary structure and
+  // replace that employee's pay-head rows with the defined pay heads + amounts.
+  const autofillPayrollEmployee = useCallback(
+    async (groupId: string, empRowId: string, employee: { employee_id?: number } | null) => {
+      if (!companyId || !employee?.employee_id) return;
+      let res;
+      try {
+        res = await window.api.salaryStructure.getByEmployee(companyId, employee.employee_id);
+      } catch {
+        return;
+      }
+      // getByEmployee returns structures newest-first; use the most recent one.
+      const def = res?.success ? (res.salaryStructures?.[0]?.pay_heads ?? []) : [];
+      const filled: PayrollPayHeadRow[] = def
+        .map((d) => ({
+          ...makePayrollPayHeadRow(),
+          payHead: ledgers.allPayHeads.find((p) => p.pay_head_id === d.pay_head_id) ?? null,
+          amountRaw: d.amount ? String(d.amount) : '',
+        }))
+        .filter((r) => r.payHead); // drop pay heads not in the loaded master list
+      if (filled.length === 0) return; // no salary details — leave the blank row as-is
+      // Trailing blank row so the user can still add more pay heads (Tally-style).
+      filled.push(makePayrollPayHeadRow());
+      rows.setPayrollGroups((prev) =>
+        prev.map((g) =>
+          g.id === groupId
+            ? {
+                ...g,
+                employeeRows: g.employeeRows.map((e) =>
+                  e.id === empRowId ? { ...e, payHeadRows: filled } : e,
+                ),
+              }
+            : g,
+        ),
+      );
+    },
+    [companyId, ledgers.allPayHeads, rows.setPayrollGroups],
+  );
+
   // ── Load master data and next voucher number on mount ─────────────────────
 
   const fetchNextNumber = useCallback(async () => {
@@ -404,9 +448,8 @@ export function useVoucherForm(
       if (filledItems.length === 0)
         return 'At least one Stock Item with quantity and rate is required.';
       if (rows.totalAmount <= 0) return 'Total amount must be greater than zero.';
-      if (rows.negativeStockWarnings?.length > 0) {
-        return `Negative Stock: ${rows.negativeStockWarnings[0]}`;
-      }
+      // Negative stock is a non-blocking warning (shown as a banner), never a
+      // hard error — Tally allows the entry to save. Do not block here.
     }
 
     // Order vouchers: stock entries only, no accounting, no stock balance effect
@@ -430,9 +473,8 @@ export function useVoucherForm(
       if (filledSource.length === 0 && filledDest.length === 0) {
         return 'At least one Stock Item is required (either Source or Destination).';
       }
-      if (rows.negativeStockWarnings?.length > 0) {
-        return `Negative Stock: ${rows.negativeStockWarnings[0]}`;
-      }
+      // Negative stock is a non-blocking warning (shown as a banner), never a
+      // hard error — Tally allows the entry to save. Do not block here.
     }
 
     if (effectiveVoucherType === 'Physical Stock') {
@@ -450,9 +492,8 @@ export function useVoucherForm(
       if (filledSource.length === 0 && filledDest.length === 0) {
         return 'At least one Stock Item is required (either Source or Destination).';
       }
-      if (rows.negativeStockWarnings?.length > 0) {
-        return `Negative Stock: ${rows.negativeStockWarnings[0]}`;
-      }
+      // Negative stock is a non-blocking warning (shown as a banner), never a
+      // hard error — Tally allows the entry to save. Do not block here.
     }
 
     if (effectiveVoucherType === 'Attendance') {
@@ -1351,6 +1392,7 @@ export function useVoucherForm(
     handleUpdatePayrollGroup: rows.handleUpdatePayrollGroup,
     handleAddPayrollEmployeeRow: rows.handleAddPayrollEmployeeRow,
     handleUpdatePayrollEmployeeRow: rows.handleUpdatePayrollEmployeeRow,
+    autofillPayrollEmployee,
     handleAddPayrollPayHeadRow: rows.handleAddPayrollPayHeadRow,
     handleUpdatePayrollPayHeadRow: rows.handleUpdatePayrollPayHeadRow,
     handleRemovePayrollPayHeadRow: rows.handleRemovePayrollPayHeadRow,

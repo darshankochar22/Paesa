@@ -632,7 +632,13 @@ export default function Vouchers() {
       promptItemExciseOrAdvance(row?.id, idx);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form.stockEntries, form.setActiveAllocation, effectiveVoucherType, advanceStockRow, promptItemExciseOrAdvance],
+    [
+      form.stockEntries,
+      form.setActiveAllocation,
+      effectiveVoucherType,
+      advanceStockRow,
+      promptItemExciseOrAdvance,
+    ],
   );
 
   // Physical Stock: after entering a godown's quantity, add another godown row for
@@ -1062,6 +1068,8 @@ export default function Vouchers() {
       }
       if (field?.type === 'payrollEmployee') {
         const { groupId, empRowId } = field as any;
+        // Autofill this employee's pay heads from their saved Salary Details (Tally-style).
+        form.autofillPayrollEmployee?.(groupId, empRowId, item);
         setTimeout(() => {
           const nodes = document.querySelectorAll(`[data-payroll-ph^="${groupId}-${empRowId}-"]`);
           (nodes[0] as HTMLInputElement | null)?.focus();
@@ -1341,6 +1349,7 @@ export default function Vouchers() {
     [
       form.activeField,
       form.handleLedgerPanelSelect,
+      form.autofillPayrollEmployee,
       form.checkIsBank,
       form.checkIsParty,
       form.sourceStockEntries,
@@ -2077,9 +2086,8 @@ export default function Vouchers() {
       )}
       {form.negativeStockWarnings?.length > 0 && (
         <AlertBanner
-          type="error"
-          message={`Negative Stock: ${form.negativeStockWarnings.join('; ')}`}
-          onDismiss={() => {}}
+          type="warning"
+          message={`Negative Stock: ${form.negativeStockWarnings.join('; ')} — entry is allowed and can be accepted.`}
         />
       )}
 
@@ -2402,13 +2410,13 @@ export default function Vouchers() {
             }
             balanceUnit={
               form.activeField?.type === 'stockGodown'
-                ? ((form.stockEntries.find((r) => r.id === (form.activeField as any).rowId) ??
-                    form.sourceStockEntries.find(
-                      (r) => r.id === (form.activeField as any).rowId,
-                    ) ??
+                ? ((
+                    form.stockEntries.find((r) => r.id === (form.activeField as any).rowId) ??
+                    form.sourceStockEntries.find((r) => r.id === (form.activeField as any).rowId) ??
                     form.destinationStockEntries.find(
                       (r) => r.id === (form.activeField as any).rowId,
-                    ))?.unit?.symbol ?? '')
+                    )
+                  )?.unit?.symbol ?? '')
                 : undefined
             }
             allUnits={form.activeField?.type === 'stockItem' ? form.allUnits : undefined}

@@ -37,6 +37,11 @@ export default function InventoryVoucherView({
   const stockTableVariant = STOCK_TABLE_VARIANT[t] ?? 'default';
   const sourceGodownRowLabel =
     t === 'Material In' ? 'Source Godown' : t === 'Material Out' ? 'Destination Godown' : null;
+  // Price Level — header field Tally shows on sales-side inventory vouchers
+  // (Delivery Note / Sales Order), "♦ Not Applicable" when none. Not persisted on
+  // the voucher yet, so it reads defensively and falls back to the default label.
+  const showPriceLevel = t === 'Delivery Note' || t === 'Sales Order';
+  const priceLevel = (voucher as { price_level?: string | null }).price_level || '';
   const hasStock = voucher.stock_entries.length > 0;
   const hasEntries = voucher.entries.length > 0;
   const showDoubleEntryTable = hasEntries; // inventory voucher carrying ledger entries
@@ -81,13 +86,23 @@ export default function InventoryVoucherView({
             address={trackingAddress}
           />
         ) : (
-          <ReadOnlyFieldRow
-            label="Party A/c name"
-            value={voucher.party_name}
-            balance={
-              voucher.party_ledger_id != null ? balances[voucher.party_ledger_id] : undefined
-            }
-          />
+          <div className="relative">
+            <ReadOnlyFieldRow
+              label="Party A/c name"
+              value={voucher.party_name}
+              balance={
+                voucher.party_ledger_id != null ? balances[voucher.party_ledger_id] : undefined
+              }
+            />
+            {/* Price Level — right side of the party band (TallyPrime invoice header). */}
+            {showPriceLevel && (
+              <div className="absolute top-1 right-3 flex items-center gap-2 text-sm">
+                <span className="text-black">Price Level</span>
+                <span className="text-black">:</span>
+                <span className="font-semibold text-black">{priceLevel || '♦ Not Applicable'}</span>
+              </div>
+            )}
+          </div>
         ))}
 
       {voucher.sales_purchase_ledger_name && (

@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
-import { TableRow, TableCell } from "@/components/shadcn/table";
-import { DataTableCard } from "@/components/blocks/DataTableCard";
-import { EmptyState } from "@/components/blocks/EmptyState";
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
+import { TableRow, TableCell } from '@/components/shadcn/table';
+import { DataTableCard } from '@/components/blocks/DataTableCard';
+import { EmptyState } from '@/components/blocks/EmptyState';
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function periodLabelFor(month: string, year: string) {
   const m = Number(month);
@@ -33,18 +33,20 @@ export default function GSTRNotRelevant() {
   const fyId = activeFY?.fy_id;
 
   const today = new Date();
-  const month = location.state?.month || String(today.getMonth() + 1).padStart(2, "0");
+  const month = location.state?.month || String(today.getMonth() + 1).padStart(2, '0');
   const year = location.state?.year || String(today.getFullYear());
   const registration = location.state?.registration;
-  const returnType = location.state?.returnType || "GSTR1";
+  const returnType = location.state?.returnType || 'GSTR1';
   const annual = !!location.state?.annual;
   const periodText = annual
-    ? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "")
+    ? activeFY
+      ? `${activeFY.start_date} to ${activeFY.end_date}`
+      : ''
     : periodLabelFor(month, year);
 
   const registrationName = registration?.state_id
     ? `${registration.state_id} Registration`
-    : registration?.name || " All Registrations";
+    : registration?.name || ' All Registrations';
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +74,10 @@ export default function GSTRNotRelevant() {
           setNonGstCount(res.breakdown.non_gst.count);
           setOtherReturns(res.breakdown.other_returns);
         } else {
-          setError(res.error || "Failed to load breakdown.");
+          setError(res.error || 'Failed to load breakdown.');
         }
       } catch (e: any) {
-        setError(e.message || "An unexpected error occurred.");
+        setError(e.message || 'An unexpected error occurred.');
       } finally {
         setLoading(false);
       }
@@ -84,17 +86,34 @@ export default function GSTRNotRelevant() {
   }, [companyId, fyId, month, year, returnType, registration?.gst_id]);
 
   const openRegister = (category: string, voucherType?: string, subtitle?: string) => {
-    navigate("/master/statutory/gst/voucher-register", {
+    navigate('/master/statutory/gst/voucher-register', {
       state: {
         registration,
         month,
         year,
         returnType,
         annual,
-        bucket: "not_relevant",
+        bucket: 'not_relevant',
         category,
         voucherType,
         subtitle: `${subtitle || category} (Not Relevant for This Return)`,
+      },
+    });
+  };
+
+  // A bold parent row (Non-GST transactions / Transactions of Other GST Returns)
+  // opens ALL of its vouchers as one list, via the classifier's group.
+  const openGroup = (group: string, label: string) => {
+    navigate('/master/statutory/gst/voucher-register', {
+      state: {
+        registration,
+        month,
+        year,
+        returnType,
+        annual,
+        bucket: 'not_relevant',
+        group,
+        subtitle: `${label} (Not Relevant for This Return)`,
       },
     });
   };
@@ -103,8 +122,8 @@ export default function GSTRNotRelevant() {
 
   return (
     <TallyReportLayout
-      title={`${returnType === "ANNUAL" ? "Annual Computation" : returnType === "GSTR3B" ? "GSTR-3B" : "GSTR-1"} - Not Relevant for This Return`}
-      companyName={selectedCompany?.name || "Company"}
+      title={`${returnType === 'ANNUAL' ? 'Annual Computation' : returnType === 'GSTR3B' ? 'GSTR-3B' : 'GSTR-1'} - Not Relevant for This Return`}
+      companyName={selectedCompany?.name || 'Company'}
       leftSubtitle={
         <div className="flex gap-4">
           <span className="w-32">GST Registration</span>
@@ -122,12 +141,15 @@ export default function GSTRNotRelevant() {
           // Level 2 — voucher types inside a category (Tally shows this as its own screen).
           <DataTableCard
             columns={[
-              { header: "Particulars" },
-              { header: "Voucher Count", className: "text-right w-32" },
+              { header: 'Particulars' },
+              { header: 'Voucher Count', className: 'text-right w-32' },
             ]}
             maxHeight="100%"
           >
-            <TableRow className="hover:bg-transparent cursor-pointer" onClick={() => setOpenCategory(null)}>
+            <TableRow
+              className="hover:bg-transparent cursor-pointer"
+              onClick={() => setOpenCategory(null)}
+            >
               <TableCell colSpan={2} className="px-2 py-1 font-bold text-black bg-[#ffeb9c]">
                 ← {openCategory.label}
               </TableCell>
@@ -151,8 +173,8 @@ export default function GSTRNotRelevant() {
           // Level 1 — Non-GST categories + Transactions of Other GST Returns.
           <DataTableCard
             columns={[
-              { header: "Particulars" },
-              { header: "Voucher Count", className: "text-right w-32" },
+              { header: 'Particulars' },
+              { header: 'Voucher Count', className: 'text-right w-32' },
             ]}
             maxHeight="100%"
           >
@@ -164,9 +186,16 @@ export default function GSTRNotRelevant() {
               </TableRow>
             ) : (
               <>
-                <TableRow className="hover:bg-transparent">
-                  <TableCell className="px-2 py-1 font-bold text-black">Non-GST transactions</TableCell>
-                  <TableCell className="px-2 py-1 text-right w-32 font-bold">{nonGstCount || ""}</TableCell>
+                <TableRow
+                  className="hover:bg-[#e6f2ff] cursor-pointer"
+                  onClick={() => openGroup('non_gst', 'Non-GST transactions')}
+                >
+                  <TableCell className="px-2 py-1 font-bold text-black">
+                    Non-GST transactions
+                  </TableCell>
+                  <TableCell className="px-2 py-1 text-right w-32 font-bold">
+                    {nonGstCount || ''}
+                  </TableCell>
                 </TableRow>
                 {categories.map((c) => (
                   <TableRow
@@ -181,10 +210,14 @@ export default function GSTRNotRelevant() {
                 {otherReturns && (
                   <TableRow
                     className="hover:bg-[#e6f2ff] cursor-pointer"
-                    onClick={() => openRegister("Transactions of Other GST Returns", undefined, otherReturns.label)}
+                    onClick={() => openGroup('other_returns', otherReturns.label)}
                   >
-                    <TableCell className="px-2 py-1 font-bold text-black">{otherReturns.label}</TableCell>
-                    <TableCell className="px-2 py-1 text-right w-32 font-bold">{otherReturns.count || ""}</TableCell>
+                    <TableCell className="px-2 py-1 font-bold text-black">
+                      {otherReturns.label}
+                    </TableCell>
+                    <TableCell className="px-2 py-1 text-right w-32 font-bold">
+                      {otherReturns.count || ''}
+                    </TableCell>
                   </TableRow>
                 )}
                 <TableRow className="hover:bg-transparent font-bold border-t border-gray-300">

@@ -1,79 +1,119 @@
-
 export interface ChartBar {
-  label: string;   // x-axis label (e.g. "Apr", "May")
-  value: number;   // can be negative (downward bar)
+  label: string; // x-axis label (e.g. "Apr", "May")
+  value: number; // can be negative (downward bar)
 }
 
 interface Props {
   bars: ChartBar[];
-  height?: number;        // px height of the plot area
+  height?: number; // px height of the plot area
   selectedIndex?: number; // highlight the bar matching the selected row
 }
 
+const fmtAxis = (n: number) => {
+  const a = Math.abs(n);
+  if (a >= 1_00_000) return `${(n / 1_00_000).toFixed(1)}L`;
+  if (a >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return `${Math.round(n)}`;
+};
+
 /**
- * Lightweight SVG bar chart for the Stock Item Monthly/Daily summary.
- * Strict gray theme: positive bars filled (zinc-800), negative bars drawn
- * downward as outline bars (white fill, black border) — no color used for
- * sign. Baseline is a 1px zinc rule. Matches TallyPrime's bottom-of-report
- * chart structurally, not visually.
+ * Bar chart for the Stock Item Monthly/Daily summary — plots the closing
+ * balance per period. Strict gray theme (no hue): sign is conveyed by shade
+ * and direction, not colour. Positive bars grow up in dark grey, negative bars
+ * grow down in mid grey; the selected bar is solid black. A zero baseline rule
+ * plus min/max axis labels give it the structure of TallyPrime's report chart.
  */
 export default function StockBarChart({ bars, height = 96, selectedIndex = -2 }: Props) {
   if (!bars.length) return null;
 
-  const max = Math.max(1, ...bars.map(b => Math.abs(b.value)));
-  const hasNeg = bars.some(b => b.value < 0);
-  const plotH = height;
-  const baseY = hasNeg ? plotH / 2 : plotH - 1;     // baseline position
-  const usableH = hasNeg ? plotH / 2 : plotH - 1;   // half height if negatives exist
+  const values = bars.map((b) => b.value);
+  const maxPos = Math.max(0, ...values);
+  const minNeg = Math.min(0, ...values);
+  const hasNeg = minNeg < 0;
+  const hasPos = maxPos > 0;
+  const span = Math.max(1, maxPos - minNeg); // total value range across baseline
 
-  // Bar geometry in a normalized 0..100 width coordinate space per slot
+  const plotH = height;
+  // Baseline splits the plot proportionally so up/down bars share the height.
+  const baseY = hasNeg ? (maxPos / span) * plotH : plotH - 1;
+
+  // Per-slot geometry in a normalized 0..100 width space.
   const slot = 100 / bars.length;
-  const barW = Math.min(60, slot * 0.6); // % of a slot
-  const gap  = (slot - barW) / 2;
+  const barW = Math.min(8, slot * 0.6);
+  const gap = (slot - barW) / 2;
 
   return (
-    <div className="border-t border-zinc-200 bg-white px-3 pt-2 pb-1 shrink-0 select-none">
-      <svg
-        viewBox={`0 0 100 ${plotH + 14}`}
-        preserveAspectRatio="none"
-        className="w-full"
-        style={{ height: plotH + 14 }}
-      >
-        {/* baseline */}
-        <line x1="0" y1={baseY} x2="100" y2={baseY} stroke="#d4d4d8" strokeWidth="0.3" />
-        {bars.map((b, i) => {
-          const h = (Math.abs(b.value) / max) * usableH;
-          const x = i * slot + gap;
-          const isNeg = b.value < 0;
-          const y = isNeg ? baseY : baseY - h;
-          const sel = i === selectedIndex;
-          return (
-            <g key={i}>
-              <rect
-                x={x}
-                y={y}
-                width={barW}
-                height={Math.max(0.4, h)}
-                fill={isNeg ? "#ffffff" : sel ? "#18181b" : "#52525b"}
-                stroke={isNeg ? "#18181b" : "none"}
-                strokeWidth={isNeg ? 0.4 : 0}
-                vectorEffect="non-scaling-stroke"
-              />
-            </g>
-          );
-        })}
-      </svg>
-      {/* x-axis labels (HTML so they stay crisp / non-stretched) */}
-      <div className="flex w-full text-[8px] font-mono text-zinc-500 leading-none">
-        {bars.map((b, i) => (
-          <span
-            key={i}
-            className={`text-center truncate ${i === selectedIndex ? "text-zinc-900 font-bold" : ""}`}
-            style={{ width: `${slot}%` }}
-          >
-            {b.label}
+    <div className="border-t border-zinc-200 bg-white px-3 pt-1.5 pb-1 shrink-0 select-none">
+      <div className="flex gap-2">
+        {/* y-axis labels — positioned against the real zero baseline */}
+        <div
+          className="relative text-[8px] font-mono text-zinc-400 leading-none w-8 shrink-0"
+          style={{ height: plotH }}
+        >
+          {hasPos && (
+            <span className="absolute right-0" style={{ top: 0 }}>
+              {fmtAxis(maxPos)}
+            </span>
+          )}
+          <span className="absolute right-0 -translate-y-1/2" style={{ top: baseY }}>
+            0
           </span>
-        ))}
+          {hasNeg && (
+            <span className="absolute right-0" style={{ bottom: 0 }}>
+              {fmtAxis(minNeg)}
+            </span>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <svg
+            viewBox={`0 0 100 ${plotH}`}
+            preserveAspectRatio="none"
+            className="w-full"
+            style={{ height: plotH }}
+          >
+            {/* zero baseline */}
+            <line
+              x1="0"
+              y1={baseY}
+              x2="100"
+              y2={baseY}
+              stroke="#a1a1aa"
+              strokeWidth="0.4"
+              vectorEffect="non-scaling-stroke"
+            />
+            {bars.map((b, i) => {
+              const isNeg = b.value < 0;
+              const h = (Math.abs(b.value) / span) * plotH;
+              const x = i * slot + gap;
+              const y = isNeg ? baseY : baseY - h;
+              const sel = i === selectedIndex;
+              const fill = sel ? '#18181b' : isNeg ? '#a1a1aa' : '#52525b';
+              return (
+                <rect
+                  key={i}
+                  x={x}
+                  y={y}
+                  width={barW}
+                  height={Math.max(b.value === 0 ? 0 : 0.6, h)}
+                  fill={fill}
+                />
+              );
+            })}
+          </svg>
+          {/* x-axis labels (HTML so they stay crisp / non-stretched) */}
+          <div className="flex w-full text-[8px] font-mono text-zinc-500 leading-none pt-0.5">
+            {bars.map((b, i) => (
+              <span
+                key={i}
+                className={`text-center truncate ${i === selectedIndex ? 'text-zinc-900 font-bold' : ''}`}
+                style={{ width: `${slot}%` }}
+              >
+                {b.label}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

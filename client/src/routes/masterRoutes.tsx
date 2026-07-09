@@ -287,6 +287,7 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gst/voucher-monthly', element: <GSTVoucherMonthlyRegister /> },
   { path: '/master/statutory/gstr1/section', element: <GSTR1SectionDetail /> },
   { path: '/master/statutory/gst/not-relevant', element: <GSTRNotRelevant /> },
+  { path: '/master/statutory/gst/uncertain/breakdown', element: <UncertainBreakdown /> },
   { path: '/master/statutory/gst/uncertain', element: <GSTRUncertain /> },
   { path: '/master/statutory/gst/uncertain/registration', element: <GSTRegistrationResolution /> },
   { path: '/master/statutory/gst/annual-section', element: <AnnualSectionSummary /> },

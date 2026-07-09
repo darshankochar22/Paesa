@@ -13,6 +13,17 @@ import {
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function periodLabelFor(month: string, year: string) {
+  const m = Number(month);
+  const y = Number(year);
+  if (!m || !y) return '';
+  const lastDay = new Date(y, m, 0).getDate();
+  const yy = String(y).slice(-2);
+  return `1-${MONTHS[m - 1]}-${yy} to ${lastDay}-${MONTHS[m - 1]}-${yy}`;
+}
+
 interface UncertainVoucher {
   voucher_id: number;
   voucher_type: string;
@@ -56,11 +67,20 @@ export default function UncertainBreakdown() {
   const reportTitle = location.state?.reportTitle || 'GSTR-1 Reconciliation';
   const supplyGroupLabel = location.state?.supplyGroupLabel || 'Outward Supplies';
   const reconciliation = !!location.state?.reconciliation;
+  // Reconciliation / Annual callers span the whole FY; the monthly GSTR-1 / GSTR-3B
+  // return views pass annual:false + month/year so this tree scopes to that period.
+  const annual = location.state?.annual ?? true;
+  const month = location.state?.month;
+  const year = location.state?.year;
 
   const registrationName = registration?.state_id
     ? `${registration.state_id} Registration`
     : 'All Registrations';
-  const periodText = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '';
+  const periodText = annual
+    ? activeFY
+      ? `${activeFY.start_date} to ${activeFY.end_date}`
+      : ''
+    : periodLabelFor(month, year);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,10 +96,10 @@ export default function UncertainBreakdown() {
         const res = await window.api.gst.getReturnVouchers({
           company_id: companyId,
           fy_id: fyId,
-          return_period: null,
+          return_period: annual ? null : `${month}${year}`,
           return_type: returnType,
           gst_registration_id: registration?.gst_id ?? null,
-          annual: true,
+          annual,
           bucket: 'uncertain',
         });
         if (res.success) setVouchers((res.rows as UncertainVoucher[]) || []);
@@ -95,7 +115,7 @@ export default function UncertainBreakdown() {
       }
     }
     load();
-  }, [companyId, fyId, registration?.gst_id, returnType]);
+  }, [companyId, fyId, registration?.gst_id, returnType, annual, month, year]);
 
   // Count vouchers per concrete exception, then bucket exceptions into categories.
   const exceptionCounts = new Map<string, number>();
@@ -131,7 +151,7 @@ export default function UncertainBreakdown() {
   const drill = (exception?: string, detailsLabel?: string) => {
     if (exception === REGISTRATION_EXCEPTION) {
       navigate('/master/statutory/gst/uncertain/registration', {
-        state: { registration, returnType, reconciliation, reportName: reportTitle },
+        state: { registration, returnType, month, year, reconciliation, reportName: reportTitle },
       });
       return;
     }
@@ -139,7 +159,9 @@ export default function UncertainBreakdown() {
       state: {
         registration,
         returnType,
-        annual: true,
+        annual,
+        month,
+        year,
         reconciliation,
         reportName: reportTitle,
         exception,

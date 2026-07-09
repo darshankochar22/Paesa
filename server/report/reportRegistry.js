@@ -18,6 +18,7 @@ const registry = {
   ratio_analysis: require('./definitions/ratio_analysis'),
   negative_cash: require('./definitions/negative_cash'),
   negative_stock: require('./definitions/negative_stock'),
+  negative_stock_report: require('./definitions/negative-stock-report'),
   negative_ledger: require('./definitions/negative_ledger'),
   audit_trail_verification: require('./definitions/audit_trail_verification'),
 
@@ -98,6 +99,7 @@ const registry = {
   memorandum_register: require('./definitions/memorandum-register'),
   optional_voucher_register: require('./definitions/optional-voucher-register'),
   cancelled_voucher_register: require('./definitions/cancelled-voucher-register'),
+  marked_voucher_register: require('./definitions/marked-voucher-register'),
   reversing_journal_register: require('./definitions/reversing-journal-register'),
   payroll_voucher_register: require('./definitions/payroll-voucher-register'),
   stock_journal_register: require('./definitions/stock-journal-register'),
@@ -613,5 +615,5 @@ function getReport(reportId) {
 
 module.exports = {
   registry,
-  getReport
+  getReport,
 };

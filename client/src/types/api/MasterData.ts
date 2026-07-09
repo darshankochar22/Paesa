@@ -433,6 +433,7 @@ export interface MasterDataAPI {
       return_type?: string;
       gst_registration_id?: number | null;
       bucket?: string;
+      group?: string;
       category?: string;
       voucher_type?: string;
       section?: string;

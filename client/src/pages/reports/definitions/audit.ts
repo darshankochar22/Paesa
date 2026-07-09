@@ -402,6 +402,16 @@ export const AUDIT_DEFINITIONS: Record<string, ReportConfig> = {
       { header: 'Status', field: 'status' },
     ],
   },
+  'negative-ledgers': {
+    title: 'List of Negative Ledger A/cs',
+    apiMethod: 'run',
+    reportId: 'negative_ledger',
+    columns: [
+      { header: 'Particulars', field: 'ledger_name', align: 'left' },
+      { header: 'Debit', field: 'debit', type: 'currency', align: 'right' },
+      { header: 'Credit', field: 'credit', type: 'currency', align: 'right' },
+    ],
+  },
   'negative-cash-exception': {
     title: 'Negative Cash Exception',
     apiMethod: 'run',

@@ -253,6 +253,11 @@ export default function StockItemMonthlyTable({
                 </tr>
                 {months.map((m, idx) => {
                   const p = profit[idx];
+                  // Closing balance is shown only on months that had movement
+                  // (inward/outward) — carried-forward balances stay blank,
+                  // matching TallyPrime's monthly summary.
+                  const hasMovement =
+                    m.in_qty !== 0 || m.out_qty !== 0 || m.in_value !== 0 || m.out_value !== 0;
                   return (
                     <tr
                       key={m.month}
@@ -285,9 +290,9 @@ export default function StockItemMonthlyTable({
                         </>
                       )}
                       <td className={`${numCell} border-l border-zinc-100`}>
-                        {fmtQty(m.closing_qty, unit)}
+                        {hasMovement ? fmtQty(m.closing_qty, unit) : ''}
                       </td>
-                      <td className={numCell}>{fmt(m.closing_value)}</td>
+                      <td className={numCell}>{hasMovement ? fmt(m.closing_value) : ''}</td>
                     </tr>
                   );
                 })}

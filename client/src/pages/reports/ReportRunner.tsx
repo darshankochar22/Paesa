@@ -1,61 +1,77 @@
-import * as React from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { TallyReportLayout } from "@/components/tally-ui/TallyReportLayout";
-import { ReportTable, type ComparisonColumn } from "@/components/reports/ReportTable";
-import { ReportRightPanel } from "@/components/reports/ReportRightPanel";
-import { ReportContextDialog, type ReportContextConfig } from "@/components/reports/ReportContextDialog";
-import { SaveViewDialog } from "@/components/reports/SaveViewDialog";
-import { CompareColumnDialog } from "@/components/reports/CompareColumnDialog";
-import { ReportCommandPalette } from "@/components/reports/ReportCommandPalette";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/shadcn/dialog";
-import { Button } from "@/components/shadcn/button";
-import { Input } from "@/components/shadcn/input";
-import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from "./reportDefinitions";
-import { LAYOUT_ONLY_REPORTS, CURRENCY_FIELDS, DATE_FIELDS, NUMBER_FIELDS, SKIP_FIELDS, CURRENCY_KEYWORDS, NUMBER_KEYWORDS } from "@/constants/reportFields";
-import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
-import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
-import StockItemSelectionLayout from "@/components/reports/StockSelectionLayout";
-import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
-import { ProfitLossLayout } from "@/components/reports/ProfitnLossLayout";
-import GroupSummaryLayout from "@/components/reports/GroupSummaryLayout";
-import LedgerMonthlySummaryLayout from "@/components/reports/LedgerMonthlySummaryLayout";
-import LedgerVouchersLayout from "@/components/reports/LedgerVouchersLayout";
-import { RatioAnalysisLayout } from "@/components/reports/RatioAnalysisLayout";
-import CashBankSummaryLayout from "@/components/reports/CashBankSummaryLayout";
-import GroupVouchersLayout from "@/components/reports/GroupVouchersLayout";
-import ContraRegisterLayout from "@/components/reports/ContraRegisterLayout";
-import PaymentRegisterLayout from "@/components/reports/PaymentRegisterLayout";
-import ReceiptRegisterLayout from "@/components/reports/ReceiptRegisterLayout";
-import SalesRegisterLayout from "@/components/reports/SalesRegisterLayout";
-import PurchaseRegisterLayout from "@/components/reports/PurchaseRegisterLayout";
-import CreditNoteRegisterLayout from "@/components/reports/CreditNoteRegisterLayout";
-import DebitNoteRegisterLayout from "@/components/reports/DebitNoteRegisterLayout";
-import JournalRegisterLayout from "@/components/reports/JournalRegisterLayout";
-import MemorandumRegisterLayout from "@/components/reports/MemorandumRegisterLayout";
-import ReversingJournalRegisterLayout from "@/components/reports/ReversingJournalRegisterLayout";
-import VoucherClarificationLayout from "@/components/reports/VoucherClarificationLayout";
-import BillsLayout from "@/components/reports/BillsLayout";
-import LedgerOutstandingsLayout from "@/components/reports/LedgerOutstandingsLayout";
-import GroupOutstandingsLayout from "@/components/reports/GroupOutstandingsLayout";
-import InterestBillsLayout from "@/components/reports/InterestBillsLayout";
-import InterestLedgerLayout from "@/components/reports/InterestLedgerLayout";
-import InterestGroupLayout from "@/components/reports/InterestGroupLayout";
-import CostCategorySummaryLayout from "@/components/reports/CostCategorySummaryLayout";
-import CostCentreSummaryLayout from "@/components/reports/CostCentreSummaryLayout";
-import CostCentreBreakupLayout from "@/components/reports/CostCentreBreakupLayout";
-import CostCentreLedgerLayout from "@/components/reports/CostCentreLedgerLayout";
-import CostCentreWisePLLayout from "@/components/reports/CostCentreWisePLLayout";
-import StatisticsLayout from "@/components/reports/StatisticsLayout";
-import MultiPaySlipLayout from "@/components/reports/MultiPaySlipLayout";
-import PaySheetLayout from "@/components/reports/PaySheetLayout";
-import AttendanceSheetLayout from "@/components/reports/AttendanceSheetLayout";
-import PaymentAdviceLayout from "@/components/reports/PaymentAdviceLayout";
-import EmployeesWithoutEmailLayout from "@/components/reports/EmployeesWithoutEmailLayout";
-import PayrollStatementLayout from "@/components/reports/PayrollStatementLayout";
-import EmployeePayHeadBreakupLayout from "@/components/reports/EmployeePayHeadBreakupLayout";
-import PayHeadEmployeeBreakupLayout from "@/components/reports/PayHeadEmployeeBreakupLayout";
-
+import * as React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
+import { ReportTable, type ComparisonColumn } from '@/components/reports/ReportTable';
+import { ReportRightPanel } from '@/components/reports/ReportRightPanel';
+import {
+  ReportContextDialog,
+  type ReportContextConfig,
+} from '@/components/reports/ReportContextDialog';
+import { SaveViewDialog } from '@/components/reports/SaveViewDialog';
+import { CompareColumnDialog } from '@/components/reports/CompareColumnDialog';
+import { ReportCommandPalette } from '@/components/reports/ReportCommandPalette';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/shadcn/dialog';
+import { Button } from '@/components/shadcn/button';
+import { Input } from '@/components/shadcn/input';
+import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from './reportDefinitions';
+import {
+  LAYOUT_ONLY_REPORTS,
+  CURRENCY_FIELDS,
+  DATE_FIELDS,
+  NUMBER_FIELDS,
+  SKIP_FIELDS,
+  CURRENCY_KEYWORDS,
+  NUMBER_KEYWORDS,
+} from '@/constants/reportFields';
+import { BalanceSheetLayout } from '@/components/reports/BalanceSheetLayout';
+import { StockSummaryLayout } from '@/components/reports/StockSummaryLayout';
+import StockItemSelectionLayout from '@/components/reports/StockSelectionLayout';
+import { TrialBalanceLayout } from '@/components/reports/TrialBalanceLayout';
+import { ProfitLossLayout } from '@/components/reports/ProfitnLossLayout';
+import GroupSummaryLayout from '@/components/reports/GroupSummaryLayout';
+import LedgerMonthlySummaryLayout from '@/components/reports/LedgerMonthlySummaryLayout';
+import LedgerVouchersLayout from '@/components/reports/LedgerVouchersLayout';
+import { RatioAnalysisLayout } from '@/components/reports/RatioAnalysisLayout';
+import CashBankSummaryLayout from '@/components/reports/CashBankSummaryLayout';
+import GroupVouchersLayout from '@/components/reports/GroupVouchersLayout';
+import ContraRegisterLayout from '@/components/reports/ContraRegisterLayout';
+import PaymentRegisterLayout from '@/components/reports/PaymentRegisterLayout';
+import ReceiptRegisterLayout from '@/components/reports/ReceiptRegisterLayout';
+import SalesRegisterLayout from '@/components/reports/SalesRegisterLayout';
+import PurchaseRegisterLayout from '@/components/reports/PurchaseRegisterLayout';
+import CreditNoteRegisterLayout from '@/components/reports/CreditNoteRegisterLayout';
+import DebitNoteRegisterLayout from '@/components/reports/DebitNoteRegisterLayout';
+import JournalRegisterLayout from '@/components/reports/JournalRegisterLayout';
+import MemorandumRegisterLayout from '@/components/reports/MemorandumRegisterLayout';
+import ReversingJournalRegisterLayout from '@/components/reports/ReversingJournalRegisterLayout';
+import VoucherClarificationLayout from '@/components/reports/VoucherClarificationLayout';
+import BillsLayout from '@/components/reports/BillsLayout';
+import LedgerOutstandingsLayout from '@/components/reports/LedgerOutstandingsLayout';
+import GroupOutstandingsLayout from '@/components/reports/GroupOutstandingsLayout';
+import InterestBillsLayout from '@/components/reports/InterestBillsLayout';
+import InterestLedgerLayout from '@/components/reports/InterestLedgerLayout';
+import InterestGroupLayout from '@/components/reports/InterestGroupLayout';
+import CostCategorySummaryLayout from '@/components/reports/CostCategorySummaryLayout';
+import CostCentreSummaryLayout from '@/components/reports/CostCentreSummaryLayout';
+import CostCentreBreakupLayout from '@/components/reports/CostCentreBreakupLayout';
+import CostCentreLedgerLayout from '@/components/reports/CostCentreLedgerLayout';
+import CostCentreWisePLLayout from '@/components/reports/CostCentreWisePLLayout';
+import StatisticsLayout from '@/components/reports/StatisticsLayout';
+import MultiPaySlipLayout from '@/components/reports/MultiPaySlipLayout';
+import PaySheetLayout from '@/components/reports/PaySheetLayout';
+import AttendanceSheetLayout from '@/components/reports/AttendanceSheetLayout';
+import PaymentAdviceLayout from '@/components/reports/PaymentAdviceLayout';
+import EmployeesWithoutEmailLayout from '@/components/reports/EmployeesWithoutEmailLayout';
+import PayrollStatementLayout from '@/components/reports/PayrollStatementLayout';
+import EmployeePayHeadBreakupLayout from '@/components/reports/EmployeePayHeadBreakupLayout';
+import PayHeadEmployeeBreakupLayout from '@/components/reports/PayHeadEmployeeBreakupLayout';
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -64,22 +80,27 @@ export function ReportRunner() {
 
   const reportType = React.useMemo(() => {
     const pathname = location.pathname;
-    if (pathname.includes("/group-summary")) return "group-summary";
-    if (pathname.includes("/group-vouchers")) return "group-vouchers";
-    if (pathname.includes("/ledger-summary")) return "ledger-summary";
-    const parts = pathname.split("/");
+    if (pathname.includes('/group-summary')) return 'group-summary';
+    if (pathname.includes('/group-vouchers')) return 'group-vouchers';
+    if (pathname.includes('/ledger-summary')) return 'ledger-summary';
+    const parts = pathname.split('/');
     return parts[parts.length - 1];
   }, [location.pathname]);
 
   const definition = React.useMemo<ReportConfig>(() => {
-    return REPORT_DEFINITIONS[reportType] || {
-      title: reportType.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
-      apiMethod: undefined,
-      columns: [
-        { header: "Particulars", field: "name", align: "left" },
-        { header: "Balance / Value", field: "balance", type: "currency", align: "right" }
-      ],
-    };
+    return (
+      REPORT_DEFINITIONS[reportType] || {
+        title: reportType
+          .split('-')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' '),
+        apiMethod: undefined,
+        columns: [
+          { header: 'Particulars', field: 'name', align: 'left' },
+          { header: 'Balance / Value', field: 'balance', type: 'currency', align: 'right' },
+        ],
+      }
+    );
   }, [reportType]);
 
   const [rows, setRows] = React.useState<any[]>([]);
@@ -91,12 +112,12 @@ export function ReportRunner() {
 
   // Configuration and View State
   const [config, setConfig] = React.useState<ReportContextConfig>({
-    basisOfValues: "Accrual",
+    basisOfValues: 'Accrual',
     showNarration: false,
     showPercentage: false,
     excludeZeroBalances: true,
     detailedFormat: false,
-    valuationMethod: "Default",
+    valuationMethod: 'Default',
   });
 
   const [expandedRows, setExpandedRows] = React.useState<Record<string | number, boolean>>({});
@@ -117,8 +138,8 @@ export function ReportRunner() {
   const [isPaletteOpen, setIsPaletteOpen] = React.useState(false);
 
   // Dates
-  const [fromDate, setFromDate] = React.useState<string>(activeFY?.start_date ?? "");
-  const [toDate, setToDate] = React.useState<string>(activeFY?.end_date ?? "");
+  const [fromDate, setFromDate] = React.useState<string>(activeFY?.start_date ?? '');
+  const [toDate, setToDate] = React.useState<string>(activeFY?.end_date ?? '');
 
   // Sync dates when activeFY loads (handles async context)
   React.useEffect(() => {
@@ -128,19 +149,29 @@ export function ReportRunner() {
 
   React.useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
-    const fromParam = queryParams.get("from_date");
-    const toParam = queryParams.get("to_date");
-    const monthParam = queryParams.get("month");
-    
+    const fromParam = queryParams.get('from_date');
+    const toParam = queryParams.get('to_date');
+    const monthParam = queryParams.get('month');
+
     if (fromParam) setFromDate(fromParam);
     if (toParam) setToDate(toParam);
-    
+
     if (monthParam && activeFY?.start_date && activeFY?.end_date) {
       const months = [
-        "january", "february", "march", "april", "may", "june",
-        "july", "august", "september", "october", "november", "december"
+        'january',
+        'february',
+        'march',
+        'april',
+        'may',
+        'june',
+        'july',
+        'august',
+        'september',
+        'october',
+        'november',
+        'december',
       ];
-      const mIndex = months.findIndex(m => m.startsWith(monthParam.toLowerCase().trim()));
+      const mIndex = months.findIndex((m) => m.startsWith(monthParam.toLowerCase().trim()));
       if (mIndex !== -1) {
         const fyStart = new Date(activeFY.start_date);
         const fyEnd = new Date(activeFY.end_date);
@@ -161,74 +192,129 @@ export function ReportRunner() {
   }, [location.search, activeFY]);
 
   const loadData = React.useCallback(async () => {
-  if (LAYOUT_ONLY_REPORTS.has(reportType)) {
-    setLoading(false);
-    return;
-  }
+    if (LAYOUT_ONLY_REPORTS.has(reportType)) {
+      setLoading(false);
+      return;
+    }
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     setNotice(null);
 
     try {
-      if (definition.apiMethod === "editLogSummary") {
+      if (definition.apiMethod === 'editLogSummary') {
         const res = await window.api.auditTrail.getAll(selectedCompany.company_id, {
           from_date: fromDate,
           to_date: toDate,
-          limit: 100
+          limit: 100,
         });
         if (!res.success) throw new Error(res.error);
         const rows = res.logs || [];
-        setRows(rows.map((r: any) => ({
-          id: r.log_id,
-          timestamp: new Date(r.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-          entity: `${r.entity_type} ${r.entity_id ? `(#${r.entity_id})` : ""}`,
-          action: r.action,
-          user: r.user || "System",
-        })));
+        setRows(
+          rows.map((r: any) => ({
+            id: r.log_id,
+            timestamp: new Date(r.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+            entity: `${r.entity_type} ${r.entity_id ? `(#${r.entity_id})` : ''}`,
+            action: r.action,
+            user: r.user || 'System',
+          })),
+        );
         setLoading(false);
         return;
       }
 
       if (definition.apiMethod && window.api?.report?.[definition.apiMethod]) {
         let res;
-        if (definition.apiMethod === "ledgerReport") {
+        if (definition.apiMethod === 'ledgerReport') {
           const queryParams = new URLSearchParams(location.search);
-          const ledgerIdParam = queryParams.get("ledger_id") || (location.state as any)?.ledger_id;
+          const ledgerIdParam = queryParams.get('ledger_id') || (location.state as any)?.ledger_id;
           const ledgerId = ledgerIdParam ? Number(ledgerIdParam) : 1;
-          res = await window.api.report.ledgerReport(selectedCompany.company_id, activeFY.fy_id, ledgerId, fromDate, toDate);
-        } else if (definition.apiMethod === "cashBook" || definition.apiMethod === "daybook" || definition.apiMethod === "bankBook") {
-          res = await window.api.report[definition.apiMethod](selectedCompany.company_id, activeFY.fy_id, fromDate, toDate);
-        } else if (definition.apiMethod === "cashFlow" || definition.apiMethod === "fundsFlow") {
-          res = await window.api.report[definition.apiMethod](selectedCompany.company_id, activeFY.fy_id, fromDate, toDate);
-        } else if (definition.apiMethod === "stockSummary") {
-          const methodMap: Record<string, string> = { 
-            "Default": 'FIFO', 
-            "FIFO": 'FIFO', 
-            "Average Cost": 'Weighted Average',
-            "Weighted Average": 'Weighted Average'
+          res = await window.api.report.ledgerReport(
+            selectedCompany.company_id,
+            activeFY.fy_id,
+            ledgerId,
+            fromDate,
+            toDate,
+          );
+        } else if (
+          definition.apiMethod === 'cashBook' ||
+          definition.apiMethod === 'daybook' ||
+          definition.apiMethod === 'bankBook'
+        ) {
+          res = await window.api.report[definition.apiMethod](
+            selectedCompany.company_id,
+            activeFY.fy_id,
+            fromDate,
+            toDate,
+          );
+        } else if (definition.apiMethod === 'cashFlow' || definition.apiMethod === 'fundsFlow') {
+          res = await window.api.report[definition.apiMethod](
+            selectedCompany.company_id,
+            activeFY.fy_id,
+            fromDate,
+            toDate,
+          );
+        } else if (definition.apiMethod === 'stockSummary') {
+          const methodMap: Record<string, string> = {
+            Default: 'FIFO',
+            FIFO: 'FIFO',
+            'Average Cost': 'Weighted Average',
+            'Weighted Average': 'Weighted Average',
           };
           const valuationMethod = methodMap[config.valuationMethod] || 'FIFO';
-          res = await window.api.report.stockSummary(selectedCompany.company_id, activeFY.fy_id, toDate, valuationMethod);
-        } else if (["godownSummary", "stockAgeing", "movementAnalysis", "costCentreReport"].includes(definition.apiMethod)) {
-          res = await window.api.report[definition.apiMethod](selectedCompany.company_id, activeFY.fy_id, toDate);
-        } else if (definition.apiMethod === "orderOutstandingSales") {
-          res = await window.api.report.orderOutstanding(selectedCompany.company_id, activeFY.fy_id, "sales");
-        } else if (definition.apiMethod === "orderOutstandingPurchase") {
-          res = await window.api.report.orderOutstanding(selectedCompany.company_id, activeFY.fy_id, "purchase");
-        } else if (definition.apiMethod === "run") {
-          res = await window.api.report.run(definition.reportId || reportType.replace(/-/g, '_'), { company_id: selectedCompany.company_id, fy_id: activeFY.fy_id, as_on_date: toDate, from_date: fromDate, to_date: toDate });
+          res = await window.api.report.stockSummary(
+            selectedCompany.company_id,
+            activeFY.fy_id,
+            toDate,
+            valuationMethod,
+          );
+        } else if (
+          ['godownSummary', 'stockAgeing', 'movementAnalysis', 'costCentreReport'].includes(
+            definition.apiMethod,
+          )
+        ) {
+          res = await window.api.report[definition.apiMethod](
+            selectedCompany.company_id,
+            activeFY.fy_id,
+            toDate,
+          );
+        } else if (definition.apiMethod === 'orderOutstandingSales') {
+          res = await window.api.report.orderOutstanding(
+            selectedCompany.company_id,
+            activeFY.fy_id,
+            'sales',
+          );
+        } else if (definition.apiMethod === 'orderOutstandingPurchase') {
+          res = await window.api.report.orderOutstanding(
+            selectedCompany.company_id,
+            activeFY.fy_id,
+            'purchase',
+          );
+        } else if (definition.apiMethod === 'run') {
+          res = await window.api.report.run(definition.reportId || reportType.replace(/-/g, '_'), {
+            company_id: selectedCompany.company_id,
+            fy_id: activeFY.fy_id,
+            as_on_date: toDate,
+            from_date: fromDate,
+            to_date: toDate,
+          });
         } else {
-          res = await window.api.report[definition.apiMethod](selectedCompany.company_id, activeFY.fy_id);
+          res = await window.api.report[definition.apiMethod](
+            selectedCompany.company_id,
+            activeFY.fy_id,
+          );
         }
 
         if (res?.success) {
           let finalRows = [];
-          if (Array.isArray(res.rows) && (definition.apiMethod === "billsReceivable" || definition.apiMethod === "billsPayable")) {
+          if (
+            Array.isArray(res.rows) &&
+            (definition.apiMethod === 'billsReceivable' || definition.apiMethod === 'billsPayable')
+          ) {
             finalRows = res.rows.map((r: any, idx: number) => ({
               id: idx + 1,
               date: r.bill_date,
@@ -244,58 +330,138 @@ export function ReportRunner() {
           } else if (res.assets || res.liabilities) {
             const list: any[] = [];
             if (res.liabilities && res.liabilities.length > 0) {
-              list.push({ id: 'L-header', particulars: 'LIABILITIES', current_period: null, previous_period: null, variance: null, drill: '', isHeader: true });
-              list.push(...res.liabilities.map((l: any, idx: number) => ({
-                id: `L-${idx}`,
-                particulars: l.ledger_name,
-                current_period: Math.abs(l.balance),
+              list.push({
+                id: 'L-header',
+                particulars: 'LIABILITIES',
+                current_period: null,
+                previous_period: null,
+                variance: null,
+                drill: '',
+                isHeader: true,
+              });
+              list.push(
+                ...res.liabilities.map((l: any, idx: number) => ({
+                  id: `L-${idx}`,
+                  particulars: l.ledger_name,
+                  current_period: Math.abs(l.balance),
+                  previous_period: 0,
+                  variance: Math.abs(l.balance),
+                  drill: '→',
+                })),
+              );
+              list.push({
+                id: 'L-total',
+                particulars: 'Total Liabilities',
+                current_period: res.totalLiabilities,
                 previous_period: 0,
-                variance: Math.abs(l.balance),
-                drill: '→',
-              })));
-              list.push({ id: 'L-total', particulars: 'Total Liabilities', current_period: res.totalLiabilities, previous_period: 0, variance: res.totalLiabilities, drill: '', isTotal: true });
+                variance: res.totalLiabilities,
+                drill: '',
+                isTotal: true,
+              });
             }
             if (res.assets && res.assets.length > 0) {
-              list.push({ id: 'A-header', particulars: 'ASSETS', current_period: null, previous_period: null, variance: null, drill: '', isHeader: true });
-              list.push(...res.assets.map((a: any, idx: number) => ({
-                id: `A-${idx}`,
-                particulars: a.ledger_name,
-                current_period: Math.abs(a.balance),
+              list.push({
+                id: 'A-header',
+                particulars: 'ASSETS',
+                current_period: null,
+                previous_period: null,
+                variance: null,
+                drill: '',
+                isHeader: true,
+              });
+              list.push(
+                ...res.assets.map((a: any, idx: number) => ({
+                  id: `A-${idx}`,
+                  particulars: a.ledger_name,
+                  current_period: Math.abs(a.balance),
+                  previous_period: 0,
+                  variance: Math.abs(a.balance),
+                  drill: '→',
+                })),
+              );
+              list.push({
+                id: 'A-total',
+                particulars: 'Total Assets',
+                current_period: res.totalAssets,
                 previous_period: 0,
-                variance: Math.abs(a.balance),
-                drill: '→',
-              })));
-              list.push({ id: 'A-total', particulars: 'Total Assets', current_period: res.totalAssets, previous_period: 0, variance: res.totalAssets, drill: '', isTotal: true });
+                variance: res.totalAssets,
+                drill: '',
+                isTotal: true,
+              });
             }
             finalRows = list;
           } else if (res.income || res.expenses) {
             const list: any[] = [];
             if (res.income && res.income.length > 0) {
-              list.push({ id: 'I-header', particulars: 'INCOME', current_period: null, previous_period: null, variance: null, drill: '', isHeader: true });
-              list.push(...res.income.map((i: any, idx: number) => ({
-                id: `I-${idx}`,
-                particulars: i.ledger_name,
-                current_period: i.balance,
+              list.push({
+                id: 'I-header',
+                particulars: 'INCOME',
+                current_period: null,
+                previous_period: null,
+                variance: null,
+                drill: '',
+                isHeader: true,
+              });
+              list.push(
+                ...res.income.map((i: any, idx: number) => ({
+                  id: `I-${idx}`,
+                  particulars: i.ledger_name,
+                  current_period: i.balance,
+                  previous_period: 0,
+                  variance: i.balance,
+                  drill: '→',
+                })),
+              );
+              list.push({
+                id: 'I-total',
+                particulars: 'Total Income',
+                current_period: res.totalIncome,
                 previous_period: 0,
-                variance: i.balance,
-                drill: '→',
-              })));
-              list.push({ id: 'I-total', particulars: 'Total Income', current_period: res.totalIncome, previous_period: 0, variance: res.totalIncome, drill: '', isTotal: true });
+                variance: res.totalIncome,
+                drill: '',
+                isTotal: true,
+              });
             }
             if (res.expenses && res.expenses.length > 0) {
-              list.push({ id: 'E-header', particulars: 'EXPENSES', current_period: null, previous_period: null, variance: null, drill: '', isHeader: true });
-              list.push(...res.expenses.map((e: any, idx: number) => ({
-                id: `E-${idx}`,
-                particulars: e.ledger_name,
-                current_period: e.balance,
+              list.push({
+                id: 'E-header',
+                particulars: 'EXPENSES',
+                current_period: null,
+                previous_period: null,
+                variance: null,
+                drill: '',
+                isHeader: true,
+              });
+              list.push(
+                ...res.expenses.map((e: any, idx: number) => ({
+                  id: `E-${idx}`,
+                  particulars: e.ledger_name,
+                  current_period: e.balance,
+                  previous_period: 0,
+                  variance: e.balance,
+                  drill: '→',
+                })),
+              );
+              list.push({
+                id: 'E-total',
+                particulars: 'Total Expenses',
+                current_period: res.totalExpenses,
                 previous_period: 0,
-                variance: e.balance,
-                drill: '→',
-              })));
-              list.push({ id: 'E-total', particulars: 'Total Expenses', current_period: res.totalExpenses, previous_period: 0, variance: res.totalExpenses, drill: '', isTotal: true });
+                variance: res.totalExpenses,
+                drill: '',
+                isTotal: true,
+              });
             }
             if (res.netProfit !== undefined) {
-              list.push({ id: 'NP', particulars: res.isProfit ? 'Net Profit' : 'Net Loss', current_period: Math.abs(res.netProfit), previous_period: 0, variance: Math.abs(res.netProfit), drill: '', isTotal: true });
+              list.push({
+                id: 'NP',
+                particulars: res.isProfit ? 'Net Profit' : 'Net Loss',
+                current_period: Math.abs(res.netProfit),
+                previous_period: 0,
+                variance: Math.abs(res.netProfit),
+                drill: '',
+                isTotal: true,
+              });
             }
             finalRows = list;
           } else if (Array.isArray(res.vouchers)) {
@@ -308,21 +474,64 @@ export function ReportRunner() {
               debit: v.amount,
               credit: 0,
             }));
-          } else if (definition.apiMethod === "cashFlow" && Array.isArray(res.byCounterLedger)) {
+          } else if (definition.apiMethod === 'cashFlow' && Array.isArray(res.byCounterLedger)) {
             finalRows = res.byCounterLedger.map((r: any, idx: number) => ({ id: idx + 1, ...r }));
-          } else if (definition.apiMethod === "fundsFlow" && Array.isArray(res.sources) && Array.isArray(res.applications)) {
+          } else if (
+            definition.apiMethod === 'fundsFlow' &&
+            Array.isArray(res.sources) &&
+            Array.isArray(res.applications)
+          ) {
             const list = [];
-            list.push({ id: 'src-head', particulars: 'SOURCES OF FUNDS', amount: null, isHeader: true });
-            list.push(...res.sources.map((s: any, idx: number) => ({ id: `src-${idx}`, particulars: s.particulars, amount: s.amount })));
-            list.push({ id: 'src-total', particulars: 'Total Sources', amount: res.totalSources, isTotal: true });
-            list.push({ id: 'app-head', particulars: 'APPLICATIONS OF FUNDS', amount: null, isHeader: true });
-            list.push(...res.applications.map((a: any, idx: number) => ({ id: `app-${idx}`, particulars: a.particulars, amount: a.amount })));
-            list.push({ id: 'app-total', particulars: 'Total Applications', amount: res.totalApplications, isTotal: true });
-            list.push({ id: 'net-wc', particulars: res.isNetIncrease ? 'Net Increase in Working Capital' : 'Net Decrease in Working Capital', amount: Math.abs(res.netWorkingCapitalChange), isTotal: true });
+            list.push({
+              id: 'src-head',
+              particulars: 'SOURCES OF FUNDS',
+              amount: null,
+              isHeader: true,
+            });
+            list.push(
+              ...res.sources.map((s: any, idx: number) => ({
+                id: `src-${idx}`,
+                particulars: s.particulars,
+                amount: s.amount,
+              })),
+            );
+            list.push({
+              id: 'src-total',
+              particulars: 'Total Sources',
+              amount: res.totalSources,
+              isTotal: true,
+            });
+            list.push({
+              id: 'app-head',
+              particulars: 'APPLICATIONS OF FUNDS',
+              amount: null,
+              isHeader: true,
+            });
+            list.push(
+              ...res.applications.map((a: any, idx: number) => ({
+                id: `app-${idx}`,
+                particulars: a.particulars,
+                amount: a.amount,
+              })),
+            );
+            list.push({
+              id: 'app-total',
+              particulars: 'Total Applications',
+              amount: res.totalApplications,
+              isTotal: true,
+            });
+            list.push({
+              id: 'net-wc',
+              particulars: res.isNetIncrease
+                ? 'Net Increase in Working Capital'
+                : 'Net Decrease in Working Capital',
+              amount: Math.abs(res.netWorkingCapitalChange),
+              isTotal: true,
+            });
             finalRows = list;
-          } else if (definition.apiMethod === "stockSummary" && Array.isArray(res.items)) {
+          } else if (definition.apiMethod === 'stockSummary' && Array.isArray(res.items)) {
             finalRows = res.items.map((r: any, idx: number) => ({ id: idx + 1, ...r }));
-          } else if (definition.apiMethod === "ratioAnalysis" && Array.isArray(res.ratios)) {
+          } else if (definition.apiMethod === 'ratioAnalysis' && Array.isArray(res.ratios)) {
             finalRows = res.ratios.map((r: any, idx: number) => {
               let displayValue = String(r.value);
               if (r.value !== null && r.value !== undefined) {
@@ -331,10 +540,13 @@ export function ReportRunner() {
                 } else if (r.unit === 'x') {
                   displayValue = `${r.value} x`;
                 } else if (r.unit === 'amount') {
-                  displayValue = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(r.value);
+                  displayValue = new Intl.NumberFormat('en-IN', {
+                    style: 'currency',
+                    currency: 'INR',
+                  }).format(r.value);
                 }
               } else {
-                displayValue = "n/a";
+                displayValue = 'n/a';
               }
               return { id: idx + 1, label: r.label, displayValue };
             });
@@ -342,7 +554,7 @@ export function ReportRunner() {
           setRows(finalRows);
           setNotice(finalRows.length === 0 && res.message ? res.message : null);
         } else {
-          setError(res?.error || "Failed to load database report.");
+          setError(res?.error || 'Failed to load database report.');
           setRows([]);
         }
       } else {
@@ -351,7 +563,7 @@ export function ReportRunner() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(`Error accessing database: ${err.message || "Unknown error"}`);
+      setError(`Error accessing database: ${err.message || 'Unknown error'}`);
       setRows([]);
     } finally {
       setLoading(false);
@@ -368,33 +580,37 @@ export function ReportRunner() {
   const handleExportCSV = React.useCallback(() => {
     if (!definition || !rows.length) return;
     const title = definition.title;
-    const companyName = selectedCompany?.name || "Unknown Company";
-    const basisOfValues = config.basisOfValues || "Accrual";
+    const companyName = selectedCompany?.name || 'Unknown Company';
+    const basisOfValues = config.basisOfValues || 'Accrual';
     const columns = definition.columns;
-    
+
     const metadata = [
       `Report,${title}`,
       `Company,${companyName}`,
       `Period,${fromDate} to ${toDate}`,
       `Basis of Values,${basisOfValues}`,
       `Generated At,${new Date().toLocaleString()}`,
-      "", // empty line
+      '', // empty line
     ];
 
-    const headerRow = columns.map(c => `"${c.header}"`).join(",");
-    const dataRows = rows.filter(r => !hiddenRowIds.has(r.id)).map(row => {
-      return columns.map(c => {
-        const val = row[c.field] ?? "";
-        return `"${String(val).replace(/"/g, '""')}"`;
-      }).join(",");
-    });
+    const headerRow = columns.map((c) => `"${c.header}"`).join(',');
+    const dataRows = rows
+      .filter((r) => !hiddenRowIds.has(r.id))
+      .map((row) => {
+        return columns
+          .map((c) => {
+            const val = row[c.field] ?? '';
+            return `"${String(val).replace(/"/g, '""')}"`;
+          })
+          .join(',');
+      });
 
-    const csvContent = metadata.join("\n") + "\n" + headerRow + "\n" + dataRows.join("\n");
+    const csvContent = metadata.join('\n') + '\n' + headerRow + '\n' + dataRows.join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${title.toLowerCase().replace(/\s+/g, '_')}_export.csv`);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${title.toLowerCase().replace(/\s+/g, '_')}_export.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -403,7 +619,6 @@ export function ReportRunner() {
   const handlePrint = React.useCallback(() => {
     window.print();
   }, []);
-
 
   const handleHideRow = (rowId: string | number) => {
     setHiddenRowIds((prev) => {
@@ -465,108 +680,114 @@ export function ReportRunner() {
 
   React.useEffect(() => {
     const handleGlobalShortcuts = (e: KeyboardEvent) => {
-
-      if (e.key === "Escape") {
-        return; 
+      if (e.key === 'Escape') {
+        return;
       }
-
 
       const activeEl = document.activeElement;
       if (
         activeEl &&
-        (activeEl.tagName === "INPUT" ||
-          activeEl.tagName === "SELECT" ||
-          activeEl.tagName === "TEXTAREA" ||
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'SELECT' ||
+          activeEl.tagName === 'TEXTAREA' ||
           activeEl.closest("[role='dialog']"))
       ) {
         return;
       }
 
-
-      if (e.key === "F2") {
+      if (e.key === 'F2') {
         e.preventDefault();
         setIsPeriodOpen(true);
       }
 
-      if (e.key === "F3") {
+      if (e.key === 'F3') {
         e.preventDefault();
         setIsCompanyOpen(true);
       }
 
-      if (e.key === "F4") {
+      if (e.key === 'F4') {
         e.preventDefault();
         setIsContextOpen(true);
       }
 
-      if (e.key === "b" && e.ctrlKey) {
+      if (e.key === 'b' && e.ctrlKey) {
         e.preventDefault();
-        setConfig(prev => ({
+        setConfig((prev) => ({
           ...prev,
-          basisOfValues: prev.basisOfValues === "Accrual" ? "Cash" : "Accrual"
+          basisOfValues: prev.basisOfValues === 'Accrual' ? 'Cash' : 'Accrual',
         }));
       }
 
-      if (e.key === "h" && e.ctrlKey) {
+      if (e.key === 'h' && e.ctrlKey) {
         e.preventDefault();
         setIsPaletteOpen(true);
       }
 
-      if (e.key === "j" && e.ctrlKey) {
+      if (e.key === 'j' && e.ctrlKey) {
         e.preventDefault();
-        navigate("/reports/exception");
+        navigate('/reports/exception');
       }
 
-      if (e.key === "l" && e.ctrlKey) {
+      if (e.key === 'l' && e.ctrlKey) {
         e.preventDefault();
         setIsSaveViewOpen(true);
       }
 
-      if (e.key === "F5" && e.altKey) {
+      if (e.key === 'F5' && e.altKey) {
         e.preventDefault();
-        setConfig(prev => ({ ...prev, detailedFormat: !prev.detailedFormat }));
+        setConfig((prev) => ({ ...prev, detailedFormat: !prev.detailedFormat }));
       }
 
-      if (e.key === "c" && e.altKey) {
+      if (e.key === 'c' && e.altKey) {
         e.preventDefault();
         setIsCompareOpen(true);
       }
 
-      if (e.key === "n" && e.altKey) {
+      if (e.key === 'n' && e.altKey) {
         e.preventDefault();
         if (comparisonColumns.length > 0) {
-          setComparisonColumns(prev => prev.slice(0, -1));
+          setComparisonColumns((prev) => prev.slice(0, -1));
         }
       }
 
-      if (e.key === "u" && e.altKey) {
+      if (e.key === 'u' && e.altKey) {
         e.preventDefault();
         handleRestoreLastLine();
       }
 
-      if (e.key === "e" && e.altKey) {
+      if (e.key === 'e' && e.altKey) {
         e.preventDefault();
         handleExportCSV();
       }
 
-      if (e.key === "p" && e.altKey) {
+      if (e.key === 'p' && e.altKey) {
         e.preventDefault();
         handlePrint();
       }
 
-      if (e.key === "a" && e.altKey) {
+      if (e.key === 'a' && e.altKey) {
         e.preventDefault();
         let prompt = `Analyze the ${definition.title} from ${fromDate} to ${toDate}. Explain any anomalies and suggest follow-up actions.`;
-        if (reportType === "overdue-receivables" || definition.apiMethod === "billsReceivable") {
+        if (reportType === 'overdue-receivables' || definition.apiMethod === 'billsReceivable') {
           prompt = `Analyze the ${definition.title} from ${fromDate} to ${toDate}. Please draft reminder letters for the overdue accounts and suggest follow-up actions.`;
         }
-        navigate("/utilities/copilot", { state: { initialPrompt: prompt } });
+        navigate('/utilities/copilot', { state: { initialPrompt: prompt } });
       }
     };
 
-    window.addEventListener("keydown", handleGlobalShortcuts);
-    return () => window.removeEventListener("keydown", handleGlobalShortcuts);
-  }, [comparisonColumns, navigate, handleExportCSV, handlePrint, handleRestoreLastLine, definition, fromDate, toDate, reportType]);
-
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [
+    comparisonColumns,
+    navigate,
+    handleExportCSV,
+    handlePrint,
+    handleRestoreLastLine,
+    definition,
+    fromDate,
+    toDate,
+    reportType,
+  ]);
 
   const commandPaletteItems = React.useMemo(() => {
     const slugToCategory: Record<string, string> = {};
@@ -578,30 +799,36 @@ export function ReportRunner() {
     return Object.entries(REPORT_DEFINITIONS).map(([key, value]) => ({
       title: value.title,
       path: `/reports/accounts/${key}`,
-      category: slugToCategory[key] || "Reports",
+      category: slugToCategory[key] || 'Reports',
       description: `Run and analyze ${value.title}`,
     }));
   }, []);
 
-
-
   const tableColumns = React.useMemo(() => {
     if (!rows.length) return definition.columns;
     const firstRow = rows.find((r: any) => !r.isHeader && !r.isTotal) || rows[0];
-    const dataFields = Object.keys(firstRow).filter(k => k !== 'id' && k !== 'isHeader' && k !== 'isTotal');
-    const definedFields = definition.columns.map(c => c.field);
-    const matchCount = definedFields.filter(f => dataFields.includes(f)).length;
+    const dataFields = Object.keys(firstRow).filter(
+      (k) => k !== 'id' && k !== 'isHeader' && k !== 'isTotal',
+    );
+    const definedFields = definition.columns.map((c) => c.field);
+    const matchCount = definedFields.filter((f) => dataFields.includes(f)).length;
     if (matchCount >= Math.max(1, Math.floor(definedFields.length / 2))) return definition.columns;
 
     return dataFields
-      .filter(f => !SKIP_FIELDS.has(f))
-      .map(f => {
-        const header = f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        const isCurrency = CURRENCY_FIELDS.has(f) || CURRENCY_KEYWORDS.some(kw => f.includes(kw));
+      .filter((f) => !SKIP_FIELDS.has(f))
+      .map((f) => {
+        const header = f.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+        const isCurrency = CURRENCY_FIELDS.has(f) || CURRENCY_KEYWORDS.some((kw) => f.includes(kw));
         const isDate = DATE_FIELDS.has(f);
-        const isNumber = NUMBER_FIELDS.has(f) || NUMBER_KEYWORDS.some(kw => f.includes(kw));
-        const align = (isCurrency || isNumber) ? 'right' as const : 'left' as const;
-        const type = isDate ? 'date' as const : isCurrency ? 'currency' as const : isNumber ? 'number' as const : undefined;
+        const isNumber = NUMBER_FIELDS.has(f) || NUMBER_KEYWORDS.some((kw) => f.includes(kw));
+        const align = isCurrency || isNumber ? ('right' as const) : ('left' as const);
+        const type = isDate
+          ? ('date' as const)
+          : isCurrency
+            ? ('currency' as const)
+            : isNumber
+              ? ('number' as const)
+              : undefined;
         return { header, field: f, type, align };
       });
   }, [rows, definition.columns]);
@@ -609,26 +836,35 @@ export function ReportRunner() {
   return (
     <TallyReportLayout
       title={definition.title}
-      companyName={selectedCompany?.name || "No Company Selected"}
-      leftSubtitle={(
+      companyName={selectedCompany?.name || 'No Company Selected'}
+      leftSubtitle={
         <div className="flex gap-4 items-center">
-          <span>Basis of Values: <span className="font-bold">{config.basisOfValues}</span></span>
-          <span>Valuation: <span className="font-bold">{config.valuationMethod}</span></span>
-          {reportType === "edit-log" && auditChainStatus && (
-            <span className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase ${auditChainStatus.intact ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-200 text-zinc-800'}`}>
-              {auditChainStatus.intact ? '✔ Chain Intact' : `⚠ Chain Broken at Log #${auditChainStatus.brokenAt}`}
+          <span>
+            Basis of Values: <span className="font-bold">{config.basisOfValues}</span>
+          </span>
+          <span>
+            Valuation: <span className="font-bold">{config.valuationMethod}</span>
+          </span>
+          {reportType === 'edit-log' && auditChainStatus && (
+            <span
+              className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase ${auditChainStatus.intact ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-200 text-zinc-800'}`}
+            >
+              {auditChainStatus.intact
+                ? '✔ Chain Intact'
+                : `⚠ Chain Broken at Log #${auditChainStatus.brokenAt}`}
             </span>
           )}
         </div>
-      )}
-      rightSubtitle={(
+      }
+      rightSubtitle={
         <span>
-          Period: <span className="font-bold">{fromDate}</span> to <span className="font-bold">{toDate}</span>
+          Period: <span className="font-bold">{fromDate}</span> to{' '}
+          <span className="font-bold">{toDate}</span>
         </span>
-      )}
+      }
     >
       <div className="flex h-full w-full overflow-hidden">
-  {error ? (
+        {error ? (
           <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center animate-fade-in">
             {error}
           </div>
@@ -640,96 +876,96 @@ export function ReportRunner() {
           <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center animate-fade-in">
             {notice}
           </div>
-        ) :reportType === "balance-sheet" ?(
-        <BalanceSheetLayout />
-         ):reportType === "stock-summary" ?(
-        <StockSummaryLayout />
-        ):reportType === "stock-item" ?(
-        <StockItemSelectionLayout />
-        ):reportType === "profit-loss" ?(
-         <ProfitLossLayout fromDate={fromDate} toDate={toDate} />
-         ):reportType === "trial-balance" ? (
-         <TrialBalanceLayout />
-         ):reportType === "group-summary" ? (
-         <GroupSummaryLayout />
-         ):reportType === "ledger-summary" ? (
-         <LedgerMonthlySummaryLayout />
-         ):reportType === "ledger" ? (
-         <LedgerVouchersLayout fromDate={fromDate} toDate={toDate} />
-         ):reportType === "ratio-analysis" ? (
-         <RatioAnalysisLayout />
-         ):reportType === "group-vouchers" ? (
-         <GroupVouchersLayout />
-         ):reportType === "cash-bank" ? (
-         <CashBankSummaryLayout />
-        ):reportType === "outstandings-receivable" ? (
-         <BillsLayout mode="receivable" />
-         ):reportType === "outstandings-payable" ? (
-         <BillsLayout mode="payable" />
-         ):reportType === "ledger-outstandings" || reportType === "outstandings-ledger" ? (
-         <LedgerOutstandingsLayout />
-         ):reportType === "group-outstandings" || reportType === "outstandings-group" ? (
-         <GroupOutstandingsLayout />
-         ):reportType === "interest-receivable" ? (
-         <InterestBillsLayout mode="receivable" fromDate={fromDate} toDate={toDate} />
-         ):reportType === "interest-payable" ? (
-         <InterestBillsLayout mode="payable" fromDate={fromDate} toDate={toDate} />
-         ):reportType === "interest-calculation-ledger-wise" ? (
-         <InterestLedgerLayout fromDate={fromDate} toDate={toDate} />
-         ):reportType === "interest-calculation-group-wise" ? (
-         <InterestGroupLayout fromDate={fromDate} toDate={toDate} />
-         ):reportType === "contra-register" ? (
-         <ContraRegisterLayout />
-         ):reportType === "payment-register" ? (
-         <PaymentRegisterLayout />
-         ):reportType === "receipt-register" ? (
-         <ReceiptRegisterLayout />
-         ):reportType === "sales-register" ? (
-         <SalesRegisterLayout />
-         ):reportType === "purchase-register" ?(
+        ) : reportType === 'balance-sheet' ? (
+          <BalanceSheetLayout />
+        ) : reportType === 'stock-summary' ? (
+          <StockSummaryLayout />
+        ) : reportType === 'stock-item' ? (
+          <StockItemSelectionLayout />
+        ) : reportType === 'profit-loss' ? (
+          <ProfitLossLayout fromDate={fromDate} toDate={toDate} />
+        ) : reportType === 'trial-balance' ? (
+          <TrialBalanceLayout />
+        ) : reportType === 'group-summary' ? (
+          <GroupSummaryLayout />
+        ) : reportType === 'ledger-summary' ? (
+          <LedgerMonthlySummaryLayout />
+        ) : reportType === 'ledger' ? (
+          <LedgerVouchersLayout fromDate={fromDate} toDate={toDate} />
+        ) : reportType === 'ratio-analysis' ? (
+          <RatioAnalysisLayout />
+        ) : reportType === 'group-vouchers' ? (
+          <GroupVouchersLayout />
+        ) : reportType === 'cash-bank' ? (
+          <CashBankSummaryLayout />
+        ) : reportType === 'outstandings-receivable' ? (
+          <BillsLayout mode="receivable" />
+        ) : reportType === 'outstandings-payable' ? (
+          <BillsLayout mode="payable" />
+        ) : reportType === 'ledger-outstandings' || reportType === 'outstandings-ledger' ? (
+          <LedgerOutstandingsLayout />
+        ) : reportType === 'group-outstandings' || reportType === 'outstandings-group' ? (
+          <GroupOutstandingsLayout />
+        ) : reportType === 'interest-receivable' ? (
+          <InterestBillsLayout mode="receivable" fromDate={fromDate} toDate={toDate} />
+        ) : reportType === 'interest-payable' ? (
+          <InterestBillsLayout mode="payable" fromDate={fromDate} toDate={toDate} />
+        ) : reportType === 'interest-calculation-ledger-wise' ? (
+          <InterestLedgerLayout fromDate={fromDate} toDate={toDate} />
+        ) : reportType === 'interest-calculation-group-wise' ? (
+          <InterestGroupLayout fromDate={fromDate} toDate={toDate} />
+        ) : reportType === 'contra-register' ? (
+          <ContraRegisterLayout />
+        ) : reportType === 'payment-register' ? (
+          <PaymentRegisterLayout />
+        ) : reportType === 'receipt-register' ? (
+          <ReceiptRegisterLayout />
+        ) : reportType === 'sales-register' ? (
+          <SalesRegisterLayout />
+        ) : reportType === 'purchase-register' ? (
           <PurchaseRegisterLayout />
-         ): reportType === "credit-note-register" ?(
+        ) : reportType === 'credit-note-register' ? (
           <CreditNoteRegisterLayout />
-         ): reportType === "debit-note-register" ?(
-         <DebitNoteRegisterLayout />
-         ): reportType === "journal-register"?(
+        ) : reportType === 'debit-note-register' ? (
+          <DebitNoteRegisterLayout />
+        ) : reportType === 'journal-register' ? (
           <JournalRegisterLayout />
-         ): reportType === "memorandum-register" ?(
+        ) : reportType === 'memorandum-register' ? (
           <MemorandumRegisterLayout />
-         ): reportType === "reversing-journal-register" ?(
+        ) : reportType === 'reversing-journal-register' ? (
           <ReversingJournalRegisterLayout />
-         ):reportType === "voucher-clarification" ?(
-            <VoucherClarificationLayout />
-         ):reportType === "cost-category-summary" ? (
-            <CostCategorySummaryLayout />
-         ):reportType === "cost-centre-summary" ? (
-            <CostCentreSummaryLayout />
-         ):reportType === "cost-centre-break-up" ? (
-            <CostCentreBreakupLayout />
-         ):reportType === "cost-centre-ledger" ? (
-            <CostCentreLedgerLayout />
-         ):reportType === "cost-centre-wise-p-and-l" ? (
-            <CostCentreWisePLLayout />
-         ):reportType === "statistics" ? (
-            <StatisticsLayout />
-         ):reportType === "pay-slip" ? (
-            <MultiPaySlipLayout />
-         ):reportType === "pay-sheet" ? (
-            <PaySheetLayout />
-         ):reportType === "attendance-sheet" ? (
-            <AttendanceSheetLayout />
-         ):reportType === "payment-advice" ? (
-            <PaymentAdviceLayout />
-         ):reportType === "employees-without-email" ? (
-            <EmployeesWithoutEmailLayout />
-         ):reportType === "payroll-statement" ? (
-            <PayrollStatementLayout />
-         ):reportType === "employee-pay-head-breakup" ? (
-            <EmployeePayHeadBreakupLayout />
-         ):reportType === "pay-head-employee-breakup" ? (
-            <PayHeadEmployeeBreakupLayout />
-         ):(
-        <ReportTable
+        ) : reportType === 'voucher-clarification' ? (
+          <VoucherClarificationLayout />
+        ) : reportType === 'cost-category-summary' ? (
+          <CostCategorySummaryLayout />
+        ) : reportType === 'cost-centre-summary' ? (
+          <CostCentreSummaryLayout />
+        ) : reportType === 'cost-centre-break-up' ? (
+          <CostCentreBreakupLayout />
+        ) : reportType === 'cost-centre-ledger' ? (
+          <CostCentreLedgerLayout />
+        ) : reportType === 'cost-centre-wise-p-and-l' ? (
+          <CostCentreWisePLLayout />
+        ) : reportType === 'statistics' ? (
+          <StatisticsLayout />
+        ) : reportType === 'pay-slip' ? (
+          <MultiPaySlipLayout />
+        ) : reportType === 'pay-sheet' ? (
+          <PaySheetLayout />
+        ) : reportType === 'attendance-sheet' ? (
+          <AttendanceSheetLayout />
+        ) : reportType === 'payment-advice' ? (
+          <PaymentAdviceLayout />
+        ) : reportType === 'employees-without-email' ? (
+          <EmployeesWithoutEmailLayout />
+        ) : reportType === 'payroll-statement' ? (
+          <PayrollStatementLayout />
+        ) : reportType === 'employee-pay-head-breakup' ? (
+          <EmployeePayHeadBreakupLayout />
+        ) : reportType === 'pay-head-employee-breakup' ? (
+          <PayHeadEmployeeBreakupLayout />
+        ) : (
+          <ReportTable
             columns={tableColumns}
             rows={rows}
             comparisonColumns={comparisonColumns}
@@ -742,10 +978,15 @@ export function ReportRunner() {
             primaryKey="id"
             detailedFormat={config.detailedFormat}
             onRowDrillDown={(row) => {
+              if (row.isTotal || row.isHeader) return;
               if (row.voucher_id) {
                 navigate(`/transactions/voucher/${row.voucher_id}`);
-              } else if (reportType === "daybook" && row.id) {
+              } else if (reportType === 'daybook' && row.id) {
                 navigate(`/transactions/voucher/${row.id}`);
+              } else if (row.item_id) {
+                navigate('/reports/inventory/stock-item', {
+                  state: { item_id: row.item_id, item_name: row.item_name },
+                });
               } else if (row.ledger_name) {
                 const ledgerId = row.ledger_id || row.id;
                 if (ledgerId) {
@@ -759,47 +1000,57 @@ export function ReportRunner() {
         )}
 
         {/* Outstandings layouts render their own Tally-style action panel. */}
-        {!["ledger-outstandings", "outstandings-ledger", "group-outstandings", "outstandings-group"].includes(reportType) && (
-        <ReportRightPanel
-          onPeriodSelect={() => setIsPeriodOpen(true)}
-          onCompanySelect={() => setIsCompanyOpen(true)}
-          onContextSelect={() => setIsContextOpen(true)}
-          onBasisOfValues={() =>
-            setConfig(prev => ({
-              ...prev,
-              basisOfValues: prev.basisOfValues === "Accrual" ? "Cash" : "Accrual"
-            }))
-          }
-          onChangeView={() => setIsPaletteOpen(true)}
-          onExceptionReports={() => navigate("/reports/exception")}
-          onSaveView={() => setIsSaveViewOpen(true)}
-          onToggleDetailed={() => setConfig(prev => ({ ...prev, detailedFormat: !prev.detailedFormat }))}
-          isDetailed={config.detailedFormat}
-          onAddColumn={() => setIsCompareOpen(true)}
-          onDeleteColumn={() => {
-            if (comparisonColumns.length > 0) {
-              setComparisonColumns(prev => prev.slice(0, -1));
+        {![
+          'ledger-outstandings',
+          'outstandings-ledger',
+          'group-outstandings',
+          'outstandings-group',
+        ].includes(reportType) && (
+          <ReportRightPanel
+            onPeriodSelect={() => setIsPeriodOpen(true)}
+            onCompanySelect={() => setIsCompanyOpen(true)}
+            onContextSelect={() => setIsContextOpen(true)}
+            onBasisOfValues={() =>
+              setConfig((prev) => ({
+                ...prev,
+                basisOfValues: prev.basisOfValues === 'Accrual' ? 'Cash' : 'Accrual',
+              }))
             }
-          }}
-          onRemoveLine={() => {
-            // Hide the first selected, or the first row in the list
-            const visible = rows.filter((r) => !hiddenRowIds.has(r.id));
-            if (visible.length > 0) {
-              handleHideRow(visible[0].id);
+            onChangeView={() => setIsPaletteOpen(true)}
+            onExceptionReports={() => navigate('/reports/exception')}
+            onSaveView={() => setIsSaveViewOpen(true)}
+            onToggleDetailed={() =>
+              setConfig((prev) => ({ ...prev, detailedFormat: !prev.detailedFormat }))
             }
-          }}
-          onRestoreLine={handleRestoreLastLine}
-          canRestore={removedLinesHistory.length > 0}
-          onExportCSV={handleExportCSV}
-          onPrint={handlePrint}
-          onAskAI={() => {
-            let prompt = `Analyze the ${definition.title} from ${fromDate} to ${toDate}. Explain any anomalies and suggest follow-up actions.`;
-            if (reportType === "overdue-receivables" || definition.apiMethod === "billsReceivable") {
-              prompt = `Analyze the ${definition.title} from ${fromDate} to ${toDate}. Please draft reminder letters for the overdue accounts and suggest follow-up actions.`;
-            }
-            navigate("/utilities/copilot", { state: { initialPrompt: prompt } });
-          }}
-        />
+            isDetailed={config.detailedFormat}
+            onAddColumn={() => setIsCompareOpen(true)}
+            onDeleteColumn={() => {
+              if (comparisonColumns.length > 0) {
+                setComparisonColumns((prev) => prev.slice(0, -1));
+              }
+            }}
+            onRemoveLine={() => {
+              // Hide the first selected, or the first row in the list
+              const visible = rows.filter((r) => !hiddenRowIds.has(r.id));
+              if (visible.length > 0) {
+                handleHideRow(visible[0].id);
+              }
+            }}
+            onRestoreLine={handleRestoreLastLine}
+            canRestore={removedLinesHistory.length > 0}
+            onExportCSV={handleExportCSV}
+            onPrint={handlePrint}
+            onAskAI={() => {
+              let prompt = `Analyze the ${definition.title} from ${fromDate} to ${toDate}. Explain any anomalies and suggest follow-up actions.`;
+              if (
+                reportType === 'overdue-receivables' ||
+                definition.apiMethod === 'billsReceivable'
+              ) {
+                prompt = `Analyze the ${definition.title} from ${fromDate} to ${toDate}. Please draft reminder letters for the overdue accounts and suggest follow-up actions.`;
+              }
+              navigate('/utilities/copilot', { state: { initialPrompt: prompt } });
+            }}
+          />
         )}
       </div>
 
@@ -876,8 +1127,8 @@ export function ReportRunner() {
                 }}
                 className={`w-full text-left px-3 py-2 text-xs font-semibold border rounded hover:bg-zinc-50 ${
                   comp.company_id === selectedCompany?.company_id
-                    ? "border-zinc-800 bg-zinc-100 text-zinc-900 font-bold"
-                    : "border-zinc-200 text-zinc-700"
+                    ? 'border-zinc-800 bg-zinc-100 text-zinc-900 font-bold'
+                    : 'border-zinc-200 text-zinc-700'
                 }`}
               >
                 {comp.name}

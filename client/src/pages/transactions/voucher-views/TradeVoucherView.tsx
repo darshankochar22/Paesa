@@ -97,7 +97,7 @@ export default function TradeVoucherView({
         </div>
       )}
 
-      {voucher.place_of_supply && (
+      {t !== 'Purchase' && voucher.place_of_supply && (
         <ReadOnlyFieldRow label="Place of Supply" value={voucher.place_of_supply} />
       )}
 
