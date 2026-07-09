@@ -523,6 +523,15 @@ const generateFromVoucher = async (company_id, voucher_id) => {
       state: voucher.party_state || '',
     };
 
+    // WhiteBooks' sandbox uses a SHARED demo GSTIN, so plain sequential invoice numbers
+    // ("8", "15", …) collide with other testers' already-registered docs and NIC false-fails
+    // them as "Duplicate IRN". In sandbox only, send a stable install-unique doc number so
+    // generation works; production uses a real dedicated GSTIN and keeps the true number.
+    const wbc0 = getWhitebooksConfig();
+    if (wbc0 && wbc0.sandbox) {
+      voucher.voucher_number = `${voucher.voucher_number || voucher_id}-${voucher_id}`.slice(0, 16);
+    }
+
     const payload = buildIrnPayload(voucher, seller, buyer);
 
     // Reconcile the invoice total to the books: the party ledger line carries the actual

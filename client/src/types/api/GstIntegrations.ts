@@ -117,6 +117,13 @@ export interface GstIntegrationsAPI {
     }) => Promise<ApiResult>;
     get: (p: { ewb_no: string }) => Promise<ApiResult>;
     getByIrn: (irn: string) => Promise<ApiResult>;
+    getByVoucher: (
+      voucher_id: number,
+    ) => Promise<{
+      success: boolean;
+      record?: EwayRecord & Record<string, unknown>;
+      error?: string;
+    }>;
     getRecords: (
       company_id: number,
     ) => Promise<{ success: boolean; records: EwayRecord[]; error?: string }>;

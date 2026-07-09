@@ -9,18 +9,35 @@ import Select from '@/components/ui/Select';
 export default function GstVoucherActions({
   companyId,
   voucher,
+  existingIrn,
+  onGenerated,
 }: {
   companyId: number;
   voucher: any;
+  /** IRN already on this voucher (from einvoice_records). When set, we never re-generate. */
+  existingIrn?: string | null;
+  /** Called after any generate attempt so the parent can refresh the IRN block. */
+  onGenerated?: () => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [ewayOpen, setEwayOpen] = useState(false);
-  const [transport, setTransport] = useState({ distance: '', trans_mode: '1', veh_no: '' });
+  const [transport, setTransport] = useState({
+    distance: '',
+    trans_mode: '1',
+    veh_no: '',
+    veh_type: 'R',
+  });
 
   const btn =
     'h-auto rounded-none text-sm px-3 py-0.5 border-zinc-400 text-zinc-800 hover:bg-zinc-100';
 
   const genInvoice = async () => {
+    // Idempotent: if an IRN already exists, show it instead of hitting NIC again (which would
+    // just return "duplicate"). The IRN + QR are shown in the e-Invoice Details block above.
+    if (existingIrn) {
+      window.alert(`This voucher already has an IRN:\n${existingIrn}`);
+      return;
+    }
     if (!window.confirm(`Generate e-Invoice (IRN) for ${voucher.voucher_number}?`)) return;
     setBusy('einv');
     const r = await window.api.eInvoice.generateFromVoucher({
@@ -28,9 +45,11 @@ export default function GstVoucherActions({
       voucher_id: voucher.voucher_id,
     });
     setBusy(null);
+    // Refresh regardless of outcome — if NIC had it and we recovered+saved it, the block appears.
+    onGenerated?.();
     window.alert(
       r.success
-        ? `IRN generated:\n${(r.data as any)?.Irn || '(see e-Invoice tab)'}`
+        ? `IRN generated:\n${(r.data as any)?.Irn || '(see e-Invoice Details)'}`
         : `e-Invoice failed: ${r.error}`,
     );
   };
@@ -44,6 +63,7 @@ export default function GstVoucherActions({
     });
     setBusy(null);
     setEwayOpen(false);
+    onGenerated?.();
     window.alert(
       r.success
         ? `e-Way Bill: ${(r.data as any)?.EwbNo || 'generated'}`
@@ -54,7 +74,8 @@ export default function GstVoucherActions({
   return (
     <>
       <RowButton onClick={genInvoice} disabled={!!busy} variant="outline" size="xs" className={btn}>
-        <span className="underline">I</span>: {busy === 'einv' ? '…' : 'e-Invoice'}
+        <span className="underline">I</span>:{' '}
+        {busy === 'einv' ? '…' : existingIrn ? 'IRN ✓' : 'e-Invoice'}
       </RowButton>
       <RowButton
         onClick={() => setEwayOpen(true)}
@@ -88,11 +109,11 @@ export default function GstVoucherActions({
             override them.
           </div>
           <label className="block">
-            <span className="text-[10px] text-zinc-500">Distance (km)</span>
+            <span className="text-[10px] text-zinc-500">Distance (km) — 0 = auto-calculate</span>
             <Input
               value={transport.distance}
               onChange={(e) => setTransport({ ...transport, distance: e.target.value })}
-              placeholder="0"
+              placeholder="0 (auto)"
             />
           </label>
           <label className="block">
@@ -114,6 +135,17 @@ export default function GstVoucherActions({
               value={transport.veh_no}
               onChange={(e) => setTransport({ ...transport, veh_no: e.target.value })}
               placeholder="MH01AB1234"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[10px] text-zinc-500">Vehicle type</span>
+            <Select
+              value={transport.veh_type}
+              onChange={(e) => setTransport({ ...transport, veh_type: e.target.value })}
+              options={[
+                { value: 'R', label: 'Regular' },
+                { value: 'O', label: 'Over Dimensional Cargo (ODC)' },
+              ]}
             />
           </label>
         </div>

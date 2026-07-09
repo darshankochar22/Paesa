@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCompany } from '../../context/CompanyContext';
 import { AlertBanner } from '../../components/ui';
@@ -49,18 +49,29 @@ export default function VoucherView() {
   >(null);
 
   const [partyGstin, setPartyGstin] = useState<string | null>(null);
+  const [eway, setEway] = useState<Record<string, any> | null>(null);
 
-  // Pull the e-Invoice (IRN) record for this voucher, if one was generated.
-  useEffect(() => {
+  // Pull the e-Invoice (IRN) + e-Way Bill records for this voucher, if generated. Exposed as a
+  // callback so the action buttons can refresh right after generating (so an already-built
+  // IRN / EWB always shows without reopening the voucher).
+  const reloadEinv = useCallback(() => {
     if (!voucher?.voucher_id) {
       setEinv(null);
+      setEway(null);
       return;
     }
     window.api.eInvoice
       .getByVoucher(voucher.voucher_id)
       .then((r) => setEinv(r.success && r.record ? r.record : null))
       .catch(() => setEinv(null));
+    window.api.ewayBill
+      .getByVoucher(voucher.voucher_id)
+      .then((r) => setEway(r.success && r.record ? (r.record as Record<string, any>) : null))
+      .catch(() => setEway(null));
   }, [voucher?.voucher_id]);
+  useEffect(() => {
+    reloadEinv();
+  }, [reloadEinv]);
 
   // Party GSTIN — e-Invoice/e-Way only apply to B2B (registered buyer), so the actions
   // are hidden when the party has no GSTIN.
@@ -204,15 +215,21 @@ export default function VoucherView() {
   // Voucher types whose alteration view shows a "Tax Unit" line under GST Registration
   // (mirrors TallyPrime — inventory/order vouchers that carry a tax unit).
   const TAX_UNIT_TYPES = [
-    "Sales", "Purchase", "Stock Journal", "Purchase Order",
-    "Job Work In Order", "Job Work Out Order", "Material In", "Material Out",
+    'Sales',
+    'Purchase',
+    'Stock Journal',
+    'Purchase Order',
+    'Job Work In Order',
+    'Job Work Out Order',
+    'Material In',
+    'Material Out',
   ];
   const showTaxUnit = TAX_UNIT_TYPES.includes(voucher.voucher_type);
   // "Status : Optional" shows only for vouchers a user explicitly marked Optional
   // (L:Optional) — not Memorandum / Reversing Journal, which store is_optional = 1
   // as an internal detail but are not "Optional" vouchers.
   const showOptionalStatus =
-    !!voucher.is_optional && !["Memorandum", "Reversing Journal"].includes(voucher.voucher_type);
+    !!voucher.is_optional && !['Memorandum', 'Reversing Journal'].includes(voucher.voucher_type);
 
   const { date: dateStr, day: dayStr } = formatDateBox(voucher.date);
 
@@ -284,14 +301,9 @@ export default function VoucherView() {
           {einv && einv.irn && selectedCompany?.company_id && (
             <EInvoiceVoucherBlock
               record={einv}
+              eway={eway}
               companyId={selectedCompany.company_id}
-              onChanged={() =>
-                voucher.voucher_id &&
-                window.api.eInvoice
-                  .getByVoucher(voucher.voucher_id)
-                  .then((r) => setEinv(r.success && r.record ? r.record : null))
-                  .catch(() => {})
-              }
+              onChanged={reloadEinv}
             />
           )}
         </div>
@@ -314,7 +326,12 @@ export default function VoucherView() {
             voucher.party_ledger_id &&
             partyGstin &&
             selectedCompany?.company_id && (
-              <GstVoucherActions companyId={selectedCompany.company_id} voucher={voucher} />
+              <GstVoucherActions
+                companyId={selectedCompany.company_id}
+                voucher={voucher}
+                existingIrn={einv?.irn ?? null}
+                onGenerated={reloadEinv}
+              />
             )}
           {!voucher.is_cancelled && EDITABLE_VOUCHER_TYPES.has(voucher.voucher_type) && (
             <Button

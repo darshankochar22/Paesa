@@ -27,16 +27,27 @@ const getStatus = async (company_id) => {
 // transport: { distance, trans_mode (1 Road/2 Rail/3 Air/4 Ship), trans_id, trans_name,
 //              trans_doc_no, trans_doc_dt, veh_no, veh_type (R/O) }
 const generateByIrn = async (company_id, voucher_id, irn, transport = {}) => {
+  const transMode = String(transport.trans_mode || '1');
+  // NIC requires VehType when the mode is Road (1) — default to Regular ('R') if the caller
+  // didn't supply one, so Road e-Way Bills never fail with "vehicle type should be passed".
+  const vehType = transport.veh_type || (transMode === '1' ? 'R' : undefined);
+  // Transporter ID must be a 15-char GSTIN-format value; a stray/partial one makes NIC reject
+  // the whole request. Only send it when valid — NIC allows omitting it when a vehicle no. is
+  // given (Part-B by vehicle).
+  const transId =
+    transport.trans_id && /^[0-9]{2}[0-9A-Z]{13}$/.test(String(transport.trans_id).trim())
+      ? String(transport.trans_id).trim()
+      : undefined;
   const body = {
     Irn: irn,
     Distance: Number(transport.distance) || 0,
-    TransMode: String(transport.trans_mode || '1'),
-    TransId: transport.trans_id || undefined,
+    TransMode: transMode,
+    TransId: transId,
     TransName: transport.trans_name || undefined,
     TransDocNo: transport.trans_doc_no || undefined,
     TransDocDt: transport.trans_doc_dt || undefined,
     VehNo: transport.veh_no || undefined,
-    VehType: transport.veh_type || undefined,
+    VehType: vehType,
   };
   // WhiteBooks generates the EWB from an existing IRN via its e-Invoice product endpoint.
   let r, d;
@@ -266,6 +277,21 @@ const ewayRequest = async ({ method = 'GET', path, query = {}, body = null } = {
   return wrapEwb(await wb.eway.request(String(method).toUpperCase(), path, body, qstr(query)));
 };
 
+// Latest e-Way Bill record for one voucher — drives the EWB line on the voucher block and the
+// printable e-Way Bill slip.
+const getByVoucher = async (voucher_id) => {
+  try {
+    const rows = await db.all(
+      sql`SELECT * FROM ${ewaybillRecords} WHERE ${ewaybillRecords.voucherId} = ${voucher_id}
+          ORDER BY ${ewaybillRecords.ewbId} DESC LIMIT 1`,
+    );
+    if (rows.length === 0) return { success: false, error: 'No e-Way Bill for this voucher' };
+    return { success: true, record: rows[0] };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 const getRecords = async (company_id) => {
   try {
     const rows = await db.all(
@@ -284,6 +310,7 @@ module.exports = {
   cancel,
   get,
   getByIrn,
+  getByVoucher,
   getRecords,
   // full e-Way Bill product surface
   generate,

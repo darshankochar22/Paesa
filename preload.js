@@ -787,6 +787,7 @@ contextBridge.exposeInMainWorld('api', {
     cancel: (payload) => invoke('ewayBill:cancel', payload),
     get: (ewb_no) => invoke('ewayBill:get', { ewb_no }),
     getByIrn: (irn) => invoke('ewayBill:getByIrn', { irn }),
+    getByVoucher: (voucher_id) => invoke('ewayBill:getByVoucher', { voucher_id }),
     getRecords: (company_id) => invoke('ewayBill:getRecords', { company_id }),
     // full e-Way Bill product surface (writes take a NIC-shaped `body`)
     generate: (body) => invoke('ewayBill:generate', { body }),

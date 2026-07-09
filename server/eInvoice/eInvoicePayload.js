@@ -192,7 +192,10 @@ function buildIrnPayload(voucher, seller, buyer) {
 // instead of a cryptic IRP rejection. Returns an array of human-readable problems ([] = ok).
 function validateIrnInputs(payload) {
   const errs = [];
-  const gstinRe = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/;
+  // 15-char structural check only — do NOT pin 'Z' at position 14: NIC sandbox test GSTINs
+  // (e.g. 29AAGCB1286Q000) don't follow that rule, and NIC itself is the authoritative
+  // validator. Being stricter than NIC here wrongly blocks valid generation.
+  const gstinRe = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]{3}$/;
   const s = payload.SellerDtls || {};
   const b = payload.BuyerDtls || {};
   if (!s.Gstin || !gstinRe.test(s.Gstin)) errs.push('Seller GSTIN is missing or invalid.');

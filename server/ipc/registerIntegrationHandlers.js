@@ -31,6 +31,7 @@ function register() {
   ipcMain.handle('ewayBill:cancel', ewayBillController.cancel);
   ipcMain.handle('ewayBill:get', ewayBillController.get);
   ipcMain.handle('ewayBill:getByIrn', ewayBillController.getByIrn);
+  ipcMain.handle('ewayBill:getByVoucher', ewayBillController.getByVoucher);
   ipcMain.handle('ewayBill:getRecords', ewayBillController.getRecords);
   ipcMain.handle('ewayBill:generate', ewayBillController.generate);
   ipcMain.handle('ewayBill:updatePartB', ewayBillController.updatePartB);

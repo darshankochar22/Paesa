@@ -11,10 +11,13 @@ type Rec = EInvoiceRecord & { signed_qr_code?: string; ewb_no?: string | null };
 // printable area so it appears on the exported invoice too.
 export default function EInvoiceVoucherBlock({
   record,
+  eway,
   companyId,
   onChanged,
 }: {
   record: Rec;
+  /** e-Way Bill record for this voucher (ewaybill_records) — adds date + validity + print link. */
+  eway?: Record<string, any> | null;
   companyId: number;
   onChanged?: () => void;
 }) {
@@ -92,6 +95,16 @@ export default function EInvoiceVoucherBlock({
               View Invoice Bill →
             </Button>
           ) : null}
+          {record.voucher_id && (eway?.ewb_no || record.ewb_no) ? (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => navigate(`/transactions/voucher/${record.voucher_id}/ewaybill`)}
+              className="h-auto rounded-none border-zinc-400 px-2 py-0 text-[11px] text-zinc-800 hover:bg-zinc-100"
+            >
+              View e-Way Bill →
+            </Button>
+          ) : null}
           {record.irn && String(record.status).toUpperCase() !== 'CANCELLED' ? (
             <Button
               variant="outline"
@@ -109,7 +122,13 @@ export default function EInvoiceVoucherBlock({
           <Row label="Ack No." value={record.ack_no != null ? String(record.ack_no) : null} />
           <Row label="Ack Date" value={record.ack_dt} />
           <Row label="Status" value={record.status} />
-          {record.ewb_no ? <Row label="e-Way Bill" value={String(record.ewb_no)} /> : null}
+          {eway?.ewb_no || record.ewb_no ? (
+            <>
+              <Row label="e-Way Bill" value={String(eway?.ewb_no || record.ewb_no)} />
+              {eway?.ewb_date ? <Row label="EWB Date" value={String(eway.ewb_date)} /> : null}
+              {eway?.valid_upto ? <Row label="Valid Till" value={String(eway.valid_upto)} /> : null}
+            </>
+          ) : null}
         </div>
       </div>
       {qr && (

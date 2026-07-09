@@ -1830,4 +1830,134 @@ describe('GST Reports engine', () => {
     const b2bInv = (g1.payload.b2b || []).reduce((n, p) => n + (p.inv?.length || 0), 0);
     expect(b2bInv).toBe(1);
   });
+
+  it('GSTR-1 Uncertain: a taxable item with no rate → "Tax Rate is not specified"', async () => {
+    // A Taxable stock-item master with no rate defined; the voucher line references it and
+    // carries a valid HSN, so ONLY the tax-rate reason fires (not the HSN reason) — proving
+    // the detection is independent. August, isolated from every other month.
+    await db.execute(
+      `INSERT INTO stock_items (company_id, name, gst_applicable, taxability_type, gst_rate, hsn_sac, is_active)
+       VALUES (?, 'No-Rate Taxable Item', 'Applicable', 'Taxable', 0, '8471', 1)`,
+      [companyId],
+    );
+    const si = await db.execute(
+      `SELECT item_id FROM stock_items WHERE company_id = ? AND name = 'No-Rate Taxable Item'`,
+      [companyId],
+    );
+    const itemId = si.rows[0].item_id;
+
+    await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Sales',
+      date: '2026-08-04',
+      status: 'Regular',
+      reference_number: 'INV-NORATE',
+      place_of_supply: 'Maharashtra',
+      party_ledger_id: partyId,
+      party_name: 'GST Customer',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      entries: [
+        {
+          ledger_id: partyId,
+          ledger_name: 'GST Customer',
+          type: 'Dr',
+          amount: 1000,
+          currency: 'INR',
+        },
+        {
+          ledger_id: salesId,
+          ledger_name: 'GST Sales A/c',
+          type: 'Cr',
+          amount: 1000,
+          currency: 'INR',
+        },
+      ],
+      // Valid HSN, but the item is Taxable with gst_rate 0 → "Tax Rate is not specified".
+      stock_entries: [
+        {
+          item_name: 'No-Rate Taxable Item',
+          stock_item_id: itemId,
+          quantity: 1,
+          rate: 1000,
+          gst_rate: 0,
+          hsn_code: '8471',
+        },
+      ],
+    });
+
+    const stats = await reconciliationService.getReturnStatistics(companyId, fyId, '082026', {
+      return_type: 'GSTR1',
+    });
+    const sales = stats.statistics.rows.find((r) => r.voucher_type === 'Sales');
+    expect(sales.uncertain).toBe(1);
+
+    const unc = await reconciliationService.getReturnVouchers(companyId, fyId, '082026', {
+      bucket: 'uncertain',
+    });
+    expect(unc.rows).toHaveLength(1);
+    expect(unc.rows[0].exceptions).toContain('Tax Rate is not specified');
+    expect(unc.rows[0].exceptions.join(' ')).not.toMatch(/HSN\/SAC/);
+  });
+
+  it('GSTR-1: report derives tax from rate when a voucher stored no CGST/SGST/IGST amounts', async () => {
+    // Real-data condition: a voucher persists the line RATE but not the computed tax amounts,
+    // so the stored cgst/sgst/igst are 0. The report must still show tax (amount × rate),
+    // else the tax column is blank and Invoice == Taxable. September, isolated.
+    const created = await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Sales',
+      date: '2026-09-04',
+      status: 'Regular',
+      reference_number: 'INV-RATEONLY',
+      place_of_supply: 'Maharashtra',
+      party_ledger_id: partyId,
+      party_name: 'GST Customer',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      entries: [
+        {
+          ledger_id: partyId,
+          ledger_name: 'GST Customer',
+          type: 'Dr',
+          amount: 11800,
+          currency: 'INR',
+        },
+        {
+          ledger_id: salesId,
+          ledger_name: 'GST Sales A/c',
+          type: 'Cr',
+          amount: 11800,
+          currency: 'INR',
+        },
+      ],
+      stock_entries: [
+        { item_name: 'Widget', quantity: 10, rate: 1000, gst_rate: 18, hsn_code: '8471' },
+      ],
+    });
+    const vid = created.voucher?.voucher_id ?? created.voucher_id;
+    // Force the "rate present, amounts absent" condition regardless of how create computed it.
+    await db.execute(
+      `UPDATE voucher_stock_entries SET cgst_amount = 0, sgst_amount = 0, igst_amount = 0, gst_rate = 18, amount = 10000 WHERE voucher_id = ?`,
+      [vid],
+    );
+
+    const rows =
+      (
+        await reconciliationService.getReturnVouchers(companyId, fyId, '092026', {
+          bucket: 'included',
+          voucher_type: 'Sales',
+        })
+      ).rows || [];
+    const row = rows.find((r) => r.voucher_id === vid);
+    expect(row).toBeTruthy();
+    expect(row.taxable).toBe(10000);
+    // 18% of 10000 = 1800 total tax, and the invoice reflects it (10000 + 1800).
+    expect(Math.round(row.cgst + row.sgst + row.igst)).toBe(1800);
+    expect(Math.round(row.invoice)).toBe(11800);
+  });
 });

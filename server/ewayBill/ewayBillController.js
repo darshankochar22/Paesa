@@ -10,6 +10,7 @@ module.exports = {
     s.cancel(ewb_no, cancel_reason, cancel_remarks),
   get: (e, { ewb_no }) => s.get(ewb_no),
   getByIrn: (e, { irn }) => s.getByIrn(irn),
+  getByVoucher: (e, { voucher_id }) => s.getByVoucher(voucher_id),
   getRecords: (e, { company_id }) => s.getRecords(company_id),
 
   // full e-Way Bill product surface (writes take a NIC-shaped `body`)

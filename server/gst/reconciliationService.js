@@ -1161,8 +1161,10 @@ const fetchPeriodVouchers = async (
                COALESCE(s.igst, 0) AS igst,
                COALESCE(s.cgst, 0) AS cgst,
                COALESCE(s.sgst, 0) AS sgst,
+               COALESCE(s.rate_tax, 0) AS rate_tax,
                COALESCE(s.max_rate, 0) AS max_rate,
                COALESCE(s.bad_hsn, 0) AS bad_hsn,
+               COALESCE(s.no_rate, 0) AS no_rate,
                COALESCE(e.dr_total, 0) AS dr_total,
                COALESCE(e.cr_total, 0) AS cr_total,
                COALESCE(g.gst_ledger_lines, 0) AS gst_ledger_lines
@@ -1170,12 +1172,24 @@ const fetchPeriodVouchers = async (
         LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
         LEFT JOIN groups pg ON pg.group_id = l.group_id
         LEFT JOIN (
-          SELECT voucher_id, COUNT(*) AS stock_count, SUM(amount) AS taxable,
-                 SUM(igst_amount) AS igst, SUM(cgst_amount) AS cgst,
-                 SUM(sgst_amount) AS sgst, MAX(gst_rate) AS max_rate,
-                 SUM(CASE WHEN hsn_code IS NULL OR TRIM(hsn_code) = ''
-                          OR LENGTH(TRIM(hsn_code)) NOT IN (4, 6, 8) THEN 1 ELSE 0 END) AS bad_hsn
-          FROM ${voucherStockEntries} GROUP BY voucher_id
+          SELECT vse.voucher_id, COUNT(*) AS stock_count, SUM(vse.amount) AS taxable,
+                 SUM(vse.igst_amount) AS igst, SUM(vse.cgst_amount) AS cgst,
+                 SUM(vse.sgst_amount) AS sgst, MAX(vse.gst_rate) AS max_rate,
+                 -- Tax implied by each line's rate (amount × rate). Used as a fallback when
+                 -- the stored per-line tax amounts are zero (some vouchers persist the rate
+                 -- but not the computed CGST/SGST/IGST amounts).
+                 SUM(vse.amount * COALESCE(vse.gst_rate, 0) / 100.0) AS rate_tax,
+                 SUM(CASE WHEN vse.hsn_code IS NULL OR TRIM(vse.hsn_code) = ''
+                          OR LENGTH(TRIM(vse.hsn_code)) NOT IN (4, 6, 8) THEN 1 ELSE 0 END) AS bad_hsn,
+                 -- A line valued but carrying no rate, on an item meant to be taxed
+                 -- (Taxable/Not Defined), = "Tax Rate is not specified". The line-rate=0
+                 -- guard means this can never fire on a properly-taxed line.
+                 SUM(CASE WHEN COALESCE(vse.gst_rate, 0) = 0 AND COALESCE(vse.amount, 0) > 0
+                          AND si.taxability_type IN ('Taxable', 'Not Defined')
+                          THEN 1 ELSE 0 END) AS no_rate
+          FROM ${voucherStockEntries} vse
+          LEFT JOIN stock_items si ON si.item_id = vse.stock_item_id
+          GROUP BY vse.voucher_id
         ) s ON s.voucher_id = v.voucher_id
         LEFT JOIN (
           SELECT voucher_id,
@@ -1195,6 +1209,24 @@ const fetchPeriodVouchers = async (
           ${regFilter}
         ORDER BY v.date ASC, v.voucher_id ASC`,
   );
+
+  // Fall back to rate-implied tax when a voucher stored its line rate but not the computed
+  // CGST/SGST/IGST amounts (a real data condition — such vouchers would otherwise show a
+  // blank tax column and Invoice == Taxable). Split intra-state into CGST+SGST, inter-state
+  // into IGST. Vouchers that DID persist their tax amounts are left untouched.
+  const r2 = (n) => Math.round(Number(n || 0) * 100) / 100;
+  for (const row of rows) {
+    const stored = Number(row.igst || 0) + Number(row.cgst || 0) + Number(row.sgst || 0);
+    const rateTax = Number(row.rate_tax || 0);
+    if (stored < 0.01 && rateTax > 0.01) {
+      if (Number(row.is_interstate || 0) === 1) {
+        row.igst = r2(rateTax);
+      } else {
+        row.cgst = r2(rateTax / 2);
+        row.sgst = r2(rateTax / 2);
+      }
+    }
+  }
 
   // Attendance vouchers live in a separate table with no gst_registration_id, so they
   // behave like registration-less vouchers (Contra/Journal): include them only when no
@@ -1272,6 +1304,9 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   // voucher's tax rate indeterminate — Tally parks it in Uncertain until corrected.
   else if (Number(v.bad_hsn || 0) > 0)
     exceptions.push('HSN/SAC is invalid, mismatched, or not specified');
+  // A taxable item that ended up with no rate on the voucher (see no_rate) → Tally shows
+  // "Tax Rate is not specified" (can coexist with the HSN exception on the same voucher).
+  if (Number(v.no_rate || 0) > 0) exceptions.push('Tax Rate is not specified');
   if (exceptions.length)
     return { bucket: 'uncertain', group: null, category: null, section: null, exceptions };
 
@@ -1407,12 +1442,27 @@ const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) =>
       if (includedIds.length === 0) return { success: true, rows: [], view: 'hsn' };
       // db.execute(string, params) — sql`` templates can't expand an array into IN (...).
       const placeholders = includedIds.map(() => '?').join(',');
+      // Same rate-implied-tax fallback as fetchPeriodVouchers: when a line stored no
+      // CGST/SGST/IGST amount, derive it from amount × rate, split by the voucher's
+      // inter/intra-state nature. Lines that DID persist their tax are used as-is.
       const hsnRes = await db.execute(
-        `SELECT COALESCE(NULLIF(hsn_code, ''), 'Not Specified') AS hsn,
-                SUM(quantity) AS qty, SUM(amount) AS taxable,
-                SUM(igst_amount) AS igst, SUM(cgst_amount) AS cgst, SUM(sgst_amount) AS sgst
-         FROM voucher_stock_entries
-         WHERE voucher_id IN (${placeholders})
+        `SELECT COALESCE(NULLIF(vse.hsn_code, ''), 'Not Specified') AS hsn,
+                SUM(vse.quantity) AS qty, SUM(vse.amount) AS taxable,
+                SUM(CASE WHEN (COALESCE(vse.igst_amount,0)+COALESCE(vse.cgst_amount,0)+COALESCE(vse.sgst_amount,0)) > 0
+                         THEN vse.igst_amount
+                         WHEN COALESCE(v.is_interstate,0) = 1 THEN vse.amount * COALESCE(vse.gst_rate,0) / 100.0
+                         ELSE 0 END) AS igst,
+                SUM(CASE WHEN (COALESCE(vse.igst_amount,0)+COALESCE(vse.cgst_amount,0)+COALESCE(vse.sgst_amount,0)) > 0
+                         THEN vse.cgst_amount
+                         WHEN COALESCE(v.is_interstate,0) = 0 THEN vse.amount * COALESCE(vse.gst_rate,0) / 200.0
+                         ELSE 0 END) AS cgst,
+                SUM(CASE WHEN (COALESCE(vse.igst_amount,0)+COALESCE(vse.cgst_amount,0)+COALESCE(vse.sgst_amount,0)) > 0
+                         THEN vse.sgst_amount
+                         WHEN COALESCE(v.is_interstate,0) = 0 THEN vse.amount * COALESCE(vse.gst_rate,0) / 200.0
+                         ELSE 0 END) AS sgst
+         FROM voucher_stock_entries vse
+         JOIN vouchers v ON v.voucher_id = vse.voucher_id
+         WHERE vse.voucher_id IN (${placeholders})
          GROUP BY hsn ORDER BY hsn`,
         includedIds,
       );
