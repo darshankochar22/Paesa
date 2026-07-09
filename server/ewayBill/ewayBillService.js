@@ -247,6 +247,7 @@ const extendValidity = (body) => ewbPost('extendvalidity', body);
 const regenerateConsolidated = (body) => ewbPost('regentripsheet', body);
 const initMultiVehicle = (body) => ewbPost('initmulti', body);
 const addMultiVehicle = (body) => ewbPost('addmulti', body);
+const changeMultiVehicle = (body) => ewbPost('chngmulti', body);
 const closeEwb = (body) => ewbPost('clsewb', body);
 
 // reads / lookups
@@ -322,6 +323,7 @@ module.exports = {
   regenerateConsolidated,
   initMultiVehicle,
   addMultiVehicle,
+  changeMultiVehicle,
   closeEwb,
   forTransporterByDate,
   forTransporterByState,

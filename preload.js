@@ -799,6 +799,7 @@ contextBridge.exposeInMainWorld('api', {
     regenerateConsolidated: (body) => invoke('ewayBill:regenerateConsolidated', { body }),
     initMultiVehicle: (body) => invoke('ewayBill:initMultiVehicle', { body }),
     addMultiVehicle: (body) => invoke('ewayBill:addMultiVehicle', { body }),
+    changeMultiVehicle: (body) => invoke('ewayBill:changeMultiVehicle', { body }),
     closeEwb: (body) => invoke('ewayBill:closeEwb', { body }),
     forTransporterByDate: (date) => invoke('ewayBill:forTransporterByDate', { date }),
     forTransporterByState: (state_code, date) =>

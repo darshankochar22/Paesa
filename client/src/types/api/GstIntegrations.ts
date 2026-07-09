@@ -117,9 +117,7 @@ export interface GstIntegrationsAPI {
     }) => Promise<ApiResult>;
     get: (p: { ewb_no: string }) => Promise<ApiResult>;
     getByIrn: (irn: string) => Promise<ApiResult>;
-    getByVoucher: (
-      voucher_id: number,
-    ) => Promise<{
+    getByVoucher: (voucher_id: number) => Promise<{
       success: boolean;
       record?: EwayRecord & Record<string, unknown>;
       error?: string;
@@ -137,6 +135,7 @@ export interface GstIntegrationsAPI {
     regenerateConsolidated: (body: unknown) => Promise<ApiResult>;
     initMultiVehicle: (body: unknown) => Promise<ApiResult>;
     addMultiVehicle: (body: unknown) => Promise<ApiResult>;
+    changeMultiVehicle: (body: unknown) => Promise<ApiResult>;
     closeEwb: (body: unknown) => Promise<ApiResult>;
     forTransporterByDate: (date: string) => Promise<ApiResult>;
     forTransporterByState: (state_code: string, date: string) => Promise<ApiResult>;

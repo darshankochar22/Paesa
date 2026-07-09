@@ -6,6 +6,9 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import DataTable, { type TableColumn } from '@/components/ui/DataTable';
+import OpsPanel from './OpsPanel';
+import { EWAY_LOOKUP_OPS, EWAY_ACTION_OPS } from './ewayOps';
+import { EINVOICE_OPS } from './einvoiceOps';
 import { useCompany } from '@/context/CompanyContext';
 import type { IntegrationStatus } from '@/types/api/GstIntegrations';
 
@@ -83,6 +86,12 @@ function EInvoiceTab({ companyId }: { companyId: number }) {
     <div>
       <StatusBar status={status} />
       <div className="p-3">
+        <OpsPanel
+          title="e-Invoice utilities"
+          ops={EINVOICE_OPS}
+          disabled={!status?.configured}
+          onSuccess={load}
+        />
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] text-zinc-500">
             {rows.length} IRN(s). Generate an e-Invoice from a sales voucher (Voucher View →
@@ -106,45 +115,10 @@ function EInvoiceTab({ companyId }: { companyId: number }) {
 }
 
 // ---- e-Way Bill tab ---------------------------------------------------------
-// Direct NIC portal lookups (client-cred auth, no OTP). Each takes a single query value.
-const EWAY_LOOKUPS: { value: string; label: string; param: string | null }[] = [
-  { value: 'get', label: 'e-Way Bill by EWB No', param: 'EWB No' },
-  { value: 'byDate', label: 'e-Way Bills by Date', param: 'Date (dd/mm/yyyy)' },
-  { value: 'getGstinDetails', label: 'GSTIN details', param: 'GSTIN' },
-  { value: 'getTransporterDetails', label: 'Transporter details', param: 'Transporter ID (TRN)' },
-  { value: 'getHsnDetails', label: 'HSN details', param: 'HSN code' },
-  { value: 'getErrorList', label: 'NIC error-code list', param: null },
-];
-
 function EwayTab({ companyId }: { companyId: number }) {
   const [status, setStatus] = useState<IntegrationStatus | null>(null);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lkType, setLkType] = useState('get');
-  const [lkValue, setLkValue] = useState('');
-  const [lkBusy, setLkBusy] = useState(false);
-  const [lkMsg, setLkMsg] = useState<string | null>(null);
-  const [lkResult, setLkResult] = useState<unknown>(null);
-  const activeLookup = EWAY_LOOKUPS.find((l) => l.value === lkType)!;
-
-  const runLookup = async () => {
-    if (activeLookup.param && !lkValue.trim()) {
-      setLkMsg(`Enter ${activeLookup.param}.`);
-      return;
-    }
-    setLkBusy(true);
-    setLkMsg(null);
-    setLkResult(null);
-    const api = window.api.ewayBill as any;
-    const v = lkValue.trim();
-    const res = lkType === 'getErrorList' ? await api.getErrorList() : await api[lkType](v);
-    setLkBusy(false);
-    if (res.success) {
-      setLkResult(res.data ?? null);
-      const n = Array.isArray(res.data) ? res.data.length : null;
-      setLkMsg(`OK${n != null ? ` — ${n} row(s)` : ''}`);
-    } else setLkMsg(res.error || 'Lookup failed');
-  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -193,48 +167,13 @@ function EwayTab({ companyId }: { companyId: number }) {
     <div>
       <StatusBar status={status} />
       <div className="p-3">
-        <div className="border border-zinc-200 p-3 mb-4">
-          <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider mb-2">
-            e-Way Bill lookups
-          </h3>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-56">
-              <label className="text-[10px] text-zinc-500 block mb-0.5">Lookup</label>
-              <Select
-                value={lkType}
-                onChange={(e) => {
-                  setLkType(e.target.value);
-                  setLkValue('');
-                  setLkResult(null);
-                  setLkMsg(null);
-                }}
-                options={EWAY_LOOKUPS.map((l) => ({ value: l.value, label: l.label }))}
-              />
-            </div>
-            {activeLookup.param && (
-              <div className="w-56">
-                <label className="text-[10px] text-zinc-500 block mb-0.5">
-                  {activeLookup.param}
-                </label>
-                <Input value={lkValue} onChange={(e) => setLkValue(e.target.value)} />
-              </div>
-            )}
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={runLookup}
-              disabled={lkBusy || !status?.configured}
-            >
-              Fetch
-            </Button>
-            {lkMsg && <span className="text-[11px] text-zinc-700 pb-2">{lkMsg}</span>}
-          </div>
-          {lkResult != null && (
-            <pre className="border border-zinc-200 bg-zinc-50 text-[11px] text-zinc-800 font-mono p-3 mt-2 overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
-              {JSON.stringify(lkResult, null, 2)}
-            </pre>
-          )}
-        </div>
+        <OpsPanel
+          title="e-Way Bill actions"
+          ops={EWAY_ACTION_OPS}
+          disabled={!status?.configured}
+          onSuccess={load}
+        />
+        <OpsPanel title="e-Way Bill lookups" ops={EWAY_LOOKUP_OPS} disabled={!status?.configured} />
 
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] text-zinc-500">

@@ -42,6 +42,7 @@ function register() {
   ipcMain.handle('ewayBill:regenerateConsolidated', ewayBillController.regenerateConsolidated);
   ipcMain.handle('ewayBill:initMultiVehicle', ewayBillController.initMultiVehicle);
   ipcMain.handle('ewayBill:addMultiVehicle', ewayBillController.addMultiVehicle);
+  ipcMain.handle('ewayBill:changeMultiVehicle', ewayBillController.changeMultiVehicle);
   ipcMain.handle('ewayBill:closeEwb', ewayBillController.closeEwb);
   ipcMain.handle('ewayBill:forTransporterByDate', ewayBillController.forTransporterByDate);
   ipcMain.handle('ewayBill:forTransporterByState', ewayBillController.forTransporterByState);

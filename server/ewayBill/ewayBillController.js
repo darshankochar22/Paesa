@@ -23,6 +23,7 @@ module.exports = {
   regenerateConsolidated: (e, { body }) => s.regenerateConsolidated(body),
   initMultiVehicle: (e, { body }) => s.initMultiVehicle(body),
   addMultiVehicle: (e, { body }) => s.addMultiVehicle(body),
+  changeMultiVehicle: (e, { body }) => s.changeMultiVehicle(body),
   closeEwb: (e, { body }) => s.closeEwb(body),
   forTransporterByDate: (e, { date }) => s.forTransporterByDate(date),
   forTransporterByState: (e, { state_code, date }) => s.forTransporterByState(state_code, date),
