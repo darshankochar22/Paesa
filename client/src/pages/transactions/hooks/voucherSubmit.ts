@@ -20,6 +20,15 @@ export interface VoucherSubmitCtx {
   features: any;
   // Called after a successful create-save to clear the form for the next entry.
   resetForm: () => void;
+  // Hands a freshly-created voucher to the inline e-Invoice flow (owned by the
+  // voucher screen). Not called in edit mode.
+  onNewVoucherSaved?: (info: {
+    voucherId: number;
+    savedNumber: string;
+    partyGstin?: string;
+    voucherType: string;
+    provideEInvoice: 'Yes' | 'No';
+  }) => void;
 }
 
 export function validateVoucher(ctx: VoucherSubmitCtx): string | null {
@@ -239,8 +248,8 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
     editVoucherId,
     onSaved,
     gstRegistration,
-    features,
     resetForm,
+    onNewVoucherSaved,
   } = ctx;
   const validationError = validate();
   if (validationError) {
@@ -872,6 +881,7 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
       // Capture before resetForm() clears the form — needed for generate-at-save below.
       const newVoucherId = !editVoucherId ? (res as any).voucher?.voucher_id : null;
       const partyGstin = rows.partyLedger?.gstin;
+      const provideEInvoice = meta.provideEInvoice;
       if (editVoucherId) {
         meta.setSuccess(`Voucher No. ${savedNumber} updated successfully.${warn}`);
         ledgers.fetchContextData();
@@ -881,45 +891,19 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
         meta.setSuccess(`Voucher No. ${savedNumber} saved successfully.${warn}`);
         ledgers.fetchContextData();
       }
-      // Tally-style "generate after saving": for a NEW B2B GST sales-type voucher, offer to
-      // generate the IRN (and then the e-Way Bill) right away. Fully guarded — any failure
-      // here must never affect the already-saved voucher. The e-Way step auto-uses the
-      // transport details captured in the "Provide GST/e-Way Bill details" popup.
-      if (
-        newVoucherId &&
-        partyGstin &&
-        features?.enable_gst &&
-        ['Sales', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType)
-      ) {
-        try {
-          if (window.confirm(`Voucher ${savedNumber} saved. Generate e-Invoice (IRN) now?`)) {
-            const ir = await window.api.eInvoice.generateFromVoucher({
-              company_id: companyId!,
-              voucher_id: newVoucherId,
-            });
-            if (ir.success) {
-              meta.setSuccess(
-                `Voucher ${savedNumber} saved. IRN ${(ir.data as any)?.Irn || '(generated)'}.`,
-              );
-              if (window.confirm('IRN generated. Generate the e-Way Bill now?')) {
-                const wr = await window.api.ewayBill.generateFromVoucher({
-                  company_id: companyId!,
-                  voucher_id: newVoucherId,
-                  transport: {},
-                });
-                window.alert(
-                  wr.success
-                    ? `e-Way Bill: ${(wr.data as any)?.EwbNo || 'generated'}`
-                    : `e-Way Bill failed: ${wr.error}`,
-                );
-              }
-            } else {
-              window.alert(`e-Invoice failed: ${ir.error}`);
-            }
-          }
-        } catch {
-          /* never break the save */
-        }
+      // Tally-style "generate after saving": hand a freshly-created voucher to the
+      // inline e-Invoice flow owned by the voucher screen. It shows the "Do you want
+      // to generate e-Invoice?" prompt when the user set "Provide e-Invoice details"
+      // = Yes. `provideEInvoice` is captured above (before resetForm cleared it).
+      // Never touches the already-saved voucher.
+      if (newVoucherId) {
+        onNewVoucherSaved?.({
+          voucherId: newVoucherId,
+          savedNumber: savedNumber || '',
+          partyGstin,
+          voucherType: effectiveVoucherType,
+          provideEInvoice,
+        });
       }
     } else {
       meta.setError(res.error || 'Failed to save voucher.');

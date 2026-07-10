@@ -279,6 +279,7 @@ import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
 import VatAdditionalDetailsPopup from '../components/popups/VatAdditionalDetailsPopup';
 import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
+import EInvoiceRow from '../components/EInvoiceRow';
 import { gstRowInfo } from '../utils/gstRow';
 import { useCompany } from '../../../context/CompanyContext';
 import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
@@ -683,6 +684,9 @@ export default function SalesVoucher({
 
       {/* Provide GST/e-Way Bill details */}
       {!hideAdditionalLedgers && <SalesGstEwayRow form={form} />}
+
+      {/* Provide e-Invoice details (GST invoices only, not delivery-note reuse) */}
+      {!hideAdditionalLedgers && features?.enable_gst && <EInvoiceRow form={form} />}
 
       {vatEnabled && !hideVatDetails && <SalesVATDetails form={form} />}
     </div>

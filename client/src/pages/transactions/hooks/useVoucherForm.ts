@@ -20,6 +20,13 @@ export function useVoucherForm(
   resolveEffectiveType?: (type: string) => string,
   editVoucherId?: number | null,
   onSaved?: () => void,
+  onNewVoucherSaved?: (info: {
+    voucherId: number;
+    savedNumber: string;
+    partyGstin?: string;
+    voucherType: string;
+    provideEInvoice: 'Yes' | 'No';
+  }) => void,
 ) {
   const { selectedCompany, activeFY, features } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -365,6 +372,7 @@ export function useVoucherForm(
         gstRegistration,
         features,
         resetForm,
+        onNewVoucherSaved,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -467,6 +475,10 @@ export function useVoucherForm(
     setVatDetails: meta.setVatDetails,
     gstEwayDetails: meta.gstEwayDetails,
     setGstEwayDetails: meta.setGstEwayDetails,
+    provideEInvoice: meta.provideEInvoice,
+    setProvideEInvoice: meta.setProvideEInvoice,
+    eInvoiceDetails: meta.eInvoiceDetails,
+    setEInvoiceDetails: meta.setEInvoiceDetails,
     manufacturerImporterDetails: meta.manufacturerImporterDetails,
     setManufacturerImporterDetails: meta.setManufacturerImporterDetails,
     orderDetails: meta.orderDetails,

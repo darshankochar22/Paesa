@@ -1,18 +1,28 @@
 // hooks/useVoucherMeta.ts
 // ─── Voucher metadata: type, number, date, status, narration, allocation state ──
 
-import { useState, useCallback, useMemo } from "react";
-import type { ActiveAllocation } from "../types";
+import { useState, useCallback, useMemo } from 'react';
+import type { ActiveAllocation } from '../types';
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 export const formatDateDisplay = (dateStr: string | undefined): string => {
-  if (!dateStr) return "";
+  if (!dateStr) return '';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return `${d.getDate()}-${MONTH_NAMES[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
@@ -20,9 +30,9 @@ export const formatDateDisplay = (dateStr: string | undefined): string => {
 
 export const todayStr = (): string => {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -37,37 +47,37 @@ interface UseVoucherMetaOptions {
 }
 
 export function useVoucherMeta({
-  initialVoucherType = "Receipt",
-  initialNarration = "",
-  initialReferenceNumber = "",
-  initialPlaceOfSupply = "Select",
+  initialVoucherType = 'Receipt',
+  initialNarration = '',
+  initialReferenceNumber = '',
+  initialPlaceOfSupply = 'Select',
   initialPartyBillReferences = [],
   initialBankDetails = null,
 }: UseVoucherMetaOptions = {}) {
   // ── Voucher type ──────────────────────────────────────────────────────────────
   const [voucherType, setVoucherType] = useState<string>(initialVoucherType);
-  const [voucherNumber, setVoucherNumber] = useState<string>("1");
+  const [voucherNumber, setVoucherNumber] = useState<string>('1');
   const [voucherNumberLoading, setVoucherNumberLoading] = useState(true);
 
   // ── Date / status ─────────────────────────────────────────────────────────────
   const [date, setDate] = useState<string>(todayStr());
-  const [status, setStatus] = useState<"Regular" | "Post-Dated">("Regular");
+  const [status, setStatus] = useState<'Regular' | 'Post-Dated'>('Regular');
   // Optional (L:Optional) — independent of Post-Dated. When true the voucher is excluded
   // from the books (ledger balances/reports) and appears only in the Optional Voucher
   // Register. Toggled from the right action panel.
   const [isOptional, setIsOptional] = useState(false);
   // Reversing Journal — date the entry is applicable up to (defaults to voucher date).
-  const [applicableUpto, setApplicableUpto] = useState<string>("");
+  const [applicableUpto, setApplicableUpto] = useState<string>('');
 
   // ── Narration / invoice fields ────────────────────────────────────────────────
   const [narration, setNarration] = useState<string>(initialNarration);
-  const [supplierInvoiceNo, setSupplierInvoiceNo] = useState<string>("");
-  const [supplierInvoiceDate, setSupplierInvoiceDate] = useState<string>("");
+  const [supplierInvoiceNo, setSupplierInvoiceNo] = useState<string>('');
+  const [supplierInvoiceDate, setSupplierInvoiceDate] = useState<string>('');
   const [referenceNumber, setReferenceNumber] = useState<string>(initialReferenceNumber);
   const [referenceDate, setReferenceDate] = useState<string>(todayStr());
   const [placeOfSupply, setPlaceOfSupply] = useState<string>(initialPlaceOfSupply);
   // Selected Voucher Type Class ("Name of Class") — "" means none selected.
-  const [voucherClass, setVoucherClass] = useState<string>("");
+  const [voucherClass, setVoucherClass] = useState<string>('');
 
   // ── Submission state ──────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,6 +98,12 @@ export function useVoucherMeta({
   const [vatDetails, setVatDetails] = useState<any | null>(null);
   // "Provide GST/e-Way Bill details" Statutory Details (Sales/Credit/Debit Note).
   const [gstEwayDetails, setGstEwayDetails] = useState<any | null>(null);
+  // "Provide e-Invoice details" toggle + Place-of-Party (Sales/Credit/Debit Note).
+  const [provideEInvoice, setProvideEInvoice] = useState<'Yes' | 'No'>('No');
+  const [eInvoiceDetails, setEInvoiceDetails] = useState<{
+    bill_to_place: string;
+    ship_to_place: string;
+  } | null>(null);
   // Purchase (excise) "Manufacturer / Importer Details" — shown after Party Details.
   const [manufacturerImporterDetails, setManufacturerImporterDetails] = useState<any | null>(null);
   const [orderDetails, setOrderDetails] = useState<any | null>(null);
@@ -98,16 +114,16 @@ export function useVoucherMeta({
 
   // ── Exposed reset helper (called by full resetForm) ───────────────────────────
   const resetMeta = useCallback(() => {
-    setNarration("");
+    setNarration('');
     setError(null);
     setSuccess(null);
-    setReferenceNumber("");
-    setSupplierInvoiceNo("");
-    setSupplierInvoiceDate("");
-    setStatus("Regular");
+    setReferenceNumber('');
+    setSupplierInvoiceNo('');
+    setSupplierInvoiceDate('');
+    setStatus('Regular');
     setIsOptional(false);
     setDate(todayStr());
-    setApplicableUpto("");
+    setApplicableUpto('');
     setActiveAllocation(null);
     setPartyBillReferences([]);
     setBankDetails(null);
@@ -120,10 +136,12 @@ export function useVoucherMeta({
     setExciseDetails(null);
     setVatDetails(null);
     setGstEwayDetails(null);
+    setProvideEInvoice('No');
+    setEInvoiceDetails(null);
     setManufacturerImporterDetails(null);
     setOrderDetails(null);
     setSourceGodown(null);
-    setVoucherClass("");
+    setVoucherClass('');
   }, []);
 
   return {
@@ -191,6 +209,10 @@ export function useVoucherMeta({
     setVatDetails,
     gstEwayDetails,
     setGstEwayDetails,
+    provideEInvoice,
+    setProvideEInvoice,
+    eInvoiceDetails,
+    setEInvoiceDetails,
     manufacturerImporterDetails,
     setManufacturerImporterDetails,
     orderDetails,

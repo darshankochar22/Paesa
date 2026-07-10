@@ -4,6 +4,7 @@ import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
 import GstNoteAdditionalDetailsPopup from '../components/popups/GstNoteAdditionalDetailsPopup';
 import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
+import EInvoiceRow from '../components/EInvoiceRow';
 import VatNatureOfReturnPopup from '../components/popups/VatNatureOfReturnPopup';
 import AdditionalTaxLedgerRows from '../components/AdditionalTaxLedgerRows';
 import { useCompany } from '../../../context/CompanyContext';
@@ -296,6 +297,9 @@ export default function CreditNoteVoucher({
 
       {/* Provide GST/e-Way Bill details — Statutory Details popup */}
       <CreditNoteGstEwayDetails form={form} />
+
+      {/* Provide e-Invoice details */}
+      {features?.enable_gst && <EInvoiceRow form={form} />}
     </>
   );
 }

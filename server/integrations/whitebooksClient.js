@@ -29,8 +29,11 @@ function fetchIp() {
 async function publicIp(cfg) {
   if (cfg.ip) return cfg.ip;
   if (_ip) return _ip;
-  _ip = (await fetchIp()) || '127.0.0.1';
-  return _ip;
+  // Cache only a real lookup — never the fallback, so a transient network outage
+  // doesn't pin ip_address to 127.0.0.1 until the app restarts.
+  const got = await fetchIp();
+  if (got) _ip = got;
+  return _ip || '127.0.0.1';
 }
 
 // --- raw HTTPS ----------------------------------------------------------------------
@@ -67,11 +70,39 @@ function httpReq(baseUrl, method, path, headers, body) {
         }
       });
     });
-    req.on('error', (e) => resolve({ status: 0, body: null, netErr: e.message }));
-    req.setTimeout(30000, () => {
-      req.destroy();
-      resolve({ status: 0, body: null, netErr: 'timeout' });
+    // Timeouts are managed explicitly — Node ≥19's globalAgent applies a 5s socket
+    // idle timeout by default, which silently killed every GSP response slower than
+    // 5s as a bare "timeout" (NIC IRN generation regularly takes longer). Two phases:
+    //  - connect: an unreachable host (VPN/firewall dropping packets) fails in 10s
+    //    with a clear "check your network" message instead of hanging;
+    //  - response: once connected, allow the GSP/NIC up to 45s of socket idle.
+    req.on('socket', (socket) => {
+      const armResponseTimeout = () =>
+        socket.setTimeout(45000, () =>
+          req.destroy(
+            new Error(`${u.hostname} did not respond within 45s — GSP/NIC is slow, try again`),
+          ),
+        );
+      if (socket.connecting) {
+        const w = setTimeout(
+          () =>
+            req.destroy(
+              new Error(
+                `Cannot reach ${u.hostname} — check internet/VPN/firewall (connection timed out)`,
+              ),
+            ),
+          10000,
+        );
+        socket.once('connect', () => {
+          clearTimeout(w);
+          armResponseTimeout();
+        });
+        socket.once('close', () => clearTimeout(w));
+      } else {
+        armResponseTimeout(); // reused keep-alive socket
+      }
     });
+    req.on('error', (e) => resolve({ status: 0, body: null, netErr: e.message }));
     if (payload) req.write(payload);
     req.end();
   });
@@ -362,7 +393,7 @@ function getStatus() {
 module.exports = {
   getStatus,
   isConfigured: () => !!getWhitebooksConfig(),
-  _internal: { isSuccess, dataOf, errOf, caches },
+  _internal: { isSuccess, dataOf, errOf, caches, httpReq },
   einv: {
     authenticate: async () => {
       const c = getWhitebooksConfig();

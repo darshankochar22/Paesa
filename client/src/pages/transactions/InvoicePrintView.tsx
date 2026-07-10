@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { Button } from '@/components/shadcn/button';
@@ -135,6 +135,9 @@ export default function InvoicePrintView() {
   const [qr, setQr] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
+  // ?print=1 (from the "Voucher Printing → Print" dialog) auto-exports the PDF once rendered.
+  const autoPrint = new URLSearchParams(window.location.search).get('print') === '1';
+  const autoPrintedRef = useRef(false);
 
   useEffect(() => {
     if (!id) return;
@@ -164,6 +167,14 @@ export default function InvoicePrintView() {
     );
     setExporting(false);
   };
+
+  // Auto-export once the invoice has rendered when arriving via "Print" (?print=1).
+  useEffect(() => {
+    if (!autoPrint || autoPrintedRef.current || loading || !rec || !inv) return;
+    autoPrintedRef.current = true;
+    handlePdf();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrint, loading, rec, inv]);
 
   if (loading)
     return (

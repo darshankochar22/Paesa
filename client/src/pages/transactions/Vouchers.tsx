@@ -19,6 +19,9 @@ import LedgerListPanel from './components/LedgerListPanel';
 import RightSidebar from './components/RightSidebar';
 import VoucherPopups from './components/VoucherPopups';
 import VoucherBody from './components/VoucherBody';
+import { useEInvoiceFlow } from './hooks/useEInvoiceFlow';
+import { EInvoiceGeneratePrompt, EInvoiceInfoPopup } from './components/popups/EInvoiceFlowDialogs';
+import VoucherPrintPopup from './components/popups/VoucherPrintPopup';
 import { INVENTORY_CREATION_TYPES, ORDER_CREATION_TYPES } from './voucherConstants';
 
 export default function Vouchers() {
@@ -41,11 +44,33 @@ export default function Vouchers() {
   const { id: editIdParam } = useParams<{ id: string }>();
   const editVoucherId = editIdParam ? Number(editIdParam) : null;
 
+  // Inline e-Invoice flow (Tally-style "Provide e-Invoice details" → generate prompt
+  // → success). Defined via a ref so the stable callback handed to useVoucherForm can
+  // reach the latest handler once `einv` exists below.
+  type NewVoucherInfo = {
+    voucherId: number;
+    savedNumber: string;
+    partyGstin?: string;
+    voucherType: string;
+    provideEInvoice: 'Yes' | 'No';
+  };
+  const onNewVoucherSavedRef = useRef<(info: NewVoucherInfo) => void>(() => {});
+  const handleNewVoucherSaved = useCallback(
+    (info: NewVoucherInfo) => onNewVoucherSavedRef.current(info),
+    [],
+  );
+
   const form = useVoucherForm(
     resolveEffectiveVoucherType,
     editVoucherId,
     editVoucherId ? () => navigate(`/transactions/voucher/${editVoucherId}`) : undefined,
+    handleNewVoucherSaved,
   );
+
+  const einv = useEInvoiceFlow();
+  // After the e-Invoice success popup, offer the Tally "Voucher Printing" dialog.
+  const generatedVoucherIdRef = useRef<number | null>(null);
+  const [printVoucherId, setPrintVoucherId] = useState<number | null>(null);
 
   // Load the voucher once master data (ledgers/items) is ready, then populate the form.
   const hydratedRef = useRef(false);
@@ -66,6 +91,22 @@ export default function Vouchers() {
   }, [editVoucherId, form.ledgersLoading, form.allLedgers]);
 
   const effectiveVoucherType = resolveEffectiveVoucherType(form.voucherType);
+
+  // On a fresh create-save, queue the "Generate e-Invoice?" prompt when the user set
+  // "Provide e-Invoice details" = Yes (captured into `info` at save time) AND the
+  // party is registered (IRN needs a recipient GSTIN). The field itself lives in the
+  // Sales/Credit Note/Debit Note bodies. Assigned in an effect (not during render).
+  useEffect(() => {
+    onNewVoucherSavedRef.current = (info) => {
+      if (
+        info.provideEInvoice === 'Yes' &&
+        info.partyGstin &&
+        ['Sales', 'Credit Note', 'Debit Note'].includes(info.voucherType)
+      ) {
+        einv.requestGenerate({ voucherId: info.voucherId, savedNumber: info.savedNumber });
+      }
+    };
+  });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showApplicableUptoPicker, setShowApplicableUptoPicker] = useState(false);
@@ -937,6 +978,66 @@ export default function Vouchers() {
         handleSaveReceiptDetails={handleSaveReceiptDetails}
         handleSaveVatDetails={handleSaveVatDetails}
       />
+
+      {/* ── Inline e-Invoice flow (field lives in the Sales/CN/DN bodies) ── */}
+      {einv.pendingGen && (
+        <EInvoiceGeneratePrompt
+          busy={einv.generating}
+          onNo={() => einv.setPendingGen(null)}
+          onYes={async () => {
+            const info = einv.pendingGen!;
+            einv.setGenerating(true);
+            try {
+              const r = await window.api.eInvoice.generateFromVoucher({
+                company_id: selectedCompany!.company_id,
+                voucher_id: info.voucherId,
+              });
+              einv.setPendingGen(null);
+              einv.setGenerating(false);
+              if (r.success) {
+                form.setSuccess(
+                  `Voucher ${info.savedNumber} saved. IRN ${(r.data as any)?.Irn || '(generated)'}.`,
+                );
+                generatedVoucherIdRef.current = info.voucherId;
+                einv.setSuccessInfo('e-Invoice generated successfully');
+              } else {
+                form.setError(`e-Invoice failed: ${r.error}`);
+              }
+            } catch (e: any) {
+              einv.setGenerating(false);
+              einv.setPendingGen(null);
+              form.setError(e?.message || 'e-Invoice generation failed.');
+            }
+          }}
+        />
+      )}
+
+      {einv.successInfo && (
+        <EInvoiceInfoPopup
+          message={einv.successInfo}
+          onClose={() => {
+            einv.setSuccessInfo(null);
+            if (generatedVoucherIdRef.current) setPrintVoucherId(generatedVoucherIdRef.current);
+          }}
+        />
+      )}
+
+      {printVoucherId != null && (
+        <VoucherPrintPopup
+          title="Tax Invoice"
+          onClose={() => setPrintVoucherId(null)}
+          onPreview={() => {
+            const id = printVoucherId;
+            setPrintVoucherId(null);
+            navigate(`/transactions/voucher/${id}/invoice`);
+          }}
+          onPrint={() => {
+            const id = printVoucherId;
+            setPrintVoucherId(null);
+            navigate(`/transactions/voucher/${id}/invoice?print=1`);
+          }}
+        />
+      )}
     </div>
   );
 }
