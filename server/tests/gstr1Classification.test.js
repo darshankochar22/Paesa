@@ -357,14 +357,17 @@ describe('GSTR-1 classification edges', () => {
       ).rows || [];
     const a = rows.find((r) => r.voucher_id === noGstId);
     const b = rows.find((r) => r.voucher_id === withGstId);
-    // (A) no GST booked anywhere → the sale is NOT part of the return at all
-    // (Not Relevant) — and certainly nothing is fabricated from the item rate.
+    // (A) an 18% item but NO GST ledger posted anywhere (and nothing is fabricated from the
+    // item rate) → the tax ledger was never selected, so the sale is a correction (Uncertain),
+    // NOT silently Included. This is the case the user flagged from TallyPrime.
     expect(a).toBeUndefined();
-    const nr = await reconciliationService.getReturnVouchers(companyId, fyId, '092026', {
-      bucket: 'not_relevant',
+    const unc = await reconciliationService.getReturnVouchers(companyId, fyId, '092026', {
+      bucket: 'uncertain',
       voucher_type: 'Sales',
     });
-    expect((nr.rows || []).map((r) => r.voucher_id)).toContain(noGstId);
+    const aUnc = (unc.rows || []).find((r) => r.voucher_id === noGstId);
+    expect(aUnc).toBeDefined();
+    expect(aUnc.exceptions).toContain('Applicable Tax Ledger is not selected');
     // (B) real GST booked → the actual 900 + 900 from the ledgers, invoice 11800.
     expect(b.taxable).toBe(10000);
     expect(Math.round(b.cgst)).toBe(900);
@@ -509,7 +512,8 @@ describe('GSTR-1 classification edges', () => {
     // (3) GST charged, unregistered party with a JUNK GSTIN value → still B2C.
     const junkVid = await mkSale('NOV-JUNK', junkGstin, 'Junk GSTIN Customer', '06');
     await chargeGst(junkVid);
-    // (4) NO GST anywhere → Not Relevant, excluded from the return.
+    // (4) A taxable item but NO GST anywhere (no rate, no tax ledger) → a correction
+    // (Uncertain: "Applicable Tax Ledger is not selected"), excluded from the return.
     const noGstVid = await mkSale('NOV-NOGST', partyId, 'GST Customer', '07');
 
     const sec = async (section) =>
@@ -528,12 +532,13 @@ describe('GSTR-1 classification edges', () => {
     expect(b2csIds).toContain(b2cVid);
     expect(b2csIds).toContain(junkVid);
 
-    // No-GST sale sits under Not Relevant, not under any included section.
-    const nr = await reconciliationService.getReturnVouchers(companyId, fyId, '112026', {
-      bucket: 'not_relevant',
+    // No-GST-details sale sits under Uncertain (corrections needed), not under any included
+    // section and not silently Not Relevant.
+    const unc = await reconciliationService.getReturnVouchers(companyId, fyId, '112026', {
+      bucket: 'uncertain',
       voucher_type: 'Sales',
     });
-    expect(nr.rows.map((r) => r.voucher_id)).toContain(noGstVid);
+    expect(unc.rows.map((r) => r.voucher_id)).toContain(noGstVid);
     const included = await reconciliationService.getReturnVouchers(companyId, fyId, '112026', {
       bucket: 'included',
     });

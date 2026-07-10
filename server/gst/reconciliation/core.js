@@ -195,6 +195,12 @@ const fetchPeriodVouchers = async (
                COALESCE(s.max_rate, 0) AS max_rate,
                COALESCE(s.bad_hsn, 0) AS bad_hsn,
                COALESCE(s.no_rate, 0) AS no_rate,
+               COALESCE(s.taxable_lines, 0) AS taxable_lines,
+               COALESCE(s.exempt_lines, 0) AS exempt_lines,
+               COALESCE(s.nongst_lines, 0) AS nongst_lines,
+               COALESCE(s.undef_tax, 0) AS undef_tax,
+               COALESCE(s.gst_lines, 0) AS gst_lines,
+               COALESCE(s.bad_uqc, 0) AS bad_uqc,
                COALESCE(e.dr_total, 0) AS dr_total,
                COALESCE(e.cr_total, 0) AS cr_total,
                (SELECT pe.type FROM voucher_entries pe
@@ -218,9 +224,33 @@ const fetchPeriodVouchers = async (
                  -- guard means this can never fire on a properly-taxed line.
                  SUM(CASE WHEN COALESCE(vse.gst_rate, 0) = 0 AND COALESCE(vse.amount, 0) > 0
                           AND si.taxability_type IN ('Taxable', 'Not Defined')
-                          THEN 1 ELSE 0 END) AS no_rate
+                          THEN 1 ELSE 0 END) AS no_rate,
+                 -- Per-item GST taxability off the stock-item master (Tally's "Taxability
+                 -- Type"). Only an EXPLICIT Exempt / Nil-Rated / Non-GST value excuses a line
+                 -- from GST treatment; a linked item left blank or 'Not Defined' is a
+                 -- correction ("Taxability Type is invalid or not specified").
+                 SUM(CASE WHEN si.taxability_type = 'Taxable' THEN 1 ELSE 0 END) AS taxable_lines,
+                 SUM(CASE WHEN si.taxability_type IN ('Exempt', 'Nil Rated', 'Nil-Rated', 'Nil', 'Exempted')
+                          THEN 1 ELSE 0 END) AS exempt_lines,
+                 SUM(CASE WHEN si.taxability_type IN ('Non-GST', 'Non-GST Goods', 'NonGST', 'Non GST')
+                          THEN 1 ELSE 0 END) AS nongst_lines,
+                 SUM(CASE WHEN si.item_id IS NOT NULL AND (si.taxability_type IS NULL
+                          OR si.taxability_type NOT IN ('Taxable', 'Exempt', 'Nil Rated', 'Nil-Rated',
+                             'Nil', 'Exempted', 'Non-GST', 'Non-GST Goods', 'NonGST', 'Non GST'))
+                          THEN 1 ELSE 0 END) AS undef_tax,
+                 -- Lines that require GST treatment: everything NOT explicitly exempt/non-GST
+                 -- (a blank/'Not Defined'/no-item line still counts as a GST supply).
+                 SUM(CASE WHEN si.taxability_type IS NULL
+                          OR si.taxability_type NOT IN ('Exempt', 'Nil Rated', 'Nil-Rated', 'Nil',
+                             'Exempted', 'Non-GST', 'Non-GST Goods', 'NonGST', 'Non GST')
+                          THEN 1 ELSE 0 END) AS gst_lines,
+                 -- A stock line whose UOM has no mapped Unit Quantity Code (UQC).
+                 SUM(CASE WHEN vse.unit_id IS NOT NULL
+                          AND (u.unit_quantity_code IS NULL OR TRIM(u.unit_quantity_code) = '')
+                          THEN 1 ELSE 0 END) AS bad_uqc
           FROM ${voucherStockEntries} vse
           LEFT JOIN stock_items si ON si.item_id = vse.stock_item_id
+          LEFT JOIN units u ON u.unit_id = vse.unit_id
           GROUP BY vse.voucher_id
         ) s ON s.voucher_id = v.voucher_id
         LEFT JOIN (
@@ -333,42 +363,59 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   }
 
   const exceptions = [];
-  const partyRegistered = v.party_reg_type && v.party_reg_type !== 'Unregistered';
-  // INWARD documents (purchases / purchase-side notes) need the supplier's GSTIN
-  // for ITC / 2A / 2B matching — a registered supplier without one is a correction.
-  // An OUTWARD sale needs NO recipient GSTIN: under GST law a recipient without a
-  // GSTIN is simply unregistered, so the sale classifies as B2C (never an error).
-  if (isInward && partyRegistered && (!v.party_gstin || String(v.party_gstin).length !== 15)) {
-    exceptions.push('Party is registered but its GSTIN/UIN is missing or invalid');
-  }
-  // Place of supply is auto-derived from the party/company state (as in TallyPrime), so a
-  // blank place-of-supply is never surfaced as an uncertain exception.
-  if (Number(v.stock_count || 0) === 0)
-    exceptions.push('No item or tax details available in the voucher');
-  // A stock line without a valid HSN/SAC (blank, or not a 4/6/8-digit code) makes the
-  // voucher's tax rate indeterminate — Tally parks it in Uncertain until corrected.
-  else if (Number(v.bad_hsn || 0) > 0)
-    exceptions.push('HSN/SAC is invalid, mismatched, or not specified');
-  // A taxable item that ended up with no rate on the voucher (see no_rate) → Tally shows
-  // "Tax Rate is not specified" (can coexist with the HSN exception on the same voucher).
-  if (Number(v.no_rate || 0) > 0) exceptions.push('Tax Rate is not specified');
-  // A line carrying a positive tax rate but a voucher that booked NO GST at all (no tax
-  // ledger posted) is an incomplete entry — the tax was never charged. Tally parks it in
-  // Uncertain (needs correction) rather than counting it under "Included in Return".
   const taxBooked = Number(v.igst || 0) + Number(v.cgst || 0) + Number(v.sgst || 0);
-  if (Number(v.max_rate || 0) > 0 && taxBooked < 0.01)
-    exceptions.push('Tax amount is not calculated');
+  const stockCount = Number(v.stock_count || 0);
+  // Lines needing GST treatment (anything not EXPLICITLY exempt/non-GST) vs lines the item
+  // master explicitly marks Non-GST. Genuine exempt/non-GST config is what excuses a
+  // voucher from the return exceptions — NOT merely "no tax happened to be booked".
+  const gstLines = Number(v.gst_lines || 0);
+  const nongstLines = Number(v.nongst_lines || 0);
+
+  // Party registration applies BOTH to an inward supplier (needed for ITC / 2A / 2B) and to
+  // an outward recipient marked Registered: Tally flags a registered party carrying no valid
+  // 15-char GSTIN. An Unregistered party is simply B2C and is never flagged.
+  const partyRegistered = v.party_reg_type && v.party_reg_type !== 'Unregistered';
+  const validPartyGstin = GSTIN_RE.test(
+    String(v.party_gstin || '')
+      .trim()
+      .toUpperCase(),
+  );
+  if (partyRegistered && !validPartyGstin)
+    exceptions.push('GST Registration Details of the Party are invalid or not specified');
+
+  if (stockCount === 0) {
+    // Place of supply is auto-derived from the party/company state (as in TallyPrime), so a
+    // blank place-of-supply is never surfaced; a voucher with no stock lines at all has
+    // nothing to derive GST from.
+    exceptions.push('No item or tax details available in the voucher');
+  } else {
+    // A linked item whose Taxability Type is blank / 'Not Defined' (Tally can't tell whether
+    // it is taxable, exempt or non-GST) → correction needed.
+    if (Number(v.undef_tax || 0) > 0)
+      exceptions.push('Taxability Type is invalid or not specified');
+    // A GST-applicable stock line without a valid HSN/SAC (blank, or not a 4/6/8-digit code).
+    if (gstLines > 0 && Number(v.bad_hsn || 0) > 0)
+      exceptions.push('HSN/SAC is invalid, mismatched, or not specified');
+    // A taxable item that ended up with no rate on the voucher (can coexist with HSN above).
+    if (Number(v.no_rate || 0) > 0) exceptions.push('Tax Rate is not specified');
+    // A stock line whose UOM is not mapped to a Unit Quantity Code (UQC).
+    if (Number(v.bad_uqc || 0) > 0)
+      exceptions.push('UOM is not mapped to the Unit Quantity Code (UQC)');
+    // A GST-applicable supply that booked NO GST at all and posted no Duties & Taxes (GST)
+    // ledger → the tax ledger was never selected. This is the case the user pointed at:
+    // sales / credit / debit notes carrying no GST details must be parked in Uncertain, not
+    // silently dropped to Not Relevant.
+    if (gstLines > 0 && taxBooked < 0.01 && Number(v.gst_ledger_lines || 0) === 0)
+      exceptions.push('Applicable Tax Ledger is not selected');
+  }
   if (exceptions.length)
     return { bucket: 'uncertain', group: null, category: null, section: null, exceptions };
 
-  // A voucher that carries NO GST at all — no Duties & Taxes posting, no tax on
-  // any stock line and no GST rate on any item — was billed without GST. It is
-  // not part of any GST return (Tally: "Not relevant in this Return"); it must
-  // NOT be counted as an included nil-rated supply. Data-quality exceptions
-  // above still win (a taxable-but-broken voucher stays Uncertain).
-  const carriesAnyGst =
-    Number(v.gst_ledger_lines || 0) > 0 || taxBooked > 0.01 || Number(v.max_rate || 0) > 0;
-  if (!carriesAnyGst) {
+  // No exceptions. A voucher whose every stock line is EXPLICITLY marked Non-GST was billed
+  // outside GST — it is not part of any GST return (Tally: "Not relevant in this Return") and
+  // must not be counted as a nil-rated supply. Exempt / Nil-rated supplies fall through to the
+  // 'nil' section below (they ARE reported in GSTR-1).
+  if (stockCount > 0 && nongstLines === stockCount) {
     return {
       bucket: 'not_relevant',
       group: 'non_gst',

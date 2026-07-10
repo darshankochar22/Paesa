@@ -52,17 +52,20 @@ const seedGstReportsCompany = async () => {
     await ledgerService.create({ company_id: companyId, name: 'GST Purchase A/c' }),
   );
 
-  // Registered parties whose GSTIN is left blank — the real "corrections needed" case
-  // (place-of-supply is no longer flagged, so these drive the uncertain-voucher tests).
+  // A genuine walk-in consumer: no GSTIN AND Unregistered → a valid B2C sale, never flagged.
+  // (A party marked *Registered* but missing its GSTIN is the "corrections needed" case —
+  // exercised by the registered No-GSTIN Supplier below and the outward reg-party test.)
   noGstCustomerId = ledgerId(
     await ledgerService.create({
       company_id: companyId,
       name: 'No-GSTIN Customer',
       state: 'Maharashtra',
       country: 'India',
-      registration_type: 'Regular',
+      registration_type: 'Unregistered',
     }),
   );
+  // A registered supplier whose GSTIN is left blank — the real "corrections needed" case
+  // (its GSTIN is mandatory for ITC / 2A / 2B matching), driving the uncertain-voucher tests.
   noGstSupplierId = ledgerId(
     await ledgerService.create({
       company_id: companyId,

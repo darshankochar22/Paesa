@@ -459,7 +459,7 @@ describe('GST return drill chain', () => {
     expect(unc.rows).toHaveLength(1);
     expect(unc.rows[0].voucher_type).toBe('Purchase');
     expect(unc.rows[0].exceptions).toContain(
-      'Party is registered but its GSTIN/UIN is missing or invalid',
+      'GST Registration Details of the Party are invalid or not specified',
     );
   });
 
@@ -480,7 +480,7 @@ describe('GST return drill chain', () => {
     expect(unc.rows).toHaveLength(1);
     expect(unc.rows[0].voucher_type).toBe('Purchase');
     expect(unc.rows[0].exceptions).toContain(
-      'Party is registered but its GSTIN/UIN is missing or invalid',
+      'GST Registration Details of the Party are invalid or not specified',
     );
   });
 
@@ -571,6 +571,72 @@ describe('GST return drill chain', () => {
     expect(ch.amount).toBe(500);
     expect(ch.type_of_tax_payment).toBe('GST');
     expect(ch.vch_type).toBe('Payment');
+  });
+
+  it('Outward Sales + Credit Note to a registered party with no GST details land in Uncertain', async () => {
+    // The user's exact TallyPrime scenario: outward vouchers to a *registered* party that
+    // carry no GSTIN, no HSN and no tax ledger must appear under "Transactions with
+    // Incomplete/Mismatch in Information" (Uncertain) — not silently Not Relevant/Included.
+    // February 2027, isolated from every other month used above.
+    const regNoGstin = ledgerId(
+      await ledgerService.create({
+        company_id: companyId,
+        name: 'Reg Party No GSTIN',
+        state: 'Maharashtra',
+        country: 'India',
+        registration_type: 'Regular', // registered → GSTIN is mandatory
+      }),
+    );
+    const mkOutward = async (type, ref, day) =>
+      voucherController.create(null, {
+        company_id: companyId,
+        fy_id: fyId,
+        voucher_type: type,
+        date: `2027-02-${day}`,
+        status: 'Regular',
+        reference_number: ref,
+        place_of_supply: 'Maharashtra',
+        party_ledger_id: regNoGstin,
+        party_name: 'Reg Party No GSTIN',
+        is_accounting_voucher: 1,
+        is_invoice: 1,
+        is_inventory_voucher: 1,
+        entries: [
+          { ledger_id: regNoGstin, ledger_name: 'Reg Party No GSTIN', type: 'Dr', amount: 1000 },
+          { ledger_id: salesId, ledger_name: 'GST Sales A/c', type: 'Cr', amount: 1000 },
+        ],
+        // Blank HSN, no rate, no tax ledger → HSN + tax-ledger exceptions.
+        stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 1000, hsn_code: '' }],
+      });
+    const sale = await mkOutward('Sales', 'FEB-SALE', '04');
+    const cn = await mkOutward('Credit Note', 'FEB-CN', '05');
+    expect(sale.success ?? !!sale.voucher).toBeTruthy();
+    expect(cn.success ?? !!cn.voucher).toBeTruthy();
+
+    const unc = await reconciliationService.getReturnVouchers(companyId, fyId, '022027', {
+      bucket: 'uncertain',
+    });
+    expect(unc.success).toBe(true);
+    // Both the Sales and the Credit Note are surfaced for correction.
+    expect(unc.rows).toHaveLength(2);
+    expect(unc.rows.map((r) => r.voucher_type).sort()).toEqual(['Credit Note', 'Sales']);
+    for (const r of unc.rows) {
+      expect(r.exceptions).toContain(
+        'GST Registration Details of the Party are invalid or not specified',
+      );
+      expect(r.exceptions).toContain('HSN/SAC is invalid, mismatched, or not specified');
+      expect(r.exceptions).toContain('Applicable Tax Ledger is not selected');
+    }
+
+    // They are NOT quietly parked in Not Relevant nor counted as Included.
+    const nr = await reconciliationService.getReturnVouchers(companyId, fyId, '022027', {
+      bucket: 'not_relevant',
+    });
+    expect(nr.rows).toHaveLength(0);
+    const inc = await reconciliationService.getReturnVouchers(companyId, fyId, '022027', {
+      bucket: 'included',
+    });
+    expect(inc.rows).toHaveLength(0);
   });
 });
 
