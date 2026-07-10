@@ -197,6 +197,9 @@ const fetchPeriodVouchers = async (
                COALESCE(s.no_rate, 0) AS no_rate,
                COALESCE(e.dr_total, 0) AS dr_total,
                COALESCE(e.cr_total, 0) AS cr_total,
+               (SELECT pe.type FROM voucher_entries pe
+                 WHERE pe.voucher_id = v.voucher_id AND pe.ledger_id = v.party_ledger_id
+                 LIMIT 1) AS party_side,
                COALESCE(g.gst_ledger_lines, 0) AS gst_ledger_lines,
                COALESCE(g.e_cgst, 0) AS e_cgst,
                COALESCE(g.e_sgst, 0) AS e_sgst,
@@ -345,6 +348,12 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   // A taxable item that ended up with no rate on the voucher (see no_rate) → Tally shows
   // "Tax Rate is not specified" (can coexist with the HSN exception on the same voucher).
   if (Number(v.no_rate || 0) > 0) exceptions.push('Tax Rate is not specified');
+  // A line carrying a positive tax rate but a voucher that booked NO GST at all (no tax
+  // ledger posted) is an incomplete entry — the tax was never charged. Tally parks it in
+  // Uncertain (needs correction) rather than counting it under "Included in Return".
+  const taxBooked = Number(v.igst || 0) + Number(v.cgst || 0) + Number(v.sgst || 0);
+  if (Number(v.max_rate || 0) > 0 && taxBooked < 0.01)
+    exceptions.push('Tax amount is not calculated');
   if (exceptions.length)
     return { bucket: 'uncertain', group: null, category: null, section: null, exceptions };
 
@@ -387,10 +396,21 @@ const voucherRow = (v, cls) => ({
   invoice: invoiceOf(v),
   // Accounting-side totals — Tally's registers for non-return drills (statistics,
   // Not Relevant) show Debit/Credit Amount columns rather than tax columns.
-  debit: Number(v.dr_total || 0),
-  credit: Number(v.cr_total || 0),
+  ...accountingSide(v),
   exceptions: cls ? cls.exceptions : [],
 });
+
+// A balanced voucher has dr_total === cr_total, so showing both columns would
+// double the amount. Tally posts the voucher's value on the party ledger's ACTUAL
+// posting side only (party_side), leaving the other column blank — a sales invoice
+// debits the party (Debit), a payment to a supplier credits it (Credit), etc.
+// Vouchers with no party ledger (Journal/Contra) keep their raw dr/cr totals.
+const accountingSide = (v) => {
+  const total = Number(v.dr_total || 0) || Number(v.cr_total || 0);
+  if (v.party_side === 'Dr') return { debit: total, credit: 0 };
+  if (v.party_side === 'Cr') return { debit: 0, credit: total };
+  return { debit: Number(v.dr_total || 0), credit: Number(v.cr_total || 0) };
+};
 
 module.exports = {
   getDatesForFY,

@@ -204,6 +204,22 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       // GST duty-ledger posting). Otherwise the invoice genuinely carries no tax.
       const hasGstEntry = entries.some((e) => gstLedgerIds.has(Number(e.ledger_id)));
 
+      // A line carrying a positive tax rate but a voucher that booked NO GST at all is an
+      // incomplete entry (tax never charged). Tally parks it under Uncertain, so keep it OUT
+      // of the return sections — this mirrors classifyVoucher's "Tax amount is not calculated"
+      // exception and keeps the section totals equal to the "Included in Return" count.
+      const maxItemRate = stockEntries.reduce((m, s) => Math.max(m, Number(s.gst_rate || 0)), 0);
+      const stockTax = stockEntries.reduce(
+        (s, e) =>
+          s + Number(e.igst_amount || 0) + Number(e.cgst_amount || 0) + Number(e.sgst_amount || 0),
+        0,
+      );
+      const ledgerTax = entries
+        .filter((e) => gstLedgerIds.has(Number(e.ledger_id)))
+        .reduce((s, e) => s + Number(e.amount || 0), 0);
+      const taxBooked = stockTax > 0.01 ? stockTax : ledgerTax;
+      if (maxItemRate > 0 && taxBooked < 0.01) continue;
+
       if (taxLines.length === 0 && hasGstEntry) {
         // Compute on the fly
         try {

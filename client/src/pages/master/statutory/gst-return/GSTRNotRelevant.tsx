@@ -186,10 +186,9 @@ export default function GSTRNotRelevant() {
               </TableRow>
             ) : (
               <>
-                <TableRow
-                  className="hover:bg-[#e6f2ff] cursor-pointer"
-                  onClick={() => openGroup('non_gst', 'Non-GST transactions')}
-                >
+                {/* Parent aggregate — a header, not a drill. Tally lists its sub-categories
+                    (Contra Vouchers, Other Transactions) beneath it; drilling happens there. */}
+                <TableRow className="hover:bg-transparent">
                   <TableCell className="px-2 py-1 font-bold text-black">
                     Non-GST transactions
                   </TableCell>
@@ -201,7 +200,13 @@ export default function GSTRNotRelevant() {
                   <TableRow
                     key={c.label}
                     className="hover:bg-[#e6f2ff] cursor-pointer"
-                    onClick={() => setOpenCategory(c)}
+                    // A single-type category (e.g. Contra Vouchers) drills straight to the
+                    // register; a multi-type one (Other Transactions) opens the type list.
+                    onClick={() =>
+                      c.types.length <= 1
+                        ? openRegister(c.label, c.types[0]?.voucher_type, c.label)
+                        : setOpenCategory(c)
+                    }
                   >
                     <TableCell className="px-6 py-0.5">{c.label}</TableCell>
                     <TableCell className="px-2 py-0.5 text-right w-32">{c.count}</TableCell>
