@@ -5,7 +5,7 @@
 //
 //   {
 //     company_id,
-//     voucher_no,                       // meta.voucherNumber (PST-… or null)
+//     voucher_no,                       // meta.voucherNumber (sequential 1,2,3… or null)
 //     voucher_date,                     // meta.date
 //     reference_no | null,              // meta.referenceNumber || null
 //     narration | null,                 // meta.narration || null
@@ -102,18 +102,18 @@ describe('physicalStock CRUD sweep (UI-faithful)', () => {
     item2Id = si2.item.item_id;
   });
 
-  test('getNextNumber returns the first PST- number', async () => {
+  test('getNextNumber returns the first sequential number', async () => {
     const res = await physicalStockController.getNextNumber(null, { company_id: companyId });
     expect(res.success).toBe(true);
-    expect(res.nextNumber).toBe('PST-00001');
-    expect(res.voucher_number).toBe('PST-00001');
+    expect(res.nextNumber).toBe('1');
+    expect(res.voucher_number).toBe('1');
   });
 
   test('create persists every submitted header + line field (no ignored fields)', async () => {
     // Payload exactly as useVoucherForm.ts builds it for a Physical Stock voucher.
     const payload = {
       company_id: companyId,
-      voucher_no: 'PST-00001',
+      voucher_no: '1',
       voucher_date: '2026-06-16',
       reference_no: 'REF-PS-1',
       narration: 'Stock count Q1',
@@ -152,7 +152,7 @@ describe('physicalStock CRUD sweep (UI-faithful)', () => {
     const res = await physicalStockController.create(null, payload);
     expect(res.success).toBe(true);
     expect(res.physical_stock_entry_id).toBeTruthy();
-    expect(res.voucher_no).toBe('PST-00001');
+    expect(res.voucher_no).toBe('1');
     const entryId = res.physical_stock_entry_id;
 
     // Read back the header via getAll (the list shape the module exposes).
@@ -161,7 +161,7 @@ describe('physicalStock CRUD sweep (UI-faithful)', () => {
     const header = all.entries.find((e) => e.physical_stock_entry_id === entryId);
     expect(header).toBeTruthy();
     expect(header.company_id).toBe(companyId);
-    expect(header.voucher_no).toBe('PST-00001');
+    expect(header.voucher_no).toBe('1');
     expect(header.voucher_date).toBe('2026-06-16');
     expect(header.reference_no).toBe('REF-PS-1'); // must not be dropped
     expect(header.narration).toBe('Stock count Q1');
@@ -204,7 +204,7 @@ describe('physicalStock CRUD sweep (UI-faithful)', () => {
     expect(l2.item_name).toBe('PS Mouse');
   });
 
-  test('create auto-generates the next PST- number when voucher_no is null', async () => {
+  test('create auto-generates the next sequential number when voucher_no is null', async () => {
     const res = await physicalStockController.create(null, {
       company_id: companyId,
       voucher_no: null, // form may pass null; service must number it
@@ -229,7 +229,7 @@ describe('physicalStock CRUD sweep (UI-faithful)', () => {
       ],
     });
     expect(res.success).toBe(true);
-    expect(res.voucher_no).toBe('PST-00002'); // sequential numbering
+    expect(res.voucher_no).toBe('2'); // sequential numbering
 
     const got = await physicalStockController.getById(null, res.physical_stock_entry_id);
     expect(got.success).toBe(true);
@@ -243,7 +243,7 @@ describe('physicalStock CRUD sweep (UI-faithful)', () => {
   test('getNextNumber advances after entries exist', async () => {
     const res = await physicalStockController.getNextNumber(null, { company_id: companyId });
     expect(res.success).toBe(true);
-    expect(res.nextNumber).toBe('PST-00003');
+    expect(res.nextNumber).toBe('3');
   });
 
   test('delete removes the entry', async () => {

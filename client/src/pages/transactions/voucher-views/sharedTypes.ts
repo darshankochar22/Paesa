@@ -163,6 +163,9 @@ export interface Voucher {
   sales_purchase_ledger_id?: number | null;
   sales_purchase_ledger_name?: string | null;
   place_of_supply: string | null;
+  // GST registration snapshot captured at save — drives the "GST Registration"
+  // header line and per-registration report scoping.
+  gst_registration_id?: number | null;
   is_invoice: number;
   is_accounting_voucher: number;
   is_inventory_voucher: number;

@@ -51,6 +51,40 @@ export default function VoucherView() {
   const [partyGstin, setPartyGstin] = useState<string | null>(null);
   const [eway, setEway] = useState<Record<string, any> | null>(null);
 
+  // Resolve the voucher's saved GST registration snapshot to its display name
+  // ("22 Registration" / legal name) — never the company's current default, so a
+  // voucher entered under another registration shows ITS registration.
+  const [gstRegLabel, setGstRegLabel] = useState<string | null>(null);
+  useEffect(() => {
+    const regId = voucher?.gst_registration_id;
+    if (!regId || !selectedCompany?.company_id) {
+      setGstRegLabel(null);
+      return;
+    }
+    let active = true;
+    window.api.gstRegistration
+      .getAll(selectedCompany.company_id)
+      .then((r: any) => {
+        if (!active) return;
+        const reg = (r?.success ? r.gstRegistrations || [] : []).find(
+          (g: any) => Number(g.gst_id) === Number(regId),
+        );
+        setGstRegLabel(
+          reg
+            ? reg.state_id
+              ? `${reg.state_id} Registration`
+              : (reg.legal_name ?? reg.trade_name ?? reg.name ?? reg.gstin ?? null)
+            : null,
+        );
+      })
+      .catch(() => {
+        if (active) setGstRegLabel(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [voucher?.gst_registration_id, selectedCompany?.company_id]);
+
   // Pull the e-Invoice (IRN) + e-Way Bill records for this voucher, if generated. Exposed as a
   // callback so the action buttons can refresh right after generating (so an already-built
   // IRN / EWB always shows without reopening the voucher).
@@ -265,7 +299,7 @@ export default function VoucherView() {
           {showOptionalStatus && <div>:</div>}
         </div>
         <div className="font-semibold text-black">
-          <div>♦ Not Applicable</div>
+          <div>{gstRegLabel ?? '♦ Not Applicable'}</div>
           {showTaxUnit && <div>♦ Not Applicable</div>}
           {showOptionalStatus && <div className="italic">Optional</div>}
         </div>

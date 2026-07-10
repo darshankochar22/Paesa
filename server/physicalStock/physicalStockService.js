@@ -32,14 +32,24 @@ const {
   godowns,
 } = require('../db/schema');
 
+// Plain sequential numbers (1, 2, 3 …) — same scheme as regular vouchers
+// (voucherNumbering.js, issue #143): no PST- prefix, no zero-padding. The next
+// number is the largest trailing digit-run across existing numbers + 1, so it
+// stays continuous even past legacy "PST-000xx" rows.
 const generateVoucherNumber = async (company_id) => {
-  const prefix = 'PST-';
   const rows = await db.all(
-    sql`SELECT COALESCE(MAX(CAST(REPLACE(${physicalStockEntries.voucherNo}, ${prefix}, '') AS INTEGER)), 0) + 1 as next_num
-        FROM ${physicalStockEntries} WHERE ${physicalStockEntries.companyId} = ${company_id}`
+    sql`SELECT ${physicalStockEntries.voucherNo} AS voucher_no FROM ${physicalStockEntries}
+        WHERE ${physicalStockEntries.companyId} = ${company_id}`,
   );
-  const next = Number(rows[0].next_num);
-  return `${prefix}${String(next).padStart(5, '0')}`;
+  let max = 0;
+  for (const r of rows) {
+    const m = String(r.voucher_no ?? '').match(/(\d+)(?!.*\d)/);
+    if (m) {
+      const v = parseInt(m[1], 10);
+      if (v > max) max = v;
+    }
+  }
+  return String(max + 1);
 };
 
 const getNextVoucherNumber = async (company_id) => {
@@ -115,7 +125,7 @@ const getAll = async (company_id) => {
     const rows = await db.all(
       sql`SELECT * FROM ${physicalStockEntries}
           WHERE ${physicalStockEntries.companyId} = ${company_id}
-          ORDER BY ${physicalStockEntries.voucherDate} DESC, ${physicalStockEntries.physicalStockEntryId} DESC`
+          ORDER BY ${physicalStockEntries.voucherDate} DESC, ${physicalStockEntries.physicalStockEntryId} DESC`,
     );
     return { success: true, entries: rows };
   } catch (err) {
@@ -127,7 +137,7 @@ const getById = async (id) => {
   try {
     const entryRows = await db.all(
       sql`SELECT * FROM ${physicalStockEntries}
-          WHERE ${physicalStockEntries.physicalStockEntryId} = ${id}`
+          WHERE ${physicalStockEntries.physicalStockEntryId} = ${id}`,
     );
     if (entryRows.length === 0) return { success: false, error: 'Entry not found' };
     const entry = entryRows[0];
@@ -144,7 +154,7 @@ const getById = async (id) => {
       sql`SELECT l.*, i.name as item_name, g.name as godown_name FROM ${physicalStockEntryLines} l
           LEFT JOIN ${stockItems} i ON i.item_id = l.stock_item_id
           LEFT JOIN ${godowns} g ON g.godown_id = l.godown_id
-          WHERE l.physical_stock_entry_id = ${id} ORDER BY l.line_order ASC`
+          WHERE l.physical_stock_entry_id = ${id} ORDER BY l.line_order ASC`,
     );
 
     return {
@@ -161,9 +171,7 @@ const getById = async (id) => {
 
 const deleteEntry = async (id) => {
   try {
-    await db
-      .delete(physicalStockEntries)
-      .where(eq(physicalStockEntries.physicalStockEntryId, id));
+    await db.delete(physicalStockEntries).where(eq(physicalStockEntries.physicalStockEntryId, id));
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };

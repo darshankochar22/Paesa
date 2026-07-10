@@ -8,14 +8,24 @@ const {
   units,
 } = require('../db/schema');
 
+// Plain sequential numbers (1, 2, 3 …) — same scheme as regular vouchers
+// (voucherNumbering.js, issue #143): no ATT- prefix, no zero-padding. The next
+// number is the largest trailing digit-run across existing numbers + 1, so it
+// stays continuous even past legacy "ATT-000xx" rows.
 const generateVoucherNumber = async (company_id) => {
-  const prefix = 'ATT-';
   const rows = await db.all(
-    sql`SELECT COALESCE(MAX(CAST(REPLACE(${attendanceVouchers.voucherNumber}, ${prefix}, '') AS INTEGER)), 0) + 1 as next_num
-        FROM ${attendanceVouchers} WHERE ${attendanceVouchers.companyId} = ${company_id}`,
+    sql`SELECT ${attendanceVouchers.voucherNumber} AS voucher_number FROM ${attendanceVouchers}
+        WHERE ${attendanceVouchers.companyId} = ${company_id}`,
   );
-  const next = Number(rows[0].next_num);
-  return `${prefix}${String(next).padStart(5, '0')}`;
+  let max = 0;
+  for (const r of rows) {
+    const m = String(r.voucher_number ?? '').match(/(\d+)(?!.*\d)/);
+    if (m) {
+      const v = parseInt(m[1], 10);
+      if (v > max) max = v;
+    }
+  }
+  return String(max + 1);
 };
 
 const getNextVoucherNumber = async (company_id) => {

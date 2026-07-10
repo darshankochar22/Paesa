@@ -216,10 +216,13 @@ module.exports = {
             applicableUpto: nullify(data.applicable_upto) || null,
             voucherClass: nullify(data.voucher_class) || null,
             salesPurchaseLedgerId: nullify(data.sales_purchase_ledger_id) || null,
-            // GST snapshot captured at first save (immutable thereafter).
+            // GST snapshot captured at first save (immutable thereafter). Non-GST-computed
+            // types (Receipt/Payment/Journal/orders/…) still store the registration the
+            // user picked on the entry screen — otherwise NULL rows get attributed to the
+            // primary registration by every per-registration report.
             gstRegistrationId: data.computedGST
               ? (data.computedGST.gst_registration_id ?? null)
-              : null,
+              : (nullify(data.gst_registration_id) ?? null),
             companyState: data.computedGST ? data.computedGST.company_state || null : null,
             isInterstate: data.computedGST ? (data.computedGST.is_inter_state ? 1 : 0) : 0,
             supplyType: data.computedGST ? data.computedGST.supply_type || null : null,

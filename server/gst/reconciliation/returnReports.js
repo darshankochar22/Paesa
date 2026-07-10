@@ -191,6 +191,10 @@ const getReturnVouchers = async (company_id, fy_id, return_period, opts = {}) =>
       // also list the other-return purchases sitting in the same bucket.
       if (opts.group && cls.group !== opts.group) continue;
       if (opts.exception && !(cls.exceptions || []).includes(opts.exception)) continue;
+      // Not-Relevant grouping: 'other_returns' (GST-bearing, belongs to another GST return)
+      // vs 'non_gst'. Without this filter the "Transactions of Other GST Returns" drill
+      // wrongly listed EVERY not-relevant voucher (receipts, payments, contra, attendance…).
+      if (opts.group && cls.group !== opts.group) continue;
       if (opts.category && cls.category !== opts.category) continue;
       if (opts.voucher_type && v.voucher_type !== opts.voucher_type) continue;
       if (opts.section && cls.section !== opts.section) continue;

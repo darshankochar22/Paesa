@@ -160,9 +160,15 @@ module.exports = {
         // Freeze GST identity to the voucher's own snapshot (STEP 7): amounts still
         // recompute from changed stock lines, but registration/state/interstate never
         // re-derive from the company's current default. Legacy rows (no snapshot yet)
-        // pass null → derived fresh, backfilling on this save.
+        // pass null → derived fresh, backfilling on this save. An EXPLICIT registration
+        // change on the alter screen overrides the pin — the user is deliberately moving
+        // the voucher to another registration, which is not the silent re-derive the
+        // freeze exists to prevent.
+        const explicitRegChange =
+          data.gst_registration_id !== undefined &&
+          Number(data.gst_registration_id || 0) !== Number(current.gst_registration_id || 0);
         const gstSnapshot =
-          current.gst_registration_id != null
+          !explicitRegChange && current.gst_registration_id != null
             ? {
                 gst_registration_id: current.gst_registration_id,
                 company_state: current.company_state,
@@ -180,6 +186,7 @@ module.exports = {
           entries: data.entries,
           voucher_type: voucherType,
           gst_snapshot: gstSnapshot,
+          gst_registration_id: data.gst_registration_id,
         };
         const classGstLedgers = await resolveVoucherClassGstLedgers(
           companyId,
@@ -257,20 +264,18 @@ module.exports = {
           voucherClass: nullify(data.voucher_class) ?? nullify(current.voucher_class),
           salesPurchaseLedgerId:
             nullify(data.sales_purchase_ledger_id) ?? nullify(current.sales_purchase_ledger_id),
-          // GST snapshot: keep the existing one if present (immutable); otherwise backfill
-          // from this save's computation for legacy rows created before the snapshot existed.
-          gstRegistrationId:
-            current.gst_registration_id != null
-              ? current.gst_registration_id
-              : data.computedGST
-                ? (data.computedGST.gst_registration_id ?? null)
-                : null,
-          companyState:
-            current.gst_registration_id != null
-              ? current.company_state
-              : data.computedGST
-                ? data.computedGST.company_state || null
-                : nullify(current.company_state),
+          // GST snapshot: the recomputation above already resolved the right registration
+          // (pinned snapshot, or the user's explicit change) — use it when present. For
+          // non-GST-computed types, an explicit selection from the alter screen wins;
+          // otherwise keep whatever the voucher already carried.
+          gstRegistrationId: data.computedGST
+            ? (data.computedGST.gst_registration_id ?? null)
+            : data.gst_registration_id !== undefined
+              ? (nullify(data.gst_registration_id) ?? null)
+              : current.gst_registration_id,
+          companyState: data.computedGST
+            ? data.computedGST.company_state || null
+            : nullify(current.company_state),
           // Interstate follows the re-derivation (company state stays pinned via the
           // registration above, but changing the party/place-of-supply on an edit must
           // update the CGST/SGST-vs-IGST split so the header matches the recomputed tax

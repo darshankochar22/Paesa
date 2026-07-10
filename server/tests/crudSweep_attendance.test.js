@@ -1,8 +1,8 @@
-const { setupTestDB, createTestCompany } = require("./helpers");
-const attendanceController = require("../attendance/attendanceController");
-const employeeService = require("../employee/employeeService");
-const employeeGroupService = require("../employeeGroup/employeeGroupService");
-const attendanceTypeService = require("../attendanceType/attendanceTypeService");
+const { setupTestDB, createTestCompany } = require('./helpers');
+const attendanceController = require('../attendance/attendanceController');
+const employeeService = require('../employee/employeeService');
+const employeeGroupService = require('../employeeGroup/employeeGroupService');
+const attendanceTypeService = require('../attendanceType/attendanceTypeService');
 
 // CRUD sweep for the "attendance" (attendance voucher) module, exercised exactly
 // the way the real UI drives it. The Attendance voucher is created from
@@ -14,7 +14,7 @@ const attendanceTypeService = require("../attendanceType/attendanceTypeService")
 // The module exposes: getNextNumber, create, getAll, getById, delete.
 // (No update op — the UI does not alter attendance vouchers.)
 
-describe("Attendance voucher CRUD sweep (UI parity)", () => {
+describe('Attendance voucher CRUD sweep (UI parity)', () => {
   let companyId;
   let employeeId;
   let employee2Id;
@@ -24,7 +24,7 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
 
   beforeAll(async () => {
     await setupTestDB();
-    const company = await createTestCompany("Attendance CRUD Sweep Co");
+    const company = await createTestCompany('Attendance CRUD Sweep Co');
     companyId = company.company_id;
     // Attendance types are no longer auto-seeded on company creation — seed them here.
     await attendanceTypeService.seedDefaultAttendanceTypes(companyId);
@@ -32,13 +32,13 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
     // Resolve the FK parent for employees: the seeded "Primary" employee group.
     const gRes = await employeeGroupService.getAll(companyId);
     expect(gRes.success).toBe(true);
-    const primary = gRes.employeeGroups.find((g) => g.name === "Primary");
+    const primary = gRes.employeeGroups.find((g) => g.name === 'Primary');
     expect(primary).toBeDefined();
 
     // Create two employees (FK parents for entries).
     const e1 = await employeeService.create({
       company_id: companyId,
-      name: "Att Emp One",
+      name: 'Att Emp One',
       employee_group_id: primary.employee_group_id,
     });
     expect(e1.success).toBe(true);
@@ -46,7 +46,7 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
 
     const e2 = await employeeService.create({
       company_id: companyId,
-      name: "Att Emp Two",
+      name: 'Att Emp Two',
       employee_group_id: primary.employee_group_id,
     });
     expect(e2.success).toBe(true);
@@ -60,17 +60,17 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
     attendanceType2Id = tRes.attendanceTypes[1].attendance_type_id;
   });
 
-  it("getNextNumber returns an ATT-##### style number", async () => {
+  it('getNextNumber returns a plain sequential number', async () => {
     const res = await attendanceController.getNextNumber(null, {
       company_id: companyId,
     });
     expect(res.success).toBe(true);
-    expect(res.nextNumber).toMatch(/^ATT-\d{5}$/);
+    expect(res.nextNumber).toMatch(/^\d+$/);
     // UI reads meta.voucherNumber, which comes from this; keep alias too.
     expect(res.voucher_number).toBe(res.nextNumber);
   });
 
-  it("create persists the exact payload the Attendance form sends (header + entries)", async () => {
+  it('create persists the exact payload the Attendance form sends (header + entries)', async () => {
     // Mirrors useVoucherForm.ts: it pulls voucher_number from getNextNumber,
     // then submits header + entries[{employee_id, attendance_type_id, value}].
     const nn = await attendanceController.getNextNumber(null, {
@@ -81,8 +81,8 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
     const payload = {
       company_id: companyId,
       voucher_number: voucherNumber,
-      date: "2026-04-15",
-      narration: "April attendance batch",
+      date: '2026-04-15',
+      narration: 'April attendance batch',
       entries: [
         {
           employee_id: employeeId,
@@ -112,8 +112,8 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
     // Header fields must persist.
     expect(v.company_id).toBe(companyId);
     expect(v.voucher_number).toBe(voucherNumber);
-    expect(v.date).toBe("2026-04-15");
-    expect(v.narration).toBe("April attendance batch");
+    expect(v.date).toBe('2026-04-15');
+    expect(v.narration).toBe('April attendance batch');
 
     // Entry array must persist with the exact employee/type/value submitted.
     expect(Array.isArray(v.entries)).toBe(true);
@@ -131,15 +131,15 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
     expect(byEmp[employee2Id].value).toBe(1.5);
 
     // The join columns the UI displays must be populated.
-    expect(byEmp[employeeId].employee_name).toBe("Att Emp One");
+    expect(byEmp[employeeId].employee_name).toBe('Att Emp One');
     expect(byEmp[employeeId].attendance_type_name).toBeTruthy();
   });
 
-  it("create with no voucher_number auto-generates the next ATT number", async () => {
+  it('create with no voucher_number auto-generates the next sequential number', async () => {
     const payload = {
       company_id: companyId,
       voucher_number: undefined,
-      date: "2026-04-16",
+      date: '2026-04-16',
       narration: null,
       entries: [
         {
@@ -151,7 +151,7 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
     };
     const res = await attendanceController.create(null, payload);
     expect(res.success).toBe(true);
-    expect(res.voucher_number).toMatch(/^ATT-\d{5}$/);
+    expect(res.voucher_number).toMatch(/^\d+$/);
 
     const got = await attendanceController.getById(null, res.attendance_voucher_id);
     expect(got.success).toBe(true);
@@ -168,7 +168,7 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
     expect(res.vouchers.some((v) => v.attendance_voucher_id === createdVoucherId)).toBe(true);
   });
 
-  it("delete removes the voucher (and cascades its entries)", async () => {
+  it('delete removes the voucher (and cascades its entries)', async () => {
     const res = await attendanceController.delete(null, createdVoucherId);
     expect(res.success).toBe(true);
 

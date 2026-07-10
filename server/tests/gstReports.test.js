@@ -391,4 +391,87 @@ describe('GST Reports engine', () => {
     expect(may.returns.find((r) => r.name === 'GSTR-1').corrections).toBe(0);
     expect(may.returns.find((r) => r.name === 'GSTR-1').pending_file).toBe(1);
   });
+
+  it('Not-Relevant "Transactions of Other GST Returns" drill lists only GST-bearing vouchers', async () => {
+    // December, isolated. A Purchase (carries ITC → Other GST Returns) and a plain Payment
+    // with no GST ledger (→ Non-GST). The group='other_returns' drill must return ONLY the
+    // purchase — not every not-relevant voucher.
+    const purchase = await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Purchase',
+      date: '2026-12-04',
+      status: 'Regular',
+      reference_number: 'PUR-DEC',
+      party_ledger_id: creditorId,
+      party_name: 'GST Supplier',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      entries: [
+        {
+          ledger_id: purchaseId,
+          ledger_name: 'GST Purchase A/c',
+          type: 'Dr',
+          amount: 1000,
+          currency: 'INR',
+        },
+        {
+          ledger_id: creditorId,
+          ledger_name: 'GST Supplier',
+          type: 'Cr',
+          amount: 1000,
+          currency: 'INR',
+        },
+      ],
+      stock_entries: [
+        { item_name: 'Component', quantity: 1, rate: 1000, gst_rate: 18, hsn_code: '8473' },
+      ],
+    });
+    const payment = await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Payment',
+      date: '2026-12-05',
+      status: 'Regular',
+      reference_number: 'PAY-DEC',
+      party_ledger_id: creditorId,
+      party_name: 'GST Supplier',
+      is_accounting_voucher: 1,
+      entries: [
+        {
+          ledger_id: creditorId,
+          ledger_name: 'GST Supplier',
+          type: 'Dr',
+          amount: 500,
+          currency: 'INR',
+        },
+        {
+          ledger_id: partyId,
+          ledger_name: 'GST Customer',
+          type: 'Cr',
+          amount: 500,
+          currency: 'INR',
+        },
+      ],
+    });
+    const pid = (r) => r.voucher?.voucher_id ?? r.voucher_id;
+
+    const other = await reconciliationService.getReturnVouchers(companyId, fyId, '122026', {
+      bucket: 'not_relevant',
+      group: 'other_returns',
+    });
+    const otherIds = (other.rows || []).map((r) => r.voucher_id);
+    expect(otherIds).toContain(pid(purchase));
+    expect(otherIds).not.toContain(pid(payment));
+    expect((other.rows || []).every((r) => r.voucher_type === 'Purchase')).toBe(true);
+
+    const nonGst = await reconciliationService.getReturnVouchers(companyId, fyId, '122026', {
+      bucket: 'not_relevant',
+      group: 'non_gst',
+    });
+    const nonIds = (nonGst.rows || []).map((r) => r.voucher_id);
+    expect(nonIds).toContain(pid(payment));
+    expect(nonIds).not.toContain(pid(purchase));
+  });
 });

@@ -522,3 +522,73 @@ describe('GST return drill chain', () => {
     expect(ch.vch_type).toBe('Payment');
   });
 });
+
+// Registration snapshot on non-GST-computed voucher types (Receipt/Payment/…):
+// the entry screen's explicit registration choice must be stored — NULL rows get
+// attributed to the primary registration by every per-registration report.
+describe('GST registration snapshot on save', () => {
+  let companyId, fyId, partyId;
+
+  beforeAll(async () => {
+    ({ companyId, fyId, partyId } = await seedGstReportsCompany());
+  });
+
+  const regId = async (gstin) => {
+    const r = await db.execute(
+      `SELECT gst_id FROM gst_registrations WHERE company_id = ? AND gstin = ?`,
+      [companyId, gstin],
+    );
+    return r.rows[0].gst_id;
+  };
+
+  it('Payment voucher stores the explicitly selected registration (create + explicit change on update)', async () => {
+    // A second registration so "wrong attribution" is even possible.
+    await db.execute(
+      `INSERT INTO gst_registrations (company_id, state_id, gstin, registration_type, registration_status, is_active)
+       VALUES (?, 'Karnataka', '29ABCDE1234F1Z5', 'Regular', 'Active', 1)`,
+      [companyId],
+    );
+    const secondRegId = await regId('29ABCDE1234F1Z5');
+    const primaryRegId = await regId('27ABCDE1234F1Z5');
+
+    const bankId = ledgerId(
+      await ledgerService.create({ company_id: companyId, name: 'Reg Snapshot Bank' }),
+    );
+    const created = await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Payment',
+      date: '2026-11-05',
+      status: 'Regular',
+      is_accounting_voucher: 1,
+      gst_registration_id: secondRegId,
+      entries: [
+        { ledger_id: partyId, ledger_name: 'GST Customer', type: 'Dr', amount: 500 },
+        { ledger_id: bankId, ledger_name: 'Reg Snapshot Bank', type: 'Cr', amount: 500 },
+      ],
+    });
+    expect(created.success).toBe(true);
+    const vid = created.voucher.voucher_id;
+
+    const saved = await db.execute(
+      `SELECT gst_registration_id FROM vouchers WHERE voucher_id = ?`,
+      [vid],
+    );
+    // Not NULL (old bug: only Sales/Purchase/CN/DN snapshotted a registration).
+    expect(Number(saved.rows[0].gst_registration_id)).toBe(Number(secondRegId));
+
+    // Explicit registration change on update must be honored too.
+    const voucherController2 = require('../voucher/voucherController');
+    const upd = await voucherController2.update(null, {
+      voucher_id: vid,
+      company_id: companyId,
+      gst_registration_id: primaryRegId,
+    });
+    expect(upd.success).toBe(true);
+    const after = await db.execute(
+      `SELECT gst_registration_id FROM vouchers WHERE voucher_id = ?`,
+      [vid],
+    );
+    expect(Number(after.rows[0].gst_registration_id)).toBe(Number(primaryRegId));
+  });
+});
