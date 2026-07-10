@@ -11,6 +11,7 @@
 
 const wb = require('../integrations/whitebooksClient');
 const { getWhitebooksConfig } = require('../integrations/gspConfig');
+const { buildImportPayload } = require('./gstr2Transform');
 
 const cfg = () => getWhitebooksConfig();
 const notConfigured = () =>
@@ -68,11 +69,95 @@ const getPreferences = (query = {}) => portalGet('/public/pref', query); // { gs
 const urdDetails = (query = {}) => portalGet('/public/unregistered-applicants', query); // { uid }
 const urdValidate = (query = {}) => portalGet('/public/unregistered-applicants-validation', query); // { uid, mobile, ecomEmail? }
 
-// Extend the OTP session (avoids re-doing the OTP handshake mid-work).
+// Extend the OTP session (avoids re-doing the OTP handshake mid-work). On success the
+// local session cache's expiry is bumped too — otherwise the portal session gets
+// extended but our cache still lapses at the original time and calls start failing.
 async function refreshToken() {
   const nc = notConfigured();
   if (nc) return nc;
-  return wrap(await wb.gst.request('GET', '/authentication/refreshtoken', {}));
+  const r = wrap(await wb.gst.request('GET', '/authentication/refreshtoken', {}));
+  if (r.success) wb.gst.touch?.();
+  return r;
+}
+
+// Close the GSTN OTP session (portal-side + local cache).
+async function logout() {
+  const nc = notConfigured();
+  if (nc) return nc;
+  return wrap(await wb.gst.logout());
+}
+
+// ---- GSTR-2A/2B → reconciliation import ------------------------------------------
+// One-call bridge: download the inward statement for a period over the live OTP
+// session, normalize it (gstr2Transform), and store it via the reconciliation
+// importers so the 2A/2B recon screens match against real portal data.
+//
+// 2B `all` is the consolidated per-period statement; per-section fallbacks cover
+// catalogs that don't expose it. 2A has no `all` — its sections are pulled and merged.
+const GSTR2_SECTIONS = {
+  '2A': { type: 'gstr2a', primary: ['b2b', 'b2ba', 'cdn'], fallback: [] },
+  '2B': { type: 'gstr2b', primary: ['all'], fallback: ['b2b', 'cdnr'] },
+};
+
+// The portal reports "nothing filed for this period" as an error, not an empty body —
+// treat those replies as an empty section rather than a failed fetch. Verified live
+// against the WhiteBooks sandbox: a period with no inward data returns
+// "No document found for the provided Inputs" (RET13509), and a not-yet-generated
+// GSTR-2B returns a blank HTTP 200 (surfaced by the transport as the literal
+// "HTTP 200" — a real transport fault is a 4xx/5xx or a network error, never a bare 200).
+const isEmptySectionError = (msg = '') =>
+  /no (document|data|invoice|record|detail)|not found|ret13509|invalid request|^http 200$/i.test(
+    String(msg).trim(),
+  );
+
+async function fetchGstr2FromPortal(kind, { company_id, fy_id, return_period } = {}) {
+  const nc = notConfigured();
+  if (nc) return nc;
+  const def = GSTR2_SECTIONS[kind];
+  if (!def) return { success: false, error: `Unknown statement kind: ${kind}` };
+  if (!company_id || !fy_id) return { success: false, error: 'company_id and fy_id are required.' };
+  if (!/^\d{6}$/.test(String(return_period || '')))
+    return { success: false, error: 'Enter the return period as MMYYYY (e.g. 062026).' };
+
+  const fetched = {};
+  const failures = [];
+  const pull = async (sections) => {
+    for (const section of sections) {
+      const r = await getSection(def.type, section, { retperiod: String(return_period) });
+      if (r.success && r.data != null) fetched[section] = r.data;
+      else if (!r.success && !isEmptySectionError(r.error)) failures.push(r.error);
+    }
+  };
+  await pull(def.primary);
+  if (!Object.keys(fetched).length && def.fallback.length) await pull(def.fallback);
+
+  // A real failure (auth/transport) is surfaced verbatim so the client can prompt an
+  // OTP login. "Nothing filed for this period" is NOT a failure — every section came
+  // back empty-but-valid (e.g. RET13509 / blank-200), so report a clean no-op.
+  if (failures.length && !Object.keys(fetched).length) {
+    return { success: false, error: failures[0] };
+  }
+
+  const { payload, suppliers, documents } = buildImportPayload(fetched);
+  if (!documents) {
+    // Don't overwrite a previous import for the period with an empty statement.
+    return {
+      success: true,
+      imported: false,
+      suppliers: 0,
+      documents: 0,
+      sections: Object.keys(fetched),
+      warning: `The portal has no GSTR-${kind} documents for ${return_period}.`,
+    };
+  }
+
+  // Lazy require — keeps gstPortalService free of the DB module chain at load time.
+  const reconciliationService = require('../gst/reconciliationService');
+  const importer =
+    kind === '2A' ? reconciliationService.importGSTR2A : reconciliationService.importGSTR2B;
+  const imp = await importer(company_id, fy_id, String(return_period), payload);
+  if (!imp?.success) return { success: false, error: imp?.error || 'Import into books failed.' };
+  return { success: true, imported: true, suppliers, documents, sections: Object.keys(fetched) };
 }
 
 // EVC-OTP init for a specific form (GSTR-9/9C filing needs form_type; the GSTR-1/3B helper in
@@ -99,4 +184,6 @@ module.exports = {
   urdValidate,
   refreshToken,
   requestEvcFor,
+  logout,
+  fetchGstr2FromPortal,
 };

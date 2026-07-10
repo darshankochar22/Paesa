@@ -59,6 +59,22 @@ export interface GstFilingRecord {
   updated_at: string;
 }
 
+export interface Gstr2FetchParams {
+  company_id: number;
+  fy_id: number;
+  return_period: string; // MMYYYY
+}
+
+export interface Gstr2FetchResult {
+  success: boolean;
+  imported?: boolean;
+  suppliers?: number;
+  documents?: number;
+  sections?: string[];
+  warning?: string;
+  error?: string;
+}
+
 export interface Transport {
   distance?: number;
   trans_mode?: string;
@@ -241,6 +257,10 @@ export interface GstIntegrationsAPI {
     urdValidate: (query?: Record<string, string | number>) => Promise<ApiResult>;
     refreshToken: () => Promise<ApiResult>;
     requestEvcFor: (form_type: string) => Promise<ApiResult>;
+    logout: () => Promise<ApiResult>;
+    // GSTR-2A/2B: download from the portal and import into the reconciliation tables.
+    fetch2A: (p: Gstr2FetchParams) => Promise<Gstr2FetchResult>;
+    fetch2B: (p: Gstr2FetchParams) => Promise<Gstr2FetchResult>;
     portalRequest: (p: {
       method?: string;
       path: string;

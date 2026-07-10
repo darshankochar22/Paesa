@@ -27,4 +27,8 @@ module.exports = {
   urdValidate: (e, { query }) => p.urdValidate(query),
   refreshToken: () => p.refreshToken(),
   requestEvcFor: (e, { form_type }) => p.requestEvcFor(form_type),
+  logout: () => p.logout(),
+  // GSTR-2A/2B: download from the portal and import into the reconciliation tables.
+  fetch2A: (e, payload) => p.fetchGstr2FromPortal('2A', payload),
+  fetch2B: (e, payload) => p.fetchGstr2FromPortal('2B', payload),
 };

@@ -844,6 +844,10 @@ contextBridge.exposeInMainWorld('api', {
     urdValidate: (query) => invoke('gstFiling:urdValidate', { query }),
     refreshToken: () => invoke('gstFiling:refreshToken'),
     requestEvcFor: (form_type) => invoke('gstFiling:requestEvcFor', { form_type }),
+    logout: () => invoke('gstFiling:logout'),
+    // GSTR-2A/2B: download from the portal and import into the reconciliation tables.
+    fetch2A: (payload) => invoke('gstFiling:fetch2A', payload),
+    fetch2B: (payload) => invoke('gstFiling:fetch2B', payload),
   },
   whatsapp: {
     getStatus: (company_id) => invoke('whatsapp:getStatus', company_id),

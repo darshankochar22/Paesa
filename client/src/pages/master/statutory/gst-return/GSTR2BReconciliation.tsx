@@ -14,6 +14,8 @@ import {
 } from '@/components/shadcn/table';
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
+import PortalFetchPopup from './components/PortalFetchPopup';
+import ReconMismatchLists from './components/ReconMismatchLists';
 
 interface ReconciliationRow {
   vch_count: number;
@@ -100,6 +102,7 @@ export default function GSTR2BReconciliation() {
   const [data, setData] = useState<any>(null);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
+  const [fetchOpen, setFetchOpen] = useState(false);
 
   const activeRegistration = location.state?.registration || fetchedRegistration;
   const registrationName = activeRegistration?.state_id
@@ -212,6 +215,11 @@ export default function GSTR2BReconciliation() {
   const reconciled = data?.voucher_status?.reconciled ?? 0;
   const unreconciled = data?.voucher_status?.unreconciled ?? 0;
   const uncertain = data?.voucher_status?.uncertain ?? 0;
+  const mismatch = data?.voucher_status?.mismatch ?? 0;
+  const missingInPortal = data?.voucher_status?.missing_in_portal ?? 0;
+  const missingInBooks = data?.voucher_status?.missing_in_books ?? 0;
+  const mismatches = data?.mismatches ?? [];
+  const portalOnly = data?.portal_only ?? [];
 
   const periodLabel =
     data?.period_label ?? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '');
@@ -313,6 +321,15 @@ export default function GSTR2BReconciliation() {
             F5: Refresh
           </Button>
           <Button
+            onClick={() => setFetchOpen(true)}
+            variant="ghost"
+            size="xs"
+            disabled={loading}
+            className="h-auto p-0 font-bold text-black hover:underline hover:bg-transparent"
+          >
+            Fetch from Portal
+          </Button>
+          <Button
             onClick={handleImportJson}
             variant="ghost"
             size="xs"
@@ -324,6 +341,16 @@ export default function GSTR2BReconciliation() {
         </div>
       }
     >
+      {companyId && fyId && (
+        <PortalFetchPopup
+          open={fetchOpen}
+          kind="2B"
+          companyId={companyId}
+          fyId={fyId}
+          onClose={() => setFetchOpen(false)}
+          onImported={loadData}
+        />
+      )}
       <div className="w-full flex flex-col font-sans text-xs pb-4">
         {loading && (
           <EmptyState message="Loading GSTR-2B reconciliation data…" className="italic" />
@@ -346,6 +373,20 @@ export default function GSTR2BReconciliation() {
               <div className="flex px-4 py-0.5 text-red-600">
                 <div className="flex-1">Unreconciled</div>
                 <div className="w-32 text-right font-semibold">{fmtCount(unreconciled)}</div>
+              </div>
+
+              {/* Breakdown of what's unreconciled — value mismatches vs one-sided documents. */}
+              <div className="flex px-8 py-0.5 text-gray-600">
+                <div className="flex-1">Value mismatch (books vs portal)</div>
+                <div className="w-32 text-right">{fmtCount(mismatch)}</div>
+              </div>
+              <div className="flex px-8 py-0.5 text-gray-600">
+                <div className="flex-1">In books, not yet filed by vendor</div>
+                <div className="w-32 text-right">{fmtCount(missingInPortal)}</div>
+              </div>
+              <div className="flex px-8 py-0.5 text-gray-600">
+                <div className="flex-1">Filed by vendor, not in books</div>
+                <div className="w-32 text-right">{fmtCount(missingInBooks)}</div>
               </div>
 
               <div
@@ -496,6 +537,8 @@ export default function GSTR2BReconciliation() {
                 </TableRow>
               </TableFooter>
             </Table>
+
+            <ReconMismatchLists mismatches={mismatches} portalOnly={portalOnly} />
           </>
         )}
       </div>

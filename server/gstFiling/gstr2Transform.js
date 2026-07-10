@@ -1,0 +1,97 @@
+'use strict';
+
+// Normalizes GST-portal GSTR-2A/2B downloads into the shape the reconciliation
+// matcher reads (portalRecon.buildPortalMap): top-level b2b/b2ba arrays of
+// { ctin, inv: [{ inum, val, itms: [{ itm_det: { txval, iamt, camt, samt, csamt } }] }] }.
+//
+// The official statements differ from that shape in ways this module absorbs:
+// - GSTR-2B nests everything under data.docdata, item arrays are `items` with flat
+//   tax keys (igst/cgst/sgst/cess), and credit/debit notes come as cdnr `nt` arrays.
+// - GSTR-2A section GETs already use inv/itms/itm_det with iamt/camt/samt, but
+//   notes come as cdn/cdna `nt` arrays and arrive per-section rather than merged.
+// Notes are folded into b2b — the matcher keys on GSTIN + document number, so book
+// Debit Notes reconcile against vendor-filed notes the same way invoices do.
+
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+// One portal line item → itm_det with iamt/camt/samt keys, whatever the source called them.
+const normItem = (it = {}) => {
+  const d = it.itm_det || it;
+  return {
+    itm_det: {
+      txval: num(d.txval),
+      iamt: num(d.iamt ?? d.igst),
+      camt: num(d.camt ?? d.cgst),
+      samt: num(d.samt ?? d.sgst),
+      csamt: num(d.csamt ?? d.cess),
+    },
+  };
+};
+
+// One portal document (invoice `inv` entry or note `nt` entry) → inv entry.
+const normDoc = (doc = {}) => {
+  const items = Array.isArray(doc.itms) ? doc.itms : Array.isArray(doc.items) ? doc.items : [];
+  return {
+    inum: String(doc.inum ?? doc.ntnum ?? doc.nt_num ?? ''),
+    val: num(doc.val),
+    itms: items.map(normItem),
+  };
+};
+
+// One supplier bucket ({ctin, inv|nt}) → {ctin, inv} with normalized docs.
+const normSupplier = (s = {}) => {
+  const docs = Array.isArray(s.inv) ? s.inv : Array.isArray(s.nt) ? s.nt : [];
+  return { ctin: String(s.ctin || ''), inv: docs.map(normDoc) };
+};
+
+// Walk a raw portal response down to the object that carries the supplier arrays,
+// however many `data` layers the statement/GSP wrapped around it.
+const isDocRoot = (o) => ['b2b', 'b2ba', 'cdnr', 'cdn', 'cdna'].some((k) => Array.isArray(o[k]));
+
+function findDocRoot(raw, depth = 0) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || depth > 4) return null;
+  if (raw.docdata && typeof raw.docdata === 'object') return raw.docdata;
+  if (isDocRoot(raw)) return raw;
+  if (raw.data) return findDocRoot(raw.data, depth + 1);
+  return null;
+}
+
+// rawBySection: { [sectionName]: raw response data } — one entry per section GET
+// (a consolidated statement like 2B `all` is a single entry carrying everything).
+// Returns { payload, suppliers, documents } where payload is import-ready.
+function buildImportPayload(rawBySection = {}) {
+  const acc = { b2b: [], b2ba: [], notes: [] };
+
+  for (const [section, raw] of Object.entries(rawBySection)) {
+    if (raw == null) continue;
+    if (Array.isArray(raw)) {
+      // Bare supplier array from a per-section GET — bucket by the section name.
+      if (section === 'b2ba') acc.b2ba.push(...raw);
+      else if (/^cdn/i.test(section)) acc.notes.push(...raw);
+      else acc.b2b.push(...raw);
+      continue;
+    }
+    const root = findDocRoot(raw);
+    if (!root) continue;
+    acc.b2b.push(...(root.b2b || []));
+    acc.b2ba.push(...(root.b2ba || []));
+    acc.notes.push(...(root.cdnr || []), ...(root.cdn || []), ...(root.cdna || []));
+  }
+
+  const payload = {
+    b2b: [...acc.b2b, ...acc.notes].map(normSupplier),
+    b2ba: acc.b2ba.map(normSupplier),
+  };
+
+  let suppliers = 0;
+  let documents = 0;
+  for (const key of ['b2b', 'b2ba']) {
+    for (const s of payload[key]) {
+      suppliers++;
+      documents += s.inv.length;
+    }
+  }
+  return { payload, suppliers, documents };
+}
+
+module.exports = { buildImportPayload };

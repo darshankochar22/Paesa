@@ -3,12 +3,35 @@ import { useNavigate } from 'react-router-dom';
 import MenuCard, { type OptionType } from '@/components/ui/Card';
 import { useCompany } from '@/context/CompanyContext';
 import { exportElementToPdf } from '@/lib/exportDomPdf';
+import GstPortalLoginDialog from '@/components/tally-ui/GstPortalLoginDialog';
 
 export default function Navbar() {
-  const { setSelectedCompany } = useCompany();
+  const { selectedCompany, setSelectedCompany } = useCompany();
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState('');
+  const [gstLoginOpen, setGstLoginOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
+  const companyId = selectedCompany?.company_id;
+
+  // Exchange → GST Login & Logout: opens the shared GSTN OTP session dialog (Tally's
+  // Exchange menu is where portal login lives). Needs a selected company.
+  const openGstLogin = () => {
+    if (!companyId) {
+      window.alert('Select a company first.');
+      return;
+    }
+    setGstLoginOpen(true);
+  };
+
+  // Exchange → Refresh GST Status: extend the live OTP session (no re-OTP if valid).
+  const refreshGstStatus = async () => {
+    const r = await window.api.gstFiling.refreshToken();
+    window.alert(
+      r.success
+        ? 'GSTN session refreshed.'
+        : r.error || 'No active GSTN session — use GST Login first.',
+    );
+  };
 
   // Export → the voucher currently on screen, exactly as the frontend renders it.
   // If not viewing a voucher, go to the Voucher Register so the user can pick one.
@@ -72,12 +95,12 @@ export default function Navbar() {
       name: 'Exchange',
       options: [
         { label: 'GST', heading: true },
-        { label: 'GST Login & Logout' },
+        { label: 'GST Login & Logout', action: openGstLogin },
         { label: 'Send for e-Invoicing', path: '/compliance/einvoice' },
         { label: 'Send for e-Way Bill', path: '/compliance/eway' },
         { label: 'Upload GST Returns', path: '/compliance/filing' },
-        { label: 'Download GST Returns' },
-        { label: 'Refresh GST Status' },
+        { label: 'Download GST Returns', path: '/compliance/portal' },
+        { label: 'Refresh GST Status', action: refreshGstStatus },
         { label: 'File GSTR-1', path: '/master/statutory/gstr1' },
         { label: 'Payment Gateway', heading: true },
         {
@@ -191,6 +214,14 @@ export default function Navbar() {
           )}
         </div>
       ))}
+
+      {companyId && (
+        <GstPortalLoginDialog
+          open={gstLoginOpen}
+          companyId={companyId}
+          onClose={() => setGstLoginOpen(false)}
+        />
+      )}
     </nav>
   );
 }

@@ -85,6 +85,9 @@ function register() {
   ipcMain.handle('gstFiling:urdValidate', gstFilingController.urdValidate);
   ipcMain.handle('gstFiling:refreshToken', gstFilingController.refreshToken);
   ipcMain.handle('gstFiling:requestEvcFor', gstFilingController.requestEvcFor);
+  ipcMain.handle('gstFiling:logout', gstFilingController.logout);
+  ipcMain.handle('gstFiling:fetch2A', gstFilingController.fetch2A);
+  ipcMain.handle('gstFiling:fetch2B', gstFilingController.fetch2B);
 
   ipcMain.handle('whatsapp:saveConfig', whatsappController.saveConfig);
   ipcMain.handle('whatsapp:getConfig', whatsappController.getConfig);

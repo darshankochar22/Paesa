@@ -413,5 +413,11 @@ module.exports = {
     authenticate: gstAuthenticate,
     logout: gstLogout,
     request: gstRequest,
+    // Bump the local session expiry after a successful portal-side refreshtoken —
+    // the portal extends its session but returns no new expiry to store.
+    touch: (mins = 50) => {
+      if (caches.gst) caches.gst.expiry = new Date(Date.now() + mins * 60 * 1000).toISOString();
+      return { ok: !!caches.gst };
+    },
   },
 };

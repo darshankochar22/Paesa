@@ -14,6 +14,8 @@ import {
 } from '@/components/shadcn/table';
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
+import PortalFetchPopup from './components/PortalFetchPopup';
+import ReconMismatchLists from './components/ReconMismatchLists';
 
 interface ReconciliationRow {
   vch_count: number;
@@ -94,6 +96,7 @@ export default function GSTR2AReconciliation() {
   const [data, setData] = useState<any>(null);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
+  const [fetchOpen, setFetchOpen] = useState(false);
 
   const activeRegistration = location.state?.registration || fetchedRegistration;
   const registrationName = activeRegistration?.state_id
@@ -151,6 +154,8 @@ export default function GSTR2AReconciliation() {
   const mismatch = data?.voucher_status?.mismatch ?? 0;
   const missingInPortal = data?.voucher_status?.missing_in_portal ?? 0;
   const missingInBooks = data?.voucher_status?.missing_in_books ?? 0;
+  const mismatches = data?.mismatches ?? [];
+  const portalOnly = data?.portal_only ?? [];
 
   // Import a downloaded GSTR-2A JSON (portal) and re-run the reconciliation. The return
   // period comes from the file's `fp`; mirrors the GSTR-2B import flow.
@@ -253,6 +258,15 @@ export default function GSTR2AReconciliation() {
             F5: Refresh
           </Button>
           <Button
+            onClick={() => setFetchOpen(true)}
+            variant="ghost"
+            size="xs"
+            disabled={loading}
+            className="h-auto p-0 ml-4 font-bold text-black hover:underline hover:bg-transparent"
+          >
+            Fetch from Portal
+          </Button>
+          <Button
             onClick={handleImportJson}
             variant="ghost"
             size="xs"
@@ -264,6 +278,16 @@ export default function GSTR2AReconciliation() {
         </>
       }
     >
+      {companyId && fyId && (
+        <PortalFetchPopup
+          open={fetchOpen}
+          kind="2A"
+          companyId={companyId}
+          fyId={fyId}
+          onClose={() => setFetchOpen(false)}
+          onImported={loadData}
+        />
+      )}
       <div className="w-full flex flex-col font-sans text-xs pb-4">
         {loading && (
           <EmptyState message="Loading GSTR-2A reconciliation data…" className="italic" />
@@ -437,6 +461,8 @@ export default function GSTR2AReconciliation() {
                 </TableRow>
               </TableFooter>
             </Table>
+
+            <ReconMismatchLists mismatches={mismatches} portalOnly={portalOnly} />
           </>
         )}
       </div>
