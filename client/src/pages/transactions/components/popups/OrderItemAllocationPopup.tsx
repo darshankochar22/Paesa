@@ -5,9 +5,20 @@ import NewNumberPopup from './NewNumberPopup';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
 import { parseDueOn, toLocalIsoDate } from '@/lib/dueDate';
 import { useCompany } from '@/context/CompanyContext';
-
-// Saved allocation — BatchAllocation plus the resolved ISO due date (additive).
-type SavedAllocation = BatchAllocation & { due_on_date?: string };
+import OrderRowTrackingLine from './OrderRowTrackingLine';
+import OrderRowBatchCell from './OrderRowBatchCell';
+import {
+  NA,
+  num,
+  fmtQty,
+  focusSel,
+  hasTracking,
+  type SavedAllocation,
+  type ActiveBatch,
+  type TrackingOption,
+  type OrderOption,
+  type GodownOption,
+} from './orderItemAllocationShared';
 
 // Stock Item Allocations sub-screen for order-tracking vouchers (Purchase/Sales
 // Order, Receipt Note, Delivery Note). Tally layout: each allocation is a
@@ -15,36 +26,8 @@ type SavedAllocation = BatchAllocation & { due_on_date?: string };
 // Actual / Billed / Rate / Disc / Amount data line. Order No. + Due on appear
 // only once a real Tracking No. is chosen; a "Not Applicable" tracking skips
 // straight to the Godown. Strict grayscale per UI.md.
-
-interface ActiveBatch {
-  name: string;
-  mfg_date: string | null;
-  expiry_date: string | null;
-  balance: number;
-}
-
-interface TrackingOption {
-  name: string;
-  batch?: string | null;
-  godown?: string | null;
-  date?: string | null;
-  balance?: number;
-  rate?: number;
-}
-
-interface OrderOption {
-  name: string;
-  batch?: string | null;
-  godown?: string | null;
-  due_on?: string | null;
-  balance?: number;
-  rate?: number;
-}
-
-interface GodownOption {
-  godown_id?: number;
-  name: string;
-}
+// Shared types/helpers live in orderItemAllocationShared.ts; each row's
+// tracking/order header line is OrderRowTrackingLine.
 
 interface Props {
   companyId: number;
@@ -63,66 +46,6 @@ interface Props {
   onClose: () => void;
   onSave: (allocations: BatchAllocation[]) => void;
 }
-
-const NA = '♦ Not Applicable';
-const EOL = '♦ End of List';
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function fmtDate(iso?: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return `${d.getDate()}-${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
-}
-
-const num = (v: number | undefined) =>
-  Number.isFinite(v)
-    ? (v as number).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '';
-
-// Free-text expiry parsing — same behaviour as BatchAllocationPopup: an actual
-// date, or a duration ("2 years", "6 months", "30 days") relative to baseIso.
-function parseExpiry(input: string, baseIso: string): string {
-  const raw = (input || '').trim();
-  if (!raw) return '';
-  const direct = new Date(raw);
-  if (
-    !isNaN(direct.getTime()) &&
-    /\d{4}|[A-Za-z]{3}/.test(raw) &&
-    !/year|month|day|yr|mo|wk|week/i.test(raw)
-  ) {
-    return toLocalIsoDate(direct);
-  }
-  const m = raw.match(/^(\d+)\s*(year|years|yr|month|months|mo|week|weeks|wk|day|days)$/i);
-  if (m) {
-    const n = parseInt(m[1], 10);
-    const unit = m[2].toLowerCase();
-    const base = new Date(baseIso);
-    if (isNaN(base.getTime())) return '';
-    if (unit.startsWith('year') || unit === 'yr') base.setFullYear(base.getFullYear() + n);
-    else if (unit.startsWith('mo')) base.setMonth(base.getMonth() + n);
-    else if (unit.startsWith('week') || unit === 'wk') base.setDate(base.getDate() + n * 7);
-    else base.setDate(base.getDate() + n);
-    return toLocalIsoDate(base);
-  }
-  return '';
-}
-
-// Per-godown balance label — Tally shows negatives as "(-)9 Box"; blank when zero.
-const fmtQty = (q: number | undefined, unit?: string) => {
-  if (!q) return '';
-  const u = unit || '';
-  return q < 0 ? `(-)${Math.abs(q)} ${u}`.trim() : `${q} ${u}`.trim();
-};
-
-const focusSel = (sel: string) =>
-  setTimeout(() => (document.querySelector(sel) as HTMLElement | null)?.focus(), 30);
-
-// A Tracking No. is "real" (Order No. + Due on apply) when it is set and is not
-// the Not Applicable / End of List sentinel.
-const hasTracking = (r: BatchAllocation) =>
-  !!r.tracking_no && r.tracking_no !== NA && r.tracking_no !== EOL;
 
 export default function OrderItemAllocationPopup({
   companyId,
@@ -696,223 +619,36 @@ export default function OrderItemAllocationPopup({
             {/* Allocations — Tracking/Order/Due header line + data line */}
             <div>
               {rows.map((row, i) => {
-                // Order No. / Due on always show — order tracking works with or
-                // without a tracking number (Tally shows both side by side).
-                const showOrder = true;
                 const baseIso = trackMfg && row.mfg_date ? row.mfg_date : voucherDate;
                 return (
                   <div key={i} className="border-b border-gray-200">
-                    {/* Tracking No. / Order No. / Due on */}
-                    <div className="flex items-center px-3 pt-1.5 gap-2 text-[11px]">
-                      <span className="italic text-gray-600 shrink-0">Tracking No. :</span>
-                      <div
-                        data-oa-dd
-                        className="relative shrink-0"
-                        ref={(el) => {
-                          trackAnchorRefs.current[i] = el;
-                        }}
-                      >
-                        <input
-                          type="text"
-                          data-oa-track={i}
-                          autoFocus={i === 0}
-                          value={row.tracking_no ?? ''}
-                          onFocus={() => {
-                            setOpenTrackRow(i);
-                            setOpenOrderRow(null);
-                            setOpenGodownRow(null);
-                          }}
-                          onChange={(e) => update(i, { tracking_no: e.target.value })}
-                          onKeyDown={enter(() => afterTracking(i, (row.tracking_no || '').trim()))}
-                          placeholder="New Number…"
-                          className={`w-28 ${smallInputCls}`}
-                        />
-                        {openTrackRow === i &&
-                          trackPos &&
-                          createPortal(
-                            <div
-                              ref={trackDropdownRef}
-                              style={{
-                                position: 'fixed',
-                                top: trackPos.top,
-                                left: trackPos.left,
-                                width: trackPos.width,
-                              }}
-                              className="bg-white border border-gray-400 shadow-xl z-[60] max-h-52 overflow-y-auto"
-                            >
-                              <div className={`${listHeadCls} text-[10px] px-2 py-0.5`}>
-                                List of Tracking Numbers
-                              </div>
-                              <div className="flex text-[9px] font-bold text-gray-600 px-2 py-0.5 border-b border-gray-200">
-                                <div className="flex-1">Number</div>
-                                <div className="w-16">Godown</div>
-                                <div className="w-12 text-right">Balance</div>
-                              </div>
-                              <button
-                                type="button"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  endOfList(i);
-                                }}
-                                className={optSpecial + ' border-b border-gray-100'}
-                              >
-                                {EOL}
-                              </button>
-                              <button
-                                type="button"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  afterTracking(i, NA);
-                                }}
-                                className={optSpecial + ' border-b border-gray-100'}
-                              >
-                                {NA}
-                              </button>
-                              <button
-                                type="button"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  setOpenTrackRow(null);
-                                  setNewNumber({ row: i, field: 'tracking' });
-                                }}
-                                className={optNew}
-                              >
-                                New Number
-                              </button>
-                              {sessionTracking
-                                .filter((t) => t.no !== row.tracking_no)
-                                .map((t) => (
-                                  <button
-                                    key={t.no}
-                                    type="button"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      afterTracking(i, t.no);
-                                    }}
-                                    className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
-                                  >
-                                    <div className="flex-1 font-semibold">{t.no}</div>
-                                    <div className="w-16 truncate">{t.godown}</div>
-                                    <div className="w-12 text-right font-mono">
-                                      {t.balance || ''}
-                                    </div>
-                                  </button>
-                                ))}
-                            </div>,
-                            document.body,
-                          )}
-                      </div>
-
-                      {showOrder && (
-                        <>
-                          <span className="italic text-gray-600 shrink-0 ml-3">Order No.:</span>
-                          <div
-                            data-oa-dd
-                            className="relative shrink-0"
-                            ref={(el) => {
-                              orderAnchorRefs.current[i] = el;
-                            }}
-                          >
-                            <input
-                              type="text"
-                              data-oa-order={i}
-                              value={row.order_no ?? ''}
-                              onFocus={() => {
-                                setOpenOrderRow(i);
-                                setOpenTrackRow(null);
-                                setOpenGodownRow(null);
-                              }}
-                              onChange={(e) => update(i, { order_no: e.target.value })}
-                              onKeyDown={enter(() => {
-                                setOpenOrderRow(null);
-                                focusSel(`[data-oa-due="${i}"]`);
-                              })}
-                              placeholder="New Number…"
-                              className={`w-24 ${smallInputCls}`}
-                            />
-                            {openOrderRow === i &&
-                              orderPos &&
-                              createPortal(
-                                <div
-                                  ref={orderDropdownRef}
-                                  style={{
-                                    position: 'fixed',
-                                    top: orderPos.top,
-                                    left: orderPos.left,
-                                    width: orderPos.width,
-                                  }}
-                                  className="bg-white border border-gray-400 shadow-xl z-[60] max-h-52 overflow-y-auto"
-                                >
-                                  <div className={`${listHeadCls} text-[10px] px-2 py-0.5`}>
-                                    List of Orders
-                                  </div>
-                                  <div className="flex text-[9px] font-bold text-gray-600 px-2 py-0.5 border-b border-gray-200">
-                                    <div className="flex-1">Order No.</div>
-                                    <div className="w-14">Godown</div>
-                                    <div className="w-14">Due On</div>
-                                    <div className="w-12 text-right">Balance</div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      update(i, { order_no: NA });
-                                      setOpenOrderRow(null);
-                                      focusSel(`[data-oa-due="${i}"]`);
-                                    }}
-                                    className={optSpecial + ' border-b border-gray-100'}
-                                  >
-                                    {NA}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      setOpenOrderRow(null);
-                                      setNewNumber({ row: i, field: 'order' });
-                                    }}
-                                    className={optNew}
-                                  >
-                                    New Number
-                                  </button>
-                                  {sessionOrders
-                                    .filter((o) => o.no !== row.order_no)
-                                    .map((o) => (
-                                      <button
-                                        key={o.no}
-                                        type="button"
-                                        onMouseDown={(e) => {
-                                          e.preventDefault();
-                                          selectOrder(i, o);
-                                        }}
-                                        className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
-                                      >
-                                        <div className="flex-1 font-semibold">{o.no}</div>
-                                        <div className="w-14 truncate">{o.godown}</div>
-                                        <div className="w-14 truncate">{fmtDate(o.due)}</div>
-                                        <div className="w-12 text-right font-mono">
-                                          {o.balance || ''}
-                                        </div>
-                                      </button>
-                                    ))}
-                                </div>,
-                                document.body,
-                              )}
-                          </div>
-
-                          <span className="italic text-gray-600 shrink-0 ml-3">Due on</span>
-                          <input
-                            type="text"
-                            data-oa-due={i}
-                            value={row.due_on ?? ''}
-                            onChange={(e) => update(i, { due_on: e.target.value })}
-                            onKeyDown={enter(() => focusSel(`[data-oa-godown="${i}"]`))}
-                            placeholder="2-Apr-27 / 500 Days / 2 Years"
-                            className={`w-40 ${smallInputCls}`}
-                          />
-                        </>
-                      )}
-                    </div>
+                    <OrderRowTrackingLine
+                      i={i}
+                      row={row}
+                      listHeadCls={listHeadCls}
+                      smallInputCls={smallInputCls}
+                      optSpecial={optSpecial}
+                      optNew={optNew}
+                      update={update}
+                      enter={enter}
+                      afterTracking={afterTracking}
+                      endOfList={endOfList}
+                      selectOrder={selectOrder}
+                      setNewNumber={setNewNumber}
+                      openTrackRow={openTrackRow}
+                      setOpenTrackRow={setOpenTrackRow}
+                      openOrderRow={openOrderRow}
+                      setOpenOrderRow={setOpenOrderRow}
+                      setOpenGodownRow={setOpenGodownRow}
+                      trackPos={trackPos}
+                      orderPos={orderPos}
+                      trackDropdownRef={trackDropdownRef}
+                      orderDropdownRef={orderDropdownRef}
+                      trackAnchorRefs={trackAnchorRefs}
+                      orderAnchorRefs={orderAnchorRefs}
+                      sessionTracking={sessionTracking}
+                      sessionOrders={sessionOrders}
+                    />
 
                     {/* Data line */}
                     <div className="flex items-start px-3 py-1.5 gap-2">
@@ -991,144 +727,27 @@ export default function OrderItemAllocationPopup({
 
                       {/* Batch / Lot No. (+ Mfg / Expiry stacked) */}
                       {showBatch && (
-                        <div
-                          className={`${cell} ${W.batch} relative`}
-                          ref={(el) => {
-                            listRefs.current[i] = el;
-                          }}
-                        >
-                          <input
-                            type="text"
-                            data-oa-batch={i}
-                            value={row.batch_number}
-                            onChange={(e) => update(i, { batch_number: e.target.value })}
-                            onFocus={() => setOpenListRow(i)}
-                            onKeyDown={enter(() => {
-                              setOpenListRow(null);
-                              focusSel(`[data-oa-actual="${i}"]`);
-                            })}
-                            placeholder="Any / New Number…"
-                            className={`${inputCls} font-semibold`}
-                          />
-                          {(trackMfg || trackExpiry) && (
-                            <div className="flex gap-1 mt-1">
-                              <div className="flex-1">
-                                {trackMfg && (
-                                  <input
-                                    type="date"
-                                    value={row.mfg_date ?? ''}
-                                    onChange={(e) => update(i, { mfg_date: e.target.value })}
-                                    className={`${inputCls} font-mono`}
-                                  />
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                {trackExpiry && (
-                                  <input
-                                    type="text"
-                                    defaultValue={row.expiry_date ? fmtDate(row.expiry_date) : ''}
-                                    onBlur={(e) => {
-                                      const iso = parseExpiry(e.target.value, baseIso);
-                                      update(i, { expiry_date: iso || undefined });
-                                      e.target.value = iso ? fmtDate(iso) : e.target.value;
-                                    }}
-                                    placeholder="date / 2 years"
-                                    className={`${inputCls} font-mono`}
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          {openListRow === i &&
-                            batchPos &&
-                            createPortal(
-                              <div
-                                ref={batchDropdownRef}
-                                style={{
-                                  position: 'fixed',
-                                  top: batchPos.top,
-                                  left: batchPos.left,
-                                  width: batchPos.width,
-                                }}
-                                className="bg-white border border-gray-400 shadow-xl z-[60] max-h-44 overflow-y-auto"
-                              >
-                                <div
-                                  className={`${listHeadCls} text-[10px] px-2 py-1 sticky top-0`}
-                                >
-                                  List of Active Batches
-                                </div>
-                                <div className="flex text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-200">
-                                  <div className="flex-1">Name</div>
-                                  <div className="w-16">Expiry</div>
-                                  <div className="w-14 text-right">Balance</div>
-                                </div>
-                                {/* New Number — opens the New Number popup. Always
-                                    available (Tally shows it for outward too). */}
-                                <button
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setOpenListRow(null);
-                                    setNewNumber({ row: i, field: 'batch' });
-                                  }}
-                                  className="flex w-full justify-end text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
-                                >
-                                  New Number
-                                </button>
-                                {/* Any — no specific lot. */}
-                                <button
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    update(i, { batch_number: 'Any' });
-                                    setOpenListRow(null);
-                                    focusSel(`[data-oa-actual="${i}"]`);
-                                  }}
-                                  className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
-                                >
-                                  <div className="flex-1 font-semibold">&#9670; Any</div>
-                                </button>
-                                {activeBatches.map((b) => (
-                                  <button
-                                    key={b.name}
-                                    type="button"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      update(i, {
-                                        batch_number: b.name,
-                                        mfg_date: b.mfg_date ?? undefined,
-                                        expiry_date: b.expiry_date ?? undefined,
-                                      });
-                                      setOpenListRow(null);
-                                      focusSel(`[data-oa-actual="${i}"]`);
-                                    }}
-                                    className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
-                                  >
-                                    <div className="flex-1 font-semibold">{b.name}</div>
-                                    <div className="w-16 font-mono">{fmtDate(b.expiry_date)}</div>
-                                    <div className="w-14 text-right font-mono">{b.balance}</div>
-                                  </button>
-                                ))}
-                                {/* Lots created this session (New Number) show up too. */}
-                                {typedBatches.map((n) => (
-                                  <button
-                                    key={`t-${n}`}
-                                    type="button"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      update(i, { batch_number: n });
-                                      setOpenListRow(null);
-                                      focusSel(`[data-oa-actual="${i}"]`);
-                                    }}
-                                    className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
-                                  >
-                                    <div className="flex-1 font-semibold">{n}</div>
-                                  </button>
-                                ))}
-                              </div>,
-                              document.body,
-                            )}
-                        </div>
+                        <OrderRowBatchCell
+                          i={i}
+                          row={row}
+                          baseIso={baseIso}
+                          cell={cell}
+                          batchW={W.batch}
+                          inputCls={inputCls}
+                          listHeadCls={listHeadCls}
+                          trackMfg={trackMfg}
+                          trackExpiry={trackExpiry}
+                          update={update}
+                          enter={enter}
+                          listRefs={listRefs}
+                          openListRow={openListRow}
+                          setOpenListRow={setOpenListRow}
+                          batchPos={batchPos}
+                          batchDropdownRef={batchDropdownRef}
+                          setNewNumber={setNewNumber}
+                          activeBatches={activeBatches}
+                          typedBatches={typedBatches}
+                        />
                       )}
 
                       {/* Actual (single Quantity when Billed is hidden) */}

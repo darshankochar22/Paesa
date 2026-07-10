@@ -1,50 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import type { BatchAllocation } from '../../types';
 import NewNumberPopup from './NewNumberPopup';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
 import { parseDueOn, toLocalIsoDate } from '@/lib/dueDate';
 import { useCompany } from '@/context/CompanyContext';
-
-// Saved allocation — BatchAllocation plus the resolved ISO due date (additive).
-type SavedAllocation = BatchAllocation & { due_on_date?: string };
+import OrderTrackingHeader from './OrderTrackingHeader';
+import BatchPickerSidePanel from './BatchPickerSidePanel';
+import {
+  NOT_APPLICABLE,
+  fmtDate,
+  parseExpiry,
+  num,
+  round2,
+  type SavedAllocation,
+  type ActiveBatch,
+  type TrackingOption,
+  type OrderOption,
+  type GodownOption,
+} from './batchAllocationShared';
 
 // Stock Item Allocations sub-screen (TallyPrime "Batch / Lot" allocation).
 // Splits a line quantity across one or more godown + batch rows, each with
 // optional mfg + expiry dates, actual/billed quantities, rate and discount.
 // Strict grayscale per UI.md — no hue, emphasis via weight/border only.
-
-interface ActiveBatch {
-  name: string;
-  mfg_date: string | null;
-  expiry_date: string | null;
-  balance: number;
-}
-
-interface TrackingOption {
-  name: string;
-  batch?: string | null;
-  godown?: string | null;
-  date?: string | null;
-  balance?: number;
-  rate?: number;
-}
-
-interface OrderOption {
-  name: string;
-  batch?: string | null;
-  godown?: string | null;
-  due_on?: string | null;
-  balance?: number;
-}
-
-const NOT_APPLICABLE = '◆ Not Applicable';
-
-interface GodownOption {
-  godown_id?: number;
-  name: string;
-  parent_godown_id?: number;
-}
+// Shared types/helpers live in batchAllocationShared.ts; the order-tracking
+// header and godown/batch side panel are their own components.
 
 interface Props {
   companyId: number;
@@ -64,59 +44,6 @@ interface Props {
   onClose: () => void;
   onSave: (allocations: BatchAllocation[]) => void;
 }
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function fmtDate(iso?: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return `${d.getDate()}-${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
-}
-
-function toIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function parseExpiry(input: string, baseIso: string): string {
-  const raw = (input || '').trim();
-  if (!raw) return '';
-  const direct = new Date(raw);
-  if (
-    !isNaN(direct.getTime()) &&
-    /\d{4}|[A-Za-z]{3}/.test(raw) &&
-    !/year|month|day|yr|mo|wk|week/i.test(raw)
-  ) {
-    return toIso(direct);
-  }
-  const m = raw.match(/^(\d+)\s*(year|years|yr|month|months|mo|week|weeks|wk|day|days)$/i);
-  if (m) {
-    const n = parseInt(m[1], 10);
-    const unit = m[2].toLowerCase();
-    const base = new Date(baseIso);
-    if (isNaN(base.getTime())) return '';
-    if (unit.startsWith('year') || unit === 'yr') base.setFullYear(base.getFullYear() + n);
-    else if (unit.startsWith('mo')) base.setMonth(base.getMonth() + n);
-    else if (unit.startsWith('week') || unit === 'wk') base.setDate(base.getDate() + n * 7);
-    else base.setDate(base.getDate() + n);
-    return toIso(base);
-  }
-  return '';
-}
-
-const num = (v: number | undefined) =>
-  Number.isFinite(v)
-    ? (v as number).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '';
-
-const round2 = (v: number) => Math.round(v * 100) / 100;
-
-// Per-godown balance label — Tally shows negatives as "(-)9 Box"; blank when zero.
-const fmtQty = (q: number | undefined, unit?: string) => {
-  if (!q) return '';
-  const u = unit || '';
-  return q < 0 ? `(-)${Math.abs(q)} ${u}`.trim() : `${q} ${u}`.trim();
-};
 
 export default function BatchAllocationPopup({
   companyId,
@@ -674,178 +601,30 @@ export default function BatchAllocationPopup({
                 <div className={`${cell} ${W.del}`} />
               </div>
 
-              {/* Order-tracking header — Tracking No. / Order No. / Due on (Tally).
-                  These are DEFAULTS applied to any row that has no per-row value
-                  of its own. Order No. + Due on show for batch items. Each list
-                  has the default (◆ Not Applicable) + New Number + entries. */}
-              <div className="flex items-center bg-white px-3 py-1.5 text-[11px] border-b border-gray-200 gap-4">
-                {/* Tracking No. */}
-                <div className="flex items-center gap-1 relative" ref={trackingRef}>
-                  <span className="italic text-gray-600 shrink-0">Tracking No.</span>
-                  <span className="text-gray-400">:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowOrderList(false);
-                      setShowTrackingList((s) => !s);
-                    }}
-                    className="min-w-[90px] text-left font-semibold text-black border-b border-dashed border-gray-400 hover:border-black px-1"
-                  >
-                    {trackingNo}
-                  </button>
-                  {showTrackingList &&
-                    trackingPos &&
-                    createPortal(
-                      <div
-                        ref={trackingDropRef}
-                        style={{
-                          position: 'fixed',
-                          top: trackingPos.top,
-                          left: trackingPos.left,
-                          width: 400,
-                        }}
-                        className="bg-white border border-gray-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
-                      >
-                        <div
-                          className={`${listHeadCls} text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center`}
-                        >
-                          <span>List of Tracking Numbers</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowTrackingList(false);
-                              setTrackingNewNumber(true);
-                            }}
-                            className="underline font-semibold text-black hover:text-gray-700"
-                          >
-                            New Number
-                          </button>
-                        </div>
-                        <div className="flex text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-200 gap-1">
-                          <div className="flex-1">Name</div>
-                          <div className="w-16">Batch</div>
-                          <div className="w-16">Godown</div>
-                          <div className="w-16">Date</div>
-                          <div className="w-14 text-right">Balance</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => selectTracking(NOT_APPLICABLE)}
-                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
-                        >
-                          {NOT_APPLICABLE}
-                        </button>
-                        {trackingList.map((t) => (
-                          <button
-                            key={t.name}
-                            type="button"
-                            onClick={() => selectTracking(t.name)}
-                            className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 gap-1"
-                          >
-                            <div className="flex-1 font-semibold">{t.name}</div>
-                            <div className="w-16 font-mono truncate">{t.batch ?? ''}</div>
-                            <div className="w-16 font-mono truncate">{t.godown ?? ''}</div>
-                            <div className="w-16 font-mono">{fmtDate(t.date)}</div>
-                            <div className="w-14 text-right font-mono">{t.balance ?? ''}</div>
-                          </button>
-                        ))}
-                      </div>,
-                      document.body,
-                    )}
-                </div>
-
-                {/* Order No. — batch items only */}
-                {showBatch && (
-                  <div className="flex items-center gap-1 relative" ref={orderRef}>
-                    <span className="italic text-gray-600 shrink-0">Order No.</span>
-                    <span className="text-gray-400">:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowTrackingList(false);
-                        setShowOrderList((s) => !s);
-                      }}
-                      className="min-w-[90px] text-left font-semibold text-black border-b border-dashed border-gray-400 hover:border-black px-1"
-                    >
-                      {orderNo}
-                    </button>
-                    {showOrderList &&
-                      orderPos &&
-                      createPortal(
-                        <div
-                          ref={orderDropRef}
-                          style={{
-                            position: 'fixed',
-                            top: orderPos.top,
-                            left: orderPos.left,
-                            width: 400,
-                          }}
-                          className="bg-white border border-gray-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
-                        >
-                          <div
-                            className={`${listHeadCls} text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center`}
-                          >
-                            <span>List of Orders</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowOrderList(false);
-                                setOrderNewNumber(true);
-                              }}
-                              className="underline font-semibold text-black hover:text-gray-700"
-                            >
-                              New Number
-                            </button>
-                          </div>
-                          <div className="flex text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-200 gap-1">
-                            <div className="flex-1">Name</div>
-                            <div className="w-16">Batch</div>
-                            <div className="w-16">Godown</div>
-                            <div className="w-16">Due On</div>
-                            <div className="w-14 text-right">Balance</div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => selectOrder(NOT_APPLICABLE)}
-                            className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
-                          >
-                            {NOT_APPLICABLE}
-                          </button>
-                          {orderList.map((o) => (
-                            <button
-                              key={o.name}
-                              type="button"
-                              onClick={() => selectOrder(o.name)}
-                              className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 gap-1"
-                            >
-                              <div className="flex-1 font-semibold">{o.name}</div>
-                              <div className="w-16 font-mono truncate">{o.batch ?? ''}</div>
-                              <div className="w-16 font-mono truncate">{o.godown ?? ''}</div>
-                              <div className="w-16 font-mono truncate">{fmtDate(o.due_on)}</div>
-                              <div className="w-14 text-right font-mono">{o.balance ?? ''}</div>
-                            </button>
-                          ))}
-                        </div>,
-                        document.body,
-                      )}
-                  </div>
-                )}
-
-                {/* Due on — shown once an order is chosen */}
-                {showBatch && orderNo !== NOT_APPLICABLE && (
-                  <div className="flex items-center gap-1">
-                    <span className="italic text-gray-600 shrink-0">Due on</span>
-                    <span className="text-gray-400">:</span>
-                    <input
-                      type="text"
-                      value={dueOn}
-                      onChange={(e) => setDueOn(e.target.value)}
-                      placeholder="e.g. 5 Days"
-                      className="w-24 text-xs border border-gray-400 bg-white px-1 py-0.5 outline-none focus:border-black font-mono"
-                    />
-                  </div>
-                )}
-              </div>
+              <OrderTrackingHeader
+                listHeadCls={listHeadCls}
+                showBatch={showBatch}
+                trackingRef={trackingRef}
+                trackingDropRef={trackingDropRef}
+                trackingPos={trackingPos}
+                trackingNo={trackingNo}
+                trackingList={trackingList}
+                showTrackingList={showTrackingList}
+                setShowTrackingList={setShowTrackingList}
+                setTrackingNewNumber={setTrackingNewNumber}
+                selectTracking={selectTracking}
+                orderRef={orderRef}
+                orderDropRef={orderDropRef}
+                orderPos={orderPos}
+                orderNo={orderNo}
+                orderList={orderList}
+                showOrderList={showOrderList}
+                setShowOrderList={setShowOrderList}
+                setOrderNewNumber={setOrderNewNumber}
+                selectOrder={selectOrder}
+                dueOn={dueOn}
+                setDueOn={setDueOn}
+              />
 
               {/* Data rows */}
               <div className="divide-y divide-gray-200">
@@ -1121,136 +900,27 @@ export default function BatchAllocationPopup({
 
           {/* ── Side panel: List of Godowns or List of Active Batches ── */}
           {activePanel !== null && (
-            <div className="w-64 shrink-0 border-l border-gray-300 flex flex-col bg-white">
-              {activePanel === 'godown' ? (
-                <>
-                  {/* Godown panel header */}
-                  <div
-                    className={`${listHeadCls} text-xs font-bold px-2 py-1 flex justify-between items-center shrink-0`}
-                  >
-                    <span>List of Godowns</span>
-                    <button
-                      onClick={closePanel}
-                      className="text-gray-500 hover:text-black font-bold leading-none"
-                    >
-                      &times;
-                    </button>
-                  </div>
-
-                  {/* Search */}
-                  <div className="border-b border-gray-300 shrink-0">
-                    <input
-                      ref={godownSearchRef}
-                      type="text"
-                      className="w-full text-xs outline-none px-2 py-1 bg-white"
-                      value={godownSearch}
-                      onChange={(e) => setGodownSearch(e.target.value)}
-                      placeholder="Search..."
-                    />
-                  </div>
-
-                  {/* Godown items */}
-                  <div ref={panelListRef} className="flex-1 overflow-y-auto min-h-0">
-                    {/* Any */}
-                    <div
-                      data-panel-item
-                      className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center justify-between ${panelHi === 0 ? 'bg-gray-200 font-semibold' : 'hover:bg-gray-50'}`}
-                      onClick={() => activePanelRow !== null && pickGodown(activePanelRow, '')}
-                      onMouseEnter={() => setPanelHi(0)}
-                    >
-                      <span>&#9670; Any</span>
-                    </div>
-
-                    {filteredGodowns.map((g, idx) => (
-                      <div
-                        key={g.godown_id ?? g.name}
-                        data-panel-item
-                        className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center justify-between ${panelHi === idx + 1 ? 'bg-gray-200 font-semibold' : 'hover:bg-gray-50'}`}
-                        onClick={() =>
-                          activePanelRow !== null && pickGodown(activePanelRow, g.name)
-                        }
-                        onMouseEnter={() => setPanelHi(idx + 1)}
-                      >
-                        <span className="truncate">{g.name}</span>
-                        <span className="text-gray-500 text-[10px] shrink-0 ml-2 flex items-center gap-2">
-                          <span>&#9670; {parentName(g)}</span>
-                          <span className="font-mono text-gray-600 w-12 text-right">
-                            {g.godown_id != null ? fmtQty(godownBal[g.godown_id], unitSymbol) : ''}
-                          </span>
-                        </span>
-                      </div>
-                    ))}
-
-                    {filteredGodowns.length === 0 && (
-                      <div className="px-2 py-2 text-xs text-gray-400 italic">No godowns</div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-gray-200 px-2 py-1 text-[10px] text-gray-500 select-none shrink-0">
-                    ↑↓ Navigate &nbsp;·&nbsp; Enter Select
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Batch panel header — "New Number" on the right */}
-                  <div
-                    className={`${listHeadCls} text-xs font-bold px-2 py-1 flex justify-between items-center shrink-0`}
-                  >
-                    <span>List of Active Batches</span>
-                    {/* New Number — always available (Tally shows it for outward too). */}
-                    <button
-                      type="button"
-                      title={isInward ? 'Create a new lot' : 'Type a batch number to issue'}
-                      className="text-black hover:text-gray-700 font-semibold text-[10px] underline"
-                      onClick={() => {
-                        if (activePanelRow !== null) {
-                          setBatchNumberRow(activePanelRow);
-                          closePanel();
-                        }
-                      }}
-                    >
-                      New Number
-                    </button>
-                  </div>
-
-                  {/* Column headers */}
-                  <div className="flex px-2 py-1 border-b border-gray-300 text-[9px] font-bold uppercase tracking-wide text-gray-600 shrink-0">
-                    <div className="flex-1">Name</div>
-                    <div className="w-16 text-center">Expiry</div>
-                    <div className="w-14 text-right">Balance</div>
-                  </div>
-
-                  {/* Items — New Number (header) + existing batches only, no "Any". */}
-                  <div ref={panelListRef} className="flex-1 overflow-y-auto min-h-0">
-                    {filteredBatches.map((b, idx) => (
-                      <div
-                        key={b.name}
-                        data-panel-item
-                        className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center ${panelHi === idx ? 'bg-gray-200 font-semibold' : 'hover:bg-gray-50'}`}
-                        onClick={() => activePanelRow !== null && pickBatch(activePanelRow, b)}
-                        onMouseEnter={() => setPanelHi(idx)}
-                      >
-                        <span className="flex-1 font-mono truncate">{b.name}</span>
-                        <span className="w-16 text-center font-mono text-gray-600">
-                          {fmtDate(b.expiry_date)}
-                        </span>
-                        <span className="w-14 text-right font-mono text-gray-600">
-                          {b.balance ? `${b.balance}${unitSymbol ? ` ${unitSymbol}` : ''}` : ''}
-                        </span>
-                      </div>
-                    ))}
-
-                    {filteredBatches.length === 0 && (
-                      <div className="px-2 py-2 text-xs text-gray-400 italic">No batches yet</div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-gray-200 px-2 py-1 text-[10px] text-gray-500 select-none shrink-0">
-                    ↑↓ Navigate &nbsp;·&nbsp; Enter Select
-                  </div>
-                </>
-              )}
-            </div>
+            <BatchPickerSidePanel
+              activePanel={activePanel}
+              activePanelRow={activePanelRow}
+              listHeadCls={listHeadCls}
+              closePanel={closePanel}
+              godownSearch={godownSearch}
+              setGodownSearch={setGodownSearch}
+              godownSearchRef={godownSearchRef}
+              panelListRef={panelListRef}
+              panelHi={panelHi}
+              setPanelHi={setPanelHi}
+              filteredGodowns={filteredGodowns}
+              pickGodown={pickGodown}
+              parentName={parentName}
+              godownBal={godownBal}
+              unitSymbol={unitSymbol}
+              isInward={isInward}
+              setBatchNumberRow={setBatchNumberRow}
+              filteredBatches={filteredBatches}
+              pickBatch={pickBatch}
+            />
           )}
         </div>
       </VoucherPopupShell>

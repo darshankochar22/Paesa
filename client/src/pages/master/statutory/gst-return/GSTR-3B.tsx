@@ -7,7 +7,6 @@ import {
   Table,
   TableHeader,
   TableBody,
-  TableFooter,
   TableHead,
   TableRow,
   TableCell,
@@ -68,7 +67,7 @@ const GST_STATE_NAMES: Record<string, string> = {
   '96': 'Foreign',
   '97': 'Other Territory',
 };
-const posStateLabel = (pos: any) => {
+export const posStateLabel = (pos: any) => {
   const code = String(pos ?? '').padStart(2, '0');
   return GST_STATE_NAMES[code] || `State ${pos ?? '?'}`;
 };
@@ -245,30 +244,22 @@ export default function GSTR3BView() {
   const s31_isup_rev: TaxAmount = gstr3bData?.sup_details?.isup_rev ?? ZERO; // (d) inward reverse charge
   const s31_osup_nongst: TaxAmount = gstr3bData?.sup_details?.osup_nongst ?? ZERO; // (e) non-GST
 
-  // 3.2 Interstate Supplies — GSTN requires one row per destination state (pos). The backend
-  // emits per-state arrays; expand each recipient category into a row per state (falling back
-  // to a single zero row when there were none of that kind).
-  const buildInterSupRows = (label: string, details: any[]): any[] => {
-    const arr = (details || []).filter((r: any) => r && (r.txval || r.iamt));
-    if (arr.length === 0) return [{ type: 'data', label, data: ZERO, indent: 1 }];
-    return arr.map((r: any) => ({
-      type: 'data',
-      label: `${label} — ${posStateLabel(r.pos)}`,
-      data: { txval: r.txval || 0, iamt: r.iamt || 0, camt: 0, samt: 0, cess: 0 },
-      indent: 1,
-    }));
-  };
-  const interSupRows = [
-    ...buildInterSupRows(
-      'Supplies made to Unregistered Persons',
-      gstr3bData?.inter_sup?.unreg_details,
-    ),
-    ...buildInterSupRows(
-      'Supplies made to Composition Taxable Persons',
-      gstr3bData?.inter_sup?.comp_details,
-    ),
-    ...buildInterSupRows('Supplies made to UIN holders', gstr3bData?.inter_sup?.uin_details),
-  ];
+  // 3.2 Interstate Supplies — aggregate for the section row; the per-state breakup
+  // lives on the drilled "GSTR-3B - Summary" screen (Tally's pattern).
+  const interSupTotal: TaxAmount = [
+    ...(gstr3bData?.inter_sup?.unreg_details || []),
+    ...(gstr3bData?.inter_sup?.comp_details || []),
+    ...(gstr3bData?.inter_sup?.uin_details || []),
+  ].reduce(
+    (acc: TaxAmount, r: any) => ({
+      txval: acc.txval + (r?.txval || 0),
+      iamt: acc.iamt + (r?.iamt || 0),
+      camt: acc.camt,
+      samt: acc.samt,
+      cess: acc.cess,
+    }),
+    { ...ZERO },
+  );
 
   // 4 ITC
   const s4A_itc_avl_impg: TaxAmount = gstr3bData?.itc_elg?.itc_avl?.[0] ?? ZERO; // import of goods
@@ -320,87 +311,81 @@ export default function GSTR3BView() {
   // 6.1 Interest / Late fee
   const s61_intr: TaxAmount = gstr3bData?.intr_ltfee?.intr_details ?? ZERO;
 
-  // Footer total = total outward liability (section 3.1, incl. reverse charge inward)
-  const liabilityRows = [
+  const sumTax = (list: TaxAmount[]): TaxAmount =>
+    list.reduce(
+      (acc, r) => ({
+        txval: acc.txval + r.txval,
+        iamt: acc.iamt + r.iamt,
+        camt: acc.camt + r.camt,
+        samt: acc.samt + r.samt,
+        cess: acc.cess + r.cess,
+      }),
+      { ...ZERO },
+    );
+
+  // Section aggregates — Tally's return view shows one row per table with its
+  // total; the line-wise breakup opens on drill ("GSTR-3B - Summary").
+  const s31Total = sumTax([
     s31_osup_det,
     s31_osup_zero,
     s31_osup_nil_exmp,
     s31_isup_rev,
     s31_osup_nongst,
-  ];
-  const footerTotal: TaxAmount = liabilityRows.reduce(
-    (acc, r) => ({
-      txval: acc.txval + r.txval,
-      iamt: acc.iamt + r.iamt,
-      camt: acc.camt + r.camt,
-      samt: acc.samt + r.samt,
-      cess: acc.cess + r.cess,
-    }),
-    { ...ZERO },
-  );
+  ]);
+  const s4ATotal = sumTax([
+    s4A_itc_avl_impg,
+    s4A_itc_avl_imps,
+    s4A_itc_avl_isrc,
+    s4A_itc_avl_isd,
+    s4A_itc_avl_ohh,
+  ]);
+  const s5Total = sumTax([s5_nil, s5_nongst]);
 
-  // ── Row definitions ─────────────────────────────────────────────────────────
+  // ── Row definitions — Tally's compact return view ───────────────────────────
 
   type RowDef =
     | { type: 'section'; label: string }
     | { type: 'subsection'; label: string }
-    | { type: 'data'; label: string; data: TaxAmount; indent?: number; bold?: boolean }
-    | { type: 'blank' };
+    // sectionKey → drills to the "GSTR-3B - Summary" breakdown of that table.
+    | {
+        type: 'data';
+        label: string;
+        data: TaxAmount;
+        indent?: number;
+        bold?: boolean;
+        sectionKey?: string;
+      };
 
   const rows: RowDef[] = [
-    // ── 3.1 ──
-    { type: 'section', label: '3.1 Tax on Outward and Reverse Charge Inward Supplies' },
     {
       type: 'data',
-      label: '(a) Outward taxable supplies (other than zero rated, nil and exempted)',
-      data: s31_osup_det,
-      indent: 1,
+      label: '3.1 Tax on Outward and Reverse Charge Inward Supplies',
+      data: s31Total,
+      bold: true,
+      sectionKey: '3.1',
     },
     {
       type: 'data',
-      label: '(b) Outward taxable supplies (zero rated)',
-      data: s31_osup_zero,
-      indent: 1,
+      label: '3.2 Interstate Supplies',
+      data: interSupTotal,
+      bold: true,
+      sectionKey: '3.2',
     },
-    {
-      type: 'data',
-      label: '(c) Other outward supplies (Nil rated, exempted)',
-      data: s31_osup_nil_exmp,
-      indent: 1,
-    },
-    {
-      type: 'data',
-      label: '(d) Inward supplies (liable to reverse charge)',
-      data: s31_isup_rev,
-      indent: 1,
-    },
-    { type: 'data', label: '(e) Non-GST outward supplies', data: s31_osup_nongst, indent: 1 },
-    // ── 3.2 ──
-    { type: 'section', label: '3.2 Interstate Supplies' },
-    ...interSupRows,
-    // ── 4 ──
     { type: 'section', label: '4 Eligible for Input Tax Credit' },
-    { type: 'subsection', label: 'A. Input Tax Credit Available (either in part or in full)' },
-    { type: 'data', label: '(1) Import of Goods', data: s4A_itc_avl_impg, indent: 2 },
-    { type: 'data', label: '(2) Import of Services', data: s4A_itc_avl_imps, indent: 2 },
     {
       type: 'data',
-      label: '(3) Inward supplies liable to reverse charge (other than 1 & 2 above)',
-      data: s4A_itc_avl_isrc,
-      indent: 2,
+      label: 'A. Input Tax Credit Available (either in part or in full)',
+      data: s4ATotal,
+      indent: 1,
+      sectionKey: '4A',
     },
-    { type: 'data', label: '(4) Inward supplies from ISD', data: s4A_itc_avl_isd, indent: 2 },
-    { type: 'data', label: '(5) All other ITC', data: s4A_itc_avl_ohh, indent: 2 },
-    { type: 'subsection', label: 'B. Input Tax Credit Reversed' },
+    { type: 'data', label: 'B. Input Tax Credit Reversed', data: s4B_itc_rev, indent: 1 },
     {
       type: 'data',
-      label: '(1) As per rules 38, 42 & 43 of CGST Rules and section 17(5)',
-      data: s4B_itc_rev,
-      indent: 2,
+      label: 'C. Net Input Tax Credit Available (A) - (B)',
+      data: s4C,
+      indent: 1,
     },
-    { type: 'data', label: '(2) Others', data: ZERO, indent: 2 },
-    { type: 'subsection', label: 'C. Net Input Tax Credit Available (A) - (B)' },
-    { type: 'data', label: '', data: s4C, indent: 2 },
     { type: 'subsection', label: 'D. Other Details' },
     {
       type: 'data',
@@ -414,19 +399,18 @@ export default function GSTR3BView() {
       data: s4D2_itc_inelg,
       indent: 2,
     },
-    // ── 5 ──
-    { type: 'section', label: '5 Exempt, Nil Rated, and Non-GST Inward Supplies' },
     {
       type: 'data',
-      label: '(a) From a supplier under composition scheme, Exempt and Nil rated supply',
-      data: s5_nil,
-      indent: 1,
+      label: '5 Exempt, Nil Rated, and Non-GST Inward Supplies',
+      data: s5Total,
+      bold: true,
     },
-    { type: 'data', label: '(b) Non-GST supply', data: s5_nongst, indent: 1 },
-    // ── 6.1 ──
-    { type: 'section', label: '6.1 Interest, Late Fee, Penalty and Others' },
-    { type: 'data', label: 'Interest', data: s61_intr, indent: 1 },
-    { type: 'data', label: 'Late Fee', data: ZERO, indent: 1 },
+    {
+      type: 'data',
+      label: '6.1 Interest, Late Fee, Penalty and Others',
+      data: s61_intr,
+      bold: true,
+    },
   ];
 
   return (
@@ -507,7 +491,18 @@ export default function GSTR3BView() {
           </div>
           <div
             className="flex px-4 py-0.5 cursor-pointer hover:bg-[#e6f2ff]"
-            onClick={() => openStatistics()}
+            onClick={() =>
+              // Tally: "GSTR-3B - Included in Return" voucher-type summary (Sales/Purchase).
+              navigate('/master/statutory/gst/included-summary', {
+                state: {
+                  registration: activeRegistration,
+                  month: selectedMonth,
+                  year: selectedYear,
+                  returnType: 'GSTR3B',
+                  statusLabel: 'Included in Return',
+                },
+              })
+            }
           >
             <div className="flex-1">Included in Return</div>
             <div className="w-32 text-right">
@@ -533,13 +528,15 @@ export default function GSTR3BView() {
           <div
             className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2 cursor-pointer hover:underline"
             onClick={() =>
+              // Tally: categorized "Uncertain Transactions" tree, then per-exception
+              // resolution lists (GSTR-3B covers inward + outward supplies).
               navigate('/master/statutory/gst/uncertain/breakdown', {
                 state: {
                   registration: activeRegistration,
                   month: selectedMonth,
                   year: selectedYear,
-                  returnType: 'GSTR3B',
                   annual: false,
+                  returnType: 'GSTR3B',
                   reportTitle: 'GSTR-3B',
                   supplyGroupLabel: 'Inward and Outward Supplies',
                 },
@@ -592,14 +589,6 @@ export default function GSTR3BView() {
 
           <TableBody>
             {rows.map((row, idx) => {
-              if (row.type === 'blank') {
-                return (
-                  <TableRow key={idx} className="border-0 h-2">
-                    <TableCell colSpan={7} />
-                  </TableRow>
-                );
-              }
-
               if (row.type === 'section') {
                 return (
                   <TableRow key={idx} className="border-0 hover:bg-transparent">
@@ -620,34 +609,30 @@ export default function GSTR3BView() {
                 );
               }
 
-              // data row
+              // data row — rows with a sectionKey open the "GSTR-3B - Summary"
+              // breakdown of that table (3.1 → 3.1a–e, 4A → ITC lines 1–5, …).
               const isSelected = selectedRow === idx;
-              const indentPl = row.indent === 2 ? 'pl-10' : 'pl-6';
+              const indentPl = row.indent === 2 ? 'pl-10' : row.indent === 1 ? 'pl-6' : '';
               const hasData = taxTotal(row.data) !== 0 || row.data.txval !== 0;
-
-              // ITC section rows (4…) drill to inward (Purchase) documents; the outward
-              // liability rows (3.1/3.2) drill to the included outward vouchers.
-              const isItcRow =
-                /Input Tax Credit|Import of|Inward supplies|reverse charge|ITC/i.test(row.label);
+              const clickable = !!row.sectionKey;
               return (
                 <TableRow
                   key={idx}
                   onClick={() => {
+                    if (!clickable) return;
                     setSelectedRow(idx);
-                    navigate('/master/statutory/gst/voucher-register', {
+                    navigate('/master/statutory/gstr3b/section-summary', {
                       state: {
                         registration: activeRegistration,
                         month: selectedMonth,
                         year: selectedYear,
-                        returnType: 'GSTR3B',
-                        bucket: 'included',
-                        voucherType: isItcRow ? 'Purchase' : undefined,
-                        subtitle: row.label,
+                        sectionKey: row.sectionKey,
                       },
                     });
                   }}
                   className={cn(
-                    'border-0 cursor-pointer hover:bg-[#e6f2ff]',
+                    'border-0',
+                    clickable && 'cursor-pointer hover:bg-[#e6f2ff]',
                     isSelected
                       ? 'bg-[#ffcc00] text-black font-bold hover:bg-[#ffcc00]'
                       : hasData
@@ -655,7 +640,9 @@ export default function GSTR3BView() {
                         : 'text-gray-500',
                   )}
                 >
-                  <TableCell className={cn('px-2 py-0.5', indentPl)}>{row.label}</TableCell>
+                  <TableCell className={cn('px-2 py-0.5', indentPl, row.bold && 'font-bold')}>
+                    {row.label}
+                  </TableCell>
                   <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.txval)}</TableCell>
                   <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.iamt)}</TableCell>
                   <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.camt)}</TableCell>
@@ -668,18 +655,6 @@ export default function GSTR3BView() {
               );
             })}
           </TableBody>
-
-          <TableFooter className="bg-transparent">
-            <TableRow className="border-t border-gray-300 hover:bg-transparent font-bold">
-              <TableCell className="px-2 py-1">Total</TableCell>
-              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.txval)}</TableCell>
-              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.iamt)}</TableCell>
-              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.camt)}</TableCell>
-              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.samt)}</TableCell>
-              <TableCell className="px-2 py-1 text-right">{fmt(footerTotal.cess)}</TableCell>
-              <TableCell className="px-2 py-1 text-right">{fmt(taxTotal(footerTotal))}</TableCell>
-            </TableRow>
-          </TableFooter>
         </Table>
       </div>
     </TallyReportLayout>

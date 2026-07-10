@@ -101,6 +101,8 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           FROM ${vouchers} v
           LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
           WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+          -- Exclude Optional / Memorandum vouchers — non-posting, never part of the return.
+          AND COALESCE(v.is_optional, 0) = 0 AND v.voucher_type != 'Memorandum'
           AND v.date >= ${startDate} AND v.date < ${endDate}
           ${regFilter}
           ORDER BY v.date ASC`,
@@ -131,6 +133,15 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
     const expMap = {}; // keyed by WPAY | WOPAY
 
     let serialCounter = 1;
+
+    // GST duty ledgers for this company. A voucher that posts to none of these charged no
+    // GST, so we must NOT synthesise tax from the item's rate — its tax stays zero.
+    const gstLedgerRows = await db.all(
+      sql`SELECT sd.ledger_id FROM ledger_statutory_details sd
+          JOIN ${ledgers} l ON l.ledger_id = sd.ledger_id
+          WHERE l.company_id = ${company_id} AND sd.type_of_duty_tax = 'GST'`,
+    );
+    const gstLedgerIds = new Set(gstLedgerRows.map((r) => Number(r.ledger_id)));
 
     for (const voucher of rawVouchers) {
       // We only include sales related vouchers: Sales, Debit Note, Credit Note
@@ -189,7 +200,11 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         sql`SELECT * FROM ${gstVoucherTaxLines} WHERE ${gstVoucherTaxLines.voucherId} = ${voucher.voucher_id}`,
       );
 
-      if (taxLines.length === 0) {
+      // Only synthesise tax from the item rate when the voucher actually booked GST (has a
+      // GST duty-ledger posting). Otherwise the invoice genuinely carries no tax.
+      const hasGstEntry = entries.some((e) => gstLedgerIds.has(Number(e.ledger_id)));
+
+      if (taxLines.length === 0 && hasGstEntry) {
         // Compute on the fly
         try {
           const computed = await computeVoucherTaxLines(db, {
@@ -240,6 +255,20 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           });
           continue;
         }
+      }
+
+      // No GST was charged (no tax lines): keep the invoice's TAXABLE value with zero tax so
+      // it still appears in the return at its correct amount — just without fabricated tax.
+      if (taxLines.length === 0) {
+        stockEntries.forEach((s) => {
+          taxLines.push({
+            hsn_code: s.hsn_code || 'OTH',
+            assessable_value: Number(s.amount || 0),
+            tax_type: 'TAXABLE',
+            rate: 0,
+            amount: 0,
+          });
+        });
       }
 
       // Check validation warnings

@@ -280,6 +280,8 @@ module.exports = {
       direction,
       annual_category,
       exception,
+      exclude_sections,
+      with_items,
     },
   ) => {
     return await reconciliationService.getReturnVouchers(company_id, fy_id, return_period, {
@@ -294,6 +296,8 @@ module.exports = {
       direction,
       annual_category,
       exception,
+      exclude_sections,
+      with_items,
     });
   },
 

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
+import { Button } from '@/components/shadcn/button';
 import {
   Table,
   TableHeader,
@@ -39,6 +40,7 @@ interface UncertainRow {
   tax: number;
   invoice: number;
   exceptions: string[];
+  items?: { name: string; amount: number }[];
 }
 
 // "Uncertain Transactions (Corrections needed)" — vouchers blocked from the return,
@@ -75,6 +77,8 @@ export default function GSTRUncertain() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<UncertainRow[]>([]);
+  // F5 toggles Tally's Stock Item-wise view (tax columns + per-item sub-lines).
+  const [itemWise, setItemWise] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -91,6 +95,7 @@ export default function GSTRUncertain() {
           annual,
           bucket: 'uncertain',
           exception,
+          with_items: true,
         });
         if (res.success) setRows((res.rows as UncertainRow[]) || []);
         else {
@@ -151,10 +156,141 @@ export default function GSTRUncertain() {
         </>
       }
       rightSubtitle={<div>{periodText}</div>}
+      footerControls={
+        // The Stock Item-wise toggle only applies to the exception-scoped (tax-column)
+        // resolution list — Tally's top-level mixed list has no F5 view switch.
+        showTax ? (
+          <div className="flex items-center gap-4 ml-4">
+            <Button
+              onClick={() => setItemWise(!itemWise)}
+              variant="ghost"
+              size="xs"
+              className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+            >
+              {itemWise ? 'F8: Voucher-wise' : 'F5: Stock Item-wise'}
+            </Button>
+          </div>
+        ) : undefined
+      }
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
         {loading && <EmptyState message="Scanning transactions..." className="italic" />}
         {error && <div className="p-2 text-center text-red-600 font-bold">{error}</div>}
+
+        {/* Stock Item-wise (F5) — the exception-scoped list with Tally's per-item
+            sub-lines under each voucher. Only reachable when showTax (one exception). */}
+        {!loading && !error && showTax && itemWise && (
+          <Table className="text-xs table-fixed">
+            <TableHeader>
+              <TableRow className="border-b border-gray-300 hover:bg-transparent">
+                <TableHead className="h-auto w-20 px-2 py-1 align-bottom font-bold text-black">
+                  Date
+                </TableHead>
+                <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black">
+                  Particulars
+                </TableHead>
+                <TableHead className="h-auto w-24 px-2 py-1 align-bottom font-bold text-black">
+                  Vch Type
+                </TableHead>
+                <TableHead className="h-auto w-20 px-2 py-1 text-center align-bottom font-bold text-black">
+                  Vch No.
+                </TableHead>
+                <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">
+                  Taxable
+                  <br />
+                  Amount
+                </TableHead>
+                <TableHead className="h-auto w-16 px-2 py-1 text-right align-bottom font-bold text-black">
+                  IGST
+                </TableHead>
+                <TableHead className="h-auto w-20 px-2 py-1 text-right align-bottom font-bold text-black">
+                  CGST
+                </TableHead>
+                <TableHead className="h-auto w-20 px-2 py-1 text-right align-bottom font-bold text-black">
+                  SGST/
+                  <br />
+                  UTGST
+                </TableHead>
+                <TableHead className="h-auto w-14 px-2 py-1 text-right align-bottom font-bold text-black">
+                  Cess
+                </TableHead>
+                <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">
+                  Tax
+                  <br />
+                  Amount
+                </TableHead>
+                <TableHead className="h-auto w-24 px-2 py-1 text-right align-bottom font-bold text-black">
+                  Invoice
+                  <br />
+                  Amount
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={11} className="p-0">
+                    <EmptyState message="No uncertain transactions — nothing needs correction for this period." />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((r) => (
+                  <Fragment key={r.voucher_id}>
+                    <TableRow
+                      className="border-0 cursor-pointer hover:bg-[#e6f2ff]"
+                      onClick={() => navigate(`/transactions/voucher/${r.voucher_id}`)}
+                    >
+                      <TableCell className="px-2 py-0.5">{r.date}</TableCell>
+                      <TableCell className="px-2 py-0.5">{r.particulars}</TableCell>
+                      <TableCell className="px-2 py-0.5">{r.voucher_type}</TableCell>
+                      <TableCell className="px-2 py-0.5 text-center">
+                        {r.voucher_number ?? ''}
+                      </TableCell>
+                      <TableCell className="px-2 py-0.5 text-right">{amt(r.taxable)}</TableCell>
+                      <TableCell className="px-2 py-0.5 text-right">{amt(r.igst)}</TableCell>
+                      <TableCell className="px-2 py-0.5 text-right">{amt(r.cgst)}</TableCell>
+                      <TableCell className="px-2 py-0.5 text-right">{amt(r.sgst)}</TableCell>
+                      <TableCell className="px-2 py-0.5 text-right">{amt(r.cess)}</TableCell>
+                      <TableCell className="px-2 py-0.5 text-right">{amt(r.tax)}</TableCell>
+                      <TableCell className="px-2 py-0.5 text-right">{amt(r.invoice)}</TableCell>
+                    </TableRow>
+                    {(r.items || []).map((it, i) => (
+                      <TableRow
+                        key={`${r.voucher_id}-${i}`}
+                        className="border-0 hover:bg-transparent"
+                      >
+                        <TableCell className="px-2 py-0" />
+                        <TableCell className="px-2 py-0 pl-8 text-gray-700" colSpan={2}>
+                          {it.name}
+                        </TableCell>
+                        <TableCell className="px-2 py-0 text-right text-gray-700">
+                          {amt(it.amount)}
+                        </TableCell>
+                        <TableCell colSpan={7} />
+                      </TableRow>
+                    ))}
+                  </Fragment>
+                ))
+              )}
+            </TableBody>
+            {rows.length > 0 && (
+              <TableFooter className="bg-transparent">
+                <TableRow className="border-t border-gray-300 hover:bg-transparent font-bold">
+                  <TableCell colSpan={4} className="px-2 py-1">
+                    Total
+                  </TableCell>
+                  <TableCell className="px-2 py-1 text-right">{amt(totals.taxable)}</TableCell>
+                  <TableCell className="px-2 py-1 text-right">{amt(totals.igst)}</TableCell>
+                  <TableCell className="px-2 py-1 text-right">{amt(totals.cgst)}</TableCell>
+                  <TableCell className="px-2 py-1 text-right">{amt(totals.sgst)}</TableCell>
+                  <TableCell className="px-2 py-1 text-right">{amt(totals.cess)}</TableCell>
+                  <TableCell className="px-2 py-1 text-right">{amt(totals.tax)}</TableCell>
+                  <TableCell className="px-2 py-1 text-right">{amt(totals.invoice)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            )}
+          </Table>
+        )}
 
         {!loading && !error && !showTax && (
           <Table className="text-xs table-fixed">
@@ -220,7 +356,7 @@ export default function GSTRUncertain() {
           </Table>
         )}
 
-        {!loading && !error && showTax && (
+        {!loading && !error && showTax && !itemWise && (
           <Table className="text-xs table-fixed">
             <TableHeader>
               <TableRow className="border-b border-gray-300 hover:bg-transparent">

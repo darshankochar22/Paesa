@@ -60,6 +60,9 @@ export default function GSTR1View() {
   } | null>(null);
   const [showErrorsDialog, setShowErrorsDialog] = useState(false);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
+  // F5 Nature View — included outward supplies split Local/Interstate × Taxable/Exempted.
+  const [natureView, setNatureView] = useState(false);
+  const [includedRows, setIncludedRows] = useState<any[]>([]);
 
   const activeRegistration = location.state?.registration || fetchedRegistration;
   const registrationName = activeRegistration?.state_id
@@ -130,6 +133,17 @@ export default function GSTR1View() {
         return_period: returnPeriod,
       });
       setFiling(info.success ? info : null);
+
+      // Included voucher rows feed the F5 Nature View aggregation.
+      const incRes = await window.api.gst.getReturnVouchers({
+        company_id: companyId,
+        fy_id: fyId,
+        return_period: returnPeriod,
+        return_type: 'GSTR1',
+        gst_registration_id: regId,
+        bucket: 'included',
+      });
+      setIncludedRows(incRes.success ? incRes.rows || [] : []);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {
@@ -181,6 +195,20 @@ export default function GSTR1View() {
         month: selectedMonth,
         year: selectedYear,
         returnType: 'GSTR1',
+      },
+    });
+  };
+
+  // "Included in Return" and its Ready-for-Upload / Not-Uploaded sub-lines drill to the
+  // included voucher-type summary; the label follows the drilled line into the register.
+  const openIncluded = (statusLabel: string) => {
+    navigate('/master/statutory/gst/included-summary', {
+      state: {
+        registration: activeRegistration,
+        month: selectedMonth,
+        year: selectedYear,
+        returnType: 'GSTR1',
+        statusLabel,
       },
     });
   };
@@ -388,6 +416,30 @@ export default function GSTR1View() {
     { label: 'Document Summary - 13', data: EMPTY, section: 'docs' },
   ];
 
+  // Nature View rows: Local vs Interstate, Taxable vs Exempted, from included vouchers.
+  const natureRows = useMemo(() => {
+    const mk = () => ({ count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 });
+    const groups: Record<string, any> = {
+      'Local Supplies - Taxable': mk(),
+      'Local Supplies - Exempted': mk(),
+      'Interstate Supplies - Taxable': mk(),
+      'Interstate Supplies - Exempted': mk(),
+    };
+    for (const r of includedRows) {
+      const zone = r.is_interstate ? 'Interstate Supplies' : 'Local Supplies';
+      const kind = (r.tax || 0) > 0 || (r.rate || 0) > 0 ? 'Taxable' : 'Exempted';
+      const g = groups[`${zone} - ${kind}`];
+      g.count++;
+      g.txval += r.taxable || 0;
+      g.iamt += r.igst || 0;
+      g.camt += r.cgst || 0;
+      g.samt += r.sgst || 0;
+      g.csamt += r.cess || 0;
+      g.val += r.invoice || 0;
+    }
+    return Object.entries(groups).map(([label, data]) => ({ label, data }));
+  }, [includedRows]);
+
   const grandTotal = [
     b2bData,
     b2clData,
@@ -444,12 +496,20 @@ export default function GSTR1View() {
       footerControls={
         <div className="flex items-center gap-4 ml-4">
           <Button
+            onClick={() => setNatureView(!natureView)}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            {natureView ? 'F5: Return View' : 'F5: Nature View'}
+          </Button>
+          <Button
             onClick={() => loadData(true)}
             variant="ghost"
             size="xs"
             className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
           >
-            F5: Refresh
+            Refresh
           </Button>
           <Button
             onClick={handleMarkAsFiled}
@@ -491,11 +551,31 @@ export default function GSTR1View() {
           </div>
           <div
             className="flex px-4 py-0.5 cursor-pointer hover:bg-[#e6f2ff]"
-            onClick={() => openStatistics()}
+            onClick={() => openIncluded('Included in Return')}
           >
             <div className="flex-1">Included in Return</div>
             <div className="w-32 text-right">
               {stats ? stats.included_ok + stats.included_pending : ''}
+            </div>
+          </div>
+          {/* Included splits Tally-style: complete vouchers awaiting export vs not yet on
+              the portal. Offline books have no upload round-trip, so both mirror Included. */}
+          <div
+            className="flex px-6 py-0.5 text-[#ff8c00] cursor-pointer hover:bg-[#e6f2ff]"
+            onClick={() => openIncluded('Ready for Upload')}
+          >
+            <div className="flex-1">Ready for Upload</div>
+            <div className="w-32 text-right">
+              {stats ? stats.included_ok + stats.included_pending || '' : ''}
+            </div>
+          </div>
+          <div
+            className="flex px-6 py-0.5 text-[#ff8c00] cursor-pointer hover:bg-[#e6f2ff]"
+            onClick={() => openIncluded('Not Uploaded')}
+          >
+            <div className="flex-1">Not Uploaded</div>
+            <div className="w-32 text-right">
+              {stats ? stats.included_ok + stats.included_pending || '' : ''}
             </div>
           </div>
           <div
@@ -517,13 +597,15 @@ export default function GSTR1View() {
           <div
             className="flex px-4 py-0.5 text-[#ff8c00] font-bold pb-2 cursor-pointer hover:underline"
             onClick={() =>
+              // Tally shows the categorized exception tree first; each concrete
+              // exception then opens the Resolution of Uncertain Transactions list.
               navigate('/master/statutory/gst/uncertain/breakdown', {
                 state: {
                   registration: activeRegistration,
                   month: selectedMonth,
                   year: selectedYear,
-                  returnType: 'GSTR1',
                   annual: false,
+                  returnType: 'GSTR1',
                   reportTitle: 'GSTR-1',
                   supplyGroupLabel: 'Outward Supplies',
                 },
@@ -579,38 +661,17 @@ export default function GSTR1View() {
             </TableRow>
             <TableRow className="hover:bg-transparent border-0">
               <TableCell colSpan={9} className="px-2 py-1 font-bold">
-                Return View
+                {natureView ? 'Nature View' : 'Return View'}
               </TableCell>
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {rows.map((row, idx) => {
-              const isSelected = selectedRow === idx;
-              return (
+            {natureView &&
+              natureRows.map((row) => (
                 <TableRow
-                  key={idx}
-                  onClick={() => {
-                    setSelectedRow(idx);
-                    navigate('/master/statutory/gstr1/section', {
-                      state: {
-                        registration: activeRegistration,
-                        month: selectedMonth,
-                        year: selectedYear,
-                        section: row.section,
-                        label: row.label,
-                        returnType: 'GSTR1',
-                      },
-                    });
-                  }}
-                  className={cn(
-                    'border-0 cursor-pointer hover:bg-[#e6f2ff]',
-                    isSelected
-                      ? 'bg-[#ffcc00] text-black font-bold hover:bg-[#ffcc00]'
-                      : row.data.count === 0
-                        ? 'text-gray-600'
-                        : 'text-black',
-                  )}
+                  key={row.label}
+                  className={cn('border-0', row.data.count === 0 ? 'text-gray-600' : 'text-black')}
                 >
                   <TableCell className="px-2 py-0.5 pl-4">{row.label}</TableCell>
                   <TableCell className="px-2 py-0.5 text-center">{row.data.count || ''}</TableCell>
@@ -638,8 +699,67 @@ export default function GSTR1View() {
                     {row.data.val ? row.data.val.toFixed(2) : ''}
                   </TableCell>
                 </TableRow>
-              );
-            })}
+              ))}
+            {!natureView &&
+              rows.map((row, idx) => {
+                const isSelected = selectedRow === idx;
+                return (
+                  <TableRow
+                    key={idx}
+                    onClick={() => {
+                      setSelectedRow(idx);
+                      navigate('/master/statutory/gstr1/section', {
+                        state: {
+                          registration: activeRegistration,
+                          month: selectedMonth,
+                          year: selectedYear,
+                          section: row.section,
+                          label: row.label,
+                          returnType: 'GSTR1',
+                        },
+                      });
+                    }}
+                    className={cn(
+                      'border-0 cursor-pointer hover:bg-[#e6f2ff]',
+                      isSelected
+                        ? 'bg-[#ffcc00] text-black font-bold hover:bg-[#ffcc00]'
+                        : row.data.count === 0
+                          ? 'text-gray-600'
+                          : 'text-black',
+                    )}
+                  >
+                    <TableCell className="px-2 py-0.5 pl-4">{row.label}</TableCell>
+                    <TableCell className="px-2 py-0.5 text-center">
+                      {row.data.count || ''}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {row.data.txval ? row.data.txval.toFixed(2) : ''}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {row.data.iamt ? row.data.iamt.toFixed(2) : ''}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {row.data.camt ? row.data.camt.toFixed(2) : ''}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {row.data.samt ? row.data.samt.toFixed(2) : ''}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {row.data.csamt ? row.data.csamt.toFixed(2) : ''}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {row.data.iamt + row.data.camt + row.data.samt + row.data.csamt
+                        ? (row.data.iamt + row.data.camt + row.data.samt + row.data.csamt).toFixed(
+                            2,
+                          )
+                        : ''}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {row.data.val ? row.data.val.toFixed(2) : ''}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
           </TableBody>
 
           {/* Total Row */}

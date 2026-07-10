@@ -102,6 +102,7 @@ export default function GSTVoucherRegister() {
           section: location.state?.section,
           direction: location.state?.direction,
           annual_category: location.state?.annualCategory,
+          exclude_sections: location.state?.excludeSections,
         });
         if (res.success) setRows((res.rows as RegisterRow[]) || []);
         else {
@@ -131,6 +132,7 @@ export default function GSTVoucherRegister() {
     location.state?.section,
     location.state?.direction,
     location.state?.annualCategory,
+    location.state?.excludeSections,
   ]);
 
   const totals = rows.reduce(

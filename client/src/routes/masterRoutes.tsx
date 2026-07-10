@@ -87,6 +87,7 @@ import AnnualSectionSummary from '../pages/master/statutory/gst-return/AnnualSec
 import AnnualMonthlySummary from '../pages/master/statutory/gst-return/AnnualMonthlySummary.tsx';
 import GSTR1Reconciliation from '../pages/master/statutory/gst-return/GSTR1-Reconcilation.tsx';
 import UncertainBreakdown from '../pages/master/statutory/gst-return/UncertainBreakdown.tsx';
+import GSTRIncludedSummary from '../pages/master/statutory/gst-return/GSTRIncludedSummary.tsx';
 import GSTUtilities from '../pages/menu/reports/GSTUtilities.tsx';
 import GSTRateSetup from '../pages/master/statutory/gst-return/GSTRateSetup.tsx';
 import MapUomUqc from '../pages/master/statutory/gst-return/MapUomUqc.tsx';
@@ -99,6 +100,7 @@ import GstAdvancesReport from '../pages/master/statutory/gst-return/GstAdvancesR
 import ReverseChargeSupplies from '../pages/master/statutory/gst-return/ReverseChargeSupplies.tsx';
 import EInvoiceEWayBillReport from '../pages/master/statutory/gst-return/EInvoiceEWayBillReport.tsx';
 import GSTR3BView from '../pages/master/statutory/gst-return/GSTR-3B.tsx';
+import GSTR3BSectionSummary from '../pages/master/statutory/gst-return/GSTR3BSectionSummary.tsx';
 import AnnualComputation from '../pages/master/statutory/gst-return/AnnualComputation.tsx';
 import GSTR2AReconciliation from '../pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx';
 import GSTR1vs3BComparison from '../pages/master/statutory/gst-return/GSTR1vs3BComparison.tsx';
@@ -288,6 +290,7 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gstr1/section', element: <GSTR1SectionDetail /> },
   { path: '/master/statutory/gst/not-relevant', element: <GSTRNotRelevant /> },
   { path: '/master/statutory/gst/uncertain/breakdown', element: <UncertainBreakdown /> },
+  { path: '/master/statutory/gst/included-summary', element: <GSTRIncludedSummary /> },
   { path: '/master/statutory/gst/uncertain', element: <GSTRUncertain /> },
   { path: '/master/statutory/gst/uncertain/registration', element: <GSTRegistrationResolution /> },
   { path: '/master/statutory/gst/annual-section', element: <AnnualSectionSummary /> },
@@ -299,6 +302,7 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gstr2b/reconciliation/uncertain', element: <UncertainBreakdown /> },
   { path: '/master/statutory/annual-computation/uncertain', element: <UncertainBreakdown /> },
   { path: '/master/statutory/gstr3b', element: <GSTR3BView /> },
+  { path: '/master/statutory/gstr3b/section-summary', element: <GSTR3BSectionSummary /> },
   { path: '/master/statutory/annual-computation', element: <AnnualComputation /> },
   { path: '/master/statutory/gstr2a/reconciliation', element: <GSTR2AReconciliation /> },
   { path: '/master/statutory/gstr2b/reconciliation', element: <GSTR2BReconciliation /> },
