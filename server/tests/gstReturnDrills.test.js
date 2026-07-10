@@ -527,10 +527,10 @@ describe('GST return drill chain', () => {
 // the entry screen's explicit registration choice must be stored — NULL rows get
 // attributed to the primary registration by every per-registration report.
 describe('GST registration snapshot on save', () => {
-  let companyId, fyId, partyId;
+  let companyId, fyId, partyId, salesId;
 
   beforeAll(async () => {
-    ({ companyId, fyId, partyId } = await seedGstReportsCompany());
+    ({ companyId, fyId, partyId, salesId } = await seedGstReportsCompany());
   });
 
   const regId = async (gstin) => {
@@ -590,5 +590,61 @@ describe('GST registration snapshot on save', () => {
       [vid],
     );
     expect(Number(after.rows[0].gst_registration_id)).toBe(Number(primaryRegId));
+  });
+
+  it("Track Activities + Statistics keep each registration's vouchers separate (no mixing)", async () => {
+    const secondRegId = await regId('29ABCDE1234F1Z5');
+    const primaryRegId = await regId('27ABCDE1234F1Z5');
+
+    // A December sale explicitly under the SECOND registration (the entry screen's pick).
+    const sale = await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Sales',
+      date: '2026-12-08',
+      status: 'Regular',
+      reference_number: 'INV-REG2',
+      place_of_supply: 'Karnataka',
+      party_ledger_id: partyId,
+      party_name: 'GST Customer',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      gst_registration_id: secondRegId,
+      entries: [
+        { ledger_id: partyId, ledger_name: 'GST Customer', type: 'Dr', amount: 2000 },
+        { ledger_id: salesId, ledger_name: 'GST Sales A/c', type: 'Cr', amount: 2000 },
+      ],
+      stock_entries: [{ item_name: 'RegScoped Widget', quantity: 2, rate: 1000, hsn_code: '8471' }],
+    });
+    expect(sale.success).toBe(true);
+    const saved = await db.execute(
+      `SELECT gst_registration_id FROM vouchers WHERE voucher_id = ?`,
+      [sale.voucher.voucher_id],
+    );
+    expect(Number(saved.rows[0].gst_registration_id)).toBe(Number(secondRegId));
+
+    // Track GST Return Activities: December's outward count sits under registration 29
+    // ONLY — the primary (27) must not absorb it.
+    const act = await reconciliationService.getReturnActivities(companyId, fyId);
+    expect(act.success).toBe(true);
+    const regs = act.activities.registrations;
+    const regOf = (id) => regs.find((r) => Number(r.gst_id) === Number(id));
+    expect(regOf(secondRegId)).toBeDefined();
+    expect(regOf(primaryRegId)).toBeDefined();
+
+    // Statistics scoped per registration: 29 sees the sale, 27 (primary) does not.
+    const statSecond = await reconciliationService.getReturnStatistics(companyId, fyId, '122026', {
+      return_type: 'GSTR1',
+      gst_registration_id: secondRegId,
+    });
+    const statPrimary = await reconciliationService.getReturnStatistics(companyId, fyId, '122026', {
+      return_type: 'GSTR1',
+      gst_registration_id: primaryRegId,
+    });
+    expect(statSecond.success).toBe(true);
+    expect(statPrimary.success).toBe(true);
+    expect(statSecond.statistics.totals.total).toBe(1);
+    expect(statPrimary.statistics.totals.total).toBe(0);
   });
 });
