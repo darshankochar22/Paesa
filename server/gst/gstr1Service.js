@@ -12,6 +12,11 @@ const {
 } = require('../db/schema');
 const { resolveStateCode, resolveTaxRate, computeVoucherTaxLines } = require('./gstTaxEngine');
 
+// Inter-state B2C invoices at or above this value are reported invoice-wise (B2CL/CDNUR),
+// smaller ones net into B2CS. Notification 12/2024-Central Tax (Rule 59(4)) cut this from
+// ₹2.5 lakh to ₹1 lakh w.e.f. 1 Aug 2024.
+const B2CL_THRESHOLD = 100000;
+
 const formatGSTDate = (dateStr) => {
   if (!dateStr) return '';
   // DB date is usually YYYY-MM-DD
@@ -449,7 +454,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
             inv_typ: 'R',
             itms: itmsList,
           });
-        } else if (isExport || (isInterState && invoiceValue > 250000)) {
+        } else if (isExport || (isInterState && invoiceValue > B2CL_THRESHOLD)) {
           // CDNUR — notes to unregistered parties that have an explicit home:
           // exports (EXPWP/EXPWOP) or large inter-state (B2CL). Small ones net into B2CS.
           cdnur.push({
@@ -495,7 +500,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           inv_typ: 'R',
           itms: itmsList,
         });
-      } else if (isInterState && invoiceValue > 250000) {
+      } else if (isInterState && invoiceValue > B2CL_THRESHOLD) {
         // B2CL — large inter-state sales to unregistered consumers.
         if (!b2clMap[posStateCode]) {
           b2clMap[posStateCode] = { pos: posStateCode, inv: [] };

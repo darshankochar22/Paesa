@@ -557,4 +557,74 @@ describe('GSTR-1 classification edges', () => {
     const b2csTaxable = (ret.payload.b2cs || []).reduce((t, r) => t + (r.txval || 0), 0);
     expect(Math.round(b2csTaxable)).toBe(2000); // the two consumer sales, 1000 each
   });
+
+  it('GSTR-1 B2CL threshold is ₹1 lakh: inter-state consumer sale in the ₹1L–₹2.5L band → B2CL, not B2CS', async () => {
+    // December, isolated. Notification 12/2024 cut the B2CL threshold from ₹2.5L to ₹1L
+    // (w.e.f. 1 Aug 2024). An inter-state (POS Karnataka, company is Maharashtra) sale to an
+    // unregistered consumer with invoice value ₹1.77L sits in that band: it MUST be reported
+    // invoice-wise under B2CL, not netted into the consolidated B2CS. Under the old ₹2.5L
+    // limit this invoice would have (wrongly) fallen into B2CS.
+    const walkIn = ledgerId(
+      await ledgerService.create({
+        company_id: companyId,
+        name: 'Dec Walk-in (Inter-state)',
+        state: 'Karnataka',
+        country: 'India',
+        registration_type: 'Unregistered',
+      }),
+    );
+
+    const sale = await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Sales',
+      date: '2026-12-04',
+      status: 'Regular',
+      reference_number: 'DEC-B2CL',
+      place_of_supply: 'Karnataka', // inter-state vs Maharashtra home state
+      party_ledger_id: walkIn,
+      party_name: 'Dec Walk-in (Inter-state)',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      entries: [
+        // Party Dr = invoice value = taxable 150000 + IGST 27000 = 177000 (₹1L–₹2.5L band).
+        {
+          ledger_id: walkIn,
+          ledger_name: 'Dec Walk-in (Inter-state)',
+          type: 'Dr',
+          amount: 177000,
+          currency: 'INR',
+        },
+        {
+          ledger_id: salesId,
+          ledger_name: 'GST Sales A/c',
+          type: 'Cr',
+          amount: 177000,
+          currency: 'INR',
+        },
+      ],
+      stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 150000, hsn_code: '8471' }],
+    });
+    // Book real inter-state IGST (18%) on the stock line.
+    await db.execute(
+      `UPDATE voucher_stock_entries SET amount = 150000, gst_rate = 18, igst_amount = 27000, cgst_amount = 0, sgst_amount = 0 WHERE voucher_id = ?`,
+      [sale.voucher.voucher_id],
+    );
+
+    const ret = await gstr1Service.generateGSTR1(companyId, fyId, '122026');
+    expect(ret.success).toBe(true);
+    const num = String(
+      (
+        await db.execute(`SELECT voucher_number FROM vouchers WHERE voucher_id = ?`, [
+          sale.voucher.voucher_id,
+        ])
+      ).rows[0].voucher_number,
+    );
+    // Lands invoice-wise under B2CL (POS 29 = Karnataka), NOT in the consolidated B2CS.
+    const b2clInvoices = (ret.payload.b2cl || []).flatMap((p) => p.inv.map((i) => String(i.inum)));
+    expect(b2clInvoices).toContain(num);
+    const b2csTaxable = (ret.payload.b2cs || []).reduce((t, r) => t + (r.txval || 0), 0);
+    expect(Math.round(b2csTaxable)).toBe(0);
+  });
 });
