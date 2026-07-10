@@ -158,15 +158,13 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       if (stockEntries.length === 0) continue;
 
       // Exclude "Uncertain" vouchers from the return sections, matching the Statistics /
-      // Track-Activities classifier: an invalid company/party GSTIN or any missing/invalid
+      // Track-Activities classifier: an invalid company GSTIN or any missing/invalid
       // HSN/SAC makes the voucher not ready to file, so Tally parks it under Uncertain
-      // (Corrections needed) and keeps it OUT of B2B/B2CS/CDN. This keeps the Return View
-      // section totals equal to the "Included in Return" count shown in the summary.
-      const partyRegistered = voucher.party_reg_type && voucher.party_reg_type !== 'Unregistered';
-      const partyGstinBad =
-        partyRegistered && (!voucher.party_gstin || !validateGSTIN(voucher.party_gstin));
+      // (Corrections needed) and keeps it OUT of B2B/B2CS/CDN. A recipient WITHOUT a
+      // (valid) GSTIN is NOT an error — under GST law that is an unregistered buyer and
+      // the sale files under B2C (B2CS/B2CL/CDNUR), which the section gates below handle.
       const hsnBad = stockEntries.some((s) => validateHsn(s.hsn_code) !== null);
-      if (!validateGSTIN(companyGSTIN) || partyGstinBad || hsnBad) {
+      if (!validateGSTIN(companyGSTIN) || hsnBad) {
         continue;
       }
 
@@ -219,6 +217,29 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         .reduce((s, e) => s + Number(e.amount || 0), 0);
       const taxBooked = stockTax > 0.01 ? stockTax : ledgerTax;
       if (maxItemRate > 0 && taxBooked < 0.01) continue;
+
+      // No GST anywhere on the voucher — no duty-ledger posting, no stored tax
+      // lines, no tax on any stock line, no GST rate on any item: the sale was
+      // billed without GST, so it is NOT part of the return (Not Relevant) —
+      // unless an item is explicitly configured Nil-rated/Exempt/Non-GST in the
+      // masters, which belongs in table 8 rather than being dropped.
+      if (!hasGstEntry && taxLines.length === 0 && maxItemRate === 0 && taxBooked < 0.01) {
+        let nilConfigured = false;
+        for (const s of stockEntries) {
+          const rd = await resolveTaxRate(db, {
+            company_id,
+            stock_item_id: s.stock_item_id,
+            ledger_id: s.ledger_id,
+            hsn_code: s.hsn_code,
+            date: voucher.date,
+          });
+          if ((rd.gst_rate || 0) === 0 && classifyTaxability(rd.taxability)) {
+            nilConfigured = true;
+            break;
+          }
+        }
+        if (!nilConfigured) continue;
+      }
 
       if (taxLines.length === 0 && hasGstEntry) {
         // Compute on the fly
@@ -290,6 +311,9 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       // Check validation warnings
       const isRegistered = voucher.party_reg_type && voucher.party_reg_type !== 'Unregistered';
       const hasGSTIN = !!voucher.party_gstin;
+      // B2B / CDNR strictly require a VALID 15-char GSTIN as the ctin — a party
+      // without one classifies as a consumer (B2C/B2CL/B2CS/CDNUR), never B2B.
+      const validPartyGstin = validateGSTIN(voucher.party_gstin || '');
 
       if (isRegistered && !hasGSTIN) {
         errors.push({
@@ -407,7 +431,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
 
       if (vtype === 'Credit Note' || vtype === 'Debit Note') {
         const ntty = vtype === 'Credit Note' ? 'C' : 'D';
-        if (hasGSTIN && isRegistered) {
+        if (validPartyGstin) {
           // CDNR — notes to registered parties.
           const ctin = voucher.party_gstin;
           if (!cdnrMap[ctin]) {
@@ -456,7 +480,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
             csamt: i.itm_det.csamt,
           })),
         });
-      } else if (hasGSTIN && isRegistered) {
+      } else if (validPartyGstin) {
         // B2B — sales to registered parties.
         const ctin = voucher.party_gstin;
         if (!b2bMap[ctin]) {

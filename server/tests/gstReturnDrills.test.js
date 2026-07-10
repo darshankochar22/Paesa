@@ -81,7 +81,8 @@ describe('GST return drill chain', () => {
   });
 
   it('Return drill engine: sections, buckets, uncertain exceptions and Not-Relevant breakdown', async () => {
-    // Seed a June sales invoice to a registered party with NO GSTIN → must land in 'uncertain'.
+    // June sale to a party with NO GSTIN but WITH GST charged → B2C (b2cs), never B2B
+    // and never an error (GST law: recipient without GSTIN = unregistered consumer).
     const bad = await voucherController.create(null, {
       company_id: companyId,
       fy_id: fyId,
@@ -116,6 +117,44 @@ describe('GST return drill chain', () => {
       stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 1000, hsn_code: '8471' }],
     });
     expect(bad.success ?? !!bad.voucher).toBeTruthy();
+    // GST actually charged on it (18% → 90 + 90).
+    await db.execute(
+      `UPDATE voucher_stock_entries SET gst_rate = 18, cgst_amount = 90, sgst_amount = 90 WHERE voucher_id = ?`,
+      [bad.voucher.voucher_id],
+    );
+    // And a June sale with a BLANK HSN → the Uncertain (corrections needed) case.
+    const badHsn = await voucherController.create(null, {
+      company_id: companyId,
+      fy_id: fyId,
+      voucher_type: 'Sales',
+      date: '2026-06-06',
+      status: 'Regular',
+      reference_number: 'INV-BADHSN',
+      place_of_supply: 'Maharashtra',
+      party_ledger_id: partyId,
+      party_name: 'GST Customer',
+      is_accounting_voucher: 1,
+      is_invoice: 1,
+      is_inventory_voucher: 1,
+      entries: [
+        {
+          ledger_id: partyId,
+          ledger_name: 'GST Customer',
+          type: 'Dr',
+          amount: 1180,
+          currency: 'INR',
+        },
+        {
+          ledger_id: salesId,
+          ledger_name: 'GST Sales A/c',
+          type: 'Cr',
+          amount: 1180,
+          currency: 'INR',
+        },
+      ],
+      stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 1000, hsn_code: '' }],
+    });
+    expect(badHsn.success ?? !!badHsn.voucher).toBeTruthy();
 
     // April: the valid B2B sales invoice lands in section 'b2b' with its real tax sums.
     const b2b = await reconciliationService.getReturnVouchers(companyId, fyId, '042026', {
@@ -133,13 +172,26 @@ describe('GST return drill chain', () => {
     expect(nr.success).toBe(true);
     expect(nr.breakdown.other_returns.count).toBe(1);
 
-    // June: the bad invoice is uncertain, with a concrete exception message.
+    // June: the blank-HSN invoice is uncertain, with a concrete exception message.
     const unc = await reconciliationService.getReturnVouchers(companyId, fyId, '062026', {
       bucket: 'uncertain',
     });
     expect(unc.success).toBe(true);
     expect(unc.rows).toHaveLength(1);
-    expect(unc.rows[0].exceptions.join(' ')).toMatch(/Party is registered/);
+    expect(unc.rows[0].exceptions.join(' ')).toMatch(/HSN\/SAC/);
+
+    // June: the taxed sale to the no-GSTIN party is INCLUDED under B2C (b2cs) — not B2B,
+    // not uncertain (the user's exact scenario: tax charged, buyer has no GSTIN).
+    const b2c = await reconciliationService.getReturnVouchers(companyId, fyId, '062026', {
+      bucket: 'included',
+      section: 'b2cs',
+    });
+    expect(b2c.rows.map((r) => r.voucher_id)).toContain(bad.voucher.voucher_id);
+    const b2bJune = await reconciliationService.getReturnVouchers(companyId, fyId, '062026', {
+      bucket: 'included',
+      section: 'b2b',
+    });
+    expect(b2bJune.rows).toHaveLength(0);
 
     // HSN summary aggregates included vouchers' stock lines by HSN code.
     const hsn = await reconciliationService.getReturnVouchers(companyId, fyId, '042026', {
@@ -198,30 +250,30 @@ describe('GST return drill chain', () => {
     expect(ann.success).toBe(true);
     const p = ann.payload;
 
-    // Voucher counts span the whole FY (April sales+purchase, plus the June bad sales
-    // added earlier). Company GSTIN is valid → the clean April docs are Included.
-    expect(p.voucher_count.total).toBe(3);
-    expect(p.voucher_count.uncertain).toBe(1); // June sales, missing place of supply
-    expect(p.voucher_count.included).toBe(2); // April sales + April purchase
+    // Voucher counts span the whole FY (April sales+purchase, plus the June B2C sale
+    // and the June blank-HSN sale added earlier).
+    expect(p.voucher_count.total).toBe(4);
+    expect(p.voucher_count.uncertain).toBe(1); // June sale with blank HSN
+    expect(p.voucher_count.included).toBe(3); // April sales + April purchase + June B2C
 
     // Included counts here EXACTLY match a full-FY Statistics call (same classifier).
     const statsApr = await reconciliationService.getReturnStatistics(companyId, fyId, '042026', {
       return_type: 'GSTR3B',
       annual: true,
     });
-    expect(statsApr.statistics.totals.total).toBe(3);
+    expect(statsApr.statistics.totals.total).toBe(4);
     expect(statsApr.statistics.totals.uncertain).toBe(1);
 
-    // Outward taxable liability = the April sales (10000 taxable, 1800 tax).
-    expect(p.liability.taxable_and_advances.txval).toBe(10000);
-    expect(p.liability.taxable_and_advances.camt).toBe(900);
-    expect(p.liability.taxable_and_advances.samt).toBe(900);
+    // Outward taxable liability = April sales (10000 + 1800 tax) + June B2C (1000 + 180).
+    expect(p.liability.taxable_and_advances.txval).toBe(11000);
+    expect(p.liability.taxable_and_advances.camt).toBe(990);
+    expect(p.liability.taxable_and_advances.samt).toBe(990);
     // ITC availed = the April purchase (5000 taxable, 900 tax).
     expect(p.itc.availed.txval).toBe(5000);
     expect(p.itc.availed.camt).toBe(450);
     expect(p.itc.availed.samt).toBe(450);
     // Outward/inward supply summaries.
-    expect(p.summary_outward.txval).toBe(10000);
+    expect(p.summary_outward.txval).toBe(11000); // April B2B 10000 + June B2C 1000
     expect(p.summary_inward.txval).toBe(5000);
     // Header shows All Registrations when unscoped.
     expect(p.gstin).toBe('All Registrations');
@@ -237,8 +289,8 @@ describe('GST return drill chain', () => {
     expect(b2b.txval).toBe(10000);
     expect(b2b.tax).toBe(1800);
     expect(b2b.has_children).toBe(true);
-    // B2C and exports rows exist but are honestly zero.
-    expect(payable.rows.find((r) => r.key === 'payable.b2c').txval).toBe(0);
+    // B2C carries the June no-GSTIN sale; exports row stays honestly zero.
+    expect(payable.rows.find((r) => r.key === 'payable.b2c').txval).toBe(1000);
     expect(payable.rows.find((r) => r.key === 'payable.exports_pay').txval).toBe(0);
 
     // Level 2: the CN/DN split — sales land in 'supplies', notes rows are zero.
@@ -299,16 +351,17 @@ describe('GST return drill chain', () => {
   });
 
   it('GSTR-1 Reconciliation counts uncertain vouchers separately and excludes them from the Return View', async () => {
-    // Whole FY = April sales (clean B2B), April purchase (inward), June sales (missing
-    // place of supply → uncertain). The bad voucher must NOT inflate B2B/unreconciled.
+    // Whole FY = April sales (clean B2B), April purchase (inward), June B2C sale
+    // (no-GSTIN buyer, taxed) and June blank-HSN sale (uncertain).
     const res = await reconciliationService.getGSTR1Reconciliation(companyId, fyId);
     expect(res.success).toBe(true);
     const { return_view, voucher_status } = res.payload;
 
     expect(return_view.b2b.vch_count).toBe(1); // only the clean April sale
     expect(return_view.b2b.taxable_amount).toBe(10000);
-    expect(voucher_status.unreconciled).toBe(1); // clean outward doc, no portal import
-    expect(voucher_status.uncertain).toBe(1); // the June bad sale
+    expect(return_view.b2c_small.vch_count).toBe(1); // the June no-GSTIN sale
+    expect(voucher_status.unreconciled).toBe(2); // both clean outward docs, no portal import
+    expect(voucher_status.uncertain).toBe(1); // the June blank-HSN sale
     expect(voucher_status.reconciled).toBe(0);
   });
 
@@ -319,15 +372,13 @@ describe('GST return drill chain', () => {
       bucket: 'uncertain',
     });
     expect(all.rows).toHaveLength(1);
-    expect(all.rows[0].exceptions).toContain(
-      'Party is registered but its GSTIN/UIN is missing or invalid',
-    );
+    expect(all.rows[0].exceptions).toContain('HSN/SAC is invalid, mismatched, or not specified');
 
     const matched = await reconciliationService.getReturnVouchers(companyId, fyId, null, {
       return_type: 'GSTR1',
       annual: true,
       bucket: 'uncertain',
-      exception: 'Party is registered but its GSTIN/UIN is missing or invalid',
+      exception: 'HSN/SAC is invalid, mismatched, or not specified',
     });
     expect(matched.rows).toHaveLength(1);
 
@@ -342,7 +393,7 @@ describe('GST return drill chain', () => {
 
   it('Annual Computation uncertain drill lists the same bad voucher with its exception', async () => {
     // The Annual Computation "Uncertain Transactions" breakdown drills through this call
-    // (return_type ANNUAL = inward + outward). The June sale to a no-GSTIN party shows.
+    // (return_type ANNUAL = inward + outward). The June blank-HSN sale shows.
     const annualUnc = await reconciliationService.getReturnVouchers(companyId, fyId, null, {
       return_type: 'ANNUAL',
       annual: true,
@@ -351,7 +402,7 @@ describe('GST return drill chain', () => {
     expect(annualUnc.success).toBe(true);
     expect(annualUnc.rows).toHaveLength(1);
     expect(annualUnc.rows[0].exceptions).toContain(
-      'Party is registered but its GSTIN/UIN is missing or invalid',
+      'HSN/SAC is invalid, mismatched, or not specified',
     );
   });
 

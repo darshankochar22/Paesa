@@ -5,6 +5,7 @@
 
 const { seedGstReportsCompany, ledgerId } = require('./gstReportsSeed');
 const { db } = require('./helpers');
+const ledgerService = require('../ledger/ledgerService');
 const voucherController = require('../voucher/voucherController');
 const reconciliationService = require('../gst/reconciliationService');
 const gstr1Service = require('../gst/gstr1Service');
@@ -59,8 +60,8 @@ describe('GSTR-1 classification edges', () => {
       ],
       stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 1000, hsn_code: '' }],
     });
-    // (2) Sales to the same party WITH a valid HSN → Included (Action Pending).
-    await voucherController.create(null, {
+    // (2) Sales to the same party WITH a valid HSN and real GST → Included (Action Pending).
+    const okSale = await voucherController.create(null, {
       company_id: companyId,
       fy_id: fyId,
       voucher_type: 'Sales',
@@ -91,6 +92,11 @@ describe('GSTR-1 classification edges', () => {
       ],
       stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 1000, hsn_code: '8471' }],
     });
+    // GST actually charged on (2) — vouchers without any GST are Not Relevant, not Included.
+    await db.execute(
+      `UPDATE voucher_stock_entries SET gst_rate = 18, cgst_amount = 90, sgst_amount = 90 WHERE voucher_id = ?`,
+      [okSale.voucher.voucher_id],
+    );
     // (3) Debit Note against the supplier (a purchase return) → inward, so Not Relevant
     //     for GSTR-1 and grouped under "Transactions of Other GST Returns".
     await voucherController.create(null, {
@@ -351,10 +357,14 @@ describe('GSTR-1 classification edges', () => {
       ).rows || [];
     const a = rows.find((r) => r.voucher_id === noGstId);
     const b = rows.find((r) => r.voucher_id === withGstId);
-    // (A) no GST booked → zero tax, invoice == taxable (no fabrication).
-    expect(a.taxable).toBe(10000);
-    expect(Math.round(a.cgst + a.sgst + a.igst)).toBe(0);
-    expect(Math.round(a.invoice)).toBe(10000);
+    // (A) no GST booked anywhere → the sale is NOT part of the return at all
+    // (Not Relevant) — and certainly nothing is fabricated from the item rate.
+    expect(a).toBeUndefined();
+    const nr = await reconciliationService.getReturnVouchers(companyId, fyId, '092026', {
+      bucket: 'not_relevant',
+      voucher_type: 'Sales',
+    });
+    expect((nr.rows || []).map((r) => r.voucher_id)).toContain(noGstId);
     // (B) real GST booked → the actual 900 + 900 from the ledgers, invoice 11800.
     expect(b.taxable).toBe(10000);
     expect(Math.round(b.cgst)).toBe(900);
@@ -404,6 +414,11 @@ describe('GSTR-1 classification edges', () => {
     const opt = await mk('OCT-OPT', {});
     const memo = await mk('OCT-MEMO', {});
     const idOf = (r) => r.voucher?.voucher_id ?? r.voucher_id;
+    // GST actually charged on the normal sale — no-GST vouchers are Not Relevant now.
+    await db.execute(
+      `UPDATE voucher_stock_entries SET gst_rate = 18, cgst_amount = 90, sgst_amount = 90 WHERE voucher_id = ?`,
+      [idOf(normal)],
+    );
     await db.execute(`UPDATE vouchers SET is_optional = 1 WHERE voucher_id = ?`, [idOf(opt)]);
     await db.execute(`UPDATE vouchers SET voucher_type = 'Memorandum' WHERE voucher_id = ?`, [
       idOf(memo),
@@ -426,5 +441,120 @@ describe('GSTR-1 classification edges', () => {
     expect(ids).toContain(idOf(normal));
     expect(ids).not.toContain(idOf(opt));
     expect(ids).not.toContain(idOf(memo));
+  });
+
+  it('no-GST sale → Not Relevant everywhere; party without (or with junk) GSTIN → B2C, never B2B', async () => {
+    // November, isolated. Walk-in consumer parties: one with NO GSTIN, one with a JUNK value.
+    const walkIn = ledgerId(
+      await ledgerService.create({
+        company_id: companyId,
+        name: 'Walk-in Customer',
+        state: 'Maharashtra',
+        country: 'India',
+        registration_type: 'Unregistered',
+      }),
+    );
+    const junkGstin = ledgerId(
+      await ledgerService.create({
+        company_id: companyId,
+        name: 'Junk GSTIN Customer',
+        gstin: 'ABC123',
+        state: 'Maharashtra',
+        country: 'India',
+        registration_type: 'Unregistered',
+      }),
+    );
+
+    const mkSale = async (ref, ledger_id, ledger_name, day) => {
+      const r = await voucherController.create(null, {
+        company_id: companyId,
+        fy_id: fyId,
+        voucher_type: 'Sales',
+        date: `2026-11-${day}`,
+        status: 'Regular',
+        reference_number: ref,
+        place_of_supply: 'Maharashtra',
+        party_ledger_id: ledger_id,
+        party_name: ledger_name,
+        is_accounting_voucher: 1,
+        is_invoice: 1,
+        is_inventory_voucher: 1,
+        entries: [
+          { ledger_id, ledger_name, type: 'Dr', amount: 1180, currency: 'INR' },
+          {
+            ledger_id: salesId,
+            ledger_name: 'GST Sales A/c',
+            type: 'Cr',
+            amount: 1180,
+            currency: 'INR',
+          },
+        ],
+        stock_entries: [{ item_name: 'Widget', quantity: 1, rate: 1000, hsn_code: '8471' }],
+      });
+      expect(r.success).toBe(true);
+      return r.voucher.voucher_id;
+    };
+    const chargeGst = (vid) =>
+      db.execute(
+        `UPDATE voucher_stock_entries SET gst_rate = 18, cgst_amount = 90, sgst_amount = 90 WHERE voucher_id = ?`,
+        [vid],
+      );
+
+    // (1) GST charged, valid-GSTIN registered party → B2B.
+    const b2bVid = await mkSale('NOV-B2B', partyId, 'GST Customer', '04');
+    await chargeGst(b2bVid);
+    // (2) GST charged, unregistered party WITHOUT GSTIN → B2C (b2cs), never B2B.
+    const b2cVid = await mkSale('NOV-B2C', walkIn, 'Walk-in Customer', '05');
+    await chargeGst(b2cVid);
+    // (3) GST charged, unregistered party with a JUNK GSTIN value → still B2C.
+    const junkVid = await mkSale('NOV-JUNK', junkGstin, 'Junk GSTIN Customer', '06');
+    await chargeGst(junkVid);
+    // (4) NO GST anywhere → Not Relevant, excluded from the return.
+    const noGstVid = await mkSale('NOV-NOGST', partyId, 'GST Customer', '07');
+
+    const sec = async (section) =>
+      (
+        await reconciliationService.getReturnVouchers(companyId, fyId, '112026', {
+          bucket: 'included',
+          section,
+        })
+      ).rows.map((r) => r.voucher_id);
+    const b2bIds = await sec('b2b');
+    const b2csIds = await sec('b2cs');
+    expect(b2bIds).toContain(b2bVid);
+    expect(b2bIds).not.toContain(b2cVid);
+    expect(b2bIds).not.toContain(junkVid);
+    expect(b2bIds).not.toContain(noGstVid);
+    expect(b2csIds).toContain(b2cVid);
+    expect(b2csIds).toContain(junkVid);
+
+    // No-GST sale sits under Not Relevant, not under any included section.
+    const nr = await reconciliationService.getReturnVouchers(companyId, fyId, '112026', {
+      bucket: 'not_relevant',
+      voucher_type: 'Sales',
+    });
+    expect(nr.rows.map((r) => r.voucher_id)).toContain(noGstVid);
+    const included = await reconciliationService.getReturnVouchers(companyId, fyId, '112026', {
+      bucket: 'included',
+    });
+    expect(included.rows.map((r) => r.voucher_id)).not.toContain(noGstVid);
+
+    // GSTR-1 payload mirrors the same: B2B has only the valid-GSTIN invoice; the
+    // no-GSTIN + junk-GSTIN sales aggregate into B2CS; the no-GST sale is absent.
+    const ret = await gstr1Service.generateGSTR1(companyId, fyId, '112026');
+    expect(ret.success).toBe(true);
+    // inum carries the voucher NUMBER — resolve each created voucher's number.
+    const numOf = async (vid) =>
+      String(
+        (await db.execute(`SELECT voucher_number FROM vouchers WHERE voucher_id = ?`, [vid]))
+          .rows[0].voucher_number,
+      );
+    const b2bInvoices = (ret.payload.b2b || []).flatMap((p) => p.inv.map((i) => String(i.inum)));
+    expect(b2bInvoices).toContain(await numOf(b2bVid));
+    expect(b2bInvoices).not.toContain(await numOf(b2cVid));
+    expect(b2bInvoices).not.toContain(await numOf(junkVid));
+    expect(b2bInvoices).not.toContain(await numOf(noGstVid));
+    const b2csTaxable = (ret.payload.b2cs || []).reduce((t, r) => t + (r.txval || 0), 0);
+    expect(Math.round(b2csTaxable)).toBe(2000); // the two consumer sales, 1000 each
   });
 });

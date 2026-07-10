@@ -334,7 +334,11 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
 
   const exceptions = [];
   const partyRegistered = v.party_reg_type && v.party_reg_type !== 'Unregistered';
-  if (partyRegistered && (!v.party_gstin || String(v.party_gstin).length !== 15)) {
+  // INWARD documents (purchases / purchase-side notes) need the supplier's GSTIN
+  // for ITC / 2A / 2B matching — a registered supplier without one is a correction.
+  // An OUTWARD sale needs NO recipient GSTIN: under GST law a recipient without a
+  // GSTIN is simply unregistered, so the sale classifies as B2C (never an error).
+  if (isInward && partyRegistered && (!v.party_gstin || String(v.party_gstin).length !== 15)) {
     exceptions.push('Party is registered but its GSTIN/UIN is missing or invalid');
   }
   // Place of supply is auto-derived from the party/company state (as in TallyPrime), so a
@@ -357,12 +361,35 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   if (exceptions.length)
     return { bucket: 'uncertain', group: null, category: null, section: null, exceptions };
 
+  // A voucher that carries NO GST at all — no Duties & Taxes posting, no tax on
+  // any stock line and no GST rate on any item — was billed without GST. It is
+  // not part of any GST return (Tally: "Not relevant in this Return"); it must
+  // NOT be counted as an included nil-rated supply. Data-quality exceptions
+  // above still win (a taxable-but-broken voucher stays Uncertain).
+  const carriesAnyGst =
+    Number(v.gst_ledger_lines || 0) > 0 || taxBooked > 0.01 || Number(v.max_rate || 0) > 0;
+  if (!carriesAnyGst) {
+    return {
+      bucket: 'not_relevant',
+      group: 'non_gst',
+      category: 'Other Transactions',
+      section: null,
+      exceptions: [],
+    };
+  }
+
   // Inward reconciliations don't use GSTR-1 outward sections.
   if (inwardRecon)
     return { bucket: 'included', group: null, category: null, section: null, exceptions: [] };
 
-  // GSTR-1 section for an included outward voucher.
-  const hasGstin = !!v.party_gstin;
+  // GSTR-1 section for an included outward voucher. B2B strictly requires a
+  // VALID 15-char GSTIN — a party without one (or with a malformed value) is a
+  // consumer sale and must classify as B2C, never B2B.
+  const hasGstin = GSTIN_RE.test(
+    String(v.party_gstin || '')
+      .trim()
+      .toUpperCase(),
+  );
   let section = null;
   if (isNote(v.voucher_type)) section = hasGstin ? 'cdnr' : 'cdnur';
   else if (Number(v.max_rate || 0) === 0) section = 'nil';
