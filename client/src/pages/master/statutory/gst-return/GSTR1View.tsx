@@ -60,6 +60,11 @@ export default function GSTR1View() {
   } | null>(null);
   const [showErrorsDialog, setShowErrorsDialog] = useState(false);
   const [fetchedRegistration, setFetchedRegistration] = useState<any>(null);
+  // True once we know which registration to scope to (the drilled-in one, or the company's
+  // first registration when opened standalone). Gates the first data load so the report
+  // always takes the live, registration-scoped path — identical to the Track drill — instead
+  // of the stale company-wide cached snapshot the backend returns for a null registration.
+  const [regResolved, setRegResolved] = useState(false);
   // F5 Nature View — included outward supplies split Local/Interstate × Taxable/Exempted.
   const [natureView, setNatureView] = useState(false);
   const [includedRows, setIncludedRows] = useState<any[]>([]);
@@ -73,18 +78,10 @@ export default function GSTR1View() {
 
   const loadData = async (forceGenerate = false) => {
     if (!companyId || !fyId) return;
-
-    // Fetch registration if not passed
-    if (!location.state?.registration && !fetchedRegistration) {
-      try {
-        const regRes = await window.api.gstRegistration.getAll(companyId);
-        if (regRes.success && regRes.gstRegistrations && regRes.gstRegistrations.length > 0) {
-          setFetchedRegistration(regRes.gstRegistrations[0]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch registrations', err);
-      }
-    }
+    // Wait until the registration is resolved, so we always compute live and
+    // registration-scoped (exactly like the Track drill) — never the stale company-wide
+    // cached snapshot the backend returns when the registration id is null.
+    if (!regResolved) return;
     try {
       setLoading(true);
       setError(null);
@@ -166,9 +163,36 @@ export default function GSTR1View() {
     else setError(res.error || 'Failed to mark as filed.');
   };
 
+  // Resolve which registration to scope to before the first load. Drilled in from Track →
+  // use that registration. Opened standalone → default to the company's first registration.
+  // Either way regId ends up non-null, forcing the live compute path.
+  useEffect(() => {
+    if (location.state?.registration) {
+      setRegResolved(true);
+      return;
+    }
+    if (!companyId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const regRes = await window.api.gstRegistration.getAll(companyId);
+        if (!cancelled && regRes.success && regRes.gstRegistrations?.length > 0) {
+          setFetchedRegistration(regRes.gstRegistrations[0]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch registrations', err);
+      } finally {
+        if (!cancelled) setRegResolved(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId, location.state]);
+
   useEffect(() => {
     loadData(false);
-  }, [companyId, fyId, selectedMonth, selectedYear]);
+  }, [companyId, fyId, selectedMonth, selectedYear, regResolved, fetchedRegistration]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
