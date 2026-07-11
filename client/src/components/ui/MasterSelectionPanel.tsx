@@ -51,9 +51,13 @@ export default function MasterSelectionPanel<T>({
 
   const filtered = items.filter((item) => filterFn(item, search));
 
+  // Keys are registered by RightActionPanel (autoShortcuts) — badge and
+  // handler are one source of truth. Esc must work from the search box.
   const selectionActions = [
     { key: 'Alt+C', label: createLabel, onClick: onCreate },
     { key: 'Esc', label: 'Quit', onClick: onCancel },
+    { key: 'Alt+C', label: createLabel, onClick: onCreate },
+    { key: 'Esc', label: 'Quit', onClick: onCancel, allowInInputs: true },
   ];
 
   return (
@@ -79,7 +83,7 @@ export default function MasterSelectionPanel<T>({
             emptyMessage={emptyMessage}
           />
         </div>
-        <RightActionPanel actions={selectionActions} />
+        <RightActionPanel actions={selectionActions} autoShortcuts />
       </div>
 
       <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50">

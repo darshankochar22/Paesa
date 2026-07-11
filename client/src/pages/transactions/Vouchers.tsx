@@ -23,6 +23,7 @@ import { useEInvoiceFlow } from './hooks/useEInvoiceFlow';
 import { EInvoiceGeneratePrompt, EInvoiceInfoPopup } from './components/popups/EInvoiceFlowDialogs';
 import VoucherPrintPopup from './components/popups/VoucherPrintPopup';
 import { INVENTORY_CREATION_TYPES, ORDER_CREATION_TYPES } from './voucherConstants';
+import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
 
 export default function Vouchers() {
   const navigate = useNavigate();
@@ -358,44 +359,39 @@ export default function Vouchers() {
     [voucherTypeChildren, form.setVoucherType, form.setVoucherClass],
   );
 
+  // TallyPrime voucher-open + header shortcuts, via the central registry.
+  // Exact-combo matching means plain F5 (Payment) and Alt+F5 (Debit Note) no
+  // longer collide, and all F-keys fire even while a field is focused — as in
+  // TallyPrime. The complex Escape / Alt+A / Alt+H logic stays in the effect
+  // below (it depends on many popup-open guards).
+  useShortcuts(
+    [
+      { keys: 'F2', handler: () => setShowDatePicker(true) },
+      { keys: 'F3', handler: () => setShowTaxRegistrationPopup(true) },
+      { keys: 'F10', handler: () => setShowOtherVouchers(true) },
+      { keys: 'F4', handler: () => handleTypeKey('Contra') },
+      { keys: 'F5', handler: () => handleTypeKey('Payment') },
+      { keys: 'F6', handler: () => handleTypeKey('Receipt') },
+      { keys: 'F7', handler: () => handleTypeKey('Journal') },
+      { keys: 'F8', handler: () => handleTypeKey('Sales') },
+      { keys: 'F9', handler: () => handleTypeKey('Purchase') },
+      { keys: 'Alt+F5', handler: () => handleTypeKey('Debit Note') },
+      { keys: 'Alt+F6', handler: () => handleTypeKey('Credit Note') },
+      { keys: 'Alt+F7', handler: () => handleTypeKey('Stock Journal') },
+      { keys: 'Alt+F8', handler: () => handleTypeKey('Delivery Note') },
+      { keys: 'Alt+F9', handler: () => handleTypeKey('Receipt Note') },
+      { keys: 'Ctrl+F4', handler: () => handleTypeKey('Payroll') },
+      { keys: 'Ctrl+F5', handler: () => handleTypeKey('Rejection Out') },
+      { keys: 'Ctrl+F6', handler: () => handleTypeKey('Rejection In') },
+      { keys: 'Ctrl+F7', handler: () => handleTypeKey('Physical Stock') },
+      { keys: 'Ctrl+F8', handler: () => handleTypeKey('Sales Order') },
+      { keys: 'Ctrl+F9', handler: () => handleTypeKey('Purchase Order') },
+    ],
+    { priority: PRIORITY.SCREEN },
+  );
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'F2') {
-        e.preventDefault();
-        setShowDatePicker(true);
-      }
-      if (e.key === 'F3') {
-        e.preventDefault();
-        setShowTaxRegistrationPopup(true);
-      }
-      if (e.key === 'F4') {
-        e.preventDefault();
-        handleTypeKey('Contra');
-      }
-      if (e.key === 'F5') {
-        e.preventDefault();
-        handleTypeKey('Payment');
-      }
-      if (e.key === 'F6') {
-        e.preventDefault();
-        handleTypeKey('Receipt');
-      }
-      if (e.key === 'F7') {
-        e.preventDefault();
-        handleTypeKey('Journal');
-      }
-      if (e.key === 'F8') {
-        e.preventDefault();
-        handleTypeKey('Sales');
-      }
-      if (e.key === 'F9') {
-        e.preventDefault();
-        handleTypeKey('Purchase');
-      }
-      if (e.key === 'F10') {
-        e.preventDefault();
-        setShowOtherVouchers(true);
-      }
       if (e.altKey && (e.key === 'h' || e.key === 'H')) {
         e.preventDefault();
         if (effectiveVoucherType === 'Contra') {
@@ -416,7 +412,8 @@ export default function Vouchers() {
           );
         }
       }
-      if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+      // Ctrl+A is TallyPrime's Accept; Alt+A kept as an alias.
+      if ((e.altKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
         if (canAccept) handleAccept();
       }

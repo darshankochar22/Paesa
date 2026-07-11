@@ -260,7 +260,7 @@ export default function RightSidebar({
           disabled={!canAccept}
           className="w-full h-auto justify-start rounded-none p-0 text-xs font-normal text-black hover:bg-transparent hover:underline disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-100"
         >
-          <span className="text-gray-500">A</span>: Accept
+          <span className="text-gray-500">Ctrl+A</span>: Accept
         </Button>
       </div>
       <div className="border-t border-gray-300 px-2 py-1">
@@ -269,7 +269,7 @@ export default function RightSidebar({
           onClick={onQuit}
           className="w-full h-auto justify-start rounded-none p-0 text-xs font-normal text-black hover:bg-transparent hover:underline"
         >
-          <span className="text-gray-500">Q</span>: Quit
+          <span className="text-gray-500">Esc</span>: Quit
         </Button>
       </div>
     </div>

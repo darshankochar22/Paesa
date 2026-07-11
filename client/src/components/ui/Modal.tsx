@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { useEscape } from '@/hooks/useEscape';
+import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
 
 // Local modal — sharp, zinc, no radix/portal lib. A centered dialog over a
 // dimmed backdrop. For full-screen report/voucher views use FullScreenPanel
@@ -24,6 +25,12 @@ export default function Modal({
   children,
 }: ModalProps) {
   useEscape(onClose, open);
+  // DIALOG priority: while a modal is open, Esc closes it — never the
+  // panel/screen underneath.
+  useShortcuts([{ keys: 'Escape', handler: onClose, allowInInputs: true }], {
+    priority: PRIORITY.DIALOG,
+    enabled: open,
+  });
 
   if (!open) return null;
 
@@ -31,6 +38,7 @@ export default function Modal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40"
       onMouseDown={onClose}
+      role="dialog"
     >
       <div
         className={cn(

@@ -2,8 +2,11 @@ import * as React from 'react';
 import Button from './Button';
 import { useEscape } from '@/hooks/useEscape';
 
+import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
+
 // The Tally "Accept? Yes/No" prompt repeated across ~70% of Create/Alter forms.
-// Y / Enter confirms, N / Esc cancels.
+// Y / Enter confirms, N / Esc cancels — registered at DIALOG priority so no
+// underlying panel/screen shortcut can react while the prompt is open.
 
 export interface ConfirmModalProps {
   open: boolean;
@@ -39,6 +42,13 @@ export default function ConfirmModal({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onConfirm, onCancel]);
+  useShortcuts(
+    [
+      { keys: ['Y', 'Enter'], handler: onConfirm, allowInInputs: true },
+      { keys: ['N', 'Escape'], handler: onCancel, allowInInputs: true },
+    ],
+    { priority: PRIORITY.DIALOG, enabled: open },
+  );
 
   if (!open) return null;
 

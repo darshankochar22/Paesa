@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import GoToPalette from '@/components/GoToPalette';
 import { useGlobalEnterNavigation } from '@/hooks/useEnterNavigation';
 
 export default function Layout() {
@@ -12,6 +13,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <Footer />
+      <GoToPalette />
     </div>
   );
 }

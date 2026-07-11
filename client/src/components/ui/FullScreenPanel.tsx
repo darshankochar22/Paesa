@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { useEscape } from '@/hooks/useEscape';
 import ReportHeader, { type ReportHeaderCrumb } from './ReportHeader';
+import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
 
 // The single shared full-screen panel for ALL reports, vouchers, and ledger
 // detail views — the TallyPrime interaction pattern: a full-height view that
@@ -56,6 +57,19 @@ export default function FullScreenPanel({
       return false;
     close();
   });
+  // Esc closes — via the central registry, so when panels stack only the
+  // topmost one closes, and typing/dialog guards are applied uniformly.
+  useShortcuts(
+    [
+      {
+        keys: 'Escape',
+        handler: () => {
+          close();
+        },
+      },
+    ],
+    { priority: PRIORITY.PANEL },
+  );
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-white font-mono">

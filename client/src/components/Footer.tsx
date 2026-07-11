@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCompany } from '../context/CompanyContext';
 import { popEscape } from '../lib/escapeStack';
+import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
 import CompanyFeatures from './CompanyFeatures';
 
 export default function Footer() {
@@ -31,21 +32,25 @@ export default function Footer() {
     window.dispatchEvent(event);
   };
 
-  // Keyboard listener for global F11 (Company Features) / F12 (Configure) triggers
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F11' || e.key === 'f11') {
-        e.preventDefault();
-        setShowFeatures((prev) => !prev);
-      }
-      if (e.key === 'F12' || e.key === 'f12') {
-        e.preventDefault();
-        setShowConfigure((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  // Global F11 (Company Features) / F12 (Configure) — work everywhere, even
+  // while typing or with a dialog open, like TallyPrime.
+  useShortcuts(
+    [
+      {
+        keys: 'F11',
+        handler: () => setShowFeatures((prev) => !prev),
+        allowInInputs: true,
+        allowInDialogs: true,
+      },
+      {
+        keys: 'F12',
+        handler: () => setShowConfigure((prev) => !prev),
+        allowInInputs: true,
+        allowInDialogs: true,
+      },
+    ],
+    { priority: PRIORITY.GLOBAL },
+  );
 
   const handleQuit = () => {
     // Pop exactly one layer off the central escape stack (popup → drill →

@@ -3,7 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import MenuCard, { type OptionType } from '@/components/ui/Card';
 import { useCompany } from '@/context/CompanyContext';
 import { exportElementToPdf } from '@/lib/exportDomPdf';
+import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
 import GstPortalLoginDialog from '@/components/tally-ui/GstPortalLoginDialog';
+
+// TallyPrime top-menu hotkeys: Alt+letter opens the menu (F1 for Help).
+// Registered as deferred globals, so a screen that already uses the same
+// combo (e.g. Alt+E export on reports) keeps winning there.
+const MENU_HOTKEYS: Record<string, string> = {
+  Company: 'Alt+K',
+  Data: 'Alt+Y',
+  Exchange: 'Alt+Z',
+  Import: 'Alt+O',
+  Export: 'Alt+E',
+  Share: 'Alt+M',
+  Print: 'Alt+P',
+  Help: 'F1',
+};
+
+const HOTKEY_BADGES: Record<string, string> = Object.fromEntries(
+  Object.entries(MENU_HOTKEYS).map(([name, combo]) => [name, combo.replace('Alt+', '')]),
+);
 
 export default function Navbar() {
   const { selectedCompany, setSelectedCompany } = useCompany();
@@ -54,6 +73,22 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useShortcuts(
+    Object.entries(MENU_HOTKEYS).map(([name, combo]) => ({
+      keys: combo,
+      handler: () => setOpenMenu((prev) => (prev === name ? '' : name)),
+      defer: true,
+      allowInInputs: true,
+    })),
+    { priority: PRIORITY.GLOBAL },
+  );
+
+  // Esc closes an open top menu before anything else reacts to it.
+  useShortcuts([{ keys: 'Escape', handler: () => setOpenMenu(''), allowInInputs: true }], {
+    priority: PRIORITY.POPUP,
+    enabled: openMenu !== '',
+  });
 
   const details = [
     {
@@ -207,6 +242,11 @@ export default function Navbar() {
             className="px-2 py-1 hover:bg-gray-100 rounded"
             onClick={() => setOpenMenu(openMenu === section.name ? '' : section.name)}
           >
+            {HOTKEY_BADGES[section.name] && (
+              <span className="text-zinc-400 font-semibold mr-1">
+                {HOTKEY_BADGES[section.name]}:
+              </span>
+            )}
             {section.name}
           </button>
 

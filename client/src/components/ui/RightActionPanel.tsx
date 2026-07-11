@@ -1,23 +1,53 @@
+import { PRIORITY, useShortcuts, type ShortcutBinding } from '@/lib/shortcuts';
+
 export interface RightPanelAction {
   key: string; // Keyboard shortcut label, e.g. "F4", "F5", "Esc", "Ctrl+A"
   label: string; // Description, e.g. "Contra", "Payment", "Quit", "Accept"
   onClick: () => void; // Action callback
   active?: boolean; // Whether this is the active mode/state
   disabled?: boolean; // Whether this action is disabled
-  shortcutKey?: string; // Optional actual event.key code to match, e.g. "F4", "F5"
+  shortcutKey?: string; // Optional combo to bind when it differs from `key`, e.g. "Alt+F5"
+  /** Fire this action's shortcut even while typing in an input (see lib/shortcuts defaults). */
+  allowInInputs?: boolean;
 }
 
 interface Props {
   actions: RightPanelAction[];
   title?: string;
   className?: string;
+  /**
+   * Register each action's `shortcutKey ?? key` on the central shortcut
+   * registry so the keys actually work — the badge and the handler stay one
+   * source of truth. Opt-in: leave off for screens that still wire their own
+   * keydown listeners for these keys (double-fire).
+   */
+  autoShortcuts?: boolean;
+  /** Registry priority when autoShortcuts is on. Default PRIORITY.PANEL. */
+  shortcutPriority?: number;
 }
 
 /**
  * Beautiful, premium Black & White Tally-style Right Action Panel.
  * Provides quick clickable action buttons with keyboard shortcut indicators.
  */
-export default function RightActionPanel({ actions, title = 'Actions', className = '' }: Props) {
+export default function RightActionPanel({
+  actions,
+  title = 'Actions',
+  className = '',
+  autoShortcuts = false,
+  shortcutPriority = PRIORITY.PANEL,
+}: Props) {
+  const bindings: ShortcutBinding[] = autoShortcuts
+    ? actions
+        .filter((act) => !act.disabled && (act.shortcutKey ?? act.key))
+        .map((act) => ({
+          keys: act.shortcutKey ?? act.key,
+          handler: act.onClick,
+          allowInInputs: act.allowInInputs,
+        }))
+    : [];
+  useShortcuts(bindings, { priority: shortcutPriority, enabled: autoShortcuts });
+
   return (
     <div
       className={`w-44 border-l border-zinc-200 flex flex-col shrink-0 bg-white select-none sticky right-0 top-0 h-full z-20 ${className}`}

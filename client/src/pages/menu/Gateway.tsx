@@ -1,38 +1,35 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
+
+// TallyPrime-style menu hotkey: a capital letter placed mid-word marks the
+// hotkey ('CHart of Accounts' → H, 'Day BooK' → K, 'DashbOard' → O); labels
+// without one use their first letter.
+function hotkeyMatch(label: string): { char: string; index: number } {
+  const mid = label.match(/\B[A-Z]/);
+  if (mid && mid.index !== undefined) return { char: mid[0], index: mid.index };
+  const first = label.match(/[A-Za-z]/);
+  return first && first.index !== undefined
+    ? { char: first[0], index: first.index }
+    : { char: '', index: -1 };
+}
 
 function renderLabel(label: string) {
-  const parts: React.ReactNode[] = [];
-  let i = 0;
-  let boldUsed = false;
+  const { index } = hotkeyMatch(label);
+  if (index < 0) return <>{label}</>;
+  return (
+    <>
+      {label.slice(0, index)}
+      <span className="font-bold underline">{label[index]}</span>
+      {label.slice(index + 1)}
+    </>
+  );
+}
 
-  while (i < label.length) {
-    if (!boldUsed && label[i] === label[i].toUpperCase() && label[i].match(/[A-Z]/)) {
-      let j = i + 1;
-      while (j < label.length && label[j] === label[j].toUpperCase() && label[j].match(/[A-Z]/)) {
-        j++;
-      }
-      parts.push(
-        <span key={i} className="font-bold">
-          {label.slice(i, j)}
-        </span>,
-      );
-      boldUsed = true;
-      i = j;
-    } else {
-      let j = i + 1;
-      while (
-        j < label.length &&
-        !(!boldUsed && label[j] === label[j].toUpperCase() && label[j].match(/[A-Z]/))
-      ) {
-        j++;
-      }
-      parts.push(<span key={i}>{label.slice(i, j)}</span>);
-      i = j;
-    }
-  }
-
-  return <>{parts}</>;
+interface MenuItem {
+  label: string;
+  route?: string;
+  onClick?: () => void;
 }
 
 const gatewaySections = [
@@ -113,10 +110,72 @@ function Panel({
   onBack,
 }: {
   title: string;
-  sections: { title: string; items: { label: string; route: string }[] }[];
-  bottomItems?: { label: string; onClick?: () => void; route?: string }[];
+  sections: { title: string; items: MenuItem[] }[];
+  bottomItems?: MenuItem[];
   onBack?: () => void;
 }) {
+  const navigate = useNavigate();
+  const [selected, setSelected] = useState(0);
+
+  // Flat item list in visual order — arrow keys walk it, hotkeys jump into it.
+  const flat: MenuItem[] = [...sections.flatMap((s) => s.items), ...(bottomItems ?? [])];
+
+  useEffect(() => {
+    setSelected(0);
+  }, [title]);
+
+  const activate = (item: MenuItem | undefined) => {
+    if (!item) return;
+    if (item.route) navigate(item.route);
+    else item.onClick?.();
+  };
+
+  const flatIndexOf = (item: MenuItem) => flat.indexOf(item);
+
+  useShortcuts(
+    [
+      {
+        keys: 'ArrowDown',
+        handler: () => setSelected((p) => (p + 1) % flat.length),
+      },
+      {
+        keys: 'ArrowUp',
+        handler: () => setSelected((p) => (p - 1 + flat.length) % flat.length),
+      },
+      {
+        keys: 'Enter',
+        handler: () => {
+          // let a focused link/button keep its native Enter activation
+          const el = document.activeElement;
+          if (el instanceof HTMLAnchorElement || el instanceof HTMLButtonElement) return false;
+          activate(flat[selected]);
+        },
+      },
+      {
+        keys: 'Escape',
+        handler: () => {
+          if (!onBack) return false;
+          onBack();
+        },
+      },
+      // Tally menu hotkeys: press the highlighted letter to open directly.
+      ...Array.from(new Set(flat.map((it) => hotkeyMatch(it.label).char.toLowerCase()))).map(
+        (char) => ({
+          keys: char,
+          handler: () => {
+            activate(flat.find((it) => hotkeyMatch(it.label).char.toLowerCase() === char));
+          },
+        }),
+      ),
+    ],
+    { priority: PRIORITY.SCREEN },
+  );
+
+  const itemClass = (item: MenuItem) =>
+    `text-left px-2 py-1 transition-colors ${
+      flatIndexOf(item) === selected ? 'bg-black text-white' : 'hover:bg-zinc-100'
+    }`;
+
   return (
     <aside className="w-96 mx-auto mt-10 bg-white border shadow-sm flex flex-col px-10 py-10 gap-6">
       <div className="text-xl font-semibold pb-2">{title}</div>
@@ -129,8 +188,9 @@ function Panel({
               {section.items.map((item) => (
                 <Link
                   key={item.label}
-                  to={item.route}
-                  className="text-left rounded px-2 py-1 hover:bg-zinc-100 transition-colors"
+                  to={item.route!}
+                  className={itemClass(item)}
+                  onMouseEnter={() => setSelected(flatIndexOf(item))}
                 >
                   {renderLabel(item.label)}
                 </Link>
@@ -139,7 +199,7 @@ function Panel({
           </div>
         ))}
 
-        {/* Bottom items (Display More Reports / Quit etc) */}
+        {/* Bottom items (Display More Reports / Dashboard etc) */}
         {bottomItems && bottomItems.length > 0 && (
           <div className="flex flex-col gap-1">
             {bottomItems.map((item) =>
@@ -147,7 +207,8 @@ function Panel({
                 <Link
                   key={item.label}
                   to={item.route}
-                  className="text-left rounded px-2 py-1 hover:bg-zinc-100 transition-colors"
+                  className={itemClass(item)}
+                  onMouseEnter={() => setSelected(flatIndexOf(item))}
                 >
                   {renderLabel(item.label)}
                 </Link>
@@ -155,7 +216,8 @@ function Panel({
                 <button
                   key={item.label}
                   onClick={item.onClick}
-                  className="text-left rounded px-2 py-1 hover:bg-zinc-100 transition-colors"
+                  className={itemClass(item)}
+                  onMouseEnter={() => setSelected(flatIndexOf(item))}
                 >
                   {renderLabel(item.label)}
                 </button>
@@ -167,9 +229,9 @@ function Panel({
         {onBack && (
           <button
             onClick={onBack}
-            className="text-left rounded px-2 py-1 hover:bg-zinc-100 transition-colors text-zinc-400 text-sm"
+            className="text-left px-2 py-1 hover:bg-zinc-100 transition-colors text-zinc-400 text-sm"
           >
-            ← Back
+            ← Back (Esc)
           </button>
         )}
       </div>
