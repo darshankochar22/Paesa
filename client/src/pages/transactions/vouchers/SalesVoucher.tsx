@@ -277,6 +277,7 @@
 import { useState } from 'react';
 import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
+import StockItemDescription from '../components/StockItemDescription';
 import VatAdditionalDetailsPopup from '../components/popups/VatAdditionalDetailsPopup';
 import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
 import EInvoiceRow from '../components/EInvoiceRow';
@@ -443,34 +444,44 @@ export default function SalesVoucher({
               key={row.id}
               className="flex items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
             >
-              <div className="flex-1 flex items-center gap-1">
-                <input
-                  data-stock-item={idx + 1}
-                  type="text"
-                  className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? '')}
-                  placeholder={idx === 0 ? 'Select Item…' : ''}
-                  onFocus={() => form.handleFieldFocus({ type: 'stockItem', rowId: row.id })}
-                  onChange={(e) => {
-                    form.setStockSearchTerm(e.target.value);
-                    if (!row.stockItem) form.handleFieldFocus({ type: 'stockItem', rowId: row.id });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== 'Enter' || !row.stockItem) return;
-                    e.preventDefault();
-                    focusStockQty(idx);
-                  }}
-                  autoComplete="off"
-                />
-                {form.stockEntries.length > 1 && (
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => form.handleRemoveStockRow(row.id)}
-                    className="text-xs text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
-                  >
-                    &times;
-                  </button>
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="flex items-center gap-1">
+                  <input
+                    data-stock-item={idx + 1}
+                    type="text"
+                    className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                    value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? '')}
+                    placeholder={idx === 0 ? 'Select Item…' : ''}
+                    onFocus={() => form.handleFieldFocus({ type: 'stockItem', rowId: row.id })}
+                    onChange={(e) => {
+                      form.setStockSearchTerm(e.target.value);
+                      if (!row.stockItem)
+                        form.handleFieldFocus({ type: 'stockItem', rowId: row.id });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' || !row.stockItem) return;
+                      e.preventDefault();
+                      focusStockQty(idx);
+                    }}
+                    autoComplete="off"
+                  />
+                  {form.stockEntries.length > 1 && (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => form.handleRemoveStockRow(row.id)}
+                      className="text-xs text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+                {row.stockItem && (
+                  <StockItemDescription
+                    itemName={row.stockItem.name}
+                    value={row.descriptionRaw}
+                    onChange={(v) => form.handleUpdateStockRow(row.id, { descriptionRaw: v })}
+                  />
                 )}
               </div>
 
@@ -490,7 +501,17 @@ export default function SalesVoucher({
                     onKeyDown={(e) => {
                       if (e.key !== 'Enter') return;
                       e.preventDefault();
-                      focusStockRate(idx);
+                      if (showBilled) {
+                        setTimeout(() => {
+                          (
+                            document.querySelector(
+                              `[data-stock-billed="${idx + 1}"]`,
+                            ) as HTMLInputElement | null
+                          )?.focus();
+                        }, 50);
+                      } else {
+                        focusStockRate(idx);
+                      }
                     }}
                   />
                 </div>
@@ -498,6 +519,7 @@ export default function SalesVoucher({
                   <div className="flex-1 text-right pr-1">
                     {/* ASSUMED — falls back to Actual qty if your hook has no separate Billed field */}
                     <input
+                      data-stock-billed={idx + 1}
                       type="text"
                       inputMode="decimal"
                       className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
@@ -528,7 +550,17 @@ export default function SalesVoucher({
                   onKeyDown={(e) => {
                     if (e.key !== 'Enter') return;
                     e.preventDefault();
-                    proceedToNextStockRow(idx);
+                    if (showDisc) {
+                      setTimeout(() => {
+                        (
+                          document.querySelector(
+                            `[data-stock-disc="${idx + 1}"]`,
+                          ) as HTMLInputElement | null
+                        )?.focus();
+                      }, 50);
+                    } else {
+                      proceedToNextStockRow(idx);
+                    }
                   }}
                 />
               </div>
@@ -539,6 +571,7 @@ export default function SalesVoucher({
               {showDisc && (
                 <div className="w-16 text-right pr-1">
                   <input
+                    data-stock-disc={idx + 1}
                     type="text"
                     inputMode="decimal"
                     className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"

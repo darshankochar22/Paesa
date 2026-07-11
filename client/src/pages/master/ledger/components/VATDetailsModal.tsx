@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
 export interface VATDetails {
   type_of_dealer: string;
   vat_tin_no: string;
   cst_no: string;
-  sales_purchases_against_form_c: "Yes" | "No";
+  sales_purchases_against_form_c: 'Yes' | 'No';
 }
 
 export const EMPTY_VAT_DETAILS: VATDetails = {
-  type_of_dealer: "Unknown",
-  vat_tin_no: "",
-  cst_no: "",
-  sales_purchases_against_form_c: "No",
+  type_of_dealer: 'Unknown',
+  vat_tin_no: '',
+  cst_no: '',
+  sales_purchases_against_form_c: 'No',
 };
 
 interface Props {
@@ -22,21 +22,15 @@ interface Props {
   onAccept: (state: VATDetails) => void;
 }
 
-const rowCls = "flex items-center min-h-[22px] px-3 py-[2px]";
-const labelCls = "text-[11px] text-zinc-700 w-52 shrink-0";
-const sepCls = "text-[11px] text-zinc-500 mr-3 shrink-0";
+const rowCls = 'flex items-center min-h-[22px] px-3 py-[2px]';
+const labelCls = 'text-[11px] text-zinc-700 w-52 shrink-0';
+const sepCls = 'text-[11px] text-zinc-500 mr-3 shrink-0';
 const selectCls =
-  "text-[11px] text-zinc-900 bg-white border border-zinc-300 px-1 py-[1px] outline-none focus:border-zinc-500 transition-colors";
+  'text-[11px] text-zinc-900 bg-white border border-zinc-300 px-1 py-[1px] outline-none focus:border-zinc-500 transition-colors';
 const inputCls =
-  "text-[11px] text-zinc-900 bg-white border border-zinc-300 px-1.5 py-[1px] outline-none focus:border-zinc-500 transition-colors flex-1";
+  'text-[11px] text-zinc-900 bg-white border border-zinc-300 px-1.5 py-[1px] outline-none focus:border-zinc-500 transition-colors flex-1';
 
-export default function VATDetailsModal({
-  isOpen,
-  ledgerName,
-  value,
-  onClose,
-  onAccept,
-}: Props) {
+export default function VATDetailsModal({ isOpen, ledgerName, value, onClose, onAccept }: Props) {
   const [form, setForm] = useState<VATDetails>(value);
 
   // sync if parent value changes while open
@@ -47,11 +41,17 @@ export default function VATDetailsModal({
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); onAccept(form); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+      if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        onAccept(form);
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [isOpen, form, onClose, onAccept]);
 
   if (!isOpen) return null;
@@ -60,9 +60,14 @@ export default function VATDetailsModal({
     setForm((f) => ({ ...f, [key]: val }));
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/10 pt-32">
-      <div className="bg-white border border-zinc-400 shadow-lg flex flex-col" style={{ width: 480 }}>
-
+    <div
+      data-enter-nav-ignore
+      className="fixed inset-0 z-[60] flex items-start justify-center bg-black/10 pt-32"
+    >
+      <div
+        className="bg-white border border-zinc-400 shadow-lg flex flex-col"
+        style={{ width: 480 }}
+      >
         {/* Title */}
         <div className="border-b border-zinc-300 text-center py-1 select-none bg-white">
           <span className="text-[11px] text-zinc-700">VAT Details</span>
@@ -73,7 +78,6 @@ export default function VATDetailsModal({
 
         {/* Body */}
         <div className="py-2">
-
           {/* Type of Dealer */}
           <div className={`${rowCls} bg-[#fffde7]`}>
             <span className={labelCls}>Type of Dealer</span>
@@ -82,7 +86,7 @@ export default function VATDetailsModal({
               autoFocus
               className={selectCls}
               value={form.type_of_dealer}
-              onChange={(e) => set("type_of_dealer", e.target.value)}
+              onChange={(e) => set('type_of_dealer', e.target.value)}
             >
               <option value="Unknown">Unknown</option>
               <option value="Regular">Regular</option>
@@ -97,7 +101,7 @@ export default function VATDetailsModal({
             <input
               className={inputCls}
               value={form.vat_tin_no}
-              onChange={(e) => set("vat_tin_no", e.target.value)}
+              onChange={(e) => set('vat_tin_no', e.target.value)}
               maxLength={15}
             />
           </div>
@@ -109,7 +113,7 @@ export default function VATDetailsModal({
             <input
               className={inputCls}
               value={form.cst_no}
-              onChange={(e) => set("cst_no", e.target.value)}
+              onChange={(e) => set('cst_no', e.target.value)}
               maxLength={15}
             />
           </div>
@@ -122,7 +126,7 @@ export default function VATDetailsModal({
               className={selectCls}
               value={form.sales_purchases_against_form_c}
               onChange={(e) =>
-                set("sales_purchases_against_form_c", e.target.value as "Yes" | "No")
+                set('sales_purchases_against_form_c', e.target.value as 'Yes' | 'No')
               }
             >
               <option value="No">No</option>

@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import type { useVoucherForm } from "../hooks/useVoucherForm";
+import { useRef, useState } from 'react';
+import type { useVoucherForm } from '../hooks/useVoucherForm';
 
 /**
  * Shared body for the flex stock-grid vouchers (Material In/Out, Delivery/Receipt
@@ -28,12 +28,15 @@ export interface StockTransferVoucherConfig {
 // Raw signed balance (e.g. "-242000") → Tally label "2,42,000.00 Cr".
 // Backend convention: positive = Dr, negative = Cr (voucherLedgerHelpers.js).
 function fmtBalance(raw: string | number | null | undefined): string {
-  if (raw === "" || raw == null) return "";
+  if (raw === '' || raw == null) return '';
   const n = Number(raw);
   if (!isFinite(n)) return String(raw);
-  if (Math.abs(n) < 0.01) return "0.00";
-  const amt = Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${amt} ${n > 0 ? "Dr" : "Cr"}`;
+  if (Math.abs(n) < 0.01) return '0.00';
+  const amt = Math.abs(n).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${amt} ${n > 0 ? 'Dr' : 'Cr'}`;
 }
 
 interface Props {
@@ -64,7 +67,7 @@ export default function StockTransferVoucherBody({
           <input
             type="text"
             className="w-44 text-xs bg-transparent outline-none px-1 border-b border-zinc-300 focus:border-zinc-800 font-mono font-semibold"
-            value={form.referenceNumber ?? ""}
+            value={form.referenceNumber ?? ''}
             onChange={(e) => form.setReferenceNumber(e.target.value)}
             autoComplete="off"
           />
@@ -73,7 +76,7 @@ export default function StockTransferVoucherBody({
           <input
             type="date"
             className="text-xs bg-transparent outline-none px-1 border-b border-zinc-300 focus:border-zinc-800 font-mono"
-            value={form.referenceDate ?? ""}
+            value={form.referenceDate ?? ''}
             onChange={(e) => form.setReferenceDate(e.target.value)}
           />
         </div>
@@ -86,16 +89,18 @@ export default function StockTransferVoucherBody({
         <input
           type="text"
           className="flex-1 text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
-          value={form.partyLedger?.name ?? ""}
+          value={form.partyLedger?.name ?? ''}
           placeholder="Select Party…"
-          onFocus={() => form.handleFieldFocus({ type: "party" })}
+          onFocus={() => form.handleFieldFocus({ type: 'party' })}
           onChange={(_e) => {
-            if (!form.partyLedger) form.handleFieldFocus({ type: "party" });
+            if (!form.partyLedger) form.handleFieldFocus({ type: 'party' });
           }}
           autoComplete="off"
         />
         {!config?.showReferenceRow && form.partyBalance && (
-          <span className="text-xs text-zinc-500 ml-2 shrink-0 tabular-nums">{fmtBalance(form.partyBalance)}</span>
+          <span className="text-xs text-zinc-500 ml-2 shrink-0 tabular-nums">
+            {fmtBalance(form.partyBalance)}
+          </span>
         )}
         {(config?.showPriceLevel || config?.showOrderNo) && (
           <div className="flex flex-col gap-0.5 ml-4 shrink-0">
@@ -108,15 +113,20 @@ export default function StockTransferVoucherBody({
                   className="text-xs bg-transparent outline-none font-mono font-semibold text-zinc-700 hover:underline"
                   onClick={() => setShowPriceLevelList((v) => !v)}
                 >
-                  {form.priceLevel || "♦ Not Applicable"}
+                  {form.priceLevel || '♦ Not Applicable'}
                 </button>
                 {showPriceLevelList && (
                   <div className="absolute right-0 top-full z-50 w-52 bg-white border border-zinc-400 shadow-xl">
-                    <div className="bg-zinc-900 text-white text-[11px] font-bold px-2 py-1">List of Price Levels</div>
+                    <div className="bg-zinc-900 text-white text-[11px] font-bold px-2 py-1">
+                      List of Price Levels
+                    </div>
                     <div className="max-h-48 overflow-y-auto">
                       <div
                         className="px-2 py-1 text-xs hover:bg-zinc-100 cursor-pointer"
-                        onClick={() => { form.setPriceLevel(""); setShowPriceLevelList(false); }}
+                        onClick={() => {
+                          form.setPriceLevel('');
+                          setShowPriceLevelList(false);
+                        }}
                       >
                         ♦ Not Applicable
                       </div>
@@ -124,7 +134,10 @@ export default function StockTransferVoucherBody({
                         <div
                           key={name}
                           className="px-2 py-1 text-xs hover:bg-zinc-100 cursor-pointer"
-                          onClick={() => { form.setPriceLevel(name); setShowPriceLevelList(false); }}
+                          onClick={() => {
+                            form.setPriceLevel(name);
+                            setShowPriceLevelList(false);
+                          }}
                         >
                           {name}
                         </div>
@@ -140,8 +153,13 @@ export default function StockTransferVoucherBody({
                 <input
                   type="text"
                   className="w-24 text-xs bg-transparent outline-none px-1 border-b border-zinc-300 focus:border-zinc-800 font-mono font-semibold text-right"
-                  value={form.orderDetails?.order_nos ?? ""}
-                  onChange={(e) => form.setOrderDetails({ ...(form.orderDetails || {}), order_nos: e.target.value })}
+                  value={form.orderDetails?.order_nos ?? ''}
+                  onChange={(e) =>
+                    form.setOrderDetails({
+                      ...(form.orderDetails || {}),
+                      order_nos: e.target.value,
+                    })
+                  }
                   placeholder="1"
                   autoComplete="off"
                 />
@@ -156,7 +174,9 @@ export default function StockTransferVoucherBody({
         <div className="flex items-center border-b border-zinc-200 px-3 py-0.5 bg-white shrink-0">
           <span className="text-xs italic text-zinc-500 w-24 shrink-0 pl-2">Current balance</span>
           <span className="text-xs text-zinc-400 mr-2">:</span>
-          <span className="text-xs text-zinc-600 font-mono tabular-nums">{fmtBalance(form.partyBalance)}</span>
+          <span className="text-xs text-zinc-600 font-mono tabular-nums">
+            {fmtBalance(form.partyBalance)}
+          </span>
         </div>
       )}
 
@@ -170,15 +190,20 @@ export default function StockTransferVoucherBody({
             onClick={() => setShowGodownList((s) => !s)}
             className="flex-1 text-left text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
           >
-            {form.sourceGodown?.name ?? "♦ Not Applicable"}
+            {form.sourceGodown?.name ?? '♦ Not Applicable'}
           </button>
           {showGodownList && (
             <div className="absolute left-28 top-full z-50 w-56 bg-white border border-zinc-400 shadow-xl">
-              <div className="bg-zinc-900 text-white text-[11px] font-bold px-2 py-1">List of Godowns</div>
+              <div className="bg-zinc-900 text-white text-[11px] font-bold px-2 py-1">
+                List of Godowns
+              </div>
               <div className="max-h-60 overflow-y-auto">
                 <div
                   className="px-2 py-1 text-xs hover:bg-zinc-100 cursor-pointer"
-                  onClick={() => { form.setSourceGodown(null); setShowGodownList(false); }}
+                  onClick={() => {
+                    form.setSourceGodown(null);
+                    setShowGodownList(false);
+                  }}
                 >
                   ♦ Not Applicable
                 </div>
@@ -186,7 +211,10 @@ export default function StockTransferVoucherBody({
                   <div
                     key={g.godown_id ?? g.name}
                     className="px-2 py-1 text-xs hover:bg-zinc-100 cursor-pointer"
-                    onClick={() => { form.setSourceGodown(g); setShowGodownList(false); }}
+                    onClick={() => {
+                      form.setSourceGodown(g);
+                      setShowGodownList(false);
+                    }}
                   >
                     {g.name}
                   </div>
@@ -200,31 +228,37 @@ export default function StockTransferVoucherBody({
       {/* Sales / Purchase Ledger (optional) */}
       {config?.salesPurchaseLabel && (
         <>
-        <div className="flex items-center border-b border-zinc-200 px-3 py-1 bg-white shrink-0">
-          <span className="text-xs text-zinc-600 w-24 shrink-0">{config.salesPurchaseLabel}</span>
-          <span className="text-xs text-zinc-400 mr-2">:</span>
-          <input
-            type="text"
-            className="flex-1 text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
-            value={form.salesPurchaseLedger?.name ?? ""}
-            placeholder={`Select ${config.salesPurchaseLabel}…`}
-            onFocus={() => form.handleFieldFocus({ type: "salesPurchase" })}
-            onChange={(_e) => {
-              if (!form.salesPurchaseLedger) form.handleFieldFocus({ type: "salesPurchase" });
-            }}
-            autoComplete="off"
-          />
-          {!config?.showReferenceRow && form.salesPurchaseBalance && (
-            <span className="text-xs text-zinc-500 ml-2 shrink-0 tabular-nums">{fmtBalance(form.salesPurchaseBalance)}</span>
-          )}
-        </div>
-        {config?.showReferenceRow && form.salesPurchaseBalance && (
-          <div className="flex items-center border-b border-zinc-200 px-3 py-0.5 bg-white shrink-0">
-            <span className="text-xs italic text-zinc-500 w-24 shrink-0 pl-2">Current balance</span>
+          <div className="flex items-center border-b border-zinc-200 px-3 py-1 bg-white shrink-0">
+            <span className="text-xs text-zinc-600 w-24 shrink-0">{config.salesPurchaseLabel}</span>
             <span className="text-xs text-zinc-400 mr-2">:</span>
-            <span className="text-xs text-zinc-600 font-mono tabular-nums">{fmtBalance(form.salesPurchaseBalance)}</span>
+            <input
+              type="text"
+              className="flex-1 text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
+              value={form.salesPurchaseLedger?.name ?? ''}
+              placeholder={`Select ${config.salesPurchaseLabel}…`}
+              onFocus={() => form.handleFieldFocus({ type: 'salesPurchase' })}
+              onChange={(_e) => {
+                if (!form.salesPurchaseLedger) form.handleFieldFocus({ type: 'salesPurchase' });
+              }}
+              autoComplete="off"
+            />
+            {!config?.showReferenceRow && form.salesPurchaseBalance && (
+              <span className="text-xs text-zinc-500 ml-2 shrink-0 tabular-nums">
+                {fmtBalance(form.salesPurchaseBalance)}
+              </span>
+            )}
           </div>
-        )}
+          {config?.showReferenceRow && form.salesPurchaseBalance && (
+            <div className="flex items-center border-b border-zinc-200 px-3 py-0.5 bg-white shrink-0">
+              <span className="text-xs italic text-zinc-500 w-24 shrink-0 pl-2">
+                Current balance
+              </span>
+              <span className="text-xs text-zinc-400 mr-2">:</span>
+              <span className="text-xs text-zinc-600 font-mono tabular-nums">
+                {fmtBalance(form.salesPurchaseBalance)}
+              </span>
+            </div>
+          )}
         </>
       )}
 
@@ -264,11 +298,9 @@ export default function StockTransferVoucherBody({
       <div className="flex-1 overflow-y-auto min-h-0 bg-white">
         {form.stockEntries.map((row, idx) => {
           const isItemActive =
-            form.activeField?.type === "stockItem" &&
-            form.activeField.rowId === row.id;
+            form.activeField?.type === 'stockItem' && form.activeField.rowId === row.id;
           const isGodownActive =
-            form.activeField?.type === "stockGodown" &&
-            form.activeField.rowId === row.id;
+            form.activeField?.type === 'stockGodown' && form.activeField.rowId === row.id;
 
           return (
             <div
@@ -281,21 +313,23 @@ export default function StockTransferVoucherBody({
                   data-stock-item={idx + 1}
                   type="text"
                   className="flex-1 text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                  value={isItemActive ? form.stockSearchTerm : (row.stockItem?.name ?? "")}
-                  placeholder={idx === 0 ? "Select Item…" : ""}
-                  onFocus={() =>
-                    form.handleFieldFocus({ type: "stockItem", rowId: row.id })
-                  }
+                  value={isItemActive ? form.stockSearchTerm : (row.stockItem?.name ?? '')}
+                  placeholder={idx === 0 ? 'Select Item…' : ''}
+                  onFocus={() => form.handleFieldFocus({ type: 'stockItem', rowId: row.id })}
                   onChange={(e) => {
                     form.setStockSearchTerm(e.target.value);
-                    if (!row.stockItem)
-                      form.handleFieldFocus({ type: "stockItem", rowId: row.id });
+                    if (!row.stockItem) form.handleFieldFocus({ type: 'stockItem', rowId: row.id });
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && row.stockItem) {
+                    if (e.key === 'Enter' && row.stockItem) {
                       e.preventDefault();
-                      if (config?.hideGodownColumn) { focusStockQty(idx); return; }
-                      const nextEl = document.querySelector(`[data-stock-godown="${idx + 1}"]`) as HTMLInputElement;
+                      if (config?.hideGodownColumn) {
+                        focusStockQty(idx);
+                        return;
+                      }
+                      const nextEl = document.querySelector(
+                        `[data-stock-godown="${idx + 1}"]`,
+                      ) as HTMLInputElement;
                       if (nextEl) nextEl.focus();
                     }
                   }}
@@ -315,28 +349,26 @@ export default function StockTransferVoucherBody({
 
               {/* Godown */}
               {!config?.hideGodownColumn && (
-              <div className="w-24">
-                <input
-                  data-stock-godown={idx + 1}
-                  type="text"
-                  className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                  value={isGodownActive ? form.ledgerSearchTerm : (row.godown?.name ?? "")}
-                  placeholder="Godown…"
-                  onFocus={() =>
-                    form.handleFieldFocus({ type: "stockGodown", rowId: row.id })
-                  }
-                  onChange={(e) => {
-                    form.setLedgerSearchTerm(e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      focusStockQty(idx);
-                    }
-                  }}
-                  autoComplete="off"
-                />
-              </div>
+                <div className="w-24">
+                  <input
+                    data-stock-godown={idx + 1}
+                    type="text"
+                    className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
+                    value={isGodownActive ? form.ledgerSearchTerm : (row.godown?.name ?? '')}
+                    placeholder="Godown…"
+                    onFocus={() => form.handleFieldFocus({ type: 'stockGodown', rowId: row.id })}
+                    onChange={(e) => {
+                      form.setLedgerSearchTerm(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        focusStockQty(idx);
+                      }
+                    }}
+                    autoComplete="off"
+                  />
+                </div>
               )}
 
               {config?.showActualBilled ? (
@@ -354,12 +386,22 @@ export default function StockTransferVoucherBody({
                           form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
                         }
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") { e.preventDefault(); focusStockRate(idx); }
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            setTimeout(() => {
+                              (
+                                document.querySelector(
+                                  `[data-stock-billed="${idx + 1}"]`,
+                                ) as HTMLInputElement | null
+                              )?.focus();
+                            }, 50);
+                          }
                         }}
                       />
                     </div>
                     <div className="flex-1 text-right pr-1">
                       <input
+                        data-stock-billed={idx + 1}
                         type="text"
                         inputMode="decimal"
                         className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
@@ -367,6 +409,12 @@ export default function StockTransferVoucherBody({
                         onChange={(e) =>
                           form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value })
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            focusStockRate(idx);
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -383,35 +431,53 @@ export default function StockTransferVoucherBody({
                         form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
                       }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") { e.preventDefault(); proceedToNextStockRow(idx); }
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            (
+                              document.querySelector(
+                                `[data-stock-disc="${idx + 1}"]`,
+                              ) as HTMLInputElement | null
+                            )?.focus();
+                          }, 50);
+                        }
                       }}
                     />
                   </div>
 
                   {/* per (unit) */}
-                  <div className="w-12 text-center text-xs text-zinc-500">{row.unit?.symbol ?? ""}</div>
+                  <div className="w-12 text-center text-xs text-zinc-500">
+                    {row.unit?.symbol ?? ''}
+                  </div>
 
                   {/* Disc % */}
                   <div className="w-16 text-right pr-1">
                     <input
+                      data-stock-disc={idx + 1}
                       type="text"
                       inputMode="decimal"
                       className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                      value={row.discPercentRaw ?? ""}
+                      value={row.discPercentRaw ?? ''}
                       onChange={(e) =>
                         form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
                       }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          proceedToNextStockRow(idx);
+                        }
+                      }}
                     />
                   </div>
 
                   {/* Amount */}
                   <div className="w-24 text-right text-xs font-semibold font-mono text-zinc-900 select-none">
                     {row.amountRaw
-                      ? Number(row.amountRaw).toLocaleString("en-IN", {
+                      ? Number(row.amountRaw).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })
-                      : ""}
+                      : ''}
                   </div>
                 </>
               ) : (
@@ -428,7 +494,7 @@ export default function StockTransferVoucherBody({
                         form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
                       }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === 'Enter') {
                           e.preventDefault();
                           focusStockRate(idx);
                         }
@@ -448,7 +514,7 @@ export default function StockTransferVoucherBody({
                         form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
                       }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === 'Enter') {
                           e.preventDefault();
                           proceedToNextStockRow(idx);
                         }
@@ -459,11 +525,11 @@ export default function StockTransferVoucherBody({
                   {/* Amount */}
                   <div className="w-24 text-right text-xs font-semibold font-mono text-zinc-900 select-none">
                     {row.amountRaw
-                      ? Number(row.amountRaw).toLocaleString("en-IN", {
+                      ? Number(row.amountRaw).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })
-                      : ""}
+                      : ''}
                   </div>
                 </>
               )}
@@ -472,10 +538,7 @@ export default function StockTransferVoucherBody({
         })}
 
         {Array.from({ length: Math.max(0, 8 - form.stockEntries.length) }).map((_, i) => (
-          <div
-            key={`sf-${i}`}
-            className="flex border-b border-zinc-50 min-h-[26px] px-3"
-          />
+          <div key={`sf-${i}`} className="flex border-b border-zinc-50 min-h-[26px] px-3" />
         ))}
       </div>
 
@@ -484,11 +547,11 @@ export default function StockTransferVoucherBody({
         <div className="flex-1 text-xs font-bold text-zinc-700">Total</div>
         <div className="w-24 text-right text-xs font-bold font-mono text-zinc-900 pr-0">
           {form.totalAmount > 0
-            ? form.totalAmount.toLocaleString("en-IN", {
+            ? form.totalAmount.toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })
-            : "0.00"}
+            : '0.00'}
         </div>
       </div>
     </>

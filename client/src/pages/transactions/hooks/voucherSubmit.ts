@@ -437,6 +437,7 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
       stock_entries = filledItems.map((r) => ({
         stock_item_id: r.stockItem!.item_id ?? null,
         item_name: r.stockItem!.name,
+        description: r.descriptionRaw?.trim() || null,
         godown_id: r.godown?.godown_id ?? null,
         unit_id: r.unit?.unit_id ?? null,
         quantity: Number(r.quantityRaw),

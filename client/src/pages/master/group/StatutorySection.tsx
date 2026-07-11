@@ -25,15 +25,19 @@ function Row({
   required,
   children,
   onClick,
+  enterClick,
 }: {
   label: string;
   required?: boolean;
   children: React.ReactNode;
   onClick?: () => void;
+  /** Make this clickable row focusable so Tally-style Enter navigation can activate it. */
+  enterClick?: boolean;
 }) {
   return (
     <div
-      className={`flex items-start last:border-0 min-h-[36px]${onClick ? ' cursor-pointer hover:bg-zinc-50' : ''}`}
+      {...(enterClick ? { tabIndex: 0, 'data-enter-click': true } : {})}
+      className={`flex items-start last:border-0 min-h-[36px]${onClick ? ' cursor-pointer hover:bg-zinc-50' : ''}${enterClick ? ' focus:bg-zinc-100 outline-none' : ''}`}
       onClick={onClick}
     >
       <span className="w-64 text-sm text-zinc-600 shrink-0 py-1.5">
@@ -178,7 +182,7 @@ export default function StatutorySection({
           </span>
         </Row>
         {form.hsn_sac_source === 'Use GST Classification' && (
-          <Row label="Classification" onClick={() => onOpenClassPanel('hsn')}>
+          <Row label="Classification" onClick={() => onOpenClassPanel('hsn')} enterClick>
             <span className="text-sm py-1 font-medium text-zinc-800">
               {gstClassifications.find((c) => c.gc_id === Number(form.hsn_sac_classification_id))
                 ?.name || ''}
@@ -243,7 +247,7 @@ export default function StatutorySection({
           </span>
         </Row>
         {form.gst_rate_source === 'Use GST Classification' && (
-          <Row label="Classification" onClick={() => onOpenClassPanel('gst')}>
+          <Row label="Classification" onClick={() => onOpenClassPanel('gst')} enterClick>
             <span className="text-sm py-1 font-medium text-zinc-800">
               {gstClassifications.find((c) => c.gc_id === Number(form.gst_classification_id))
                 ?.name || ''}
@@ -318,6 +322,7 @@ export default function StatutorySection({
             <Row
               label="Set/Alter other Statutory details"
               onClick={() => setShowStatutoryModal(true)}
+              enterClick
             >
               <span className="text-sm py-1">{statutoryRowYes ? 'Yes' : 'No'}</span>
             </Row>

@@ -72,6 +72,9 @@ const voucherStockEntries = sqliteTable('voucher_stock_entries', {
     .references(() => vouchers.voucherId),
   stockItemId: integer('stock_item_id'),
   itemName: text('item_name'),
+  // Free-text line description shown inline under the item (e.g. a colour/spec
+  // like "80 Red") — distinct from the linked stock item's master name.
+  description: text('description'),
   godownId: integer('godown_id'),
   unitId: integer('unit_id'),
   quantity: real('quantity').default(0),

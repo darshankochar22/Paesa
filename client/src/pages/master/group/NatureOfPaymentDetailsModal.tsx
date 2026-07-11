@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import type { TDSNatureOfPaymentType } from "@/types/entities/TDSNatureOfPayment";
+import { useState, useEffect } from 'react';
+import type { TDSNatureOfPaymentType } from '@/types/entities/TDSNatureOfPayment';
 
-const selectCls = "w-full bg-transparent text-[13px] outline-none py-1 px-1 cursor-pointer border-b border-transparent focus:border-zinc-400 transition-colors";
+const selectCls =
+  'w-full bg-transparent text-[13px] outline-none py-1 px-1 cursor-pointer border-b border-transparent focus:border-zinc-400 transition-colors';
 
 interface NatureOfPaymentDetailsModalProps {
   isOpen: boolean;
@@ -19,8 +20,8 @@ export default function NatureOfPaymentDetailsModal({
   onCreated,
 }: NatureOfPaymentDetailsModalProps) {
   const [natureList, setNatureList] = useState<TDSNatureOfPaymentType[]>([]);
-  const [selectedNature, setSelectedNature] = useState<string>("Undefined");
-  const [listHighlight, setListHighlight] = useState<string>("Undefined");
+  const [selectedNature, setSelectedNature] = useState<string>('Undefined');
+  const [listHighlight, setListHighlight] = useState<string>('Undefined');
 
   useEffect(() => {
     if (!isOpen || !companyId) return;
@@ -35,25 +36,27 @@ export default function NatureOfPaymentDetailsModal({
         // ignore
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, companyId]);
 
   useEffect(() => {
     if (!isOpen) {
-      setSelectedNature("Undefined");
-      setListHighlight("Undefined");
+      setSelectedNature('Undefined');
+      setListHighlight('Undefined');
     }
   }, [isOpen]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === 'Escape' && isOpen) {
         e.preventDefault();
         onClose();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
   const handleListClick = (name: string) => {
@@ -80,20 +83,22 @@ export default function NatureOfPaymentDetailsModal({
         });
       }
     };
-    window.addEventListener("tds-nature-of-payment-created", handler);
-    return () => window.removeEventListener("tds-nature-of-payment-created", handler);
+    window.addEventListener('tds-nature-of-payment-created', handler);
+    return () => window.removeEventListener('tds-nature-of-payment-created', handler);
   }, [companyId]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/30">
+    <div data-enter-nav-ignore className="fixed inset-0 z-[60] bg-black/30">
       {/* Main modal - centered horizontally, with right padding to leave room for the panel */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pr-72">
         <div className="bg-white border border-zinc-300 shadow-2xl w-[460px] flex flex-col">
           {/* Tally-style title bar */}
           <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-zinc-900">Select Nature of Payment</span>
+            <span className="text-[13px] font-semibold text-zinc-900">
+              Select Nature of Payment
+            </span>
             <button
               onClick={onClose}
               className="text-zinc-400 hover:text-zinc-700 text-lg font-bold leading-none"
@@ -111,12 +116,17 @@ export default function NatureOfPaymentDetailsModal({
               <select
                 className={selectCls}
                 value={selectedNature}
-                onChange={(e) => { setSelectedNature(e.target.value); setListHighlight(e.target.value); }}
+                onChange={(e) => {
+                  setSelectedNature(e.target.value);
+                  setListHighlight(e.target.value);
+                }}
               >
                 <option value="Undefined">Undefined</option>
                 <option value="Any">Any</option>
                 {natureList.map((n) => (
-                  <option key={n.tds_id} value={n.name}>{n.name}</option>
+                  <option key={n.tds_id} value={n.name}>
+                    {n.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -149,7 +159,9 @@ export default function NatureOfPaymentDetailsModal({
       {/* Right panel: sticks to extreme right edge */}
       <div className="absolute top-0 right-0 bottom-0 w-72 bg-white border-l border-zinc-300 flex flex-col shadow-2xl">
         <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50 flex items-center justify-between">
-          <span className="text-[13px] font-semibold text-zinc-900">List of Nature of Payments</span>
+          <span className="text-[13px] font-semibold text-zinc-900">
+            List of Nature of Payments
+          </span>
           <button
             onClick={handleCreate}
             className="text-xs px-3 py-0.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
@@ -162,18 +174,22 @@ export default function NatureOfPaymentDetailsModal({
           {/* Any option */}
           <div
             className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
-              listHighlight === "Any" ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+              listHighlight === 'Any'
+                ? 'bg-zinc-200 text-zinc-900 font-medium'
+                : 'text-zinc-700 hover:bg-zinc-50'
             }`}
-            onClick={() => handleListClick("Any")}
+            onClick={() => handleListClick('Any')}
           >
             ◆ Any
           </div>
           {/* Undefined option */}
           <div
             className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
-              listHighlight === "Undefined" ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+              listHighlight === 'Undefined'
+                ? 'bg-zinc-200 text-zinc-900 font-medium'
+                : 'text-zinc-700 hover:bg-zinc-50'
             }`}
-            onClick={() => handleListClick("Undefined")}
+            onClick={() => handleListClick('Undefined')}
           >
             ◆ Undefined
           </div>
@@ -182,9 +198,11 @@ export default function NatureOfPaymentDetailsModal({
             <div
               key={n.tds_id}
               className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
-                listHighlight === n.name ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+                listHighlight === n.name
+                  ? 'bg-zinc-200 text-zinc-900 font-medium'
+                  : 'text-zinc-700 hover:bg-zinc-50'
               }`}
-              onClick={() => handleListClick(n.name || "")}
+              onClick={() => handleListClick(n.name || '')}
             >
               {n.name}
             </div>

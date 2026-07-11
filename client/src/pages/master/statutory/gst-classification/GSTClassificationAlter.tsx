@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, RightActionPanel } from "@/components/ui";
-import { useGSTClassificationForm } from "./hooks/useGSTClassificationForm";
-import GSTClassificationFormFields from "./components/GSTClassificationFormFields";
-import GSTClassificationSelectionPanel from "./components/GSTClassificationSelectionPanel";
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, RightActionPanel } from '@/components/ui';
+import { useGSTClassificationForm } from './hooks/useGSTClassificationForm';
+import GSTClassificationFormFields from './components/GSTClassificationFormFields';
+import GSTClassificationSelectionPanel from './components/GSTClassificationSelectionPanel';
 
 export default function GSTClassificationAlter() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const [activeField, setActiveField] = useState<string>("name");
+  const [activeField, setActiveField] = useState<string>('name');
   const [showAccept, setShowAccept] = useState(false);
 
   const {
@@ -29,45 +29,45 @@ export default function GSTClassificationAlter() {
     handleDelete,
     handleSelectClass,
     handleBack,
-  } = useGSTClassificationForm({ mode: "alter" });
+  } = useGSTClassificationForm({ mode: 'alter' });
 
   useEffect(() => {
     if (showAccept) {
       const handler = (e: KeyboardEvent) => {
         const key = e.key.toLowerCase();
-        if (key === "y" || e.key === "Enter") {
+        if (key === 'y' || e.key === 'Enter') {
           e.preventDefault();
           setShowAccept(false);
           handleSubmit();
-        } else if (key === "n" || e.key === "Escape") {
+        } else if (key === 'n' || e.key === 'Escape') {
           e.preventDefault();
           setShowAccept(false);
         }
       };
-      window.addEventListener("keydown", handler);
-      return () => window.removeEventListener("keydown", handler);
+      window.addEventListener('keydown', handler);
+      return () => window.removeEventListener('keydown', handler);
     }
 
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         if (selectedClass) {
           handleBack();
         } else {
-          navigate("/master/alter");
+          navigate('/master/alter');
         }
       }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setShowAccept(true);
       }
-      if (e.altKey && e.key.toLowerCase() === "d") {
+      if (e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         handleDelete();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, handleDelete, navigate, selectedClass, handleBack, showAccept]);
 
   if (!selectedClass) {
@@ -75,8 +75,8 @@ export default function GSTClassificationAlter() {
       <GSTClassificationSelectionPanel
         classifications={classifications}
         onSelect={handleSelectClass}
-        onCancel={() => navigate("/master/alter")}
-        onCreate={() => navigate("/master/create/gst-classification")}
+        onCancel={() => navigate('/master/alter')}
+        onCreate={() => navigate('/master/create/gst-classification')}
       />
     );
   }
@@ -84,13 +84,18 @@ export default function GSTClassificationAlter() {
   const isPredefined = !!selectedClass.is_predefined;
 
   const alterActions = [
-    ...(isPredefined ? [] : [{ key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) }]),
-    ...(isPredefined ? [] : [{ key: "Alt+D", label: "Delete", onClick: handleDelete }]),
-    { key: "Esc", label: "Back", onClick: handleBack },
+    ...(isPredefined
+      ? []
+      : [{ key: 'Alt+A', label: 'Accept', onClick: () => setShowAccept(true) }]),
+    ...(isPredefined ? [] : [{ key: 'Alt+D', label: 'Delete', onClick: handleDelete }]),
+    { key: 'Esc', label: 'Back', onClick: handleBack },
   ];
 
   return (
-    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none font-mono">
+    <div
+      className="flex flex-col h-full relative overflow-hidden bg-white select-none font-mono"
+      data-enter-nav
+    >
       <PageTitleBar
         title={`GST Classification Alteration: ${selectedClass.name}`}
         subtitle={selectedCompany?.name}
@@ -99,13 +104,23 @@ export default function GSTClassificationAlter() {
       {error && (
         <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
       {success && (
         <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-500 hover:text-green-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
       {isPredefined && (
@@ -138,7 +153,9 @@ export default function GSTClassificationAlter() {
           >
             Delete
           </button>
-        ) : <div />}
+        ) : (
+          <div />
+        )}
         <div className="flex gap-3">
           <button
             onClick={handleBack}
@@ -152,14 +169,17 @@ export default function GSTClassificationAlter() {
               disabled={loading}
               className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium font-sans"
             >
-              {loading ? "Saving..." : "Accept"}
+              {loading ? 'Saving...' : 'Accept'}
             </button>
           )}
         </div>
       </div>
 
       {showAccept && (
-        <div className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in">
+        <div
+          className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in"
+          data-enter-nav-ignore
+        >
           <h4 className="font-bold text-zinc-900 text-[11px] mb-3">Accept?</h4>
           <div className="flex items-center gap-3 w-full justify-center">
             <button

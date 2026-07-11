@@ -168,6 +168,23 @@ module.exports = {
     return await reconciliationService.getGSTR2BReconciliation(company_id, fy_id);
   },
 
+  // Tally-style dual books-vs-portal recon drill (kind = '2A' | '2B').
+  getReconSummary: async (event, { company_id, fy_id, kind }) => {
+    return await reconciliationService.getReconSummary(company_id, fy_id, kind);
+  },
+  getReconPartySummary: async (event, { company_id, fy_id, kind, section }) => {
+    return await reconciliationService.getReconPartySummary(company_id, fy_id, kind, section);
+  },
+  getReconVoucherRegister: async (event, { company_id, fy_id, kind, section, gstin }) => {
+    return await reconciliationService.getReconVoucherRegister(
+      company_id,
+      fy_id,
+      kind,
+      section,
+      gstin,
+    );
+  },
+
   importGSTR2B: async (event, { company_id, fy_id, return_period, payload }) => {
     return await reconciliationService.importGSTR2B(company_id, fy_id, return_period, payload);
   },

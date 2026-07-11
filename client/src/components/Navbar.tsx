@@ -99,7 +99,7 @@ export default function Navbar() {
         { label: 'Send for e-Invoicing', path: '/compliance/einvoice' },
         { label: 'Send for e-Way Bill', path: '/compliance/eway' },
         { label: 'Upload GST Returns', path: '/compliance/filing' },
-        { label: 'Download GST Returns', path: '/compliance/portal' },
+        { label: 'Download GST Returns', path: '/master/statutory/download-gst-returns' },
         { label: 'Refresh GST Status', action: refreshGstStatus },
         { label: 'File GSTR-1', path: '/master/statutory/gstr1' },
         { label: 'Payment Gateway', heading: true },

@@ -13,9 +13,9 @@ export default function MasterFormFooter({
   onCancel,
   onSubmit,
   onDelete,
-  submitLabel = "Accept",
-  cancelLabel = "Back to Masters",
-  deleteLabel = "Delete",
+  submitLabel = 'Accept',
+  cancelLabel = 'Back to Masters',
+  deleteLabel = 'Delete',
   loading,
   disabled,
 }: Props) {
@@ -49,11 +49,12 @@ export default function MasterFormFooter({
           </button>
         )}
         <button
+          data-enter-accept
           onClick={onSubmit}
           disabled={loading || disabled}
           className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
         >
-          {loading ? "Saving…" : submitLabel}
+          {loading ? 'Saving…' : submitLabel}
         </button>
       </div>
     </div>

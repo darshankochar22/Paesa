@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from '@/components/ui';
@@ -72,6 +73,8 @@ export default function DealerExciseOpeningStockCreate() {
   const [itemSearch, setItemSearch] = useState('');
   const [godownRowId, setGodownRowId] = useState<number | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  // Enter chain continues after this field once its side panel closes
+  const purchaseTriggerRef = useRef<HTMLInputElement | null>(null);
 
   // ── load ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -140,6 +143,7 @@ export default function DealerExciseOpeningStockCreate() {
     setPurchaseLedger(led);
     setPurchasePanelOpen(false);
     setPurchaseSearch('');
+    focusFieldAfter(purchaseTriggerRef.current);
   }, []);
 
   // ── stock-item selection ──────────────────────────────────────────────
@@ -443,7 +447,7 @@ export default function DealerExciseOpeningStockCreate() {
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none">
+    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
       <PageTitleBar title="Dealer Excise Opening Stock Creation" subtitle={`As on ${asOnLabel}`} />
 
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
@@ -486,6 +490,7 @@ export default function DealerExciseOpeningStockCreate() {
                 <input
                   type="text"
                   readOnly
+                  data-enter-click
                   className="text-sm border border-zinc-400 px-1 py-0 outline-none focus:border-black w-56 cursor-pointer bg-white"
                   value={partyLedger?.name ?? ''}
                   placeholder="Select party…"
@@ -516,8 +521,10 @@ export default function DealerExciseOpeningStockCreate() {
                 <span className="w-36 text-sm text-black shrink-0">Purchase ledger</span>
                 <span className="text-sm text-black shrink-0">:</span>
                 <input
+                  ref={purchaseTriggerRef}
                   type="text"
                   readOnly
+                  data-enter-click
                   className="text-sm border border-zinc-400 px-1 py-0 outline-none focus:border-black w-56 cursor-pointer bg-white"
                   value={purchaseLedger?.name ?? ''}
                   placeholder="Select ledger…"
@@ -583,6 +590,7 @@ export default function DealerExciseOpeningStockCreate() {
                     data-item={row.id}
                     type="text"
                     readOnly
+                    data-enter-click
                     className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black cursor-pointer"
                     value={row.stockItem?.name ?? ''}
                     placeholder={idx === 0 ? 'Select Item…' : ''}
@@ -750,7 +758,7 @@ export default function DealerExciseOpeningStockCreate() {
 
       {/* Party ledger list */}
       {partyPanelOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" data-enter-nav-ignore>
           <LedgerListPanel
             title="List of Ledger Accounts"
             items={allLedgers}
@@ -770,7 +778,7 @@ export default function DealerExciseOpeningStockCreate() {
 
       {/* Purchase ledger list */}
       {purchasePanelOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" data-enter-nav-ignore>
           <LedgerListPanel
             title="List of Ledger Accounts"
             items={allLedgers}
@@ -790,7 +798,7 @@ export default function DealerExciseOpeningStockCreate() {
 
       {/* Stock item list */}
       {itemPanelRow != null && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" data-enter-nav-ignore>
           <LedgerListPanel
             title="List of Stock Items"
             items={allStockItems}
@@ -812,30 +820,34 @@ export default function DealerExciseOpeningStockCreate() {
 
       {/* Party Details popup */}
       {partyDetailsOpen && partyLedger && (
-        <PartyDetailsPopup
-          partyLedger={partyLedger}
-          allLedgers={allLedgers}
-          initialDetails={partyDetails}
-          onClose={() => setPartyDetailsOpen(false)}
-          onSave={(d) => {
-            setPartyDetails(d);
-            setPartyDetailsOpen(false);
-          }}
-          onCreateLedger={() => navigate('/master/create/ledger')}
-        />
+        <div data-enter-nav-ignore>
+          <PartyDetailsPopup
+            partyLedger={partyLedger}
+            allLedgers={allLedgers}
+            initialDetails={partyDetails}
+            onClose={() => setPartyDetailsOpen(false)}
+            onSave={(d) => {
+              setPartyDetails(d);
+              setPartyDetailsOpen(false);
+            }}
+            onCreateLedger={() => navigate('/master/create/ledger')}
+          />
+        </div>
       )}
 
       {/* Receipt Details popup → then Party Details (Purchase-voucher flow) */}
       {receiptOpen && (
-        <ReceiptDetailsPopup
-          initialDetails={receiptDetails}
-          onClose={() => setReceiptOpen(false)}
-          onSave={(d) => {
-            setReceiptDetails(d);
-            setReceiptOpen(false);
-            if (partyLedger && !partyDetails) setPartyDetailsOpen(true);
-          }}
-        />
+        <div data-enter-nav-ignore>
+          <ReceiptDetailsPopup
+            initialDetails={receiptDetails}
+            onClose={() => setReceiptOpen(false)}
+            onSave={(d) => {
+              setReceiptDetails(d);
+              setReceiptOpen(false);
+              if (partyLedger && !partyDetails) setPartyDetailsOpen(true);
+            }}
+          />
+        </div>
       )}
 
       {/* Item (Godown) Allocations popup */}

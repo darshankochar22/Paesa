@@ -29,6 +29,7 @@ export interface StockBatch {
 export interface StockEntry {
   stock_entry_id: number;
   item_name: string;
+  description?: string | null;
   quantity: number;
   rate: number;
   amount: number;

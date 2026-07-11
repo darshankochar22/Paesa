@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar, RightActionPanel, SideSelectionPanel } from "@/components/ui";
-import type { GodownType } from "@/types/api";
-import type { TaxUnitType } from "@/types/entities/TaxUnit";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { FormRow, PageTitleBar, RightActionPanel, SideSelectionPanel } from '@/components/ui';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
+import TaxUnitSidePanel from './TaxUnitSidePanel';
+import type { GodownType } from '@/types/api';
+import type { TaxUnitType } from '@/types/entities/TaxUnit';
 
-const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
+const inputCls =
+  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
 
 interface FormData {
   name: string;
@@ -16,11 +19,11 @@ interface FormData {
 }
 
 const INITIAL: FormData = {
-  name: "",
-  alias: "",
-  parent_godown_id: "",
-  excise_tax_unit: "Not Applicable",
-  allow_storage_of_materials: "1",
+  name: '',
+  alias: '',
+  parent_godown_id: '',
+  excise_tax_unit: 'Not Applicable',
+  allow_storage_of_materials: '1',
 };
 
 export default function GodownCreate() {
@@ -39,10 +42,12 @@ export default function GodownCreate() {
 
   const nameRef = useRef<HTMLInputElement>(null);
   const aliasRef = useRef<HTMLInputElement>(null);
+  const underRef = useRef<HTMLDivElement>(null);
+  const taxUnitRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!companyId) return;
-    window.api.godown.getAll(companyId).then(r => {
+    window.api.godown.getAll(companyId).then((r) => {
       if (r.success) setGodowns(r.godowns ?? []);
     });
     (window.api as any).taxUnits.getAll(companyId).then((r: any) => {
@@ -50,20 +55,24 @@ export default function GodownCreate() {
     });
   }, [companyId]);
 
-  const setField = (key: keyof FormData) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.value }));
+  const setField =
+    (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const validate = (): string | null => {
-    if (!form.name.trim()) return "Name is required.";
-    if (!companyId) return "No company selected.";
+    if (!form.name.trim()) return 'Name is required.';
+    if (!companyId) return 'No company selected.';
     return null;
   };
 
   const handleSubmit = useCallback(async () => {
     const err = validate();
-    if (err) { setError(err); return; }
-    setLoading(true); setError(null);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setLoading(true);
+    setError(null);
     try {
       const result = await window.api.godown.create({
         company_id: companyId!,
@@ -71,7 +80,7 @@ export default function GodownCreate() {
         alias: form.alias.trim() || undefined,
         parent_godown_id: form.parent_godown_id ? Number(form.parent_godown_id) : undefined,
         allow_storage_of_materials: Number(form.allow_storage_of_materials),
-        excise_tax_unit: form.excise_tax_unit || "Not Applicable",
+        excise_tax_unit: form.excise_tax_unit || 'Not Applicable',
       });
       if (result.success) {
         const updated = await window.api.godown.getAll(companyId!);
@@ -80,10 +89,10 @@ export default function GodownCreate() {
         setForm(INITIAL);
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.error || "Failed to create godown.");
+        setError(result.error || 'Failed to create godown.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setLoading(false);
     }
@@ -92,66 +101,122 @@ export default function GodownCreate() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (showTaxUnitPanel) {
-        if (e.key === "Escape") { e.preventDefault(); setShowTaxUnitPanel(false); }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setShowTaxUnitPanel(false);
+        }
         return;
       }
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         if (showGodownPanel) setShowGodownPanel(false);
-        else navigate("/master/create");
+        else navigate('/master/create');
       }
-      if (e.altKey && e.key.toLowerCase() === "g") { e.preventDefault(); setShowGodownPanel(prev => !prev); }
-      if (e.altKey && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
-      if (e.ctrlKey && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
-      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/alter/godown"); }
+      if (e.altKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        setShowGodownPanel((prev) => !prev);
+      }
+      if (e.altKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        navigate('/master/alter/godown');
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, navigate, showGodownPanel, showTaxUnitPanel]);
 
   const selectedGodownLabel = form.parent_godown_id
-    ? godowns.find(g => String(g.godown_id) === form.parent_godown_id)?.name ?? "Primary"
-    : "Primary";
+    ? (godowns.find((g) => String(g.godown_id) === form.parent_godown_id)?.name ?? 'Primary')
+    : 'Primary';
 
   const godownActions = [
-    { key: "Alt+G", label: "Select Godown", onClick: () => setShowGodownPanel(prev => !prev) },
-    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
-    { key: "Alt+C", label: "Alter Godown", onClick: () => navigate("/master/alter/godown") },
-    { key: "Esc", label: "Quit", onClick: () => navigate("/master/create") },
+    { key: 'Alt+G', label: 'Select Godown', onClick: () => setShowGodownPanel((prev) => !prev) },
+    { key: 'Alt+A', label: 'Accept', onClick: handleSubmit },
+    { key: 'Alt+C', label: 'Alter Godown', onClick: () => navigate('/master/alter/godown') },
+    { key: 'Esc', label: 'Quit', onClick: () => navigate('/master/create') },
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden">
+    <div
+      className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden"
+      data-enter-nav
+    >
       <PageTitleBar title="Godown Creation" subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
       {success && (
         <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-500 hover:text-green-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white border-r border-zinc-100 p-3 overflow-y-auto">
           <div className="max-w-2xl space-y-1">
-
-            <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input ref={nameRef} autoFocus className={inputCls} value={form.name} onChange={setField("name")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
+            <FormRow
+              label="Name"
+              required
+              labelWidth="w-56"
+              className="flex items-center min-h-[26px]"
+            >
+              <input
+                ref={nameRef}
+                autoFocus
+                className={inputCls}
+                value={form.name}
+                onChange={setField('name')}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  aliasRef.current?.focus();
+                }}
+              />
             </FormRow>
 
             <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input ref={aliasRef} className={inputCls} value={form.alias} onChange={setField("alias")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowGodownPanel(true); }} />
+              <input
+                ref={aliasRef}
+                className={inputCls}
+                value={form.alias}
+                onChange={setField('alias')}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  setShowGodownPanel(true);
+                }}
+              />
             </FormRow>
 
             <div
-              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 text-sm select-none"
-              onClick={() => setShowGodownPanel(v => !v)}
+              ref={underRef}
+              tabIndex={0}
+              data-enter-click
+              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 focus:bg-zinc-100 outline-none text-sm select-none"
+              onClick={() => setShowGodownPanel((v) => !v)}
             >
               <span className="w-56 text-zinc-400 shrink-0 py-1 font-sans">Under</span>
               <span className="text-zinc-600 mr-2 shrink-0">:</span>
@@ -160,71 +225,52 @@ export default function GodownCreate() {
               </span>
             </div>
 
-            {/* Excise Tax Unit — button opens side panel */}
-            <FormRow label="Excise Tax unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <button
-                type="button"
-                className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors font-bold"
-                onClick={() => setShowTaxUnitPanel(v => !v)}
+            {/* Excise Tax Unit — opens side panel */}
+            <FormRow
+              label="Excise Tax unit"
+              labelWidth="w-56"
+              className="flex items-center min-h-[26px]"
+            >
+              <div
+                ref={taxUnitRef}
+                tabIndex={0}
+                data-enter-click
+                className="flex-1 text-left text-sm px-1 py-0.5 cursor-pointer hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors font-bold"
+                onClick={() => setShowTaxUnitPanel((v) => !v)}
               >
-                {form.excise_tax_unit || "Not Applicable"}
-              </button>
+                {form.excise_tax_unit || 'Not Applicable'}
+              </div>
             </FormRow>
-
           </div>
         </div>
 
         {/* Tax Unit side panel */}
         {showTaxUnitPanel && (
-          <div className="w-64 flex flex-col border-l border-zinc-200 bg-white shrink-0 overflow-hidden">
-            <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 shrink-0">
-              List of Excise Tax Units
-            </div>
-            <div className="overflow-y-auto flex-1">
-              {/* Create entry */}
-              <div
-                className="px-3 py-1.5 text-xs font-bold text-zinc-600 border-b border-zinc-100 cursor-pointer hover:bg-zinc-50"
-                onClick={() => navigate("/master/create/tax-units")}
-              >
-                Create
-              </div>
-              {/* Not Applicable */}
-              <div
-                className={[
-                  "px-3 py-1.5 text-sm cursor-pointer border-b border-zinc-50",
-                  form.excise_tax_unit === "Not Applicable"
-                    ? "bg-zinc-900 text-white font-semibold"
-                    : "hover:bg-zinc-100 text-zinc-800",
-                ].join(" ")}
-                onClick={() => { setForm(f => ({ ...f, excise_tax_unit: "Not Applicable" })); setShowTaxUnitPanel(false); }}
-              >
-                ◆ Not Applicable
-              </div>
-              {taxUnits.map(tu => (
-                <div
-                  key={tu.tax_unit_id}
-                  className={[
-                    "px-3 py-1.5 text-sm cursor-pointer border-b border-zinc-50",
-                    form.excise_tax_unit === tu.name
-                      ? "bg-zinc-900 text-white font-semibold"
-                      : "hover:bg-zinc-100 text-zinc-800",
-                  ].join(" ")}
-                  onClick={() => { setForm(f => ({ ...f, excise_tax_unit: tu.name })); setShowTaxUnitPanel(false); }}
-                >
-                  {tu.name}
-                </div>
-              ))}
-            </div>
-          </div>
+          <TaxUnitSidePanel
+            taxUnits={taxUnits}
+            selected={form.excise_tax_unit}
+            onSelect={(name) => {
+              setForm((f) => ({ ...f, excise_tax_unit: name }));
+              setShowTaxUnitPanel(false);
+              focusFieldAfter(taxUnitRef.current);
+            }}
+            onCreate={() => navigate('/master/create/tax-units')}
+            onClose={() => setShowTaxUnitPanel(false)}
+          />
         )}
 
         {/* Godown Under panel */}
         {showGodownPanel && (
           <SideSelectionPanel
             title="List of Godowns"
-            items={godowns.filter(g => g.name.toLowerCase() !== "primary").map(g => ({ id: g.godown_id, label: g.name }))}
+            items={godowns
+              .filter((g) => g.name.toLowerCase() !== 'primary')
+              .map((g) => ({ id: g.godown_id, label: g.name }))}
             selected={form.parent_godown_id}
-            onSelect={val => setForm(f => ({ ...f, parent_godown_id: val }))}
+            onSelect={(val) => {
+              setForm((f) => ({ ...f, parent_godown_id: val }));
+              focusFieldAfter(underRef.current);
+            }}
             onClose={() => setShowGodownPanel(false)}
             showPrimary
           />
@@ -234,7 +280,10 @@ export default function GodownCreate() {
       </div>
 
       <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50 shrink-0">
-        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
+        <button
+          onClick={() => navigate('/master/create')}
+          className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium"
+        >
           &larr; Back to Masters
         </button>
         <button
@@ -242,7 +291,7 @@ export default function GodownCreate() {
           disabled={loading}
           className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
         >
-          {loading ? "Saving..." : "Create"}
+          {loading ? 'Saving...' : 'Create'}
         </button>
       </div>
     </div>

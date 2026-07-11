@@ -1,19 +1,25 @@
-import React, { useEffect, useRef, useState } from "react";
-import type { FormData } from "../hooks/useTCSNatureOfGoodsForm";
+import React, { useEffect, useRef, useState } from 'react';
+import type { FormData } from '../hooks/useTCSNatureOfGoodsForm';
 
 interface TCSNatureOfGoodsFormFieldsProps {
   form: FormData;
   setForm: React.Dispatch<React.SetStateAction<FormData>>;
-  setField: (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  setField: (
+    key: keyof FormData,
+  ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   isPredefined?: boolean;
-  mode: "create" | "alter";
+  mode: 'create' | 'alter';
   onSubmitPrompt: () => void;
 }
 
-const activeClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-full font-mono font-bold text-xs uppercase";
-const inactiveClass = "border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-full font-mono font-bold text-xs uppercase";
-const selectActiveClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-1.5 py-0.5 outline-none border w-24 font-mono font-bold text-xs appearance-none";
-const selectInactiveClass = "border-transparent bg-transparent text-zinc-900 px-1.5 py-0.5 outline-none border w-24 font-mono font-bold text-xs appearance-none";
+const activeClass =
+  'bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-full font-mono font-bold text-xs uppercase';
+const inactiveClass =
+  'border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-full font-mono font-bold text-xs uppercase';
+const selectActiveClass =
+  'bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-1.5 py-0.5 outline-none border w-24 font-mono font-bold text-xs appearance-none';
+const selectInactiveClass =
+  'border-transparent bg-transparent text-zinc-900 px-1.5 py-0.5 outline-none border w-24 font-mono font-bold text-xs appearance-none';
 
 const getFocusableFields = (form: FormData) => {
   const showZeroRated =
@@ -22,23 +28,23 @@ const getFocusableFields = (form: FormData) => {
     Number(form.rate_other_with_pan || 0) === 0 &&
     Number(form.rate_other_without_pan || 0) === 0;
 
-  const fields: string[] = ["name", "section", "payment_code"];
-  
-  const isZero = form.is_zero_rated === "Yes";
+  const fields: string[] = ['name', 'section', 'payment_code'];
+
+  const isZero = form.is_zero_rated === 'Yes';
   if (!isZero) {
     fields.push(
-      "rate_individual_with_pan",
-      "rate_individual_without_pan",
-      "rate_other_with_pan",
-      "rate_other_without_pan"
+      'rate_individual_with_pan',
+      'rate_individual_without_pan',
+      'rate_other_with_pan',
+      'rate_other_without_pan',
     );
   }
 
   if (showZeroRated) {
-    fields.push("is_zero_rated");
+    fields.push('is_zero_rated');
   }
 
-  fields.push("tax_on_receipt_or_realization", "threshold_level");
+  fields.push('tax_on_receipt_or_realization', 'threshold_level');
   return fields;
 };
 
@@ -50,7 +56,7 @@ export default function TCSNatureOfGoodsFormFields({
   mode,
   onSubmitPrompt,
 }: TCSNatureOfGoodsFormFieldsProps) {
-  const [activeField, setActiveField] = useState<string>("name");
+  const [activeField, setActiveField] = useState<string>('name');
 
   // Input element refs
   const nameRef = useRef<HTMLInputElement>(null);
@@ -92,7 +98,7 @@ export default function TCSNatureOfGoodsFormFields({
   const handleRateChange = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow positive numbers and decimals
     let val = e.target.value;
-    if (val !== "" && isNaN(Number(val))) return;
+    if (val !== '' && isNaN(Number(val))) return;
 
     setForm((f) => {
       const newForm = { ...f, [key]: val };
@@ -103,21 +109,21 @@ export default function TCSNatureOfGoodsFormFields({
         Number(newForm.rate_other_without_pan || 0) > 0;
 
       if (hasRate) {
-        newForm.is_zero_rated = "No";
+        newForm.is_zero_rated = 'No';
       }
       return newForm;
     });
   };
 
   // Zero-rated toggle helper
-  const handleZeroRatedChange = (val: "Yes" | "No") => {
+  const handleZeroRatedChange = (val: 'Yes' | 'No') => {
     setForm((f) => {
       const newForm = { ...f, is_zero_rated: val };
-      if (val === "Yes") {
-        newForm.rate_individual_with_pan = "0";
-        newForm.rate_individual_without_pan = "0";
-        newForm.rate_other_with_pan = "0";
-        newForm.rate_other_without_pan = "0";
+      if (val === 'Yes') {
+        newForm.rate_individual_with_pan = '0';
+        newForm.rate_individual_without_pan = '0';
+        newForm.rate_other_with_pan = '0';
+        newForm.rate_other_without_pan = '0';
       }
       return newForm;
     });
@@ -132,7 +138,7 @@ export default function TCSNatureOfGoodsFormFields({
       const idx = fields.indexOf(activeField);
       if (idx === -1) return;
 
-      if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+      if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
         e.preventDefault();
         if (idx === fields.length - 1) {
           onSubmitPrompt();
@@ -142,7 +148,7 @@ export default function TCSNatureOfGoodsFormFields({
         return;
       }
 
-      if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+      if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
         e.preventDefault();
         if (idx > 0) {
           setActiveField(fields[idx - 1]);
@@ -151,15 +157,12 @@ export default function TCSNatureOfGoodsFormFields({
       }
 
       // Quick Yes/No shortcuts
-      if (
-        activeField === "is_zero_rated" ||
-        activeField === "tax_on_receipt_or_realization"
-      ) {
+      if (activeField === 'is_zero_rated' || activeField === 'tax_on_receipt_or_realization') {
         const key = e.key.toLowerCase();
-        if (key === "y" || key === "n") {
+        if (key === 'y' || key === 'n') {
           e.preventDefault();
-          const val = key === "y" ? "Yes" : "No";
-          if (activeField === "is_zero_rated") {
+          const val = key === 'y' ? 'Yes' : 'No';
+          if (activeField === 'is_zero_rated') {
             handleZeroRatedChange(val);
           } else {
             setForm((f) => ({ ...f, [activeField]: val }));
@@ -173,23 +176,26 @@ export default function TCSNatureOfGoodsFormFields({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeField, form, isPredefined, onSubmitPrompt]);
 
   const cls = (f: string) => (activeField === f ? activeClass : inactiveClass);
   const selectCls = (f: string) => (activeField === f ? selectActiveClass : selectInactiveClass);
 
   return (
-    <div className="bg-white border-4 border-double border-zinc-400 w-[550px] shadow-2xl p-5 relative select-none font-mono text-[11px] text-zinc-950 animate-fade-in">
-      
+    // Self-managed Tally-style field walk (window keydown + activeField):
+    // the global enter-nav must not double-handle Enter inside this zone.
+    <div
+      className="bg-white border-4 border-double border-zinc-400 w-[550px] shadow-2xl p-5 relative select-none font-mono text-[11px] text-zinc-950 animate-fade-in"
+      data-enter-nav-ignore
+    >
       {/* Title */}
       <div className="font-bold text-xs pb-3 mb-4 border-b border-zinc-200 tracking-wide text-zinc-900">
-        TCS Nature of Goods {mode === "create" ? "Creation" : "Alteration"}
+        TCS Nature of Goods {mode === 'create' ? 'Creation' : 'Alteration'}
       </div>
 
       <div className="grid grid-cols-[280px_10px_1fr] items-center gap-y-1.5">
-        
         {/* Name */}
         <div className="text-zinc-700 font-bold pl-1">Name</div>
         <div className="text-zinc-400 text-center font-bold">:</div>
@@ -197,10 +203,10 @@ export default function TCSNatureOfGoodsFormFields({
           <input
             ref={nameRef}
             type="text"
-            className={cls("name")}
+            className={cls('name')}
             value={form.name}
-            onChange={setField("name")}
-            onFocus={() => setActiveField("name")}
+            onChange={setField('name')}
+            onFocus={() => setActiveField('name')}
             disabled={isPredefined}
           />
         </div>
@@ -212,10 +218,10 @@ export default function TCSNatureOfGoodsFormFields({
           <input
             ref={sectionRef}
             type="text"
-            className={cls("section")}
+            className={cls('section')}
             value={form.section}
-            onChange={setField("section")}
-            onFocus={() => setActiveField("section")}
+            onChange={setField('section')}
+            onFocus={() => setActiveField('section')}
             disabled={isPredefined}
           />
         </div>
@@ -227,10 +233,10 @@ export default function TCSNatureOfGoodsFormFields({
           <input
             ref={paymentCodeRef}
             type="text"
-            className={cls("payment_code")}
+            className={cls('payment_code')}
             value={form.payment_code}
-            onChange={setField("payment_code")}
-            onFocus={() => setActiveField("payment_code")}
+            onChange={setField('payment_code')}
+            onFocus={() => setActiveField('payment_code')}
             disabled={isPredefined}
           />
         </div>
@@ -247,11 +253,11 @@ export default function TCSNatureOfGoodsFormFields({
           <input
             ref={rateIndWithPanRef}
             type="text"
-            className={`${cls("rate_individual_with_pan")} w-24 text-right`}
+            className={`${cls('rate_individual_with_pan')} w-24 text-right`}
             value={form.rate_individual_with_pan}
-            onChange={handleRateChange("rate_individual_with_pan")}
-            onFocus={() => setActiveField("rate_individual_with_pan")}
-            disabled={isPredefined || form.is_zero_rated === "Yes"}
+            onChange={handleRateChange('rate_individual_with_pan')}
+            onFocus={() => setActiveField('rate_individual_with_pan')}
+            disabled={isPredefined || form.is_zero_rated === 'Yes'}
           />
           <span className="text-zinc-500 font-bold">%</span>
         </div>
@@ -263,11 +269,11 @@ export default function TCSNatureOfGoodsFormFields({
           <input
             ref={rateIndWithoutPanRef}
             type="text"
-            className={`${cls("rate_individual_without_pan")} w-24 text-right`}
+            className={`${cls('rate_individual_without_pan')} w-24 text-right`}
             value={form.rate_individual_without_pan}
-            onChange={handleRateChange("rate_individual_without_pan")}
-            onFocus={() => setActiveField("rate_individual_without_pan")}
-            disabled={isPredefined || form.is_zero_rated === "Yes"}
+            onChange={handleRateChange('rate_individual_without_pan')}
+            onFocus={() => setActiveField('rate_individual_without_pan')}
+            disabled={isPredefined || form.is_zero_rated === 'Yes'}
           />
           <span className="text-zinc-500 font-bold">%</span>
         </div>
@@ -284,11 +290,11 @@ export default function TCSNatureOfGoodsFormFields({
           <input
             ref={rateOtherWithPanRef}
             type="text"
-            className={`${cls("rate_other_with_pan")} w-24 text-right`}
+            className={`${cls('rate_other_with_pan')} w-24 text-right`}
             value={form.rate_other_with_pan}
-            onChange={handleRateChange("rate_other_with_pan")}
-            onFocus={() => setActiveField("rate_other_with_pan")}
-            disabled={isPredefined || form.is_zero_rated === "Yes"}
+            onChange={handleRateChange('rate_other_with_pan')}
+            onFocus={() => setActiveField('rate_other_with_pan')}
+            disabled={isPredefined || form.is_zero_rated === 'Yes'}
           />
           <span className="text-zinc-500 font-bold">%</span>
         </div>
@@ -300,11 +306,11 @@ export default function TCSNatureOfGoodsFormFields({
           <input
             ref={rateOtherWithoutPanRef}
             type="text"
-            className={`${cls("rate_other_without_pan")} w-24 text-right`}
+            className={`${cls('rate_other_without_pan')} w-24 text-right`}
             value={form.rate_other_without_pan}
-            onChange={handleRateChange("rate_other_without_pan")}
-            onFocus={() => setActiveField("rate_other_without_pan")}
-            disabled={isPredefined || form.is_zero_rated === "Yes"}
+            onChange={handleRateChange('rate_other_without_pan')}
+            onFocus={() => setActiveField('rate_other_without_pan')}
+            disabled={isPredefined || form.is_zero_rated === 'Yes'}
           />
           <span className="text-zinc-500 font-bold">%</span>
         </div>
@@ -319,10 +325,10 @@ export default function TCSNatureOfGoodsFormFields({
             <div>
               <select
                 ref={isZeroRatedRef}
-                className={selectCls("is_zero_rated")}
+                className={selectCls('is_zero_rated')}
                 value={form.is_zero_rated}
-                onChange={(e) => handleZeroRatedChange(e.target.value as "Yes" | "No")}
-                onFocus={() => setActiveField("is_zero_rated")}
+                onChange={(e) => handleZeroRatedChange(e.target.value as 'Yes' | 'No')}
+                onFocus={() => setActiveField('is_zero_rated')}
                 disabled={isPredefined}
               >
                 <option value="No">No</option>
@@ -338,10 +344,15 @@ export default function TCSNatureOfGoodsFormFields({
         <div>
           <select
             ref={taxOnRealizationRef}
-            className={selectCls("tax_on_receipt_or_realization")}
+            className={selectCls('tax_on_receipt_or_realization')}
             value={form.tax_on_receipt_or_realization}
-            onChange={(e) => setForm((f) => ({ ...f, tax_on_receipt_or_realization: e.target.value as "Yes" | "No" }))}
-            onFocus={() => setActiveField("tax_on_receipt_or_realization")}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                tax_on_receipt_or_realization: e.target.value as 'Yes' | 'No',
+              }))
+            }
+            onFocus={() => setActiveField('tax_on_receipt_or_realization')}
             disabled={isPredefined}
           >
             <option value="No">No</option>
@@ -356,18 +367,17 @@ export default function TCSNatureOfGoodsFormFields({
           <input
             ref={thresholdLevelRef}
             type="text"
-            className={`${cls("threshold_level")} w-36`}
+            className={`${cls('threshold_level')} w-36`}
             value={form.threshold_level}
             onChange={(e) => {
               const val = e.target.value;
-              if (val !== "" && isNaN(Number(val))) return;
-              setField("threshold_level")(e);
+              if (val !== '' && isNaN(Number(val))) return;
+              setField('threshold_level')(e);
             }}
-            onFocus={() => setActiveField("threshold_level")}
+            onFocus={() => setActiveField('threshold_level')}
             disabled={isPredefined}
           />
         </div>
-
       </div>
     </div>
   );

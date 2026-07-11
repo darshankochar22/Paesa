@@ -227,7 +227,7 @@ export default function PayrollUnitAlter() {
   void _editActions;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none">
+    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
       <PageTitleBar title="Alter Payroll Unit" subtitle={selectedCompany?.name} />
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
       {success && (

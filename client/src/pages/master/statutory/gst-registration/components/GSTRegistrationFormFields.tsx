@@ -1,54 +1,50 @@
-import React, { useEffect, useRef } from "react";
-import type { FormData } from "../hooks/useGSTRegistrationForm";
+import React, { useEffect, useRef } from 'react';
+import type { FormData } from '../hooks/useGSTRegistrationForm';
 
 const TALLY_INDIAN_STATES = [
-  "Andaman & Nicobar Islands",
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chandigarh",
-  "Chhattisgarh",
-  "Dadra & Nagar Haveli and Daman & Diu",
-  "Delhi",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jammu & Kashmir",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Ladakh",
-  "Lakshadweep",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Puducherry",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttarakhand",
-  "Uttar Pradesh",
-  "West Bengal",
+  'Andaman & Nicobar Islands',
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chandigarh',
+  'Chhattisgarh',
+  'Dadra & Nagar Haveli and Daman & Diu',
+  'Delhi',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jammu & Kashmir',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Ladakh',
+  'Lakshadweep',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Puducherry',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttarakhand',
+  'Uttar Pradesh',
+  'West Bengal',
 ];
 
 interface GSTRegistrationFormFieldsProps {
   form: FormData;
   setField: (
-    key: keyof FormData
-  ) => (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => void;
+    key: keyof FormData,
+  ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   activeField: string;
   setActiveField: (field: string) => void;
   onSubmitPrompt: () => void;
@@ -64,7 +60,7 @@ interface FieldRowProps {
 function FieldRow({ label, required, indent, children }: FieldRowProps) {
   return (
     <div className="flex items-center min-h-[26px]">
-      <span className={`w-56 text-zinc-600 font-medium ${indent ? "pl-4" : ""}`}>
+      <span className={`w-56 text-zinc-600 font-medium ${indent ? 'pl-4' : ''}`}>
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
@@ -74,50 +70,46 @@ function FieldRow({ label, required, indent, children }: FieldRowProps) {
   );
 }
 
-const activeClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950";
-const inactiveClass = "border-transparent bg-transparent text-zinc-900";
+const activeClass = 'bg-[#ffea5d] border-[#e6c300] text-zinc-950';
+const inactiveClass = 'border-transparent bg-transparent text-zinc-900';
 const getSelectCls = (isActive: boolean) =>
   `px-2 py-0.5 border outline-none w-48 text-[11px] font-bold transition-all ${isActive ? activeClass : `${inactiveClass} bg-transparent`}`;
 const getInputCls = (isActive: boolean) =>
   `px-2 py-0.5 border outline-none w-48 text-[11px] font-bold transition-all ${isActive ? activeClass : `${inactiveClass} bg-transparent`}`;
 
 export const getGSTRegistrationFocusableFields = (form: FormData) => {
-  const isComposition = form.registration_type === "Composition";
-  const showEInvoice = form.registration_type === "Regular";
+  const isComposition = form.registration_type === 'Composition';
+  const showEInvoice = form.registration_type === 'Regular';
 
   const fields: string[] = [
-    "registration_status",
-    "state_id",
-    "address_type",
-    "registration_type",
-    "assessee_of_other_territory",
-    "gstin",
+    'registration_status',
+    'state_id',
+    'address_type',
+    'registration_type',
+    'assessee_of_other_territory',
+    'gstin',
   ];
 
   if (!isComposition) {
-    fields.push("periodicity_of_gstr1");
+    fields.push('periodicity_of_gstr1');
   }
 
-  fields.push("gst_username", "mode_of_filing");
+  fields.push('gst_username', 'mode_of_filing');
 
   if (showEInvoice) {
-    fields.push("e_invoice_application");
-    if (form.e_invoice_application === "Yes") {
-      fields.push("e_invoice_applicable_from", "e_invoice_bill_from_place");
+    fields.push('e_invoice_application');
+    if (form.e_invoice_application === 'Yes') {
+      fields.push('e_invoice_applicable_from', 'e_invoice_bill_from_place');
     }
   }
 
   if (isComposition) {
-    fields.push("composition_tax_rate", "composition_tax_calc_basis");
+    fields.push('composition_tax_rate', 'composition_tax_calc_basis');
   }
 
-  fields.push("e_way_bill_applicable");
-  if (form.e_way_bill_applicable === "Yes") {
-    fields.push(
-      "e_way_bill_applicable_from",
-      "applicable_for_intrastat",
-      "goods_dispatched_from"
-    );
+  fields.push('e_way_bill_applicable');
+  if (form.e_way_bill_applicable === 'Yes') {
+    fields.push('e_way_bill_applicable_from', 'applicable_for_intrastat', 'goods_dispatched_from');
   }
 
   return fields;
@@ -130,8 +122,8 @@ export default function GSTRegistrationFormFields({
   setActiveField,
   onSubmitPrompt,
 }: GSTRegistrationFormFieldsProps) {
-  const isComposition = form.registration_type === "Composition";
-  const showEInvoice = form.registration_type === "Regular";
+  const isComposition = form.registration_type === 'Composition';
+  const showEInvoice = form.registration_type === 'Regular';
 
   const regStatusRef = useRef<HTMLSelectElement>(null);
   const stateIdRef = useRef<HTMLSelectElement>(null);
@@ -182,7 +174,7 @@ export default function GSTRegistrationFormFields({
       const idx = fields.indexOf(activeField);
       if (idx === -1) return;
 
-      if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+      if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
         e.preventDefault();
         if (idx === fields.length - 1) {
           onSubmitPrompt();
@@ -192,7 +184,7 @@ export default function GSTRegistrationFormFields({
         return;
       }
 
-      if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+      if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
         e.preventDefault();
         if (idx > 0) {
           setActiveField(fields[idx - 1]);
@@ -202,15 +194,15 @@ export default function GSTRegistrationFormFields({
 
       // Handle Quick Y/N shortcuts for Yes/No dropdowns
       if (
-        activeField === "assessee_of_other_territory" ||
-        activeField === "e_invoice_application" ||
-        activeField === "e_way_bill_applicable" ||
-        activeField === "applicable_for_intrastat"
+        activeField === 'assessee_of_other_territory' ||
+        activeField === 'e_invoice_application' ||
+        activeField === 'e_way_bill_applicable' ||
+        activeField === 'applicable_for_intrastat'
       ) {
         const key = e.key.toLowerCase();
-        if (key === "y" || key === "n") {
+        if (key === 'y' || key === 'n') {
           e.preventDefault();
-          const val = key === "y" ? "Yes" : "No";
+          const val = key === 'y' ? 'Yes' : 'No';
           setField(activeField as keyof FormData)({ target: { value: val } } as any);
           if (idx < fields.length - 1) {
             setActiveField(fields[idx + 1]);
@@ -221,12 +213,17 @@ export default function GSTRegistrationFormFields({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeField, form, onSubmitPrompt, setField, setActiveField]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 font-mono text-zinc-800 text-[11px] select-none">
+    // Self-managed Tally-style field walk (window keydown + activeField):
+    // the global enter-nav must not double-handle Enter inside this zone.
+    <div
+      className="flex-1 overflow-y-auto p-4 bg-zinc-50 font-mono text-zinc-800 text-[11px] select-none"
+      data-enter-nav-ignore
+    >
       <div className="max-w-6xl mx-auto bg-white border border-zinc-200 rounded shadow-sm p-6">
         {/* Screen Header */}
         <div className="text-center font-bold text-xs border-b border-zinc-200 pb-3 mb-6 tracking-wide text-zinc-900 uppercase">
@@ -239,10 +236,10 @@ export default function GSTRegistrationFormFields({
           <span className="text-zinc-400 mr-3 font-bold">:</span>
           <select
             ref={regStatusRef}
-            className={getSelectCls(activeField === "registration_status")}
+            className={getSelectCls(activeField === 'registration_status')}
             value={form.registration_status}
-            onChange={setField("registration_status")}
-            onFocus={() => setActiveField("registration_status")}
+            onChange={setField('registration_status')}
+            onFocus={() => setActiveField('registration_status')}
           >
             <option>Active</option>
             <option>Suspended</option>
@@ -252,10 +249,8 @@ export default function GSTRegistrationFormFields({
 
         {/* Two-column layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start border-t border-zinc-100 pt-6">
-
           {/* LEFT COLUMN */}
           <div className="space-y-6">
-
             {/* GST Registration Details */}
             <div className="space-y-2.5">
               <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
@@ -265,14 +260,16 @@ export default function GSTRegistrationFormFields({
               <FieldRow label="State" required>
                 <select
                   ref={stateIdRef}
-                  className={getSelectCls(activeField === "state_id")}
+                  className={getSelectCls(activeField === 'state_id')}
                   value={form.state_id}
-                  onChange={setField("state_id")}
-                  onFocus={() => setActiveField("state_id")}
+                  onChange={setField('state_id')}
+                  onFocus={() => setActiveField('state_id')}
                 >
                   <option value="Not Applicable">Not Applicable</option>
                   {TALLY_INDIAN_STATES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
                   ))}
                 </select>
               </FieldRow>
@@ -280,10 +277,10 @@ export default function GSTRegistrationFormFields({
               <FieldRow label="Address type">
                 <select
                   ref={addressTypeRef}
-                  className={getSelectCls(activeField === "address_type")}
+                  className={getSelectCls(activeField === 'address_type')}
                   value={form.address_type}
-                  onChange={setField("address_type")}
-                  onFocus={() => setActiveField("address_type")}
+                  onChange={setField('address_type')}
+                  onFocus={() => setActiveField('address_type')}
                 >
                   <option>Primary</option>
                 </select>
@@ -292,10 +289,10 @@ export default function GSTRegistrationFormFields({
               <FieldRow label="Registration type" required>
                 <select
                   ref={regTypeRef}
-                  className={getSelectCls(activeField === "registration_type")}
+                  className={getSelectCls(activeField === 'registration_type')}
                   value={form.registration_type}
-                  onChange={setField("registration_type")}
-                  onFocus={() => setActiveField("registration_type")}
+                  onChange={setField('registration_type')}
+                  onFocus={() => setActiveField('registration_type')}
                 >
                   <option>Regular</option>
                   <option>Composition</option>
@@ -306,10 +303,10 @@ export default function GSTRegistrationFormFields({
               <FieldRow label="Assessee of Other Territory">
                 <select
                   ref={assesseeOtherRef}
-                  className={getSelectCls(activeField === "assessee_of_other_territory")}
+                  className={getSelectCls(activeField === 'assessee_of_other_territory')}
                   value={form.assessee_of_other_territory}
-                  onChange={setField("assessee_of_other_territory")}
-                  onFocus={() => setActiveField("assessee_of_other_territory")}
+                  onChange={setField('assessee_of_other_territory')}
+                  onFocus={() => setActiveField('assessee_of_other_territory')}
                 >
                   <option>No</option>
                   <option>Yes</option>
@@ -319,11 +316,11 @@ export default function GSTRegistrationFormFields({
               <FieldRow label="GSTIN/UIN" required>
                 <input
                   ref={gstinRef}
-                  className={`${getInputCls(activeField === "gstin")} uppercase tracking-wider`}
+                  className={`${getInputCls(activeField === 'gstin')} uppercase tracking-wider`}
                   placeholder="e.g. 27AAAAA1111A1Z1"
                   value={form.gstin}
-                  onChange={setField("gstin")}
-                  onFocus={() => setActiveField("gstin")}
+                  onChange={setField('gstin')}
+                  onFocus={() => setActiveField('gstin')}
                   maxLength={15}
                 />
               </FieldRow>
@@ -333,10 +330,10 @@ export default function GSTRegistrationFormFields({
                 <FieldRow label="Periodicity of GSTR-1">
                   <select
                     ref={periodicityRef}
-                    className={getSelectCls(activeField === "periodicity_of_gstr1")}
+                    className={getSelectCls(activeField === 'periodicity_of_gstr1')}
                     value={form.periodicity_of_gstr1}
-                    onChange={setField("periodicity_of_gstr1")}
-                    onFocus={() => setActiveField("periodicity_of_gstr1")}
+                    onChange={setField('periodicity_of_gstr1')}
+                    onFocus={() => setActiveField('periodicity_of_gstr1')}
                   >
                     <option>Monthly</option>
                     <option>Quarterly</option>
@@ -354,21 +351,21 @@ export default function GSTRegistrationFormFields({
               <FieldRow label="GST Username">
                 <input
                   ref={gstUsernameRef}
-                  className={getInputCls(activeField === "gst_username")}
+                  className={getInputCls(activeField === 'gst_username')}
                   placeholder="Optional portal user ID"
                   value={form.gst_username}
-                  onChange={setField("gst_username")}
-                  onFocus={() => setActiveField("gst_username")}
+                  onChange={setField('gst_username')}
+                  onFocus={() => setActiveField('gst_username')}
                 />
               </FieldRow>
 
               <FieldRow label="Mode of Filing">
                 <select
                   ref={modeOfFilingRef}
-                  className={getSelectCls(activeField === "mode_of_filing")}
+                  className={getSelectCls(activeField === 'mode_of_filing')}
                   value={form.mode_of_filing}
-                  onChange={setField("mode_of_filing")}
-                  onFocus={() => setActiveField("mode_of_filing")}
+                  onChange={setField('mode_of_filing')}
+                  onFocus={() => setActiveField('mode_of_filing')}
                 >
                   <option>Not Applicable</option>
                   <option>DSC</option>
@@ -387,37 +384,37 @@ export default function GSTRegistrationFormFields({
                 <FieldRow label="e-Invoicing applicable">
                   <select
                     ref={eInvoiceAppRef}
-                    className={getSelectCls(activeField === "e_invoice_application")}
+                    className={getSelectCls(activeField === 'e_invoice_application')}
                     value={form.e_invoice_application}
-                    onChange={setField("e_invoice_application")}
-                    onFocus={() => setActiveField("e_invoice_application")}
+                    onChange={setField('e_invoice_application')}
+                    onFocus={() => setActiveField('e_invoice_application')}
                   >
                     <option>No</option>
                     <option>Yes</option>
                   </select>
                 </FieldRow>
 
-                {form.e_invoice_application === "Yes" && (
+                {form.e_invoice_application === 'Yes' && (
                   <>
                     <FieldRow label="Applicable from" indent>
                       <input
                         ref={eInvoiceAppFromRef}
                         type="date"
-                        className={getInputCls(activeField === "e_invoice_applicable_from")}
+                        className={getInputCls(activeField === 'e_invoice_applicable_from')}
                         value={form.e_invoice_applicable_from}
-                        onChange={setField("e_invoice_applicable_from")}
-                        onFocus={() => setActiveField("e_invoice_applicable_from")}
+                        onChange={setField('e_invoice_applicable_from')}
+                        onFocus={() => setActiveField('e_invoice_applicable_from')}
                       />
                     </FieldRow>
 
                     <FieldRow label="Invoice bill from place" indent>
                       <input
                         ref={eInvoiceBillFromRef}
-                        className={getInputCls(activeField === "e_invoice_bill_from_place")}
+                        className={getInputCls(activeField === 'e_invoice_bill_from_place')}
                         placeholder="e.g. Panaji"
                         value={form.e_invoice_bill_from_place}
-                        onChange={setField("e_invoice_bill_from_place")}
-                        onFocus={() => setActiveField("e_invoice_bill_from_place")}
+                        onChange={setField('e_invoice_bill_from_place')}
+                        onFocus={() => setActiveField('e_invoice_bill_from_place')}
                       />
                     </FieldRow>
                   </>
@@ -436,11 +433,11 @@ export default function GSTRegistrationFormFields({
                   <div className="flex items-center gap-1">
                     <input
                       ref={compTaxRateRef}
-                      className={`${getInputCls(activeField === "composition_tax_rate")} w-20 text-right`}
+                      className={`${getInputCls(activeField === 'composition_tax_rate')} w-20 text-right`}
                       placeholder="1"
                       value={form.composition_tax_rate}
-                      onChange={setField("composition_tax_rate")}
-                      onFocus={() => setActiveField("composition_tax_rate")}
+                      onChange={setField('composition_tax_rate')}
+                      onFocus={() => setActiveField('composition_tax_rate')}
                     />
                     <span className="font-bold text-zinc-500">%</span>
                   </div>
@@ -449,10 +446,10 @@ export default function GSTRegistrationFormFields({
                 <FieldRow label="Calculate tax based on">
                   <select
                     ref={compTaxCalcRef}
-                    className={`${getSelectCls(activeField === "composition_tax_calc_basis")} w-64`}
+                    className={`${getSelectCls(activeField === 'composition_tax_calc_basis')} w-64`}
                     value={form.composition_tax_calc_basis}
-                    onChange={setField("composition_tax_calc_basis")}
-                    onFocus={() => setActiveField("composition_tax_calc_basis")}
+                    onChange={setField('composition_tax_calc_basis')}
+                    onFocus={() => setActiveField('composition_tax_calc_basis')}
                   >
                     <option>Taxable Value</option>
                     <option>Taxable, Exempt, &amp; Nil Rated Values</option>
@@ -464,7 +461,6 @@ export default function GSTRegistrationFormFields({
 
           {/* RIGHT COLUMN */}
           <div className="space-y-6">
-
             {/* e-Way Bill Details — always visible */}
             <div className="space-y-2.5">
               <div className="font-bold text-zinc-950 border-b border-zinc-150 pb-1 uppercase tracking-wider text-[10px]">
@@ -474,10 +470,10 @@ export default function GSTRegistrationFormFields({
               <FieldRow label="e-Way Bill applicable">
                 <select
                   ref={eWayBillAppRef}
-                  className={getSelectCls(activeField === "e_way_bill_applicable")}
+                  className={getSelectCls(activeField === 'e_way_bill_applicable')}
                   value={form.e_way_bill_applicable}
-                  onChange={setField("e_way_bill_applicable")}
-                  onFocus={() => setActiveField("e_way_bill_applicable")}
+                  onChange={setField('e_way_bill_applicable')}
+                  onFocus={() => setActiveField('e_way_bill_applicable')}
                 >
                   <option>No</option>
                   <option>Yes</option>
@@ -489,21 +485,21 @@ export default function GSTRegistrationFormFields({
                 <input
                   ref={eWayBillAppFromRef}
                   type="date"
-                  className={getInputCls(activeField === "e_way_bill_applicable_from")}
+                  className={getInputCls(activeField === 'e_way_bill_applicable_from')}
                   value={form.e_way_bill_applicable_from}
-                  onChange={setField("e_way_bill_applicable_from")}
-                  onFocus={() => setActiveField("e_way_bill_applicable_from")}
+                  onChange={setField('e_way_bill_applicable_from')}
+                  onFocus={() => setActiveField('e_way_bill_applicable_from')}
                 />
               </FieldRow>
 
               <FieldRow label="Applicable for intrastate" indent>
                 <select
                   ref={appIntrastateRef}
-                  className={`${getSelectCls(activeField === "applicable_for_intrastat")} disabled:opacity-40 disabled:cursor-not-allowed`}
+                  className={`${getSelectCls(activeField === 'applicable_for_intrastat')} disabled:opacity-40 disabled:cursor-not-allowed`}
                   value={form.applicable_for_intrastat}
-                  onChange={setField("applicable_for_intrastat")}
-                  onFocus={() => setActiveField("applicable_for_intrastat")}
-                  disabled={form.e_way_bill_applicable === "No"}
+                  onChange={setField('applicable_for_intrastat')}
+                  onFocus={() => setActiveField('applicable_for_intrastat')}
+                  disabled={form.e_way_bill_applicable === 'No'}
                 >
                   <option>No</option>
                   <option>Yes</option>
@@ -513,17 +509,16 @@ export default function GSTRegistrationFormFields({
               <FieldRow label="Goods dispatched from" indent>
                 <select
                   ref={goodsDispatchedRef}
-                  className={`${getSelectCls(activeField === "goods_dispatched_from")} disabled:opacity-40 disabled:cursor-not-allowed`}
+                  className={`${getSelectCls(activeField === 'goods_dispatched_from')} disabled:opacity-40 disabled:cursor-not-allowed`}
                   value={form.goods_dispatched_from}
-                  onChange={setField("goods_dispatched_from")}
-                  onFocus={() => setActiveField("goods_dispatched_from")}
-                  disabled={form.e_way_bill_applicable === "No"}
+                  onChange={setField('goods_dispatched_from')}
+                  onFocus={() => setActiveField('goods_dispatched_from')}
+                  disabled={form.e_way_bill_applicable === 'No'}
                 >
                   <option>Primary</option>
                 </select>
               </FieldRow>
             </div>
-
           </div>
         </div>
       </div>

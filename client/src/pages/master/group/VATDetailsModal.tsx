@@ -1,45 +1,47 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
-const inputCls = "w-full bg-transparent text-[13px] outline-none py-1 px-1 placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-400 transition-colors";
-const selectCls = "w-full bg-transparent text-[13px] outline-none py-1 px-1 cursor-pointer border-b border-transparent focus:border-zinc-400 transition-colors";
+const inputCls =
+  'w-full bg-transparent text-[13px] outline-none py-1 px-1 placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-400 transition-colors';
+const selectCls =
+  'w-full bg-transparent text-[13px] outline-none py-1 px-1 cursor-pointer border-b border-transparent focus:border-zinc-400 transition-colors';
 
 const NATURE_OF_TRANSACTIONS = [
-  "Imports",
-  "Interstate Branch Transfer Inward",
-  "Interstate Consignment Transfer Inward",
-  "Interstate Purchase - Against Form C",
-  "Interstate Purchase Deemed Export",
-  "Interstate Purchase - E1",
-  "Interstate Purchase - E2",
-  "Interstate Purchase - Exempt",
-  "Interstate Purchase Exempt - E1",
-  "Interstate Purchase Exempt - With Form C",
-  "Interstate Purchase - Taxable",
-  "Interstate Purchase - Zero Rated",
-  "Non Creditable Purchase - Special Goods",
-  "Purchase Exempt",
-  "Purchase from Unregistered Dealer",
-  "Purchase Taxable",
-  "Purchase Taxable - Capital Goods",
-  "Purchase - Works Contract",
+  'Imports',
+  'Interstate Branch Transfer Inward',
+  'Interstate Consignment Transfer Inward',
+  'Interstate Purchase - Against Form C',
+  'Interstate Purchase Deemed Export',
+  'Interstate Purchase - E1',
+  'Interstate Purchase - E2',
+  'Interstate Purchase - Exempt',
+  'Interstate Purchase Exempt - E1',
+  'Interstate Purchase Exempt - With Form C',
+  'Interstate Purchase - Taxable',
+  'Interstate Purchase - Zero Rated',
+  'Non Creditable Purchase - Special Goods',
+  'Purchase Exempt',
+  'Purchase from Unregistered Dealer',
+  'Purchase Taxable',
+  'Purchase Taxable - Capital Goods',
+  'Purchase - Works Contract',
 ];
 
-const PARTY_ENTITY_OPTIONS = ["Not Applicable", "SEZ / STP / EHTP"];
-const TAX_TYPES = ["Unknown", "Exempt", "Tax Free"];
+const PARTY_ENTITY_OPTIONS = ['Not Applicable', 'SEZ / STP / EHTP'];
+const TAX_TYPES = ['Unknown', 'Exempt', 'Tax Free'];
 
 const NATURES_WITH_ENTITY_TYPE = new Set([
-  "Imports",
-  "Interstate Branch Transfer Inward",
-  "Interstate Consignment Transfer Inward",
-  "Interstate Purchase - Against Form C",
-  "Interstate Purchase Deemed Export",
-  "Interstate Purchase - E1",
-  "Interstate Purchase - E2",
-  "Interstate Purchase - Exempt",
-  "Interstate Purchase Exempt - E1",
-  "Interstate Purchase Exempt - With Form C",
-  "Interstate Purchase - Taxable",
-  "Interstate Purchase - Zero Rated",
+  'Imports',
+  'Interstate Branch Transfer Inward',
+  'Interstate Consignment Transfer Inward',
+  'Interstate Purchase - Against Form C',
+  'Interstate Purchase Deemed Export',
+  'Interstate Purchase - E1',
+  'Interstate Purchase - E2',
+  'Interstate Purchase - Exempt',
+  'Interstate Purchase Exempt - E1',
+  'Interstate Purchase Exempt - With Form C',
+  'Interstate Purchase - Taxable',
+  'Interstate Purchase - Zero Rated',
 ]);
 
 export interface VATData {
@@ -58,54 +60,59 @@ interface VATDetailsModalProps {
 }
 
 function formatDate(iso: string) {
-  if (!iso) return "";
+  if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" });
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
-export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }: VATDetailsModalProps) {
-  const [natureOfTransaction, setNatureOfTransaction] = useState("Undefined");
-  const [partyEntityType, setPartyEntityType] = useState("Not Applicable");
-  const [taxRate, setTaxRate] = useState("0");
-  const [taxType, setTaxType] = useState("Unknown");
-  const [highlightedTaxType, setHighlightedTaxType] = useState("Unknown");
-  const [revisedApplicability, setRevisedApplicability] = useState("");
+export default function VATDetailsModal({
+  isOpen,
+  onClose,
+  initialData,
+  onSave,
+}: VATDetailsModalProps) {
+  const [natureOfTransaction, setNatureOfTransaction] = useState('Undefined');
+  const [partyEntityType, setPartyEntityType] = useState('Not Applicable');
+  const [taxRate, setTaxRate] = useState('0');
+  const [taxType, setTaxType] = useState('Unknown');
+  const [highlightedTaxType, setHighlightedTaxType] = useState('Unknown');
+  const [revisedApplicability, setRevisedApplicability] = useState('');
   const [showDatePopup, setShowDatePopup] = useState(false);
-  const [pendingNature, setPendingNature] = useState("");
-  const [dateInput, setDateInput] = useState("");
+  const [pendingNature, setPendingNature] = useState('');
+  const [dateInput, setDateInput] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      setNatureOfTransaction(initialData?.vat_nature_of_transaction || "Undefined");
-      setPartyEntityType(initialData?.vat_party_entity_type || "Not Applicable");
+      setNatureOfTransaction(initialData?.vat_nature_of_transaction || 'Undefined');
+      setPartyEntityType(initialData?.vat_party_entity_type || 'Not Applicable');
       setTaxRate(String(initialData?.vat_tax_rate ?? 0));
-      setTaxType(initialData?.vat_tax_type || "Unknown");
-      setHighlightedTaxType(initialData?.vat_tax_type || "Unknown");
-      setRevisedApplicability(initialData?.vat_revised_applicability || "");
+      setTaxType(initialData?.vat_tax_type || 'Unknown');
+      setHighlightedTaxType(initialData?.vat_tax_type || 'Unknown');
+      setRevisedApplicability(initialData?.vat_revised_applicability || '');
       setShowDatePopup(false);
-      setPendingNature("");
-      setDateInput(initialData?.vat_revised_applicability || "");
+      setPendingNature('');
+      setDateInput(initialData?.vat_revised_applicability || '');
     }
   }, [isOpen]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === 'Escape' && isOpen) {
         e.preventDefault();
         if (showDatePopup) setShowDatePopup(false);
         else onClose();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [isOpen, onClose, showDatePopup]);
 
   if (!isOpen) return null;
 
   const handleNatureChange = (val: string) => {
     setPendingNature(val);
-    setDateInput("");
+    setDateInput('');
     setShowDatePopup(true);
   };
 
@@ -113,16 +120,16 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
     setNatureOfTransaction(pendingNature);
     setRevisedApplicability(dateInput);
     setShowDatePopup(false);
-    setPendingNature("");
+    setPendingNature('');
     if (!NATURES_WITH_ENTITY_TYPE.has(pendingNature)) {
-      setPartyEntityType("Not Applicable");
+      setPartyEntityType('Not Applicable');
     }
   };
 
   const handleDateCancel = () => {
     setShowDatePopup(false);
-    setPendingNature("");
-    setDateInput("");
+    setPendingNature('');
+    setDateInput('');
   };
 
   const handleAccept = () => {
@@ -139,7 +146,7 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
   const showEntityType = NATURES_WITH_ENTITY_TYPE.has(natureOfTransaction);
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/30">
+    <div data-enter-nav-ignore className="fixed inset-0 z-[60] bg-black/30">
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pr-72">
         <div className="bg-white border border-zinc-300 shadow-2xl w-[480px] flex flex-col">
           <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 text-center">
@@ -151,7 +158,9 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
             <div className="mb-5">
               <div className="text-[13px] font-semibold text-zinc-800 mb-2">Transaction Info</div>
               <div className="flex items-center gap-2 ml-4 mb-2">
-                <span className="text-[13px] text-zinc-700 w-44 shrink-0">Nature of transaction</span>
+                <span className="text-[13px] text-zinc-700 w-44 shrink-0">
+                  Nature of transaction
+                </span>
                 <span className="text-zinc-400 mr-2">:</span>
                 <select
                   className={selectCls}
@@ -160,13 +169,17 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
                 >
                   <option value="Undefined">Undefined</option>
                   {NATURE_OF_TRANSACTIONS.map((n) => (
-                    <option key={n} value={n}>{n}</option>
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
                   ))}
                 </select>
               </div>
               {showEntityType && (
                 <div className="flex items-center gap-2 ml-4">
-                  <span className="text-[13px] text-zinc-700 w-44 shrink-0">Party Entity/Org. Type</span>
+                  <span className="text-[13px] text-zinc-700 w-44 shrink-0">
+                    Party Entity/Org. Type
+                  </span>
                   <span className="text-zinc-400 mr-2">:</span>
                   <select
                     className={selectCls}
@@ -174,7 +187,9 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
                     onChange={(e) => setPartyEntityType(e.target.value)}
                   >
                     {PARTY_ENTITY_OPTIONS.map((o) => (
-                      <option key={o} value={o}>{o}</option>
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -211,10 +226,15 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
                 <select
                   className={selectCls}
                   value={taxType}
-                  onChange={(e) => { setTaxType(e.target.value); setHighlightedTaxType(e.target.value); }}
+                  onChange={(e) => {
+                    setTaxType(e.target.value);
+                    setHighlightedTaxType(e.target.value);
+                  }}
                 >
                   {TAX_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -222,10 +242,16 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
           </div>
 
           <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
-            <button onClick={onClose} className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium">
+            <button
+              onClick={onClose}
+              className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
+            >
               Cancel
             </button>
-            <button onClick={handleAccept} className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium">
+            <button
+              onClick={handleAccept}
+              className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
+            >
               Accept
             </button>
           </div>
@@ -242,11 +268,17 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
             <div
               key={t}
               className={`px-3 py-1.5 text-[13px] cursor-pointer select-none ${
-                highlightedTaxType === t ? "bg-zinc-200 text-zinc-900 font-medium" : "text-zinc-700 hover:bg-zinc-50"
+                highlightedTaxType === t
+                  ? 'bg-zinc-200 text-zinc-900 font-medium'
+                  : 'text-zinc-700 hover:bg-zinc-50'
               }`}
-              onClick={() => { setTaxType(t); setHighlightedTaxType(t); }}
+              onClick={() => {
+                setTaxType(t);
+                setHighlightedTaxType(t);
+              }}
             >
-              {t === "Unknown" ? "◆ " : ""}{t}
+              {t === 'Unknown' ? '◆ ' : ''}
+              {t}
             </div>
           ))}
         </div>
@@ -254,7 +286,10 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
 
       {/* Revised Applicability date popup — fires every time nature changes */}
       {showDatePopup && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40">
+        <div
+          data-enter-nav-ignore
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40"
+        >
           <div className="bg-white border border-zinc-300 shadow-2xl w-80 flex flex-col">
             <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 text-center">
               <span className="text-[13px] font-semibold text-zinc-900">Revised Applicability</span>
@@ -269,15 +304,23 @@ export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }
                   type="date"
                   value={dateInput}
                   onChange={(e) => setDateInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleDateConfirm(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleDateConfirm();
+                  }}
                 />
               </div>
             </div>
             <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
-              <button onClick={handleDateCancel} className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium">
+              <button
+                onClick={handleDateCancel}
+                className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
+              >
                 Cancel
               </button>
-              <button onClick={handleDateConfirm} className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium">
+              <button
+                onClick={handleDateConfirm}
+                className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
+              >
                 Accept
               </button>
             </div>

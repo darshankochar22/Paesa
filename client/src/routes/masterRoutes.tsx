@@ -102,11 +102,13 @@ import EInvoiceEWayBillReport from '../pages/master/statutory/gst-return/EInvoic
 import GSTR3BView from '../pages/master/statutory/gst-return/GSTR-3B.tsx';
 import GSTR3BSectionSummary from '../pages/master/statutory/gst-return/GSTR3BSectionSummary.tsx';
 import AnnualComputation from '../pages/master/statutory/gst-return/AnnualComputation.tsx';
-import GSTR2AReconciliation from '../pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx';
+import DownloadGstReturns from '../pages/master/statutory/gst-return/DownloadGstReturns.tsx';
+import ReconReturnView from '../pages/master/statutory/gst-return/recon/ReconReturnView.tsx';
+import ReconPartySummary from '../pages/master/statutory/gst-return/recon/ReconPartySummary.tsx';
+import ReconVoucherRegister from '../pages/master/statutory/gst-return/recon/ReconVoucherRegister.tsx';
 import GSTR1vs3BComparison from '../pages/master/statutory/gst-return/GSTR1vs3BComparison.tsx';
 import GSTR9CReconciliation from '../pages/master/statutory/gst-return/GSTR9CReconciliation.tsx';
 import IMSInwardSupplies from '../pages/master/statutory/gst-return/IMSInwardSupplies.tsx';
-import GSTR2BReconciliation from '../pages/master/statutory/gst-return/GSTR2BReconciliation.tsx';
 import ChallanReconciliation from '../pages/master/statutory/gst-return/ChallanReconciliation.tsx';
 
 // Statutory — Excise / Tax Units
@@ -304,8 +306,13 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/statutory/gstr3b', element: <GSTR3BView /> },
   { path: '/master/statutory/gstr3b/section-summary', element: <GSTR3BSectionSummary /> },
   { path: '/master/statutory/annual-computation', element: <AnnualComputation /> },
-  { path: '/master/statutory/gstr2a/reconciliation', element: <GSTR2AReconciliation /> },
-  { path: '/master/statutory/gstr2b/reconciliation', element: <GSTR2BReconciliation /> },
+  { path: '/master/statutory/download-gst-returns', element: <DownloadGstReturns /> },
+  { path: '/master/statutory/gstr2a/reconciliation', element: <ReconReturnView kind="2A" /> },
+  { path: '/master/statutory/gstr2b/reconciliation', element: <ReconReturnView kind="2B" /> },
+  { path: '/master/statutory/gstr2a/reconciliation/party', element: <ReconPartySummary /> },
+  { path: '/master/statutory/gstr2b/reconciliation/party', element: <ReconPartySummary /> },
+  { path: '/master/statutory/gstr2a/reconciliation/register', element: <ReconVoucherRegister /> },
+  { path: '/master/statutory/gstr2b/reconciliation/register', element: <ReconVoucherRegister /> },
   { path: '/master/statutory/gstr1-vs-3b', element: <GSTR1vs3BComparison /> },
   { path: '/master/statutory/gstr9c', element: <GSTR9CReconciliation /> },
   { path: '/master/statutory/challan/reconciliation', element: <ChallanReconciliation /> },

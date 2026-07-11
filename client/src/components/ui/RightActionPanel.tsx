@@ -39,6 +39,7 @@ export default function RightActionPanel({ actions, title = 'Actions', className
           return (
             <button
               key={`${act.key}-${act.label}`}
+              data-enter-accept={act.label.toLowerCase() === 'accept' ? true : undefined}
               onClick={() => {
                 if (!act.disabled) act.onClick();
               }}

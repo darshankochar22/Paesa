@@ -21,60 +21,73 @@
 // Pure-parser dependency: this file consumes the parser output shape only; it
 // never re-parses XML.
 // ---------------------------------------------------------------------------
-const groupService = require("../../group/groupService");
-const ledgerService = require("../../ledger/ledgerService");
-const stockItemService = require("../../stockItem/stockItemService");
-const unitService = require("../../unit/unitService");
-const voucherService = require("../../voucher/voucherService");
+const groupService = require('../../group/groupService');
+const ledgerService = require('../../ledger/ledgerService');
+const stockItemService = require('../../stockItem/stockItemService');
+const unitService = require('../../unit/unitService');
+const voucherService = require('../../voucher/voucherService');
 
 // ----- small helpers --------------------------------------------------------
 
-const norm = (s) => (s == null ? "" : String(s).trim().toLowerCase());
+const norm = (s) => (s == null ? '' : String(s).trim().toLowerCase());
 
 // Nature map for Tally's reserved primary groups, used as a fallback when a
 // group's parent cannot be resolved to an already-seeded/created row (so we can
 // still satisfy groupService.create, which has no `nature` default). Mirrors
 // groupService.PRIMARY_GROUPS (not exported there) + a few common Tally roots.
 const TALLY_PRIMARY_NATURE = {
-  "branch/divisions": "Assets",
-  "capital account": "Liabilities",
-  "current assets": "Assets",
-  "current liabilities": "Liabilities",
-  "direct expenses": "Expenses",
-  "direct incomes": "Income",
-  "fixed assets": "Assets",
-  "indirect expenses": "Expenses",
-  "indirect incomes": "Income",
-  investments: "Assets",
-  "loans (liability)": "Liabilities",
-  "loans(liability)": "Liabilities",
-  "misc. expenses (asset)": "Assets",
-  "misc.expenses(asset)": "Assets",
-  "purchase accounts": "Expenses",
-  "sales accounts": "Income",
-  "suspense a/c": "Liabilities",
+  'branch/divisions': 'Assets',
+  'capital account': 'Liabilities',
+  'current assets': 'Assets',
+  'current liabilities': 'Liabilities',
+  'direct expenses': 'Expenses',
+  'direct incomes': 'Income',
+  'fixed assets': 'Assets',
+  'indirect expenses': 'Expenses',
+  'indirect incomes': 'Income',
+  investments: 'Assets',
+  'loans (liability)': 'Liabilities',
+  'loans(liability)': 'Liabilities',
+  'misc. expenses (asset)': 'Assets',
+  'misc.expenses(asset)': 'Assets',
+  'purchase accounts': 'Expenses',
+  'sales accounts': 'Income',
+  'suspense a/c': 'Liabilities',
 };
 
 // Map a Tally GST registration type to the app's enum.
 const mapRegistrationType = (rt) => {
   const t = norm(rt);
-  if (t === "regular") return "Regular";
-  if (t === "composition") return "Composition";
-  if (t === "consumer") return "Consumer";
+  if (t === 'regular') return 'Regular';
+  if (t === 'composition') return 'Composition';
+  if (t === 'consumer') return 'Consumer';
   // Unknown / Unregistered / empty -> Unregistered
-  return "Unregistered";
+  return 'Unregistered';
 };
 
 // Known app voucher types (voucherService.prefixMap). Unknown -> Journal.
 const KNOWN_VOUCHER_TYPES = new Set([
-  "Payment", "Receipt", "Journal", "Contra", "Sales", "Purchase",
-  "Debit Note", "Credit Note", "Stock Journal", "Delivery Note",
-  "Receipt Note", "Rejection In", "Rejection Out", "Material In",
-  "Material Out", "Manufacturing Journal", "Payroll",
+  'Payment',
+  'Receipt',
+  'Journal',
+  'Contra',
+  'Sales',
+  'Purchase',
+  'Debit Note',
+  'Credit Note',
+  'Stock Journal',
+  'Delivery Note',
+  'Receipt Note',
+  'Rejection In',
+  'Rejection Out',
+  'Material In',
+  'Material Out',
+  'Manufacturing Journal',
+  'Payroll',
 ]);
 
 const mapVoucherType = (vt) => {
-  if (vt == null) return "Journal";
+  if (vt == null) return 'Journal';
   const exact = String(vt).trim();
   if (KNOWN_VOUCHER_TYPES.has(exact)) return exact;
   // Case-insensitive match against known types.
@@ -82,11 +95,10 @@ const mapVoucherType = (vt) => {
   for (const k of KNOWN_VOUCHER_TYPES) {
     if (norm(k) === lower) return k;
   }
-  return "Journal";
+  return 'Journal';
 };
 
-const isDuplicateError = (err) =>
-  typeof err === "string" && /already exists/i.test(err);
+const isDuplicateError = (err) => typeof err === 'string' && /already exists/i.test(err);
 
 // ----- resolution context ---------------------------------------------------
 
@@ -136,8 +148,7 @@ const buildResolver = async (company_id) => {
     resolveLedger: (name) => ledgerNameToId.get(norm(name)),
     resolveStock: (name) => stockNameToId.get(norm(name)),
     resolveUnit: (sym) => unitSymbolToId.get(norm(sym)),
-    natureOfGroup: (group_id) =>
-      group_id != null ? groupNatureById.get(group_id) : undefined,
+    natureOfGroup: (group_id) => (group_id != null ? groupNatureById.get(group_id) : undefined),
   };
 };
 
@@ -167,7 +178,7 @@ const orderGroupsByDepth = (groups) => {
 
   return groups
     .map((grp, idx) => ({ grp, idx, depth: depthOf(grp) }))
-    .sort((a, b) => (a.depth - b.depth) || (a.idx - b.idx))
+    .sort((a, b) => a.depth - b.depth || a.idx - b.idx)
     .map((x) => x.grp);
 };
 
@@ -186,11 +197,10 @@ const importGroups = async (parsedGroups, ctx, resolver) => {
       continue;
     }
 
-    const parentId =
-      grp.parent != null ? resolver.resolveGroup(grp.parent) : null;
+    const parentId = grp.parent != null ? resolver.resolveGroup(grp.parent) : null;
     if (grp.parent != null && parentId == null) {
       summary.errors.push(
-        `Group "${grp.name}": parent "${grp.parent}" not found; created unparented`
+        `Group "${grp.name}": parent "${grp.parent}" not found; created unparented`,
       );
     }
 
@@ -200,7 +210,7 @@ const importGroups = async (parsedGroups, ctx, resolver) => {
     if (!nature && parentId != null) nature = resolver.natureOfGroup(parentId);
     if (!nature) nature = TALLY_PRIMARY_NATURE[norm(grp.name)] || null;
     if (!nature && grp.parent) nature = TALLY_PRIMARY_NATURE[norm(grp.parent)] || null;
-    if (!nature) nature = "Assets";
+    if (!nature) nature = 'Assets';
 
     const res = await groupService.create({
       company_id: ctx.company_id,
@@ -260,7 +270,7 @@ const ensureUnit = async (unitNameOrSymbol, ctx, resolver, summary) => {
     const all = await unitService.getAll(ctx.company_id);
     if (all.success) {
       const row = all.units.find(
-        (r) => norm(r.symbol) === norm(unitNameOrSymbol) || norm(r.name) === norm(unitNameOrSymbol)
+        (r) => norm(r.symbol) === norm(unitNameOrSymbol) || norm(r.name) === norm(unitNameOrSymbol),
       );
       if (row) {
         resolver.unitSymbolToId.set(norm(row.symbol), row.unit_id);
@@ -300,15 +310,13 @@ const importLedgers = async (parsedLedgers, ctx, resolver) => {
       continue;
     }
 
-    const groupId =
-      led.parent != null ? resolver.resolveGroup(led.parent) : null;
+    const groupId = led.parent != null ? resolver.resolveGroup(led.parent) : null;
     if (led.parent != null && groupId == null) {
       summary.errors.push(
-        `Ledger "${led.name}": group "${led.parent}" not found; created ungrouped`
+        `Ledger "${led.name}": group "${led.parent}" not found; created ungrouped`,
       );
     }
-    const nature =
-      groupId != null ? resolver.natureOfGroup(groupId) || null : null;
+    const nature = groupId != null ? resolver.natureOfGroup(groupId) || null : null;
 
     const payload = {
       company_id: ctx.company_id,
@@ -316,10 +324,13 @@ const importLedgers = async (parsedLedgers, ctx, resolver) => {
       group_id: groupId || null,
       nature,
       opening_balance: led.openingBalance || 0,
+      opening_balance_type: led.openingBalanceType || 'Dr',
+      is_bill_wise: led.isBillWise ? 1 : 0,
       gstin: led.gstin || null,
       registration_type: mapRegistrationType(led.registrationType),
       mailing_name: led.mailingName || null,
       address1: led.address || null,
+      city: led.city || null,
       state: led.state || null,
       country: led.country || null,
       pincode: led.pincode || null,
@@ -382,9 +393,7 @@ const importStockItems = async (parsedStockItems, ctx, resolver, unitSummary) =>
     const groupId = s.parent != null ? resolver.resolveGroup(s.parent) : null;
     const gstRate = Number(s.gstRate) || 0;
     const gstApplicable =
-      gstRate > 0 || norm(s.taxability) === "taxable"
-        ? "Applicable"
-        : "Not Applicable";
+      gstRate > 0 || norm(s.taxability) === 'taxable' ? 'Applicable' : 'Not Applicable';
 
     const res = await stockItemService.create({
       company_id: ctx.company_id,
@@ -400,7 +409,11 @@ const importStockItems = async (parsedStockItems, ctx, resolver, unitSummary) =>
       sgst_rate: gstRate ? gstRate / 2 : 0,
       igst_rate: gstRate,
       gst_applicable: gstApplicable,
-      type_of_supply: s.typeOfSupply || "Goods",
+      // Store the HSN/GST on the item itself ("Specified Here") so the UI shows
+      // the item's own values instead of "As per Company/Stock Group".
+      source_of_details: s.hsnSac ? 'Specified Here' : 'As per Company/Stock Group',
+      source_of_gst_rate: gstRate ? 'Specified Here' : 'As per Company/Stock Group',
+      type_of_supply: s.typeOfSupply || 'Goods',
       taxability_type: s.taxability || null,
     });
 
@@ -430,7 +443,7 @@ const entriesBalanced = (entries) => {
   let total = 0;
   for (const e of entries) {
     if (!(Number(e.amount) > 0)) return false;
-    total += e.type === "Dr" ? Number(e.amount) : -Number(e.amount);
+    total += e.type === 'Dr' ? Number(e.amount) : -Number(e.amount);
   }
   return Math.abs(total) < 0.01;
 };
@@ -468,9 +481,7 @@ const importVouchersPhase = async (parsedVouchers, ctx, resolver) => {
 
     if (unresolved != null) {
       summary.failed++;
-      summary.errors.push(
-        `Voucher ${label}: ledger "${unresolved}" not found`
-      );
+      summary.errors.push(`Voucher ${label}: ledger "${unresolved}" not found`);
       continue;
     }
 
@@ -481,16 +492,19 @@ const importVouchersPhase = async (parsedVouchers, ctx, resolver) => {
       continue;
     }
 
-    const partyLedgerId =
-      v.party != null ? resolver.resolveLedger(v.party) || null : null;
+    const partyLedgerId = v.party != null ? resolver.resolveLedger(v.party) || null : null;
 
     const stockEntries = [];
     for (const inv of v.inventoryEntries || []) {
       stockEntries.push({
         stock_item_id: resolver.resolveStock(inv.stockItemName) || null,
         item_name: inv.stockItemName,
+        // inline line description ("80 Red") — kept separate from the master name.
+        description: inv.description || null,
         quantity: Number(inv.quantity) || 0,
         rate: Number(inv.rate) || 0,
+        hsn_code: inv.hsn || null,
+        unit_id: inv.unit ? resolver.resolveUnit(inv.unit) || null : null,
       });
     }
 
@@ -507,6 +521,9 @@ const importVouchersPhase = async (parsedVouchers, ctx, resolver) => {
       is_accounting_voucher: v.isAccounting ? 1 : 1, // accounting entries exist
       is_inventory_voucher: stockEntries.length > 0 ? 1 : 0,
       entries: resolvedEntries,
+      // Historical migration: insert finalized tax lines verbatim, skip GST
+      // recompute/validation (double-entry balance is still enforced).
+      import_mode: ctx.importMode ? 1 : 0,
     };
     // Preserve original Tally number only when explicitly requested.
     if (ctx.preserveVoucherNumbers && v.number) {
@@ -530,10 +547,10 @@ const importVouchersPhase = async (parsedVouchers, ctx, resolver) => {
 
 const assertCtx = (ctx, needFy) => {
   if (!ctx || ctx.company_id == null) {
-    throw new Error("importer: ctx.company_id is required");
+    throw new Error('importer: ctx.company_id is required');
   }
   if (needFy && ctx.fy_id == null) {
-    throw new Error("importer: ctx.fy_id is required for voucher import");
+    throw new Error('importer: ctx.fy_id is required for voucher import');
   }
 };
 
@@ -582,9 +599,9 @@ const importAll = async (parsed, ctx) => {
 const preview = (parsed) => {
   const p = parsed || {};
   const balanced = (v) =>
-    Array.isArray(v.entries) && v.entries.length > 0 && entriesBalanced(
-      v.entries.map((e) => ({ type: e.type, amount: Number(e.amount) }))
-    );
+    Array.isArray(v.entries) &&
+    v.entries.length > 0 &&
+    entriesBalanced(v.entries.map((e) => ({ type: e.type, amount: Number(e.amount) })));
   const vouchers = p.vouchers || [];
   const balancedCount = vouchers.filter(balanced).length;
   const baseUnits = new Set();

@@ -1,37 +1,42 @@
-import React, { useEffect, useRef, useState } from "react";
-import type { FormData } from "../hooks/useTDSNatureOfPaymentForm";
+import React, { useEffect, useRef, useState } from 'react';
+import type { FormData } from '../hooks/useTDSNatureOfPaymentForm';
 
 interface TDSNatureOfPaymentFormFieldsProps {
   form: FormData;
   setForm: React.Dispatch<React.SetStateAction<FormData>>;
-  setField: (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  setField: (
+    key: keyof FormData,
+  ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   isPredefined?: boolean;
-  mode: "create" | "alter";
+  mode: 'create' | 'alter';
   onSubmitPrompt: () => void;
 }
 
-const activeClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-full font-mono font-bold text-xs uppercase";
-const inactiveClass = "border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-full font-mono font-bold text-xs uppercase";
-const selectActiveClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-1.5 py-0.5 outline-none border w-24 font-mono font-bold text-xs appearance-none";
-const selectInactiveClass = "border-transparent bg-transparent text-zinc-900 px-1.5 py-0.5 outline-none border w-24 font-mono font-bold text-xs appearance-none";
+const activeClass =
+  'bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-full font-mono font-bold text-xs uppercase';
+const inactiveClass =
+  'border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-full font-mono font-bold text-xs uppercase';
+const selectActiveClass =
+  'bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-1.5 py-0.5 outline-none border w-24 font-mono font-bold text-xs appearance-none';
+const selectInactiveClass =
+  'border-transparent bg-transparent text-zinc-900 px-1.5 py-0.5 outline-none border w-24 font-mono font-bold text-xs appearance-none';
 
 const getFocusableFields = (form: FormData) => {
   const showZeroRated =
-    Number(form.rate_individual_with_pan || 0) === 0 &&
-    Number(form.rate_other_with_pan || 0) === 0;
+    Number(form.rate_individual_with_pan || 0) === 0 && Number(form.rate_other_with_pan || 0) === 0;
 
-  const fields: string[] = ["name", "section", "payment_code", "remittance_code"];
-  
-  const isZero = form.is_zero_rated === "Yes";
+  const fields: string[] = ['name', 'section', 'payment_code', 'remittance_code'];
+
+  const isZero = form.is_zero_rated === 'Yes';
   if (!isZero) {
-    fields.push("rate_individual_with_pan", "rate_other_with_pan");
+    fields.push('rate_individual_with_pan', 'rate_other_with_pan');
   }
 
   if (showZeroRated) {
-    fields.push("is_zero_rated");
+    fields.push('is_zero_rated');
   }
 
-  fields.push("threshold_limit");
+  fields.push('threshold_limit');
   return fields;
 };
 
@@ -43,7 +48,7 @@ export default function TDSNatureOfPaymentFormFields({
   mode,
   onSubmitPrompt,
 }: TDSNatureOfPaymentFormFieldsProps) {
-  const [activeField, setActiveField] = useState<string>("name");
+  const [activeField, setActiveField] = useState<string>('name');
 
   // Input element refs
   const nameRef = useRef<HTMLInputElement>(null);
@@ -72,13 +77,12 @@ export default function TDSNatureOfPaymentFormFields({
   }, [activeField, isPredefined]);
 
   const showZeroRated =
-    Number(form.rate_individual_with_pan || 0) === 0 &&
-    Number(form.rate_other_with_pan || 0) === 0;
+    Number(form.rate_individual_with_pan || 0) === 0 && Number(form.rate_other_with_pan || 0) === 0;
 
   // Rate change helper
   const handleRateChange = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
-    if (val !== "" && isNaN(Number(val))) return;
+    if (val !== '' && isNaN(Number(val))) return;
 
     setForm((f) => {
       const newForm = { ...f, [key]: val };
@@ -87,19 +91,19 @@ export default function TDSNatureOfPaymentFormFields({
         Number(newForm.rate_other_with_pan || 0) > 0;
 
       if (hasRate) {
-        newForm.is_zero_rated = "No";
+        newForm.is_zero_rated = 'No';
       }
       return newForm;
     });
   };
 
   // Zero-rated toggle helper
-  const handleZeroRatedChange = (val: "Yes" | "No") => {
+  const handleZeroRatedChange = (val: 'Yes' | 'No') => {
     setForm((f) => {
       const newForm = { ...f, is_zero_rated: val };
-      if (val === "Yes") {
-        newForm.rate_individual_with_pan = "0";
-        newForm.rate_other_with_pan = "0";
+      if (val === 'Yes') {
+        newForm.rate_individual_with_pan = '0';
+        newForm.rate_other_with_pan = '0';
       }
       return newForm;
     });
@@ -114,7 +118,7 @@ export default function TDSNatureOfPaymentFormFields({
       const idx = fields.indexOf(activeField);
       if (idx === -1) return;
 
-      if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+      if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
         e.preventDefault();
         if (idx === fields.length - 1) {
           onSubmitPrompt();
@@ -124,7 +128,7 @@ export default function TDSNatureOfPaymentFormFields({
         return;
       }
 
-      if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+      if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
         e.preventDefault();
         if (idx > 0) {
           setActiveField(fields[idx - 1]);
@@ -133,11 +137,11 @@ export default function TDSNatureOfPaymentFormFields({
       }
 
       // Quick Yes/No shortcuts
-      if (activeField === "is_zero_rated") {
+      if (activeField === 'is_zero_rated') {
         const key = e.key.toLowerCase();
-        if (key === "y" || key === "n") {
+        if (key === 'y' || key === 'n') {
           e.preventDefault();
-          const val = key === "y" ? "Yes" : "No";
+          const val = key === 'y' ? 'Yes' : 'No';
           handleZeroRatedChange(val);
           if (idx < fields.length - 1) {
             setActiveField(fields[idx + 1]);
@@ -148,23 +152,26 @@ export default function TDSNatureOfPaymentFormFields({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeField, form, isPredefined, onSubmitPrompt]);
 
   const cls = (f: string) => (activeField === f ? activeClass : inactiveClass);
   const selectCls = (f: string) => (activeField === f ? selectActiveClass : selectInactiveClass);
 
   return (
-    <div className="bg-white border-4 border-double border-zinc-400 w-[550px] shadow-2xl p-5 relative select-none font-mono text-[11px] text-zinc-950 animate-fade-in">
-      
+    // Self-managed Tally-style field walk (window keydown + activeField):
+    // the global enter-nav must not double-handle Enter inside this zone.
+    <div
+      className="bg-white border-4 border-double border-zinc-400 w-[550px] shadow-2xl p-5 relative select-none font-mono text-[11px] text-zinc-950 animate-fade-in"
+      data-enter-nav-ignore
+    >
       {/* Title */}
       <div className="font-bold text-xs pb-3 mb-4 border-b border-zinc-200 tracking-wide text-zinc-900">
-        TDS Nature of Payment {mode === "create" ? "Creation" : "Alteration"}
+        TDS Nature of Payment {mode === 'create' ? 'Creation' : 'Alteration'}
       </div>
 
       <div className="grid grid-cols-[280px_10px_1fr] items-center gap-y-1.5">
-        
         {/* Name */}
         <div className="text-zinc-700 font-bold pl-1">Name</div>
         <div className="text-zinc-400 text-center font-bold">:</div>
@@ -172,10 +179,10 @@ export default function TDSNatureOfPaymentFormFields({
           <input
             ref={nameRef}
             type="text"
-            className={cls("name")}
+            className={cls('name')}
             value={form.name}
-            onChange={setField("name")}
-            onFocus={() => setActiveField("name")}
+            onChange={setField('name')}
+            onFocus={() => setActiveField('name')}
             disabled={isPredefined}
           />
         </div>
@@ -187,10 +194,10 @@ export default function TDSNatureOfPaymentFormFields({
           <input
             ref={sectionRef}
             type="text"
-            className={cls("section")}
+            className={cls('section')}
             value={form.section}
-            onChange={setField("section")}
-            onFocus={() => setActiveField("section")}
+            onChange={setField('section')}
+            onFocus={() => setActiveField('section')}
             disabled={isPredefined}
           />
         </div>
@@ -202,10 +209,10 @@ export default function TDSNatureOfPaymentFormFields({
           <input
             ref={paymentCodeRef}
             type="text"
-            className={cls("payment_code")}
+            className={cls('payment_code')}
             value={form.payment_code}
-            onChange={setField("payment_code")}
-            onFocus={() => setActiveField("payment_code")}
+            onChange={setField('payment_code')}
+            onFocus={() => setActiveField('payment_code')}
             disabled={isPredefined}
           />
         </div>
@@ -217,10 +224,10 @@ export default function TDSNatureOfPaymentFormFields({
           <input
             ref={remittanceCodeRef}
             type="text"
-            className={cls("remittance_code")}
+            className={cls('remittance_code')}
             value={form.remittance_code}
-            onChange={setField("remittance_code")}
-            onFocus={() => setActiveField("remittance_code")}
+            onChange={setField('remittance_code')}
+            onFocus={() => setActiveField('remittance_code')}
             disabled={isPredefined}
           />
         </div>
@@ -237,11 +244,11 @@ export default function TDSNatureOfPaymentFormFields({
           <input
             ref={rateIndWithPanRef}
             type="text"
-            className={`${cls("rate_individual_with_pan")} w-24 text-right`}
+            className={`${cls('rate_individual_with_pan')} w-24 text-right`}
             value={form.rate_individual_with_pan}
-            onChange={handleRateChange("rate_individual_with_pan")}
-            onFocus={() => setActiveField("rate_individual_with_pan")}
-            disabled={isPredefined || form.is_zero_rated === "Yes"}
+            onChange={handleRateChange('rate_individual_with_pan')}
+            onFocus={() => setActiveField('rate_individual_with_pan')}
+            disabled={isPredefined || form.is_zero_rated === 'Yes'}
           />
           <span className="text-zinc-500 font-bold">%</span>
         </div>
@@ -258,11 +265,11 @@ export default function TDSNatureOfPaymentFormFields({
           <input
             ref={rateOtherWithPanRef}
             type="text"
-            className={`${cls("rate_other_with_pan")} w-24 text-right`}
+            className={`${cls('rate_other_with_pan')} w-24 text-right`}
             value={form.rate_other_with_pan}
-            onChange={handleRateChange("rate_other_with_pan")}
-            onFocus={() => setActiveField("rate_other_with_pan")}
-            disabled={isPredefined || form.is_zero_rated === "Yes"}
+            onChange={handleRateChange('rate_other_with_pan')}
+            onFocus={() => setActiveField('rate_other_with_pan')}
+            disabled={isPredefined || form.is_zero_rated === 'Yes'}
           />
           <span className="text-zinc-500 font-bold">%</span>
         </div>
@@ -277,10 +284,10 @@ export default function TDSNatureOfPaymentFormFields({
             <div>
               <select
                 ref={isZeroRatedRef}
-                className={selectCls("is_zero_rated")}
+                className={selectCls('is_zero_rated')}
                 value={form.is_zero_rated}
-                onChange={(e) => handleZeroRatedChange(e.target.value as "Yes" | "No")}
-                onFocus={() => setActiveField("is_zero_rated")}
+                onChange={(e) => handleZeroRatedChange(e.target.value as 'Yes' | 'No')}
+                onFocus={() => setActiveField('is_zero_rated')}
                 disabled={isPredefined}
               >
                 <option value="No">No</option>
@@ -297,18 +304,17 @@ export default function TDSNatureOfPaymentFormFields({
           <input
             ref={thresholdLimitRef}
             type="text"
-            className={`${cls("threshold_limit")} w-36`}
+            className={`${cls('threshold_limit')} w-36`}
             value={form.threshold_limit}
             onChange={(e) => {
               const val = e.target.value;
-              if (val !== "" && isNaN(Number(val))) return;
-              setField("threshold_limit")(e);
+              if (val !== '' && isNaN(Number(val))) return;
+              setField('threshold_limit')(e);
             }}
-            onFocus={() => setActiveField("threshold_limit")}
+            onFocus={() => setActiveField('threshold_limit')}
             disabled={isPredefined}
           />
         </div>
-
       </div>
     </div>
   );

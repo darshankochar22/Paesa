@@ -1,11 +1,13 @@
-import { useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, RightActionPanel, MasterFormFooter } from "@/components/ui";
-import { useVATRegistrationDetails } from "./useVATRegistrationDetails";
-import { VATRegistrationDetailsForm } from "./VATRegistrationDetailsForm";
+import { useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, RightActionPanel, MasterFormFooter } from '@/components/ui';
+import { useVATRegistrationDetails } from './useVATRegistrationDetails';
+import { VATRegistrationDetailsForm } from './VATRegistrationDetailsForm';
 
-export default function VATRDCreate({ returnPath = "/master/create" }: { returnPath?: string } = {}) {
+export default function VATRDCreate({
+  returnPath = '/master/create',
+}: { returnPath?: string } = {}) {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -21,32 +23,48 @@ export default function VATRDCreate({ returnPath = "/master/create" }: { returnP
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); quit(); }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        quit();
+      }
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        handleSubmit();
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, quit]);
 
   const actions = [
-    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
-    { key: "Esc",   label: "Quit",   onClick: quit },
+    { key: 'Alt+A', label: 'Accept', onClick: handleSubmit },
+    { key: 'Esc', label: 'Quit', onClick: quit },
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none">
+    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
       <PageTitleBar title="VAT Registration Details" subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 font-bold"
+          >
+            &times;
+          </button>
         </div>
       )}
       {success && (
         <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-500 hover:text-green-700 font-bold"
+          >
+            &times;
+          </button>
         </div>
       )}
 

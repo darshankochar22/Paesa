@@ -1,57 +1,86 @@
-import { useState, useRef } from "react";
-import { FormRow } from "@/components/ui";
-import type { NumberingRestartRow, NumberingAffixRow, VoucherClassRow } from "@/types/entities/VoucherType";
-import AdditionalNumberingPopup from "./AdditionalNumberingPopup";
-import VoucherClassConfigPopup from "./VoucherClassConfigPopup";
+import { useState, useEffect, useRef } from 'react';
+import { FormRow } from '@/components/ui';
+import type {
+  NumberingRestartRow,
+  NumberingAffixRow,
+  VoucherClassRow,
+} from '@/types/entities/VoucherType';
+import AdditionalNumberingPopup from './AdditionalNumberingPopup';
+import VoucherClassConfigPopup from './VoucherClassConfigPopup';
 
 // ─── Shared field tokens (black / white / zinc only) ───────────────────────────
 const inputCls =
-  "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+  'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 const nameInputCls =
-  "w-80 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+  'w-80 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 const selectCls =
-  "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-52";
+  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-52';
 const ynSelectCls =
-  "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-20";
-const lockedCls = "text-zinc-400 cursor-not-allowed bg-zinc-50";
+  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-20';
+const lockedCls = 'text-zinc-400 cursor-not-allowed bg-zinc-50';
 
-export type YN = "Yes" | "No";
+export type YN = 'Yes' | 'No';
 
 export const CATEGORIES = [
-  "Attendance", "Contra", "Credit Note", "Debit Note", "Delivery Note",
-  "Job Work In Order", "Job Work Out Order", "Journal", "Manufacturing Journal",
-  "Material In", "Material Out", "Memorandum", "Payment", "Payroll",
-  "Physical Stock", "Purchase", "Purchase Order", "Receipt", "Receipt Note",
-  "Rejection In", "Rejection Out", "Reversing Journal", "Sales", "Sales Order",
-  "Stock Journal",
+  'Attendance',
+  'Contra',
+  'Credit Note',
+  'Debit Note',
+  'Delivery Note',
+  'Job Work In Order',
+  'Job Work Out Order',
+  'Journal',
+  'Manufacturing Journal',
+  'Material In',
+  'Material Out',
+  'Memorandum',
+  'Payment',
+  'Payroll',
+  'Physical Stock',
+  'Purchase',
+  'Purchase Order',
+  'Receipt',
+  'Receipt Note',
+  'Rejection In',
+  'Rejection Out',
+  'Reversing Journal',
+  'Sales',
+  'Sales Order',
+  'Stock Journal',
 ];
 
 // Collapses pre-rework class rows (fixed cgst_ledger_id/sgst_ledger_id/igst_ledger_id fields)
 // into the current gst_ledger_ids array so old saved classes still work once reopened.
-export function normalizeVoucherClasses(classes: VoucherClassRow[] | undefined | null): VoucherClassRow[] {
+export function normalizeVoucherClasses(
+  classes: VoucherClassRow[] | undefined | null,
+): VoucherClassRow[] {
   if (!classes) return [];
   return classes.map((cls) => {
     if (Array.isArray(cls.gst_ledger_ids)) return cls;
-    const legacy = cls as unknown as { cgst_ledger_id?: number | null; sgst_ledger_id?: number | null; igst_ledger_id?: number | null };
-    const gst_ledger_ids = [legacy.cgst_ledger_id, legacy.sgst_ledger_id, legacy.igst_ledger_id]
-      .filter((id): id is number => typeof id === "number");
+    const legacy = cls as unknown as {
+      cgst_ledger_id?: number | null;
+      sgst_ledger_id?: number | null;
+      igst_ledger_id?: number | null;
+    };
+    const gst_ledger_ids = [
+      legacy.cgst_ledger_id,
+      legacy.sgst_ledger_id,
+      legacy.igst_ledger_id,
+    ].filter((id): id is number => typeof id === 'number');
     return { ...cls, gst_ledger_ids };
   });
 }
 
 export const NUMBERING_METHODS = [
-  "Automatic",
-  "Automatic (Manual Override)",
-  "Manual",
-  "Multi-user Auto",
-  "None",
+  'Automatic',
+  'Automatic (Manual Override)',
+  'Manual',
+  'Multi-user Auto',
+  'None',
 ] as const;
 export type NumberingMethod = (typeof NUMBERING_METHODS)[number];
 
-export const NUMBERING_BEHAVIOURS = [
-  "Renumber Vouchers",
-  "Retain Original Voucher No.",
-] as const;
+export const NUMBERING_BEHAVIOURS = ['Renumber Vouchers', 'Retain Original Voucher No.'] as const;
 
 export interface VTForm {
   name: string;
@@ -85,37 +114,37 @@ export interface VTConfig {
 }
 
 export const INITIAL_FORM: VTForm = {
-  name: "",
-  alias: "",
-  short_name: "",
-  category: "Receipt",
-  is_active: "Yes",
-  numbering_method: "Automatic",
+  name: '',
+  alias: '',
+  short_name: '',
+  category: 'Receipt',
+  is_active: 'Yes',
+  numbering_method: 'Automatic',
 };
 
 export const INITIAL_CONFIG: VTConfig = {
-  use_effective_dates: "No",
-  allow_zero_value_transactions: "No",
-  make_voucher_optional: "No",
-  allow_narration: "Yes",
-  allow_narration_per_ledger: "No",
-  numbering_behaviour: "Retain Original Voucher No.",
-  set_alter_additional_numbering: "No",
-  show_unused_numbers: "Yes",
-  prevent_duplicate_numbers: "No",
-  print_after_save: "No",
-  whatsapp_after_save: "No",
+  use_effective_dates: 'No',
+  allow_zero_value_transactions: 'No',
+  make_voucher_optional: 'No',
+  allow_narration: 'Yes',
+  allow_narration_per_ledger: 'No',
+  numbering_behaviour: 'Retain Original Voucher No.',
+  set_alter_additional_numbering: 'No',
+  show_unused_numbers: 'Yes',
+  prevent_duplicate_numbers: 'No',
+  print_after_save: 'No',
+  whatsapp_after_save: 'No',
   starting_number: 1,
   width_of_numerical_part: 0,
-  prefill_with_zero: "No",
+  prefill_with_zero: 'No',
   restart_numbering: [],
   prefix_details: [],
   suffix_details: [],
   voucher_classes: [],
 };
 
-export const toInt = (v: YN) => (v === "Yes" ? 1 : 0);
-export const fromInt = (v: unknown): YN => (v ? "Yes" : "No");
+export const toInt = (v: YN) => (v === 'Yes' ? 1 : 0);
+export const fromInt = (v: unknown): YN => (v ? 'Yes' : 'No');
 
 // ─── Yes / No selector ─────────────────────────────────────────────────────────
 export function YesNoSelect({
@@ -129,7 +158,7 @@ export function YesNoSelect({
 }) {
   return (
     <select
-      className={`${ynSelectCls} ${disabled ? lockedCls : ""}`}
+      className={`${ynSelectCls} ${disabled ? lockedCls : ''}`}
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as YN)}
@@ -153,21 +182,86 @@ export function CategoryListPanel({
   onClose: () => void;
   categories?: string[];
 }) {
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const filtered = categories.filter((c) => c.toLowerCase().includes(search.toLowerCase()));
+
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
+  useEffect(() => {
+    searchRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const idx = filtered.indexOf(selected);
+    setFocusedIndex(idx !== -1 ? idx : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, search]);
+
+  useEffect(() => {
+    itemRefs.current[focusedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [focusedIndex]);
+
   return (
-    <div className="w-64 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+    <div
+      className="w-64 border-l border-zinc-200 flex flex-col shrink-0 bg-white"
+      data-enter-nav-ignore
+    >
       <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider flex justify-between items-center select-none border-b border-zinc-200">
         <span>List of Voucher Types</span>
-        <button onClick={onClose} className="text-sm font-bold font-sans hover:text-zinc-500">&times;</button>
+        <button onClick={onClose} className="text-sm font-bold font-sans hover:text-zinc-500">
+          &times;
+        </button>
       </div>
+      <input
+        ref={searchRef}
+        data-enter-skip
+        className="px-3 py-1.5 text-xs outline-none border-b border-zinc-200 placeholder-zinc-400 bg-zinc-50 focus:bg-white transition-colors"
+        placeholder="Search..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onClose();
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (filtered.length) setFocusedIndex((prev) => (prev + 1) % filtered.length);
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (filtered.length)
+              setFocusedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const cat = filtered[focusedIndex];
+            if (cat) {
+              onSelect(cat);
+              onClose();
+            }
+          }
+        }}
+      />
       <div className="flex-1 overflow-y-auto">
-        {categories.map((cat) => (
+        {filtered.map((cat, idx) => (
           <div
             key={cat}
-            onClick={() => { onSelect(cat); onClose(); }}
+            ref={(el) => {
+              itemRefs.current[idx] = el;
+            }}
+            onClick={() => {
+              onSelect(cat);
+              onClose();
+            }}
             className={[
-              "px-3 py-1.5 text-sm cursor-pointer select-none border-b border-zinc-100",
-              cat === selected ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-800",
-            ].join(" ")}
+              'px-3 py-1.5 text-sm cursor-pointer select-none border-b border-zinc-100',
+              idx === focusedIndex
+                ? 'bg-zinc-900 text-white'
+                : cat === selected
+                  ? 'bg-zinc-200 font-bold text-zinc-900'
+                  : 'hover:bg-zinc-50 text-zinc-800',
+            ].join(' ')}
           >
             {cat}
           </div>
@@ -213,16 +307,16 @@ export function VoucherTypeFormBody({
   const [showNumberingPopup, setShowNumberingPopup] = useState(false);
 
   // ── Name of Class ──────────────────────────────────────────────────────────
-  const [newClassName, setNewClassName] = useState("");
+  const [newClassName, setNewClassName] = useState('');
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
 
   const editingClass = config.voucher_classes.find((c) => c.id === editingClassId) ?? null;
 
   const addClass = (name: string) => {
     const id = `vc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const row: VoucherClassRow = { id, name, use_for_gst_details: "No" as YN, gst_ledger_ids: [] };
+    const row: VoucherClassRow = { id, name, use_for_gst_details: 'No' as YN, gst_ledger_ids: [] };
     setConfig((c) => ({ ...c, voucher_classes: [...c.voucher_classes, row] }));
-    setNewClassName("");
+    setNewClassName('');
     setEditingClassId(id);
   };
 
@@ -236,27 +330,35 @@ export function VoucherTypeFormBody({
   const categoryBtnRef = useRef<HTMLButtonElement>(null);
 
   const method = form.numbering_method;
-  const isAuto = method === "Automatic" || method === "Multi-user Auto";
-  const isManualOverride = method === "Automatic (Manual Override)";
-  const isManual = method === "Manual";
-  const showAdditionalNumbering = method !== "Manual" && method !== "None";
+  const isAuto = method === 'Automatic' || method === 'Multi-user Auto';
+  const isManualOverride = method === 'Automatic (Manual Override)';
+  const isManual = method === 'Manual';
+  const showAdditionalNumbering = method !== 'Manual' && method !== 'None';
 
   return (
     <>
       <div className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto">
         <div className="p-4 space-y-3 max-w-[1120px]">
-
           {/* Identity — Name + alias */}
-          <FormRow label="Name" required labelWidth="w-40" className="flex items-center min-h-[26px]">
+          <FormRow
+            label="Name"
+            required
+            labelWidth="w-40"
+            className="flex items-center min-h-[26px]"
+          >
             <input
               ref={nameRef}
               autoFocus={nameAutoFocus}
               disabled={lockIdentity}
-              className={`${nameInputCls} ${lockIdentity ? lockedCls : ""}`}
+              className={`${nameInputCls} ${lockIdentity ? lockedCls : ''}`}
               value={form.name}
-              onChange={(e) => setF("name")(e.target.value)}
+              onChange={(e) => setF('name')(e.target.value)}
               placeholder="e.g. Cash Payment"
-              onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); aliasRef.current?.focus(); }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                aliasRef.current?.focus();
+              }}
             />
           </FormRow>
           <FormRow label="(alias)" labelWidth="w-40" className="flex items-center min-h-[26px]">
@@ -264,18 +366,30 @@ export function VoucherTypeFormBody({
               ref={aliasRef}
               className={nameInputCls}
               value={form.alias}
-              onChange={(e) => setF("alias")(e.target.value)}
-              onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (!lockIdentity) { setShowCategoryPanel(true); categoryBtnRef.current?.focus(); } else { abbreviationRef.current?.focus(); } }}
+              onChange={(e) => setF('alias')(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                if (!lockIdentity) {
+                  setShowCategoryPanel(true);
+                  categoryBtnRef.current?.focus();
+                } else {
+                  abbreviationRef.current?.focus();
+                }
+              }}
             />
           </FormRow>
 
           <div className="flex border border-zinc-200 rounded mt-2">
-
             {/* ── General ── */}
             <div className="w-[520px] shrink-0 min-w-0 overflow-hidden p-3 border-r border-zinc-200 space-y-1.5">
               <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">General</div>
 
-              <FormRow label="Select type of voucher" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <FormRow
+                label="Select type of voucher"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
                 {lockIdentity ? (
                   <span className={`${inputCls} ${lockedCls}`}>{form.category}</span>
                 ) : (
@@ -283,7 +397,11 @@ export function VoucherTypeFormBody({
                     ref={categoryBtnRef}
                     type="button"
                     onClick={() => setShowCategoryPanel(!showCategoryPanel)}
-                    onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); setShowCategoryPanel(true); }}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      setShowCategoryPanel(true);
+                    }}
                     className="flex-1 text-left text-sm px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 focus:outline-none rounded bg-white/50 transition-colors"
                   >
                     {form.category || <span className="text-zinc-400">Select…</span>}
@@ -291,60 +409,99 @@ export function VoucherTypeFormBody({
                 )}
               </FormRow>
 
-              <FormRow label="Abbreviation" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <FormRow
+                label="Abbreviation"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
                 <input
                   ref={abbreviationRef}
                   className={inputCls}
                   value={form.short_name}
-                  onChange={(e) => setF("short_name")(e.target.value)}
+                  onChange={(e) => setF('short_name')(e.target.value)}
                   maxLength={6}
                 />
               </FormRow>
 
-              <FormRow label="Activate this Voucher Type" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <YesNoSelect value={form.is_active} onChange={setF("is_active") as (v: YN) => void} />
+              <FormRow
+                label="Activate this Voucher Type"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
+                <YesNoSelect
+                  value={form.is_active}
+                  onChange={setF('is_active') as (v: YN) => void}
+                />
               </FormRow>
 
-              <FormRow label="Method of Voucher Numbering" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <FormRow
+                label="Method of Voucher Numbering"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
                 <select
                   className={selectCls}
                   value={form.numbering_method}
-                  onChange={(e) => setF("numbering_method")(e.target.value)}
+                  onChange={(e) => setF('numbering_method')(e.target.value)}
                 >
-                  {NUMBERING_METHODS.map((m) => <option key={m}>{m}</option>)}
+                  {NUMBERING_METHODS.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
                 </select>
               </FormRow>
 
               {/* Conditional numbering sub-fields */}
               {isAuto && (
                 <>
-                  <FormRow label="Numbering behaviour on insertion/deletion" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                  <FormRow
+                    label="Numbering behaviour on insertion/deletion"
+                    labelWidth="w-56"
+                    className="flex items-center min-h-[26px]"
+                  >
                     <select
                       className={selectCls}
                       value={config.numbering_behaviour}
-                      onChange={(e) => setConfig((c) => ({ ...c, numbering_behaviour: e.target.value as VTConfig["numbering_behaviour"] }))}
+                      onChange={(e) =>
+                        setConfig((c) => ({
+                          ...c,
+                          numbering_behaviour: e.target.value as VTConfig['numbering_behaviour'],
+                        }))
+                      }
                     >
-                      {NUMBERING_BEHAVIOURS.map((b) => <option key={b}>{b}</option>)}
+                      {NUMBERING_BEHAVIOURS.map((b) => (
+                        <option key={b}>{b}</option>
+                      ))}
                     </select>
                   </FormRow>
-                  {config.numbering_behaviour === "Retain Original Voucher No." && (
-                    <FormRow label="Show unused vch nos. in transactions" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                      <YesNoSelect value={config.show_unused_numbers} onChange={setC("show_unused_numbers")} />
+                  {config.numbering_behaviour === 'Retain Original Voucher No.' && (
+                    <FormRow
+                      label="Show unused vch nos. in transactions"
+                      labelWidth="w-56"
+                      className="flex items-center min-h-[26px]"
+                    >
+                      <YesNoSelect
+                        value={config.show_unused_numbers}
+                        onChange={setC('show_unused_numbers')}
+                      />
                     </FormRow>
                   )}
                 </>
               )}
               {showAdditionalNumbering && (
-                <FormRow label="Set/Alter additional numbering details" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                <FormRow
+                  label="Set/Alter additional numbering details"
+                  labelWidth="w-56"
+                  className="flex items-center min-h-[26px]"
+                >
                   <div className="flex items-center gap-2">
                     <YesNoSelect
                       value={config.set_alter_additional_numbering}
                       onChange={(v) => {
-                        setC("set_alter_additional_numbering")(v);
-                        if (v === "Yes") setShowNumberingPopup(true);
+                        setC('set_alter_additional_numbering')(v);
+                        if (v === 'Yes') setShowNumberingPopup(true);
                       }}
                     />
-                    {config.set_alter_additional_numbering === "Yes" && (
+                    {config.set_alter_additional_numbering === 'Yes' && (
                       <button
                         type="button"
                         onClick={() => setShowNumberingPopup(true)}
@@ -357,41 +514,86 @@ export function VoucherTypeFormBody({
                 </FormRow>
               )}
               {(isManualOverride || isManual) && (
-                <FormRow label="Prevent creating duplicate Voucher Nos." labelWidth="w-56" className="flex items-center min-h-[26px]">
-                  <YesNoSelect value={config.prevent_duplicate_numbers} onChange={setC("prevent_duplicate_numbers")} />
+                <FormRow
+                  label="Prevent creating duplicate Voucher Nos."
+                  labelWidth="w-56"
+                  className="flex items-center min-h-[26px]"
+                >
+                  <YesNoSelect
+                    value={config.prevent_duplicate_numbers}
+                    onChange={setC('prevent_duplicate_numbers')}
+                  />
                 </FormRow>
               )}
 
               <div className="border-t border-zinc-100 my-1" />
 
-              <FormRow label="Use effective dates for vouchers" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <YesNoSelect value={config.use_effective_dates} onChange={setC("use_effective_dates")} />
+              <FormRow
+                label="Use effective dates for vouchers"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
+                <YesNoSelect
+                  value={config.use_effective_dates}
+                  onChange={setC('use_effective_dates')}
+                />
               </FormRow>
-              <FormRow label="Allow zero-valued transactions" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <YesNoSelect value={config.allow_zero_value_transactions} onChange={setC("allow_zero_value_transactions")} />
+              <FormRow
+                label="Allow zero-valued transactions"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
+                <YesNoSelect
+                  value={config.allow_zero_value_transactions}
+                  onChange={setC('allow_zero_value_transactions')}
+                />
               </FormRow>
-              <FormRow label="Make this voucher type as 'Optional' by default" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <YesNoSelect value={config.make_voucher_optional} onChange={setC("make_voucher_optional")} />
+              <FormRow
+                label="Make this voucher type as 'Optional' by default"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
+                <YesNoSelect
+                  value={config.make_voucher_optional}
+                  onChange={setC('make_voucher_optional')}
+                />
               </FormRow>
-              <FormRow label="Allow narration in voucher" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <YesNoSelect value={config.allow_narration} onChange={setC("allow_narration")} />
+              <FormRow
+                label="Allow narration in voucher"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
+                <YesNoSelect value={config.allow_narration} onChange={setC('allow_narration')} />
               </FormRow>
-              <FormRow label="Provide narrations for each ledger in voucher" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <YesNoSelect value={config.allow_narration_per_ledger} onChange={setC("allow_narration_per_ledger")} />
+              <FormRow
+                label="Provide narrations for each ledger in voucher"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px]"
+              >
+                <YesNoSelect
+                  value={config.allow_narration_per_ledger}
+                  onChange={setC('allow_narration_per_ledger')}
+                />
               </FormRow>
             </div>
 
             {/* ── Printing ── */}
             <div className="w-[300px] shrink-0 min-w-0 overflow-hidden p-3 border-r border-zinc-200 space-y-1.5">
               <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Printing</div>
-              <FormRow label="Print voucher after saving" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                <YesNoSelect value={config.print_after_save} onChange={setC("print_after_save")} />
+              <FormRow
+                label="Print voucher after saving"
+                labelWidth="w-40"
+                className="flex items-center min-h-[26px]"
+              >
+                <YesNoSelect value={config.print_after_save} onChange={setC('print_after_save')} />
               </FormRow>
             </div>
 
             {/* ── Name of Class ── */}
             <div className="flex-1 min-w-0 overflow-hidden p-3 space-y-1.5">
-              <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Name of Class</div>
+              <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">
+                Name of Class
+              </div>
 
               <div className="space-y-1">
                 {config.voucher_classes.map((cls) => (
@@ -402,12 +604,17 @@ export function VoucherTypeFormBody({
                   >
                     <span className="text-sm text-zinc-800 truncate">{cls.name}</span>
                     <span className="flex items-center gap-1.5 shrink-0">
-                      {cls.use_for_gst_details === "Yes" && (
-                        <span className="text-[9px] font-bold uppercase tracking-wider border border-zinc-400 text-zinc-600 rounded px-1">GST</span>
+                      {cls.use_for_gst_details === 'Yes' && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider border border-zinc-400 text-zinc-600 rounded px-1">
+                          GST
+                        </span>
                       )}
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); removeClass(cls.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeClass(cls.id);
+                        }}
                         className="text-zinc-300 hover:text-zinc-900 font-bold text-sm opacity-0 group-hover:opacity-100 px-1"
                       >
                         &times;
@@ -423,21 +630,30 @@ export function VoucherTypeFormBody({
                 placeholder="type name…"
                 onChange={(e) => setNewClassName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
+                  if (e.key !== 'Enter') return;
                   e.preventDefault();
                   const name = newClassName.trim();
                   if (!name) return;
-                  if (config.voucher_classes.some((c) => c.name.toLowerCase() === name.toLowerCase())) return;
+                  if (
+                    config.voucher_classes.some((c) => c.name.toLowerCase() === name.toLowerCase())
+                  )
+                    return;
                   addClass(name);
                 }}
               />
             </div>
-
           </div>
 
           {/* WhatsApp — full-width row below the grid (matches Tally layout) */}
-          <FormRow label="WhatsApp voucher after saving" labelWidth="w-56" className="flex items-center min-h-[26px] mt-2">
-            <YesNoSelect value={config.whatsapp_after_save} onChange={setC("whatsapp_after_save")} />
+          <FormRow
+            label="WhatsApp voucher after saving"
+            labelWidth="w-56"
+            className="flex items-center min-h-[26px] mt-2"
+          >
+            <YesNoSelect
+              value={config.whatsapp_after_save}
+              onChange={setC('whatsapp_after_save')}
+            />
           </FormRow>
         </div>
         <div className="flex-1" />
@@ -452,12 +668,12 @@ export function VoucherTypeFormBody({
         />
       )}
 
-      {showNumberingPopup && config.set_alter_additional_numbering === "Yes" && (
+      {showNumberingPopup && config.set_alter_additional_numbering === 'Yes' && (
         <AdditionalNumberingPopup
           value={{
             starting_number: config.starting_number,
             width_of_numerical_part: config.width_of_numerical_part,
-            prefill_with_zero: config.prefill_with_zero === "Yes",
+            prefill_with_zero: config.prefill_with_zero === 'Yes',
             restart_numbering: config.restart_numbering,
             prefix_details: config.prefix_details,
             suffix_details: config.suffix_details,
@@ -465,7 +681,8 @@ export function VoucherTypeFormBody({
           onChange={(patch) =>
             setConfig((c) => {
               const next = { ...c, ...patch } as VTConfig;
-              if (patch.prefill_with_zero !== undefined) next.prefill_with_zero = patch.prefill_with_zero ? "Yes" : "No";
+              if (patch.prefill_with_zero !== undefined)
+                next.prefill_with_zero = patch.prefill_with_zero ? 'Yes' : 'No';
               return next;
             })
           }
@@ -481,7 +698,9 @@ export function VoucherTypeFormBody({
           onSave={(updated) => {
             setConfig((c) => ({
               ...c,
-              voucher_classes: c.voucher_classes.map((cls) => (cls.id === updated.id ? updated : cls)),
+              voucher_classes: c.voucher_classes.map((cls) =>
+                cls.id === updated.id ? updated : cls,
+              ),
             }));
             setEditingClassId(null);
           }}

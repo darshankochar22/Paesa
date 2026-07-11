@@ -1,38 +1,31 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, FormRow, RightActionPanel } from "@/components/ui";
-import { usePANDetails } from "./hooks/usePANDetails";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, FormRow, RightActionPanel } from '@/components/ui';
+import { usePANDetails } from './hooks/usePANDetails';
 
-const activeClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs";
-const inactiveClass = "border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs";
-const getInputCls = (isActive: boolean) =>
-  `${isActive ? activeClass : inactiveClass}`;
+const activeClass =
+  'bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs';
+const inactiveClass =
+  'border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs';
+const getInputCls = (isActive: boolean) => `${isActive ? activeClass : inactiveClass}`;
 
-const FIELDS = ["pan", "cin"];
+const FIELDS = ['pan', 'cin'];
 
 export default function PANDetailsAlter() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
 
-  const {
-    form,
-    setField,
-    loading,
-    error,
-    setError,
-    success,
-    setSuccess,
-    saveDetails,
-  } = usePANDetails({
-    companyId,
-    onSaveSuccess: () => {
-      setTimeout(() => navigate("/master/alter"), 1000);
-    },
-  });
+  const { form, setField, loading, error, setError, success, setSuccess, saveDetails } =
+    usePANDetails({
+      companyId,
+      onSaveSuccess: () => {
+        setTimeout(() => navigate('/master/alter'), 1000);
+      },
+    });
 
-  const [activeField, setActiveField] = useState("pan");
+  const [activeField, setActiveField] = useState('pan');
   const [showAccept, setShowAccept] = useState(false);
 
   const panRef = useRef<HTMLInputElement>(null);
@@ -42,24 +35,24 @@ export default function PANDetailsAlter() {
     (e: KeyboardEvent) => {
       if (showAccept) {
         const key = e.key.toLowerCase();
-        if (key === "y" || e.key === "Enter") {
+        if (key === 'y' || e.key === 'Enter') {
           e.preventDefault();
           setShowAccept(false);
           saveDetails();
-        } else if (key === "n" || e.key === "Escape") {
+        } else if (key === 'n' || e.key === 'Escape') {
           e.preventDefault();
           setShowAccept(false);
         }
         return;
       }
 
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/alter");
+        navigate('/master/alter');
         return;
       }
 
-      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "a") {
+      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setShowAccept(true);
         return;
@@ -67,7 +60,7 @@ export default function PANDetailsAlter() {
 
       const idx = FIELDS.indexOf(activeField);
       if (idx !== -1) {
-        if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+        if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
           e.preventDefault();
           if (idx === FIELDS.length - 1) {
             setShowAccept(true);
@@ -76,7 +69,7 @@ export default function PANDetailsAlter() {
           }
           return;
         }
-        if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+        if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
           e.preventDefault();
           if (idx > 0) {
             setActiveField(FIELDS[idx - 1]);
@@ -85,12 +78,12 @@ export default function PANDetailsAlter() {
         }
       }
     },
-    [showAccept, activeField, saveDetails, navigate]
+    [showAccept, activeField, saveDetails, navigate],
   );
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
   useEffect(() => {
@@ -104,24 +97,37 @@ export default function PANDetailsAlter() {
   }, [activeField, showAccept]);
 
   const actions = [
-    { key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) },
-    { key: "Esc", label: "Quit", onClick: () => navigate("/master/alter") },
+    { key: 'Alt+A', label: 'Accept', onClick: () => setShowAccept(true) },
+    { key: 'Esc', label: 'Quit', onClick: () => navigate('/master/alter') },
   ];
 
   return (
-    <div className="flex-grow flex flex-col h-full bg-white select-none text-zinc-950 relative">
+    <div
+      className="flex-grow flex flex-col h-full bg-white select-none text-zinc-950 relative"
+      data-enter-nav
+    >
       <PageTitleBar title="PAN/CIN Details (Alteration)" subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 font-bold"
+          >
+            &times;
+          </button>
         </div>
       )}
       {success && (
         <div className="px-4 py-2 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-500 hover:text-green-700 font-bold"
+          >
+            &times;
+          </button>
         </div>
       )}
 
@@ -136,10 +142,10 @@ export default function PANDetailsAlter() {
               <FormRow label="PAN/Income tax no." labelWidth="w-[300px]">
                 <input
                   ref={panRef}
-                  className={getInputCls(activeField === "pan")}
+                  className={getInputCls(activeField === 'pan')}
                   value={form.pan}
-                  onChange={(e) => setField("pan", e.target.value.toUpperCase())}
-                  onFocus={() => setActiveField("pan")}
+                  onChange={(e) => setField('pan', e.target.value.toUpperCase())}
+                  onFocus={() => setActiveField('pan')}
                   placeholder="e.g. ABCDE1234F"
                   maxLength={10}
                 />
@@ -148,10 +154,10 @@ export default function PANDetailsAlter() {
               <FormRow label="Corporate Identity No. (CIN)" labelWidth="w-[300px]">
                 <input
                   ref={cinRef}
-                  className={getInputCls(activeField === "cin")}
+                  className={getInputCls(activeField === 'cin')}
                   value={form.cin}
-                  onChange={(e) => setField("cin", e.target.value.toUpperCase())}
-                  onFocus={() => setActiveField("cin")}
+                  onChange={(e) => setField('cin', e.target.value.toUpperCase())}
+                  onFocus={() => setActiveField('cin')}
                   placeholder="e.g. U12345KA2026PTC123456"
                   maxLength={21}
                 />
@@ -164,7 +170,10 @@ export default function PANDetailsAlter() {
       </div>
 
       {showAccept && (
-        <div className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in text-zinc-950">
+        <div
+          className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in text-zinc-950"
+          data-enter-nav-ignore
+        >
           <h4 className="font-bold text-[11px] mb-3">Accept?</h4>
           <div className="flex items-center gap-3 w-full justify-center">
             <button
@@ -191,7 +200,7 @@ export default function PANDetailsAlter() {
       <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/master/alter")}
+            onClick={() => navigate('/master/alter')}
             className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
           >
             Quit

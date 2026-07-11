@@ -1,21 +1,42 @@
-import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar } from "@/components/ui";
-import GroupFlatList from "@/components/GroupFlatList";
-import type { GroupType } from "@/types/api";
-import { TOGGLE_META, getConfig, type StatutoryToggle } from "@/config/statutoryConfig";
-import NatureOfPaymentDetailsModal from "./NatureOfPaymentDetailsModal";
-import NatureOfGoodsDetailsModal from "./NatureOfGoodsDetailsModal";
-import TDSNatureOfPaymentCreation from "./TDSNatureOfPaymentCreation";
-import TCSNatureOfGoodsCreation from "./TCSNatureOfGoodsCreation";
-import StatutorySection from "./StatutorySection";
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar } from '@/components/ui';
+import GroupFlatList from '@/components/GroupFlatList';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
+import type { GroupType } from '@/types/api';
+import { TOGGLE_META, getConfig, type StatutoryToggle } from '@/config/statutoryConfig';
+import NatureOfPaymentDetailsModal from './NatureOfPaymentDetailsModal';
+import NatureOfGoodsDetailsModal from './NatureOfGoodsDetailsModal';
+import TDSNatureOfPaymentCreation from './TDSNatureOfPaymentCreation';
+import TCSNatureOfGoodsCreation from './TCSNatureOfGoodsCreation';
+import StatutorySection from './StatutorySection';
 
-function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
+function Row({
+  label,
+  required,
+  children,
+  onClick,
+  rowRef,
+  enterClick,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+  rowRef?: React.Ref<HTMLDivElement>;
+  enterClick?: boolean;
+}) {
   return (
-    <div className={`flex items-start border-b last:border-0 min-h-[36px]${onClick ? " cursor-pointer hover:bg-zinc-50" : ""}`} onClick={onClick}>
+    <div
+      ref={rowRef}
+      {...(enterClick ? { tabIndex: 0, 'data-enter-click': true } : {})}
+      className={`flex items-start border-b last:border-0 min-h-[36px]${onClick ? ' cursor-pointer hover:bg-zinc-50' : ''}${enterClick ? ' focus:bg-zinc-100 outline-none' : ''}`}
+      onClick={onClick}
+    >
       <span className="w-64 text-sm text-zinc-600 shrink-0 py-1.5">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
       <span className="text-zinc-400 mr-2 py-1.5">:</span>
       <div className="flex-1 py-1">{children}</div>
@@ -23,11 +44,13 @@ function Row({ label, required, children, onClick }: { label: string; required?:
   );
 }
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-300 transition-colors";
-const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer border-b border-transparent focus:border-zinc-300 transition-colors";
+const inputCls =
+  'w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-300 transition-colors';
+const selectCls =
+  'w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer border-b border-transparent focus:border-zinc-300 transition-colors';
 
-const NATURES = ["Assets", "Liabilities", "Income", "Expenses"];
-const ALLOC_METHODS = ["Not Applicable", "Appropriate by Quantity", "Appropriate by Value"];
+const NATURES = ['Assets', 'Liabilities', 'Income', 'Expenses'];
+const ALLOC_METHODS = ['Not Applicable', 'Appropriate by Quantity', 'Appropriate by Value'];
 
 export default function GroupAlterEdit() {
   const { id } = useParams<{ id: string }>();
@@ -40,12 +63,17 @@ export default function GroupAlterEdit() {
   const [originalGroup, setOriginalGroup] = useState<GroupType | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [activeFeatureModal, setActiveFeatureModal] = useState<StatutoryToggle | null>(null);
-  const [activeFeatureCreateModal, setActiveFeatureCreateModal] = useState<StatutoryToggle | null>(null);
-  const [gstClassifications, setGstClassifications] = useState<{ gc_id: number; name: string }[]>([]);
-  const [showClassPanel, setShowClassPanel] = useState<"hsn" | "gst" | null>(null);
+  const [activeFeatureCreateModal, setActiveFeatureCreateModal] = useState<StatutoryToggle | null>(
+    null,
+  );
+  const [gstClassifications, setGstClassifications] = useState<{ gc_id: number; name: string }[]>(
+    [],
+  );
+  const [showClassPanel, setShowClassPanel] = useState<'hsn' | 'gst' | null>(null);
 
   const companyId = selectedCompany?.company_id;
   const [form, setForm] = useState<Partial<GroupType>>({});
+  const underRowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!companyId || !id) return;
@@ -62,16 +90,18 @@ export default function GroupAlterEdit() {
           setOriginalGroup(groupRes.group);
           setForm({ ...groupRes.group });
         } else {
-          setError(groupRes.error || "Group not found.");
+          setError(groupRes.error || 'Group not found.');
         }
         if (allRes.success && allRes.groups) setFlatGroups(allRes.groups ?? []);
       } catch (e) {
-        if (!cancelled) setError("Failed to load group.");
+        if (!cancelled) setError('Failed to load group.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [companyId, id]);
 
   useEffect(() => {
@@ -81,11 +111,15 @@ export default function GroupAlterEdit() {
       try {
         const res = await window.api.gstClassification.getAll(companyId);
         if (!cancelled && res.success && res.gstClassifications) {
-          setGstClassifications((res.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name })));
+          setGstClassifications(
+            (res.gstClassifications as any[]).map((c) => ({ gc_id: c.gc_id, name: c.name })),
+          );
         }
       } catch {}
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [companyId]);
 
   const parentGroup = form.parent_group_id
@@ -102,7 +136,10 @@ export default function GroupAlterEdit() {
     return null;
   }, [parentGroup, flatGroups]);
 
-  const statutoryConfig = useMemo(() => getConfig(primaryGroupName, parentGroup?.name), [primaryGroupName, parentGroup?.name]);
+  const statutoryConfig = useMemo(
+    () => getConfig(primaryGroupName, parentGroup?.name),
+    [primaryGroupName, parentGroup?.name],
+  );
 
   const isPrimarySelected = !form.parent_group_id;
 
@@ -111,18 +148,20 @@ export default function GroupAlterEdit() {
       ...f,
       parent_group_id: group.group_id,
       is_primary: 0,
-      nature: group.nature || "Assets",
+      nature: group.nature || 'Assets',
     }));
     setShowGroupPanel(false);
+    focusFieldAfter(underRowRef.current);
   };
 
   const handleSelectPrimary = () => {
     setForm((f) => ({ ...f, parent_group_id: undefined, is_primary: 1 }));
     setShowGroupPanel(false);
+    focusFieldAfter(underRowRef.current);
   };
 
-  const setField = (key: keyof GroupType) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const setField =
+    (key: keyof GroupType) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const toggleField = (key: keyof GroupType) => () => {
@@ -138,16 +177,21 @@ export default function GroupAlterEdit() {
   };
 
   const validate = (): string | null => {
-    if (!form.name?.trim()) return "Name is required.";
-    if (!companyId) return "No company selected.";
+    if (!form.name?.trim()) return 'Name is required.';
+    if (!companyId) return 'No company selected.';
     return null;
   };
 
   const handleSubmit = async () => {
     const validationError = validate();
-    if (validationError) { setError(validationError); return; }
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
-    setLoading(true); setError(null); setSuccess(null);
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
       const payload = {
         group_id: Number(id),
@@ -175,7 +219,7 @@ export default function GroupAlterEdit() {
         gst_classification_id: form.gst_classification_id
           ? Number(form.gst_classification_id)
           : null,
-        slab_based_rates: form.slab_based_rates || "[]",
+        slab_based_rates: form.slab_based_rates || '[]',
         vat_nature_of_transaction: form.vat_nature_of_transaction || null,
         vat_party_entity_type: form.vat_party_entity_type || null,
         vat_tax_rate: form.vat_tax_rate ?? 0,
@@ -190,18 +234,18 @@ export default function GroupAlterEdit() {
         behaves_like_subledger: form.behaves_like_subledger ? 1 : 0,
         show_net_debit_credit: form.show_net_debit_credit ? 1 : 0,
         used_for_calculation: form.used_for_calculation ? 1 : 0,
-        allocation_method: form.allocation_method || "Not Applicable",
+        allocation_method: form.allocation_method || 'Not Applicable',
       };
 
       const res = await window.api.group.update(payload);
       if (res.success) {
         setSuccess(`Group "${form.name}" updated.`);
-        setTimeout(() => navigate("/master/alter/group"), 1000);
+        setTimeout(() => navigate('/master/alter/group'), 1000);
       } else {
-        setError(res.error || "Failed to update group.");
+        setError(res.error || 'Failed to update group.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setLoading(false);
     }
@@ -216,13 +260,13 @@ export default function GroupAlterEdit() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col" data-enter-nav>
       <PageTitleBar
         title="Group Alteration"
         subtitle={selectedCompany?.name}
         actions={
           <button
-            onClick={() => navigate("/master/alter/group")}
+            onClick={() => navigate('/master/alter/group')}
             className="text-zinc-400 hover:text-white text-[11px] transition-colors"
           >
             ← Back
@@ -231,17 +275,26 @@ export default function GroupAlterEdit() {
       />
       <div className="flex-1 flex">
         <div className="flex-1 p-6 overflow-y-auto">
-
           {error && (
             <div className="mb-4 p-2 border border-red-200 text-red-700 text-sm flex justify-between items-center">
               <span>{error}</span>
-              <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-500 hover:text-red-700 text-xs"
+              >
+                dismiss
+              </button>
             </div>
           )}
           {success && (
             <div className="mb-4 p-2 border border-green-200 text-green-700 text-sm flex justify-between items-center">
               <span>{success}</span>
-              <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
+              <button
+                onClick={() => setSuccess(null)}
+                className="text-green-500 hover:text-green-700 text-xs"
+              >
+                dismiss
+              </button>
             </div>
           )}
 
@@ -249,23 +302,49 @@ export default function GroupAlterEdit() {
             <div>
               <div className="border rounded overflow-hidden">
                 <Row label="Name" required>
-                  <input autoFocus className={inputCls} value={form.name || ""} onChange={setField("name")} placeholder="" />
+                  <input
+                    autoFocus
+                    className={inputCls}
+                    value={form.name || ''}
+                    onChange={setField('name')}
+                    placeholder=""
+                  />
                 </Row>
                 <Row label="(alias)">
-                  <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} placeholder="" />
+                  <input
+                    className={inputCls}
+                    value={form.alias || ''}
+                    onChange={setField('alias')}
+                    placeholder=""
+                  />
                 </Row>
-                <Row label="Under" onClick={() => setShowGroupPanel(!showGroupPanel)}>
+                <Row
+                  label="Under"
+                  onClick={() => setShowGroupPanel(!showGroupPanel)}
+                  rowRef={underRowRef}
+                  enterClick
+                >
                   <span className="text-sm py-1 font-medium text-zinc-800 cursor-pointer">
-                    {parentGroup ? parentGroup.name : "— Primary —"}
+                    {parentGroup ? parentGroup.name : '— Primary —'}
                   </span>
                   {primaryGroupName && primaryGroupName !== parentGroup?.name && (
-                    <span className="text-xs text-zinc-400 ml-2 font-normal">(Group: {primaryGroupName})</span>
+                    <span className="text-xs text-zinc-400 ml-2 font-normal">
+                      (Group: {primaryGroupName})
+                    </span>
                   )}
                 </Row>
                 {isPrimarySelected && (
                   <Row label="Nature of Group" required>
-                    <select className={selectCls} value={form.nature || "Liabilities"} onChange={setField("nature")}>
-                      {NATURES.map((n) => <option key={n} value={n}>{n}</option>)}
+                    <select
+                      className={selectCls}
+                      value={form.nature || 'Liabilities'}
+                      onChange={setField('nature')}
+                    >
+                      {NATURES.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
                     </select>
                   </Row>
                 )}
@@ -275,18 +354,35 @@ export default function GroupAlterEdit() {
             <div className="border-t" />
 
             <div className="border rounded overflow-hidden">
-              <Row label="Group behaves like a sub-ledger" onClick={toggleField("behaves_like_subledger")}>
-                <span className="text-sm py-1">{form.behaves_like_subledger ? "Yes" : "No"}</span>
+              <Row
+                label="Group behaves like a sub-ledger"
+                onClick={toggleField('behaves_like_subledger')}
+              >
+                <span className="text-sm py-1">{form.behaves_like_subledger ? 'Yes' : 'No'}</span>
               </Row>
-              <Row label="Nett Debit/Credit Balances for Reporting" onClick={toggleField("show_net_debit_credit")}>
-                <span className="text-sm py-1">{form.show_net_debit_credit ? "Yes" : "No"}</span>
+              <Row
+                label="Nett Debit/Credit Balances for Reporting"
+                onClick={toggleField('show_net_debit_credit')}
+              >
+                <span className="text-sm py-1">{form.show_net_debit_credit ? 'Yes' : 'No'}</span>
               </Row>
-              <Row label="Used for calculation (for example: taxes, discounts) (for sales invoice entries)" onClick={toggleField("used_for_calculation")}>
-                <span className="text-sm py-1">{form.used_for_calculation ? "Yes" : "No"}</span>
+              <Row
+                label="Used for calculation (for example: taxes, discounts) (for sales invoice entries)"
+                onClick={toggleField('used_for_calculation')}
+              >
+                <span className="text-sm py-1">{form.used_for_calculation ? 'Yes' : 'No'}</span>
               </Row>
               <Row label="Method to allocate when used in purchase invoice">
-                <select className={selectCls} value={form.allocation_method || "Not Applicable"} onChange={setField("allocation_method")}>
-                  {ALLOC_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                <select
+                  className={selectCls}
+                  value={form.allocation_method || 'Not Applicable'}
+                  onChange={setField('allocation_method')}
+                >
+                  {ALLOC_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
                 </select>
               </Row>
               {statutoryConfig.featureToggles.map((key) => {
@@ -295,7 +391,7 @@ export default function GroupAlterEdit() {
                 const isYes = form[dbKey] as number;
                 return (
                   <Row key={key} label={meta.label} onClick={() => handleFeatureToggle(dbKey, key)}>
-                    <span className="text-sm py-1">{isYes ? "Yes" : "No"}</span>
+                    <span className="text-sm py-1">{isYes ? 'Yes' : 'No'}</span>
                   </Row>
                 );
               })}
@@ -318,17 +414,18 @@ export default function GroupAlterEdit() {
 
             <div className="flex justify-end gap-3 pt-2">
               <button
-                onClick={() => navigate("/master/alter/group")}
+                onClick={() => navigate('/master/alter/group')}
                 className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 transition-colors"
               >
                 Cancel
               </button>
               <button
+                data-enter-accept
                 onClick={handleSubmit}
                 disabled={loading}
                 className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
               >
-                {loading ? "Saving..." : "Update"}
+                {loading ? 'Saving...' : 'Update'}
               </button>
             </div>
           </div>
@@ -337,11 +434,18 @@ export default function GroupAlterEdit() {
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
             <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Under Group</span>
-              <button onClick={() => setShowGroupPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                Under Group
+              </span>
+              <button
+                onClick={() => setShowGroupPanel(false)}
+                className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors"
+              >
+                &times;
+              </button>
             </div>
             <div
-              className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isPrimarySelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+              className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isPrimarySelected ? 'bg-zinc-100 font-semibold text-black' : 'text-zinc-700 hover:bg-zinc-50'}`}
               onClick={handleSelectPrimary}
             >
               <span className="truncate">Primary</span>
@@ -356,42 +460,58 @@ export default function GroupAlterEdit() {
         )}
 
         {showClassPanel && (
-          <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+          <div
+            className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white"
+            data-enter-nav-ignore
+          >
             <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">List of Classifications</span>
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                List of Classifications
+              </span>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => { setShowClassPanel(null); navigate("/master/create/gst-classification"); }}
+                  onClick={() => {
+                    setShowClassPanel(null);
+                    navigate('/master/create/gst-classification');
+                  }}
                   className="text-[11px] px-2 py-0.5 bg-black text-white font-medium"
                 >
                   Create
                 </button>
-                <button onClick={() => setShowClassPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+                <button
+                  onClick={() => setShowClassPanel(null)}
+                  className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors"
+                >
+                  &times;
+                </button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
               {gstClassifications.length === 0 ? (
                 <div className="px-3 py-6 text-xs text-zinc-400 text-center leading-relaxed">
-                  No classifications created yet.<br />Click <strong>Create</strong> to add one.
+                  No classifications created yet.
+                  <br />
+                  Click <strong>Create</strong> to add one.
                 </div>
               ) : (
                 gstClassifications.map((c) => {
-                  const selectedId = showClassPanel === "hsn"
-                    ? Number(form.hsn_sac_classification_id)
-                    : Number(form.gst_classification_id);
+                  const selectedId =
+                    showClassPanel === 'hsn'
+                      ? Number(form.hsn_sac_classification_id)
+                      : Number(form.gst_classification_id);
                   const isSelected = selectedId === c.gc_id;
                   return (
                     <div
                       key={c.gc_id}
                       onClick={() => {
-                        if (showClassPanel === "hsn") {
+                        if (showClassPanel === 'hsn') {
                           setForm((f) => ({ ...f, hsn_sac_classification_id: c.gc_id }));
                         } else {
                           setForm((f) => ({ ...f, gst_classification_id: c.gc_id }));
                         }
                         setShowClassPanel(null);
                       }}
-                      className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isSelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
+                      className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isSelected ? 'bg-zinc-100 font-semibold text-black' : 'text-zinc-700 hover:bg-zinc-50'}`}
                     >
                       <span className="truncate">{c.name}</span>
                     </div>
@@ -429,23 +549,23 @@ function FeatureSubModal({
   companyId: number | undefined;
   onOpenCreateForm: (key: StatutoryToggle) => void;
 }) {
-  if (toggleKey === "tds") {
+  if (toggleKey === 'tds') {
     return (
       <NatureOfPaymentDetailsModal
         isOpen
         onClose={onClose}
         companyId={companyId}
-        onOpenCreateForm={() => onOpenCreateForm("tds")}
+        onOpenCreateForm={() => onOpenCreateForm('tds')}
       />
     );
   }
-  if (toggleKey === "tcs") {
+  if (toggleKey === 'tcs') {
     return (
       <NatureOfGoodsDetailsModal
         isOpen
         onClose={onClose}
         companyId={companyId}
-        onOpenCreateForm={() => onOpenCreateForm("tcs")}
+        onOpenCreateForm={() => onOpenCreateForm('tcs')}
       />
     );
   }
@@ -461,23 +581,23 @@ function FeatureCreateModal({
   onClose: () => void;
   companyId: number | undefined;
 }) {
-  if (toggleKey === "tds") {
+  if (toggleKey === 'tds') {
     return (
       <TDSNatureOfPaymentCreation
         isOpen
         onClose={onClose}
         companyId={companyId}
-        onCreated={() => window.dispatchEvent(new CustomEvent("tds-nature-of-payment-created"))}
+        onCreated={() => window.dispatchEvent(new CustomEvent('tds-nature-of-payment-created'))}
       />
     );
   }
-  if (toggleKey === "tcs") {
+  if (toggleKey === 'tcs') {
     return (
       <TCSNatureOfGoodsCreation
         isOpen
         onClose={onClose}
         companyId={companyId}
-        onCreated={() => window.dispatchEvent(new CustomEvent("tcs-nature-of-goods-created"))}
+        onCreated={() => window.dispatchEvent(new CustomEvent('tcs-nature-of-goods-created'))}
       />
     );
   }

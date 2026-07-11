@@ -102,6 +102,8 @@ export interface StockEntryRow {
   stockItem: import('../../../types/api').StockItemType | null;
   godown: import('../../../types/api').GodownType | null;
   unit: import('../../../types/api').UnitType | null;
+  /** Optional free-text line description shown under the item (e.g. "80 Red"). */
+  descriptionRaw?: string;
   quantityRaw: string;
   rateRaw: string;
   amountRaw: string;

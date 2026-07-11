@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import GroupFlatList from '@/components/GroupFlatList';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import { FormRow, PageTitleBar, RightActionPanel } from '@/components/ui';
 import BankDetailsPopup from './components/BankDetailsPopup';
 import type { GroupType } from '@/types/api';
@@ -133,6 +134,7 @@ export default function LedgerCreate() {
 
   const nameRef = useRef<HTMLInputElement>(null);
   const aliasRef = useRef<HTMLInputElement>(null);
+  const underRef = useRef<HTMLDivElement>(null);
 
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || '';
   const currentConfig = getLedgerConfig(groupName, groupLineage.primaryGroupName);
@@ -232,7 +234,7 @@ export default function LedgerCreate() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none">
+    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
       {showBankPopup && (
         <BankDetailsPopup
           ledgerName={form.name || ''}
@@ -527,7 +529,10 @@ export default function LedgerCreate() {
           {/* Under (group) */}
           <div className="p-3 border-t border-zinc-100 bg-zinc-50/20">
             <div
-              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
+              ref={underRef}
+              tabIndex={0}
+              data-enter-click
+              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group"
               onClick={() => setShowGroupPanel(!showGroupPanel)}
             >
               <span className="w-16 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">
@@ -778,6 +783,7 @@ export default function LedgerCreate() {
               onSelect={(group: GroupType) => {
                 setForm((f) => ({ ...f, group_id: group.group_id }));
                 setShowGroupPanel(false);
+                focusFieldAfter(underRef.current);
               }}
               onCreate={() => {
                 setShowGroupPanel(false);
@@ -799,6 +805,7 @@ export default function LedgerCreate() {
           &larr; Back to Masters
         </Link>
         <button
+          data-enter-accept
           onClick={handleSubmit}
           disabled={loading}
           className="text-sm px-6 py-1.5 rounded bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50 transition-all font-semibold shadow-sm hover:shadow active:scale-95 duration-150"

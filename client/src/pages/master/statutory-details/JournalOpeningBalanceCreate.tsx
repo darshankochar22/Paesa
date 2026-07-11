@@ -1,14 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import {
-  PageTitleBar,
-  RightActionPanel,
-  MasterFormFooter,
-  AlertBanner,
-} from "@/components/ui";
-import LedgerListPanel from "@/pages/transactions/components/LedgerListPanel";
-import type { LedgerType } from "@/types/entities/Ledger";
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from '@/components/ui';
+import LedgerListPanel from '@/pages/transactions/components/LedgerListPanel';
+import type { LedgerType } from '@/types/entities/Ledger';
 
 // Shared screen for the three Excise "Opening Balance" entries (#147 CENVAT,
 // #148 PLA, #151 Excise). In TallyPrime each of these is a Journal voucher with
@@ -16,7 +12,7 @@ import type { LedgerType } from "@/types/entities/Ledger";
 // voucher stack via window.api.voucher.create, exactly like #150 Dealer Excise
 // Opening Stock reuses it for a Purchase voucher.
 
-type DrCr = "Dr" | "Cr";
+type DrCr = 'Dr' | 'Cr';
 
 interface JournalRow {
   id: number;
@@ -30,18 +26,15 @@ const blankRow = (type: DrCr): JournalRow => ({
   id: rowSeq++,
   ledger: null,
   type,
-  amountRaw: "",
+  amountRaw: '',
 });
 
 const inr = (n: number) =>
-  n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtDate = (iso: string) => {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y, m, d] = iso.split('-').map(Number);
   return `${d}-${MONTHS[(m || 1) - 1]}-${String(y).slice(-2)}`;
 };
 
@@ -58,7 +51,7 @@ export interface JournalOpeningBalanceCreateProps {
   creditOf?: boolean;
 }
 
-const CREDIT_OF_OPTIONS = ["Inputs", "Capital Goods", "Input Services"];
+const CREDIT_OF_OPTIONS = ['Inputs', 'Capital Goods', 'Input Services'];
 
 export default function JournalOpeningBalanceCreate({
   title,
@@ -84,18 +77,20 @@ export default function JournalOpeningBalanceCreate({
   const [loading, setLoading] = useState(false);
 
   // header context
-  const [journalNo, setJournalNo] = useState<string>("");
-  const [gstRegistration, setGstRegistration] = useState<string>("♦ Not Applicable");
+  const [journalNo, setJournalNo] = useState<string>('');
+  const [gstRegistration, setGstRegistration] = useState<string>('♦ Not Applicable');
   const [creditOfValue, setCreditOfValue] = useState(CREDIT_OF_OPTIONS[0]);
-  const [narration, setNarration] = useState("");
+  const [narration, setNarration] = useState('');
 
   // data + grid
   const [allLedgers, setAllLedgers] = useState<LedgerType[]>([]);
-  const [rows, setRows] = useState<JournalRow[]>([blankRow("Dr"), blankRow("Cr")]);
+  const [rows, setRows] = useState<JournalRow[]>([blankRow('Dr'), blankRow('Cr')]);
 
   // ledger picker
   const [pickerRowId, setPickerRowId] = useState<number | null>(null);
-  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  // the row input that opened the picker — Enter chain continues after it
+  const pickerTriggerRef = useRef<HTMLElement | null>(null);
 
   // ── load ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -106,7 +101,7 @@ export default function JournalOpeningBalanceCreate({
           window.api.ledger.getAll(companyId),
           window.api.gstRegistration.getAll(companyId),
           fyId
-            ? window.api.voucher.getNextNumber(companyId, fyId, "Journal")
+            ? window.api.voucher.getNextNumber(companyId, fyId, 'Journal')
             : Promise.resolve(null),
         ]);
         if (ledRes?.success) {
@@ -114,14 +109,17 @@ export default function JournalOpeningBalanceCreate({
         }
         if (gstRes?.success && Array.isArray(gstRes.gstRegistrations)) {
           const first = gstRes.gstRegistrations.find(
-            (g) => g.state_id || g.legal_name || g.trade_name
+            (g) => g.state_id || g.legal_name || g.trade_name,
           );
           if (first) {
-            const state = first.state_id || "";
+            const state = first.state_id || '';
             setGstRegistration(
               state
                 ? `${state} Registration`
-                : first.legal_name || first.trade_name || selectedCompany?.name || "♦ Not Applicable"
+                : first.legal_name ||
+                    first.trade_name ||
+                    selectedCompany?.name ||
+                    '♦ Not Applicable',
             );
           } else if (selectedCompany?.name) {
             setGstRegistration(selectedCompany.name);
@@ -143,58 +141,49 @@ export default function JournalOpeningBalanceCreate({
   const removeRow = (id: number) =>
     setRows((prev) => {
       const next = prev.filter((r) => r.id !== id);
-      return next.length ? next : [blankRow("Dr")];
+      return next.length ? next : [blankRow('Dr')];
     });
 
   const handleLedgerSelect = useCallback(
     (led: LedgerType) => {
       const targetId = pickerRowId;
       setPickerRowId(null);
-      setLedgerSearch("");
+      setLedgerSearch('');
       if (targetId == null) return;
       setRows((prev) => {
-        const next = prev.map((r) =>
-          r.id === targetId ? { ...r, ledger: led } : r
-        );
+        const next = prev.map((r) => (r.id === targetId ? { ...r, ledger: led } : r));
         // keep one trailing blank row, alternating Dr/Cr like a Journal
         if (next.every((r) => r.ledger)) {
-          const nextType: DrCr = next.length % 2 === 0 ? "Dr" : "Cr";
+          const nextType: DrCr = next.length % 2 === 0 ? 'Dr' : 'Cr';
           next.push(blankRow(nextType));
         }
         return next;
       });
+      focusFieldAfter(pickerTriggerRef.current);
     },
-    [pickerRowId]
+    [pickerRowId],
   );
 
   // ── totals / balance ──────────────────────────────────────────────────────
-  const totalDr = rows.reduce(
-    (s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0),
-    0
-  );
-  const totalCr = rows.reduce(
-    (s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0),
-    0
-  );
+  const totalDr = rows.reduce((s, r) => s + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0), 0);
+  const totalCr = rows.reduce((s, r) => s + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0), 0);
   const difference = Math.abs(totalDr - totalCr);
   const balanced = totalDr > 0 && difference < 0.005;
-  const filledRows = rows.filter(
-    (r) => r.ledger && (Number(r.amountRaw) || 0) > 0
-  );
+  const filledRows = rows.filter((r) => r.ledger && (Number(r.amountRaw) || 0) > 0);
 
   // ── save ────────────────────────────────────────────────────────────────
-  const quit = useCallback(() => navigate("/master/create"), [navigate]);
+  const quit = useCallback(() => navigate('/master/create'), [navigate]);
 
   const handleSubmit = useCallback(async () => {
     setError(null);
     if (!companyId || !fyId) {
-      setError("No active company / financial year.");
+      setError('No active company / financial year.');
       return;
     }
-    const hasDr = filledRows.some((r) => r.type === "Dr");
-    const hasCr = filledRows.some((r) => r.type === "Cr");
+    const hasDr = filledRows.some((r) => r.type === 'Dr');
+    const hasCr = filledRows.some((r) => r.type === 'Cr');
     if (!hasDr || !hasCr) {
-      setError("Enter at least one Debit and one Credit line.");
+      setError('Enter at least one Debit and one Credit line.');
       return;
     }
     if (!balanced) {
@@ -210,13 +199,13 @@ export default function JournalOpeningBalanceCreate({
     }));
 
     const fullNarration = creditOf
-      ? [`CENVAT credit of: ${creditOfValue}`, narration].filter(Boolean).join(" — ")
+      ? [`CENVAT credit of: ${creditOfValue}`, narration].filter(Boolean).join(' — ')
       : narration || null;
 
     const payload = {
       company_id: companyId,
       fy_id: fyId,
-      voucher_type: "Journal",
+      voucher_type: 'Journal',
       status,
       date: openingDate,
       is_invoice: 0,
@@ -229,13 +218,13 @@ export default function JournalOpeningBalanceCreate({
     setLoading(true);
     try {
       const res = await window.api.voucher.create(
-        payload as Parameters<typeof window.api.voucher.create>[0]
+        payload as Parameters<typeof window.api.voucher.create>[0],
       );
       if (res?.success) {
         setSuccess(successLabel);
-        setTimeout(() => navigate("/master/create"), 400);
+        setTimeout(() => navigate('/master/create'), 400);
       } else {
-        setError(res?.error || "Failed to save.");
+        setError(res?.error || 'Failed to save.');
       }
     } catch (err) {
       setError((err as Error).message);
@@ -261,40 +250,31 @@ export default function JournalOpeningBalanceCreate({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (pickerRowId != null) return;
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         quit();
       }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         handleSubmit();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, quit, pickerRowId]);
 
   const actions = [
-    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
-    { key: "Esc", label: "Quit", onClick: quit },
+    { key: 'Alt+A', label: 'Accept', onClick: handleSubmit },
+    { key: 'Esc', label: 'Quit', onClick: quit },
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none">
-      <PageTitleBar
-        title={title}
-        subtitle={`As on ${fmtDate(openingDate)}`}
-      />
+    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
+      <PageTitleBar title={title} subtitle={`As on ${fmtDate(openingDate)}`} />
 
-      {error && (
-        <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />
-      )}
+      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
       {success && (
-        <AlertBanner
-          type="success"
-          message={success}
-          onDismiss={() => setSuccess(null)}
-        />
+        <AlertBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">
@@ -308,15 +288,13 @@ export default function JournalOpeningBalanceCreate({
                 </span>
                 <span className="text-sm text-black">No.</span>
                 <span className="text-sm font-semibold text-black tabular-nums">
-                  {journalNo || "—"}
+                  {journalNo || '—'}
                 </span>
               </div>
 
               {creditOf && (
                 <div className="flex items-center gap-2">
-                  <span className="w-40 text-sm text-black shrink-0">
-                    CENVAT credit of
-                  </span>
+                  <span className="w-40 text-sm text-black shrink-0">CENVAT credit of</span>
                   <span className="text-sm text-black shrink-0">:</span>
                   <select
                     className="text-sm border border-zinc-400 px-1 py-0 outline-none focus:border-black bg-white"
@@ -359,12 +337,8 @@ export default function JournalOpeningBalanceCreate({
           {/* Particulars table header */}
           <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
             <div className="flex-1 text-sm font-semibold text-black">Particulars</div>
-            <div className="w-16 text-center text-sm font-semibold text-black">
-              Dr/Cr
-            </div>
-            <div className="w-40 text-right text-sm font-semibold text-black">
-              Amount
-            </div>
+            <div className="w-16 text-center text-sm font-semibold text-black">Dr/Cr</div>
+            <div className="w-40 text-right text-sm font-semibold text-black">Amount</div>
             <div className="w-6" />
           </div>
 
@@ -377,21 +351,24 @@ export default function JournalOpeningBalanceCreate({
               >
                 <div className="flex-1 flex items-center gap-1">
                   <span className="text-xs text-zinc-500 w-5 shrink-0">
-                    {row.type === "Dr" ? "By" : "To"}
+                    {row.type === 'Dr' ? 'By' : 'To'}
                   </span>
                   <input
                     type="text"
                     readOnly
+                    data-enter-click
                     className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black cursor-pointer"
-                    value={row.ledger?.name ?? ""}
-                    placeholder={idx === 0 ? "Select Ledger…" : ""}
-                    onFocus={() => {
+                    value={row.ledger?.name ?? ''}
+                    placeholder={idx === 0 ? 'Select Ledger…' : ''}
+                    onFocus={(e) => {
+                      pickerTriggerRef.current = e.currentTarget;
                       setPickerRowId(row.id);
-                      setLedgerSearch("");
+                      setLedgerSearch('');
                     }}
-                    onClick={() => {
+                    onClick={(e) => {
+                      pickerTriggerRef.current = e.currentTarget;
                       setPickerRowId(row.id);
-                      setLedgerSearch("");
+                      setLedgerSearch('');
                     }}
                   />
                 </div>
@@ -400,9 +377,7 @@ export default function JournalOpeningBalanceCreate({
                   <button
                     type="button"
                     tabIndex={-1}
-                    onClick={() =>
-                      updateRow(row.id, { type: row.type === "Dr" ? "Cr" : "Dr" })
-                    }
+                    onClick={() => updateRow(row.id, { type: row.type === 'Dr' ? 'Cr' : 'Dr' })}
                     className="text-xs font-semibold text-black border border-zinc-300 px-2 py-0.5 hover:border-black"
                   >
                     {row.type}
@@ -416,9 +391,7 @@ export default function JournalOpeningBalanceCreate({
                     className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black tabular-nums"
                     value={row.amountRaw}
                     disabled={!row.ledger}
-                    onChange={(e) =>
-                      updateRow(row.id, { amountRaw: e.target.value })
-                    }
+                    onChange={(e) => updateRow(row.id, { amountRaw: e.target.value })}
                   />
                 </div>
 
@@ -439,10 +412,7 @@ export default function JournalOpeningBalanceCreate({
 
             {/* filler rows */}
             {Array.from({ length: Math.max(0, 8 - rows.length) }).map((_, i) => (
-              <div
-                key={`f-${i}`}
-                className="flex border-b border-zinc-50 min-h-[24px] px-3"
-              />
+              <div key={`f-${i}`} className="flex border-b border-zinc-50 min-h-[24px] px-3" />
             ))}
           </div>
 
@@ -453,18 +423,15 @@ export default function JournalOpeningBalanceCreate({
                 <span className="font-semibold text-black">Balanced</span>
               ) : difference > 0 ? (
                 <span className="font-semibold text-black">
-                  Difference: {inr(difference)}{" "}
-                  {totalDr > totalCr ? "Dr" : "Cr"}
+                  Difference: {inr(difference)} {totalDr > totalCr ? 'Dr' : 'Cr'}
                 </span>
               ) : (
-                ""
+                ''
               )}
             </div>
-            <div className="w-16 text-center text-xs text-zinc-600 font-semibold">
-              Dr / Cr
-            </div>
+            <div className="w-16 text-center text-xs text-zinc-600 font-semibold">Dr / Cr</div>
             <div className="w-40 text-right text-sm font-semibold text-black tabular-nums pr-1">
-              {totalDr > 0 ? inr(totalDr) : ""} / {totalCr > 0 ? inr(totalCr) : ""}
+              {totalDr > 0 ? inr(totalDr) : ''} / {totalCr > 0 ? inr(totalCr) : ''}
             </div>
             <div className="w-6" />
           </div>
@@ -495,7 +462,7 @@ export default function JournalOpeningBalanceCreate({
 
       {/* Ledger list */}
       {pickerRowId != null && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" data-enter-nav-ignore>
           <LedgerListPanel
             title="List of Ledger Accounts"
             items={allLedgers}
@@ -504,9 +471,9 @@ export default function JournalOpeningBalanceCreate({
             onSelect={(it) => handleLedgerSelect(it as LedgerType)}
             onClose={() => {
               setPickerRowId(null);
-              setLedgerSearch("");
+              setLedgerSearch('');
             }}
-            onCreateNew={() => navigate("/master/create/ledger")}
+            onCreateNew={() => navigate('/master/create/ledger')}
             createLabel="Create"
             height="h-screen"
           />

@@ -113,7 +113,7 @@ export default function PayrollUnitCreate() {
   });
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none">
+    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
       <PageTitleBar title="Unit Creation" subtitle={selectedCompany?.name} />
 
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}

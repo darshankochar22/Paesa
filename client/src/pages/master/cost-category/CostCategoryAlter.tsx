@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
-import type { CostCategoryType } from "@/types/api";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from '@/components/ui';
+import type { CostCategoryType } from '@/types/api';
 
-const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
-const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
+const inputCls =
+  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
+const selectCls =
+  'bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
 
 function SelectionPanel({
   categories,
@@ -18,56 +20,71 @@ function SelectionPanel({
   onCancel: () => void;
   onCreate: () => void;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
-      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); onCreate(); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      }
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        onCreate();
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [onCancel, onCreate]);
 
-  const filtered = categories.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.alias && c.alias.toLowerCase().includes(search.toLowerCase()))
+  const filtered = categories.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      (c.alias && c.alias.toLowerCase().includes(search.toLowerCase())),
   );
 
   const columns = [
     {
-      key: "name",
-      label: "Name",
-      span: "col-span-5",
-      render: (r: CostCategoryType) => <span className="font-bold text-zinc-900 text-xs">{r.name}</span>,
-    },
-    {
-      key: "alias",
-      label: "Alias",
-      span: "col-span-3",
-      render: (r: CostCategoryType) => <span className="text-zinc-500 font-semibold">{r.alias || "—"}</span>,
-    },
-    {
-      key: "rev",
-      label: "Revenue",
-      span: "col-span-2",
+      key: 'name',
+      label: 'Name',
+      span: 'col-span-5',
       render: (r: CostCategoryType) => (
-        <span className="text-zinc-500 font-semibold">{r.allocate_revenue_items ? "Yes" : "No"}</span>
+        <span className="font-bold text-zinc-900 text-xs">{r.name}</span>
       ),
     },
     {
-      key: "nonrev",
-      label: "Non-Revenue",
-      span: "col-span-2",
+      key: 'alias',
+      label: 'Alias',
+      span: 'col-span-3',
       render: (r: CostCategoryType) => (
-        <span className="text-zinc-500 font-semibold">{r.allocate_non_revenue_items ? "Yes" : "No"}</span>
+        <span className="text-zinc-500 font-semibold">{r.alias || '—'}</span>
+      ),
+    },
+    {
+      key: 'rev',
+      label: 'Revenue',
+      span: 'col-span-2',
+      render: (r: CostCategoryType) => (
+        <span className="text-zinc-500 font-semibold">
+          {r.allocate_revenue_items ? 'Yes' : 'No'}
+        </span>
+      ),
+    },
+    {
+      key: 'nonrev',
+      label: 'Non-Revenue',
+      span: 'col-span-2',
+      render: (r: CostCategoryType) => (
+        <span className="text-zinc-500 font-semibold">
+          {r.allocate_non_revenue_items ? 'Yes' : 'No'}
+        </span>
       ),
     },
   ];
 
   const selectionActions = [
-    { key: "Alt+C", label: "Create Category", onClick: onCreate },
-    { key: "Esc", label: "Quit", onClick: onCancel },
+    { key: 'Alt+C', label: 'Create Category', onClick: onCreate },
+    { key: 'Esc', label: 'Quit', onClick: onCancel },
   ];
 
   return (
@@ -130,13 +147,15 @@ export default function CostCategoryAlter() {
     if (r.success) setCategories(r.costCategories ?? []);
   }, [companyId]);
 
-  useEffect(() => { loadCategories(); }, [loadCategories]);
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
 
   const handleSelectCategory = (c: CostCategoryType) => {
     setSelected(c);
     setForm({
       name: c.name,
-      alias: c.alias || "",
+      alias: c.alias || '',
       allocate_revenue_items: String(c.allocate_revenue_items ?? 1),
       allocate_non_revenue_items: String(c.allocate_non_revenue_items ?? 0),
     });
@@ -144,14 +163,18 @@ export default function CostCategoryAlter() {
     setSuccess(null);
   };
 
-  const setField = (key: keyof FormData) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => (f ? { ...f, [key]: e.target.value } : f));
+  const setField =
+    (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => (f ? { ...f, [key]: e.target.value } : f));
 
   const handleSubmit = useCallback(async () => {
     if (!form || !selected) return;
-    if (!form.name.trim()) { setError("Name is required."); return; }
-    setLoading(true); setError(null);
+    if (!form.name.trim()) {
+      setError('Name is required.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
     try {
       const result = await window.api.costCategory.update({
         cc_cat_id: selected.cc_cat_id,
@@ -164,12 +187,16 @@ export default function CostCategoryAlter() {
       if (result.success) {
         setSuccess(`Cost Category "${form.name}" updated.`);
         await loadCategories();
-        setTimeout(() => { setSuccess(null); setSelected(null); setForm(null); }, 1200);
+        setTimeout(() => {
+          setSuccess(null);
+          setSelected(null);
+          setForm(null);
+        }, 1200);
       } else {
-        setError(result.error || "Failed to update.");
+        setError(result.error || 'Failed to update.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setLoading(false);
     }
@@ -178,18 +205,23 @@ export default function CostCategoryAlter() {
   const handleDelete = useCallback(async () => {
     if (!selected) return;
     if (!window.confirm(`Delete cost category "${selected.name}"?`)) return;
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const result = await window.api.costCategory.delete(selected.cc_cat_id!);
       if (result.success) {
-        setSuccess("Cost Category deleted.");
+        setSuccess('Cost Category deleted.');
         await loadCategories();
-        setTimeout(() => { setSuccess(null); setSelected(null); setForm(null); }, 1200);
+        setTimeout(() => {
+          setSuccess(null);
+          setSelected(null);
+          setForm(null);
+        }, 1200);
       } else {
-        setError(result.error || "Failed to delete.");
+        setError(result.error || 'Failed to delete.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setLoading(false);
     }
@@ -197,22 +229,24 @@ export default function CostCategoryAlter() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        if (selected) { setSelected(null); setForm(null); }
-        else navigate("/master/alter");
+        if (selected) {
+          setSelected(null);
+          setForm(null);
+        } else navigate('/master/alter');
       }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         if (selected) handleSubmit();
       }
-      if (e.altKey && e.key.toLowerCase() === "d") {
+      if (e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         if (selected) handleDelete();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, handleDelete, navigate, selected]);
 
   if (!selected || !form) {
@@ -220,54 +254,97 @@ export default function CostCategoryAlter() {
       <SelectionPanel
         categories={categories}
         onSelect={handleSelectCategory}
-        onCancel={() => navigate("/master/alter")}
-        onCreate={() => navigate("/master/create/cost-category")}
+        onCancel={() => navigate('/master/alter')}
+        onCreate={() => navigate('/master/create/cost-category')}
       />
     );
   }
 
   const alterActions = [
-    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
-    { key: "Alt+D", label: "Delete", onClick: handleDelete },
-    { key: "Esc", label: "Back", onClick: () => { setSelected(null); setForm(null); } },
+    { key: 'Alt+A', label: 'Accept', onClick: handleSubmit },
+    { key: 'Alt+D', label: 'Delete', onClick: handleDelete },
+    {
+      key: 'Esc',
+      label: 'Back',
+      onClick: () => {
+        setSelected(null);
+        setForm(null);
+      },
+    },
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden">
+    <div
+      className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden"
+      data-enter-nav
+    >
       <PageTitleBar title="Cost Category Alteration" subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
       {success && (
         <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-500 hover:text-green-700 text-xs font-bold font-sans"
+          >
+            &times;
+          </button>
         </div>
       )}
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white p-3 space-y-1 overflow-y-auto">
           <div className="max-w-2xl space-y-1">
-            <FormRow label="Name" required labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
+            <FormRow
+              label="Name"
+              required
+              labelWidth="w-64"
+              className="flex items-center min-h-[26px]"
+            >
+              <input autoFocus className={inputCls} value={form.name} onChange={setField('name')} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={setField("alias")} />
+              <input className={inputCls} value={form.alias} onChange={setField('alias')} />
             </FormRow>
             <div className="border-t border-zinc-100 pt-3 mt-2">
-              <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans">Allocation Options</div>
-              <FormRow label="Allocate Revenue Items" labelWidth="w-64" className="flex items-center min-h-[26px]">
-                <select className={selectCls} value={form.allocate_revenue_items} onChange={setField("allocate_revenue_items")}>
+              <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans">
+                Allocation Options
+              </div>
+              <FormRow
+                label="Allocate Revenue Items"
+                labelWidth="w-64"
+                className="flex items-center min-h-[26px]"
+              >
+                <select
+                  className={selectCls}
+                  value={form.allocate_revenue_items}
+                  onChange={setField('allocate_revenue_items')}
+                >
                   <option value="1">Yes</option>
                   <option value="0">No</option>
                 </select>
               </FormRow>
-              <FormRow label="Allocate Non-Revenue Items" labelWidth="w-64" className="flex items-center min-h-[26px]">
-                <select className={selectCls} value={form.allocate_non_revenue_items} onChange={setField("allocate_non_revenue_items")}>
+              <FormRow
+                label="Allocate Non-Revenue Items"
+                labelWidth="w-64"
+                className="flex items-center min-h-[26px]"
+              >
+                <select
+                  className={selectCls}
+                  value={form.allocate_non_revenue_items}
+                  onChange={setField('allocate_non_revenue_items')}
+                >
                   <option value="1">Yes</option>
                   <option value="0">No</option>
                 </select>
@@ -289,7 +366,10 @@ export default function CostCategoryAlter() {
         </button>
         <div className="flex gap-3">
           <button
-            onClick={() => { setSelected(null); setForm(null); }}
+            onClick={() => {
+              setSelected(null);
+              setForm(null);
+            }}
             className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
           >
             Quit
@@ -299,7 +379,7 @@ export default function CostCategoryAlter() {
             disabled={loading}
             className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
           >
-            {loading ? "Saving..." : "Accept"}
+            {loading ? 'Saving...' : 'Accept'}
           </button>
         </div>
       </div>

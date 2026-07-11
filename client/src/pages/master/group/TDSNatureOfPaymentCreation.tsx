@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
-const inputCls = "w-full bg-transparent text-[13px] outline-none py-1 px-1 placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-400 transition-colors";
+const inputCls =
+  'w-full bg-transparent text-[13px] outline-none py-1 px-1 placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-400 transition-colors';
 
 interface TDSNatureOfPaymentCreationProps {
   isOpen: boolean;
@@ -15,40 +16,40 @@ export default function TDSNatureOfPaymentCreation({
   companyId,
   onCreated,
 }: TDSNatureOfPaymentCreationProps) {
-  const [name, setName] = useState("");
-  const [section, setSection] = useState("");
-  const [paymentCode, setPaymentCode] = useState("");
-  const [remittanceCode, setRemittanceCode] = useState("");
-  const [rateIndividualWithPan, setRateIndividualWithPan] = useState("0");
-  const [rateOtherWithPan, setRateOtherWithPan] = useState("0");
-  const [isZeroRated, setIsZeroRated] = useState("");
-  const [thresholdLimit, setThresholdLimit] = useState("");
+  const [name, setName] = useState('');
+  const [section, setSection] = useState('');
+  const [paymentCode, setPaymentCode] = useState('');
+  const [remittanceCode, setRemittanceCode] = useState('');
+  const [rateIndividualWithPan, setRateIndividualWithPan] = useState('0');
+  const [rateOtherWithPan, setRateOtherWithPan] = useState('0');
+  const [isZeroRated, setIsZeroRated] = useState('');
+  const [thresholdLimit, setThresholdLimit] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
-      setName("");
-      setSection("");
-      setPaymentCode("");
-      setRemittanceCode("");
-      setRateIndividualWithPan("0");
-      setRateOtherWithPan("0");
-      setIsZeroRated("");
-      setThresholdLimit("");
+      setName('');
+      setSection('');
+      setPaymentCode('');
+      setRemittanceCode('');
+      setRateIndividualWithPan('0');
+      setRateOtherWithPan('0');
+      setIsZeroRated('');
+      setThresholdLimit('');
       setError(null);
     }
   }, [isOpen]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === 'Escape' && isOpen) {
         e.preventDefault();
         onClose();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -58,11 +59,11 @@ export default function TDSNatureOfPaymentCreation({
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setError("Name is required.");
+      setError('Name is required.');
       return;
     }
     if (!companyId) {
-      setError("No company selected.");
+      setError('No company selected.');
       return;
     }
     setSaving(true);
@@ -76,7 +77,7 @@ export default function TDSNatureOfPaymentCreation({
         remittance_code: remittanceCode.trim() || undefined,
         rate_individual_with_pan: Number(rateIndividualWithPan) || 0,
         rate_other_with_pan: Number(rateOtherWithPan) || 0,
-        is_zero_rated: isZeroRated === "Yes" ? 1 : 0,
+        is_zero_rated: isZeroRated === 'Yes' ? 1 : 0,
         threshold_limit: Number(thresholdLimit) || 0,
         calculate_tax_on_exceeding_threshold: 0,
       });
@@ -85,24 +86,25 @@ export default function TDSNatureOfPaymentCreation({
         onCreated?.(createdName);
         onClose();
       } else {
-        setError(res.error || "Failed to create nature of payment.");
+        setError(res.error || 'Failed to create nature of payment.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30">
+    <div
+      data-enter-nav-ignore
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30"
+    >
       <div className="bg-white border border-zinc-300 shadow-2xl w-[580px] max-h-[90vh] flex flex-col">
         {/* Tally-style title bar */}
         <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-semibold text-zinc-900">
-              TDS Nature of Payment
-            </span>
+            <span className="text-[13px] font-semibold text-zinc-900">TDS Nature of Payment</span>
             <span className="text-[13px] text-zinc-500">Creation (Secondary)</span>
           </div>
           <button
@@ -119,7 +121,12 @@ export default function TDSNatureOfPaymentCreation({
           {error && (
             <div className="mb-3 p-2 border border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
               <span>{error}</span>
-              <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-500 hover:text-red-700 text-xs"
+              >
+                dismiss
+              </button>
             </div>
           )}
 
@@ -169,7 +176,9 @@ export default function TDSNatureOfPaymentCreation({
           </div>
 
           <div className="mb-3">
-            <div className="text-[13px] font-semibold text-zinc-800 mb-2">Rate for individuals/HUF</div>
+            <div className="text-[13px] font-semibold text-zinc-800 mb-2">
+              Rate for individuals/HUF
+            </div>
             <div className="flex items-center gap-2 ml-6">
               <span className="text-[13px] text-zinc-700 w-28 shrink-0">With PAN</span>
               <span className="text-zinc-400 mr-2">:</span>
@@ -185,7 +194,9 @@ export default function TDSNatureOfPaymentCreation({
           </div>
 
           <div className="mb-3">
-            <div className="text-[13px] font-semibold text-zinc-800 mb-2">Rate for other deductee types</div>
+            <div className="text-[13px] font-semibold text-zinc-800 mb-2">
+              Rate for other deductee types
+            </div>
             <div className="flex items-center gap-2 ml-6">
               <span className="text-[13px] text-zinc-700 w-28 shrink-0">With PAN</span>
               <span className="text-zinc-400 mr-2">:</span>
@@ -206,16 +217,18 @@ export default function TDSNatureOfPaymentCreation({
               <span className="text-zinc-400 mr-2">:</span>
               <button
                 type="button"
-                onClick={() => setIsZeroRated(isZeroRated === "Yes" ? "No" : "Yes")}
+                onClick={() => setIsZeroRated(isZeroRated === 'Yes' ? 'No' : 'Yes')}
                 className="text-[13px] py-0.5 px-2 min-w-[28px] text-center font-medium hover:bg-zinc-100"
               >
-                {isZeroRated || "No"}
+                {isZeroRated || 'No'}
               </button>
             </div>
           )}
 
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-[13px] text-zinc-700 w-48 shrink-0">Threshold/exemption limit</span>
+            <span className="text-[13px] text-zinc-700 w-48 shrink-0">
+              Threshold/exemption limit
+            </span>
             <span className="text-zinc-400 mr-2">:</span>
             <input
               className={inputCls}
@@ -241,7 +254,7 @@ export default function TDSNatureOfPaymentCreation({
             disabled={saving}
             className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium disabled:opacity-50"
           >
-            {saving ? "Creating..." : "Create"}
+            {saving ? 'Creating...' : 'Create'}
           </button>
         </div>
       </div>

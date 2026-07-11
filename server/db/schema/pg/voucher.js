@@ -89,6 +89,8 @@ const voucherStockEntries = pgTable('voucher_stock_entries', {
   // FK -> stock_items.stock_item_id (INFERRED, cross-module).
   stockItemId: bigint('stock_item_id', { mode: 'number' }),
   itemName: text('item_name'),
+  // Free-text line description shown inline under the item (e.g. "80 Red").
+  description: text('description'),
   // FK -> godowns.godown_id (INFERRED, cross-module).
   godownId: bigint('godown_id', { mode: 'number' }),
   // FK -> units.unit_id (INFERRED, cross-module).

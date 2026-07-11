@@ -9,6 +9,7 @@ const returnActivities = require('./reconciliation/returnActivities');
 const returnReports = require('./reconciliation/returnReports');
 const annual = require('./reconciliation/annual');
 const utilities = require('./reconciliation/utilities');
+const reconDetail = require('./reconciliation/reconDetail');
 
 module.exports = {
   getGSTR1Reconciliation: portalRecon.getGSTR1Reconciliation,
@@ -40,4 +41,8 @@ module.exports = {
   getMarkedVouchers: utilities.getMarkedVouchers,
   getGstAdvancesReport: utilities.getGstAdvancesReport,
   getReverseChargeSupplies: utilities.getReverseChargeSupplies,
+  // Tally-style 2A/2B recon drill (dual books-vs-portal, party summary, voucher register).
+  getReconSummary: reconDetail.getReconSummary,
+  getReconPartySummary: reconDetail.getReconPartySummary,
+  getReconVoucherRegister: reconDetail.getReconVoucherRegister,
 };

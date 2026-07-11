@@ -1,21 +1,20 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, RightActionPanel, FormRow, MasterFormFooter } from "@/components/ui";
-import type { StockGroupType, StockCategoryType, UnitType, GodownType } from "@/types/api";
-import type { StockItemType } from "@/types/entities/StockItem";
-import BomListModal from "./components/BomListModal";
-import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
-import ListSidePanel from "./components/ListSidePanel";
-import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
-import OpeningBalanceAllocationModal from "./components/OpeningBalanceAllocationModal";
-import OtherStatutoryDetails from "./components/OtherStatutoryDetails";
-import type { FormData, PanelType } from "./types";
-import {
-  INITIAL_FORM_STATE,
-} from "./consts";
-import { calculateGstDetails } from "./utils";
-import { useStockItemBom } from "./hooks/useStockItemBom";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, RightActionPanel, FormRow, MasterFormFooter } from '@/components/ui';
+import type { StockGroupType, StockCategoryType, UnitType, GodownType } from '@/types/api';
+import type { StockItemType } from '@/types/entities/StockItem';
+import BomListModal from './components/BomListModal';
+import BomComponentsModal, { type BomEntry } from './components/BomComponentsModal';
+import ListSidePanel from './components/ListSidePanel';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
+import GSTStatutoryDetails from './components/GSTStatutoryDetails';
+import OpeningBalanceAllocationModal from './components/OpeningBalanceAllocationModal';
+import OtherStatutoryDetails from './components/OtherStatutoryDetails';
+import type { FormData, PanelType } from './types';
+import { INITIAL_FORM_STATE } from './consts';
+import { calculateGstDetails } from './utils';
+import { useStockItemBom } from './hooks/useStockItemBom';
 
 interface StockItemCreateProps {
   onDone?: () => void;
@@ -45,54 +44,79 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
   const aliasRef = useRef<HTMLInputElement>(null);
   const openingQtyRef = useRef<HTMLInputElement>(null);
   const openingRateRef = useRef<HTMLInputElement>(null);
+  const underRef = useRef<HTMLDivElement>(null);
+  const categoryRef = useRef<HTMLDivElement>(null);
+  const unitRef = useRef<HTMLDivElement>(null);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
-    setForm(f => ({ ...f, ...updater(f) }));
+    setForm((f) => ({ ...f, ...updater(f) }));
   }, []);
 
   const {
-    boms, setBoms,
-    showBomList, setShowBomList,
-    showBomComponents, setShowBomComponents,
-    currentBomName, savePendingRef,
-    handleBomToggle, handleBomSelect, handleBomAccept,
-    handleBomListClose, handleBomComponentsClose,
+    boms,
+    setBoms,
+    showBomList,
+    setShowBomList,
+    showBomComponents,
+    setShowBomComponents,
+    currentBomName,
+    savePendingRef,
+    handleBomToggle,
+    handleBomSelect,
+    handleBomAccept,
+    handleBomListClose,
+    handleBomComponentsClose,
   } = useStockItemBom(updateFormFields);
 
   useEffect(() => {
     const cid = selectedCompany?.company_id;
     if (!cid) return;
-    window.api.stockGroup.getAll(cid).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
-    window.api.stockCategory.getAll(cid).then(r => { if (r.success) setStockCategories(r.stockCategories ?? []); });
-    window.api.unit.getAll(cid).then(r => { if (r.success) setUnits(r.units ?? []); });
-    window.api.godown.getAll(cid).then(r => { if (r.success) setGodowns(r.godowns ?? []); });
-    window.api.stockItem.getAll(cid).then(r => { if (r.success) setStockItems(r.stockItems ?? []); });
-    window.api.gstClassification.getAll(cid).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
+    window.api.stockGroup.getAll(cid).then((r) => {
+      if (r.success) setStockGroups(r.stockGroups ?? []);
+    });
+    window.api.stockCategory.getAll(cid).then((r) => {
+      if (r.success) setStockCategories(r.stockCategories ?? []);
+    });
+    window.api.unit.getAll(cid).then((r) => {
+      if (r.success) setUnits(r.units ?? []);
+    });
+    window.api.godown.getAll(cid).then((r) => {
+      if (r.success) setGodowns(r.godowns ?? []);
+    });
+    window.api.stockItem.getAll(cid).then((r) => {
+      if (r.success) setStockItems(r.stockItems ?? []);
+    });
+    window.api.gstClassification.getAll(cid).then((r) => {
+      if (r.success) setGstClassifications(r.gstClassifications ?? []);
+    });
   }, [selectedCompany]);
 
   const setVal = useCallback((key: keyof FormData, value: any) => {
-    setForm(f => ({ ...f, [key]: value }));
+    setForm((f) => ({ ...f, [key]: value }));
   }, []);
 
   const selectedGroupLabel = form.group_id
-    ? (stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "Primary")
-    : "Primary";
+    ? (stockGroups.find((g) => String(g.sg_id) === form.group_id)?.name ?? 'Primary')
+    : 'Primary';
 
   const selectedCategoryLabel = form.category_id
-    ? (stockCategories.find(c => String(c.sc_id) === form.category_id)?.name ?? "Not Applicable")
-    : "Not Applicable";
+    ? (stockCategories.find((c) => String(c.sc_id) === form.category_id)?.name ?? 'Not Applicable')
+    : 'Not Applicable';
 
   const selectedUnitLabel = form.unit_id
-    ? (units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable")
-    : "Not Applicable";
+    ? (units.find((u) => String(u.unit_id) === form.unit_id)?.symbol ?? 'Not Applicable')
+    : 'Not Applicable';
 
-  const openingQty   = parseFloat(form.opening_quantity) || 0;
-  const openingRate  = parseFloat(form.opening_rate)     || 0;
+  const openingQty = parseFloat(form.opening_quantity) || 0;
+  const openingRate = parseFloat(form.opening_rate) || 0;
   const openingValue = openingQty * openingRate;
 
   const handleQuit = () => {
-    if (onCancel) { onCancel(); return; }
-    navigate("/master/create");
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+    navigate('/master/create');
   };
 
   const executeSave = async (bomsToSave: BomEntry[] = boms) => {
@@ -112,7 +136,9 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
         unit_id: form.unit_id ? Number(form.unit_id) : undefined,
         rate_of_duty: Number(form.rate_of_duty) || 0,
         has_bom: form.has_bom,
-        bom_name: form.has_bom ? (bomsToSave[0]?.bomName || form.bom_name).trim() || undefined : undefined,
+        bom_name: form.has_bom
+          ? (bomsToSave[0]?.bomName || form.bom_name).trim() || undefined
+          : undefined,
         opening_quantity: Number(form.opening_quantity) || 0,
         opening_rate: Number(form.opening_rate) || 0,
         gst_applicable: gst.gst_applicable,
@@ -135,8 +161,8 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
         track_batches: form.track_batches ? 1 : 0,
         track_expiry: form.track_expiry ? 1 : 0,
         allocations: form.allocations,
-        track_date_of_manufacturing: form.track_date_of_manufacturing === "Yes" ? 1 : 0,
-        enable_cost_tracking: form.enable_cost_tracking === "Yes" ? 1 : 0,
+        track_date_of_manufacturing: form.track_date_of_manufacturing === 'Yes' ? 1 : 0,
+        enable_cost_tracking: form.enable_cost_tracking === 'Yes' ? 1 : 0,
         excise_applicable: form.excise_applicable,
         excise_details: form.set_alter_excise_details,
         excise_tariff_name: form.excise_tariff_name,
@@ -157,25 +183,35 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
           if (onDone) onDone();
         }, 1500);
       } else {
-        setError(result.error || "Failed to create stock item.");
+        setError(result.error || 'Failed to create stock item.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSubmit = useCallback(() => {
-    if (!form.name.trim()) { setError("Name is required."); return; }
-    if (!companyId) { setError("No company selected."); return; }
+    if (!form.name.trim()) {
+      setError('Name is required.');
+      return;
+    }
+    if (!companyId) {
+      setError('No company selected.');
+      return;
+    }
     if (form.has_bom && boms.length === 0) {
       savePendingRef.current = true;
       setShowBomList(true);
       return;
     }
-    if (openingQty > 0 && form.allocations.length === 0 && (form.track_batches || godowns.length > 0)) {
-      setError("Please allocate the opening balance quantity to godowns/batches.");
+    if (
+      openingQty > 0 &&
+      form.allocations.length === 0 &&
+      (form.track_batches || godowns.length > 0)
+    ) {
+      setError('Please allocate the opening balance quantity to godowns/batches.');
       setShowAllocationModal(true);
       return;
     }
@@ -184,54 +220,100 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        if (showBomList) { setShowBomList(false); savePendingRef.current = false; return; }
-        if (showBomComponents) { setShowBomComponents(false); savePendingRef.current = false; return; }
-        if (activePanel) { setActivePanel(null); return; }
+        if (showBomList) {
+          setShowBomList(false);
+          savePendingRef.current = false;
+          return;
+        }
+        if (showBomComponents) {
+          setShowBomComponents(false);
+          savePendingRef.current = false;
+          return;
+        }
+        if (activePanel) {
+          setActivePanel(null);
+          return;
+        }
         handleQuit();
         return;
       }
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.altKey && e.key.toLowerCase() === "g") { e.preventDefault(); setActivePanel(p => p === "group" ? null : "group"); }
-      if (e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); setActivePanel(p => p === "category" ? null : "category"); }
-      if (e.altKey && e.key.toLowerCase() === "u") { e.preventDefault(); setActivePanel(p => p === "unit" ? null : "unit"); }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
-      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/alter/stock-item"); }
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.altKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        setActivePanel((p) => (p === 'group' ? null : 'group'));
+      }
+      if (e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        setActivePanel((p) => (p === 'category' ? null : 'category'));
+      }
+      if (e.altKey && e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        setActivePanel((p) => (p === 'unit' ? null : 'unit'));
+      }
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        navigate('/master/alter/stock-item');
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, activePanel, showBomList, showBomComponents]);
 
   const inputCls =
-    "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+    'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
   const selectCls =
-    "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+    'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
   const createActions = [
-    { key: "Alt+G", label: "Select Group",    onClick: () => setActivePanel(p => p === "group"    ? null : "group")    },
-    { key: "Alt+T", label: "Select Category", onClick: () => setActivePanel(p => p === "category" ? null : "category") },
-    { key: "Alt+U", label: "Select Unit",     onClick: () => setActivePanel(p => p === "unit"     ? null : "unit")     },
-    { key: "Alt+A", label: "Accept",       onClick: handleSubmit },
-    { key: "Alt+C", label: "Alter Item",   onClick: () => navigate("/master/alter/stock-item") },
-    { key: "Esc",   label: "Quit",         onClick: handleQuit },
+    {
+      key: 'Alt+G',
+      label: 'Select Group',
+      onClick: () => setActivePanel((p) => (p === 'group' ? null : 'group')),
+    },
+    {
+      key: 'Alt+T',
+      label: 'Select Category',
+      onClick: () => setActivePanel((p) => (p === 'category' ? null : 'category')),
+    },
+    {
+      key: 'Alt+U',
+      label: 'Select Unit',
+      onClick: () => setActivePanel((p) => (p === 'unit' ? null : 'unit')),
+    },
+    { key: 'Alt+A', label: 'Accept', onClick: handleSubmit },
+    { key: 'Alt+C', label: 'Alter Item', onClick: () => navigate('/master/alter/stock-item') },
+    { key: 'Esc', label: 'Quit', onClick: handleQuit },
   ];
 
   return (
-    <div className="flex flex-col h-full bg-white select-none overflow-hidden" style={{ fontFamily: "system-ui, sans-serif" }}>
+    <div
+      className="flex flex-col h-full bg-white select-none overflow-hidden"
+      style={{ fontFamily: 'system-ui, sans-serif' }}
+      data-enter-nav
+    >
       <PageTitleBar title="Stock Item Creation" subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-2 font-bold">×</button>
+          <button onClick={() => setError(null)} className="ml-2 font-bold">
+            ×
+          </button>
         </div>
       )}
       {success && (
         <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
           <span>{success}</span>
-          <button onClick={() => setSuccess(null)} className="ml-2 font-bold">×</button>
+          <button onClick={() => setSuccess(null)} className="ml-2 font-bold">
+            ×
+          </button>
         </div>
       )}
 
@@ -239,10 +321,31 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
         <div className="flex flex-col flex-1 min-w-0">
           <div className="p-3 space-y-1 border-b border-zinc-100">
             <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
-              <input autoFocus ref={nameRef} className={inputCls} value={form.name} onChange={e => setVal("name", e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
+              <input
+                autoFocus
+                ref={nameRef}
+                className={inputCls}
+                value={form.name}
+                onChange={(e) => setVal('name', e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  aliasRef.current?.focus();
+                }}
+              />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-20" className="flex items-center min-h-[26px]">
-              <input ref={aliasRef} className={inputCls} value={form.alias} onChange={e => setVal("alias", e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); setActivePanel(p => p === "group" ? null : "group"); }} />
+              <input
+                ref={aliasRef}
+                className={inputCls}
+                value={form.alias}
+                onChange={(e) => setVal('alias', e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  setActivePanel((p) => (p === 'group' ? null : 'group'));
+                }}
+              />
             </FormRow>
           </div>
 
@@ -251,10 +354,15 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
               {/* Under (group) */}
               <div className="p-3 border-b border-zinc-100 bg-zinc-50/20">
                 <div
-                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
-                  onClick={() => setActivePanel(p => p === "group" ? null : "group")}
+                  ref={underRef}
+                  tabIndex={0}
+                  data-enter-click
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group"
+                  onClick={() => setActivePanel((p) => (p === 'group' ? null : 'group'))}
                 >
-                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">Under</span>
+                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">
+                    Under
+                  </span>
                   <span className="text-zinc-400 mr-2 shrink-0">:</span>
                   <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
                     {selectedGroupLabel}
@@ -265,10 +373,15 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
               {/* Category */}
               <div className="p-3 border-b border-zinc-100 bg-zinc-50/20">
                 <div
-                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
-                  onClick={() => setActivePanel(p => p === "category" ? null : "category")}
+                  ref={categoryRef}
+                  tabIndex={0}
+                  data-enter-click
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group"
+                  onClick={() => setActivePanel((p) => (p === 'category' ? null : 'category'))}
                 >
-                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">Category</span>
+                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">
+                    Category
+                  </span>
                   <span className="text-zinc-400 mr-2 shrink-0">:</span>
                   <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
                     {selectedCategoryLabel}
@@ -279,10 +392,15 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
               {/* Units */}
               <div className="p-3 border-b border-zinc-100 bg-zinc-50/20">
                 <div
-                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
-                  onClick={() => setActivePanel(p => p === "unit" ? null : "unit")}
+                  ref={unitRef}
+                  tabIndex={0}
+                  data-enter-click
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group"
+                  onClick={() => setActivePanel((p) => (p === 'unit' ? null : 'unit'))}
                 >
-                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">Units</span>
+                  <span className="w-20 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">
+                    Units
+                  </span>
                   <span className="text-zinc-400 mr-2 shrink-0">:</span>
                   <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
                     {selectedUnitLabel}
@@ -291,22 +409,29 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
               </div>
 
               <div className="p-3 border-b border-zinc-100 space-y-1">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Additional Details</div>
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
+                  Additional Details
+                </div>
 
-                <FormRow label="Maintain in batches" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <FormRow
+                  label="Maintain in batches"
+                  labelWidth="w-52"
+                  className="flex items-center min-h-[26px]"
+                >
                   <select
                     className={selectCls}
                     value={form.maintain_in_batches}
-                    onChange={e => {
+                    onChange={(e) => {
                       const val = e.target.value;
-                      setForm(f => ({
+                      setForm((f) => ({
                         ...f,
                         maintain_in_batches: val,
-                        track_date_of_manufacturing: val !== "Yes" ? "No" : f.track_date_of_manufacturing,
-                        use_expiry_dates: val !== "Yes" ? "No" : f.use_expiry_dates,
-                        track_batches: val === "Yes",
-                        track_expiry: val === "Yes" && f.use_expiry_dates === "Yes",
-                        allocations: val !== "Yes" ? [] : f.allocations,
+                        track_date_of_manufacturing:
+                          val !== 'Yes' ? 'No' : f.track_date_of_manufacturing,
+                        use_expiry_dates: val !== 'Yes' ? 'No' : f.use_expiry_dates,
+                        track_batches: val === 'Yes',
+                        track_expiry: val === 'Yes' && f.use_expiry_dates === 'Yes',
+                        allocations: val !== 'Yes' ? [] : f.allocations,
                       }));
                     }}
                   >
@@ -315,12 +440,16 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                   </select>
                 </FormRow>
 
-                {form.maintain_in_batches === "Yes" && (
-                  <FormRow label="Track date of manufacturing" labelWidth="w-52" className="flex items-center min-h-[26px] pl-4">
+                {form.maintain_in_batches === 'Yes' && (
+                  <FormRow
+                    label="Track date of manufacturing"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px] pl-4"
+                  >
                     <select
                       className={selectCls}
                       value={form.track_date_of_manufacturing}
-                      onChange={e => setVal("track_date_of_manufacturing", e.target.value)}
+                      onChange={(e) => setVal('track_date_of_manufacturing', e.target.value)}
                     >
                       <option value="No">No</option>
                       <option value="Yes">Yes</option>
@@ -328,14 +457,22 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                   </FormRow>
                 )}
 
-                {form.maintain_in_batches === "Yes" && (
-                  <FormRow label="Use expiry dates" labelWidth="w-52" className="flex items-center min-h-[26px] pl-4">
+                {form.maintain_in_batches === 'Yes' && (
+                  <FormRow
+                    label="Use expiry dates"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px] pl-4"
+                  >
                     <select
                       className={selectCls}
                       value={form.use_expiry_dates}
-                      onChange={e => {
+                      onChange={(e) => {
                         const val = e.target.value;
-                        setForm(f => ({ ...f, use_expiry_dates: val, track_expiry: val === "Yes" }));
+                        setForm((f) => ({
+                          ...f,
+                          use_expiry_dates: val,
+                          track_expiry: val === 'Yes',
+                        }));
                       }}
                     >
                       <option value="No">No</option>
@@ -344,27 +481,37 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                   </FormRow>
                 )}
 
-                <FormRow label="Set components (BOM)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <FormRow
+                  label="Set components (BOM)"
+                  labelWidth="w-52"
+                  className="flex items-center min-h-[26px]"
+                >
                   <div className="flex items-center gap-2">
                     <select
                       className={selectCls}
-                      value={form.has_bom ? "Yes" : "No"}
+                      value={form.has_bom ? 'Yes' : 'No'}
                       onChange={handleBomToggle}
                     >
                       <option value="No">No</option>
                       <option value="Yes">Yes</option>
                     </select>
                     {form.has_bom && boms.length > 0 && (
-                      <span className="text-xs text-zinc-400">({boms.length} BOM{boms.length > 1 ? "s" : ""})</span>
+                      <span className="text-xs text-zinc-400">
+                        ({boms.length} BOM{boms.length > 1 ? 's' : ''})
+                      </span>
                     )}
                   </div>
                 </FormRow>
 
-                <FormRow label="Enable cost tracking" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                <FormRow
+                  label="Enable cost tracking"
+                  labelWidth="w-52"
+                  className="flex items-center min-h-[26px]"
+                >
                   <select
                     className={selectCls}
                     value={form.enable_cost_tracking}
-                    onChange={e => setVal("enable_cost_tracking", e.target.value)}
+                    onChange={(e) => setVal('enable_cost_tracking', e.target.value)}
                   >
                     <option value="No">No</option>
                     <option value="Yes">Yes</option>
@@ -387,10 +534,18 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
               <span className="w-32 shrink-0" />
               <span className="w-4 shrink-0" />
               <div className="flex-1 flex items-center justify-end">
-                <span className="w-36 text-right text-[10px] uppercase tracking-widest text-zinc-500 font-semibold pr-1 font-sans">Quantity</span>
-                <span className="w-24 text-right text-[10px] uppercase tracking-widest text-zinc-500 font-semibold ml-4 font-sans">Rate</span>
-                <span className="w-10 text-center text-[10px] uppercase tracking-widest text-zinc-500 font-semibold ml-2 font-sans">per</span>
-                <span className="w-28 text-right text-[10px] uppercase tracking-widest text-zinc-500 font-semibold font-sans">Value</span>
+                <span className="w-36 text-right text-[10px] uppercase tracking-widest text-zinc-500 font-semibold pr-1 font-sans">
+                  Quantity
+                </span>
+                <span className="w-24 text-right text-[10px] uppercase tracking-widest text-zinc-500 font-semibold ml-4 font-sans">
+                  Rate
+                </span>
+                <span className="w-10 text-center text-[10px] uppercase tracking-widest text-zinc-500 font-semibold ml-2 font-sans">
+                  per
+                </span>
+                <span className="w-28 text-right text-[10px] uppercase tracking-widest text-zinc-500 font-semibold font-sans">
+                  Value
+                </span>
               </div>
             </div>
             <div className="flex items-center px-6 py-2">
@@ -400,14 +555,24 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                 <div className="w-36 flex items-center justify-end gap-1 border-b border-zinc-400 focus-within:border-zinc-700 pr-1">
                   <input
                     className="w-24 bg-transparent text-sm outline-none py-0.5 text-right tabular-nums font-mono"
-                    type="number" min="0" step="0.001"
+                    type="number"
+                    min="0"
+                    step="0.001"
                     ref={openingQtyRef}
                     value={form.opening_quantity}
-                    onChange={e => setVal("opening_quantity", e.target.value)}
-                    onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); openingRateRef.current?.focus(); }}
+                    onChange={(e) => setVal('opening_quantity', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      openingRateRef.current?.focus();
+                    }}
                     placeholder="0"
                   />
-                  {form.unit_id && <span className="text-xs text-zinc-500 shrink-0 font-sans">{selectedUnitLabel}</span>}
+                  {form.unit_id && (
+                    <span className="text-xs text-zinc-500 shrink-0 font-sans">
+                      {selectedUnitLabel}
+                    </span>
+                  )}
                 </div>
                 {openingQty > 0 && (form.track_batches || godowns.length > 0) && (
                   <button
@@ -415,86 +580,118 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                     onClick={() => setShowAllocationModal(true)}
                     className="ml-2 text-xs px-2 py-0.5 rounded border border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-sans font-medium shrink-0 transition-colors"
                   >
-                    {form.allocations.length > 0 ? `Allocated (${form.allocations.length})` : "Allocate"}
+                    {form.allocations.length > 0
+                      ? `Allocated (${form.allocations.length})`
+                      : 'Allocate'}
                   </button>
                 )}
                 <div className="w-24 ml-4 border-b border-zinc-400 focus-within:border-zinc-700">
                   <input
                     className="w-full bg-transparent text-sm outline-none py-0.5 text-right tabular-nums pr-1 font-mono"
-                    type="number" min="0" step="0.01"
+                    type="number"
+                    min="0"
+                    step="0.01"
                     ref={openingRateRef}
                     value={form.opening_rate}
-                    onChange={e => setVal("opening_rate", e.target.value)}
-                    onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); handleSubmit(); }}
+                    onChange={(e) => setVal('opening_rate', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      handleSubmit();
+                    }}
                     placeholder="0.00"
                   />
                 </div>
-                <span className="w-10 text-center text-xs text-zinc-500 ml-2 shrink-0 font-sans">{form.unit_id ? selectedUnitLabel : ""}</span>
+                <span className="w-10 text-center text-xs text-zinc-500 ml-2 shrink-0 font-sans">
+                  {form.unit_id ? selectedUnitLabel : ''}
+                </span>
                 <span className="w-28 text-right text-sm tabular-nums text-zinc-800 font-mono">
-                  {openingValue > 0 ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}
+                  {openingValue > 0
+                    ? openingValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })
+                    : ''}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {activePanel === "group" && (
+        {activePanel === 'group' && (
           <ListSidePanel
             title="List of Groups"
-            items={stockGroups.filter(g => g.name.toLowerCase() !== "primary").map(g => ({ id: String(g.sg_id), label: g.name }))}
+            items={stockGroups
+              .filter((g) => g.name.toLowerCase() !== 'primary')
+              .map((g) => ({ id: String(g.sg_id), label: g.name }))}
             selected={form.group_id}
-            onSelect={val => { setVal("group_id", val); setActivePanel(null); }}
+            onSelect={(val) => {
+              setVal('group_id', val);
+              setActivePanel(null);
+              focusFieldAfter(underRef.current);
+            }}
             onClose={() => setActivePanel(null)}
             showPrimary
             primaryLabel="Primary"
           />
         )}
-        {activePanel === "category" && (
+        {activePanel === 'category' && (
           <ListSidePanel
             title="List of Categories"
-            items={stockCategories.map(c => ({ id: String(c.sc_id), label: c.name }))}
+            items={stockCategories.map((c) => ({ id: String(c.sc_id), label: c.name }))}
             selected={form.category_id}
-            onSelect={val => { setVal("category_id", val); setActivePanel(null); }}
+            onSelect={(val) => {
+              setVal('category_id', val);
+              setActivePanel(null);
+              focusFieldAfter(categoryRef.current);
+            }}
             onClose={() => setActivePanel(null)}
             showPrimary
             primaryLabel="Not Applicable"
             showCreate
-            onCreateNew={() => navigate("/master/create/stock-category")}
+            onCreateNew={() => navigate('/master/create/stock-category')}
           />
         )}
-        {activePanel === "unit" && (
+        {activePanel === 'unit' && (
           <ListSidePanel
             title="List of Units"
-            items={units.map(u => ({ id: String(u.unit_id), label: `${u.symbol} (${u.name})` }))}
+            items={units.map((u) => ({ id: String(u.unit_id), label: `${u.symbol} (${u.name})` }))}
             selected={form.unit_id}
-            onSelect={val => { setVal("unit_id", val); setActivePanel(null); }}
+            onSelect={(val) => {
+              setVal('unit_id', val);
+              setActivePanel(null);
+              focusFieldAfter(unitRef.current);
+            }}
             onClose={() => setActivePanel(null)}
             showPrimary
             primaryLabel="Not Applicable"
             showCreate
-            onCreateNew={() => navigate("/master/create/unit")}
+            onCreateNew={() => navigate('/master/create/unit')}
           />
         )}
-        {activePanel === "hsn_classification" && (
+        {activePanel === 'hsn_classification' && (
           <ListSidePanel
             title="GST Classifications"
-            items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
+            items={gstClassifications.map((c) => ({ id: String(c.gc_id), label: c.name }))}
             selected={form.hsn_classification_id}
-            onSelect={val => { setVal("hsn_classification_id", val); setActivePanel(null); }}
+            onSelect={(val) => {
+              setVal('hsn_classification_id', val);
+              setActivePanel(null);
+            }}
             onClose={() => setActivePanel(null)}
             showCreate
-            onCreateNew={() => navigate("/master/create/gst-classification")}
+            onCreateNew={() => navigate('/master/create/gst-classification')}
           />
         )}
-        {activePanel === "rate_classification" && (
+        {activePanel === 'rate_classification' && (
           <ListSidePanel
             title="GST Classifications"
-            items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
+            items={gstClassifications.map((c) => ({ id: String(c.gc_id), label: c.name }))}
             selected={form.rate_classification_id}
-            onSelect={val => { setVal("rate_classification_id", val); setActivePanel(null); }}
+            onSelect={(val) => {
+              setVal('rate_classification_id', val);
+              setActivePanel(null);
+            }}
             onClose={() => setActivePanel(null)}
             showCreate
-            onCreateNew={() => navigate("/master/create/gst-classification")}
+            onCreateNew={() => navigate('/master/create/gst-classification')}
           />
         )}
         <RightActionPanel actions={createActions} />
@@ -506,7 +703,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
           unitLabel={selectedUnitLabel}
           companyId={companyId}
           onAccept={(data) => {
-            setForm(f => ({
+            setForm((f) => ({
               ...f,
               excise_applicable: data.excise_applicable,
               set_alter_excise_details: data.set_alter_excise_details,
@@ -540,7 +737,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
       {showBomList && (
         <BomListModal
           stockItemName={form.name}
-          existingBoms={boms.map(b => b.bomName)}
+          existingBoms={boms.map((b) => b.bomName)}
           onSelectBom={handleBomSelect}
           onClose={handleBomListClose}
         />
@@ -566,9 +763,12 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
           initialAllocations={form.allocations}
           onAccept={(allocs) => {
             const totalQty = allocs.reduce((s, a) => s + (parseFloat(a.quantity) || 0), 0);
-            const totalVal = allocs.reduce((s, a) => s + (parseFloat(a.quantity) || 0) * (parseFloat(a.rate) || 0), 0);
+            const totalVal = allocs.reduce(
+              (s, a) => s + (parseFloat(a.quantity) || 0) * (parseFloat(a.rate) || 0),
+              0,
+            );
             const avgRate = totalQty > 0 ? totalVal / totalQty : 0;
-            setForm(f => ({
+            setForm((f) => ({
               ...f,
               allocations: allocs,
               opening_quantity: totalQty > 0 ? String(totalQty) : f.opening_quantity,

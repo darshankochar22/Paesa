@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { PageTitleBar, RightActionPanel, Select } from "@/components/ui";
-import type { ExciseDutyClassificationType } from "@/types/api";
-import { EXCISE_DUTY_CODES, EXCISE_CALCULATION_METHODS } from "./exciseDutyOptions";
+import { useState, useEffect, useRef } from 'react';
+import { PageTitleBar, RightActionPanel, Select } from '@/components/ui';
+import type { ExciseDutyClassificationType } from '@/types/api';
+import { EXCISE_DUTY_CODES, EXCISE_CALCULATION_METHODS } from './exciseDutyOptions';
 
 const inputCls =
-  "w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 border-b border-transparent focus:border-zinc-400 transition-colors";
+  'w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 border-b border-transparent focus:border-zinc-400 transition-colors';
 
 interface Props {
-  mode: "create" | "alter";
+  mode: 'create' | 'alter';
   companyId: number;
   initial?: ExciseDutyClassificationType;
   onSaved: (msg: string) => void;
@@ -46,8 +46,8 @@ export default function ExciseDutyClassificationForm({
   onBack,
   onDelete,
 }: Props) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [dutyCode, setDutyCode] = useState(initial?.duty_code ?? "");
+  const [name, setName] = useState(initial?.name ?? '');
+  const [dutyCode, setDutyCode] = useState(initial?.duty_code ?? '');
   const [methods, setMethods] = useState<string[]>(initial?.calculation_methods ?? []);
 
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function ExciseDutyClassificationForm({
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Name is required.");
+      setError('Name is required.');
       return;
     }
     setLoading(true);
@@ -73,40 +73,52 @@ export default function ExciseDutyClassificationForm({
     };
     try {
       const res =
-        mode === "create"
+        mode === 'create'
           ? await window.api.exciseDutyClassification.create(payload)
           : await window.api.exciseDutyClassification.update({
               ...payload,
               excise_duty_classification_id: initial!.excise_duty_classification_id,
             });
       if (res.success) {
-        onSaved(`Excise Duty Classification "${name.trim()}" ${mode === "create" ? "created" : "updated"}.`);
+        onSaved(
+          `Excise Duty Classification "${name.trim()}" ${mode === 'create' ? 'created' : 'updated'}.`,
+        );
       } else {
-        setError(res.error || "Failed to save excise duty classification.");
+        setError(res.error || 'Failed to save excise duty classification.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setLoading(false);
     }
   };
 
   const formActions = [
-    { key: "Ctrl+A", label: "Accept", onClick: handleSubmit },
-    ...(onDelete ? [{ key: "Alt+D", label: "Delete", onClick: onDelete }] : []),
-    { key: "Esc", label: mode === "alter" ? "Back" : "Quit", onClick: onBack },
+    { key: 'Ctrl+A', label: 'Accept', onClick: handleSubmit },
+    ...(onDelete ? [{ key: 'Alt+D', label: 'Delete', onClick: onDelete }] : []),
+    { key: 'Esc', label: mode === 'alter' ? 'Back' : 'Quit', onClick: onBack },
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950 font-mono text-[12px]">
+    <div
+      className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950 font-mono text-[12px]"
+      data-enter-nav
+    >
       <PageTitleBar
-        title={mode === "create" ? "Excise Duty Classification Creation" : "Excise Duty Classification Alteration"}
+        title={
+          mode === 'create'
+            ? 'Excise Duty Classification Creation'
+            : 'Excise Duty Classification Alteration'
+        }
       />
 
       {error && (
         <div className="mx-6 mt-4 p-2 border border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-sans">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 font-bold"
+          >
             &times;
           </button>
         </div>
@@ -116,12 +128,19 @@ export default function ExciseDutyClassificationForm({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto bg-white border border-zinc-300 shadow-sm">
             <div className="bg-zinc-100 px-3 py-1.5 border-b border-zinc-200 text-center font-bold text-xs uppercase tracking-wider text-zinc-700">
-              {mode === "create" ? "Excise Duty Classification Creation" : "Excise Duty Classification Alteration"}
+              {mode === 'create'
+                ? 'Excise Duty Classification Creation'
+                : 'Excise Duty Classification Alteration'}
             </div>
 
             <div className="p-4 flex flex-col gap-1">
               <Row label="Name" required>
-                <input ref={nameRef} className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
+                <input
+                  ref={nameRef}
+                  className={inputCls}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </Row>
               <Row label="Duty code">
                 <Select
@@ -153,7 +172,10 @@ export default function ExciseDutyClassificationForm({
             Delete
           </button>
         ) : (
-          <button onClick={onCancel} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
+          <button
+            onClick={onCancel}
+            className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium"
+          >
             &larr; Back to Masters
           </button>
         )}
@@ -169,7 +191,7 @@ export default function ExciseDutyClassificationForm({
             disabled={loading}
             className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
           >
-            {loading ? "Saving…" : "Accept"}
+            {loading ? 'Saving…' : 'Accept'}
           </button>
         </div>
       </div>
@@ -217,12 +239,14 @@ function CalculationMethodList({
         value=""
         onChange={(e) => {
           addMethod(e.target.value);
-          e.target.value = ""; // reset so the same method can be picked again
+          e.target.value = ''; // reset so the same method can be picked again
         }}
         options={EXCISE_CALCULATION_METHODS}
-        placeholder={methods.length ? "Add another method…" : "Select calculation method…"}
+        placeholder={methods.length ? 'Add another method…' : 'Select calculation method…'}
       />
-      <span className="text-[11px] text-zinc-400 italic font-sans mt-0.5 pl-1 select-none">End of List</span>
+      <span className="text-[11px] text-zinc-400 italic font-sans mt-0.5 pl-1 select-none">
+        End of List
+      </span>
     </div>
   );
 }

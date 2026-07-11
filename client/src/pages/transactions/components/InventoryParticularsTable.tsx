@@ -38,6 +38,18 @@ export default function InventoryParticularsTable({
   onRemoveAdditionalRow,
   onAmountConfirm,
 }: Props) {
+  const focusCell = (selector: string) =>
+    setTimeout(() => {
+      (document.querySelector(selector) as HTMLElement | null)?.focus();
+    }, 50);
+
+  // Enter walks the row: godown → qty → rate → next/new row
+  const advanceTo = (e: React.KeyboardEvent, selector: string) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    focusCell(selector);
+  };
+
   // Key handlers to auto-add rows on Enter in stock grid
   const handleStockKeyDown = (e: React.KeyboardEvent, idx: number) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
@@ -45,12 +57,10 @@ export default function InventoryParticularsTable({
       if (row?.stockItem && Number(row.amountRaw) > 0 && idx === stockEntries.length - 1) {
         e.preventDefault();
         onAddStockRow();
-        setTimeout(() => {
-          const nextInput = document.querySelector(
-            `[data-stock-item="${stockEntries.length + 1}"]`,
-          );
-          (nextInput as HTMLInputElement)?.focus();
-        }, 50);
+        focusCell(`[data-stock-item="${stockEntries.length + 1}"]`);
+      } else if (e.key === 'Enter' && idx < stockEntries.length - 1) {
+        e.preventDefault();
+        focusCell(`[data-stock-item="${idx + 2}"]`);
       }
     }
   };
@@ -126,6 +136,7 @@ export default function InventoryParticularsTable({
               {/* 2. Godown Dropdown */}
               <div className="col-span-2 px-1">
                 <select
+                  data-stock-godown={idx + 1}
                   className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none py-0.5 text-zinc-800"
                   value={row.godown?.godown_id || ''}
                   onChange={(e) => {
@@ -133,6 +144,7 @@ export default function InventoryParticularsTable({
                     const selected = allGodowns.find((g) => g.godown_id === id) || null;
                     onUpdateStockRow(row.id, { godown: selected });
                   }}
+                  onKeyDown={(e) => advanceTo(e, `[data-stock-qty="${idx + 1}"]`)}
                 >
                   <option value="">Select Godown</option>
                   {allGodowns.map((g) => (
@@ -146,17 +158,20 @@ export default function InventoryParticularsTable({
               {/* 3. Quantity */}
               <div className="col-span-1.5 px-1">
                 <input
+                  data-stock-qty={idx + 1}
                   type="text"
                   className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900"
                   placeholder="0.00"
                   value={row.quantityRaw}
                   onChange={(e) => onUpdateStockRow(row.id, { quantityRaw: e.target.value })}
+                  onKeyDown={(e) => advanceTo(e, `[data-stock-rate="${idx + 1}"]`)}
                 />
               </div>
 
               {/* 4. Rate */}
               <div className="col-span-1.5 px-1">
                 <input
+                  data-stock-rate={idx + 1}
                   type="text"
                   className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none text-right px-1 py-0.5 text-zinc-900"
                   placeholder="0.00"
@@ -233,6 +248,7 @@ export default function InventoryParticularsTable({
                       onChange={(e) =>
                         onUpdateAdditionalRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })
                       }
+                      onKeyDown={(e) => advanceTo(e, `[data-additional-ledger="${idx + 1}"]`)}
                     >
                       <option value="Dr">Dr</option>
                       <option value="Cr">Cr</option>

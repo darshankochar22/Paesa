@@ -82,7 +82,7 @@ export default function GodownAllocationPopup({
   }, [allocs]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" data-enter-nav>
       <div className="bg-white border border-black shadow-xl w-[820px] flex flex-col">
         <div className="bg-black text-white px-3 py-1 flex justify-between items-center select-none">
           <span className="text-sm font-bold">
@@ -249,6 +249,7 @@ export default function GodownAllocationPopup({
               Cancel
             </button>
             <button
+              data-enter-accept
               onClick={() => onSave(allocs)}
               className="text-xs px-4 py-1 bg-black text-white hover:bg-zinc-800"
             >

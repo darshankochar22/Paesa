@@ -313,7 +313,7 @@ export default function VoucherClassConfigPopup({
   );
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-white select-none">
+    <div data-enter-nav-ignore className="fixed inset-0 z-40 flex flex-col bg-white select-none">
       {/* Header — black title bar, matching the rest of the Voucher Type form */}
       <PageTitleBar title="Voucher Type Class" subtitle={selectedCompany?.name} subtitleCenter />
 

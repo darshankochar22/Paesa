@@ -459,6 +459,7 @@ module.exports = {
                 voucherId: data.voucher_id,
                 stockItemId: nullify(item.stock_item_id),
                 itemName: nullify(item.item_name) || null,
+                description: nullify(item.description) || null,
                 godownId: nullify(item.godown_id) || null,
                 unitId: nullify(item.unit_id) || null,
                 quantity: item.quantity,

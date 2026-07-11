@@ -1,9 +1,9 @@
-import { useState } from "react";
-import DatePickerPopup from "./popups/DatePickerPopup";
+import { useState } from 'react';
+import DatePickerPopup from './popups/DatePickerPopup';
 
 interface Props {
   voucherType: string;
-  voucherNumber: string;        // FIX #4 — was `number`, hook returns string
+  voucherNumber: string; // FIX #4 — was `number`, hook returns string
   dateDisplay: string;
   date: string;
   onDateChange: (date: string) => void;
@@ -27,7 +27,7 @@ export default function VoucherHeader({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSupplierDatePicker, setShowSupplierDatePicker] = useState(false);
 
-  const isPurchase = voucherType === "Purchase";
+  const isPurchase = voucherType === 'Purchase';
 
   return (
     <>
@@ -63,8 +63,19 @@ export default function VoucherHeader({
             <span className="text-zinc-400">:</span>
             <input
               type="text"
-              value={supplierInvoiceNo ?? ""}
+              value={supplierInvoiceNo ?? ''}
               onChange={(e) => onSupplierInvoiceNoChange?.(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                setTimeout(() => {
+                  (
+                    document.querySelector(
+                      '[data-field-type="party"], [data-field-type="account"], [data-particular-ledger="1"], [data-stock-item="1"]',
+                    ) as HTMLElement | null
+                  )?.focus();
+                }, 50);
+              }}
               className="text-xs px-2 py-0.5 border border-zinc-300 rounded focus:border-zinc-800 outline-none bg-white w-40 font-semibold"
               placeholder="Invoice Number"
             />
@@ -79,12 +90,12 @@ export default function VoucherHeader({
               className="text-xs px-1 py-0.5 hover:bg-zinc-100 transition-colors font-semibold text-zinc-800 bg-transparent border-none cursor-pointer w-32 text-left"
             >
               {supplierInvoiceDate
-                ? new Date(supplierInvoiceDate).toLocaleDateString("en-IN", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
+                ? new Date(supplierInvoiceDate).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
                   })
-                : "Select Date"}
+                : 'Select Date'}
             </button>
           </div>
         </div>
@@ -101,7 +112,7 @@ export default function VoucherHeader({
 
       {showSupplierDatePicker && (
         <DatePickerPopup
-          initialDate={supplierInvoiceDate ?? new Date().toISOString().split("T")[0]}
+          initialDate={supplierInvoiceDate ?? new Date().toISOString().split('T')[0]}
           onClose={() => setShowSupplierDatePicker(false)}
           onConfirm={onSupplierInvoiceDateChange!}
           label="Supplier Invoice Date"

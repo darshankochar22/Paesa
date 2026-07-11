@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, FormRow, RightActionPanel } from "@/components/ui";
-import { useTCSDetails } from "./hooks/useTCSDetails";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, FormRow, RightActionPanel } from '@/components/ui';
+import { useTCSDetails } from './hooks/useTCSDetails';
 
-const activeClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs";
-const inactiveClass = "border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs";
-const getSelectCls = (isActive: boolean) =>
-  `${isActive ? activeClass : inactiveClass}`;
-const getInputCls = (isActive: boolean) =>
-  `${isActive ? activeClass : inactiveClass}`;
+const activeClass =
+  'bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs';
+const inactiveClass =
+  'border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs';
+const getSelectCls = (isActive: boolean) => `${isActive ? activeClass : inactiveClass}`;
+const getInputCls = (isActive: boolean) => `${isActive ? activeClass : inactiveClass}`;
 
 interface PersonResponsibleModalProps {
   form: any;
@@ -24,23 +24,23 @@ function PersonResponsibleModal({
   onSubmit,
   onClose,
 }: PersonResponsibleModalProps) {
-  const [activeField, setActiveField] = useState("name");
+  const [activeField, setActiveField] = useState('name');
   const fields = [
-    "name",
-    "sonDaughterOf",
-    "designation",
-    "pan",
-    "flatNo",
-    "premises",
-    "road",
-    "area",
-    "city",
-    "state",
-    "pincode",
-    "phone",
-    "stdCode",
-    "telephone",
-    "email",
+    'name',
+    'sonDaughterOf',
+    'designation',
+    'pan',
+    'flatNo',
+    'premises',
+    'road',
+    'area',
+    'city',
+    'state',
+    'pincode',
+    'phone',
+    'stdCode',
+    'telephone',
+    'email',
   ];
 
   const nameRef = useRef<HTMLInputElement>(null);
@@ -78,7 +78,7 @@ function PersonResponsibleModal({
       email: emailRef,
     };
     refMap[activeField]?.current?.focus();
-    refMap[activeField]?.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    refMap[activeField]?.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [activeField]);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ function PersonResponsibleModal({
       const idx = fields.indexOf(activeField);
       if (idx === -1) return;
 
-      if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+      if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
         e.preventDefault();
         if (idx === fields.length - 1) {
           onSubmit();
@@ -95,24 +95,27 @@ function PersonResponsibleModal({
         }
         return;
       }
-      if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+      if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
         e.preventDefault();
         if (idx > 0) {
           setActiveField(fields[idx - 1]);
         }
         return;
       }
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [activeField, onSubmit, onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[9999] font-mono text-[11px]">
+    <div
+      className="fixed inset-0 bg-black/30 flex items-center justify-center z-[9999] font-mono text-[11px]"
+      data-enter-nav-ignore
+    >
       <div className="bg-white border-4 border-double border-zinc-400 shadow-2xl w-[580px] p-5">
         <div className="text-center font-bold text-xs pb-3 border-b border-zinc-200 uppercase tracking-wide">
           Person Responsible Details
@@ -122,41 +125,41 @@ function PersonResponsibleModal({
           <FormRow label="Name" labelWidth="w-56">
             <input
               ref={nameRef}
-              className={getInputCls(activeField === "name")}
+              className={getInputCls(activeField === 'name')}
               value={form.personResponsibleName}
-              onChange={(e) => setField("personResponsibleName", e.target.value)}
-              onFocus={() => setActiveField("name")}
+              onChange={(e) => setField('personResponsibleName', e.target.value)}
+              onFocus={() => setActiveField('name')}
             />
           </FormRow>
 
           <FormRow label="Son/daughter of" labelWidth="w-56">
             <input
               ref={sonDaughterOfRef}
-              className={getInputCls(activeField === "sonDaughterOf")}
-              value={form.personResponsibleSonDaughterOf ?? ""}
-              onChange={(e) => setField("personResponsibleSonDaughterOf", e.target.value)}
-              onFocus={() => setActiveField("sonDaughterOf")}
+              className={getInputCls(activeField === 'sonDaughterOf')}
+              value={form.personResponsibleSonDaughterOf ?? ''}
+              onChange={(e) => setField('personResponsibleSonDaughterOf', e.target.value)}
+              onFocus={() => setActiveField('sonDaughterOf')}
             />
           </FormRow>
 
           <FormRow label="Designation" labelWidth="w-56">
             <input
               ref={designationRef}
-              className={getInputCls(activeField === "designation")}
+              className={getInputCls(activeField === 'designation')}
               value={form.personResponsibleDesignation}
-              onChange={(e) => setField("personResponsibleDesignation", e.target.value)}
-              onFocus={() => setActiveField("designation")}
+              onChange={(e) => setField('personResponsibleDesignation', e.target.value)}
+              onFocus={() => setActiveField('designation')}
             />
           </FormRow>
 
           <FormRow label="PAN" labelWidth="w-56">
             <input
               ref={panRef}
-              className={getInputCls(activeField === "pan")}
+              className={getInputCls(activeField === 'pan')}
               value={form.personResponsiblePan}
-              onChange={(e) => setField("personResponsiblePan", e.target.value.toUpperCase())}
+              onChange={(e) => setField('personResponsiblePan', e.target.value.toUpperCase())}
               maxLength={10}
-              onFocus={() => setActiveField("pan")}
+              onFocus={() => setActiveField('pan')}
               placeholder="e.g. ABCDE1234F"
             />
           </FormRow>
@@ -166,71 +169,71 @@ function PersonResponsibleModal({
           <FormRow label="Flat no." labelWidth="w-56">
             <input
               ref={flatNoRef}
-              className={getInputCls(activeField === "flatNo")}
-              value={form.personResponsibleFlatNo ?? ""}
-              onChange={(e) => setField("personResponsibleFlatNo", e.target.value)}
-              onFocus={() => setActiveField("flatNo")}
+              className={getInputCls(activeField === 'flatNo')}
+              value={form.personResponsibleFlatNo ?? ''}
+              onChange={(e) => setField('personResponsibleFlatNo', e.target.value)}
+              onFocus={() => setActiveField('flatNo')}
             />
           </FormRow>
 
           <FormRow label="Name of the premises/building" labelWidth="w-56">
             <input
               ref={premisesRef}
-              className={getInputCls(activeField === "premises")}
-              value={form.personResponsiblePremises ?? ""}
-              onChange={(e) => setField("personResponsiblePremises", e.target.value)}
-              onFocus={() => setActiveField("premises")}
+              className={getInputCls(activeField === 'premises')}
+              value={form.personResponsiblePremises ?? ''}
+              onChange={(e) => setField('personResponsiblePremises', e.target.value)}
+              onFocus={() => setActiveField('premises')}
             />
           </FormRow>
 
           <FormRow label="Road/Street/Lane" labelWidth="w-56">
             <input
               ref={roadRef}
-              className={getInputCls(activeField === "road")}
-              value={form.personResponsibleRoad ?? ""}
-              onChange={(e) => setField("personResponsibleRoad", e.target.value)}
-              onFocus={() => setActiveField("road")}
+              className={getInputCls(activeField === 'road')}
+              value={form.personResponsibleRoad ?? ''}
+              onChange={(e) => setField('personResponsibleRoad', e.target.value)}
+              onFocus={() => setActiveField('road')}
             />
           </FormRow>
 
           <FormRow label="Area/Location" labelWidth="w-56">
             <input
               ref={areaRef}
-              className={getInputCls(activeField === "area")}
-              value={form.personResponsibleArea ?? ""}
-              onChange={(e) => setField("personResponsibleArea", e.target.value)}
-              onFocus={() => setActiveField("area")}
+              className={getInputCls(activeField === 'area')}
+              value={form.personResponsibleArea ?? ''}
+              onChange={(e) => setField('personResponsibleArea', e.target.value)}
+              onFocus={() => setActiveField('area')}
             />
           </FormRow>
 
           <FormRow label="Town/City/District" labelWidth="w-56">
             <input
               ref={cityRef}
-              className={getInputCls(activeField === "city")}
-              value={form.personResponsibleCity ?? ""}
-              onChange={(e) => setField("personResponsibleCity", e.target.value)}
-              onFocus={() => setActiveField("city")}
+              className={getInputCls(activeField === 'city')}
+              value={form.personResponsibleCity ?? ''}
+              onChange={(e) => setField('personResponsibleCity', e.target.value)}
+              onFocus={() => setActiveField('city')}
             />
           </FormRow>
 
           <FormRow label="State" labelWidth="w-56">
             <input
               ref={stateRef}
-              className={getInputCls(activeField === "state")}
-              value={form.personResponsibleState ?? ""}
-              onChange={(e) => setField("personResponsibleState", e.target.value)}
-              onFocus={() => setActiveField("state")}
+              className={getInputCls(activeField === 'state')}
+              value={form.personResponsibleState ?? ''}
+              onChange={(e) => setField('personResponsibleState', e.target.value)}
+              onFocus={() => setActiveField('state')}
             />
           </FormRow>
 
           <FormRow label="Pincode" labelWidth="w-56">
             <input
               ref={pincodeRef}
-              className={getInputCls(activeField === "pincode")}
-              value={form.personResponsiblePincode ?? ""}
-              onChange={(e) => setField("personResponsiblePincode", e.target.value)}
+              className={getInputCls(activeField === 'pincode')}
+              value={form.personResponsiblePincode ?? ''}
+              onChange={(e) => setField('personResponsiblePincode', e.target.value)}
               maxLength={6}
-              onFocus={() => setActiveField("pincode")}
+              onFocus={() => setActiveField('pincode')}
             />
           </FormRow>
 
@@ -239,40 +242,40 @@ function PersonResponsibleModal({
           <FormRow label="Mobile no." labelWidth="w-56">
             <input
               ref={phoneRef}
-              className={getInputCls(activeField === "phone")}
+              className={getInputCls(activeField === 'phone')}
               value={form.personResponsiblePhone}
-              onChange={(e) => setField("personResponsiblePhone", e.target.value)}
-              onFocus={() => setActiveField("phone")}
+              onChange={(e) => setField('personResponsiblePhone', e.target.value)}
+              onFocus={() => setActiveField('phone')}
             />
           </FormRow>
 
           <FormRow label="STD code" labelWidth="w-56">
             <input
               ref={stdCodeRef}
-              className={getInputCls(activeField === "stdCode")}
-              value={form.personResponsibleStdCode ?? ""}
-              onChange={(e) => setField("personResponsibleStdCode", e.target.value)}
-              onFocus={() => setActiveField("stdCode")}
+              className={getInputCls(activeField === 'stdCode')}
+              value={form.personResponsibleStdCode ?? ''}
+              onChange={(e) => setField('personResponsibleStdCode', e.target.value)}
+              onFocus={() => setActiveField('stdCode')}
             />
           </FormRow>
 
           <FormRow label="Telephone" labelWidth="w-56">
             <input
               ref={telephoneRef}
-              className={getInputCls(activeField === "telephone")}
-              value={form.personResponsibleTelephone ?? ""}
-              onChange={(e) => setField("personResponsibleTelephone", e.target.value)}
-              onFocus={() => setActiveField("telephone")}
+              className={getInputCls(activeField === 'telephone')}
+              value={form.personResponsibleTelephone ?? ''}
+              onChange={(e) => setField('personResponsibleTelephone', e.target.value)}
+              onFocus={() => setActiveField('telephone')}
             />
           </FormRow>
 
           <FormRow label="E-mail ID" labelWidth="w-56">
             <input
               ref={emailRef}
-              className={getInputCls(activeField === "email")}
+              className={getInputCls(activeField === 'email')}
               value={form.personResponsibleEmail}
-              onChange={(e) => setField("personResponsibleEmail", e.target.value)}
-              onFocus={() => setActiveField("email")}
+              onChange={(e) => setField('personResponsibleEmail', e.target.value)}
+              onFocus={() => setActiveField('email')}
             />
           </FormRow>
         </div>
@@ -299,12 +302,12 @@ function PersonResponsibleModal({
 }
 
 const FIELDS = [
-  "tanRegNumber",
-  "tan",
-  "collectorType",
-  "collectorBranch",
-  "setAlterPersonResponsible",
-  "ignoreItExemption",
+  'tanRegNumber',
+  'tan',
+  'collectorType',
+  'collectorBranch',
+  'setAlterPersonResponsible',
+  'ignoreItExemption',
 ];
 
 export default function TCSDetailsAlter() {
@@ -312,24 +315,16 @@ export default function TCSDetailsAlter() {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
 
-  const {
-    form,
-    setField,
-    loading,
-    error,
-    setError,
-    success,
-    setSuccess,
-    saveDetails,
-  } = useTCSDetails({
-    companyId,
-    onSaveSuccess: () => {
-      setTimeout(() => navigate("/master/alter"), 1000);
-    },
-  });
+  const { form, setField, loading, error, setError, success, setSuccess, saveDetails } =
+    useTCSDetails({
+      companyId,
+      onSaveSuccess: () => {
+        setTimeout(() => navigate('/master/alter'), 1000);
+      },
+    });
 
   const [showPersonModal, setShowPersonModal] = useState(false);
-  const [activeField, setActiveField] = useState("tanRegNumber");
+  const [activeField, setActiveField] = useState('tanRegNumber');
   const [showAccept, setShowAccept] = useState(false);
 
   const tanRegNumberRef = useRef<HTMLInputElement>(null);
@@ -341,13 +336,13 @@ export default function TCSDetailsAlter() {
 
   const handlePersonModalSubmit = () => {
     setShowPersonModal(false);
-    setActiveField("ignoreItExemption");
+    setActiveField('ignoreItExemption');
   };
 
   const handlePersonModalClose = () => {
     setShowPersonModal(false);
-    setField("setAlterPersonResponsible", false);
-    setActiveField("setAlterPersonResponsible");
+    setField('setAlterPersonResponsible', false);
+    setActiveField('setAlterPersonResponsible');
   };
 
   const handleKeyDown = useCallback(
@@ -356,24 +351,24 @@ export default function TCSDetailsAlter() {
 
       if (showAccept) {
         const key = e.key.toLowerCase();
-        if (key === "y" || e.key === "Enter") {
+        if (key === 'y' || e.key === 'Enter') {
           e.preventDefault();
           setShowAccept(false);
           saveDetails();
-        } else if (key === "n" || e.key === "Escape") {
+        } else if (key === 'n' || e.key === 'Escape') {
           e.preventDefault();
           setShowAccept(false);
         }
         return;
       }
 
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/alter");
+        navigate('/master/alter');
         return;
       }
 
-      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "a") {
+      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setShowAccept(true);
         return;
@@ -381,9 +376,9 @@ export default function TCSDetailsAlter() {
 
       const idx = FIELDS.indexOf(activeField);
       if (idx !== -1) {
-        if (e.key === "Enter" || e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+        if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
           e.preventDefault();
-          if (activeField === "setAlterPersonResponsible" && form.setAlterPersonResponsible) {
+          if (activeField === 'setAlterPersonResponsible' && form.setAlterPersonResponsible) {
             setShowPersonModal(true);
           } else if (idx === FIELDS.length - 1) {
             setShowAccept(true);
@@ -392,7 +387,7 @@ export default function TCSDetailsAlter() {
           }
           return;
         }
-        if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+        if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
           e.preventDefault();
           if (idx > 0) {
             setActiveField(FIELDS[idx - 1]);
@@ -400,13 +395,13 @@ export default function TCSDetailsAlter() {
           return;
         }
 
-        if (activeField === "setAlterPersonResponsible" || activeField === "ignoreItExemption") {
+        if (activeField === 'setAlterPersonResponsible' || activeField === 'ignoreItExemption') {
           const key = e.key.toLowerCase();
-          if (key === "y" || key === "n") {
+          if (key === 'y' || key === 'n') {
             e.preventDefault();
-            const val = key === "y";
+            const val = key === 'y';
             setField(activeField, val);
-            if (activeField === "setAlterPersonResponsible" && val) {
+            if (activeField === 'setAlterPersonResponsible' && val) {
               setShowPersonModal(true);
             } else if (idx === FIELDS.length - 1) {
               setShowAccept(true);
@@ -417,12 +412,20 @@ export default function TCSDetailsAlter() {
         }
       }
     },
-    [showPersonModal, showAccept, activeField, form.setAlterPersonResponsible, saveDetails, navigate, setField]
+    [
+      showPersonModal,
+      showAccept,
+      activeField,
+      form.setAlterPersonResponsible,
+      saveDetails,
+      navigate,
+      setField,
+    ],
   );
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
   useEffect(() => {
@@ -440,24 +443,40 @@ export default function TCSDetailsAlter() {
   }, [activeField, showPersonModal, showAccept]);
 
   const actions = [
-    { key: "Alt+A", label: "Accept", onClick: () => setShowAccept(true) },
-    { key: "Esc", label: "Quit", onClick: () => navigate("/master/alter") },
+    { key: 'Alt+A', label: 'Accept', onClick: () => setShowAccept(true) },
+    { key: 'Esc', label: 'Quit', onClick: () => navigate('/master/alter') },
   ];
 
   return (
-    <div className="flex-grow flex flex-col h-full bg-white select-none text-zinc-950 relative">
-      <PageTitleBar title="Company TCS Collector Details (Alteration)" subtitle={selectedCompany?.name} />
+    <div
+      className="flex-grow flex flex-col h-full bg-white select-none text-zinc-950 relative"
+      data-enter-nav
+    >
+      <PageTitleBar
+        title="Company TCS Collector Details (Alteration)"
+        subtitle={selectedCompany?.name}
+      />
 
       {error && (
         <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 font-bold"
+          >
+            &times;
+          </button>
         </div>
       )}
       {success && (
         <div className="px-4 py-2 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-green-500 hover:text-green-700 font-bold"
+          >
+            &times;
+          </button>
         </div>
       )}
 
@@ -472,21 +491,24 @@ export default function TCSDetailsAlter() {
               <FormRow label="TAN registration number" labelWidth="w-[340px]">
                 <input
                   ref={tanRegNumberRef}
-                  className={getInputCls(activeField === "tanRegNumber")}
+                  className={getInputCls(activeField === 'tanRegNumber')}
                   value={form.tanRegNumber}
-                  onChange={(e) => setField("tanRegNumber", e.target.value)}
-                  onFocus={() => setActiveField("tanRegNumber")}
+                  onChange={(e) => setField('tanRegNumber', e.target.value)}
+                  onFocus={() => setActiveField('tanRegNumber')}
                   placeholder="e.g. TANR12345A"
                 />
               </FormRow>
 
-              <FormRow label="Tax deduction and collection Account Number (TAN)" labelWidth="w-[340px]">
+              <FormRow
+                label="Tax deduction and collection Account Number (TAN)"
+                labelWidth="w-[340px]"
+              >
                 <input
                   ref={tanRef}
-                  className={getInputCls(activeField === "tan")}
+                  className={getInputCls(activeField === 'tan')}
                   value={form.tan}
-                  onChange={(e) => setField("tan", e.target.value.toUpperCase())}
-                  onFocus={() => setActiveField("tan")}
+                  onChange={(e) => setField('tan', e.target.value.toUpperCase())}
+                  onFocus={() => setActiveField('tan')}
                   placeholder="e.g. BLRP01234D"
                   maxLength={10}
                 />
@@ -495,10 +517,10 @@ export default function TCSDetailsAlter() {
               <FormRow label="Collector Type" labelWidth="w-[340px]">
                 <select
                   ref={collectorTypeRef}
-                  className={getSelectCls(activeField === "collectorType")}
+                  className={getSelectCls(activeField === 'collectorType')}
                   value={form.collectorType}
-                  onChange={(e) => setField("collectorType", e.target.value)}
-                  onFocus={() => setActiveField("collectorType")}
+                  onChange={(e) => setField('collectorType', e.target.value)}
+                  onFocus={() => setActiveField('collectorType')}
                 >
                   <option value="Company">Company</option>
                   <option value="Individual/HUF">Individual/HUF</option>
@@ -508,10 +530,10 @@ export default function TCSDetailsAlter() {
               <FormRow label="Collector branch/division" labelWidth="w-[340px]">
                 <input
                   ref={collectorBranchRef}
-                  className={getInputCls(activeField === "collectorBranch")}
+                  className={getInputCls(activeField === 'collectorBranch')}
                   value={form.collectorBranch}
-                  onChange={(e) => setField("collectorBranch", e.target.value)}
-                  onFocus={() => setActiveField("collectorBranch")}
+                  onChange={(e) => setField('collectorBranch', e.target.value)}
+                  onFocus={() => setActiveField('collectorBranch')}
                   placeholder="e.g. Bangalore South"
                 />
               </FormRow>
@@ -519,14 +541,14 @@ export default function TCSDetailsAlter() {
               <FormRow label="Set/alter details of person responsible" labelWidth="w-[340px]">
                 <select
                   ref={setAlterPersonResponsibleRef}
-                  className={getSelectCls(activeField === "setAlterPersonResponsible")}
-                  value={form.setAlterPersonResponsible ? "Yes" : "No"}
+                  className={getSelectCls(activeField === 'setAlterPersonResponsible')}
+                  value={form.setAlterPersonResponsible ? 'Yes' : 'No'}
                   onChange={(e) => {
-                    const val = e.target.value === "Yes";
-                    setField("setAlterPersonResponsible", val);
+                    const val = e.target.value === 'Yes';
+                    setField('setAlterPersonResponsible', val);
                     if (val) setShowPersonModal(true);
                   }}
-                  onFocus={() => setActiveField("setAlterPersonResponsible")}
+                  onFocus={() => setActiveField('setAlterPersonResponsible')}
                 >
                   <option value="No">No</option>
                   <option value="Yes">Yes</option>
@@ -542,10 +564,10 @@ export default function TCSDetailsAlter() {
               <FormRow label="Ignore IT exemption limit" labelWidth="w-[340px]">
                 <select
                   ref={ignoreItExemptionRef}
-                  className={getSelectCls(activeField === "ignoreItExemption")}
-                  value={form.ignoreItExemption ? "Yes" : "No"}
-                  onChange={(e) => setField("ignoreItExemption", e.target.value === "Yes")}
-                  onFocus={() => setActiveField("ignoreItExemption")}
+                  className={getSelectCls(activeField === 'ignoreItExemption')}
+                  value={form.ignoreItExemption ? 'Yes' : 'No'}
+                  onChange={(e) => setField('ignoreItExemption', e.target.value === 'Yes')}
+                  onFocus={() => setActiveField('ignoreItExemption')}
                 >
                   <option value="No">No</option>
                   <option value="Yes">Yes</option>
@@ -568,7 +590,10 @@ export default function TCSDetailsAlter() {
       )}
 
       {showAccept && (
-        <div className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in text-zinc-950">
+        <div
+          className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in text-zinc-950"
+          data-enter-nav-ignore
+        >
           <h4 className="font-bold text-[11px] mb-3">Accept?</h4>
           <div className="flex items-center gap-3 w-full justify-center">
             <button
@@ -595,7 +620,7 @@ export default function TCSDetailsAlter() {
       <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/master/alter")}
+            onClick={() => navigate('/master/alter')}
             className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
           >
             Quit

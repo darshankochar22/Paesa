@@ -797,4 +797,6 @@ module.exports = {
   importGSTR2A,
   getIMSInwardSupplies,
   getChallanReconciliation,
+  // Shared matching primitives — reused by reconDetail.js for the party/voucher drill.
+  _recon: { invMatchKey, normalizeInvNo, portalInvoiceTotals, withinTolerance, RECON_TOLERANCE },
 };

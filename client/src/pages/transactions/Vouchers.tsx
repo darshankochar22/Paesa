@@ -674,21 +674,9 @@ export default function Vouchers() {
               onChange={(e) => form.setNarration(e.target.value)}
               onFocus={() => form.handleFieldBlur()}
               onKeyDown={(e) => {
-                // Enter at Narration accepts the voucher, completing the keyboard flow.
-                // Journal / Reversing Journal / Memorandum reach here via "End of List"
-                // on the final blank ledger row (Stock/Mfg Journal via their item grid).
-                if (
-                  e.key === 'Enter' &&
-                  [
-                    'Stock Journal',
-                    'Manufacturing Journal',
-                    'Journal',
-                    'Reversing Journal',
-                    'Memorandum',
-                  ].includes(effectiveVoucherType) &&
-                  canAccept &&
-                  !form.isSubmitting
-                ) {
+                // Enter at Narration accepts the voucher, completing the keyboard
+                // flow for every voucher type (same guard as Alt+A).
+                if (e.key === 'Enter' && canAccept && !form.isSubmitting) {
                   e.preventDefault();
                   handleAccept();
                 }

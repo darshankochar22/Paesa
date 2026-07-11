@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 /**
  * Tally-style centered modal chrome (white card, hard border, shadow-2xl, black overlay)
@@ -8,13 +8,13 @@ export function useEscapeClose(isOpen: boolean, onClose: () => void) {
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 }
 
@@ -26,14 +26,12 @@ export function ModalChrome({
   width?: number;
 }) {
   return (
-    <div className="fixed inset-0 z-[60] bg-black/30">
+    <div data-enter-nav-ignore className="fixed inset-0 z-[60] bg-black/30">
       <div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
         style={{ width }}
       >
-        <div className="bg-white border border-zinc-300 shadow-2xl flex flex-col">
-          {children}
-        </div>
+        <div className="bg-white border border-zinc-300 shadow-2xl flex flex-col">{children}</div>
       </div>
     </div>
   );
@@ -57,7 +55,7 @@ export function ModalTitleBar({ title, onClose }: { title: string; onClose: () =
 export function ModalFooter({
   onClose,
   onAccept,
-  acceptLabel = "Ok",
+  acceptLabel = 'Ok',
 }: {
   onClose: () => void;
   onAccept: () => void;
@@ -94,8 +92,8 @@ export function useOutsideClick<T extends HTMLElement>(
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onOutsideClick();
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [enabled, onOutsideClick]);
 }
 
@@ -106,8 +104,8 @@ export function useOutsideClick<T extends HTMLElement>(
 export function ModalFormRow({
   label,
   children,
-  labelWidth = "w-60",
-  className = "",
+  labelWidth = 'w-60',
+  className = '',
   helper,
 }: {
   label: string;
@@ -118,15 +116,9 @@ export function ModalFormRow({
 }) {
   return (
     <div className={`flex items-start min-h-[26px] ${className}`}>
-      <span
-        className={`${labelWidth} text-[12px] text-zinc-700 shrink-0 pt-0.5 leading-tight`}
-      >
+      <span className={`${labelWidth} text-[12px] text-zinc-700 shrink-0 pt-0.5 leading-tight`}>
         {label}
-        {helper && (
-          <span className="block text-[11px] text-zinc-500 italic mt-0.5">
-            {helper}
-          </span>
-        )}
+        {helper && <span className="block text-[11px] text-zinc-500 italic mt-0.5">{helper}</span>}
       </span>
       <span className="text-zinc-400 mr-2 shrink-0 pt-0.5">:</span>
       <div className="flex-1 min-w-0">{children}</div>
@@ -146,8 +138,8 @@ export function SectionHeading({ children }: { children: React.ReactNode }) {
 }
 
 const inputCls =
-  "w-full bg-transparent text-[12px] outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-300 focus:border-zinc-800 transition-colors rounded-sm";
+  'w-full bg-transparent text-[12px] outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-300 focus:border-zinc-800 transition-colors rounded-sm';
 const selectCls =
-  "w-full bg-transparent text-[12px] outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-300 focus:border-zinc-800 transition-colors rounded-sm cursor-pointer";
+  'w-full bg-transparent text-[12px] outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-300 focus:border-zinc-800 transition-colors rounded-sm cursor-pointer';
 
 export { inputCls, selectCls };

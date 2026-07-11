@@ -10,6 +10,21 @@ import {
 // Stock-Journal split variants) — extracted from shared.tsx (unchanged);
 // shared.tsx re-exports everything.
 
+// Item name plus its optional inline line-description (e.g. a colour/spec such
+// as "80 Red") shown underneath in smaller, lighter text — matching Tally's
+// item + description layout. One shared piece so every stock table renders it
+// identically.
+function ItemName({ item }: { item: StockEntry }) {
+  return (
+    <>
+      {item.item_name || '—'}
+      {item.description ? (
+        <div className="text-xs font-normal text-zinc-500 leading-tight">{item.description}</div>
+      ) : null}
+    </>
+  );
+}
+
 /** Rejection In/Out item table (TallyPrime layout): Actual/Billed quantity, with
  *  a per-godown detail line indented beneath each item. Item and godown lines show
  *  the same figures when there's a single godown — matching Tally. */
@@ -48,7 +63,9 @@ export function ReadOnlyTrackingStockTable({ entries }: { entries: StockEntry[] 
           <div key={item.stock_entry_id}>
             {/* Item summary line */}
             <div className="flex items-center min-h-[22px] px-3 py-0 gap-4">
-              <div className="flex-1 text-sm text-black font-semibold">{item.item_name || '—'}</div>
+              <div className="flex-1 text-sm text-black font-semibold">
+                <ItemName item={item} />
+              </div>
               <div className="w-60 flex gap-4">
                 <div className="flex-1 text-right text-sm font-semibold text-black">
                   {withUnit(item.quantity, item.unit_symbol)}
@@ -203,7 +220,7 @@ export function ReadOnlyStockTable({
             <div key={item.stock_entry_id}>
               <div className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
                 <div className="flex-1 text-sm text-black font-semibold">
-                  {item.item_name || '—'}
+                  <ItemName item={item} />
                 </div>
                 <div className="w-44 flex">
                   <div className="flex-1 text-right text-sm text-black">
@@ -301,7 +318,7 @@ export function ReadOnlyStockTable({
               <div key={item.stock_entry_id}>
                 <div className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
                   <div className="flex-1 text-sm text-black font-semibold">
-                    {item.item_name || '—'}
+                    <ItemName item={item} />
                   </div>
                   <div className="w-32 flex">
                     <div className="flex-1 text-right text-sm text-black">
@@ -376,7 +393,7 @@ export function ReadOnlyStockTable({
                 className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0"
               >
                 <div className="flex-1 text-sm text-black font-semibold">
-                  {item.item_name || '—'}
+                  <ItemName item={item} />
                 </div>
                 <div className="w-28 text-sm text-black">{item.godown_name || '—'}</div>
                 <div className="w-24 text-sm text-black">{batch?.batch_number || ''}</div>
@@ -436,7 +453,9 @@ export function ReadOnlyStockTable({
         {entries.map((item) => (
           <div key={item.stock_entry_id}>
             <div className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
-              <div className="flex-1 text-sm text-black font-semibold">{item.item_name || '—'}</div>
+              <div className="flex-1 text-sm text-black font-semibold">
+                <ItemName item={item} />
+              </div>
               {withGodown && (
                 <div className="w-28 text-sm text-black">{item.godown_name || '—'}</div>
               )}
@@ -547,7 +566,7 @@ export function ReadOnlySplitSection({
               className="flex gap-3 items-center border-b border-gray-100 min-h-[22px] px-3 py-0"
             >
               <div className="flex-1 min-w-0 text-sm text-black font-semibold truncate">
-                {item.item_name || '—'}
+                <ItemName item={item} />
               </div>
               <div className="w-24 shrink-0 text-sm text-black truncate">
                 {item.godown_name || '—'}

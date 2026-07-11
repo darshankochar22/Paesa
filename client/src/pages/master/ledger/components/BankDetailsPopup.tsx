@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from 'react';
 
 export interface ChequeRange {
   from_number: string;
@@ -27,7 +27,7 @@ export interface ChequePrintingConfig {
   payee_width: string;
   // Amount in Words
   words_a_dist_2nd_top: string; // (A) Distance of 2nd Line from Top Edge
-  words_b_gap: string;          // (B) Height (gap) between 2nd and 1st Line
+  words_b_gap: string; // (B) Height (gap) between 2nd and 1st Line
   words_1st_start_left: string;
   words_2nd_start_left: string;
   words_width: string;
@@ -49,18 +49,37 @@ export interface ChequePrintingConfig {
 }
 
 export const EMPTY_CHEQUE_PRINTING_CONFIG: ChequePrintingConfig = {
-  width_of_cheque: "", height_of_cheque: "",
-  cross_start_left: "", cross_start_top: "",
-  date_distance_top: "", date_start_left: "", style_of_date: "dd-mmm-yyyy",
-  date_separator: "", date_separator_width: "", date_char_distance: "",
-  payee_distance_top: "", payee_start_left: "", payee_width: "",
-  words_a_dist_2nd_top: "", words_b_gap: "", words_1st_start_left: "",
-  words_2nd_start_left: "", words_width: "", print_currency_formal_name: "Yes",
-  figures_distance_top: "", figures_start_left: "", figures_width: "",
-  print_currency_symbol: "Yes",
-  company_name_on_cheque: "", print_company_name: "Yes",
-  salutation_1st: "", salutation_2nd: "",
-  sign_distance_top: "", sign_start_left: "", sign_width: "", sign_height: "",
+  width_of_cheque: '',
+  height_of_cheque: '',
+  cross_start_left: '',
+  cross_start_top: '',
+  date_distance_top: '',
+  date_start_left: '',
+  style_of_date: 'dd-mmm-yyyy',
+  date_separator: '',
+  date_separator_width: '',
+  date_char_distance: '',
+  payee_distance_top: '',
+  payee_start_left: '',
+  payee_width: '',
+  words_a_dist_2nd_top: '',
+  words_b_gap: '',
+  words_1st_start_left: '',
+  words_2nd_start_left: '',
+  words_width: '',
+  print_currency_formal_name: 'Yes',
+  figures_distance_top: '',
+  figures_start_left: '',
+  figures_width: '',
+  print_currency_symbol: 'Yes',
+  company_name_on_cheque: '',
+  print_company_name: 'Yes',
+  salutation_1st: '',
+  salutation_2nd: '',
+  sign_distance_top: '',
+  sign_start_left: '',
+  sign_width: '',
+  sign_height: '',
 };
 
 export interface BankDetails {
@@ -83,21 +102,21 @@ export interface BankDetails {
 }
 
 export const EMPTY_BANK_DETAILS: BankDetails = {
-  account_holder_name: "",
-  account_number: "",
-  ifsc_code: "",
-  swift_code: "",
-  bank_name: "",
-  branch: "",
-  bsr_code: "",
-  set_alter_cheque_books: "No",
+  account_holder_name: '',
+  account_number: '',
+  ifsc_code: '',
+  swift_code: '',
+  bank_name: '',
+  branch: '',
+  bsr_code: '',
+  set_alter_cheque_books: 'No',
   cheque_ranges: [],
-  enable_cheque_printing: "No",
-  set_alter_cheque_printing: "No",
-  transaction_type: "",
-  cross_using: "A/c Payee",
-  company_bank: "",
-  beneficiary_code: "",
+  enable_cheque_printing: 'No',
+  set_alter_cheque_printing: 'No',
+  transaction_type: '',
+  cross_using: 'A/c Payee',
+  company_bank: '',
+  beneficiary_code: '',
 };
 
 interface BankDetailsPopupProps {
@@ -109,14 +128,28 @@ interface BankDetailsPopupProps {
   isOD?: boolean;
 }
 
-const TXN_TYPES_DEFAULT = ["End of List", "Cheque", "e-Fund Transfer", "Others"];
+const TXN_TYPES_DEFAULT = ['End of List', 'Cheque', 'e-Fund Transfer', 'Others'];
 const TXN_TYPES_MORE = [
-  "End of List", "ATM", "Card", "Cheque", "ECS",
-  "e-Fund Transfer", "Electronic Cheque", "Electronic DD/PO", "Others",
+  'End of List',
+  'ATM',
+  'Card',
+  'Cheque',
+  'ECS',
+  'e-Fund Transfer',
+  'Electronic Cheque',
+  'Electronic DD/PO',
+  'Others',
 ];
 
-const INSTANT_CLOSE = new Set(["ATM", "Card", "ECS", "Electronic Cheque", "Electronic DD/PO", "Others"]);
-const BANK_LIST = ["All Items", "End of List", "SBI", "HDFC", "ICICI", "Axis", "PNB", "BOB"];
+const INSTANT_CLOSE = new Set([
+  'ATM',
+  'Card',
+  'ECS',
+  'Electronic Cheque',
+  'Electronic DD/PO',
+  'Others',
+]);
+const BANK_LIST = ['All Items', 'End of List', 'SBI', 'HDFC', 'ICICI', 'Axis', 'PNB', 'BOB'];
 
 export default function BankDetailsPopup({
   ledgerName,
@@ -128,19 +161,18 @@ export default function BankDetailsPopup({
 }: BankDetailsPopupProps) {
   const [showMore, setShowMore] = useState(false);
   const [showBankList, setShowBankList] = useState(false);
-  const [bankSearch, setBankSearch] = useState("");
+  const [bankSearch, setBankSearch] = useState('');
   const [activeBankIdx, setActiveBankIdx] = useState(0);
 
   const txnList = showMore ? TXN_TYPES_MORE : TXN_TYPES_DEFAULT;
-  const selectedTxn = bankForm.transaction_type ?? "";
+  const selectedTxn = bankForm.transaction_type ?? '';
 
-  const set = (key: keyof BankDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setBankForm((f) => ({ ...f, [key]: e.target.value }));
+  const set = (key: keyof BankDetails) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setBankForm((f) => ({ ...f, [key]: e.target.value }));
 
   const selectTxn = (txn: string) => {
-    if (txn === "End of List") {
-      setBankForm((f) => ({ ...f, transaction_type: "" }));
+    if (txn === 'End of List') {
+      setBankForm((f) => ({ ...f, transaction_type: '' }));
       onAccept();
       return;
     }
@@ -153,9 +185,9 @@ export default function BankDetailsPopup({
     setBankForm((f) => ({
       ...f,
       transaction_type: txn,
-      cross_using: txn === "Cheque" ? (f.cross_using || "A/c Payee") : f.cross_using,
-      company_bank: txn === "e-Fund Transfer" ? (f.company_bank || "") : f.company_bank,
-      beneficiary_code: txn === "e-Fund Transfer" ? (f.beneficiary_code || "") : f.beneficiary_code,
+      cross_using: txn === 'Cheque' ? f.cross_using || 'A/c Payee' : f.cross_using,
+      company_bank: txn === 'e-Fund Transfer' ? f.company_bank || '' : f.company_bank,
+      beneficiary_code: txn === 'e-Fund Transfer' ? f.beneficiary_code || '' : f.beneficiary_code,
     }));
   };
 
@@ -165,74 +197,82 @@ export default function BankDetailsPopup({
     return BANK_LIST.filter((b) => b.toLowerCase().includes(bankSearch.toLowerCase()));
   }, [bankSearch]);
 
-  useEffect(() => { setActiveBankIdx(0); }, [bankSearch]);
+  useEffect(() => {
+    setActiveBankIdx(0);
+  }, [bankSearch]);
 
   // ── bank select ──
   const selectBank = (bank: string) => {
-    if (bank === "End of List") {
-      setBankForm((f) => ({ ...f, company_bank: "", beneficiary_code: "" }));
+    if (bank === 'End of List') {
+      setBankForm((f) => ({ ...f, company_bank: '', beneficiary_code: '' }));
       setShowBankList(false);
-      setBankSearch("");
+      setBankSearch('');
       return;
     }
-    setBankForm((f) => ({ ...f, company_bank: bank, beneficiary_code: "" }));
+    setBankForm((f) => ({ ...f, company_bank: bank, beneficiary_code: '' }));
     setShowBankList(false);
-    setBankSearch("");
+    setBankSearch('');
   };
 
   // ── bank list keyboard ──
   const bankKeydown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown") {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveBankIdx((p) => (p + 1) % filteredBanks.length);
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveBankIdx((p) => (p - 1 + filteredBanks.length) % filteredBanks.length);
-    } else if (e.key === "Enter") {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       if (filteredBanks[activeBankIdx]) selectBank(filteredBanks[activeBankIdx]);
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       e.preventDefault();
       setShowBankList(false);
-      setBankSearch("");
+      setBankSearch('');
     }
   };
 
   // ── global keyboard ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        if (showBankList) { setShowBankList(false); setBankSearch(""); return; }
+        if (showBankList) {
+          setShowBankList(false);
+          setBankSearch('');
+          return;
+        }
         onClose();
       }
-      if (e.altKey && (e.key === "a" || e.key === "A")) {
+      if (e.altKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
         onAccept();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [onClose, onAccept, showBankList]);
 
   // ── derived display values ──
   const companyBankDisplay = bankForm.company_bank
-    ? bankForm.company_bank === "All Items"
-      ? "• All Items"
+    ? bankForm.company_bank === 'All Items'
+      ? '• All Items'
       : bankForm.company_bank
-    : "• End of List";
+    : '• End of List';
 
   const hasBankSelected =
     !!bankForm.company_bank &&
-    bankForm.company_bank !== "" &&
-    bankForm.company_bank !== "End of List";
+    bankForm.company_bank !== '' &&
+    bankForm.company_bank !== 'End of List';
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     // Full-screen dimmed backdrop
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/10 pt-20">
+    <div
+      data-enter-nav-ignore
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/10 pt-20"
+    >
       <div className="flex items-start gap-0">
-
         {/* ════════════════════════════════════════
             MAIN MODAL
         ════════════════════════════════════════ */}
@@ -242,13 +282,12 @@ export default function BankDetailsPopup({
         >
           {/* Title */}
           <div className="border-b border-zinc-300 text-center py-1 select-none bg-white">
-            <span className="text-[11px] text-zinc-700">Bank Details for:  </span>
-            <span className="text-[11px] font-semibold text-zinc-900">{ledgerName || "—"}</span>
+            <span className="text-[11px] text-zinc-700">Bank Details for: </span>
+            <span className="text-[11px] font-semibold text-zinc-900">{ledgerName || '—'}</span>
           </div>
 
           {/* ── Body ── */}
           <div className="flex-1 px-0 pt-1">
-
             {/* "Transaction Type" label row */}
             <div className="flex items-center px-3 py-0.5">
               <span className="text-[11px] font-semibold text-zinc-800">Transaction Type</span>
@@ -268,23 +307,21 @@ export default function BankDetailsPopup({
             </div>
 
             {/* ── Cheque sub-fields ── */}
-            {selectedTxn === "Cheque" && (
-              <div
-                className="flex items-center bg-[#fffde7] border-b border-zinc-200 px-3 py-[3px]"
-              >
+            {selectedTxn === 'Cheque' && (
+              <div className="flex items-center bg-[#fffde7] border-b border-zinc-200 px-3 py-[3px]">
                 <span className="text-[11px] text-zinc-700 w-24 shrink-0">Cross using</span>
                 <span className="text-[11px] text-zinc-500 mr-2 shrink-0">:</span>
                 <input
                   autoFocus
                   className="text-[11px] text-zinc-900 bg-transparent outline-none flex-1 border-b border-transparent focus:border-zinc-400"
-                  value={bankForm.cross_using ?? "A/c Payee"}
-                  onChange={set("cross_using")}
+                  value={bankForm.cross_using ?? 'A/c Payee'}
+                  onChange={set('cross_using')}
                 />
               </div>
             )}
 
             {/* ── e-Fund Transfer sub-fields ── */}
-            {selectedTxn === "e-Fund Transfer" && (
+            {selectedTxn === 'e-Fund Transfer' && (
               <>
                 {/* "e-Fund Transfer" sub-section label */}
                 <div className="flex items-center px-3 py-0.5">
@@ -300,8 +337,8 @@ export default function BankDetailsPopup({
                     <input
                       autoFocus
                       className="text-[11px] text-zinc-900 bg-transparent outline-none flex-1 border-b border-transparent focus:border-zinc-400"
-                      value={bankForm.account_number ?? ""}
-                      onChange={set("account_number")}
+                      value={bankForm.account_number ?? ''}
+                      onChange={set('account_number')}
                     />
                   </div>
 
@@ -311,8 +348,8 @@ export default function BankDetailsPopup({
                     <span className="text-[11px] text-zinc-500 mr-1 shrink-0">:</span>
                     <input
                       className="text-[11px] text-zinc-900 bg-transparent outline-none flex-1 border-b border-transparent focus:border-zinc-400"
-                      value={bankForm.ifsc_code ?? ""}
-                      onChange={set("ifsc_code")}
+                      value={bankForm.ifsc_code ?? ''}
+                      onChange={set('ifsc_code')}
                     />
                   </div>
                 </div>
@@ -321,15 +358,15 @@ export default function BankDetailsPopup({
                   <span className="text-[11px] text-zinc-700 w-24 shrink-0">Bank Name</span>
                   <span className="text-[11px] text-zinc-500 mr-2 shrink-0">:</span>
                   <span className="text-[11px] text-zinc-700">
-                    {bankForm.bank_name ? bankForm.bank_name : "• Not Applicable"}
+                    {bankForm.bank_name ? bankForm.bank_name : '• Not Applicable'}
                   </span>
                 </div>
 
                 <div
                   className={[
-                    "flex items-center px-3 py-[3px] border-b border-zinc-200 cursor-pointer",
-                    !hasBankSelected ? "bg-[#fffde7]" : "bg-white",
-                  ].join(" ")}
+                    'flex items-center px-3 py-[3px] border-b border-zinc-200 cursor-pointer',
+                    !hasBankSelected ? 'bg-[#fffde7]' : 'bg-white',
+                  ].join(' ')}
                   onClick={() => setShowBankList(true)}
                 >
                   <span className="text-[11px] text-zinc-700 w-24 shrink-0">Company Bank</span>
@@ -340,13 +377,15 @@ export default function BankDetailsPopup({
                 {/* Beneficiary Code — appears ONLY after a real bank is chosen, yellow active */}
                 {hasBankSelected && (
                   <div className="flex items-center bg-[#fffde7] border-b border-zinc-200 px-3 py-[3px]">
-                    <span className="text-[11px] text-zinc-700 w-24 shrink-0">Beneficiary Code</span>
+                    <span className="text-[11px] text-zinc-700 w-24 shrink-0">
+                      Beneficiary Code
+                    </span>
                     <span className="text-[11px] text-zinc-500 mr-2 shrink-0">:</span>
                     <input
                       autoFocus
                       className="text-[11px] text-zinc-900 bg-transparent outline-none flex-1 border-b border-transparent focus:border-zinc-400"
-                      value={bankForm.beneficiary_code ?? ""}
-                      onChange={set("beneficiary_code")}
+                      value={bankForm.beneficiary_code ?? ''}
+                      onChange={set('beneficiary_code')}
                     />
                   </div>
                 )}
@@ -390,28 +429,24 @@ export default function BankDetailsPopup({
               onClick={() => setShowMore((v) => !v)}
               className="text-[10px] px-2 py-[2px] bg-zinc-100 hover:bg-zinc-200 transition-colors text-zinc-700 font-medium border-l border-zinc-200"
             >
-              {showMore ? "Show Less" : "Show More"}
+              {showMore ? 'Show Less' : 'Show More'}
             </button>
           </div>
 
           <div className="py-0.5">
             {txnList.map((txn) => {
-              const isSelected =
-                selectedTxn === txn ||
-                (!selectedTxn && txn === "End of List");
+              const isSelected = selectedTxn === txn || (!selectedTxn && txn === 'End of List');
               return (
                 <div
                   key={txn}
                   onClick={() => selectTxn(txn)}
                   className={[
-                    "text-[11px] px-3 py-[2px] cursor-pointer select-none transition-colors",
-                    isSelected
-                      ? "bg-zinc-700 text-white"
-                      : "text-zinc-800 hover:bg-zinc-100",
-                  ].join(" ")}
+                    'text-[11px] px-3 py-[2px] cursor-pointer select-none transition-colors',
+                    isSelected ? 'bg-zinc-700 text-white' : 'text-zinc-800 hover:bg-zinc-100',
+                  ].join(' ')}
                 >
-                  {txn === "End of List" ? `• ${txn}` : txn}
-                  {txn === "e-Fund Transfer" && selectedTxn === "e-Fund Transfer" ? "" : ""}
+                  {txn === 'End of List' ? `• ${txn}` : txn}
+                  {txn === 'e-Fund Transfer' && selectedTxn === 'e-Fund Transfer' ? '' : ''}
                 </div>
               );
             })}
@@ -457,15 +492,13 @@ export default function BankDetailsPopup({
                       key={bank}
                       onClick={() => selectBank(bank)}
                       className={[
-                        "text-[11px] px-3 py-[2px] cursor-pointer select-none transition-colors",
+                        'text-[11px] px-3 py-[2px] cursor-pointer select-none transition-colors',
                         isCurrent || isActive
-                          ? "bg-zinc-700 text-white"
-                          : "text-zinc-800 hover:bg-zinc-100",
-                      ].join(" ")}
+                          ? 'bg-zinc-700 text-white'
+                          : 'text-zinc-800 hover:bg-zinc-100',
+                      ].join(' ')}
                     >
-                      {bank === "End of List" || bank === "All Items"
-                        ? `• ${bank}`
-                        : bank}
+                      {bank === 'End of List' || bank === 'All Items' ? `• ${bank}` : bank}
                     </div>
                   );
                 })

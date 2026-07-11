@@ -1,14 +1,35 @@
-import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import CostCentreFlatList from "@/components/CostCentreFlatList";
-import type { CostCentreType } from "@/types/api";
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import CostCentreFlatList from '@/components/CostCentreFlatList';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
+import type { CostCentreType } from '@/types/api';
 
-function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
+function Row({
+  label,
+  required,
+  children,
+  onClick,
+  rowRef,
+  enterClick,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+  rowRef?: React.Ref<HTMLDivElement>;
+  enterClick?: boolean;
+}) {
   return (
-    <div className={`flex items-start min-h-[36px] border-b border-zinc-100 last:border-0 ${onClick ? "cursor-pointer hover:bg-zinc-50" : ""}`} onClick={onClick}>
+    <div
+      ref={rowRef}
+      {...(enterClick ? { tabIndex: 0, 'data-enter-click': true } : {})}
+      className={`flex items-start min-h-[36px] border-b border-zinc-100 last:border-0 ${onClick ? 'cursor-pointer hover:bg-zinc-50' : ''}${enterClick ? ' focus:bg-zinc-100 outline-none' : ''}`}
+      onClick={onClick}
+    >
       <span className="w-64 text-[12px] text-zinc-600 shrink-0 py-1.5 pl-3 select-none">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
       <span className="text-zinc-400 mr-2 py-1.5 select-none">:</span>
       <div className="flex-1 py-1">{children}</div>
@@ -16,17 +37,18 @@ function Row({ label, required, children, onClick }: { label: string; required?:
   );
 }
 
-const inputCls = "w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 rounded-sm placeholder:text-zinc-300 border-b border-transparent focus:border-zinc-300 transition-colors";
+const inputCls =
+  'w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 rounded-sm placeholder:text-zinc-300 border-b border-transparent focus:border-zinc-300 transition-colors';
 
 interface FormState extends Partial<CostCentreType> {}
 
 const INITIAL_FORM: FormState = {
-  name: "",
-  alias: "",
+  name: '',
+  alias: '',
   parent_id: undefined,
 };
 
-type SidePanel = "parent" | null;
+type SidePanel = 'parent' | null;
 
 export default function CostCentreCreate() {
   const { selectedCompany } = useCompany();
@@ -44,28 +66,41 @@ export default function CostCentreCreate() {
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const aliasInputRef = useRef<HTMLInputElement>(null);
+  const underRowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        if (showAcceptPrompt) { setShowAcceptPrompt(false); }
-        else if (showPanel) { setShowPanel(null); }
-        else { navigate("/master/create"); }
+        if (showAcceptPrompt) {
+          setShowAcceptPrompt(false);
+        } else if (showPanel) {
+          setShowPanel(null);
+        } else {
+          navigate('/master/create');
+        }
       }
-      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "a") {
+      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        if (showAcceptPrompt) { handleConfirmSubmit(); }
-        else { setShowAcceptPrompt(true); }
+        if (showAcceptPrompt) {
+          handleConfirmSubmit();
+        } else {
+          setShowAcceptPrompt(true);
+        }
       }
       if (showAcceptPrompt) {
         const k = e.key.toLowerCase();
-        if (k === "y" || e.key === "Enter") { e.preventDefault(); handleConfirmSubmit(); }
-        else if (k === "n") { e.preventDefault(); setShowAcceptPrompt(false); }
+        if (k === 'y' || e.key === 'Enter') {
+          e.preventDefault();
+          handleConfirmSubmit();
+        } else if (k === 'n') {
+          e.preventDefault();
+          setShowAcceptPrompt(false);
+        }
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showPanel, showAcceptPrompt, navigate]);
 
   const fetchData = async () => {
@@ -74,34 +109,40 @@ export default function CostCentreCreate() {
     if (ccRes.success && ccRes.costCentres) setCostCentres(ccRes.costCentres);
   };
 
-  useEffect(() => { fetchData(); }, [companyId]);
+  useEffect(() => {
+    fetchData();
+  }, [companyId]);
 
-  const parentCC = form.parent_id ? costCentres.find(cc => cc.cc_id === form.parent_id) : null;
+  const parentCC = form.parent_id ? costCentres.find((cc) => cc.cc_id === form.parent_id) : null;
 
-  const setField = (key: keyof CostCentreType) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.value }));
+  const setField = (key: keyof CostCentreType) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const validate = (): string | null => {
-    if (!form.name?.trim()) return "Name is required.";
-    if (!companyId) return "No company selected.";
+    if (!form.name?.trim()) return 'Name is required.';
+    if (!companyId) return 'No company selected.';
     return null;
   };
 
   const handleFormKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       e.preventDefault();
       if (e.currentTarget === nameInputRef.current) aliasInputRef.current?.focus();
-      else if (e.currentTarget === aliasInputRef.current) setShowPanel("parent");
+      else if (e.currentTarget === aliasInputRef.current) setShowPanel('parent');
     }
   };
 
   const handleConfirmSubmit = async () => {
     setShowAcceptPrompt(false);
     const validationError = validate();
-    if (validationError) { setError(validationError); return; }
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
-    setLoading(true); setError(null); setSuccess(null);
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
       const payload = {
         company_id: companyId!,
@@ -116,17 +157,20 @@ export default function CostCentreCreate() {
         fetchData();
         nameInputRef.current?.focus();
       } else {
-        setError(res.error || "Failed to create cost centre.");
+        setError(res.error || 'Failed to create cost centre.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex-1 flex h-full bg-zinc-50 select-none text-zinc-950 font-mono text-[12px]">
+    <div
+      className="flex-1 flex h-full bg-zinc-50 select-none text-zinc-950 font-mono text-[12px]"
+      data-enter-nav
+    >
       <div className="flex-1 flex flex-col min-h-0 relative p-6">
         <div className="flex items-center gap-4 mb-6 shrink-0">
           <Link to="/master/create" className="text-xs text-zinc-500 hover:text-zinc-800 font-sans">
@@ -138,13 +182,23 @@ export default function CostCentreCreate() {
         {error && (
           <div className="mb-4 p-2 border border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
             <span>• {error}</span>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-500 hover:text-red-700 font-bold"
+            >
+              &times;
+            </button>
           </div>
         )}
         {success && (
           <div className="mb-4 p-2 border border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
             <span>• {success}</span>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
+            <button
+              onClick={() => setSuccess(null)}
+              className="text-green-500 hover:text-green-700 font-bold"
+            >
+              &times;
+            </button>
           </div>
         )}
 
@@ -160,8 +214,8 @@ export default function CostCentreCreate() {
                   ref={nameInputRef}
                   autoFocus
                   className={inputCls}
-                  value={form.name || ""}
-                  onChange={setField("name")}
+                  value={form.name || ''}
+                  onChange={setField('name')}
                   onKeyDown={handleFormKeyDown}
                 />
               </Row>
@@ -169,14 +223,19 @@ export default function CostCentreCreate() {
                 <input
                   ref={aliasInputRef}
                   className={inputCls}
-                  value={form.alias || ""}
-                  onChange={setField("alias")}
+                  value={form.alias || ''}
+                  onChange={setField('alias')}
                   onKeyDown={handleFormKeyDown}
                 />
               </Row>
-              <Row label="Under" onClick={() => setShowPanel("parent")}>
+              <Row
+                label="Under"
+                onClick={() => setShowPanel('parent')}
+                rowRef={underRowRef}
+                enterClick
+              >
                 <span className="text-[12px] font-bold text-zinc-950 font-mono py-1 px-1 block cursor-pointer">
-                  {parentCC ? parentCC.name : "Primary"}
+                  {parentCC ? parentCC.name : 'Primary'}
                 </span>
               </Row>
             </div>
@@ -206,32 +265,47 @@ export default function CostCentreCreate() {
         <div className="border-t border-zinc-200 pt-3 flex justify-end bg-zinc-50 shrink-0 font-sans pr-2">
           <div className="flex gap-3">
             <button
-              onClick={() => navigate("/master/create")}
+              onClick={() => navigate('/master/create')}
               className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
             >
               Quit
             </button>
             <button
+              data-enter-accept
               onClick={() => setShowAcceptPrompt(true)}
               disabled={loading}
               className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
             >
-              {loading ? "Saving..." : "Accept"}
+              {loading ? 'Saving...' : 'Accept'}
             </button>
           </div>
         </div>
       </div>
 
       {/* Parent cost centre panel */}
-      {showPanel === "parent" && (
-        <div className="w-80 border-l border-zinc-200 flex flex-col shrink-0 bg-white animate-slide-in">
+      {showPanel === 'parent' && (
+        <div
+          className="w-80 border-l border-zinc-200 flex flex-col shrink-0 bg-white animate-slide-in"
+          data-enter-nav-ignore
+        >
           <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none shrink-0 font-sans">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Under Cost Centre</span>
-            <button onClick={() => setShowPanel(null)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800">&times;</button>
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+              Under Cost Centre
+            </span>
+            <button
+              onClick={() => setShowPanel(null)}
+              className="text-sm font-bold text-zinc-400 hover:text-zinc-800"
+            >
+              &times;
+            </button>
           </div>
           <div
-            className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${!form.parent_id ? "bg-zinc-100 font-bold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
-            onClick={() => { setForm(f => ({ ...f, parent_id: undefined })); setShowPanel(null); }}
+            className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${!form.parent_id ? 'bg-zinc-100 font-bold text-black' : 'text-zinc-700 hover:bg-zinc-50'}`}
+            onClick={() => {
+              setForm((f) => ({ ...f, parent_id: undefined }));
+              setShowPanel(null);
+              focusFieldAfter(underRowRef.current);
+            }}
           >
             <span className="truncate">Primary</span>
           </div>
@@ -239,7 +313,11 @@ export default function CostCentreCreate() {
             <CostCentreFlatList
               costCentres={costCentres}
               selectedId={form.parent_id as number}
-              onSelect={cc => { setForm(f => ({ ...f, parent_id: cc.cc_id })); setShowPanel(null); }}
+              onSelect={(cc) => {
+                setForm((f) => ({ ...f, parent_id: cc.cc_id }));
+                setShowPanel(null);
+                focusFieldAfter(underRowRef.current);
+              }}
               showHeader={false}
             />
           </div>

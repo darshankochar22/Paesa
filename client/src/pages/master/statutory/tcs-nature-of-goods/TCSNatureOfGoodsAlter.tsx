@@ -90,7 +90,10 @@ export default function TCSNatureOfGoodsAlter() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-white select-none font-mono text-[11px] text-zinc-950">
+    <div
+      className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-white select-none font-mono text-[11px] text-zinc-950"
+      data-enter-nav
+    >
       <PageTitleBar
         title={`TCS Nature of Goods Alteration: ${selectedTcs.name}`}
         subtitle={selectedCompany?.name}
@@ -161,7 +164,10 @@ export default function TCSNatureOfGoodsAlter() {
       </div>
 
       {showAccept && (
-        <div className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in">
+        <div
+          className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in"
+          data-enter-nav-ignore
+        >
           <h4 className="font-bold text-zinc-900 text-[11px] mb-3">Accept?</h4>
           <div className="flex items-center gap-3 w-full justify-center">
             <button

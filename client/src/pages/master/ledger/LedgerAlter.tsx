@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import GroupFlatList from '@/components/GroupFlatList';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import { FormRow, PageTitleBar, RightActionPanel } from '@/components/ui';
 import BankDetailsPopup from './components/BankDetailsPopup';
 import type { GroupType } from '@/types/api';
@@ -56,6 +57,8 @@ export default function LedgerAlter() {
     balanceType: string;
   } | null>(null);
   const [showExciseTariffPopup, setShowExciseTariffPopup] = useState(false);
+  const ledgerPickRef = useRef<HTMLDivElement>(null);
+  const underRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!selectedCompany?.company_id) return;
@@ -276,7 +279,7 @@ export default function LedgerAlter() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none">
+    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
       {showBankPopup && (
         <BankDetailsPopup
           ledgerName={form.name || ''}
@@ -538,7 +541,10 @@ export default function LedgerAlter() {
         <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
           <div className="p-3 space-y-1">
             <div
-              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group mb-2 border border-zinc-200 bg-zinc-50/30"
+              ref={ledgerPickRef}
+              tabIndex={0}
+              data-enter-click
+              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group mb-2 border border-zinc-200 bg-zinc-50/30"
               onClick={() => {
                 setShowLedgerPanel((v) => !v);
                 setShowGroupPanel(false);
@@ -583,7 +589,10 @@ export default function LedgerAlter() {
           {selectedLedgerId && (
             <div className="p-3 border-t border-zinc-100 bg-zinc-50/20">
               <div
-                className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 px-2 py-0.5 rounded transition-colors group"
+                ref={underRef}
+                tabIndex={0}
+                data-enter-click
+                className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group"
                 onClick={() => {
                   setShowGroupPanel((v) => !v);
                   setShowLedgerPanel(false);
@@ -849,7 +858,10 @@ export default function LedgerAlter() {
           <LedgerListPanel
             ledgers={ledgers}
             selectedId={selectedLedgerId}
-            onSelect={(l) => loadLedger(l.ledger_id!)}
+            onSelect={(l) => {
+              loadLedger(l.ledger_id!);
+              focusFieldAfter(ledgerPickRef.current);
+            }}
             onClose={() => setShowLedgerPanel(false)}
           />
         )}
@@ -862,6 +874,7 @@ export default function LedgerAlter() {
               onSelect={(group: GroupType) => {
                 setForm((f: any) => ({ ...f, group_id: group.group_id }));
                 setShowGroupPanel(false);
+                focusFieldAfter(underRef.current);
               }}
               onCreate={() => {
                 setShowGroupPanel(false);

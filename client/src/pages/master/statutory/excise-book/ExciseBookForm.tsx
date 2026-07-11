@@ -1,29 +1,25 @@
-import { useState, useEffect, useRef } from "react";
-import { PageTitleBar, RightActionPanel, Select } from "@/components/ui";
-import type {
-  ExciseBookType,
-  ExciseBookRestartRow,
-  ExciseBookAffixRow,
-} from "@/types/api";
+import { useState, useEffect, useRef } from 'react';
+import { PageTitleBar, RightActionPanel, Select } from '@/components/ui';
+import type { ExciseBookType, ExciseBookRestartRow, ExciseBookAffixRow } from '@/types/api';
 import {
   EXCISE_NUMBERING_METHODS,
   EMPTY_RESTART_ROW,
   EMPTY_AFFIX_ROW,
-} from "@/types/entities/ExciseBook";
+} from '@/types/entities/ExciseBook';
 
 const inputCls =
-  "w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 border-b border-transparent focus:border-zinc-400 transition-colors";
+  'w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 border-b border-transparent focus:border-zinc-400 transition-colors';
 const cellCls =
-  "w-full bg-transparent text-[12px] text-zinc-950 font-mono outline-none py-1 px-1.5 border border-transparent focus:border-zinc-400 transition-colors";
+  'w-full bg-transparent text-[12px] text-zinc-950 font-mono outline-none py-1 px-1.5 border border-transparent focus:border-zinc-400 transition-colors';
 
 // Standard excise forms shown in the "Used for" picker.
-const EXCISE_FORMS = ["ARE-1", "ARE-2", "ARE-3", "Rule -11 Invoice"];
+const EXCISE_FORMS = ['ARE-1', 'ARE-2', 'ARE-3', 'Rule -11 Invoice'];
 
 // Restart Numbering "Particulars" is a periodicity picker (TallyPrime).
-const PERIODICITY_OPTIONS = ["Daily", "Monthly", "Never", "Weekly", "Yearly"];
+const PERIODICITY_OPTIONS = ['Daily', 'Monthly', 'Never', 'Weekly', 'Yearly'];
 
 interface Props {
-  mode: "create" | "alter";
+  mode: 'create' | 'alter';
   companyId: number;
   initial?: ExciseBookType;
   onSaved: (msg: string) => void;
@@ -53,18 +49,12 @@ function Row({
   );
 }
 
-function YesNoSelect({
-  value,
-  onChange,
-}: {
-  value: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function YesNoSelect({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <Select
       className="border-0 h-7 font-mono font-bold w-24"
-      value={value ? "Yes" : "No"}
-      onChange={(e) => onChange(e.target.value === "Yes")}
+      value={value ? 'Yes' : 'No'}
+      onChange={(e) => onChange(e.target.value === 'Yes')}
     >
       <option>Yes</option>
       <option>No</option>
@@ -81,34 +71,30 @@ export default function ExciseBookForm({
   onBack,
   onDelete,
 }: Props) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [alias, setAlias] = useState(initial?.alias ?? "");
+  const [name, setName] = useState(initial?.name ?? '');
+  const [alias, setAlias] = useState(initial?.alias ?? '');
   const [numberingMethod, setNumberingMethod] = useState<string>(
-    initial?.numbering_method ?? "Automatic"
+    initial?.numbering_method ?? 'Automatic',
   );
   const [preventDuplicates, setPreventDuplicates] = useState<boolean>(
-    !!initial?.prevent_duplicates
+    !!initial?.prevent_duplicates,
   );
-  const [startingNumber, setStartingNumber] = useState<number>(
-    initial?.starting_number ?? 1
-  );
+  const [startingNumber, setStartingNumber] = useState<number>(initial?.starting_number ?? 1);
   const [width, setWidth] = useState<number>(initial?.width_of_numerical_part ?? 0);
   const [prefillZero, setPrefillZero] = useState<boolean>(!!initial?.prefill_with_zero);
-  const [usedFor, setUsedFor] = useState(initial?.used_for ?? "");
+  const [usedFor, setUsedFor] = useState(initial?.used_for ?? '');
 
-  const [restart, setRestart] = useState<ExciseBookRestartRow[]>(
-    initial?.restart_numbering ?? []
-  );
-  const [prefix, setPrefix] = useState<ExciseBookAffixRow[]>(
-    initial?.prefix_details ?? []
-  );
-  const [suffix, setSuffix] = useState<ExciseBookAffixRow[]>(
-    initial?.suffix_details ?? []
-  );
+  const [restart, setRestart] = useState<ExciseBookRestartRow[]>(initial?.restart_numbering ?? []);
+  const [prefix, setPrefix] = useState<ExciseBookAffixRow[]>(initial?.prefix_details ?? []);
+  const [suffix, setSuffix] = useState<ExciseBookAffixRow[]>(initial?.suffix_details ?? []);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFormsList, setShowFormsList] = useState(false);
+  const [formsFocusIdx, setFormsFocusIdx] = useState(0);
+  // Enter only picks from the list once the user has typed or arrowed —
+  // otherwise Enter just walks to the next field (global enter-nav).
+  const [formsEngaged, setFormsEngaged] = useState(false);
 
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -120,14 +106,13 @@ export default function ExciseBookForm({
   //    method except Manual.
   //  • Prevent duplicates — only methods that allow manual entry, i.e. Manual
   //    and Automatic (Manual Override).
-  const isManual = numberingMethod === "Manual";
+  const isManual = numberingMethod === 'Manual';
   const showNumberingFields = !isManual;
-  const showPreventDuplicates =
-    isManual || numberingMethod === "Automatic (Manual Override)";
+  const showPreventDuplicates = isManual || numberingMethod === 'Automatic (Manual Override)';
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError("Name is required.");
+      setError('Name is required.');
       return;
     }
     setLoading(true);
@@ -148,41 +133,48 @@ export default function ExciseBookForm({
     };
     try {
       const res =
-        mode === "create"
+        mode === 'create'
           ? await window.api.exciseBook.create(payload)
           : await window.api.exciseBook.update({
               ...payload,
               excise_book_id: initial!.excise_book_id,
             });
       if (res.success) {
-        onSaved(`Excise Book "${name.trim()}" ${mode === "create" ? "created" : "updated"}.`);
+        onSaved(`Excise Book "${name.trim()}" ${mode === 'create' ? 'created' : 'updated'}.`);
       } else {
-        setError(res.error || "Failed to save excise book.");
+        setError(res.error || 'Failed to save excise book.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
+      setError(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setLoading(false);
     }
   };
 
   const formActions = [
-    { key: "Ctrl+A", label: "Accept", onClick: handleSubmit },
-    ...(onDelete ? [{ key: "Alt+D", label: "Delete", onClick: onDelete }] : []),
-    { key: "Esc", label: mode === "alter" ? "Back" : "Quit", onClick: onBack },
+    { key: 'Ctrl+A', label: 'Accept', onClick: handleSubmit },
+    ...(onDelete ? [{ key: 'Alt+D', label: 'Delete', onClick: onDelete }] : []),
+    { key: 'Esc', label: mode === 'alter' ? 'Back' : 'Quit', onClick: onBack },
   ];
 
-  const title =
-    mode === "create" ? "Excise Book Creation" : "Excise Book Alteration";
+  const title = mode === 'create' ? 'Excise Book Creation' : 'Excise Book Alteration';
+
+  const filteredForms = EXCISE_FORMS.filter((f) => f.toLowerCase().includes(usedFor.toLowerCase()));
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950 font-mono text-[12px]">
+    <div
+      className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950 font-mono text-[12px]"
+      data-enter-nav
+    >
       <PageTitleBar title={title} />
 
       {error && (
         <div className="mx-6 mt-4 p-2 border border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-sans">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 font-bold"
+          >
             &times;
           </button>
         </div>
@@ -197,10 +189,19 @@ export default function ExciseBookForm({
 
             <div className="p-4 flex flex-col gap-1 max-w-2xl">
               <Row label="Name" required>
-                <input ref={nameRef} className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
+                <input
+                  ref={nameRef}
+                  className={inputCls}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </Row>
               <Row label="(alias)">
-                <input className={inputCls} value={alias} onChange={(e) => setAlias(e.target.value)} />
+                <input
+                  className={inputCls}
+                  value={alias}
+                  onChange={(e) => setAlias(e.target.value)}
+                />
               </Row>
               <Row label="Method of numbering">
                 <Select
@@ -246,9 +247,46 @@ export default function ExciseBookForm({
                   <input
                     className={inputCls}
                     value={usedFor}
-                    onChange={(e) => { setUsedFor(e.target.value); setShowFormsList(true); }}
-                    onFocus={() => setShowFormsList(true)}
+                    onChange={(e) => {
+                      setUsedFor(e.target.value);
+                      setShowFormsList(true);
+                      setFormsFocusIdx(0);
+                      setFormsEngaged(true);
+                    }}
+                    onFocus={() => {
+                      setShowFormsList(true);
+                      setFormsFocusIdx(Math.max(0, filteredForms.indexOf(usedFor)));
+                      setFormsEngaged(false);
+                    }}
                     onBlur={() => setTimeout(() => setShowFormsList(false), 150)}
+                    onKeyDown={(e) => {
+                      if (!showFormsList || filteredForms.length === 0) return;
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setFormsEngaged(true);
+                        setFormsFocusIdx((i) => (i + 1) % filteredForms.length);
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setFormsEngaged(true);
+                        setFormsFocusIdx(
+                          (i) => (i - 1 + filteredForms.length) % filteredForms.length,
+                        );
+                      } else if (e.key === 'Enter') {
+                        if (!formsEngaged) {
+                          // plain Enter-through: close the list and let enter-nav advance
+                          setShowFormsList(false);
+                          return;
+                        }
+                        e.preventDefault();
+                        const pick = filteredForms[formsFocusIdx];
+                        if (pick) setUsedFor(pick);
+                        setShowFormsList(false);
+                        setFormsEngaged(false);
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setShowFormsList(false);
+                      }
+                    }}
                     placeholder="e.g. Rule -11 Invoice"
                   />
                   {showFormsList && (
@@ -256,14 +294,20 @@ export default function ExciseBookForm({
                       <div className="bg-zinc-800 text-white text-[11px] font-bold px-3 py-1.5 shrink-0">
                         List of Forms
                       </div>
-                      {EXCISE_FORMS.filter((f) =>
-                        f.toLowerCase().includes(usedFor.toLowerCase())
-                      ).map((f) => (
+                      {filteredForms.map((f, idx) => (
                         <div
                           key={f}
-                          onMouseDown={(e) => { e.preventDefault(); setUsedFor(f); setShowFormsList(false); }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setUsedFor(f);
+                            setShowFormsList(false);
+                          }}
                           className={`px-3 py-1.5 text-[12px] font-mono cursor-pointer border-b border-zinc-50 ${
-                            usedFor === f ? "bg-zinc-100 text-black font-bold" : "text-zinc-700 hover:bg-zinc-50"
+                            idx === formsFocusIdx
+                              ? 'bg-zinc-900 text-white font-bold'
+                              : usedFor === f
+                                ? 'bg-zinc-100 text-black font-bold'
+                                : 'text-zinc-700 hover:bg-zinc-50'
                           }`}
                         >
                           {f}
@@ -277,9 +321,23 @@ export default function ExciseBookForm({
 
             {/* Numbering tables — three sections side-by-side in one row */}
             <div className="flex border-t border-zinc-200 divide-x divide-zinc-200">
-              <RestartNumberingTable rows={restart} onChange={setRestart} className="flex-1 min-w-0" />
-              <AffixTable title="Prefix Details" rows={prefix} onChange={setPrefix} className="flex-1 min-w-0" />
-              <AffixTable title="Suffix Details" rows={suffix} onChange={setSuffix} className="flex-1 min-w-0" />
+              <RestartNumberingTable
+                rows={restart}
+                onChange={setRestart}
+                className="flex-1 min-w-0"
+              />
+              <AffixTable
+                title="Prefix Details"
+                rows={prefix}
+                onChange={setPrefix}
+                className="flex-1 min-w-0"
+              />
+              <AffixTable
+                title="Suffix Details"
+                rows={suffix}
+                onChange={setSuffix}
+                className="flex-1 min-w-0"
+              />
             </div>
           </div>
         </div>
@@ -298,7 +356,10 @@ export default function ExciseBookForm({
             Delete
           </button>
         ) : (
-          <button onClick={onCancel} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
+          <button
+            onClick={onCancel}
+            className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium"
+          >
             &larr; Back to Masters
           </button>
         )}
@@ -314,7 +375,7 @@ export default function ExciseBookForm({
             disabled={loading}
             className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
           >
-            {loading ? "Saving…" : "Accept"}
+            {loading ? 'Saving…' : 'Accept'}
           </button>
         </div>
       </div>
@@ -338,15 +399,13 @@ function RestartNumberingTable({
 }) {
   const all = [...rows, { ...EMPTY_RESTART_ROW }];
   const [openPeriodicity, setOpenPeriodicity] = useState<number | null>(null);
+  const [periodicityFocusIdx, setPeriodicityFocusIdx] = useState(0);
+  const [periodicityEngaged, setPeriodicityEngaged] = useState(false);
 
   const setCell = (i: number, patch: Partial<ExciseBookRestartRow>) => {
     const next = all.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
     // drop trailing fully-blank rows (keep only filled ones)
-    onChange(
-      next.filter(
-        (r) => r.applicable_from.trim() || r.particulars.trim()
-      )
-    );
+    onChange(next.filter((r) => r.applicable_from.trim() || r.particulars.trim()));
   };
   const removeAt = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
 
@@ -384,22 +443,69 @@ function RestartNumberingTable({
               <input
                 className={cellCls}
                 value={r.particulars}
-                placeholder={isBlank ? "e.g. Yearly" : ""}
-                onChange={(e) => { setCell(i, { particulars: e.target.value }); setOpenPeriodicity(i); }}
-                onFocus={() => setOpenPeriodicity(i)}
-                onBlur={() => setTimeout(() => setOpenPeriodicity((cur) => (cur === i ? null : cur)), 150)}
+                placeholder={isBlank ? 'e.g. Yearly' : ''}
+                onChange={(e) => {
+                  setCell(i, { particulars: e.target.value });
+                  setOpenPeriodicity(i);
+                  setPeriodicityFocusIdx(0);
+                  setPeriodicityEngaged(true);
+                }}
+                onFocus={() => {
+                  setOpenPeriodicity(i);
+                  setPeriodicityFocusIdx(Math.max(0, PERIODICITY_OPTIONS.indexOf(r.particulars)));
+                  setPeriodicityEngaged(false);
+                }}
+                onBlur={() =>
+                  setTimeout(() => setOpenPeriodicity((cur) => (cur === i ? null : cur)), 150)
+                }
+                onKeyDown={(e) => {
+                  if (openPeriodicity !== i) return;
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setPeriodicityEngaged(true);
+                    setPeriodicityFocusIdx((idx) => (idx + 1) % PERIODICITY_OPTIONS.length);
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setPeriodicityEngaged(true);
+                    setPeriodicityFocusIdx(
+                      (idx) => (idx - 1 + PERIODICITY_OPTIONS.length) % PERIODICITY_OPTIONS.length,
+                    );
+                  } else if (e.key === 'Enter') {
+                    if (!periodicityEngaged) {
+                      // plain Enter-through: close the list and let enter-nav advance
+                      setOpenPeriodicity(null);
+                      return;
+                    }
+                    e.preventDefault();
+                    const pick = PERIODICITY_OPTIONS[periodicityFocusIdx];
+                    if (pick) setCell(i, { particulars: pick });
+                    setOpenPeriodicity(null);
+                    setPeriodicityEngaged(false);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setOpenPeriodicity(null);
+                  }
+                }}
               />
               {openPeriodicity === i && (
                 <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-zinc-300 shadow-xl w-40 flex flex-col">
                   <div className="bg-zinc-800 text-white text-[11px] font-bold px-3 py-1.5 shrink-0">
                     Periodicity
                   </div>
-                  {PERIODICITY_OPTIONS.map((p) => (
+                  {PERIODICITY_OPTIONS.map((p, optIdx) => (
                     <div
                       key={p}
-                      onMouseDown={(e) => { e.preventDefault(); setCell(i, { particulars: p }); setOpenPeriodicity(null); }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setCell(i, { particulars: p });
+                        setOpenPeriodicity(null);
+                      }}
                       className={`px-3 py-1.5 text-[12px] font-mono cursor-pointer border-b border-zinc-50 ${
-                        r.particulars === p ? "bg-zinc-100 text-black font-bold" : "text-zinc-700 hover:bg-zinc-50"
+                        optIdx === periodicityFocusIdx
+                          ? 'bg-zinc-900 text-white font-bold'
+                          : r.particulars === p
+                            ? 'bg-zinc-100 text-black font-bold'
+                            : 'text-zinc-700 hover:bg-zinc-50'
                       }`}
                     >
                       {p}
@@ -411,7 +517,7 @@ function RestartNumberingTable({
             <button
               onClick={() => !isBlank && removeAt(i)}
               className={`text-sm font-bold leading-none ${
-                isBlank ? "text-transparent cursor-default" : "text-zinc-300 hover:text-red-500"
+                isBlank ? 'text-transparent cursor-default' : 'text-zinc-300 hover:text-red-500'
               }`}
               title="Remove"
             >
@@ -420,7 +526,9 @@ function RestartNumberingTable({
           </div>
         );
       })}
-      <div className="px-3 py-1 text-[11px] text-zinc-400 italic font-sans select-none">End of List</div>
+      <div className="px-3 py-1 text-[11px] text-zinc-400 italic font-sans select-none">
+        End of List
+      </div>
     </div>
   );
 }
@@ -478,7 +586,7 @@ function AffixTable({
             <button
               onClick={() => !isBlank && removeAt(i)}
               className={`text-sm font-bold leading-none ${
-                isBlank ? "text-transparent cursor-default" : "text-zinc-300 hover:text-red-500"
+                isBlank ? 'text-transparent cursor-default' : 'text-zinc-300 hover:text-red-500'
               }`}
               title="Remove"
             >
@@ -487,7 +595,9 @@ function AffixTable({
           </div>
         );
       })}
-      <div className="px-3 py-1 text-[11px] text-zinc-400 italic font-sans select-none">End of List</div>
+      <div className="px-3 py-1 text-[11px] text-zinc-400 italic font-sans select-none">
+        End of List
+      </div>
     </div>
   );
 }
