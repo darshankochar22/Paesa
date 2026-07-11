@@ -4,7 +4,7 @@
 **Last updated on source page:** April 21, 2026
 **Compiled on:** July 12, 2026
 
-> This document reorganizes and reproduces (in table form) the shortcut keys officially published by Tally Solutions for TallyPrime. Each entry lists the **key combination**, **purpose**, **where it is used**, and — where applicable — the **equivalent shortcut in Tally.ERP 9** and any **version-specific notes**.
+> This document reorganizes and reproduces (in table form) the shortcut keys officially published by Tally Solutions for the **TallyPrime accounting application** (not TDL/Developer tools). Each entry lists the **key combination**, **purpose**, **where it is used**, and — where applicable — the **equivalent shortcut in Tally.ERP 9** and any **version-specific notes**.
 
 ---
 
@@ -224,4 +224,6 @@ TallyPrime has evolved across releases, and a few shortcuts changed behavior or 
 
 ---
 
-_Compiled from the official TallyHelp article "How to Use Keyboard Shortcuts in TallyPrime" (help.tallysolutions.com), last modified April 21, 2026. Always verify against the live TallyHelp page for the most current release-specific changes, as Tally Solutions periodically updates shortcuts with new TallyPrime versions._
+_Compiled from the official TallyHelp article ["How to Use Keyboard Shortcuts in TallyPrime"](https://help.tallysolutions.com/keyboard-shortcuts-tally-prime/) (help.tallysolutions.com), last modified April 21, 2026._
+
+_Always verify against the live TallyHelp page for the most current release-specific changes, as Tally Solutions periodically updates shortcuts with new TallyPrime versions._
