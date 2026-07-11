@@ -15,15 +15,7 @@ function hotkeyMatch(label: string): { char: string; index: number } {
 }
 
 function renderLabel(label: string) {
-  const { index } = hotkeyMatch(label);
-  if (index < 0) return <>{label}</>;
-  return (
-    <>
-      {label.slice(0, index)}
-      <span className="font-bold underline">{label[index]}</span>
-      {label.slice(index + 1)}
-    </>
-  );
+  return <>{label}</>;
 }
 
 interface MenuItem {
@@ -173,25 +165,20 @@ function Panel({
 
   const itemClass = (item: MenuItem) =>
     `text-left px-2 py-1 transition-colors ${
-      flatIndexOf(item) === selected ? 'bg-black text-white' : 'hover:bg-zinc-100'
+      flatIndexOf(item) === selected ? 'bg-zinc-100' : 'hover:bg-zinc-100'
     }`;
 
   return (
     <aside className="w-96 mx-auto mt-10 bg-white border shadow-sm flex flex-col px-10 py-10 gap-6">
-      <div className="text-xl font-semibold pb-2">{title}</div>
+      <div className="text-xl font-normal pb-2">{title}</div>
 
       <div className="flex flex-col gap-5">
         {sections.map((section) => (
           <div key={section.title} className="flex flex-col gap-2">
-            <div className="font-semibold text-lg">{section.title}</div>
+            <div className="font-medium text-sm text-zinc-500">{section.title}</div>
             <div className="flex flex-col pl-4 gap-1">
               {section.items.map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.route!}
-                  className={itemClass(item)}
-                  onMouseEnter={() => setSelected(flatIndexOf(item))}
-                >
+                <Link key={item.label} to={item.route!} className={itemClass(item)}>
                   {renderLabel(item.label)}
                 </Link>
               ))}
@@ -204,21 +191,11 @@ function Panel({
           <div className="flex flex-col gap-1">
             {bottomItems.map((item) =>
               item.route ? (
-                <Link
-                  key={item.label}
-                  to={item.route}
-                  className={itemClass(item)}
-                  onMouseEnter={() => setSelected(flatIndexOf(item))}
-                >
+                <Link key={item.label} to={item.route} className={itemClass(item)}>
                   {renderLabel(item.label)}
                 </Link>
               ) : (
-                <button
-                  key={item.label}
-                  onClick={item.onClick}
-                  className={itemClass(item)}
-                  onMouseEnter={() => setSelected(flatIndexOf(item))}
-                >
+                <button key={item.label} onClick={item.onClick} className={itemClass(item)}>
                   {renderLabel(item.label)}
                 </button>
               ),
