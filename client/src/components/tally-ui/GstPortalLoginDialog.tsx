@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEscape } from '@/hooks/useEscape';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import type { IntegrationStatus } from '@/types/api/GstIntegrations';
@@ -40,20 +41,9 @@ export default function GstPortalLoginDialog({
       .catch(() => setStatus(null));
   }, [open, companyId]);
 
-  // Capture-phase Escape so screen-level handlers (TallyReportLayout Esc → back)
-  // don't fire while the dialog is open.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [open, onClose]);
+  // Escape via the central stack: registered above the screen while open,
+  // so one Escape closes only this dialog.
+  useEscape(onClose, open);
 
   useEffect(() => {
     if (step === 'otp') otpRef.current?.focus();

@@ -1,21 +1,14 @@
 import { useEffect, useRef } from 'react';
+import { useEscape } from '@/hooks/useEscape';
 
 /**
  * Tally-style centered modal chrome (white card, hard border, shadow-2xl, black overlay)
  * with a centred title bar. Used by the Tier-1 / Tier-2 modals.
  */
 export function useEscapeClose(isOpen: boolean, onClose: () => void) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onClose]);
+  // Registers on the central escape stack while open, so Escape / footer
+  // Quit pops this modal before the screen underneath it.
+  useEscape(onClose, isOpen);
 }
 
 export function ModalChrome({

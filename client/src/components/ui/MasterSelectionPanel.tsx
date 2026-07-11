@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import PageTitleBar from "./PageTitleBar";
-import SearchInput from "./SearchInput";
-import DataTable, { type TableColumn } from "./DataTable";
-import RightActionPanel from "./RightActionPanel";
+import { useState, useEffect } from 'react';
+import { useEscape } from '@/hooks/useEscape';
+import PageTitleBar from './PageTitleBar';
+import SearchInput from './SearchInput';
+import DataTable, { type TableColumn } from './DataTable';
+import RightActionPanel from './RightActionPanel';
 
 interface Props<T> {
   title: string;
@@ -22,39 +23,37 @@ interface Props<T> {
 export default function MasterSelectionPanel<T>({
   title,
   subtitle,
-  searchPlaceholder = "Search...",
+  searchPlaceholder = 'Search...',
   items,
   filterFn,
   columns,
   onSelect,
   onCancel,
   onCreate,
-  createLabel = "Create Item",
+  createLabel = 'Create Item',
   rowKey,
-  emptyMessage = "No items found.",
+  emptyMessage = 'No items found.',
 }: Props<T>) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
+
+  useEscape(onCancel);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-      }
-      if (e.altKey && e.key.toLowerCase() === "c") {
+      if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
         onCreate();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onCancel, onCreate]);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onCreate]);
 
   const filtered = items.filter((item) => filterFn(item, search));
 
   const selectionActions = [
-    { key: "Alt+C", label: createLabel, onClick: onCreate },
-    { key: "Esc", label: "Quit", onClick: onCancel },
+    { key: 'Alt+C', label: createLabel, onClick: onCreate },
+    { key: 'Esc', label: 'Quit', onClick: onCancel },
   ];
 
   return (

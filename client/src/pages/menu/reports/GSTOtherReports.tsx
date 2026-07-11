@@ -1,10 +1,11 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 
 // GST Reports → Other Reports submenu.
 export default function GSTOtherReports() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const items: Array<{ label: string; route: string }> = [
     { label: 'Marked Vouchers', route: '/master/statutory/gst/marked-vouchers' },
@@ -45,14 +46,6 @@ export default function GSTOtherReports() {
               <Link to={item.route}>{item.label}</Link>
             </Button>
           ))}
-          <Button
-            onClick={() => navigate(-1)}
-            variant="ghost"
-            size="xs"
-            className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-          >
-            Quit
-          </Button>
         </div>
       </CardContent>
     </Card>

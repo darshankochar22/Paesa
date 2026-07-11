@@ -1,9 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 
 export default function JobWorkReports() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const sections = [
     {
@@ -28,10 +29,6 @@ export default function JobWorkReports() {
     {
       title: 'VARIANCE ANALYSIS',
       items: ['Issue Variance', 'Receipt Variance'],
-    },
-    {
-      title: '',
-      items: ['Quit'],
     },
   ];
 
@@ -79,19 +76,6 @@ export default function JobWorkReports() {
             )}
             <div className="flex flex-col pl-3 gap-0.5">
               {section.items.map((item) => {
-                if (item === 'Quit') {
-                  return (
-                    <Button
-                      key={item}
-                      onClick={() => navigate(-1)}
-                      variant="ghost"
-                      size="xs"
-                      className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-                    >
-                      {item}
-                    </Button>
-                  );
-                }
                 const route = getRoute(section.title, item);
                 return route ? (
                   <Button

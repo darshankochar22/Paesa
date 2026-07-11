@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
+import { useEscape } from '@/hooks/useEscape';
 
 /**
  * Tally-style "Applicability" row:
@@ -13,11 +14,7 @@ import { useEffect, useRef, useState } from "react";
  * "Is Excise applicable" and "Is VAT/CST applicable" rows in
  * `OtherStatutoryModal`.
  */
-export const APPLICABILITY_OPTIONS = [
-  "Applicable",
-  "Not Applicable",
-  "Undefined",
-] as const;
+export const APPLICABILITY_OPTIONS = ['Applicable', 'Not Applicable', 'Undefined'] as const;
 
 export type ApplicabilityValue = (typeof APPLICABILITY_OPTIONS)[number];
 
@@ -41,9 +38,9 @@ export default function ApplicabilityDropdown({
   onChange,
   options = APPLICABILITY_OPTIONS,
   helper,
-  labelWidth = "w-56",
+  labelWidth = 'w-56',
   emphasized = false,
-  title = "Applicability",
+  title = 'Applicability',
 }: ApplicabilityDropdownProps) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState<string>(value);
@@ -58,27 +55,19 @@ export default function ApplicabilityDropdown({
     if (!open) return;
     const onClick = (e: MouseEvent) => {
       if (
-        panelRef.current && !panelRef.current.contains(e.target as Node) &&
-        valueRef.current && !valueRef.current.contains(e.target as Node)
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node) &&
+        valueRef.current &&
+        !valueRef.current.contains(e.target as Node)
       ) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [open]);
+  useEscape(() => setOpen(false), open);
 
   return (
     <>
@@ -88,30 +77,22 @@ export default function ApplicabilityDropdown({
       >
         <span
           className={`${labelWidth} text-[12px] shrink-0 pt-0.5 leading-tight ${
-            emphasized ? "text-zinc-800 font-bold" : "text-zinc-700"
+            emphasized ? 'text-zinc-800 font-bold' : 'text-zinc-700'
           }`}
         >
           {label}
           {helper && (
-            <span className="block text-[11px] text-zinc-500 italic mt-0.5">
-              {helper}
-            </span>
+            <span className="block text-[11px] text-zinc-500 italic mt-0.5">{helper}</span>
           )}
         </span>
-        <span
-          className={`text-zinc-400 mr-2 shrink-0 pt-0.5 ${
-            emphasized ? "font-bold" : ""
-          }`}
-        >
+        <span className={`text-zinc-400 mr-2 shrink-0 pt-0.5 ${emphasized ? 'font-bold' : ''}`}>
           :
         </span>
         <span
           ref={valueRef}
           className={`text-[12px] px-1.5 -mx-1 rounded-sm transition-colors select-none ${
-            open
-              ? "bg-zinc-200 text-zinc-900"
-              : "text-zinc-800 hover:bg-zinc-100"
-          } ${emphasized ? "font-bold" : "font-medium"}`}
+            open ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-800 hover:bg-zinc-100'
+          } ${emphasized ? 'font-bold' : 'font-medium'}`}
         >
           ♦ {value}
         </span>
@@ -139,8 +120,8 @@ export default function ApplicabilityDropdown({
                     }}
                     className={`px-3 py-1.5 text-[12px] cursor-pointer select-none border-b border-zinc-100 last:border-0 ${
                       active
-                        ? "bg-zinc-200 text-zinc-900 font-medium"
-                        : "text-zinc-700 hover:bg-zinc-50"
+                        ? 'bg-zinc-200 text-zinc-900 font-medium'
+                        : 'text-zinc-700 hover:bg-zinc-50'
                     }`}
                   >
                     {opt}

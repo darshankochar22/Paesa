@@ -1,11 +1,12 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 
 export default function MSMEReports() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
-  const items = ['MSME Form 1 Statement', 'Update Party MSME Details', 'Quit'];
+  const items = ['MSME Form 1 Statement', 'Update Party MSME Details'];
 
   const getRoute = (item: string) => {
     if (item === 'MSME Form 1 Statement') {
@@ -38,20 +39,6 @@ export default function MSMEReports() {
 
       <CardContent className="flex flex-col pl-3 gap-0.5">
         {items.map((item) => {
-          if (item === 'Quit') {
-            return (
-              <Button
-                key={item}
-                onClick={() => navigate(-1)}
-                variant="ghost"
-                size="xs"
-                className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-              >
-                {item}
-              </Button>
-            );
-          }
-
           const route = getRoute(item);
           if (route) {
             return (

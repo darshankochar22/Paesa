@@ -1,6 +1,6 @@
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 // The title strip at the top of every report / register panel.
 // Title + optional company + period + breadcrumb, with an optional right slot
@@ -22,24 +22,24 @@ export interface ReportHeaderProps {
   className?: string;
 }
 
+// Note: onClose/showClose are accepted for compatibility but no longer render
+// a close button — quitting a panel is footer-only (Quit button / Esc), which
+// pops the central escape stack one layer at a time.
 export default function ReportHeader({
   title,
   companyName,
   periodLabel,
   breadcrumb,
   right,
-  onClose,
-  showClose = true,
   className,
 }: ReportHeaderProps) {
   const navigate = useNavigate();
-  const close = onClose ?? (() => navigate(-1));
 
   return (
     <div
       className={cn(
-        "bg-zinc-900 text-white px-3 py-1.5 flex items-center justify-between select-none",
-        className
+        'bg-zinc-900 text-white px-3 py-1.5 flex items-center justify-between select-none',
+        className,
       )}
     >
       <div className="flex flex-col min-w-0">
@@ -63,30 +63,14 @@ export default function ReportHeader({
           </div>
         )}
         <div className="flex items-baseline gap-2 min-w-0">
-          <span className="text-xs font-semibold uppercase tracking-wider truncate">
-            {title}
-          </span>
-          {companyName && (
-            <span className="text-[10px] text-zinc-400 truncate">{companyName}</span>
-          )}
+          <span className="text-xs font-semibold uppercase tracking-wider truncate">{title}</span>
+          {companyName && <span className="text-[10px] text-zinc-400 truncate">{companyName}</span>}
         </div>
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        {periodLabel && (
-          <span className="text-[10px] text-zinc-400 font-mono">{periodLabel}</span>
-        )}
+        {periodLabel && <span className="text-[10px] text-zinc-400 font-mono">{periodLabel}</span>}
         {right}
-        {showClose && (
-          <button
-            onClick={close}
-            className="text-zinc-400 hover:text-white text-base leading-none px-1"
-            aria-label="Close"
-            title="Close (Esc)"
-          >
-            &times;
-          </button>
-        )}
       </div>
     </div>
   );

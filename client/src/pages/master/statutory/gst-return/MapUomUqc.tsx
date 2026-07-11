@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
+import { useEscape } from '@/hooks/useEscape';
 import { Button } from '@/components/shadcn/button';
 import {
   Table,
@@ -13,7 +14,10 @@ import {
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
 import { UqcPopup } from '../../inventory/unit/UqcPopup';
-import { EffectiveDatePrompt, type EffectiveDateOption } from '@/components/tally-ui/EffectiveDatePrompt';
+import {
+  EffectiveDatePrompt,
+  type EffectiveDateOption,
+} from '@/components/tally-ui/EffectiveDatePrompt';
 
 interface UnitRow {
   unit_id: number;
@@ -201,18 +205,12 @@ export default function MapUomUqc() {
     return () => window.removeEventListener('keydown', handler);
   }, [editUnit, rows, focusedIndex]);
 
-  // Escape closes the alteration popup, but only once its sub-popups are closed
-  // (those handle their own Escape).
-  useEffect(() => {
-    if (!editUnit) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || showEffDate || showUqcList) return;
-      e.preventDefault();
-      closeAlter();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [editUnit, showEffDate, showUqcList]);
+  // The alteration popup is a layer on the escape stack above the report;
+  // it declines while its own sub-popups are open (they handle their own Escape).
+  useEscape(() => {
+    if (showEffDate || showUqcList) return false;
+    closeAlter();
+  }, Boolean(editUnit));
 
   const effPresets: EffectiveDateOption[] = [
     { label: 'Current Date of Company', val: companyDate },

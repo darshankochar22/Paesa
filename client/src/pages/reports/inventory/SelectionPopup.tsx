@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 
 // The TallyPrime "Select <X>" popup that opens when an Inventory Books report
 // needs a group / category / godown chosen first. Renders as a centered popup
@@ -14,16 +14,16 @@ export interface SelectionItem {
 
 export interface SelectionColumn {
   label: string;
-  width?: string;                 // tailwind width class, e.g. "w-24"
-  align?: "left" | "right";
+  width?: string; // tailwind width class, e.g. "w-24"
+  align?: 'left' | 'right';
 }
 
 export interface SelectionPopupProps {
-  title: string;        // "Select Stock Group"
-  fieldLabel: string;   // "Name of Group"
-  listLabel: string;    // "List of Stock Groups"
+  title: string; // "Select Stock Group"
+  fieldLabel: string; // "Name of Group"
+  listLabel: string; // "List of Stock Groups"
   companyName?: string;
-  subtitle?: React.ReactNode;   // e.g. the already-chosen item, shown under company
+  subtitle?: React.ReactNode; // e.g. the already-chosen item, shown under company
   /** When set, the list renders as a multi-column table (Name + these columns). */
   columns?: SelectionColumn[];
   /** Header for the name column when `columns` is set (default "Name"). */
@@ -50,22 +50,21 @@ export default function SelectionPopup({
   companyName,
   subtitle,
   columns,
-  nameColLabel = "Name",
+  nameColLabel = 'Name',
   width,
   items,
   index,
   loading,
-  emptyText = "No records found.",
+  emptyText = 'No records found.',
   search,
   onSearchChange,
   onIndexChange,
   onAccept,
-  onCancel,
   onCreate,
 }: SelectionPopupProps) {
   const activeRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest" });
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
   }, [index]);
 
   return (
@@ -74,7 +73,9 @@ export default function SelectionPopup({
         style={{ width: width ?? 420 }}
         className="bg-white border border-zinc-400 shadow-xl flex flex-col max-h-[72vh]"
       >
-        <div className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-semibold text-center">{title}</div>
+        <div className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-semibold text-center">
+          {title}
+        </div>
 
         {companyName && (
           <div className="px-3 py-1.5 border-b border-zinc-300 bg-zinc-50 text-center text-[11px] font-semibold">
@@ -83,7 +84,9 @@ export default function SelectionPopup({
         )}
 
         {subtitle && (
-          <div className="px-3 py-1.5 border-b border-zinc-300 text-[11px] text-zinc-700">{subtitle}</div>
+          <div className="px-3 py-1.5 border-b border-zinc-300 text-[11px] text-zinc-700">
+            {subtitle}
+          </div>
         )}
 
         <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
@@ -92,21 +95,26 @@ export default function SelectionPopup({
           {onSearchChange ? (
             <input
               autoFocus
-              value={search ?? ""}
+              value={search ?? ''}
               onChange={(e) => onSearchChange(e.target.value)}
               className="flex-1 border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs outline-none focus:border-zinc-500"
             />
           ) : (
             <span className="flex-1 border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs font-bold truncate">
-              {items[index]?.name ?? ""}
+              {items[index]?.name ?? ''}
             </span>
           )}
         </div>
 
         <div className="flex items-center justify-between px-3 py-1 border-b border-zinc-300 bg-zinc-50">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-600">{listLabel}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-600">
+            {listLabel}
+          </span>
           {onCreate && (
-            <button onClick={onCreate} className="text-[10px] font-bold text-zinc-500 hover:text-zinc-900">
+            <button
+              onClick={onCreate}
+              className="text-[10px] font-bold text-zinc-500 hover:text-zinc-900"
+            >
               Create
             </button>
           )}
@@ -116,7 +124,10 @@ export default function SelectionPopup({
           <div className="flex px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-zinc-600">
             <span className="flex-1">{nameColLabel}</span>
             {columns.map((c, i) => (
-              <span key={i} className={`${c.width ?? "w-24"} ${c.align === "right" ? "text-right" : "text-left"}`}>
+              <span
+                key={i}
+                className={`${c.width ?? 'w-24'} ${c.align === 'right' ? 'text-right' : 'text-left'}`}
+              >
                 {c.label}
               </span>
             ))}
@@ -136,15 +147,20 @@ export default function SelectionPopup({
                 onClick={() => onIndexChange(idx)}
                 onDoubleClick={() => onAccept(idx)}
                 className={`flex px-3 py-1 text-xs cursor-pointer ${
-                  idx === index ? "bg-zinc-200 text-zinc-950 font-bold" : "hover:bg-zinc-100 text-zinc-800"
+                  idx === index
+                    ? 'bg-zinc-200 text-zinc-950 font-bold'
+                    : 'hover:bg-zinc-100 text-zinc-800'
                 }`}
               >
                 {columns && columns.length > 0 ? (
                   <>
                     <span className="flex-1 truncate">{it.name}</span>
                     {columns.map((c, i) => (
-                      <span key={i} className={`${c.width ?? "w-24"} ${c.align === "right" ? "text-right" : "text-left"}`}>
-                        {it.cols?.[i] ?? ""}
+                      <span
+                        key={i}
+                        className={`${c.width ?? 'w-24'} ${c.align === 'right' ? 'text-right' : 'text-left'}`}
+                      >
+                        {it.cols?.[i] ?? ''}
                       </span>
                     ))}
                   </>
@@ -157,8 +173,14 @@ export default function SelectionPopup({
         </div>
 
         <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600">
-          <button onClick={onCancel} className="hover:text-zinc-900">Q: Quit</button>
-          <button onClick={() => !loading && items.length > 0 && onAccept(index)} className={loading || items.length === 0 ? "text-zinc-300 cursor-default" : "hover:text-zinc-900"}>Enter: Accept</button>
+          <button
+            onClick={() => !loading && items.length > 0 && onAccept(index)}
+            className={
+              loading || items.length === 0 ? 'text-zinc-300 cursor-default' : 'hover:text-zinc-900'
+            }
+          >
+            Enter: Accept
+          </button>
         </div>
       </div>
     </div>

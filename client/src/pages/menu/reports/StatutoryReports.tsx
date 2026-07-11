@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 
@@ -16,7 +17,7 @@ const ROUTES: Record<string, string> = {
 };
 
 export default function StatutoryReports() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const sections = [
     {
@@ -30,7 +31,6 @@ export default function StatutoryReports() {
         'Central Excise Reports',
         'Service Tax Reports',
         'MSME Reports',
-        'Quit',
       ],
     },
   ];
@@ -64,20 +64,6 @@ export default function StatutoryReports() {
             {section.items.length > 0 && (
               <div className="flex flex-col pl-4 gap-0.5">
                 {section.items.map((item) => {
-                  if (item === 'Quit') {
-                    return (
-                      <Button
-                        key={item}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(-1)}
-                        className="h-auto justify-start px-2 py-1 font-semibold mt-2 text-xs"
-                      >
-                        {item}
-                      </Button>
-                    );
-                  }
-
                   const route = getRoute(section.title, item);
 
                   if (route) {

@@ -464,12 +464,6 @@ export default function StockItemReport() {
         onOpenVoucher={(r) => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
         footer={
           <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-            <button
-              onClick={() => setLevel({ step: 'summary', item: level.item })}
-              className="hover:text-zinc-900"
-            >
-              Q: Quit
-            </button>
             <span className="text-zinc-400">Enter: Open Voucher · ↑↓: Navigate · Esc: Back</span>
           </div>
         }
@@ -544,15 +538,6 @@ export default function StockItemReport() {
         sidebar={sidebar}
         footer={
           <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-            <button
-              onClick={() => {
-                setLevel({ step: 'select' });
-                setSumData(null);
-              }}
-              className="hover:text-zinc-900"
-            >
-              Q: Quit
-            </button>
             <span className="text-zinc-400">
               Enter: Show Vouchers · F7: {showProfit ? 'Hide' : 'Show'} Profit · ↑↓: Navigate
             </span>

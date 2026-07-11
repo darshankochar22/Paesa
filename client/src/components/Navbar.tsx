@@ -122,6 +122,7 @@ export default function Navbar() {
     {
       name: 'Import',
       options: [
+        { label: 'From TallyPrime', path: '/import/tally' },
         { label: 'Company Data' },
         { label: 'Masters', path: '/master/create' },
         { label: 'Transactions', path: '/transactions/vouchers' },

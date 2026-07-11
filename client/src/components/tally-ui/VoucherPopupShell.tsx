@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
+import { useEscape } from '@/hooks/useEscape';
 
 /**
  * Shared shell for every popup opened from a voucher entry screen
@@ -25,7 +26,7 @@ interface VoucherPopupShellProps {
   hint?: ReactNode;
   /** Extra footer actions rendered left of Cancel. */
   footerExtra?: ReactNode;
-  size?: "max" | "compact";
+  size?: 'max' | 'compact';
   /** Extra classes for the body wrapper (e.g. p-0 for edge-to-edge tables). */
   bodyClassName?: string;
   children: ReactNode;
@@ -36,38 +37,35 @@ export function VoucherPopupShell({
   headerRight,
   onClose,
   onAccept,
-  acceptLabel = "Accept",
+  acceptLabel = 'Accept',
   hint,
   footerExtra,
-  size = "max",
+  size = 'max',
   bodyClassName,
   children,
 }: VoucherPopupShellProps) {
-  // Esc always closes; Alt+A accepts when an accept handler exists.
+  // Esc closes via the central escape stack; Alt+A accepts when a handler exists.
+  useEscape(onClose);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
-      if (onAccept && e.altKey && (e.key === "a" || e.key === "A")) {
+      if (onAccept && e.altKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
         onAccept();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose, onAccept]);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onAccept]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 select-none">
       <div
         className={cn(
-          "bg-white border border-gray-300 shadow-2xl flex flex-col overflow-hidden",
-          size === "max"
-            ? "w-[calc(100vw-64px)] h-[calc(100vh-64px)] max-w-[1500px]"
-            : "min-w-[420px] max-w-[92vw] max-h-[90vh]"
+          'bg-white border border-gray-300 shadow-2xl flex flex-col overflow-hidden',
+          size === 'max'
+            ? 'w-[calc(100vw-64px)] h-[calc(100vh-64px)] max-w-[1500px]'
+            : 'min-w-[420px] max-w-[92vw] max-h-[90vh]',
         )}
       >
         {/* Header — long, clean, white */}
@@ -86,14 +84,14 @@ export function VoucherPopupShell({
         </div>
 
         {/* Body */}
-        <div className={cn("flex-1 overflow-y-auto px-6 py-4 select-text", bodyClassName)}>
+        <div className={cn('flex-1 overflow-y-auto px-6 py-4 select-text', bodyClassName)}>
           {children}
         </div>
 
         {/* Footer */}
         <div className="shrink-0 flex items-center justify-between px-6 py-3 border-t border-gray-300 bg-white">
           <span className="text-xs text-gray-600">
-            {hint ?? (onAccept ? "Alt+A: Accept  ·  Esc: Close" : "Esc: Close")}
+            {hint ?? (onAccept ? 'Alt+A: Accept  ·  Esc: Close' : 'Esc: Close')}
           </span>
           <div className="flex items-center gap-2">
             {footerExtra}

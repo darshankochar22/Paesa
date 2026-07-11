@@ -1,12 +1,13 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
+import { useEscapeBack } from '@/hooks/useEscape';
 
 // Statutory Reports → Payroll Reports (compact menu #206, parallel to GST/TDS/TCS).
 // Summary + Provident Fund open dedicated screens; the remaining components route to
 // their existing report screens.
 export default function PayrollReportsStatutory() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const items: Array<{ label: string; route: string }> = [
     { label: 'Summary', route: '/reports/statutory/payroll/summary' },
@@ -53,14 +54,6 @@ export default function PayrollReportsStatutory() {
               <Link to={item.route}>{item.label}</Link>
             </Button>
           ))}
-          <Button
-            onClick={() => navigate(-1)}
-            variant="ghost"
-            size="xs"
-            className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-          >
-            Quit
-          </Button>
         </div>
       </CardContent>
     </Card>
@@ -69,7 +62,7 @@ export default function PayrollReportsStatutory() {
 
 // Payroll Reports → Provident Fund submenu (#207/#208 fill the Form 5/10 screens).
 export function PFReportsMenu() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const sections: Array<{ title: string; items: Array<{ label: string; route: string }> }> = [
     {
@@ -140,14 +133,6 @@ export function PFReportsMenu() {
             </div>
           </div>
         ))}
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );
@@ -156,7 +141,7 @@ export function PFReportsMenu() {
 // Payroll Reports → Employee State Insurance submenu (#218-#222). Monthly: Form 3 /
 // Monthly Statement / E-Return; Half-Yearly: Form 5 / Form 6.
 export function ESIReportsMenu() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const sections: Array<{ title: string; items: Array<{ label: string; route: string }> }> = [
     {
@@ -212,14 +197,6 @@ export function ESIReportsMenu() {
             </div>
           </div>
         ))}
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );
@@ -227,7 +204,7 @@ export function ESIReportsMenu() {
 
 // Payroll Reports → National Pension Scheme submenu (#224-#226).
 export function NPSReportsMenu() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const items: Array<{ label: string; route: string }> = [
     {
@@ -266,14 +243,6 @@ export function NPSReportsMenu() {
               <Link to={item.route}>{item.label}</Link>
             </Button>
           ))}
-          <Button
-            onClick={() => navigate(-1)}
-            variant="ghost"
-            size="xs"
-            className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-          >
-            Quit
-          </Button>
         </div>
       </CardContent>
     </Card>
@@ -283,7 +252,7 @@ export function NPSReportsMenu() {
 // Payroll Reports → Income Tax submenu (#228-#233). Computation/Projection/Challan
 // Reconciliation, plus the e-TDS return forms (E-24Q / Form 27A / Form 24Q).
 export function IncomeTaxReportsMenu() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const sections: Array<{ title: string; items: Array<{ label: string; route: string }> }> = [
     {
@@ -352,14 +321,6 @@ export function IncomeTaxReportsMenu() {
             </div>
           </div>
         ))}
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );
@@ -368,7 +329,7 @@ export function IncomeTaxReportsMenu() {
 // Provident Fund → E-Return submenu (#214). Monthly: Form 5/10/12A, Annual: Form 3A —
 // each reuses its existing PF document screen.
 export function PFEReturnMenu() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const sections: Array<{ title: string; items: Array<{ label: string; route: string }> }> = [
     {
@@ -425,14 +386,6 @@ export function PFEReturnMenu() {
             </div>
           </div>
         ))}
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );

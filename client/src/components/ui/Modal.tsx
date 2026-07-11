@@ -1,5 +1,6 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+import { useEscape } from '@/hooks/useEscape';
 
 // Local modal — sharp, zinc, no radix/portal lib. A centered dialog over a
 // dimmed backdrop. For full-screen report/voucher views use FullScreenPanel
@@ -19,17 +20,10 @@ export default function Modal({
   onClose,
   title,
   footer,
-  width = "w-[480px]",
+  width = 'w-[480px]',
   children,
 }: ModalProps) {
-  React.useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  useEscape(onClose, open);
 
   if (!open) return null;
 
@@ -40,8 +34,8 @@ export default function Modal({
     >
       <div
         className={cn(
-          "bg-white border border-zinc-300 shadow-lg flex flex-col max-h-[85vh]",
-          width
+          'bg-white border border-zinc-300 shadow-lg flex flex-col max-h-[85vh]',
+          width,
         )}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -57,9 +51,7 @@ export default function Modal({
             </button>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto p-3 text-xs text-zinc-900">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto p-3 text-xs text-zinc-900">{children}</div>
         {footer && (
           <div className="px-3 py-2 border-t border-zinc-200 bg-zinc-50 flex justify-end gap-2">
             {footer}

@@ -1,5 +1,6 @@
-import * as React from "react";
-import Button from "./Button";
+import * as React from 'react';
+import Button from './Button';
+import { useEscape } from '@/hooks/useEscape';
 
 // The Tally "Accept? Yes/No" prompt repeated across ~70% of Create/Alter forms.
 // Y / Enter confirms, N / Esc cancels.
@@ -15,26 +16,28 @@ export interface ConfirmModalProps {
 
 export default function ConfirmModal({
   open,
-  message = "Accept?",
-  confirmLabel = "Yes",
-  cancelLabel = "No",
+  message = 'Accept?',
+  confirmLabel = 'Yes',
+  cancelLabel = 'No',
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  useEscape(onCancel, open);
+
   React.useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if (k === "y" || e.key === "Enter") {
+      if (k === 'y' || e.key === 'Enter') {
         e.preventDefault();
         onConfirm();
-      } else if (k === "n" || e.key === "Escape") {
+      } else if (k === 'n') {
         e.preventDefault();
         onCancel();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [open, onConfirm, onCancel]);
 
   if (!open) return null;
@@ -54,10 +57,12 @@ export default function ConfirmModal({
         </div>
         <div className="flex gap-2 px-4 py-3 justify-end">
           <Button variant="primary" size="sm" onClick={onConfirm}>
-            <u>{confirmLabel.charAt(0)}</u>{confirmLabel.slice(1)}
+            <u>{confirmLabel.charAt(0)}</u>
+            {confirmLabel.slice(1)}
           </Button>
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            <u>{cancelLabel.charAt(0)}</u>{cancelLabel.slice(1)}
+            <u>{cancelLabel.charAt(0)}</u>
+            {cancelLabel.slice(1)}
           </Button>
         </div>
       </div>

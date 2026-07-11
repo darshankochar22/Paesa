@@ -31,10 +31,75 @@
 const fs = require('fs');
 const path = require('path');
 
-const { initDB } = require('../../db/index');
+const { initDB, db } = require('../../db/index');
 const companyService = require('../../company/companyService');
 const financialYearService = require('../../financialYear/financialYearService');
 const importer = require('./importer');
+
+// GSTIN state-code (first 2 digits) -> state name, for the GST registration.
+const GST_STATE = {
+  '01': 'Jammu & Kashmir',
+  '02': 'Himachal Pradesh',
+  '03': 'Punjab',
+  '04': 'Chandigarh',
+  '05': 'Uttarakhand',
+  '06': 'Haryana',
+  '07': 'Delhi',
+  '08': 'Rajasthan',
+  '09': 'Uttar Pradesh',
+  10: 'Bihar',
+  11: 'Sikkim',
+  12: 'Arunachal Pradesh',
+  13: 'Nagaland',
+  14: 'Manipur',
+  15: 'Mizoram',
+  16: 'Tripura',
+  17: 'Meghalaya',
+  18: 'Assam',
+  19: 'West Bengal',
+  20: 'Jharkhand',
+  21: 'Odisha',
+  22: 'Chhattisgarh',
+  23: 'Madhya Pradesh',
+  24: 'Gujarat',
+  26: 'Dadra & Nagar Haveli and Daman & Diu',
+  27: 'Maharashtra',
+  29: 'Karnataka',
+  30: 'Goa',
+  31: 'Lakshadweep',
+  32: 'Kerala',
+  33: 'Tamil Nadu',
+  34: 'Puducherry',
+  35: 'Andaman & Nicobar Islands',
+  36: 'Telangana',
+  37: 'Andhra Pradesh',
+  38: 'Ladakh',
+};
+const stateFromGstin = (g) => (g && GST_STATE[g.slice(0, 2)]) || null;
+
+// Insert the company's own GST registration (the "GST Registration" master).
+const insertGstRegistration = async (companyId, gstin, companyName) => {
+  if (!gstin) return;
+  try {
+    const exists = await db.execute({
+      sql: 'SELECT gst_id FROM gst_registrations WHERE company_id = ? LIMIT 1',
+      args: [companyId],
+    });
+    if (exists.rows && exists.rows.length) return;
+    const now = new Date().toISOString();
+    await db.execute({
+      sql: `INSERT INTO gst_registrations
+              (company_id, registration_type, registration_status, gstin, state_id,
+               legal_name, trade_name, periodicity_of_gstr1, mode_of_filing, is_active,
+               created_at, updated_at)
+            VALUES (?, 'Regular', 'Active', ?, ?, ?, ?, 'Monthly', 'Not Applicable', 1, ?, ?)`,
+      args: [companyId, gstin, stateFromGstin(gstin), companyName, companyName, now, now],
+    });
+  } catch (err) {
+    // non-fatal — the import still succeeds without the registration row.
+    console.error('GST registration insert failed:', err.message);
+  }
+};
 
 // ----- CLI ------------------------------------------------------------------
 
@@ -220,6 +285,7 @@ const adapt = (masters, vouchersJson, opts) => {
       narration: v.narration || null,
       party: v.party || null,
       reference: v.reference || null,
+      dispatchThrough: v.dispatch_through || null,
       isAccounting: entries.length > 0,
       isInventory: inventoryEntries.length > 0,
       entries,
@@ -301,6 +367,91 @@ const ensureFinancialYears = async (company_id, fyStarts) => {
     }
   }
   return map;
+};
+
+// ----- reusable orchestration (shared by the CLI and the IPC handler) --------
+
+// Import an already-adapted `parsed` tree into a NEW/existing company, routing
+// vouchers to their financial year by date. Returns a structured summary; no
+// console output. `onProgress(phase, info)` is an optional progress callback.
+const importParsed = async (parsed, opts = {}) => {
+  const { company: companyName, fyStart, preserveNumbers = true, onProgress } = opts;
+  if (!companyName || !fyStart) throw new Error('importParsed: company and fyStart are required');
+  const progress = typeof onProgress === 'function' ? onProgress : () => {};
+
+  progress('company', { name: companyName });
+  const { company, created } = await findOrCreateCompany({
+    company: companyName,
+    fyStart,
+    state: opts.state || stateFromGstin(opts.companyGstin),
+    pincode: opts.pincode,
+  });
+
+  // The company's own GST registration (the "GST Registration" master).
+  if (opts.companyGstin)
+    await insertGstRegistration(company.company_id, opts.companyGstin, company.name);
+
+  const neededStarts = new Set(
+    parsed.vouchers.filter((v) => v.date).map((v) => fyStartForDate(v.date)),
+  );
+  neededStarts.add(fyStart);
+  const fyMap = await ensureFinancialYears(company.company_id, [...neededStarts].sort());
+
+  const ctx = {
+    company_id: company.company_id,
+    fy_id: (fyMap.get(fyStart) || {}).fy_id,
+    importMode: true,
+    preserveVoucherNumbers: !!preserveNumbers,
+  };
+
+  progress('masters', {});
+  const m = await importer.importMasters(parsed, ctx);
+  const masterSummary = {};
+  for (const k of ['groups', 'units', 'ledgers', 'stockItems']) {
+    masterSummary[k] = {
+      created: m[k].created,
+      skipped: m[k].skipped,
+      failed: m[k].failed,
+      errors: (m[k].errors || []).slice(0, 20),
+    };
+  }
+
+  const total = { created: 0, skipped: 0, failed: 0, errors: [] };
+  if (parsed.vouchers.length) {
+    const byFy = new Map();
+    for (const v of parsed.vouchers) {
+      const s = v.date ? fyStartForDate(v.date) : fyStart;
+      if (!byFy.has(s)) byFy.set(s, []);
+      byFy.get(s).push(v);
+    }
+    const sortedFy = [...byFy.entries()].sort();
+    let done = 0;
+    for (const [s, vs] of sortedFy) {
+      const fyRow = fyMap.get(s);
+      if (!fyRow) continue;
+      const fyCtx = { ...ctx, fy_id: fyRow.fy_id || fyRow.id };
+      const v = await importer.importVouchers({ ...parsed, vouchers: vs }, fyCtx, m.resolver);
+      const sres = v.vouchers;
+      total.created += sres.created;
+      total.skipped += sres.skipped;
+      total.failed += sres.failed;
+      total.errors.push(...(sres.errors || []));
+      done += vs.length;
+      progress('vouchers', { done, total: parsed.vouchers.length, fyStart: s });
+    }
+  }
+
+  return {
+    company: { company_id: company.company_id, name: company.name, created },
+    financialYears: [...fyMap.entries()].map(([s, r]) => ({ start: s, fy_id: r.fy_id || r.id })),
+    masters: masterSummary,
+    vouchers: {
+      created: total.created,
+      skipped: total.skipped,
+      failed: total.failed,
+      errors: total.errors.slice(0, 30),
+    },
+  };
 };
 
 // ----- main -------------------------------------------------------------------
@@ -418,7 +569,12 @@ const main = async () => {
   console.log('== done ==');
 };
 
-main().catch((err) => {
-  console.error('FATAL:', err && err.stack ? err.stack : err);
-  process.exit(1);
-});
+// Run as a CLI only when invoked directly; otherwise expose the reusable parts.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('FATAL:', err && err.stack ? err.stack : err);
+    process.exit(1);
+  });
+}
+
+module.exports = { adapt, importParsed, findOrCreateCompany, ensureFinancialYears, fyStartForDate };

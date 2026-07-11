@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useEscape } from '@/hooks/useEscape';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
 
@@ -82,6 +83,8 @@ export default function CreatePartyUsingGstin() {
 
   // Accept confirmation — Enter / Y = Yes, Esc / N = No. Capture phase + stopPropagation
   // so Esc dismisses the prompt without also triggering the layout's quit-on-Escape.
+  useEscape(() => setConfirmAccept(false), confirmAccept);
+
   useEffect(() => {
     if (!confirmAccept) return;
     const onKey = (e: KeyboardEvent) => {
@@ -90,7 +93,7 @@ export default function CreatePartyUsingGstin() {
         e.stopPropagation();
         setConfirmAccept(false);
         create();
-      } else if (e.key === 'Escape' || e.key === 'n' || e.key === 'N') {
+      } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         e.stopPropagation();
         setConfirmAccept(false);

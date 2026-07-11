@@ -77,17 +77,65 @@ export interface TallyDateRangeParams extends TallyEndpointParams {
   to_date?: string;
 }
 
+// ---- TallyPrime native-folder (.1800) import --------------------------------
+
+export interface TallyFolderPickResult {
+  success: boolean;
+  canceled?: boolean;
+  folder?: string;
+  dataDir?: string | null;
+  valid?: boolean;
+  error?: string | null;
+}
+
+export interface TallyFolderPreviewResult {
+  success: boolean;
+  dataDir?: string;
+  preview?: TallyPreview;
+  error?: string;
+}
+
+export interface TallyFolderImportSummary {
+  company: { company_id: number; name: string; created: boolean };
+  financialYears: { start: string; fy_id: number }[];
+  masters: Record<string, TallyImportSummary>;
+  vouchers: TallyImportSummary;
+}
+
+export interface TallyFolderImportResult {
+  success: boolean;
+  summary?: TallyFolderImportSummary;
+  error?: string;
+}
+
+export interface TallyFolderImportProgress {
+  phase: 'extract' | 'extracted' | 'company' | 'masters' | 'vouchers';
+  done?: number;
+  total?: number;
+  fyStart?: string;
+  name?: string;
+  preview?: TallyPreview;
+}
+
 export interface TallyAPI {
   tally: {
     testConnection: (params: TallyEndpointParams) => Promise<TallyTestConnectionResult>;
-    preview: (
-      params: TallyXmlParams | TallyDateRangeParams
-    ) => Promise<TallyPreviewResult>;
+    preview: (params: TallyXmlParams | TallyDateRangeParams) => Promise<TallyPreviewResult>;
     importMasters: (
-      params: ({ company_id: number; fy_id?: number }) & (TallyXmlParams | TallyEndpointParams)
+      params: { company_id: number; fy_id?: number } & (TallyXmlParams | TallyEndpointParams),
     ) => Promise<TallyImportMastersResult>;
     importVouchers: (
-      params: ({ company_id: number; fy_id: number }) & (TallyXmlParams | TallyDateRangeParams)
+      params: { company_id: number; fy_id: number } & (TallyXmlParams | TallyDateRangeParams),
     ) => Promise<TallyImportVouchersResult>;
+    // TallyPrime native-folder (.1800) import
+    pickFolder: () => Promise<TallyFolderPickResult>;
+    previewFolder: (params: { folder: string }) => Promise<TallyFolderPreviewResult>;
+    importFolder: (params: {
+      folder: string;
+      company_name: string;
+      fy_start: string;
+      preserve_numbers?: boolean;
+    }) => Promise<TallyFolderImportResult>;
+    onImportProgress: (cb: (info: TallyFolderImportProgress) => void) => () => void;
   };
 }

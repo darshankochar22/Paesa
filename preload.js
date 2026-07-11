@@ -771,6 +771,16 @@ contextBridge.exposeInMainWorld('api', {
     preview: (params) => invoke('tally:preview', params),
     importMasters: (params) => invoke('tally:importMasters', params),
     importVouchers: (params) => invoke('tally:importVouchers', params),
+    // TallyPrime native-folder (.1800) import
+    pickFolder: () => invoke('tally:pickFolder'),
+    previewFolder: (params) => invoke('tally:previewFolder', params),
+    importFolder: (params) => invoke('tally:importFolder', params),
+    // progress events during a folder import; returns an unsubscribe fn
+    onImportProgress: (cb) => {
+      const listener = (_e, info) => cb(info);
+      ipcRenderer.on('tally:folderImportProgress', listener);
+      return () => ipcRenderer.removeListener('tally:folderImportProgress', listener);
+    },
   },
   eInvoice: {
     getStatus: (company_id) => invoke('eInvoice:getStatus', { company_id }),

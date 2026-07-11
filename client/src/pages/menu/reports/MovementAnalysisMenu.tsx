@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 
@@ -21,7 +22,7 @@ const ITEMS = [
 ];
 
 export default function MovementAnalysisMenu() {
-  const navigate = useNavigate();
+  useEscapeBack();
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
@@ -63,14 +64,6 @@ export default function MovementAnalysisMenu() {
             </Button>
           );
         })}
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );

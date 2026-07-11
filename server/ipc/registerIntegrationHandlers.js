@@ -122,6 +122,10 @@ function register() {
   ipcMain.handle('tally:preview', tallyController.preview);
   ipcMain.handle('tally:importMasters', tallyController.importMasters);
   ipcMain.handle('tally:importVouchers', tallyController.importVouchers);
+  // TallyPrime native-folder (.1800) import
+  ipcMain.handle('tally:pickFolder', tallyController.pickTallyFolder);
+  ipcMain.handle('tally:previewFolder', tallyController.previewTallyFolder);
+  ipcMain.handle('tally:importFolder', tallyController.importTallyFolder);
 }
 
 module.exports = { register };

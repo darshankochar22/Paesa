@@ -197,12 +197,6 @@ export default function MarkedVouchers() {
         <span className="w-32 text-right pr-2 border-l border-zinc-300">{fmtAmt(totalDebit)}</span>
         <span className="w-32 text-right pr-2 border-l border-zinc-300">{fmtAmt(totalCredit)}</span>
       </div>
-
-      <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => navigate(-1)} className="hover:underline hover:text-zinc-900">
-          Q: Quit
-        </button>
-      </div>
     </div>
   );
 }

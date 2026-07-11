@@ -1,7 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
-import { Separator } from '@/components/shadcn/separator';
 
 const BASE = '/reports/receivables-payables';
 const slug = (s: string) =>
@@ -13,7 +13,7 @@ const items = (labels: string[]) =>
   labels.map((label) => ({ label, route: `${BASE}/${slug(label)}` }));
 
 export default function ReceivablesPayables() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const sections = [
     {
@@ -124,16 +124,6 @@ export default function ReceivablesPayables() {
             </div>
           </div>
         ))}
-
-        <Separator className="my-1" />
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );

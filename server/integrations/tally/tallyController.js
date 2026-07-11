@@ -17,9 +17,45 @@
 // importer, which goes through the existing services. The controller only
 // orchestrates fetch -> parse -> import and shapes { success, ... } results.
 // ---------------------------------------------------------------------------
-const client = require("./client");
-const parser = require("./xmlParser");
-const importer = require("./importer");
+const fs = require('fs');
+const path = require('path');
+const client = require('./client');
+const parser = require('./xmlParser');
+const importer = require('./importer');
+const { extractCompany } = require('./binExtract');
+const { adapt, importParsed } = require('./binImportRunner');
+
+// A TallyPrime data folder must contain these native files.
+const REQUIRED_BIN_FILES = ['Manager.1800', 'TranMgr.1800'];
+
+// Resolve the company data dir for a picked folder.
+//   { dir }           -> the folder itself, or its single company sub-dir, holds the .1800 files
+//   { candidates }     -> the folder holds several company sub-dirs (Data/<number>/...); ambiguous
+//   { dir:null }       -> no Tally data anywhere under it
+const resolveTallyDataDir = (folder) => {
+  const has = (dir) => REQUIRED_BIN_FILES.every((f) => fs.existsSync(path.join(dir, f)));
+  if (folder && has(folder)) return { dir: folder, candidates: [] };
+  let entries = [];
+  try {
+    entries = fs.readdirSync(folder, { withFileTypes: true });
+  } catch (_) {
+    return { dir: null, candidates: [] };
+  }
+  const hits = entries
+    .filter((e) => e.isDirectory())
+    .map((e) => path.join(folder, e.name))
+    .filter(has);
+  if (hits.length === 1) return { dir: hits[0], candidates: [] };
+  return { dir: null, candidates: hits };
+};
+
+// Human message for the "no single data dir" case.
+const dataDirError = (candidates) =>
+  candidates && candidates.length > 1
+    ? `This folder holds ${candidates.length} companies (${candidates
+        .map((c) => path.basename(c))
+        .join(', ')}). Open one company sub-folder instead.`
+    : 'No TallyPrime data here (Manager.1800 / TranMgr.1800 not found).';
 
 // Fetch master XML (groups + ledgers + stock items + units) from a live Tally
 // and return one merged ParsedTally. Returns { success:false, error } on the
@@ -38,7 +74,7 @@ const fetchAndParseMasters = async (options) => {
   }
 
   const parsed = {
-    meta: { source: "tally-xml", requestType: "Export", collectionType: "Master" },
+    meta: { source: 'tally-xml', requestType: 'Export', collectionType: 'Master' },
     groups: parser.parseGroups(g.xml),
     ledgers: parser.parseLedgers(l.xml),
     stockItems: parser.parseStockItems(s.xml),
@@ -55,7 +91,7 @@ const fetchAndParseVouchers = async (from_date, to_date, options) => {
     return { success: false, error: v.error, code: v.code, status: v.status };
   }
   const parsed = {
-    meta: { source: "tally-xml", requestType: "Export", collectionType: "Voucher" },
+    meta: { source: 'tally-xml', requestType: 'Export', collectionType: 'Voucher' },
     groups: [],
     ledgers: [],
     stockItems: [],
@@ -118,7 +154,7 @@ module.exports = {
     try {
       const { company_id, fy_id, xml, host, port } = payload;
       if (company_id == null) {
-        return { success: false, error: "company_id is required" };
+        return { success: false, error: 'company_id is required' };
       }
 
       let parsed;
@@ -150,10 +186,10 @@ module.exports = {
     try {
       const { company_id, fy_id, xml, host, port, from_date, to_date } = payload;
       if (company_id == null) {
-        return { success: false, error: "company_id is required" };
+        return { success: false, error: 'company_id is required' };
       }
       if (fy_id == null) {
-        return { success: false, error: "fy_id is required for voucher import" };
+        return { success: false, error: 'fy_id is required for voucher import' };
       }
 
       let parsed;
@@ -167,6 +203,89 @@ module.exports = {
 
       const result = await importer.importVouchers(parsed, { company_id, fy_id });
       return { success: true, vouchers: result.vouchers };
+    } catch (err) {
+      return { success: false, error: err && err.message ? err.message : String(err) };
+    }
+  },
+
+  // ---- TallyPrime native-folder import (.1800 binary) --------------------
+
+  // Open a native directory picker so the user selects their Tally data folder.
+  //   pickTallyFolder()
+  pickTallyFolder: async () => {
+    try {
+      const { dialog, BrowserWindow } = require('electron');
+      const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null;
+      const res = await dialog.showOpenDialog(win, {
+        title: 'Select TallyPrime data folder',
+        properties: ['openDirectory'],
+        message:
+          'Choose the company folder (or the Data folder) containing Manager.1800 / TranMgr.1800',
+      });
+      if (res.canceled || !res.filePaths || !res.filePaths.length) {
+        return { success: true, canceled: true };
+      }
+      const folder = res.filePaths[0];
+      const { dir, candidates } = resolveTallyDataDir(folder);
+      return {
+        success: true,
+        canceled: false,
+        folder,
+        dataDir: dir,
+        valid: !!dir,
+        error: dir ? null : dataDirError(candidates),
+      };
+    } catch (err) {
+      return { success: false, error: err && err.message ? err.message : String(err) };
+    }
+  },
+
+  // Decode a folder WITHOUT writing anything — returns counts so the UI can
+  // preview before committing.  previewTallyFolder({ folder })
+  previewTallyFolder: async (_event, { folder } = {}) => {
+    try {
+      const { dir: dataDir, candidates } = resolveTallyDataDir(folder || '');
+      if (!dataDir) return { success: false, error: dataDirError(candidates) };
+      const { masters, vouchers } = extractCompany(dataDir);
+      const { parsed } = adapt(masters, { vouchers }, {});
+      return { success: true, dataDir, preview: importer.preview(parsed) };
+    } catch (err) {
+      return { success: false, error: err && err.message ? err.message : String(err) };
+    }
+  },
+
+  // Full import of a TallyPrime folder into a NEW (or matched) company.
+  //   importTallyFolder({ folder, company_name, fy_start, preserve_numbers })
+  importTallyFolder: async (
+    event,
+    { folder, company_name, fy_start, preserve_numbers = true } = {},
+  ) => {
+    try {
+      const { dir: dataDir, candidates } = resolveTallyDataDir(folder || '');
+      if (!dataDir) return { success: false, error: dataDirError(candidates) };
+      if (!company_name || !company_name.trim())
+        return { success: false, error: 'Company name is required.' };
+      if (!fy_start || !/^\d{4}-\d{2}-\d{2}$/.test(fy_start))
+        return { success: false, error: 'Financial-year start (YYYY-MM-DD) is required.' };
+
+      const send = (info) => {
+        try {
+          event && event.sender && event.sender.send('tally:folderImportProgress', info);
+        } catch (_) {}
+      };
+      send({ phase: 'extract' });
+      const { masters, vouchers } = extractCompany(dataDir);
+      const { parsed } = adapt(masters, { vouchers }, {});
+      send({ phase: 'extracted', preview: importer.preview(parsed) });
+
+      const summary = await importParsed(parsed, {
+        company: company_name.trim(),
+        fyStart: fy_start,
+        preserveNumbers: !!preserve_numbers,
+        companyGstin: (masters.company && masters.company.gstin) || null,
+        onProgress: (phase, i) => send({ phase, ...i }),
+      });
+      return { success: true, summary };
     } catch (err) {
       return { success: false, error: err && err.message ? err.message : String(err) };
     }

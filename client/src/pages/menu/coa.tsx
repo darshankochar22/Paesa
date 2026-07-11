@@ -1,11 +1,13 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useCompany } from '@/context/CompanyContext';
+import { useEscapeBack } from '@/hooks/useEscape';
 
 export default function COA() {
   const { selectedCompany } = useCompany();
   const [masterSections, setMasterSections] = useState<{ title: string; items: string[] }[]>([]);
   const navigate = useNavigate();
+  useEscapeBack('/');
 
   useEffect(() => {
     const companyId = selectedCompany?.company_id;
@@ -70,10 +72,6 @@ export default function COA() {
           <div className="text-2xl font-semibold">Chart of Accounts</div>
 
           <div className="flex flex-col items-end gap-3">
-            <Link to="/" className="rounded px-2 py-1 hover:bg-zinc-100 transition-colors">
-              Back
-            </Link>
-
             <div className="flex flex-col items-end gap-2 mt-4">
               <div className="text-lg font-semibold">Company</div>
               <button className="rounded px-2 py-1 hover:bg-zinc-100 transition-colors">

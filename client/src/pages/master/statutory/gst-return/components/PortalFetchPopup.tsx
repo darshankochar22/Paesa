@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useEscape } from '@/hooks/useEscape';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -57,19 +58,9 @@ export default function PortalFetchPopup({
     setErr(null);
   }, [open]);
 
-  // Capture-phase Escape so the screen's own key handlers don't fire underneath.
-  useEffect(() => {
-    if (!open || loginOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [open, loginOpen, onClose]);
+  // Escape via the central stack; while the login dialog is stacked above,
+  // this popup steps off the stack so the dialog pops first.
+  useEscape(onClose, open && !loginOpen);
 
   if (!open) return null;
 

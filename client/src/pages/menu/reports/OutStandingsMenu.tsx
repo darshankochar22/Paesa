@@ -1,9 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 
 export default function OutstandingsMenu() {
-  const navigate = useNavigate();
+  useEscapeBack();
   const items = [
     { label: 'Receivables', route: '/reports/accounts/outstandings-receivable' },
     { label: 'Payables', route: '/reports/accounts/outstandings-payable' },
@@ -43,14 +44,6 @@ export default function OutstandingsMenu() {
             <Link to={item.route}>{item.label}</Link>
           </Button>
         ))}
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => navigate(-1)}
-          className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );

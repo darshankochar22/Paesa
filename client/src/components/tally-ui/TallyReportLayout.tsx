@@ -1,6 +1,7 @@
-import React from "react";
-import { useNavigate, Link } from "react-router-dom";
-import PageTitleBar from "@/components/ui/PageTitleBar";
+import React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import PageTitleBar from '@/components/ui/PageTitleBar';
+import { useEscape } from '@/hooks/useEscape';
 
 interface TallyReportLayoutProps {
   title: string;
@@ -33,16 +34,7 @@ export function TallyReportLayout({
     }
   };
 
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        handleQuit();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleQuit]);
+  useEscape(handleQuit);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
@@ -70,9 +62,7 @@ export function TallyReportLayout({
       {/* Subtitle Info Area — period/context (left) and report actions (right) */}
       {(leftSubtitle || rightSubtitle || footerControls) && (
         <div className="flex justify-between items-center px-3 py-1 bg-white border-b border-black">
-          <div className="flex items-center gap-3 text-[10px] text-black">
-            {leftSubtitle}
-          </div>
+          <div className="flex items-center gap-3 text-[10px] text-black">{leftSubtitle}</div>
           <div className="flex items-center gap-3 text-[10px] font-bold text-black">
             {rightSubtitle}
             {footerControls}
@@ -81,9 +71,7 @@ export function TallyReportLayout({
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-auto bg-white">
-        {children}
-      </div>
+      <div className="flex-1 overflow-auto bg-white">{children}</div>
     </div>
   );
 }

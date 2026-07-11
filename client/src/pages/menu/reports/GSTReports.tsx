@@ -1,9 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 
 export default function GSTReports() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const sections = [
     {
@@ -26,7 +27,7 @@ export default function GSTReports() {
     },
     {
       title: 'OTHER',
-      items: ['Invoice Management System (IMS)', 'GST Utilities', 'Other Reports', 'Quit'],
+      items: ['Invoice Management System (IMS)', 'GST Utilities', 'Other Reports'],
     },
   ];
 
@@ -110,20 +111,6 @@ export default function GSTReports() {
             {section.items.length > 0 && (
               <div className="flex flex-col pl-3 gap-0.5">
                 {section.items.map((item) => {
-                  if (item === 'Quit') {
-                    return (
-                      <Button
-                        key={item}
-                        onClick={() => navigate(-1)}
-                        variant="ghost"
-                        size="xs"
-                        className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-                      >
-                        {item}
-                      </Button>
-                    );
-                  }
-
                   const route = getRoute(section.title, item);
 
                   if (route) {

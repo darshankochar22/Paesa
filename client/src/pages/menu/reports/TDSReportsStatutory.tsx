@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
 
@@ -6,7 +7,7 @@ import { Button } from '@/components/shadcn/button';
 // Reconciliation" opens the dedicated screen; the other reports route to their existing
 // ReportRunner reports.
 export default function TDSReportsStatutory() {
-  const navigate = useNavigate();
+  useEscapeBack();
 
   const items: Array<{ label: string; route: string }> = [
     { label: 'Challan Reconciliation', route: '/reports/statutory/tds/challan-reconciliation' },
@@ -49,14 +50,6 @@ export default function TDSReportsStatutory() {
               <Link to={item.route}>{item.label}</Link>
             </Button>
           ))}
-          <Button
-            onClick={() => navigate(-1)}
-            variant="ghost"
-            size="xs"
-            className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900"
-          >
-            Quit
-          </Button>
         </div>
       </CardContent>
     </Card>

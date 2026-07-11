@@ -1,17 +1,21 @@
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
 
 const fmtAmt = (val: number | null | undefined) => {
   const n = Number(val) || 0;
-  if (n === 0) return "";
-  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (n === 0) return '';
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const formatDate = (dateStr?: string | null) => {
-  if (!dateStr) return "";
+  if (!dateStr) return '';
   try {
-    return new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: '2-digit',
+    });
   } catch {
     return dateStr;
   }
@@ -32,7 +36,7 @@ export default function CancelledVouchers() {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
-  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
+  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '';
 
   const [rows, setRows] = React.useState<CancelledRow[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -40,11 +44,14 @@ export default function CancelledVouchers() {
   const [focusIndex, setFocusIndex] = React.useState(0);
 
   React.useEffect(() => {
-    if (!companyId || !fyId) { setLoading(false); return; }
+    if (!companyId || !fyId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     (window as any).api.report
-      .run("cancelled_voucher_register", {
+      .run('cancelled_voucher_register', {
         company_id: companyId,
         fy_id: fyId,
         from_date: activeFY?.start_date,
@@ -52,25 +59,46 @@ export default function CancelledVouchers() {
       })
       .then((res: any) => {
         if (res?.success) setRows(res.rows ?? []);
-        else setError(res?.error || "Failed to load cancelled vouchers");
+        else setError(res?.error || 'Failed to load cancelled vouchers');
         setLoading(false);
       })
-      .catch((e: any) => { setError(e?.message || "Failed to load cancelled vouchers"); setLoading(false); });
+      .catch((e: any) => {
+        setError(e?.message || 'Failed to load cancelled vouchers');
+        setLoading(false);
+      });
   }, [companyId, fyId, activeFY?.start_date, activeFY?.end_date]);
 
-  const drill = React.useCallback((row?: CancelledRow) => {
-    if (row?.voucher_id) navigate(`/transactions/voucher/${row.voucher_id}`);
-  }, [navigate]);
+  const drill = React.useCallback(
+    (row?: CancelledRow) => {
+      if (row?.voucher_id) navigate(`/transactions/voucher/${row.voucher_id}`);
+    },
+    [navigate],
+  );
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") { e.preventDefault(); setFocusIndex((p) => Math.min(rows.length - 1, p + 1)); return; }
-      if (e.key === "ArrowUp") { e.preventDefault(); setFocusIndex((p) => Math.max(0, p - 1)); return; }
-      if (e.key === "Enter") { e.preventDefault(); drill(rows[focusIndex]); return; }
-      if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); navigate(-1); }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusIndex((p) => Math.min(rows.length - 1, p + 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusIndex((p) => Math.max(0, p - 1));
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        drill(rows[focusIndex]);
+        return;
+      }
+      if (e.key === 'Escape' || e.key === 'Backspace') {
+        e.preventDefault();
+        navigate(-1);
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [rows, focusIndex, drill, navigate]);
 
   const totalDebit = rows.reduce((s, r) => s + (Number(r.debit_total) || 0), 0);
@@ -80,7 +108,7 @@ export default function CancelledVouchers() {
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
       <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
         <span className="font-bold text-sm tracking-wide">Cancelled Voucher Register</span>
-        <span className="font-bold text-sm">{selectedCompany?.name || "Company"}</span>
+        <span className="font-bold text-sm">{selectedCompany?.name || 'Company'}</span>
         <span />
       </div>
       <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
@@ -97,20 +125,36 @@ export default function CancelledVouchers() {
               <th className="px-3 py-1 text-left font-bold w-32">Vch Type</th>
               <th className="px-3 py-1 text-right font-bold w-20">Vch No.</th>
               <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
-                Debit Amount<br /><span className="font-normal text-zinc-500">Inwards Qty</span>
+                Debit Amount
+                <br />
+                <span className="font-normal text-zinc-500">Inwards Qty</span>
               </th>
               <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
-                Credit Amount<br /><span className="font-normal text-zinc-500">Outwards Qty</span>
+                Credit Amount
+                <br />
+                <span className="font-normal text-zinc-500">Outwards Qty</span>
               </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">
+                  Loading...
+                </td>
+              </tr>
             ) : error ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-600">{error}</td></tr>
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-zinc-600">
+                  {error}
+                </td>
+              </tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">No cancelled vouchers found.</td></tr>
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">
+                  No cancelled vouchers found.
+                </td>
+              </tr>
             ) : (
               rows.map((row, idx) => {
                 const isFocused = idx === focusIndex;
@@ -119,16 +163,24 @@ export default function CancelledVouchers() {
                     key={row.voucher_id}
                     onClick={() => setFocusIndex(idx)}
                     onDoubleClick={() => drill(row)}
-                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
                   >
                     <td className="px-3 py-1 whitespace-nowrap">{formatDate(row.date)}</td>
                     <td className="px-3 py-1 truncate max-w-xs">
-                      {row.party_name ? row.party_name : <span className="italic text-zinc-500">(cancelled)</span>}
+                      {row.party_name ? (
+                        row.party_name
+                      ) : (
+                        <span className="italic text-zinc-500">(cancelled)</span>
+                      )}
                     </td>
                     <td className="px-3 py-1">{row.voucher_type}</td>
-                    <td className="px-3 py-1 text-right">{row.voucher_number || ""}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtAmt(row.debit_total)}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtAmt(row.credit_total)}</td>
+                    <td className="px-3 py-1 text-right">{row.voucher_number || ''}</td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                      {fmtAmt(row.debit_total)}
+                    </td>
+                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                      {fmtAmt(row.credit_total)}
+                    </td>
                   </tr>
                 );
               })
@@ -144,10 +196,6 @@ export default function CancelledVouchers() {
         <span className="w-20" />
         <span className="w-32 text-right pr-2 border-l border-zinc-300">{fmtAmt(totalDebit)}</span>
         <span className="w-32 text-right pr-2 border-l border-zinc-300">{fmtAmt(totalCredit)}</span>
-      </div>
-
-      <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => navigate(-1)} className="hover:underline hover:text-zinc-900">Q: Quit</button>
       </div>
     </div>
   );

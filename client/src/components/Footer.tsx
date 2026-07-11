@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCompany } from '../context/CompanyContext';
+import { popEscape } from '../lib/escapeStack';
 import CompanyFeatures from './CompanyFeatures';
 
 export default function Footer() {
@@ -47,6 +48,11 @@ export default function Footer() {
   }, []);
 
   const handleQuit = () => {
+    // Pop exactly one layer off the central escape stack (popup → drill →
+    // screen). Falls back to the legacy synthetic-Escape path only for
+    // screens not yet registered on the stack.
+    if (popEscape()) return;
+
     const currentPath = location.pathname;
     dispatchKey('Escape');
 
@@ -78,6 +84,7 @@ export default function Footer() {
   };
 
   const handleCancel = () => {
+    if (popEscape()) return;
     dispatchKey('Escape');
   };
 

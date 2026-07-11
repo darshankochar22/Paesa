@@ -516,6 +516,7 @@ const importVouchersPhase = async (parsedVouchers, ctx, resolver) => {
       voucher_type: voucherType,
       date: v.date,
       narration: v.narration || null,
+      reference_number: v.reference || null,
       party_name: v.party || null,
       party_ledger_id: partyLedgerId,
       is_accounting_voucher: v.isAccounting ? 1 : 1, // accounting entries exist
