@@ -15,8 +15,11 @@ const featureGroupController = require('../featureGroup/featureGroupController')
 const featureItemController = require('../featureItem/featureItemController');
 const companyFeatureValuesController = require('../companyFeatureValues/companyFeatureValuesController');
 const masterController = require('../master/masterController');
+const pincodeController = require('../pincode/pincodeController');
 
 function register() {
+  ipcMain.handle('pincode:lookup', pincodeController.lookup);
+
   ipcMain.handle('company:create', companyController.create);
   ipcMain.handle('company:getAll', companyController.getAll);
   ipcMain.handle('company:getById', companyController.getById);

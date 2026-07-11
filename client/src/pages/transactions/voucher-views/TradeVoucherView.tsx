@@ -6,6 +6,7 @@ import {
   ReadOnlyStockTable,
   STOCK_TABLE_VARIANT,
 } from './shared';
+import { gstComponentOf } from '../utils/gstRow';
 
 // Trade vouchers — Sales / Purchase / Credit Note / Debit Note.
 // Credit Note mirrors Sales (party Cr, "Sales ledger"); Debit Note mirrors
@@ -22,8 +23,14 @@ export default function TradeVoucherView({
 }) {
   const t = voucher.voucher_type;
 
+  // A tax ledger: tagged as a GST duty ledger in statutory details, OR its name
+  // resolves to a GST component (Input CGST / SGST / IGST / Cess) — the latter
+  // catches ledgers that carry the rate in their name but have no statutory tag,
+  // which is why their Rate % was previously blank on the voucher view.
   const isTaxEntry = (e: (typeof voucher.entries)[number]) =>
-    e.type_of_duty_tax === 'GST' || !!e.gst_tax_type;
+    e.type_of_duty_tax === 'GST' ||
+    !!e.gst_tax_type ||
+    gstComponentOf({ gst_tax_type: e.gst_tax_type, name: e.ledger_name }) !== null;
   const isParty = (e: (typeof voucher.entries)[number]) =>
     e.ledger_id === voucher.party_ledger_id || e.ledger_name === voucher.party_name;
 

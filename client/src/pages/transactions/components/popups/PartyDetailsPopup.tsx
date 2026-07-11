@@ -1,13 +1,14 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { INDIAN_STATES } from '../../../../constants/states';
 import LedgerListPanel from '../LedgerListPanel';
-import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
+import { TallyFieldPopup } from '@/components/tally-ui/TallyFieldPopup';
 
 export interface PartyDetails {
   supplier_name?: string;
   mailing_name?: string;
   address?: string;
   address_type?: string;
+  pincode?: string;
   state?: string;
   country?: string;
   gst_registration_type?: string;
@@ -19,6 +20,7 @@ export interface PartyDetails {
   consignee_name?: string;
   consignee_mailing_name?: string;
   consignee_address?: string;
+  consignee_pincode?: string;
   consignee_state?: string;
   consignee_country?: string;
   consignee_gst_registration_type?: string;
@@ -67,8 +69,10 @@ const NO_GSTIN_TYPES = ['Consumer', 'Unregistered'];
 // 2 digits + 5 letters + 4 digits + letter + alnum + 'Z' + alnum (15 chars).
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
 
+// Tally sub-form field: borderless resting state, active field gets a gray fill
+// (theme substitute for Tally's yellow) + underline. Compact row height.
 const inputCls =
-  'flex-1 min-w-0 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black';
+  'flex-1 min-w-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black';
 
 const ledgerAddress = (l: any) =>
   [l?.address1, l?.address2, l?.city, l?.pincode].filter(Boolean).join('\n');
@@ -76,11 +80,20 @@ const ledgerAddress = (l: any) =>
 // One party side (Buyer/Supplier or Consignee). Rendered twice so both columns
 // stay identical — extend here, never duplicate the markup per side.
 type ColKey =
-  'name' | 'mailingName' | 'address' | 'state' | 'country' | 'gstType' | 'gstin' | 'addressType';
+  | 'name'
+  | 'mailingName'
+  | 'address'
+  | 'pincode'
+  | 'state'
+  | 'country'
+  | 'gstType'
+  | 'gstin'
+  | 'addressType';
 interface ColValues {
   name: string;
   mailingName: string;
   address: string;
+  pincode: string;
   state: string;
   country: string;
   gstType: string;
@@ -88,6 +101,7 @@ interface ColValues {
   addressType: string;
 }
 function PartyColumn({
+  side,
   title,
   values,
   onChange,
@@ -95,6 +109,7 @@ function PartyColumn({
   autoFocusName,
   showAddressType,
 }: {
+  side: 'buyer' | 'consignee';
   title: string;
   values: ColValues;
   onChange: (key: ColKey, value: string) => void;
@@ -110,6 +125,7 @@ function PartyColumn({
         <span className="text-sm text-black shrink-0">:</span>
         <input
           type="text"
+          data-pd-name={side}
           className={inputCls}
           value={values.name}
           onChange={(e) => onChange('name', e.target.value)}
@@ -182,6 +198,21 @@ function PartyColumn({
         />
       </div>
 
+      <div className="flex items-center gap-2">
+        <span className="w-32 text-sm text-black shrink-0">Pincode</span>
+        <span className="text-sm text-black shrink-0">:</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          className={inputCls}
+          value={values.pincode}
+          // digits only, max 6 — a full PIN triggers the state/country lookup
+          onChange={(e) => onChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
+          maxLength={6}
+          placeholder="Optional"
+        />
+      </div>
+
       <div className="flex items-center gap-2 pt-2 border-t border-gray-300">
         <span className="w-32 text-sm text-black shrink-0">GST Reg. type</span>
         <span className="text-sm text-black shrink-0">:</span>
@@ -228,6 +259,7 @@ const BUYER_MAP: Record<ColKey, keyof PartyDetails> = {
   name: 'supplier_name',
   mailingName: 'mailing_name',
   address: 'address',
+  pincode: 'pincode',
   state: 'state',
   country: 'country',
   gstType: 'gst_registration_type',
@@ -238,6 +270,7 @@ const CONSIGNEE_MAP: Record<ColKey, keyof PartyDetails> = {
   name: 'consignee_name',
   mailingName: 'consignee_mailing_name',
   address: 'consignee_address',
+  pincode: 'consignee_pincode',
   state: 'consignee_state',
   country: 'consignee_country',
   gstType: 'consignee_gst_registration_type',
@@ -261,10 +294,17 @@ export default function PartyDetailsPopup({
   const dMailing =
     initialDetails?.mailing_name ?? partyLedger?.mailing_name ?? partyLedger?.name ?? '';
   const dAddress = initialDetails?.address ?? ledgerAddress(partyLedger);
+  const dPincode = initialDetails?.pincode ?? partyLedger?.pincode ?? '';
   const dState = initialDetails?.state ?? partyLedger?.state ?? '';
   const dCountry = initialDetails?.country ?? partyLedger?.country ?? 'India';
+  // The ledger master column is `registration_type` (default 'Unregistered'),
+  // NOT `gst_registration_type` — read the real column so the party's actual GST
+  // registration shows instead of silently defaulting to Regular.
   const dGstType =
-    initialDetails?.gst_registration_type ?? partyLedger?.gst_registration_type ?? 'Regular';
+    initialDetails?.gst_registration_type ??
+    partyLedger?.registration_type ??
+    partyLedger?.gst_registration_type ??
+    'Regular';
   const dGstin = initialDetails?.gstin ?? partyLedger?.gstin ?? '';
 
   const [form, setForm] = useState<PartyDetails>({
@@ -272,15 +312,18 @@ export default function PartyDetailsPopup({
     mailing_name: dMailing,
     address: dAddress,
     address_type: initialDetails?.address_type ?? 'Primary',
+    pincode: dPincode,
     state: dState,
     country: dCountry,
     gst_registration_type: dGstType,
     gstin: dGstin,
     nature_of_return: initialDetails?.nature_of_return ?? '',
-    place_of_supply: initialDetails?.place_of_supply ?? partyLedger?.state ?? '',
+    place_of_supply:
+      initialDetails?.place_of_supply ?? partyLedger?.place_of_supply ?? partyLedger?.state ?? '',
     consignee_name: initialDetails?.consignee_name ?? dName,
     consignee_mailing_name: initialDetails?.consignee_mailing_name ?? dMailing,
     consignee_address: initialDetails?.consignee_address ?? dAddress,
+    consignee_pincode: initialDetails?.consignee_pincode ?? dPincode,
     consignee_state: initialDetails?.consignee_state ?? dState,
     consignee_country: initialDetails?.consignee_country ?? dCountry,
     consignee_gst_registration_type: initialDetails?.consignee_gst_registration_type ?? dGstType,
@@ -291,6 +334,26 @@ export default function PartyDetailsPopup({
   const [ledgerSearchTerm, setLedgerSearchTerm] = useState('');
   // Which side the ledger picker fills when a row is chosen.
   const [pickerTarget, setPickerTarget] = useState<'buyer' | 'consignee'>('buyer');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Move keyboard focus to the field right after a side's name input, so closing
+  // the ledger picker hands control back into the form and Enter keeps advancing
+  // (mouse never required). We focus the *next* field, not the name itself —
+  // focusing the name would re-open the picker (its onFocus) and loop.
+  const focusAfterName = (side: 'buyer' | 'consignee') => {
+    const root = contentRef.current;
+    if (!root) return;
+    const fields = Array.from(root.querySelectorAll<HTMLElement>('input, select, textarea')).filter(
+      (el) => !(el as HTMLInputElement).disabled && el.offsetParent !== null,
+    );
+    const nameEl = root.querySelector<HTMLElement>(`[data-pd-name="${side}"]`);
+    const idx = nameEl ? fields.indexOf(nameEl) : -1;
+    const next = idx >= 0 ? fields[idx + 1] : undefined;
+    if (next) {
+      next.focus();
+      if (next.tagName === 'INPUT') (next as HTMLInputElement).select();
+    }
+  };
 
   const set = (field: keyof PartyDetails, value: string) => {
     setForm((prev) => {
@@ -301,6 +364,36 @@ export default function PartyDetailsPopup({
       }
       return next;
     });
+  };
+
+  // Fetch State/Country from the backend PIN resolver and fill the matching
+  // side. Best-effort: a malformed/unknown PIN or an offline call is a no-op,
+  // and we never overwrite a State the user already picked for another PIN.
+  const applyPincode = useCallback(async (side: 'buyer' | 'consignee', pin: string) => {
+    if (pin.length !== 6) return;
+    try {
+      const res = await window.api.pincode.lookup(pin);
+      if (!res?.matched || !res.state) return;
+      setForm((prev) => {
+        const map = side === 'consignee' ? CONSIGNEE_MAP : BUYER_MAP;
+        const next: PartyDetails = { ...prev };
+        next[map.state] = res.state;
+        if (res.country) next[map.country] = res.country;
+        // Keep Place of Supply synced to the Buyer's State unless diverged.
+        if (side === 'buyer' && (!prev.place_of_supply || prev.place_of_supply === prev.state)) {
+          next.place_of_supply = res.state;
+        }
+        return next;
+      });
+    } catch {
+      /* offline / handler missing — leave the fields for manual entry */
+    }
+  }, []);
+
+  // Per-side field change: normal set, plus a PIN lookup once 6 digits are in.
+  const handleColChange = (side: 'buyer' | 'consignee', k: ColKey, v: string) => {
+    set(side === 'consignee' ? CONSIGNEE_MAP[k] : BUYER_MAP[k], v);
+    if (k === 'pincode') applyPincode(side, v);
   };
 
   const handleSave = () => onSave(form);
@@ -314,10 +407,13 @@ export default function PartyDetailsPopup({
         [map.name]: item.name,
         [map.mailingName]: item.mailing_name || item.name,
         [map.address]: ledgerAddress(item),
+        [map.pincode]: item.pincode || '',
         [map.state]: item.state || '',
         [map.country]: item.country || 'India',
         [map.gstin]: item.gstin || '',
-        [map.gstType]: item.gst_registration_type || 'Regular',
+        // Ledger master exposes `registration_type`; fall back to the legacy
+        // key just in case a caller passes an already-mapped object.
+        [map.gstType]: item.registration_type || item.gst_registration_type || 'Regular',
       };
       // Buyer state always re-derives Place of Supply on a fresh party selection.
       if (target === 'buyer') next.place_of_supply = item.state || '';
@@ -329,6 +425,8 @@ export default function PartyDetailsPopup({
       fillFromLedger(item, pickerTarget);
       setShowLedgerPanel(false);
       setLedgerSearchTerm('');
+      // Hand focus back into the form so Enter continues to the next field.
+      setTimeout(() => focusAfterName(pickerTarget), 0);
     },
     [pickerTarget],
   );
@@ -357,15 +455,26 @@ export default function PartyDetailsPopup({
   const openPicker = (target: 'buyer' | 'consignee') => {
     setPickerTarget(target);
     setShowLedgerPanel(true);
+    // Seed the search with the side's current name so the list opens with the
+    // CURRENT party highlighted — Enter keeps it (instead of grabbing the first
+    // ledger in the list and wiping the party's fetched details).
+    setLedgerSearchTerm(
+      (target === 'consignee' ? form.consignee_name : form.supplier_name)?.trim() ?? '',
+    );
+  };
+
+  // Close the ledger picker and return focus to the form (Enter keeps flowing).
+  const dismissPicker = () => {
+    setShowLedgerPanel(false);
     setLedgerSearchTerm('');
+    setTimeout(() => focusAfterName(pickerTarget), 0);
   };
 
   // While the ledger picker is open, Esc / Cancel should close the picker,
   // not the whole popup (preserves the previous guarded-Escape behavior).
   const handleClose = () => {
     if (showLedgerPanel) {
-      setShowLedgerPanel(false);
-      setLedgerSearchTerm('');
+      dismissPicker();
     } else {
       onClose();
     }
@@ -377,15 +486,15 @@ export default function PartyDetailsPopup({
 
   return (
     <>
-      <VoucherPopupShell
+      <TallyFieldPopup
         title="Party Details"
-        headerRight={partyLedger?.name}
         onClose={handleClose}
         onAccept={handleAccept}
+        width={840}
       >
-        <div className="max-w-[900px] space-y-3">
+        <div ref={contentRef} className="space-y-2">
           {natureOfReturnLabel && (
-            <div className="flex items-center gap-2 pb-3 border-b border-gray-300">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-300">
               <span className="w-44 text-sm text-black shrink-0">{natureOfReturnLabel}</span>
               <span className="text-sm text-black shrink-0">:</span>
               <select
@@ -411,8 +520,9 @@ export default function PartyDetailsPopup({
             </div>
           )}
 
-          <div className="flex gap-8">
+          <div className="flex gap-6">
             <PartyColumn
+              side="buyer"
               title={buyerLabel}
               autoFocusName={!natureOfReturnLabel}
               showAddressType
@@ -421,28 +531,31 @@ export default function PartyDetailsPopup({
                 name: form.supplier_name ?? '',
                 mailingName: form.mailing_name ?? '',
                 address: form.address ?? '',
+                pincode: form.pincode ?? '',
                 state: form.state ?? '',
                 country: form.country ?? '',
                 gstType: form.gst_registration_type ?? 'Regular',
                 gstin: form.gstin ?? '',
                 addressType: form.address_type ?? 'Primary',
               }}
-              onChange={(k, v) => set(BUYER_MAP[k], v)}
+              onChange={(k, v) => handleColChange('buyer', k, v)}
             />
             <PartyColumn
+              side="consignee"
               title="Consignee (Ship to)"
               onNameFocus={() => openPicker('consignee')}
               values={{
                 name: form.consignee_name ?? '',
                 mailingName: form.consignee_mailing_name ?? '',
                 address: form.consignee_address ?? '',
+                pincode: form.consignee_pincode ?? '',
                 state: form.consignee_state ?? '',
                 country: form.consignee_country ?? '',
                 gstType: form.consignee_gst_registration_type ?? 'Regular',
                 gstin: form.consignee_gstin ?? '',
                 addressType: 'Primary',
               }}
-              onChange={(k, v) => set(CONSIGNEE_MAP[k], v)}
+              onChange={(k, v) => handleColChange('consignee', k, v)}
             />
           </div>
 
@@ -467,7 +580,7 @@ export default function PartyDetailsPopup({
             Press Alt+L to fetch details using GSTIN/UIN
           </div>
         </div>
-      </VoucherPopupShell>
+      </TallyFieldPopup>
 
       {showLedgerPanel && (
         <div className="fixed inset-y-0 right-0 z-[60] shadow-2xl">
@@ -477,10 +590,7 @@ export default function PartyDetailsPopup({
             searchTerm={ledgerSearchTerm}
             onSearchChange={setLedgerSearchTerm}
             onSelect={handleLedgerSelect}
-            onClose={() => {
-              setShowLedgerPanel(false);
-              setLedgerSearchTerm('');
-            }}
+            onClose={dismissPicker}
             onCreateNew={onCreateLedger}
             createLabel="Create"
             height="h-screen"

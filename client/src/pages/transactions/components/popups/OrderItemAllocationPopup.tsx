@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { BatchAllocation } from '../../types';
 import NewNumberPopup from './NewNumberPopup';
-import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
+import { TallyFieldPopup } from '@/components/tally-ui/TallyFieldPopup';
 import { parseDueOn, toLocalIsoDate } from '@/lib/dueDate';
 import { useCompany } from '@/context/CompanyContext';
 import OrderRowTrackingLine from './OrderRowTrackingLine';
@@ -520,7 +520,7 @@ export default function OrderItemAllocationPopup({
     saveAllocations(kept);
   };
 
-  // Esc / Alt+A are handled by VoucherPopupShell; these wrappers keep the old
+  // Esc / Ctrl+A are handled by TallyFieldPopup; these wrappers keep the old
   // guard — the New Number popup owns the keyboard while it is open.
   const guardedClose = () => {
     if (newNumber || negWarn) return;
@@ -560,15 +560,11 @@ export default function OrderItemAllocationPopup({
 
   return (
     <>
-      <VoucherPopupShell
-        title="Stock Item Allocations"
-        headerRight={
-          <span>
-            Item Allocations for : <span className="font-bold text-black">{itemName}</span>
-          </span>
-        }
+      <TallyFieldPopup
+        title={`Item Allocations for :  ${itemName}`}
         onClose={guardedClose}
         onAccept={guardedAccept}
+        width={720}
       >
         <div className="space-y-3">
           {error && (
@@ -862,7 +858,7 @@ export default function OrderItemAllocationPopup({
             </span>
           </div>
         </div>
-      </VoucherPopupShell>
+      </TallyFieldPopup>
 
       {newNumber && (
         <NewNumberPopup

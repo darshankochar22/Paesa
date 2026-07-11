@@ -616,6 +616,9 @@ contextBridge.exposeInMainWorld('api', {
   master: {
     getMenu: (company_id) => invoke('master:getMenu', company_id),
   },
+  pincode: {
+    lookup: (pincode) => invoke('pincode:lookup', pincode),
+  },
   tallyFeatures: {
     get: (company_id) => invoke('tallyFeatures:get', company_id),
     update: (data) => invoke('tallyFeatures:update', data),

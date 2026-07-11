@@ -778,4 +778,12 @@ export interface MasterDataAPI {
       company_id?: number,
     ) => Promise<{ success: boolean; menu: { title: string; items: string[] }[] }>;
   };
+  pincode: {
+    lookup: (pincode: string) => Promise<{
+      pincode: string;
+      state: string;
+      country: string;
+      matched: boolean;
+    }>;
+  };
 }
