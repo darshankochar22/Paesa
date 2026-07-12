@@ -25,6 +25,7 @@ interface VchSide {
   igst: number;
   cgst: number;
   sgst: number;
+  cess?: number;
   tax: number;
   invoice: number;
 }
@@ -107,6 +108,10 @@ export default function ReconVoucherRegister() {
           <TableCell className={NUM}>{fmt(p.book.taxable)}</TableCell>
           <TableCell className={NUM}>{fmt(p.book.igst)}</TableCell>
           <TableCell className={NUM}>{fmt(p.book.cgst)}</TableCell>
+          <TableCell className={NUM}>{fmt(p.book.sgst)}</TableCell>
+          <TableCell className={NUM}>{fmt(p.book.cess)}</TableCell>
+          <TableCell className={NUM}>{fmt(p.book.tax)}</TableCell>
+          <TableCell className={NUM}>{fmt(p.book.invoice)}</TableCell>
         </TableRow>,
       );
     }
@@ -122,6 +127,10 @@ export default function ReconVoucherRegister() {
           <TableCell className={NUM}>{fmt(p.portal.taxable)}</TableCell>
           <TableCell className={NUM}>{fmt(p.portal.igst)}</TableCell>
           <TableCell className={NUM}>{fmt(p.portal.cgst)}</TableCell>
+          <TableCell className={NUM}>{fmt(p.portal.sgst)}</TableCell>
+          <TableCell className={NUM}>{fmt(p.portal.cess)}</TableCell>
+          <TableCell className={NUM}>{fmt(p.portal.tax)}</TableCell>
+          <TableCell className={NUM}>{fmt(p.portal.invoice)}</TableCell>
         </TableRow>,
       );
     }
@@ -187,12 +196,16 @@ export default function ReconVoucherRegister() {
                 <TableHead className={cn(HEAD, 'w-28')}>Taxable Amount</TableHead>
                 <TableHead className={cn(HEAD, 'w-24')}>IGST</TableHead>
                 <TableHead className={cn(HEAD, 'w-24')}>CGST</TableHead>
+                <TableHead className={cn(HEAD, 'w-24')}>SGST/UTGST</TableHead>
+                <TableHead className={cn(HEAD, 'w-20')}>Cess</TableHead>
+                <TableHead className={cn(HEAD, 'w-24')}>Tax Amount</TableHead>
+                <TableHead className={cn(HEAD, 'w-28')}>Invoice Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {totalCount === 0 && (
                 <TableRow className="border-0 hover:bg-transparent">
-                  <TableCell colSpan={9} className="px-2 py-3 text-center text-zinc-400">
+                  <TableCell colSpan={13} className="px-2 py-3 text-center text-zinc-400">
                     No vouchers for this supplier.
                   </TableCell>
                 </TableRow>
@@ -204,7 +217,7 @@ export default function ReconVoucherRegister() {
                   <>
                     <TableRow key={key} className="border-0 hover:bg-transparent">
                       <TableCell
-                        colSpan={9}
+                        colSpan={13}
                         className="px-2 pt-2 pb-0.5 font-bold text-black underline"
                       >
                         {label} ({list.length})

@@ -12,6 +12,10 @@ import { useEffect } from 'react';
  *                        advancing — for span/div "fields" that open side
  *                        panels (Under/Group/Category/Unit). Give these
  *                        tabIndex={0} so the walker can land on them.
+ * - data-enter-advance   Pair with data-enter-click on an inline toggle
+ *                        (Yes/No span that flips a value in place rather than
+ *                        opening a panel): Enter clicks it AND advances to the
+ *                        next field, so keyboard flow isn't trapped on it.
  * - data-enter-skip      Excluded from the walk order.
  * - data-enter-newline   On a textarea: Enter inserts a newline as usual.
  * - data-enter-accept    Clicked when Enter is pressed on the last field
@@ -53,7 +57,16 @@ export function focusableFields(container: Element): HTMLElement[] {
 export function focusNextField(container: Element, current: HTMLElement): boolean {
   const fields = focusableFields(container);
   const idx = fields.indexOf(current);
-  const next = fields[idx + 1];
+  // When `current` is itself navigable, step to the next in walk order. When it
+  // isn't (e.g. a <button> panel-opener, which focusableFields excludes), anchor
+  // by DOM position instead — otherwise idx is -1 and we'd wrongly jump to the
+  // first field.
+  const next =
+    idx !== -1
+      ? fields[idx + 1]
+      : fields.find(
+          (f) => !!(current.compareDocumentPosition(f) & Node.DOCUMENT_POSITION_FOLLOWING),
+        );
   if (!next) return false;
   next.focus();
   if (next instanceof HTMLInputElement && (next.type === 'text' || next.type === 'number')) {
@@ -74,7 +87,13 @@ export function focusFieldAfter(el: HTMLElement | null) {
   if (!el) return;
   setTimeout(() => {
     const container = el.closest('[data-enter-nav]');
-    if (container) focusNextField(container, el);
+    if (!container) return;
+    // When the panel-opener was the last field, land on the Accept button so
+    // Enter confirms — matching Tally's "…last field → Accept" flow instead of
+    // dropping focus.
+    if (!focusNextField(container, el)) {
+      container.querySelector<HTMLElement>('[data-enter-accept]')?.focus();
+    }
   }, 50);
 }
 
@@ -101,6 +120,10 @@ export function useGlobalEnterNavigation() {
       if (target.hasAttribute('data-enter-click')) {
         e.preventDefault();
         target.click();
+        // Inline toggles (data-enter-advance) flip a value in place, so continue
+        // the Enter chain. Panel-openers omit it: their opened panel advances the
+        // chain itself on selection (focusFieldAfter), so we must stay put here.
+        if (target.hasAttribute('data-enter-advance')) focusNextField(container, target);
         return;
       }
 

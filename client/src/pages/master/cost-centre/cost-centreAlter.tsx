@@ -2,50 +2,20 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import {
+  FormRow,
   PageTitleBar,
   RightActionPanel,
   SearchInput,
   DataTable,
   NotificationBanner,
+  MasterFormFooter,
 } from '@/components/ui';
 import CostCentreFlatList from '@/components/CostCentreFlatList';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { CostCentreType } from '@/types/api';
 
-function Row({
-  label,
-  required,
-  children,
-  onClick,
-  rowRef,
-  enterClick,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-  onClick?: () => void;
-  rowRef?: React.Ref<HTMLDivElement>;
-  enterClick?: boolean;
-}) {
-  return (
-    <div
-      ref={rowRef}
-      {...(enterClick ? { tabIndex: 0, 'data-enter-click': true } : {})}
-      className={`flex items-start min-h-[36px] border-b border-zinc-100 last:border-0 ${onClick ? 'cursor-pointer hover:bg-zinc-50' : ''}${enterClick ? ' focus:bg-zinc-100 outline-none' : ''}`}
-      onClick={onClick}
-    >
-      <span className="w-64 text-[12px] text-zinc-600 shrink-0 py-1.5 pl-3 select-none">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </span>
-      <span className="text-zinc-400 mr-2 py-1.5 select-none">:</span>
-      <div className="flex-1 py-1">{children}</div>
-    </div>
-  );
-}
-
 const inputCls =
-  'w-full bg-transparent text-[12px] font-bold text-zinc-950 font-mono outline-none py-1 px-1 rounded-sm placeholder:text-zinc-300 border-b border-transparent focus:border-zinc-300 transition-colors';
+  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
 function SelectionPanel({
   costCentres,
@@ -87,16 +57,14 @@ function SelectionPanel({
       label: 'Name',
       span: 'col-span-5',
       render: (r: CostCentreType) => (
-        <span className="font-bold text-zinc-900 text-xs">{r.name}</span>
+        <span className="font-semibold text-black text-sm">{r.name}</span>
       ),
     },
     {
       key: 'alias',
       label: 'Alias',
       span: 'col-span-3',
-      render: (r: CostCentreType) => (
-        <span className="text-zinc-500 font-semibold">{r.alias || '—'}</span>
-      ),
+      render: (r: CostCentreType) => <span className="text-zinc-500">{r.alias || '—'}</span>,
     },
     {
       key: 'parent',
@@ -104,9 +72,7 @@ function SelectionPanel({
       span: 'col-span-4',
       render: (r: CostCentreType) => {
         const parent = costCentres.find((cc) => cc.cc_id === r.parent_id);
-        return (
-          <span className="text-zinc-500 font-semibold">{parent ? parent.name : 'Primary'}</span>
-        );
+        return <span className="text-zinc-500">{parent ? parent.name : 'Primary'}</span>;
       },
     },
   ];
@@ -117,10 +83,10 @@ function SelectionPanel({
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none font-mono text-[12px]">
+    <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Alter Cost Centre" subtitle="Select Cost Centre to Alter" />
 
-      <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0 font-sans">
+      <div className="p-3 border-b border-zinc-200 shrink-0">
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -141,15 +107,6 @@ function SelectionPanel({
         </div>
         <RightActionPanel actions={selectionActions} />
       </div>
-
-      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 font-sans">
-        <button
-          onClick={onCancel}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white shadow-sm text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
-        >
-          Cancel
-        </button>
-      </div>
     </div>
   );
 }
@@ -166,10 +123,9 @@ export default function CostCentreAlter() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showCCPanel, setShowCCPanel] = useState(false);
-  const [showAcceptPrompt, setShowAcceptPrompt] = useState(false);
 
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  const aliasInputRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
   const underRowRef = useRef<HTMLDivElement>(null);
 
   const loadCostCentres = useCallback(async () => {
@@ -184,11 +140,7 @@ export default function CostCentreAlter() {
 
   const handleSelectCC = (cc: CostCentreType) => {
     setSelectedCC(cc);
-    setForm({
-      name: cc.name,
-      alias: cc.alias || '',
-      parent_id: cc.parent_id,
-    });
+    setForm({ name: cc.name, alias: cc.alias || '', parent_id: cc.parent_id });
     setError(null);
     setSuccess(null);
   };
@@ -284,9 +236,7 @@ export default function CostCentreAlter() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (showAcceptPrompt) {
-          setShowAcceptPrompt(false);
-        } else if (showCCPanel) {
+        if (showCCPanel) {
           setShowCCPanel(false);
         } else if (selectedCC) {
           setSelectedCC(null);
@@ -295,48 +245,18 @@ export default function CostCentreAlter() {
           navigate('/master/alter');
         }
       }
-      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === 'a') {
+      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === 'a' && selectedCC && !showCCPanel) {
         e.preventDefault();
-        if (selectedCC) {
-          if (showAcceptPrompt) {
-            handleSubmit();
-          } else {
-            setShowAcceptPrompt(true);
-          }
-        }
+        handleSubmit();
       }
-      if (e.altKey && e.key.toLowerCase() === 'd') {
+      if (e.altKey && e.key.toLowerCase() === 'd' && selectedCC && !showCCPanel) {
         e.preventDefault();
-        if (selectedCC) {
-          handleDelete();
-        }
-      }
-
-      if (showAcceptPrompt) {
-        const k = e.key.toLowerCase();
-        if (k === 'y' || e.key === 'Enter') {
-          e.preventDefault();
-          handleSubmit();
-        } else if (k === 'n') {
-          e.preventDefault();
-          setShowAcceptPrompt(false);
-        }
+        handleDelete();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleSubmit, handleDelete, navigate, selectedCC, showCCPanel, showAcceptPrompt]);
-
-  const handleFormKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (e.currentTarget === nameInputRef.current) {
-        aliasInputRef.current?.focus();
-      } else if (e.currentTarget === aliasInputRef.current) {
-        setShowCCPanel(true);
-      }
-    }
-  };
+  }, [handleSubmit, handleDelete, navigate, selectedCC, showCCPanel]);
 
   if (!selectedCC || !form) {
     return (
@@ -350,12 +270,10 @@ export default function CostCentreAlter() {
   }
 
   const parentCC = form.parent_id ? costCentres.find((cc) => cc.cc_id === form.parent_id) : null;
-
-  // Filter out self and any descendants from potential parents to prevent loops
   const eligibleParents = costCentres.filter((cc) => cc.cc_id !== selectedCC.cc_id);
 
   const alterActions = [
-    { key: 'Alt+A', label: 'Accept', onClick: () => setShowAcceptPrompt(true) },
+    { key: 'Alt+A', label: 'Accept', onClick: handleSubmit },
     { key: 'Alt+D', label: 'Delete', onClick: handleDelete },
     {
       key: 'Esc',
@@ -369,158 +287,113 @@ export default function CostCentreAlter() {
 
   return (
     <div
-      className="flex-1 flex h-full bg-zinc-50 select-none text-zinc-950 font-mono text-[12px]"
+      className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden"
       data-enter-nav
     >
-      <div className="flex-1 flex flex-col min-h-0 relative p-6">
-        <div className="flex items-center gap-4 mb-6 shrink-0">
-          <button
-            onClick={() => {
-              setSelectedCC(null);
-              setForm(null);
-            }}
-            className="text-xs text-zinc-500 hover:text-zinc-800 font-sans"
-          >
-            &larr; Back to Selection
-          </button>
-          <span className="font-bold text-zinc-700 font-sans text-sm">Alter Cost Centre</span>
+      <PageTitleBar title="Cost Centre Alteration" subtitle={selectedCompany?.name} />
+
+      {error && (
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
+      )}
+      {success && (
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
+      )}
+
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex flex-col min-w-0 bg-white p-3 space-y-1 overflow-y-auto">
+          <div className="max-w-2xl space-y-1">
+            <FormRow
+              label="Name"
+              required
+              labelWidth="w-64"
+              className="flex items-center min-h-[26px]"
+            >
+              <input
+                autoFocus
+                ref={nameRef}
+                className={inputCls}
+                value={form.name || ''}
+                onChange={setField('name')}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  aliasRef.current?.focus();
+                }}
+              />
+            </FormRow>
+            <FormRow label="(alias)" labelWidth="w-64" className="flex items-center min-h-[26px]">
+              <input
+                ref={aliasRef}
+                className={inputCls}
+                value={form.alias || ''}
+                onChange={setField('alias')}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  setShowCCPanel(true);
+                }}
+              />
+            </FormRow>
+            <FormRow
+              label="Under"
+              labelWidth="w-64"
+              className="flex items-center min-h-[26px]"
+              onClick={() => setShowCCPanel(!showCCPanel)}
+              rowRef={underRowRef}
+              enterClick
+            >
+              <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
+                {parentCC ? parentCC.name : '— Primary —'}
+              </span>
+            </FormRow>
+          </div>
+          <div className="flex-1" />
         </div>
 
-        {error && (
-          <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
-        )}
-        {success && (
-          <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
-        )}
-
-        <div className="flex-1 flex min-h-0 relative">
-          <div className="flex-1 flex items-center justify-center p-4">
-            <div className="w-[600px] bg-white border border-zinc-300 shadow-md flex flex-col relative overflow-hidden">
-              {/* Header banner */}
-              <div className="bg-zinc-100 px-3 py-1.5 border-b border-zinc-200 text-center font-bold text-xs uppercase tracking-wider text-zinc-700">
-                Cost Centre Alteration
-              </div>
-
-              <div className="p-4 flex flex-col gap-1">
-                <Row label="Name" required>
-                  <input
-                    ref={nameInputRef}
-                    autoFocus
-                    className={inputCls}
-                    value={form.name || ''}
-                    onChange={setField('name')}
-                    onKeyDown={handleFormKeyDown}
-                  />
-                </Row>
-                <Row label="(alias)">
-                  <input
-                    ref={aliasInputRef}
-                    className={inputCls}
-                    value={form.alias || ''}
-                    onChange={setField('alias')}
-                    onKeyDown={handleFormKeyDown}
-                  />
-                </Row>
-                <Row
-                  label="Under"
-                  onClick={() => setShowCCPanel(true)}
-                  rowRef={underRowRef}
-                  enterClick
-                >
-                  <span className="text-[12px] font-bold text-zinc-950 font-mono py-1 px-1 block cursor-pointer">
-                    {parentCC ? parentCC.name : 'Primary'}
-                  </span>
-                </Row>
-              </div>
-
-              {/* Accept? Confirmation Overlay */}
-              {showAcceptPrompt && (
-                <div className="absolute bottom-4 right-4 bg-white border-2 border-zinc-800 p-4 shadow-lg z-50 flex flex-col items-center min-w-[150px] font-sans">
-                  <div className="text-xs font-bold text-zinc-800 mb-3">Accept?</div>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={handleSubmit}
-                      className="px-4 py-1 bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 rounded shadow"
-                    >
-                      Yes (Y)
-                    </button>
-                    <button
-                      onClick={() => setShowAcceptPrompt(false)}
-                      className="px-4 py-1 border border-zinc-300 text-zinc-600 text-xs font-bold hover:bg-zinc-50 rounded"
-                    >
-                      No (N)
-                    </button>
-                  </div>
-                </div>
-              )}
+        {showCCPanel && (
+          <div
+            className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white"
+            data-enter-nav-ignore
+          >
+            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 select-none">
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                Under Cost Centre
+              </span>
+              <button
+                onClick={() => setShowCCPanel(false)}
+                className="text-sm font-bold text-zinc-400 hover:text-black transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+            <div
+              className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b border-zinc-100 ${!form.parent_id ? 'font-bold text-black' : 'text-zinc-700 hover:bg-zinc-50'}`}
+              onClick={handleSelectPrimary}
+            >
+              <span className="truncate">Primary</span>
+            </div>
+            <div className="flex-1 min-h-0">
+              <CostCentreFlatList
+                costCentres={eligibleParents}
+                selectedId={form.parent_id as number}
+                onSelect={handleCCSelect}
+                showHeader={false}
+              />
             </div>
           </div>
-          <RightActionPanel actions={alterActions} />
-        </div>
+        )}
 
-        {/* Bottom actions footer */}
-        <div className="border-t border-zinc-200 pt-3 flex justify-between bg-zinc-50 shrink-0 font-sans pr-2 pl-2">
-          <button
-            onClick={handleDelete}
-            disabled={loading}
-            className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium shadow-sm"
-          >
-            Delete (Alt+D)
-          </button>
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                setSelectedCC(null);
-                setForm(null);
-              }}
-              className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
-            >
-              Quit
-            </button>
-            <button
-              onClick={() => setShowAcceptPrompt(true)}
-              disabled={loading}
-              className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
-            >
-              {loading ? 'Saving...' : 'Accept'}
-            </button>
-          </div>
-        </div>
+        <RightActionPanel actions={alterActions} />
       </div>
 
-      {/* Right panel parent selection */}
-      {showCCPanel && (
-        <div
-          className="w-80 border-l border-zinc-200 flex flex-col shrink-0 bg-white animate-slide-in"
-          data-enter-nav-ignore
-        >
-          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none shrink-0 font-sans">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-              Under Cost Centre
-            </span>
-            <button
-              onClick={() => setShowCCPanel(false)}
-              className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors"
-            >
-              &times;
-            </button>
-          </div>
-          <div
-            className={`flex items-center min-h-[28px] px-3 py-1 cursor-pointer text-[12px] select-none border-b ${!form.parent_id ? 'bg-zinc-100 font-bold text-black' : 'text-zinc-700 hover:bg-zinc-50'}`}
-            onClick={handleSelectPrimary}
-          >
-            <span className="truncate">Primary</span>
-          </div>
-          <div className="flex-1 min-h-0">
-            <CostCentreFlatList
-              costCentres={eligibleParents}
-              selectedId={form.parent_id as number}
-              onSelect={handleCCSelect}
-              showHeader={false}
-            />
-          </div>
-        </div>
-      )}
+      <MasterFormFooter
+        onCancel={() => {
+          setSelectedCC(null);
+          setForm(null);
+        }}
+        onSubmit={handleSubmit}
+        loading={loading}
+      />
     </div>
   );
 }

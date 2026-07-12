@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, NotificationBanner } from '@/components/ui';
+import { FormRow, PageTitleBar, NotificationBanner, YesNoSelect } from '@/components/ui';
 import GroupFlatList from '@/components/GroupFlatList';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { GroupType } from '@/types/api';
@@ -12,14 +12,9 @@ import TDSNatureOfPaymentCreation from './TDSNatureOfPaymentCreation';
 import TCSNatureOfGoodsCreation from './TCSNatureOfGoodsCreation';
 import StatutorySection from './StatutorySection';
 
-function Row({
-  label,
-  required,
-  children,
-  onClick,
-  rowRef,
-  enterClick,
-}: {
+// Thin wrapper over the shared FormRow (same component the Ledger screens use)
+// so Group fields render with identical row + input chrome. Data/handlers unchanged.
+function Row(props: {
   label: string;
   required?: boolean;
   children: React.ReactNode;
@@ -27,27 +22,14 @@ function Row({
   rowRef?: React.Ref<HTMLDivElement>;
   enterClick?: boolean;
 }) {
-  return (
-    <div
-      ref={rowRef}
-      {...(enterClick ? { tabIndex: 0, 'data-enter-click': true } : {})}
-      className={`flex items-start last:border-0 min-h-[36px]${onClick ? ' cursor-pointer hover:bg-zinc-50' : ''}${enterClick ? ' focus:bg-zinc-100 outline-none' : ''}`}
-      onClick={onClick}
-    >
-      <span className="w-64 text-sm text-zinc-600 shrink-0 py-1.5">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </span>
-      <span className="text-zinc-400 mr-2 py-1.5">:</span>
-      <div className="flex-1 py-1">{children}</div>
-    </div>
-  );
+  return <FormRow labelWidth="w-64" className="flex items-start min-h-[32px]" {...props} />;
 }
 
+// Boxed input/select styling matching the Ledger creation screen.
 const inputCls =
-  'w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-300 transition-colors';
+  'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 const selectCls =
-  'w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer border-b border-transparent focus:border-zinc-300 transition-colors';
+  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
 const NATURES = ['Assets', 'Liabilities', 'Income', 'Expenses'];
 const ALLOC_METHODS = ['Not Applicable', 'Appropriate by Quantity', 'Appropriate by Value'];
@@ -423,26 +405,23 @@ export default function GroupCreate() {
             <div className="" />
 
             <div className="border rounded overflow-hidden">
-              <Row
-                label="Group behaves like a sub-ledger"
-                onClick={toggleField('behaves_like_subledger')}
-                enterClick
-              >
-                <span className="text-sm py-1">{form.behaves_like_subledger ? 'Yes' : 'No'}</span>
+              <Row label="Group behaves like a sub-ledger">
+                <YesNoSelect
+                  value={form.behaves_like_subledger}
+                  onChange={toggleField('behaves_like_subledger')}
+                />
               </Row>
-              <Row
-                label="Nett Debit/Credit Balances for Reporting"
-                onClick={toggleField('show_net_debit_credit')}
-                enterClick
-              >
-                <span className="text-sm py-1">{form.show_net_debit_credit ? 'Yes' : 'No'}</span>
+              <Row label="Nett Debit/Credit Balances for Reporting">
+                <YesNoSelect
+                  value={form.show_net_debit_credit}
+                  onChange={toggleField('show_net_debit_credit')}
+                />
               </Row>
-              <Row
-                label="Used for calculation (for example: taxes, discounts) (for sales invoice entries)"
-                onClick={toggleField('used_for_calculation')}
-                enterClick
-              >
-                <span className="text-sm py-1">{form.used_for_calculation ? 'Yes' : 'No'}</span>
+              <Row label="Used for calculation (for example: taxes, discounts) (for sales invoice entries)">
+                <YesNoSelect
+                  value={form.used_for_calculation}
+                  onChange={toggleField('used_for_calculation')}
+                />
               </Row>
               <Row label="Method to allocate when used in purchase invoice">
                 <select
@@ -462,13 +441,8 @@ export default function GroupCreate() {
                 const dbKey = meta.dbKey as keyof GroupType;
                 const isYes = form[dbKey] as number;
                 return (
-                  <Row
-                    key={key}
-                    label={meta.label}
-                    onClick={() => handleFeatureToggle(dbKey, key)}
-                    enterClick
-                  >
-                    <span className="text-sm py-1">{isYes ? 'Yes' : 'No'}</span>
+                  <Row key={key} label={meta.label}>
+                    <YesNoSelect value={isYes} onChange={() => handleFeatureToggle(dbKey, key)} />
                   </Row>
                 );
               })}

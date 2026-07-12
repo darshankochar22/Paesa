@@ -8,6 +8,7 @@ export { default as DataTable } from './DataTable';
 export type { TableColumn } from './DataTable';
 export { default as MenuCard } from './Card';
 export { default as FormRow } from './FormRow';
+export { default as YesNoSelect } from './YesNoSelect';
 export { default as SideSelectionPanel } from './SideSelectionPanel';
 export { default as RightActionPanel } from './RightActionPanel';
 export type { RightPanelAction } from './RightActionPanel';

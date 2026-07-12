@@ -91,7 +91,9 @@ export default function ReconPartySummary() {
         a.igst += v.igst;
         a.cgst += v.cgst;
         a.sgst += v.sgst;
+        a.cess += v.cess;
         a.tax += v.tax;
+        a.invoice += v.invoice;
       });
       return acc;
     },
@@ -117,8 +119,9 @@ export default function ReconPartySummary() {
           <TableCell className={NUM}>{fmt(v.igst)}</TableCell>
           <TableCell className={NUM}>{fmt(v.cgst)}</TableCell>
           <TableCell className={NUM}>{fmt(v.sgst)}</TableCell>
+          <TableCell className={NUM}>{fmt(v.cess)}</TableCell>
           <TableCell className={NUM}>{fmt(v.tax)}</TableCell>
-          <TableCell className="px-2 py-0.5">{side === 'books' ? p.status : ''}</TableCell>
+          <TableCell className={NUM}>{fmt(v.invoice)}</TableCell>
         </TableRow>
       );
     });
@@ -168,16 +171,15 @@ export default function ReconPartySummary() {
                 <TableHead className={cn(HEAD, 'w-24')}>IGST</TableHead>
                 <TableHead className={cn(HEAD, 'w-24')}>CGST</TableHead>
                 <TableHead className={cn(HEAD, 'w-24')}>SGST/UTGST</TableHead>
+                <TableHead className={cn(HEAD, 'w-20')}>Cess</TableHead>
                 <TableHead className={cn(HEAD, 'w-24')}>Tax Amount</TableHead>
-                <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black w-24">
-                  Status
-                </TableHead>
+                <TableHead className={cn(HEAD, 'w-28')}>Invoice Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {parties.length === 0 && (
                 <TableRow className="border-0 hover:bg-transparent">
-                  <TableCell colSpan={9} className="px-2 py-3 text-center text-zinc-400">
+                  <TableCell colSpan={10} className="px-2 py-3 text-center text-zinc-400">
                     No documents in this section.
                   </TableCell>
                 </TableRow>
@@ -196,8 +198,9 @@ export default function ReconPartySummary() {
                 <TableCell className={cn(NUM, 'font-bold')}>{fmt(grand.books.igst)}</TableCell>
                 <TableCell className={cn(NUM, 'font-bold')}>{fmt(grand.books.cgst)}</TableCell>
                 <TableCell className={cn(NUM, 'font-bold')}>{fmt(grand.books.sgst)}</TableCell>
+                <TableCell className={cn(NUM, 'font-bold')}>{fmt(grand.books.cess)}</TableCell>
                 <TableCell className={cn(NUM, 'font-bold')}>{fmt(grand.books.tax)}</TableCell>
-                <TableCell />
+                <TableCell className={cn(NUM, 'font-bold')}>{fmt(grand.books.invoice)}</TableCell>
               </TableRow>
               <TableRow className={cn('hover:bg-transparent', PORTAL_ROW)}>
                 <TableCell className="px-2 py-1" colSpan={2}>
@@ -208,8 +211,9 @@ export default function ReconPartySummary() {
                 <TableCell className={NUM}>{fmt(grand.portal.igst)}</TableCell>
                 <TableCell className={NUM}>{fmt(grand.portal.cgst)}</TableCell>
                 <TableCell className={NUM}>{fmt(grand.portal.sgst)}</TableCell>
+                <TableCell className={NUM}>{fmt(grand.portal.cess)}</TableCell>
                 <TableCell className={NUM}>{fmt(grand.portal.tax)}</TableCell>
-                <TableCell />
+                <TableCell className={NUM}>{fmt(grand.portal.invoice)}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>

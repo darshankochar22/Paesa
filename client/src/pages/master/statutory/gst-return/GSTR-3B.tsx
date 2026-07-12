@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
@@ -105,6 +105,9 @@ export default function GSTR3BView() {
   );
   const [selectedYear] = useState(location.state?.year || String(today.getFullYear()));
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
+  // F5 Nature View — Liability (outward) + ITC (inward), split Local/Interstate.
+  const [natureView, setNatureView] = useState(false);
+  const [includedRows, setIncludedRows] = useState<any[]>([]);
 
   // Drill from the summary lines into the per-voucher-type Statistics screen.
   const openStatistics = () => {
@@ -187,6 +190,17 @@ export default function GSTR3BView() {
         gst_registration_id: regId,
       });
       setStats(statsRes.success && statsRes.statistics ? statsRes.statistics.totals : null);
+
+      // Included voucher rows feed the F5 Nature View (Liability vs ITC × Local/Interstate).
+      const incRes = await window.api.gst.getReturnVouchers({
+        company_id: companyId,
+        fy_id: fyId,
+        return_period: returnPeriod,
+        return_type: 'GSTR3B',
+        gst_registration_id: regId,
+        bucket: 'included',
+      });
+      setIncludedRows(incRes.success ? incRes.rows || [] : []);
 
       // Real filing status (Status / ARN header) from gst_filings.
       const info = await window.api.gstFiling.getFilingInfo({
@@ -407,9 +421,92 @@ export default function GSTR3BView() {
     },
     {
       type: 'data',
-      label: '6.1 Interest, Late Fee, Penalty and Others',
+      label: '5.1 Interest, Late Fee, Penalty and Others',
       data: s61_intr,
       bold: true,
+    },
+  ];
+
+  // ── F5 Nature View — Liability (outward) + ITC (inward), split Local/Interstate ──
+  // Outward vouchers (Sales / Credit Note / Debit Note) drive the tax liability;
+  // inward vouchers (Purchase) drive the input tax credit. Matches Tally's Nature View.
+  const OUTWARD_TYPES = new Set(['Sales', 'Credit Note', 'Debit Note']);
+  const nature = useMemo(() => {
+    const mk = (): TaxAmount => ({ ...ZERO });
+    const g = {
+      liab_local: mk(),
+      liab_inter: mk(),
+      itc_local: mk(),
+      itc_inter: mk(),
+    };
+    for (const r of includedRows) {
+      const outward = OUTWARD_TYPES.has(r.voucher_type);
+      const bucket = outward
+        ? r.is_interstate
+          ? 'liab_inter'
+          : 'liab_local'
+        : r.is_interstate
+          ? 'itc_inter'
+          : 'itc_local';
+      const t = g[bucket as keyof typeof g];
+      t.txval += r.taxable || 0;
+      t.iamt += r.igst || 0;
+      t.camt += r.cgst || 0;
+      t.samt += r.sgst || 0;
+      t.cess += r.cess || 0;
+    }
+    return g;
+  }, [includedRows]);
+
+  const liabTotal = sumTax([nature.liab_local, nature.liab_inter]);
+  const itcTotal = sumTax([nature.itc_local, nature.itc_inter]);
+
+  type NatureRow =
+    | { kind: 'header'; label: string }
+    | {
+        kind: 'data';
+        label: string;
+        data: TaxAmount;
+        indent: number;
+        bold?: boolean;
+        top?: boolean;
+      };
+
+  const natureRows: NatureRow[] = [
+    { kind: 'header', label: 'Liability (Including Inward Reverse Charge Supplies)' },
+    { kind: 'data', label: 'Outward Supplies', data: liabTotal, indent: 1, bold: true },
+    { kind: 'data', label: 'Local Supplies', data: nature.liab_local, indent: 2 },
+    { kind: 'data', label: 'Taxable', data: nature.liab_local, indent: 3 },
+    { kind: 'data', label: 'Interstate Supplies', data: nature.liab_inter, indent: 2 },
+    { kind: 'data', label: 'Taxable', data: nature.liab_inter, indent: 3 },
+    {
+      kind: 'data',
+      label: 'Liability from Outward Supplies',
+      data: liabTotal,
+      indent: 1,
+      top: true,
+    },
+    {
+      kind: 'data',
+      label: 'Total Tax Liability',
+      data: liabTotal,
+      indent: 0,
+      bold: true,
+      top: true,
+    },
+    { kind: 'header', label: 'Input Tax Credit' },
+    { kind: 'data', label: 'Local Supplies', data: nature.itc_local, indent: 1 },
+    { kind: 'data', label: 'Taxable', data: nature.itc_local, indent: 2 },
+    { kind: 'data', label: 'Interstate Supplies', data: nature.itc_inter, indent: 1 },
+    { kind: 'data', label: 'Taxable', data: nature.itc_inter, indent: 2 },
+    { kind: 'data', label: 'Total', data: itcTotal, indent: 1, top: true },
+    {
+      kind: 'data',
+      label: 'Eligible for Input Tax Credit',
+      data: itcTotal,
+      indent: 0,
+      bold: true,
+      top: true,
     },
   ];
 
@@ -444,12 +541,20 @@ export default function GSTR3BView() {
       footerControls={
         <div className="flex items-center gap-4 ml-4">
           <Button
+            onClick={() => setNatureView(!natureView)}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            {natureView ? 'F5: Return View' : 'F5: Nature View'}
+          </Button>
+          <Button
             onClick={() => loadData(true)}
             variant="ghost"
             size="xs"
             className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
           >
-            F5: Refresh
+            Refresh
           </Button>
           <Button
             onClick={handleMarkAsFiled}
@@ -582,78 +687,168 @@ export default function GSTR3BView() {
             </TableRow>
             <TableRow className="hover:bg-transparent border-0">
               <TableCell colSpan={7} className="px-2 py-1 font-bold">
-                Return View
+                {natureView ? 'Nature View' : 'Return View'}
               </TableCell>
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {rows.map((row, idx) => {
-              if (row.type === 'section') {
+            {natureView &&
+              natureRows.map((row, idx) => {
+                if (row.kind === 'header') {
+                  return (
+                    <TableRow key={idx} className="border-0 hover:bg-transparent">
+                      <TableCell colSpan={7} className="px-2 pt-2 pb-0.5 font-bold text-black">
+                        {row.label}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+                const hasData = taxTotal(row.data) !== 0 || row.data.txval !== 0;
+                const indentPl =
+                  row.indent === 3
+                    ? 'pl-14'
+                    : row.indent === 2
+                      ? 'pl-10'
+                      : row.indent === 1
+                        ? 'pl-6'
+                        : '';
                 return (
-                  <TableRow key={idx} className="border-0 hover:bg-transparent">
-                    <TableCell colSpan={7} className="px-2 py-0.5 font-bold text-black">
+                  <TableRow
+                    key={idx}
+                    className={cn(
+                      'border-0 hover:bg-transparent',
+                      hasData ? 'text-black' : 'text-gray-500',
+                    )}
+                  >
+                    <TableCell
+                      className={cn(
+                        'px-2 py-0.5',
+                        indentPl,
+                        row.bold && 'font-bold',
+                        row.top && 'border-t border-gray-300',
+                      )}
+                    >
                       {row.label}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'px-2 py-0.5 text-right',
+                        row.top && 'border-t border-gray-300',
+                      )}
+                    >
+                      {fmt(row.data.txval)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'px-2 py-0.5 text-right',
+                        row.top && 'border-t border-gray-300',
+                      )}
+                    >
+                      {fmt(row.data.iamt)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'px-2 py-0.5 text-right',
+                        row.top && 'border-t border-gray-300',
+                      )}
+                    >
+                      {fmt(row.data.camt)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'px-2 py-0.5 text-right',
+                        row.top && 'border-t border-gray-300',
+                      )}
+                    >
+                      {fmt(row.data.samt)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'px-2 py-0.5 text-right',
+                        row.top && 'border-t border-gray-300',
+                      )}
+                    >
+                      {fmt(row.data.cess)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'px-2 py-0.5 text-right',
+                        row.top && 'border-t border-gray-300',
+                      )}
+                    >
+                      {fmt(taxTotal(row.data))}
                     </TableCell>
                   </TableRow>
                 );
-              }
+              })}
+            {!natureView &&
+              rows.map((row, idx) => {
+                if (row.type === 'section') {
+                  return (
+                    <TableRow key={idx} className="border-0 hover:bg-transparent">
+                      <TableCell colSpan={7} className="px-2 py-0.5 font-bold text-black">
+                        {row.label}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
 
-              if (row.type === 'subsection') {
+                if (row.type === 'subsection') {
+                  return (
+                    <TableRow key={idx} className="border-0 hover:bg-transparent">
+                      <TableCell colSpan={7} className="px-2 py-0.5 pl-6 text-black">
+                        {row.label}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+
+                // data row — rows with a sectionKey open the "GSTR-3B - Summary"
+                // breakdown of that table (3.1 → 3.1a–e, 4A → ITC lines 1–5, …).
+                const isSelected = selectedRow === idx;
+                const indentPl = row.indent === 2 ? 'pl-10' : row.indent === 1 ? 'pl-6' : '';
+                const hasData = taxTotal(row.data) !== 0 || row.data.txval !== 0;
+                const clickable = !!row.sectionKey;
                 return (
-                  <TableRow key={idx} className="border-0 hover:bg-transparent">
-                    <TableCell colSpan={7} className="px-2 py-0.5 pl-6 text-black">
+                  <TableRow
+                    key={idx}
+                    onClick={() => {
+                      if (!clickable) return;
+                      setSelectedRow(idx);
+                      navigate('/master/statutory/gstr3b/section-summary', {
+                        state: {
+                          registration: activeRegistration,
+                          month: selectedMonth,
+                          year: selectedYear,
+                          sectionKey: row.sectionKey,
+                        },
+                      });
+                    }}
+                    className={cn(
+                      'border-0',
+                      clickable && 'cursor-pointer hover:bg-[#e6f2ff]',
+                      isSelected
+                        ? 'bg-[#ffcc00] text-black font-bold hover:bg-[#ffcc00]'
+                        : hasData
+                          ? 'text-black'
+                          : 'text-gray-500',
+                    )}
+                  >
+                    <TableCell className={cn('px-2 py-0.5', indentPl, row.bold && 'font-bold')}>
                       {row.label}
+                    </TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.txval)}</TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.iamt)}</TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.camt)}</TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.samt)}</TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.cess)}</TableCell>
+                    <TableCell className="px-2 py-0.5 text-right">
+                      {fmt(taxTotal(row.data))}
                     </TableCell>
                   </TableRow>
                 );
-              }
-
-              // data row — rows with a sectionKey open the "GSTR-3B - Summary"
-              // breakdown of that table (3.1 → 3.1a–e, 4A → ITC lines 1–5, …).
-              const isSelected = selectedRow === idx;
-              const indentPl = row.indent === 2 ? 'pl-10' : row.indent === 1 ? 'pl-6' : '';
-              const hasData = taxTotal(row.data) !== 0 || row.data.txval !== 0;
-              const clickable = !!row.sectionKey;
-              return (
-                <TableRow
-                  key={idx}
-                  onClick={() => {
-                    if (!clickable) return;
-                    setSelectedRow(idx);
-                    navigate('/master/statutory/gstr3b/section-summary', {
-                      state: {
-                        registration: activeRegistration,
-                        month: selectedMonth,
-                        year: selectedYear,
-                        sectionKey: row.sectionKey,
-                      },
-                    });
-                  }}
-                  className={cn(
-                    'border-0',
-                    clickable && 'cursor-pointer hover:bg-[#e6f2ff]',
-                    isSelected
-                      ? 'bg-[#ffcc00] text-black font-bold hover:bg-[#ffcc00]'
-                      : hasData
-                        ? 'text-black'
-                        : 'text-gray-500',
-                  )}
-                >
-                  <TableCell className={cn('px-2 py-0.5', indentPl, row.bold && 'font-bold')}>
-                    {row.label}
-                  </TableCell>
-                  <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.txval)}</TableCell>
-                  <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.iamt)}</TableCell>
-                  <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.camt)}</TableCell>
-                  <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.samt)}</TableCell>
-                  <TableCell className="px-2 py-0.5 text-right">{fmt(row.data.cess)}</TableCell>
-                  <TableCell className="px-2 py-0.5 text-right">
-                    {fmt(taxTotal(row.data))}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+              })}
           </TableBody>
         </Table>
       </div>

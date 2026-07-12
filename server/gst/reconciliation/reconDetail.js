@@ -49,7 +49,9 @@ const addBook = (acc, v) => {
   acc.igst += Number(v.igst) || 0;
   acc.cgst += Number(v.cgst) || 0;
   acc.sgst += Number(v.sgst) || 0;
-  acc.tax += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
+  acc.cess += Number(v.cess) || 0;
+  acc.tax +=
+    (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0);
   acc.invoice += invoiceOf(v);
 };
 const addPortal = (acc, t) => {
@@ -177,7 +179,9 @@ const buildReconDetail = async (company_id, fy_id, kind) => {
     igst: Number(v.igst) || 0,
     cgst: Number(v.cgst) || 0,
     sgst: Number(v.sgst) || 0,
-    tax: (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0),
+    cess: Number(v.cess) || 0,
+    tax:
+      (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0),
     invoice: invoiceOf(v),
   });
   const portalRowOf = (portal) => ({
@@ -252,15 +256,83 @@ const buildReconDetail = async (company_id, fy_id, kind) => {
 };
 
 // ── View getters ────────────────────────────────────────────────────────────────
-const SECTION_ORDER = ['b2b', 'cdn'];
+
+// Sum a list of {books, portal} data rows into one {books, portal} subtotal.
+const sumRows = (rows) => {
+  const acc = { books: zero(), portal: zero() };
+  for (const r of rows) {
+    for (const side of ['books', 'portal']) {
+      for (const k of Object.keys(acc[side])) acc[side][k] += r[side]?.[k] || 0;
+    }
+  }
+  round(acc.books);
+  round(acc.portal);
+  return acc;
+};
+
+// Build the Tally-shaped Return View for a kind. GSTR-2A lists inward documents
+// (B2B, amendments, notes, ISD, imports); GSTR-2B groups them as Input Tax Credit
+// Available / Unavailable — Part A/Part B with subtotals. Only rows backed by real
+// book sections ('b2b' invoices, 'cdn' purchase-return notes) are drillable.
+const buildReturnView = (d, kind) => {
+  const dataRow = (key, label, bookKey) => {
+    const s = bookKey ? d.sections[bookKey] : null;
+    const drillable = !!(s && s.parties.size);
+    return {
+      type: 'data',
+      key: bookKey || key,
+      label,
+      books: s ? s.books : zero(),
+      portal: s ? s.portal : zero(),
+      status: s ? s.status : '',
+      drillable,
+    };
+  };
+
+  if (kind === '2A') {
+    return [
+      dataRow('b2b', 'B2B Invoices', 'b2b'),
+      dataRow('amend_b2b', 'Amendments to B2B Invoices'),
+      dataRow('cdn', 'Credit/Debit Notes', 'cdn'),
+      dataRow('amend_cdn', 'Amendments to Credit/Debit Notes'),
+      dataRow('isd', 'ISD Credits'),
+      dataRow('import_boe', 'Import of Goods from overseas on Bill of Entry'),
+      dataRow('import_sez', 'Import of Goods from SEZ Units/Developers on Bill of Entry'),
+    ];
+  }
+
+  // GSTR-2B — Input Tax Credit Available / Unavailable, Part A/Part B.
+  const avail = [
+    dataRow('b2b', 'All other ITC from Registered Persons (Excluding Reverse Charge)', 'b2b'),
+    dataRow('isd', 'Inward Supplies from ISD'),
+    dataRow('rcm', 'Inward Supplies Liable for Reverse Charge'),
+    dataRow('import', 'Import of Goods'),
+    dataRow('reversal', 'Reversal of Available ITC (Purchase Return) - Part B', 'cdn'),
+    dataRow('others', 'Others'),
+  ];
+  const unavail = [
+    dataRow('u_other', 'All other ITC from Registered Persons (Excluding Reverse Charge)'),
+    dataRow('u_isd', 'Inward Supplies from ISD'),
+    dataRow('u_rcm', 'Inward Supplies Liable for Reverse Charge'),
+    dataRow('u_reversal', 'Reversal of Unavailable ITC (Purchase Return) - Part B'),
+    dataRow('u_others', 'Others'),
+  ];
+  const availTotal = sumRows(avail);
+  const unavailTotal = sumRows(unavail);
+  return [
+    { type: 'group', label: 'Input Tax Credit Available - Part A' },
+    ...avail,
+    { type: 'subtotal', label: 'Total Available ITC', ...availTotal },
+    { type: 'group', label: 'Input Tax Credit Unavailable - Part A' },
+    ...unavail,
+    { type: 'subtotal', label: 'Total Unavailable ITC', ...unavailTotal },
+  ];
+};
 
 const getReconSummary = async (company_id, fy_id, kind) => {
   try {
     const d = await buildReconDetail(company_id, fy_id, kind);
-    const return_view = SECTION_ORDER.filter((k) => d.sections[k]).map((k) => {
-      const s = d.sections[k];
-      return { key: k, label: s.label, books: s.books, portal: s.portal, status: s.status };
-    });
+    const return_view = buildReturnView(d, kind);
     const t = d.totals;
     return {
       success: true,

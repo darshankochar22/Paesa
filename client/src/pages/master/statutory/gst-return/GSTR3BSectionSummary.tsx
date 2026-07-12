@@ -192,15 +192,15 @@ export default function GSTR3BSectionSummary() {
           drill: null,
         }));
     rows = [
-      ...build('Supplies made to Unregistered Persons', payload?.inter_sup?.unreg_details),
-      ...build('Supplies made to Composition Taxable Persons', payload?.inter_sup?.comp_details),
-      ...build('Supplies made to UIN holders', payload?.inter_sup?.uin_details),
+      ...build('Supplies to Unregistered Persons', payload?.inter_sup?.unreg_details),
+      ...build('Supplies to Composition Dealers', payload?.inter_sup?.comp_details),
+      ...build('Supplies to UIN holders', payload?.inter_sup?.uin_details),
     ];
     if (rows.length === 0)
       rows = [
-        { label: 'Supplies made to Unregistered Persons', data: ZERO, drill: null },
-        { label: 'Supplies made to Composition Taxable Persons', data: ZERO, drill: null },
-        { label: 'Supplies made to UIN holders', data: ZERO, drill: null },
+        { label: 'Supplies to Unregistered Persons', data: ZERO, drill: null },
+        { label: 'Supplies to Composition Dealers', data: ZERO, drill: null },
+        { label: 'Supplies to UIN holders', data: ZERO, drill: null },
       ];
   }
 

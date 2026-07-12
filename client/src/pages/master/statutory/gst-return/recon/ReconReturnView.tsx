@@ -55,13 +55,19 @@ function StatusLine({
   );
 }
 
-interface SectionRow {
+interface DataRow {
+  type: 'data';
   key: string;
   label: string;
   books: DualAmounts;
   portal: DualAmounts;
   status: string;
+  drillable: boolean;
 }
+type ReturnRow =
+  | { type: 'group'; label: string }
+  | DataRow
+  | { type: 'subtotal'; label: string; books: DualAmounts; portal: DualAmounts };
 
 // Tally-style GSTR-2A/2B main reconciliation: dual books-vs-portal Return View +
 // nested voucher-status block. Section rows drill to the party-wise summary.
@@ -148,13 +154,14 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
     input.click();
   };
 
-  const sections: SectionRow[] = data?.return_view ?? [];
+  const rows: ReturnRow[] = data?.return_view ?? [];
+  const dataRows = rows.filter((r): r is DataRow => r.type === 'data');
   const vs = data?.voucher_status ?? {};
   const periodLabel =
     data?.period_label ?? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '');
   const lastActivity = data?.last_gst_activity ?? 'No Activity Found';
 
-  const grand = sections.reduce(
+  const grand = dataRows.reduce(
     (acc, s) => {
       (['books', 'portal'] as const).forEach((side) => {
         const a = acc[side];
@@ -173,9 +180,9 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
     { books: { ...ZERO }, portal: { ...ZERO } },
   );
 
-  const drillParty = (section: SectionRow) =>
+  const drillParty = (row: DataRow) =>
     navigate(`/master/statutory/gstr${kind.toLowerCase()}/reconciliation/party`, {
-      state: { kind, section: section.key, sectionLabel: section.label, registration: activeReg },
+      state: { kind, section: row.key, sectionLabel: row.label, registration: activeReg },
     });
 
   const drillUncertain = () =>
@@ -190,21 +197,56 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
       },
     });
 
-  // One section = two table rows (books, then muted portal).
-  const dualRows = (s: SectionRow) =>
+  // A group heading (2B's "Input Tax Credit Available - Part A", etc.).
+  const groupRow = (label: string, idx: number) => (
+    <TableRow key={`g-${idx}`} className="border-0 hover:bg-transparent">
+      <TableCell colSpan={10} className="px-2 pt-2 pb-0.5 font-bold text-black">
+        {label}
+      </TableCell>
+    </TableRow>
+  );
+
+  // One data/subtotal section = two table rows (books, then muted portal). Data rows
+  // backed by real book documents drill to the party summary; subtotals do not.
+  const dualRows = (
+    key: string,
+    label: string,
+    books: DualAmounts,
+    portal: DualAmounts,
+    opts: { status?: string; drillable?: boolean; subtotal?: boolean } = {},
+  ) =>
     (['books', 'portal'] as const).map((side) => {
-      const v = s[side];
+      const v = side === 'books' ? books : portal;
+      const clickable = !opts.subtotal && opts.drillable;
       return (
         <TableRow
-          key={`${s.key}-${side}`}
-          onClick={() => drillParty(s)}
+          key={`${key}-${side}`}
+          onClick={
+            clickable
+              ? () =>
+                  drillParty({
+                    type: 'data',
+                    key,
+                    label,
+                    books,
+                    portal,
+                    status: opts.status || '',
+                    drillable: true,
+                  })
+              : undefined
+          }
           className={cn(
-            'border-0 cursor-pointer hover:bg-zinc-50',
+            'border-0',
+            clickable && 'cursor-pointer hover:bg-zinc-50',
             side === 'portal' && PORTAL_ROW,
+            opts.subtotal && side === 'books' && 'border-t border-black font-bold',
+            opts.subtotal && side === 'portal' && 'border-t border-zinc-300',
           )}
         >
-          <TableCell className={cn('px-2 py-0.5 pl-6', side === 'books' && 'font-medium')}>
-            {side === 'books' ? s.label : ''}
+          <TableCell
+            className={cn('px-2 py-0.5 pl-6', side === 'books' && !opts.subtotal && 'font-medium')}
+          >
+            {side === 'books' ? label : ''}
           </TableCell>
           <TableCell className={NUM}>{fmtCount(v.count)}</TableCell>
           <TableCell className={NUM}>{fmt(v.taxable)}</TableCell>
@@ -215,11 +257,25 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
           <TableCell className={NUM}>{fmt(v.tax)}</TableCell>
           <TableCell className={NUM}>{fmt(v.invoice)}</TableCell>
           <TableCell className="px-2 py-0.5 text-xs">
-            {side === 'books' ? <span className="font-medium">{s.status}</span> : ''}
+            {side === 'books' && opts.status ? (
+              <span className="font-medium">{opts.status}</span>
+            ) : (
+              ''
+            )}
           </TableCell>
         </TableRow>
       );
     });
+
+  const renderRow = (row: ReturnRow, idx: number) => {
+    if (row.type === 'group') return groupRow(row.label, idx);
+    if (row.type === 'subtotal')
+      return dualRows(`sub-${idx}`, row.label, row.books, row.portal, { subtotal: true });
+    return dualRows(row.key, row.label, row.books, row.portal, {
+      status: row.status,
+      drillable: row.drillable,
+    });
+  };
 
   return (
     <TallyReportLayout
@@ -346,14 +402,14 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sections.length === 0 && (
+                {rows.length === 0 && (
                   <TableRow className="border-0 hover:bg-transparent">
                     <TableCell colSpan={10} className="px-2 py-3 text-center text-zinc-400">
                       No inward documents. Use Fetch from Portal / Import JSON to reconcile.
                     </TableCell>
                   </TableRow>
                 )}
-                {sections.map(dualRows)}
+                {rows.map(renderRow)}
               </TableBody>
               <TableFooter className="bg-transparent">
                 <TableRow className="border-t border-black hover:bg-transparent font-bold">

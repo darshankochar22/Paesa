@@ -27,8 +27,10 @@ const SUMMARY = {
   payload: {
     return_view: [
       {
+        type: 'data',
         key: 'b2b',
         label: 'B2B Invoices',
+        drillable: true,
         books: {
           count: 1,
           taxable: 5000,
