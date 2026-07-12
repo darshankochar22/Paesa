@@ -9,6 +9,7 @@ import {
   DataTable,
   SideSelectionPanel,
   NotificationBanner,
+  MasterFormFooter,
 } from '@/components/ui';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import TaxUnitSidePanel from './TaxUnitSidePanel';
@@ -16,7 +17,7 @@ import type { GodownType } from '@/types/api';
 import type { TaxUnitType } from '@/types/entities/TaxUnit';
 
 const inputCls =
-  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
+  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
 function SelectionPanel({
   godowns,
@@ -78,7 +79,7 @@ function SelectionPanel({
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Alter Godown" subtitle="Select Godown to Alter" />
 
-      <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0">
+      <div className="p-3 border-b border-zinc-200 shrink-0">
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -98,15 +99,6 @@ function SelectionPanel({
           />
         </div>
         <RightActionPanel actions={selectionActions} />
-      </div>
-
-      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50">
-        <button
-          onClick={onCancel}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white shadow-sm text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );
@@ -362,7 +354,7 @@ export default function GodownAlter() {
                 tabIndex={0}
                 data-enter-click
                 onClick={() => setShowPanel(true)}
-                className="w-full text-left text-sm py-0.5 px-1 bg-transparent cursor-pointer focus:bg-zinc-100 outline-none uppercase font-bold text-zinc-800 tracking-wide hover:text-black transition-colors"
+                className="w-full text-left text-sm py-0.5 px-1 cursor-pointer border border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none font-semibold text-zinc-800 transition-colors"
               >
                 {selectedGodownLabel}
               </div>
@@ -378,7 +370,7 @@ export default function GodownAlter() {
                 ref={taxUnitRef}
                 tabIndex={0}
                 data-enter-click
-                className="w-full text-left text-sm py-0.5 px-1 bg-transparent cursor-pointer focus:bg-zinc-100 outline-none font-bold text-zinc-800 hover:text-black transition-colors"
+                className="w-full text-left text-sm py-0.5 px-1 cursor-pointer border border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none font-semibold text-zinc-800 transition-colors"
                 onClick={() => setShowTaxUnitPanel((v) => !v)}
               >
                 {form.excise_tax_unit || 'Not Applicable'}
@@ -405,31 +397,12 @@ export default function GodownAlter() {
         <RightActionPanel actions={alterActions} />
       </div>
 
-      <div className="px-3 py-3 border-t border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0">
-        <button
-          onClick={handleDelete}
-          disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium shadow-sm"
-        >
-          Delete
-        </button>
-        <div className="flex gap-3">
-          <button
-            onClick={handleBack}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            data-enter-accept
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
-          >
-            {loading ? 'Saving...' : 'Accept'}
-          </button>
-        </div>
-      </div>
+      <MasterFormFooter
+        onDelete={handleDelete}
+        onCancel={handleBack}
+        onSubmit={handleSubmit}
+        loading={loading}
+      />
 
       {showPanel && (
         <SideSelectionPanel

@@ -8,6 +8,7 @@ import {
   SearchInput,
   DataTable,
   NotificationBanner,
+  MasterFormFooter,
 } from '@/components/ui';
 import UnitDropdown from './UnitDropdown';
 import type { UnitType } from '@/types/entities/Unit';
@@ -15,11 +16,11 @@ import { UqcPopup } from './UqcPopup';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 
 const inputCls =
-  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
+  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 const selectCls =
-  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
+  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 const smallInputCls =
-  'w-20 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors text-center';
+  'w-20 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors text-center';
 
 function SelectionPanel({
   units,
@@ -89,7 +90,7 @@ function SelectionPanel({
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Alter Unit" subtitle="Select Unit to Alter" />
 
-      <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0">
+      <div className="p-3 border-b border-zinc-200 shrink-0">
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -109,15 +110,6 @@ function SelectionPanel({
           />
         </div>
         <RightActionPanel actions={selectionActions} />
-      </div>
-
-      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50">
-        <button
-          onClick={onCancel}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white shadow-sm text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );
@@ -449,7 +441,7 @@ export default function UnitAlter() {
                     role="button"
                     tabIndex={0}
                     data-enter-click
-                    className="flex-1 cursor-pointer text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
+                    className="flex-1 cursor-pointer text-left text-sm px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none transition-colors"
                     onClick={() => setShowUqc((v) => !v)}
                   >
                     ◆ {form.unit_quantity_code || 'Not Applicable'}
@@ -537,31 +529,13 @@ export default function UnitAlter() {
         <RightActionPanel actions={alterActions} />
       </div>
 
-      <div className="px-3 py-3 border-t border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0">
-        <button
-          onClick={handleDelete}
-          disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium shadow-sm"
-        >
-          Delete
-        </button>
-        <div className="flex gap-3">
-          <button
-            onClick={handleBack}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleSubmit}
-            data-enter-accept
-            disabled={loading || (isCompound && simpleUnits.length === 0)}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
-          >
-            {loading ? 'Saving…' : 'Accept'}
-          </button>
-        </div>
-      </div>
+      <MasterFormFooter
+        onDelete={handleDelete}
+        onCancel={handleBack}
+        onSubmit={handleSubmit}
+        loading={loading}
+        disabled={isCompound && simpleUnits.length === 0}
+      />
     </div>
   );
 }

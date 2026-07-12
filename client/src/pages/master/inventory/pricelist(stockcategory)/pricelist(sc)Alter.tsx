@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, RightActionPanel } from '@/components/ui';
+import { PageTitleBar, RightActionPanel, FormRow } from '@/components/ui';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ const emptyLine = (): PriceListLine => ({
 });
 
 const cellCls =
-  'bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent focus:bg-zinc-100 focus:border-zinc-300 rounded';
+  'bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 rounded transition-colors';
 
 // ─── Right-side selection list (Tally-style, full height, never clipped) ────────
 
@@ -108,8 +109,10 @@ function RightSelectPanel({
                 e.preventDefault();
                 onPick(en.key);
               }}
-              className={`px-3 py-1.5 text-xs font-mono cursor-pointer border-b border-zinc-50 ${
-                en.selected ? 'bg-zinc-100 text-black font-bold' : 'text-zinc-700 hover:bg-zinc-50'
+              className={`px-3 py-1.5 text-sm cursor-pointer border-b border-gray-100 ${
+                en.selected
+                  ? 'bg-zinc-900 text-white font-semibold'
+                  : 'text-black hover:bg-black/[0.03]'
               }`}
             >
               {en.prefix ? <span className="text-zinc-400 mr-1">{en.prefix}</span> : null}
@@ -165,6 +168,11 @@ export default function PricelistscAlter() {
   const qtyUpToRefs = useRef<(HTMLInputElement | null)[]>([]);
   const rateRefs = useRef<(HTMLInputElement | null)[]>([]);
   const discRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Header Enter-navigation anchors
+  const categoryRowRef = useRef<HTMLDivElement>(null);
+  const levelRowRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
 
   const DEFAULT_LEVELS = ['Retailer', 'Wholesaler'];
   const mergedLevels = useMemo(() => {
@@ -456,7 +464,7 @@ export default function PricelistscAlter() {
 
   // Notification banner — strict grayscale (no red/green)
   const Banner = ({ text, onDismiss }: { text: string; onDismiss: () => void }) => (
-    <div className="px-4 py-2 border-b border-zinc-200 border-l-2 border-l-black bg-zinc-100 text-zinc-900 text-xs flex justify-between items-center shrink-0 font-sans">
+    <div className="px-4 py-2 border-b border-zinc-200 border-l-2 border-l-black bg-white text-zinc-900 text-xs flex justify-between items-center shrink-0 font-sans">
       <span className="font-semibold">{text}</span>
       <button onClick={onDismiss} className="text-zinc-500 hover:text-black font-bold">
         &times;
@@ -496,7 +504,7 @@ export default function PricelistscAlter() {
           ) : (
             <table className="w-full text-[11px] font-mono border-collapse">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-zinc-100 border-b border-zinc-300 text-left">
+                <tr className="bg-white border-b border-black text-left">
                   <th className="px-4 py-2 font-bold text-zinc-600 w-12">#</th>
                   <th className="px-4 py-2 font-bold text-zinc-600">Price Level</th>
                   <th className="px-4 py-2 font-bold text-zinc-600">Under Category</th>
@@ -508,7 +516,7 @@ export default function PricelistscAlter() {
                 {categoryRecords.map((rec, i) => (
                   <tr
                     key={rec.price_list_id}
-                    className="border-b border-zinc-100 cursor-pointer hover:bg-zinc-100"
+                    className="border-b border-zinc-100 cursor-pointer hover:bg-black/[0.03]"
                     onClick={() => openRecord(rec)}
                   >
                     <td className="px-4 py-2 text-zinc-400">{i + 1}</td>
@@ -532,7 +540,7 @@ export default function PricelistscAlter() {
         <div className="border-t border-zinc-200 p-3 flex justify-end bg-white shrink-0 font-sans">
           <button
             onClick={() => navigate('/master/alter')}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
+            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-black/[0.03] transition-colors font-medium"
           >
             Quit
           </button>
@@ -575,65 +583,73 @@ export default function PricelistscAlter() {
       <div className="flex-1 flex min-h-0 relative">
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* ── Inline header ── */}
-          <div className="border-b border-zinc-200 px-6 py-3 shrink-0 font-mono text-[11px] space-y-2">
+          <div className="border-b border-zinc-200 px-6 py-3 shrink-0 space-y-1 max-w-2xl">
             {/* Under Category */}
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-500 w-28">Under Category</span>
-              <span className="text-zinc-300">:</span>
-              <button
-                type="button"
-                className="flex items-center gap-1 px-2 py-0.5 border border-transparent hover:border-zinc-400 rounded font-bold text-zinc-900"
-                onClick={() => {
-                  setShowCategoryList((p) => !p);
-                  setShowLevelList(false);
-                }}
-              >
-                <span className="text-zinc-400">◆</span>
+            <FormRow
+              label="Under Category"
+              labelWidth="w-40"
+              className="flex items-center min-h-[30px]"
+              onClick={() => {
+                setShowCategoryList((p) => !p);
+                setShowLevelList(false);
+              }}
+              rowRef={categoryRowRef}
+              enterClick
+            >
+              <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
+                <span className="text-zinc-400 mr-1">◆</span>
                 {selectedCategory}
-              </button>
-            </div>
+              </span>
+            </FormRow>
 
-            {/* Price Level + Applicable From */}
-            <div className="flex items-center gap-10">
-              <div className="flex items-center gap-2">
-                <span className="text-zinc-500 w-28">Price Level</span>
-                <span className="text-zinc-300">:</span>
-                <button
-                  type="button"
-                  className="px-2 py-0.5 border border-transparent hover:border-zinc-400 rounded font-bold text-zinc-900"
-                  onClick={() => {
-                    setShowLevelList((p) => !p);
-                    setShowCategoryList(false);
-                  }}
-                >
-                  {selectedLevel || 'Select…'}
-                </button>
-              </div>
+            {/* Price Level */}
+            <FormRow
+              label="Price Level"
+              labelWidth="w-40"
+              className="flex items-center min-h-[30px]"
+              onClick={() => {
+                setShowLevelList((p) => !p);
+                setShowCategoryList(false);
+              }}
+              rowRef={levelRowRef}
+              enterClick
+            >
+              <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
+                {selectedLevel || 'Select…'}
+              </span>
+            </FormRow>
 
+            {/* Applicable From */}
+            <FormRow
+              label="Applicable From"
+              labelWidth="w-40"
+              className="flex items-center min-h-[30px]"
+            >
               <div className="flex items-center gap-2">
-                <span className="text-zinc-500">Applicable From</span>
-                <span className="text-zinc-300">:</span>
                 <input
+                  ref={dateRef}
                   type="date"
                   value={applicableFrom}
                   onChange={(e) => setApplicableFrom(e.target.value)}
-                  className="border border-zinc-300 rounded px-2 py-0.5 text-[11px] font-mono font-bold text-zinc-900 bg-white focus:outline-none focus:border-zinc-500"
+                  className="border border-transparent hover:border-zinc-200 rounded px-2 py-0.5 text-sm font-semibold text-zinc-900 bg-transparent focus:outline-none focus:border-zinc-800 transition-colors"
                 />
                 {applicableFrom && (
-                  <span className="text-zinc-400">{formatDateDisplay(applicableFrom)}</span>
+                  <span className="text-[11px] text-zinc-400">
+                    {formatDateDisplay(applicableFrom)}
+                  </span>
                 )}
-                <span className="ml-6 text-zinc-400">
+                <span className="ml-6 text-[11px] text-zinc-400">
                   {filledCount} {filledCount === 1 ? 'item' : 'items'}
                 </span>
               </div>
-            </div>
+            </FormRow>
           </div>
 
           {/* ── Table ── */}
           <div className="flex-1 overflow-auto min-h-0">
             <table className="w-full text-[11px] font-mono border-collapse">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-zinc-100 border-b border-zinc-300">
+                <tr className="bg-white border-b border-black">
                   <th className="text-left px-3 py-2 font-bold text-zinc-600 w-12">S.No.</th>
                   <th className="text-left px-3 py-2 font-bold text-zinc-600 w-64">Particulars</th>
                   <th className="text-center px-2 py-2 font-bold text-zinc-600 w-48" colSpan={2}>
@@ -657,7 +673,7 @@ export default function PricelistscAlter() {
                   return (
                     <tr
                       key={i}
-                      className={`border-b border-zinc-100 group ${isLastEmpty ? 'bg-zinc-50' : 'hover:bg-zinc-50'} ${activeItemDropdown === i ? 'bg-zinc-100' : ''}`}
+                      className={`border-b border-zinc-100 group ${isLastEmpty ? 'bg-black/[0.02]' : 'hover:bg-black/[0.03]'} ${activeItemDropdown === i ? 'bg-black/[0.03]' : ''}`}
                     >
                       <td className="px-3 py-1 text-zinc-400 text-center align-middle">
                         {isLastEmpty ? '' : i + 1}
@@ -762,6 +778,7 @@ export default function PricelistscAlter() {
             onPick={(key) => {
               setSelectedCategory(key);
               setShowCategoryList(false);
+              focusFieldAfter(categoryRowRef.current);
             }}
             onClose={() => setShowCategoryList(false)}
           />
@@ -778,6 +795,7 @@ export default function PricelistscAlter() {
             onPick={(key) => {
               setSelectedLevel(key);
               setShowLevelList(false);
+              focusFieldAfter(levelRowRef.current);
             }}
             onClose={() => setShowLevelList(false)}
           />
@@ -803,14 +821,14 @@ export default function PricelistscAlter() {
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-300 text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 transition-colors font-medium"
+          className="text-xs px-4 py-1.5 rounded border border-zinc-300 text-zinc-700 hover:bg-black/[0.03] disabled:opacity-50 transition-colors font-medium"
         >
           Delete
         </button>
         <div className="flex gap-3">
           <button
             onClick={backToSelect}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
+            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-black/[0.03] transition-colors font-medium"
           >
             Back
           </button>

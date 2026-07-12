@@ -10,7 +10,8 @@ import {
 } from '@/components/ui';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { StockCategoryType } from '@/types/api';
-const inputCls = 'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent';
+const inputCls =
+  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
 function CategoryListPanel({
   categories,
@@ -275,19 +276,18 @@ export default function StockCategoryCreate() {
                 }}
               />
             </FormRow>
-            <div
-              ref={underRef}
-              tabIndex={0}
-              data-enter-click
-              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 focus:bg-zinc-100 outline-none select-none text-sm"
+            <FormRow
+              label="Under"
+              labelWidth="w-48"
+              className="flex items-center min-h-[26px]"
               onClick={() => setShowPanel((v) => !v)}
+              rowRef={underRef}
+              enterClick
             >
-              <span className="w-48 text-zinc-400 shrink-0 py-1 font-sans">Under</span>
-              <span className="text-zinc-600 mr-2 shrink-0">:</span>
-              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900">
+              <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
                 {selectedLabel}
               </span>
-            </div>
+            </FormRow>
           </div>
           <div className="flex-1" />
         </div>

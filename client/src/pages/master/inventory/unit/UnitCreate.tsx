@@ -13,11 +13,11 @@ import type { UnitType } from '@/types/entities/Unit';
 import { UqcPopup } from './UqcPopup';
 
 const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
+  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 const selectCls =
-  'bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
+  'bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 const smallInputCls =
-  'w-20 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors text-center';
+  'w-20 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors text-center';
 
 interface FormData {
   unit_type: 'Simple' | 'Compound';
@@ -249,7 +249,7 @@ export default function UnitCreate() {
                   <button
                     ref={uqcAnchorRef}
                     type="button"
-                    className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
+                    className="flex-1 text-left text-sm px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none transition-colors"
                     onClick={() => setShowUqc((v) => !v)}
                     onKeyDown={(e) => {
                       if (e.key !== 'Enter') return;

@@ -15,7 +15,7 @@ import type { GodownType } from '@/types/api';
 import type { TaxUnitType } from '@/types/entities/TaxUnit';
 
 const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
+  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
 interface FormData {
   name: string;
@@ -202,19 +202,18 @@ export default function GodownCreate() {
               />
             </FormRow>
 
-            <div
-              ref={underRef}
-              tabIndex={0}
-              data-enter-click
-              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 focus:bg-zinc-100 outline-none text-sm select-none"
+            <FormRow
+              label="Under"
+              labelWidth="w-56"
+              className="flex items-center min-h-[26px]"
               onClick={() => setShowGodownPanel((v) => !v)}
+              rowRef={underRef}
+              enterClick
             >
-              <span className="w-56 text-zinc-400 shrink-0 py-1 font-sans">Under</span>
-              <span className="text-zinc-600 mr-2 shrink-0">:</span>
-              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900">
+              <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
                 {selectedGodownLabel}
               </span>
-            </div>
+            </FormRow>
 
             {/* Excise Tax Unit — opens side panel */}
             <FormRow
@@ -226,7 +225,7 @@ export default function GodownCreate() {
                 ref={taxUnitRef}
                 tabIndex={0}
                 data-enter-click
-                className="flex-1 text-left text-sm px-1 py-0.5 cursor-pointer hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors font-bold"
+                className="flex-1 text-left text-sm px-1 py-0.5 cursor-pointer border border-transparent hover:border-zinc-200 focus:border-zinc-800 outline-none transition-colors font-semibold"
                 onClick={() => setShowTaxUnitPanel((v) => !v)}
               >
                 {form.excise_tax_unit || 'Not Applicable'}

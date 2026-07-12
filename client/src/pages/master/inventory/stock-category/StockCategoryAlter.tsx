@@ -8,12 +8,13 @@ import {
   SearchInput,
   DataTable,
   NotificationBanner,
+  MasterFormFooter,
 } from '@/components/ui';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { StockCategoryType } from '@/types/api';
 
 const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
+  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
 function SelectionPanel({
   categories,
@@ -85,9 +86,9 @@ function SelectionPanel({
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none font-mono text-[12px]">
+    <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Alter Stock Category" subtitle="Select Stock Category to Alter" />
-      <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0 font-sans">
+      <div className="p-3 border-b border-zinc-200 shrink-0">
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -106,14 +107,6 @@ function SelectionPanel({
           />
         </div>
         <RightActionPanel actions={selectionActions} />
-      </div>
-      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 font-sans">
-        <button
-          onClick={onCancel}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white shadow-sm text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );
@@ -425,19 +418,18 @@ export default function StockCategoryAlter() {
             <FormRow label="(alias)" labelWidth="w-48" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={form.alias} onChange={setField('alias')} />
             </FormRow>
-            <div
-              ref={underRef}
-              tabIndex={0}
-              data-enter-click
-              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 focus:bg-zinc-100 outline-none select-none text-sm"
+            <FormRow
+              label="Under"
+              labelWidth="w-48"
+              className="flex items-center min-h-[26px]"
               onClick={() => setShowPanel((v) => !v)}
+              rowRef={underRef}
+              enterClick
             >
-              <span className="w-48 text-zinc-400 shrink-0 py-1 font-sans">Under</span>
-              <span className="text-zinc-600 mr-2 shrink-0">:</span>
-              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900">
+              <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
                 {selectedLabel}
               </span>
-            </div>
+            </FormRow>
           </div>
           <div className="flex-1" />
         </div>
@@ -458,33 +450,15 @@ export default function StockCategoryAlter() {
         <RightActionPanel actions={alterActions} />
       </div>
 
-      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50 shrink-0">
-        <button
-          onClick={handleDelete}
-          disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 transition-colors font-medium shadow-sm"
-        >
-          Delete (Alt+D)
-        </button>
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setSelected(null);
-              setForm(null);
-            }}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
-          >
-            Quit
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
-          >
-            {loading ? 'Saving...' : 'Accept'}
-          </button>
-        </div>
-      </div>
+      <MasterFormFooter
+        onDelete={handleDelete}
+        onCancel={() => {
+          setSelected(null);
+          setForm(null);
+        }}
+        onSubmit={handleSubmit}
+        loading={loading}
+      />
     </div>
   );
 }

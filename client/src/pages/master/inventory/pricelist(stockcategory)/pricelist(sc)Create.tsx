@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, RightActionPanel } from '@/components/ui';
+import { PageTitleBar, RightActionPanel, FormRow } from '@/components/ui';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ const emptyLine = (): PriceListLine => ({
 });
 
 const cellCls =
-  'bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent focus:bg-zinc-100 focus:border-zinc-300 rounded';
+  'bg-transparent outline-none text-[11px] font-mono text-zinc-900 w-full px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 rounded transition-colors';
 
 // ─── Right-side selection list (Tally-style, full height, never clipped) ────────
 
@@ -107,8 +108,10 @@ function RightSelectPanel({
                 e.preventDefault();
                 onPick(en.key);
               }}
-              className={`px-3 py-1.5 text-xs font-mono cursor-pointer border-b border-zinc-50 ${
-                en.selected ? 'bg-zinc-100 text-black font-bold' : 'text-zinc-700 hover:bg-zinc-50'
+              className={`px-3 py-1.5 text-sm cursor-pointer border-b border-gray-100 ${
+                en.selected
+                  ? 'bg-zinc-900 text-white font-semibold'
+                  : 'text-black hover:bg-black/[0.03]'
               }`}
             >
               {en.prefix ? <span className="text-zinc-400 mr-1">{en.prefix}</span> : null}
@@ -162,6 +165,11 @@ export default function PricelistscCreate() {
   const qtyUpToRefs = useRef<(HTMLInputElement | null)[]>([]);
   const rateRefs = useRef<(HTMLInputElement | null)[]>([]);
   const discRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Page 1 (header form) Enter-navigation anchors
+  const categoryRowRef = useRef<HTMLDivElement>(null);
+  const levelRowRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
 
   // ── Load masters
   useEffect(() => {
@@ -403,7 +411,7 @@ export default function PricelistscCreate() {
 
   // Notification banner — strict grayscale (no red/green)
   const Banner = ({ text, onDismiss }: { text: string; onDismiss: () => void }) => (
-    <div className="px-4 py-2 border-b border-zinc-200 border-l-2 border-l-black bg-zinc-100 text-zinc-900 text-xs flex justify-between items-center shrink-0 font-sans">
+    <div className="px-4 py-2 border-b border-zinc-200 border-l-2 border-l-black bg-white text-zinc-900 text-xs flex justify-between items-center shrink-0 font-sans">
       <span className="font-semibold">{text}</span>
       <button onClick={onDismiss} className="text-zinc-500 hover:text-black font-bold">
         &times;
@@ -439,65 +447,73 @@ export default function PricelistscCreate() {
             <div className="flex-1 flex items-start justify-start px-6 py-6">
               <div className="w-full max-w-lg bg-white border border-zinc-200 rounded overflow-hidden">
                 {/* Panel header */}
-                <div className="text-center font-bold text-xs py-3 border-b border-zinc-200 tracking-wide text-zinc-900 uppercase font-mono">
+                <div className="text-center font-bold text-xs py-3 border-b border-zinc-200 tracking-wide text-zinc-900 uppercase">
                   Price List Details
                 </div>
 
-                <div className="p-5 space-y-4 font-mono">
+                <div className="p-5 space-y-2">
                   {/* Stock Category */}
-                  <div className="grid grid-cols-[180px_1fr] gap-x-4 items-center text-xs">
-                    <span className="text-zinc-500">Stock Category Name</span>
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 border border-zinc-300 rounded px-2 py-1 bg-white cursor-pointer hover:border-zinc-500 text-[11px] font-mono font-bold text-left"
-                      onClick={() => {
-                        setShowCategoryList((p) => !p);
-                        setShowLevelList(false);
-                      }}
-                    >
+                  <FormRow
+                    label="Stock Category Name"
+                    labelWidth="w-44"
+                    className="flex items-center min-h-[30px]"
+                    onClick={() => {
+                      setShowCategoryList((p) => !p);
+                      setShowLevelList(false);
+                    }}
+                    rowRef={categoryRowRef}
+                    enterClick
+                  >
+                    <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
                       <span className="text-zinc-400 mr-1">◆</span>
-                      <span className="text-zinc-900">{selectedCategory}</span>
-                    </button>
-                  </div>
+                      {selectedCategory}
+                    </span>
+                  </FormRow>
 
                   {/* Price Level */}
-                  <div className="grid grid-cols-[180px_1fr] gap-x-4 items-center text-xs">
-                    <span className="text-zinc-500">Price Level</span>
-                    <button
-                      type="button"
-                      className="flex items-center border border-zinc-300 rounded px-2 py-1 bg-white cursor-pointer hover:border-zinc-500 text-[11px] font-mono font-bold text-left"
-                      onClick={() => {
-                        setShowLevelList((p) => !p);
-                        setShowCategoryList(false);
-                      }}
-                    >
-                      <span className="text-zinc-900">{selectedLevel || 'Select…'}</span>
-                    </button>
-                  </div>
+                  <FormRow
+                    label="Price Level"
+                    labelWidth="w-44"
+                    className="flex items-center min-h-[30px]"
+                    onClick={() => {
+                      setShowLevelList((p) => !p);
+                      setShowCategoryList(false);
+                    }}
+                    rowRef={levelRowRef}
+                    enterClick
+                  >
+                    <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
+                      {selectedLevel || 'Select…'}
+                    </span>
+                  </FormRow>
 
                   {/* Applicable From */}
-                  <div className="grid grid-cols-[180px_1fr] gap-x-4 items-center text-xs">
-                    <span className="text-zinc-500">Applicable From</span>
+                  <FormRow
+                    label="Applicable From"
+                    labelWidth="w-44"
+                    className="flex items-center min-h-[30px]"
+                  >
                     <div className="flex items-center gap-2">
                       <input
+                        ref={dateRef}
                         type="date"
                         value={applicableFrom}
                         onChange={(e) => setApplicableFrom(e.target.value)}
-                        className="border border-zinc-300 rounded px-2 py-1 text-[11px] font-mono font-bold text-zinc-900 bg-white focus:outline-none focus:border-zinc-500 w-36"
+                        className="border border-transparent hover:border-zinc-200 rounded px-2 py-1 text-sm font-semibold text-zinc-900 bg-transparent focus:outline-none focus:border-zinc-800 w-36 transition-colors"
                       />
                       {applicableFrom && (
-                        <span className="text-[11px] text-zinc-400 font-mono">
+                        <span className="text-[11px] text-zinc-400">
                           {formatDateDisplay(applicableFrom)}
                         </span>
                       )}
                     </div>
-                  </div>
+                  </FormRow>
                 </div>
 
                 {/* Hint */}
                 <div className="px-5 pb-4 text-[10px] text-zinc-400 font-sans">
-                  Press <kbd className="bg-zinc-100 border border-zinc-200 rounded px-1">Alt+A</kbd>{' '}
-                  or click Accept to proceed to item entry
+                  Press <kbd className="bg-white border border-zinc-300 rounded px-1">Alt+A</kbd> or
+                  click Accept to proceed to item entry
                 </div>
               </div>
             </div>
@@ -519,6 +535,7 @@ export default function PricelistscCreate() {
               onPick={(key) => {
                 setSelectedCategory(key);
                 setShowCategoryList(false);
+                focusFieldAfter(categoryRowRef.current);
               }}
               onClose={() => setShowCategoryList(false)}
             />
@@ -537,6 +554,7 @@ export default function PricelistscCreate() {
               onPick={(key) => {
                 setSelectedLevel(key);
                 setShowLevelList(false);
+                focusFieldAfter(levelRowRef.current);
               }}
               onClose={() => setShowLevelList(false)}
             />
@@ -548,7 +566,7 @@ export default function PricelistscCreate() {
           <div className="flex gap-3">
             <button
               onClick={() => navigate('/master/create')}
-              className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
+              className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-black/[0.03] transition-colors font-medium"
             >
               Quit
             </button>
@@ -619,7 +637,7 @@ export default function PricelistscCreate() {
           <div className="flex-1 overflow-auto min-h-0">
             <table className="w-full text-[11px] font-mono border-collapse">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-zinc-100 border-b border-zinc-300">
+                <tr className="bg-white border-b border-black">
                   <th className="text-left px-3 py-2 font-bold text-zinc-600 w-12">S.No.</th>
                   <th className="text-left px-3 py-2 font-bold text-zinc-600 w-64">Particulars</th>
                   <th className="text-center px-2 py-2 font-bold text-zinc-600 w-48" colSpan={2}>
@@ -662,8 +680,8 @@ export default function PricelistscCreate() {
                     <tr
                       key={i}
                       className={`border-b border-zinc-100 group ${
-                        isLastEmpty ? 'bg-zinc-50' : 'hover:bg-zinc-50'
-                      } ${activeItemDropdown === i ? 'bg-zinc-100' : ''}`}
+                        isLastEmpty ? 'bg-black/[0.02]' : 'hover:bg-black/[0.03]'
+                      } ${activeItemDropdown === i ? 'bg-black/[0.03]' : ''}`}
                     >
                       <td className="px-3 py-1 text-zinc-400 text-center align-middle">
                         {isLastEmpty ? '' : i + 1}
@@ -793,7 +811,7 @@ export default function PricelistscCreate() {
         <div className="flex gap-3">
           <button
             onClick={() => setPage(1)}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
+            className="text-xs px-4 py-1.5 rounded border border-zinc-300 bg-white text-zinc-700 hover:bg-black/[0.03] transition-colors font-medium"
           >
             Back
           </button>

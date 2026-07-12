@@ -8,6 +8,7 @@ import {
   SearchInput,
   DataTable,
   NotificationBanner,
+  MasterFormFooter,
 } from '@/components/ui';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { StockGroupType } from '@/types/api';
@@ -19,9 +20,9 @@ import {
 } from './utils';
 
 const inputCls =
-  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-300';
+  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-300 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 const selectCls =
-  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer';
+  'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
 // ── Group side panel ───────────────────────────────────────────────────────────
 function SidePanel({
@@ -205,7 +206,7 @@ function SelectionPanel({
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Alter Stock Group" subtitle="Select Group to Alter" />
 
-      <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0">
+      <div className="p-3 border-b border-zinc-200 shrink-0">
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -225,15 +226,6 @@ function SelectionPanel({
           />
         </div>
         <RightActionPanel actions={selectionActions} />
-      </div>
-
-      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50">
-        <button
-          onClick={onCancel}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white shadow-sm text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );
@@ -496,19 +488,18 @@ export default function StockGroupAlter() {
           </FormRow>
 
           {/* Under — opens side panel */}
-          <div className="flex items-center min-h-[26px]">
-            <span className="w-56 text-sm text-zinc-400 shrink-0 py-1 font-sans">Under</span>
-            <span className="text-zinc-600 mr-2 shrink-0">:</span>
-            <div
-              ref={underRef}
-              tabIndex={0}
-              data-enter-click
-              onClick={() => setShowPanel(true)}
-              className="text-sm py-0.5 px-1 bg-transparent cursor-pointer focus:bg-zinc-100 outline-none uppercase font-bold text-zinc-900 tracking-wide hover:text-black transition-colors"
-            >
+          <FormRow
+            label="Under"
+            labelWidth="w-56"
+            className="flex items-center min-h-[26px]"
+            onClick={() => setShowPanel(true)}
+            rowRef={underRef}
+            enterClick
+          >
+            <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400">
               {selectedUnderLabel}
-            </div>
-          </div>
+            </span>
+          </FormRow>
 
           <FormRow
             label="Should quantities of items be added"
@@ -608,34 +599,15 @@ export default function StockGroupAlter() {
       </div>
 
       {/* Footer */}
-      <div className="px-3 py-3 border-t border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0">
-        <button
-          onClick={handleDelete}
-          disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 transition-colors font-medium shadow-sm"
-        >
-          Delete
-        </button>
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setSelectedGroup(null);
-              setForm(null);
-            }}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors"
-          >
-            Back
-          </button>
-          <button
-            data-enter-accept
-            onClick={handleSubmit}
-            disabled={loading}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
-          >
-            {loading ? 'Saving...' : 'Accept'}
-          </button>
-        </div>
-      </div>
+      <MasterFormFooter
+        onDelete={handleDelete}
+        onCancel={() => {
+          setSelectedGroup(null);
+          setForm(null);
+        }}
+        onSubmit={handleSubmit}
+        loading={loading}
+      />
 
       {/* Under side panel */}
       {showPanel && (
