@@ -1,7 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useMemo } from "react";
-import { useCompany } from "../../context/CompanyContext";
-import type { FYType } from "../../types/api";
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useCompany } from '../../context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { FYType } from '../../types/api';
 
 const FY_YEARS = Array.from({ length: 26 }, (_, i) => 2001 + i);
 
@@ -9,7 +10,7 @@ export default function FinancialYears() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY, availableFYs, switchFY } = useCompany();
   const [showCreate, setShowCreate] = useState(false);
-  const [newStartDate, setNewStartDate] = useState("");
+  const [newStartDate, setNewStartDate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -19,16 +20,14 @@ export default function FinancialYears() {
   const companyId = selectedCompany?.company_id;
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
+    new Date(d).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
     });
 
   const sortedFYs = useMemo(() => {
-    return [...availableFYs].sort((a, b) =>
-      a.start_date.localeCompare(b.start_date)
-    );
+    return [...availableFYs].sort((a, b) => a.start_date.localeCompare(b.start_date));
   }, [availableFYs]);
 
   // Handle Create Financial Year
@@ -42,14 +41,14 @@ export default function FinancialYears() {
         start_date: newStartDate,
       });
       if (!result.success) {
-        setError(result.error || "Failed to create financial year");
+        setError(result.error || 'Failed to create financial year');
       } else {
-        setNewStartDate("");
+        setNewStartDate('');
         setShowCreate(false);
-        window.dispatchEvent(new Event("fy-reload"));
+        window.dispatchEvent(new Event('fy-reload'));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error");
+      setError(e instanceof Error ? e.message : 'Unexpected error');
     } finally {
       setLoading(false);
     }
@@ -59,11 +58,11 @@ export default function FinancialYears() {
   const handleDelete = async (fy: FYType) => {
     if (!fy.fy_id) return;
     if (!!fy.is_active) {
-      setError("Cannot delete the active financial year");
+      setError('Cannot delete the active financial year');
       return;
     }
     if (!!fy.is_closed) {
-      setError("Cannot delete a closed financial year");
+      setError('Cannot delete a closed financial year');
       return;
     }
     setLoading(true);
@@ -71,9 +70,9 @@ export default function FinancialYears() {
     try {
       const result = await window.api.fy.delete(fy.fy_id);
       if (!result.success) {
-        setError(result.error || "Failed to delete financial year");
+        setError(result.error || 'Failed to delete financial year');
       } else {
-        window.dispatchEvent(new Event("fy-reload"));
+        window.dispatchEvent(new Event('fy-reload'));
         if (activeFY?.fy_id === fy.fy_id) {
           const remaining = availableFYs.filter((f) => f.fy_id !== fy.fy_id);
           if (remaining.length > 0) {
@@ -82,7 +81,7 @@ export default function FinancialYears() {
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error");
+      setError(e instanceof Error ? e.message : 'Unexpected error');
     } finally {
       setLoading(false);
     }
@@ -92,7 +91,7 @@ export default function FinancialYears() {
   const handleSetActive = async (fy: FYType) => {
     if (!fy.fy_id || fy.fy_id === activeFY?.fy_id) return;
     if (!!fy.is_closed) {
-      setError("Cannot activate a closed financial year");
+      setError('Cannot activate a closed financial year');
       return;
     }
     setLoading(true);
@@ -100,7 +99,7 @@ export default function FinancialYears() {
       await switchFY(fy);
       setError(null);
     } catch (e) {
-      setError("Failed to switch active financial year");
+      setError('Failed to switch active financial year');
     } finally {
       setLoading(false);
     }
@@ -110,20 +109,20 @@ export default function FinancialYears() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 1. Esc: Go back to Gateway
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/");
+        navigate('/');
       }
 
       // 2. Alt+C: Toggle Create Form
-      if (e.altKey && (e.key === "c" || e.key === "C")) {
+      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault();
         setShowCreate((prev) => !prev);
         setError(null);
       }
 
       // 3. Ctrl+A: Accept/Create new year if form is open
-      if ((e.ctrlKey || e.metaKey) && (e.key === "a" || e.key === "A")) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
         if (showCreate && newStartDate) {
           e.preventDefault();
           handleCreate();
@@ -131,21 +130,19 @@ export default function FinancialYears() {
       }
 
       // 4. Arrow Down
-      if (e.key === "ArrowDown" && !showCreate) {
+      if (e.key === 'ArrowDown' && !showCreate) {
         e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev < sortedFYs.length - 1 ? prev + 1 : prev
-        );
+        setSelectedIndex((prev) => (prev < sortedFYs.length - 1 ? prev + 1 : prev));
       }
 
       // 5. Arrow Up
-      if (e.key === "ArrowUp" && !showCreate) {
+      if (e.key === 'ArrowUp' && !showCreate) {
         e.preventDefault();
         setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
       }
 
       // 6. Enter to Activate selected year
-      if (e.key === "Enter" && !showCreate && sortedFYs.length > 0) {
+      if (e.key === 'Enter' && !showCreate && sortedFYs.length > 0) {
         const selected = sortedFYs[selectedIndex];
         if (selected && selected.fy_id !== activeFY?.fy_id) {
           e.preventDefault();
@@ -154,7 +151,7 @@ export default function FinancialYears() {
       }
 
       // 7. Ctrl+D to Delete selected year
-      if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
         if (!showCreate && sortedFYs.length > 0) {
           const selected = sortedFYs[selectedIndex];
           if (selected) {
@@ -165,8 +162,8 @@ export default function FinancialYears() {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, showCreate, newStartDate, sortedFYs, selectedIndex, activeFY, companyId]);
 
   return (
@@ -175,7 +172,7 @@ export default function FinancialYears() {
       <div className="px-4 py-2 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate('/')}
             className="text-xs text-zinc-500 hover:text-zinc-800 px-2 py-0.5 border border-zinc-200 rounded bg-white shadow-sm font-medium"
           >
             ← Back
@@ -195,29 +192,19 @@ export default function FinancialYears() {
             }}
             className="text-[11px] font-semibold text-white bg-black hover:bg-zinc-800 px-3 py-1 rounded shadow-sm transition-colors"
           >
-            {showCreate ? "Cancel Creation" : "+ New Year"}
+            {showCreate ? 'Cancel Creation' : '+ New Year'}
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center animate-shake">
-          <span>{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold"
-          >
-            ✕
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       {/* Main Content Workspace */}
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
-        
         {/* Left Scrollable Area */}
         <div className="flex-1 flex flex-col min-w-0 bg-white h-full overflow-y-auto p-6">
-          
           {/* Creation Drawer */}
           {showCreate && (
             <div className="mb-6 p-5 border border-zinc-200 rounded-lg bg-zinc-50/50 shadow-inner flex flex-col gap-4 max-w-xl animate-fadeIn">
@@ -253,12 +240,12 @@ export default function FinancialYears() {
                     disabled={loading || !newStartDate}
                     className="text-xs font-semibold px-4 py-1.5 rounded text-white bg-black hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
                   >
-                    {loading ? "Creating..." : "Create Year"}
+                    {loading ? 'Creating...' : 'Create Year'}
                   </button>
                   <button
                     onClick={() => {
                       setShowCreate(false);
-                      setNewStartDate("");
+                      setNewStartDate('');
                     }}
                     className="text-xs font-semibold px-3 py-1.5 rounded border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors shadow-sm"
                   >
@@ -287,10 +274,10 @@ export default function FinancialYears() {
                     onClick={() => !showCreate && setSelectedIndex(idx)}
                     className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg transition-all duration-150 cursor-pointer select-none group ${
                       isActive
-                        ? "border-emerald-500 bg-emerald-50/20 shadow-sm"
+                        ? 'border-emerald-500 bg-emerald-50/20 shadow-sm'
                         : isHighlighted
-                        ? "border-zinc-500 bg-zinc-50 shadow-md ring-1 ring-zinc-500"
-                        : "border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50/50"
+                          ? 'border-zinc-500 bg-zinc-50 shadow-md ring-1 ring-zinc-500'
+                          : 'border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50/50'
                     }`}
                   >
                     {/* Date Span and Index */}
@@ -303,7 +290,8 @@ export default function FinancialYears() {
                           {formatDate(fy.start_date)} — {formatDate(fy.end_date)}
                         </span>
                         <span className="text-[10px] text-zinc-400 uppercase tracking-wider">
-                          FY {new Date(fy.start_date).getFullYear()}-{String(new Date(fy.end_date).getFullYear()).slice(-2)}
+                          FY {new Date(fy.start_date).getFullYear()}-
+                          {String(new Date(fy.end_date).getFullYear()).slice(-2)}
                         </span>
                       </div>
                     </div>
@@ -364,18 +352,17 @@ export default function FinancialYears() {
 
         {/* Right-Hand Tally Action Sidebar */}
         <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
-          
           <button
             onClick={() => {
               setShowCreate((prev) => !prev);
               setError(null);
             }}
             className={`flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400 ${
-              showCreate ? "bg-zinc-200" : ""
+              showCreate ? 'bg-zinc-200' : ''
             }`}
           >
             <span className="font-bold text-zinc-900 text-[10px]">Alt+C</span>
-            <span>{showCreate ? "Close Panel" : "New Year"}</span>
+            <span>{showCreate ? 'Close Panel' : 'New Year'}</span>
           </button>
 
           {!showCreate && sortedFYs.length > 0 && (
@@ -398,7 +385,9 @@ export default function FinancialYears() {
                 const selected = sortedFYs[selectedIndex];
                 if (selected) handleDelete(selected);
               }}
-              disabled={!!sortedFYs[selectedIndex]?.is_active || !!sortedFYs[selectedIndex]?.is_closed}
+              disabled={
+                !!sortedFYs[selectedIndex]?.is_active || !!sortedFYs[selectedIndex]?.is_closed
+              }
               className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-left shadow-sm hover:border-zinc-400"
             >
               <span className="font-bold text-zinc-900 text-[10px]">Ctrl+D</span>
@@ -415,7 +404,7 @@ export default function FinancialYears() {
           </div>
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate('/')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-zinc-200 hover:bg-zinc-300 text-zinc-800 transition-colors text-left shadow-sm font-semibold mt-auto"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Esc</span>
@@ -426,8 +415,13 @@ export default function FinancialYears() {
 
       {/* Footer */}
       <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
-        <span>Active Company: {selectedCompany?.name || "None"}</span>
-        <span>Active FY: {activeFY ? `${formatDate(activeFY.start_date)} — ${formatDate(activeFY.end_date)}` : "None"}</span>
+        <span>Active Company: {selectedCompany?.name || 'None'}</span>
+        <span>
+          Active FY:{' '}
+          {activeFY
+            ? `${formatDate(activeFY.start_date)} — ${formatDate(activeFY.end_date)}`
+            : 'None'}
+        </span>
       </div>
     </div>
   );

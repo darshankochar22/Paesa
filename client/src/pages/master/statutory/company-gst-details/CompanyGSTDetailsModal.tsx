@@ -2,19 +2,20 @@
 // Manages keyboard navigation, dropdown panel state, and accept-prompt state.
 // Delegates rendering to focused sub-components.
 
-import { useEffect, useState, useRef } from "react";
-import { useCompany } from "@/context/CompanyContext";
-import { useGSTDetails } from "./hooks/useGSTDetails";
-import type { CompanyGSTDetails } from "@/types/entities/CompanyGSTDetails";
-import GSTDetailsFormFields from "./components/GSTDetailsFormFields";
-import GSTDetailsListPanel from "./components/GSTDetailsListPanel";
-import GSTDetailsAcceptPrompt from "./components/GSTDetailsAcceptPrompt";
-import GSTClassificationSecondaryModal from "./components/GSTClassificationSecondaryModal";
-import SlabBasedRateDetails, { type SlabRow } from "./components/SlabBasedRateDetails";
-import GSTEffectiveDatePrompt from "./components/GSTEffectiveDatePrompt";
-import StateWiseThresholdLimitModal from "./components/StateWiseThresholdLimitModal";
-import DownloadSettingsModal from "./components/DownloadSettingsModal";
-import { TALLY_FIELDS_CONFIG } from "./config/dropdownConfig";
+import { useEffect, useState, useRef } from 'react';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import { useGSTDetails } from './hooks/useGSTDetails';
+import type { CompanyGSTDetails } from '@/types/entities/CompanyGSTDetails';
+import GSTDetailsFormFields from './components/GSTDetailsFormFields';
+import GSTDetailsListPanel from './components/GSTDetailsListPanel';
+import GSTDetailsAcceptPrompt from './components/GSTDetailsAcceptPrompt';
+import GSTClassificationSecondaryModal from './components/GSTClassificationSecondaryModal';
+import SlabBasedRateDetails, { type SlabRow } from './components/SlabBasedRateDetails';
+import GSTEffectiveDatePrompt from './components/GSTEffectiveDatePrompt';
+import StateWiseThresholdLimitModal from './components/StateWiseThresholdLimitModal';
+import DownloadSettingsModal from './components/DownloadSettingsModal';
+import { TALLY_FIELDS_CONFIG } from './config/dropdownConfig';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -48,17 +49,19 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   } = useGSTDetails({ companyId, isOpen });
 
   // ── UI state ────────────────────────────────────────────────────────────────
-  const [activeField, setActiveField] = useState<string>("hsnSacType");
+  const [activeField, setActiveField] = useState<string>('hsnSacType');
   const [listPanelOpen, setListPanelOpen] = useState(false);
   const [listOptions, setListOptions] = useState<string[]>([]);
-  const [listTitle, setListTitle] = useState("");
+  const [listTitle, setListTitle] = useState('');
   const [listSelectedIndex, setListSelectedIndex] = useState(0);
   const [showAcceptPrompt, setShowAcceptPrompt] = useState(false);
   const [classifications, setClassifications] = useState<any[]>([]);
   const [secondaryOpen, setSecondaryOpen] = useState(false);
   const [showSlabOverlay, setShowSlabOverlay] = useState(false);
   const [showEffectiveDatePrompt, setShowEffectiveDatePrompt] = useState(false);
-  const [effectiveDateTriggerContext, setEffectiveDateTriggerContext] = useState<"field" | "save">("save");
+  const [effectiveDateTriggerContext, setEffectiveDateTriggerContext] = useState<'field' | 'save'>(
+    'save',
+  );
   const [showStateWiseModal, setShowStateWiseModal] = useState(false);
   const [showDownloadSettingsModal, setShowDownloadSettingsModal] = useState(false);
   const [slabRows, setSlabRows] = useState<SlabRow[]>([]);
@@ -99,77 +102,83 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
 
   /** Returns the ordered list of focusable field IDs given current form state */
   const getFocusableFields = (): string[] => {
-    const list: string[] = ["hsnSacType"];
+    const list: string[] = ['hsnSacType'];
 
     // Classification under HSN/SAC section — triggered by hsnSacType
-    if (form.hsnSacType === "Use GST Classification") {
-      list.push("gstClassification");
+    if (form.hsnSacType === 'Use GST Classification') {
+      list.push('gstClassification');
     }
 
-    if (form.hsnSacType === "Specify Details Here") {
-      list.push("hsnSacCode", "description");
+    if (form.hsnSacType === 'Specify Details Here') {
+      list.push('hsnSacCode', 'description');
     }
 
-    list.push("gstRateDetails");
+    list.push('gstRateDetails');
 
     // Classification under GST Rate section — triggered by gstRateDetails
-    if (gstRateDetails === "Use GST Classification") {
-      list.push("gstClassification");
+    if (gstRateDetails === 'Use GST Classification') {
+      list.push('gstClassification');
     }
 
     // Only show taxability/rate when "Specify Details Here" — not for slab-based
-    if (gstRateDetails === "Specify Details Here") {
-      list.push("taxabilityType");
-      if (form.taxabilityType === "Taxable") {
-        list.push("gstRate");
+    if (gstRateDetails === 'Specify Details Here') {
+      list.push('taxabilityType');
+      if (form.taxabilityType === 'Taxable') {
+        list.push('gstRate');
       }
     }
 
     list.push(
-      "interstateThresholdLimit",
-      hasGSTRegistrations ? "setStateWiseThresholdLimit" : "intrastateThresholdLimit",
-      "thresholdLimitIncludes",
-      "createHSNSummaryFor"
+      'interstateThresholdLimit',
+      hasGSTRegistrations ? 'setStateWiseThresholdLimit' : 'intrastateThresholdLimit',
+      'thresholdLimitIncludes',
+      'createHSNSummaryFor',
     );
 
-    if (form.createHSNSummaryFor !== "None") {
-      list.push("minimumHSNLength");
+    if (form.createHSNSummaryFor !== 'None') {
+      list.push('minimumHSNLength');
     }
 
-    list.push("showGSTAdvances");
+    list.push('showGSTAdvances');
 
     if (form.showGSTAdvances) {
-      list.push("gstAdvancesApplicableFrom");
+      list.push('gstAdvancesApplicableFrom');
     }
 
-    list.push("updateGSTStatus");
+    list.push('updateGSTStatus');
 
-    list.push("gstReturnsConfigured");
+    list.push('gstReturnsConfigured');
     return list;
   };
 
   /** Opens the right-side list panel for dropdown fields */
   const openDropdownPanel = (fieldId: string) => {
     const config = TALLY_FIELDS_CONFIG[fieldId];
-    if (!config || config.type === "input") {
+    if (!config || config.type === 'input') {
       setListPanelOpen(false);
       return;
     }
 
     let options = config.options ? [...config.options] : [];
-    let title = config.title || "";
+    let title = config.title || '';
 
-    if (fieldId === "gstClassification") {
+    if (fieldId === 'gstClassification') {
       // Preset names that should never appear in the user-facing classifications list
       const PRESET_NAMES = new Set([
-        "GST 0%", "GST 5%", "GST 12%", "GST 18%", "GST 28%",
-        "Exempt", "Nil Rated", "Non GST",
+        'GST 0%',
+        'GST 5%',
+        'GST 12%',
+        'GST 18%',
+        'GST 28%',
+        'Exempt',
+        'Nil Rated',
+        'Non GST',
       ]);
       const userClassifications = classifications
-        .map((c) => c.name || "")
+        .map((c) => c.name || '')
         .filter((name) => name && !PRESET_NAMES.has(name));
-      options = ["Create", ...userClassifications];
-      title = "List of Classifications";
+      options = ['Create', ...userClassifications];
+      title = 'List of Classifications';
     }
 
     setListOptions(options);
@@ -177,15 +186,15 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     setListPanelOpen(options.length > 0);
 
     // Resolve the current value for pre-selection
-    let currentValue = "";
-    if (fieldId === "gstRateDetails") {
+    let currentValue = '';
+    if (fieldId === 'gstRateDetails') {
       currentValue = gstRateDetails;
-    } else if (fieldId === "gstClassification") {
-      currentValue = form.gstClassification || "";
-    } else if (config.type === "yesno") {
-      currentValue = form[fieldId as keyof CompanyGSTDetails] ? "Yes" : "No";
+    } else if (fieldId === 'gstClassification') {
+      currentValue = form.gstClassification || '';
+    } else if (config.type === 'yesno') {
+      currentValue = form[fieldId as keyof CompanyGSTDetails] ? 'Yes' : 'No';
     } else {
-      currentValue = String(form[fieldId as keyof CompanyGSTDetails] ?? "");
+      currentValue = String(form[fieldId as keyof CompanyGSTDetails] ?? '');
     }
 
     const idx = options.indexOf(currentValue);
@@ -201,20 +210,25 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       return;
     }
 
-    if (direction === 1 && activeField === "description" && !bypassPrompt) {
-      setEffectiveDateTriggerContext("field");
+    if (direction === 1 && activeField === 'description' && !bypassPrompt) {
+      setEffectiveDateTriggerContext('field');
       setShowEffectiveDatePrompt(true);
       return;
     }
 
-    if (direction === 1 && activeField === "gstReturnsConfigured" && form.gstReturnsConfigured && !bypassPrompt) {
+    if (
+      direction === 1 &&
+      activeField === 'gstReturnsConfigured' &&
+      form.gstReturnsConfigured &&
+      !bypassPrompt
+    ) {
       setShowDownloadSettingsModal(true);
       return;
     }
 
     index += direction;
     if (index >= fields.length) {
-      setEffectiveDateTriggerContext("save");
+      setEffectiveDateTriggerContext('save');
       setShowEffectiveDatePrompt(true);
     } else if (index < 0) {
       setActiveField(fields[0]);
@@ -226,81 +240,81 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   /** Apply a value chosen from the list panel to the corresponding field */
   const handleSelectDropdownOption = (fieldId: string, val: string) => {
     // Special case: "Create" opens the secondary classification creation screen
-    if (fieldId === "gstClassification" && val === "Create") {
+    if (fieldId === 'gstClassification' && val === 'Create') {
       setListPanelOpen(false);
       setSecondaryOpen(true);
       return;
     }
 
-    if (fieldId === "hsnSacType") {
-      setField("hsnSacType", val);
-      if (val === "Not Defined") {
-        setField("hsnSacCode", "");
-        setField("description", "");
-      } else if (val === "Specify in Voucher") {
-        setEffectiveDateTriggerContext("field");
+    if (fieldId === 'hsnSacType') {
+      setField('hsnSacType', val);
+      if (val === 'Not Defined') {
+        setField('hsnSacCode', '');
+        setField('description', '');
+      } else if (val === 'Specify in Voucher') {
+        setEffectiveDateTriggerContext('field');
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
       }
-    } else if (fieldId === "gstRateDetails") {
+    } else if (fieldId === 'gstRateDetails') {
       setGstRateDetails(val);
-      if (val === "Not Defined") {
-        setField("taxabilityType", "Not Defined");
-        setField("gstRate", 0);
-      } else if (val === "Specify Details Here") {
-        setField("taxabilityType", "Taxable");
-      } else if (val === "Specify Slab-Based Rates") {
+      if (val === 'Not Defined') {
+        setField('taxabilityType', 'Not Defined');
+        setField('gstRate', 0);
+      } else if (val === 'Specify Details Here') {
+        setField('taxabilityType', 'Taxable');
+      } else if (val === 'Specify Slab-Based Rates') {
         // Open slab overlay immediately — do NOT moveFocus
         setListPanelOpen(false);
         setTimeout(() => setShowSlabOverlay(true), 50);
         return;
-      } else if (val === "Use GST Classification") {
+      } else if (val === 'Use GST Classification') {
         // Jump directly to gstClassification — moveFocus would use stale state
         // and miss the field since gstRateDetails hasn't re-rendered yet
-        setActiveField("gstClassification");
+        setActiveField('gstClassification');
         return;
-      } else if (val === "Specify in Voucher") {
-        setEffectiveDateTriggerContext("field");
+      } else if (val === 'Specify in Voucher') {
+        setEffectiveDateTriggerContext('field');
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
       }
-    } else if (fieldId === "gstClassification") {
+    } else if (fieldId === 'gstClassification') {
       const selectedClass = classifications.find((c) => c.name === val);
-      setField("gstClassification", val);
+      setField('gstClassification', val);
       if (selectedClass) {
-        if (selectedClass.hsn_sac_code) setField("hsnSacCode", selectedClass.hsn_sac_code);
-        if (selectedClass.description) setField("description", selectedClass.description);
-        if (selectedClass.taxability) setField("taxabilityType", selectedClass.taxability);
-        if (selectedClass.gst_rate !== undefined) setField("gstRate", selectedClass.gst_rate);
+        if (selectedClass.hsn_sac_code) setField('hsnSacCode', selectedClass.hsn_sac_code);
+        if (selectedClass.description) setField('description', selectedClass.description);
+        if (selectedClass.taxability) setField('taxabilityType', selectedClass.taxability);
+        if (selectedClass.gst_rate !== undefined) setField('gstRate', selectedClass.gst_rate);
       }
-    } else if (fieldId === "createHSNSummaryFor") {
-      setField("createHSNSummaryFor", val);
-      if (val === "None") {
-        setEffectiveDateTriggerContext("field");
+    } else if (fieldId === 'createHSNSummaryFor') {
+      setField('createHSNSummaryFor', val);
+      if (val === 'None') {
+        setEffectiveDateTriggerContext('field');
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
       }
-    } else if (TALLY_FIELDS_CONFIG[fieldId]?.type === "yesno") {
-      const isYes = val === "Yes";
+    } else if (TALLY_FIELDS_CONFIG[fieldId]?.type === 'yesno') {
+      const isYes = val === 'Yes';
       setField(fieldId as keyof CompanyGSTDetails, isYes);
 
-      if (fieldId === "setStateWiseThresholdLimit" && isYes) {
+      if (fieldId === 'setStateWiseThresholdLimit' && isYes) {
         setListPanelOpen(false);
         setTimeout(() => setShowStateWiseModal(true), 50);
         return;
       }
-      
-      if (fieldId === "gstReturnsConfigured" && isYes) {
+
+      if (fieldId === 'gstReturnsConfigured' && isYes) {
         setListPanelOpen(false);
         setTimeout(() => setShowDownloadSettingsModal(true), 50);
         return;
       }
-    } else if (fieldId === "minimumHSNLength") {
-      setField("minimumHSNLength", Number(val) || 4);
-      setEffectiveDateTriggerContext("field");
+    } else if (fieldId === 'minimumHSNLength') {
+      setField('minimumHSNLength', Number(val) || 4);
+      setEffectiveDateTriggerContext('field');
       setListPanelOpen(false);
       setTimeout(() => setShowEffectiveDatePrompt(true), 50);
       return;
@@ -319,13 +333,13 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         if (res.success && res.gstClassifications) {
           setClassifications(res.gstClassifications);
           // Auto-select the newly created classification
-          setField("gstClassification", newClassName);
+          setField('gstClassification', newClassName);
           const newClass = res.gstClassifications.find((c: any) => c.name === newClassName);
           if (newClass) {
-            if (newClass.hsn_sac_code) setField("hsnSacCode", newClass.hsn_sac_code);
-            if (newClass.description) setField("description", newClass.description);
-            if (newClass.taxability) setField("taxabilityType", newClass.taxability);
-            if (newClass.gst_rate !== undefined) setField("gstRate", newClass.gst_rate);
+            if (newClass.hsn_sac_code) setField('hsnSacCode', newClass.hsn_sac_code);
+            if (newClass.description) setField('description', newClass.description);
+            if (newClass.taxability) setField('taxabilityType', newClass.taxability);
+            if (newClass.gst_rate !== undefined) setField('gstRate', newClass.gst_rate);
           }
           moveFocus(1);
         }
@@ -348,7 +362,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   // Reset UI state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setActiveField("hsnSacType");
+      setActiveField('hsnSacType');
       setShowAcceptPrompt(false);
       setSecondaryOpen(false);
       setShowSlabOverlay(false);
@@ -365,21 +379,52 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   // Sync list panel when active field or dependent form values change
   // Paused while either secondary modal, slab overlay, or state-wise modal is open
   useEffect(() => {
-    if (isOpen && !secondaryOpen && !showSlabOverlay && !showEffectiveDatePrompt && !showStateWiseModal && !showDownloadSettingsModal) {
+    if (
+      isOpen &&
+      !secondaryOpen &&
+      !showSlabOverlay &&
+      !showEffectiveDatePrompt &&
+      !showStateWiseModal &&
+      !showDownloadSettingsModal
+    ) {
       openDropdownPanel(activeField);
     }
-    if (showSlabOverlay || showEffectiveDatePrompt || showStateWiseModal || showDownloadSettingsModal) {
+    if (
+      showSlabOverlay ||
+      showEffectiveDatePrompt ||
+      showStateWiseModal ||
+      showDownloadSettingsModal
+    ) {
       setListPanelOpen(false);
     }
-  }, [activeField, form.hsnSacType, form.taxabilityType, gstRateDetails, classifications, secondaryOpen, showSlabOverlay, showEffectiveDatePrompt, showStateWiseModal, showDownloadSettingsModal]);
+  }, [
+    activeField,
+    form.hsnSacType,
+    form.taxabilityType,
+    gstRateDetails,
+    classifications,
+    secondaryOpen,
+    showSlabOverlay,
+    showEffectiveDatePrompt,
+    showStateWiseModal,
+    showDownloadSettingsModal,
+  ]);
 
   // Global keyboard handler — paused while sub-modals are open
   useEffect(() => {
-    if (!isOpen || secondaryOpen || showSlabOverlay || showEffectiveDatePrompt || showStateWiseModal || showDownloadSettingsModal) return;
+    if (
+      !isOpen ||
+      secondaryOpen ||
+      showSlabOverlay ||
+      showEffectiveDatePrompt ||
+      showStateWiseModal ||
+      showDownloadSettingsModal
+    )
+      return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // ESC — close panels/prompts in reverse order
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         if (showAcceptPrompt) {
           setShowAcceptPrompt(false);
@@ -392,9 +437,9 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       }
 
       // Ctrl+A / Alt+A — immediately show effective date prompt
-      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "a") {
+      if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        setEffectiveDateTriggerContext("save");
+        setEffectiveDateTriggerContext('save');
         setShowEffectiveDatePrompt(true);
         return;
       }
@@ -402,10 +447,10 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       // Accept prompt keyboard shortcuts
       if (showAcceptPrompt) {
         const k = e.key.toLowerCase();
-        if (k === "y" || e.key === "Enter") {
+        if (k === 'y' || e.key === 'Enter') {
           e.preventDefault();
           handleSave();
-        } else if (k === "n") {
+        } else if (k === 'n') {
           e.preventDefault();
           setShowAcceptPrompt(false);
           const fields = getFocusableFields();
@@ -416,28 +461,28 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
 
       // Y/N shortcut for Yes/No fields (TallyPrime style)
       const fieldConfig = TALLY_FIELDS_CONFIG[activeField];
-      if (fieldConfig && fieldConfig.type === "yesno") {
+      if (fieldConfig && fieldConfig.type === 'yesno') {
         const char = e.key.toLowerCase();
-        if (char === "y" || char === "n") {
+        if (char === 'y' || char === 'n') {
           e.preventDefault();
-          handleSelectDropdownOption(activeField, char === "y" ? "Yes" : "No");
+          handleSelectDropdownOption(activeField, char === 'y' ? 'Yes' : 'No');
           return;
         }
       }
 
       // List panel navigation
       if (listPanelOpen && listOptions.length > 0) {
-        if (e.key === "ArrowDown") {
+        if (e.key === 'ArrowDown') {
           e.preventDefault();
           setListSelectedIndex((prev) => (prev + 1) % listOptions.length);
           return;
         }
-        if (e.key === "ArrowUp") {
+        if (e.key === 'ArrowUp') {
           e.preventDefault();
           setListSelectedIndex((prev) => (prev - 1 + listOptions.length) % listOptions.length);
           return;
         }
-        if (e.key === "Enter") {
+        if (e.key === 'Enter') {
           e.preventDefault();
           handleSelectDropdownOption(activeField, listOptions[listSelectedIndex]);
           return;
@@ -445,20 +490,20 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       }
 
       // Standard field navigation
-      if (e.key === "Enter" || e.key === "Tab") {
+      if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         moveFocus(e.shiftKey ? -1 : 1);
-      } else if (e.key === "ArrowDown") {
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         moveFocus(1);
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         moveFocus(-1);
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     isOpen,
     secondaryOpen,
@@ -490,7 +535,6 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       >
         {/* ── Main dialog box ──────────────────────────────────────────────── */}
         <div className="bg-white border border-zinc-400 w-[900px] flex flex-col shadow-2xl overflow-hidden relative">
-
           {/* Dialog title */}
           <div className="text-center font-bold text-xs pt-4 pb-2 border-b border-zinc-200 tracking-wide text-zinc-900">
             <span className="underline decoration-1 decoration-zinc-800 underline-offset-4">
@@ -512,23 +556,11 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
 
           {/* Error banner */}
           {error && (
-            <div className="px-6 py-2 border-t border-red-200 bg-red-50 text-red-700 text-xs font-bold font-sans flex justify-between items-center">
-              <span>• {error}</span>
-              <button
-                onClick={() => setError(null)}
-                className="text-red-500 hover:text-red-700 font-bold font-sans"
-              >
-                &times;
-              </button>
-            </div>
+            <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
           )}
 
           {/* Success banner */}
-          {success && (
-            <div className="px-6 py-2 border-t border-green-200 bg-green-50 text-green-700 text-xs font-bold font-sans">
-              <span>• {success}</span>
-            </div>
-          )}
+          {success && <NotificationBanner type="success" message={success} />}
 
           {/* Footer — TallyPrime-style action bar */}
           <div className="px-6 py-2 border-t border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0 font-sans text-[10px] text-zinc-500">
@@ -549,13 +581,13 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
               </button>
               <button
                 onClick={() => {
-                  setEffectiveDateTriggerContext("save");
+                  setEffectiveDateTriggerContext('save');
                   setShowEffectiveDatePrompt(true);
                 }}
                 disabled={loading}
                 className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
               >
-                {loading ? "Saving..." : "Accept"}
+                {loading ? 'Saving...' : 'Accept'}
               </button>
             </div>
           </div>
@@ -601,7 +633,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
           setSlabRows(rows);
           // Move focus forward after closing slab
           const fields = getFocusableFields();
-          const idx = fields.indexOf("gstRateDetails");
+          const idx = fields.indexOf('gstRateDetails');
           if (idx >= 0 && idx + 1 < fields.length) {
             setActiveField(fields[idx + 1]);
           }
@@ -614,10 +646,10 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         isOpen={showEffectiveDatePrompt}
         onAccept={(dateStr) => {
           setShowEffectiveDatePrompt(false);
-          if (effectiveDateTriggerContext === "field") {
+          if (effectiveDateTriggerContext === 'field') {
             moveFocus(1, true);
           } else {
-            setField("effectiveDate", dateStr);
+            setField('effectiveDate', dateStr);
             setShowAcceptPrompt(true);
           }
         }}
@@ -629,7 +661,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         isOpen={showStateWiseModal}
         initialLimits={form.stateWiseLimits || []}
         onSave={(limits) => {
-          setField("stateWiseLimits", limits);
+          setField('stateWiseLimits', limits);
         }}
         onClose={() => {
           setShowStateWiseModal(false);
@@ -641,11 +673,11 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       <DownloadSettingsModal
         isOpen={showDownloadSettingsModal}
         registrations={registrations}
-        initialRegistration={form.downloadGSTRegistration || ""}
-        initialReturnType={form.downloadReturnType || "All Returns"}
+        initialRegistration={form.downloadGSTRegistration || ''}
+        initialReturnType={form.downloadReturnType || 'All Returns'}
         onSave={(reg, returnType) => {
-          setField("downloadGSTRegistration", reg);
-          setField("downloadReturnType", returnType);
+          setField('downloadGSTRegistration', reg);
+          setField('downloadReturnType', returnType);
           moveFocus(1, true);
         }}
         onClose={() => {

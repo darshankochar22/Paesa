@@ -1,37 +1,37 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 // Local input — sharp, zinc. Two visual modes:
 //  - "box" (default): bordered field used in forms.
 //  - "underline": borderless with a focus underline, used in inline grid/voucher
 //    entry rows (matches ParticularsTable's ledger/amount inputs).
 
-type InputVariant = "box" | "underline";
+type InputVariant = 'box' | 'underline';
 
-export interface InputProps extends React.ComponentProps<"input"> {
+export interface InputProps extends React.ComponentProps<'input'> {
   variant?: InputVariant;
 }
 
 const VARIANTS: Record<InputVariant, string> = {
-  box: "h-8 px-2 border border-zinc-300 bg-white focus:border-zinc-800 hover:border-zinc-400",
+  box: 'h-8 px-2 border border-gray-200 bg-white focus:border-gray-200 hover:border-gray-200',
   underline:
-    "px-0.5 bg-transparent border-b border-transparent focus:border-zinc-800 hover:border-zinc-200",
+    'px-0.5 bg-transparent border-b border-transparent focus:border-gray-200 hover:border-gray-200',
 };
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, variant = "box", type = "text", ...props }, ref) => (
+  ({ className, variant = 'box', type = 'text', ...props }, ref) => (
     <input
       ref={ref}
       type={type}
       className={cn(
-        "w-full min-w-0 text-xs text-zinc-900 placeholder-zinc-400 outline-none transition-colors",
-        "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+        'w-full min-w-0 text-xs text-black placeholder-black/40 outline-none transition-colors',
+        'disabled:cursor-not-allowed disabled:bg-white disabled:text-black',
         VARIANTS[variant],
-        className
+        className,
       )}
       {...props}
     />
-  )
+  ),
 );
-Input.displayName = "Input";
+Input.displayName = 'Input';
 export default Input;

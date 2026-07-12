@@ -20,7 +20,7 @@ export default function MasterFormFooter({
   disabled,
 }: Props) {
   return (
-    <div className="px-3 py-3 border-t border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0">
+    <div className="px-3 py-3 border-t border-gray-200 flex justify-between items-center bg-white shrink-0">
       {onDelete ? (
         <button
           onClick={onDelete}
@@ -33,7 +33,7 @@ export default function MasterFormFooter({
         <button
           onClick={onCancel}
           disabled={loading}
-          className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium"
+          className="text-xs text-black hover:text-black transition-colors font-medium"
         >
           &larr; {cancelLabel}
         </button>
@@ -43,7 +43,7 @@ export default function MasterFormFooter({
         {onDelete && (
           <button
             onClick={onCancel}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors"
+            className="text-xs px-4 py-1.5 rounded border border-gray-200 bg-white text-black hover:bg-black/[0.03] shadow-sm transition-colors"
           >
             Back
           </button>
@@ -52,7 +52,7 @@ export default function MasterFormFooter({
           data-enter-accept
           onClick={onSubmit}
           disabled={loading || disabled}
-          className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
+          className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-black/[0.03] disabled:opacity-50 shadow-sm transition-colors font-medium"
         >
           {loading ? 'Saving…' : submitLabel}
         </button>

@@ -43,11 +43,11 @@ export default function StockBarChart({ bars, height = 96, selectedIndex = -2 }:
   const gap = (slot - barW) / 2;
 
   return (
-    <div className="border-t border-zinc-200 bg-white px-3 pt-1.5 pb-1 shrink-0 select-none">
+    <div className="border-t border-gray-200 bg-white px-3 pt-1.5 pb-1 shrink-0 select-none">
       <div className="flex gap-2">
         {/* y-axis labels — positioned against the real zero baseline */}
         <div
-          className="relative text-[8px] font-mono text-zinc-400 leading-none w-8 shrink-0"
+          className="relative text-[8px] font-mono text-black leading-none w-8 shrink-0"
           style={{ height: plotH }}
         >
           {hasPos && (
@@ -102,11 +102,11 @@ export default function StockBarChart({ bars, height = 96, selectedIndex = -2 }:
             })}
           </svg>
           {/* x-axis labels (HTML so they stay crisp / non-stretched) */}
-          <div className="flex w-full text-[8px] font-mono text-zinc-500 leading-none pt-0.5">
+          <div className="flex w-full text-[8px] font-mono text-black leading-none pt-0.5">
             {bars.map((b, i) => (
               <span
                 key={i}
-                className={`text-center truncate ${i === selectedIndex ? 'text-zinc-900 font-bold' : ''}`}
+                className={`text-center truncate ${i === selectedIndex ? 'text-black font-bold' : ''}`}
                 style={{ width: `${slot}%` }}
               >
                 {b.label}

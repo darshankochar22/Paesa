@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { FormRow, PageTitleBar, MasterFormFooter, AlertBanner } from '@/components/ui';
 import { useMasterShortcuts } from '@/hooks/useMasterShortcuts';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import { UqcPopup } from '../../inventory/unit/UqcPopup';
 const inputCls =
   'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
@@ -39,7 +40,7 @@ export default function PayrollUnitCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showUqc, setShowUqc] = useState(false);
-  const uqcAnchorRef = useRef<HTMLButtonElement>(null);
+  const uqcAnchorRef = useRef<HTMLSpanElement>(null);
   const symbolRef = useRef<HTMLInputElement>(null);
   const formalNameRef = useRef<HTMLInputElement>(null);
   const firstUnitRef = useRef<HTMLInputElement>(null);
@@ -166,7 +167,6 @@ export default function PayrollUnitCreate() {
                     onKeyDown={(e) => {
                       if (e.key !== 'Enter') return;
                       e.preventDefault();
-                      setShowUqc(true);
                       uqcAnchorRef.current?.focus();
                     }}
                   />
@@ -176,20 +176,23 @@ export default function PayrollUnitCreate() {
                   labelWidth="w-56"
                   className="flex items-center min-h-[26px] relative"
                 >
-                  <button
+                  <span
                     ref={uqcAnchorRef}
-                    type="button"
-                    className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    data-enter-click
+                    className="flex-1 cursor-pointer text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
                     onClick={() => setShowUqc((v) => !v)}
                   >
                     ◆ {form.uqc || 'Not Applicable'}
-                  </button>
+                  </span>
                   {showUqc && (
                     <UqcPopup
                       selected={form.uqc}
                       onSelect={(v) => {
                         setForm((f) => ({ ...f, uqc: v }));
                         setShowUqc(false);
+                        focusFieldAfter(uqcAnchorRef.current);
                       }}
                       onClose={() => setShowUqc(false)}
                     />
@@ -280,7 +283,6 @@ export default function PayrollUnitCreate() {
       <MasterFormFooter
         onCancel={() => navigate('/master/create')}
         onSubmit={handleSubmit}
-        submitLabel="Create"
         loading={loading}
       />
     </div>

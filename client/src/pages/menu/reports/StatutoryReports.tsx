@@ -40,12 +40,12 @@ export default function StatutoryReports() {
   return (
     <Card className="w-96 mx-auto mt-10 gap-4 text-xs">
       <CardHeader className="pb-2">
-        <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">
+        <div className="text-[11px] italic text-black flex flex-wrap gap-1">
+          <Link to="/" className="hover:underline hover:text-black">
             Gateway
           </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+          <Link to="/reports/display-more" className="hover:underline hover:text-black">
             Display More Reports
           </Link>
         </div>
@@ -56,7 +56,7 @@ export default function StatutoryReports() {
         {sections.map((section, idx) => (
           <div key={idx} className="flex flex-col gap-2">
             {section.title && (
-              <div className="font-semibold text-xs uppercase tracking-wide text-zinc-500">
+              <div className="font-semibold text-xs uppercase tracking-wide text-black">
                 {section.title}
               </div>
             )}

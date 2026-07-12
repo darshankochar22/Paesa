@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { MasterSelectionPanel, type TableColumn } from "@/components/ui";
-import MerchantProfileForm from "./MerchantProfileForm";
-import type { MerchantProfileType } from "@/types/entities/MerchantProfile";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { MasterSelectionPanel, NotificationBanner, type TableColumn } from '@/components/ui';
+import MerchantProfileForm from './MerchantProfileForm';
+import type { MerchantProfileType } from '@/types/entities/MerchantProfile';
 
 export default function MerchantProfileAlter() {
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ export default function MerchantProfileAlter() {
       setSelected(null);
       load();
     } else {
-      window.alert(res.error || "Failed to delete merchant profile.");
+      window.alert(res.error || 'Failed to delete merchant profile.');
     }
   };
 
@@ -49,26 +49,27 @@ export default function MerchantProfileAlter() {
   if (!selected) {
     const columns: TableColumn[] = [
       {
-        key: "name",
-        label: "Name",
-        span: "col-span-7",
-        render: (r: MerchantProfileType) => <span className="font-bold text-zinc-900 text-xs">{r.name}</span>,
+        key: 'name',
+        label: 'Name',
+        span: 'col-span-7',
+        render: (r: MerchantProfileType) => (
+          <span className="font-bold text-zinc-900 text-xs">{r.name}</span>
+        ),
       },
       {
-        key: "payment_method",
-        label: "Payment Method",
-        span: "col-span-5",
-        render: (r: MerchantProfileType) => <span className="text-zinc-500 font-semibold">{r.payment_method || "—"}</span>,
+        key: 'payment_method',
+        label: 'Payment Method',
+        span: 'col-span-5',
+        render: (r: MerchantProfileType) => (
+          <span className="text-zinc-500 font-semibold">{r.payment_method || '—'}</span>
+        ),
       },
     ];
 
     return (
       <div className="flex-1 flex flex-col h-full">
         {success && (
-          <div className="mx-6 mt-4 p-2 border border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-sans">
-            <span>• {success}</span>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
-          </div>
+          <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
         )}
         <MasterSelectionPanel<MerchantProfileType>
           title="Alter Merchant Profile"
@@ -78,8 +79,8 @@ export default function MerchantProfileAlter() {
           filterFn={(p, q) => p.name.toLowerCase().includes(q.toLowerCase())}
           columns={columns}
           onSelect={handleSelect}
-          onCancel={() => navigate("/master/alter")}
-          onCreate={() => navigate("/master/create/merchant-profile")}
+          onCancel={() => navigate('/master/alter')}
+          onCreate={() => navigate('/master/create/merchant-profile')}
           createLabel="Create Merchant Profile"
           rowKey={(p) => p.merchant_profile_id!}
           emptyMessage="No merchant profiles found."
@@ -98,7 +99,7 @@ export default function MerchantProfileAlter() {
         setSelected(null);
         load();
       }}
-      onCancel={() => navigate("/master/alter")}
+      onCancel={() => navigate('/master/alter')}
       onBack={() => setSelected(null)}
       onDelete={handleDelete}
     />

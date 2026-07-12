@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar } from "@/components/ui";
-import GroupTree from "@/components/GroupTree";
-import type { GroupType } from "@/types/api";
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { PageTitleBar, NotificationBanner } from '@/components/ui';
+import GroupTree from '@/components/GroupTree';
+import type { GroupType } from '@/types/api';
 
 export default function GroupAlter() {
   const { selectedCompany } = useCompany();
@@ -28,10 +28,12 @@ export default function GroupAlter() {
         if (treeRes.success && treeRes.tree) setGroupTree(treeRes.tree ?? []);
         if (allRes.success && allRes.groups) setFlatGroups(allRes.groups ?? []);
       } catch (e) {
-        if (!cancelled) setError("Failed to load groups.");
+        if (!cancelled) setError('Failed to load groups.');
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [companyId]);
 
   const groupNameMap = useMemo(() => {
@@ -53,7 +55,7 @@ export default function GroupAlter() {
   const handleDelete = async (group: GroupType) => {
     if (!group.group_id) return;
     if (group.is_predefined || group.is_primary) {
-      setError("Cannot delete protected groups.");
+      setError('Cannot delete protected groups.');
       return;
     }
     if (!confirm(`Delete group "${group.name}"?`)) return;
@@ -64,10 +66,10 @@ export default function GroupAlter() {
         const treeRes = await window.api.group.getTree(companyId!);
         if (treeRes.success && treeRes.tree) setGroupTree(treeRes.tree ?? []);
       } else {
-        setError(res.error || "Failed to delete group.");
+        setError(res.error || 'Failed to delete group.');
       }
     } catch (e) {
-      setError("Unexpected error during delete.");
+      setError('Unexpected error during delete.');
     }
   };
 
@@ -78,7 +80,7 @@ export default function GroupAlter() {
         subtitle={selectedCompany?.name}
         actions={
           <button
-            onClick={() => navigate("/master/alter")}
+            onClick={() => navigate('/master/alter')}
             className="text-zinc-400 hover:text-white text-[11px] transition-colors"
           >
             ← Back
@@ -86,34 +88,27 @@ export default function GroupAlter() {
         }
       />
       <div className="flex-1 p-6">
+        {error && (
+          <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
+        )}
+        {success && (
+          <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
+        )}
 
-      {error && (
-        <div className="mb-4 p-2 border border-red-200 text-red-700 text-sm flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
+        <div className="border rounded overflow-hidden max-w-2xl">
+          <div className="px-4 py-3 border-b bg-zinc-50 text-sm font-medium text-zinc-600">
+            Groups
+          </div>
+          <GroupTree
+            tree={groupTree}
+            readOnly={false}
+            showActions={true}
+            onSelect={handleSelect}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            groupNameMap={groupNameMap}
+          />
         </div>
-      )}
-      {success && (
-        <div className="mb-4 p-2 border border-green-200 text-green-700 text-sm flex justify-between items-center">
-          <span>{success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
-        </div>
-      )}
-
-      <div className="border rounded overflow-hidden max-w-2xl">
-        <div className="px-4 py-3 border-b bg-zinc-50 text-sm font-medium text-zinc-600">
-          Groups
-        </div>
-        <GroupTree
-          tree={groupTree}
-          readOnly={false}
-          showActions={true}
-          onSelect={handleSelect}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          groupNameMap={groupNameMap}
-        />
-      </div>
       </div>
     </div>
   );

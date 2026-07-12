@@ -54,15 +54,15 @@ export default function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onMouseDown={onCancel}
       role="dialog"
     >
       <div
-        className="bg-white border-2 border-zinc-900 shadow-lg min-w-[200px]"
+        className="bg-white border-2 border-gray-200 shadow-lg min-w-[200px]"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="px-4 py-3 text-xs font-bold text-zinc-900 border-b border-zinc-200">
+        <div className="px-4 py-3 text-xs font-bold text-black border-b border-gray-200">
           {message}
         </div>
         <div className="flex gap-2 px-4 py-3 justify-end">

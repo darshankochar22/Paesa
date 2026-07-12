@@ -96,18 +96,18 @@ export function BalanceSheetLayout() {
           <div
             onClick={() => handleFocus(key, group)}
             onDoubleClick={() => openGroup(group)}
-            className={`flex justify-between items-center px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none transition-colors ${
+            className={`flex justify-between items-center px-3 py-1.5 border-b border-gray-200 cursor-pointer select-none transition-colors ${
               isFocused
-                ? 'bg-zinc-200 text-zinc-950 font-bold'
+                ? 'bg-black/[0.06] text-black font-bold'
                 : group.isDifference
-                  ? 'hover:bg-zinc-50 text-zinc-500 italic font-normal'
-                  : 'hover:bg-zinc-50 text-zinc-800 font-semibold'
+                  ? 'hover:bg-black/[0.03] text-black italic font-normal'
+                  : 'hover:bg-black/[0.03] text-black font-semibold'
             }`}
           >
             <span className="text-left">
               {group.group_name}
               {group.isPnL && (
-                <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
+                <span className="ml-2 text-[9px] text-black italic font-normal">
                   (Net {(group.balance ?? 0) >= 0 ? 'Profit' : 'Loss'})
                 </span>
               )}
@@ -117,7 +117,7 @@ export function BalanceSheetLayout() {
 
           {group.isPnL && group.pnlBreakup && (
             <>
-              <div className="flex justify-between px-3 py-1 pl-8 text-zinc-500 italic select-none text-[10px]">
+              <div className="flex justify-between px-3 py-1 pl-8 text-black italic select-none text-[10px]">
                 <span>Opening Balance</span>
                 <span className="font-mono">
                   {group.pnlBreakup.openingBalance !== 0
@@ -125,7 +125,7 @@ export function BalanceSheetLayout() {
                     : ''}
                 </span>
               </div>
-              <div className="flex justify-between px-3 py-1 pl-8 text-zinc-500 italic select-none text-[10px]">
+              <div className="flex justify-between px-3 py-1 pl-8 text-black italic select-none text-[10px]">
                 <span>Current Period</span>
                 <span className="font-mono">₹{fmtAbs(group.pnlBreakup.currentPeriod)}</span>
               </div>
@@ -154,7 +154,7 @@ export function BalanceSheetLayout() {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs px-8 text-center">
+    <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
       {children}
     </div>
   );

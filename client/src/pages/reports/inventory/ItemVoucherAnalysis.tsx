@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 
 // TallyPrime "Item Voucher Analysis" — the voucher-level leaf of the Movement
 // Analysis drill chain. Reached filtered to a single stock item + ledger +
@@ -14,24 +14,35 @@ import * as React from "react";
 const neg = (s: string, v: number) => (v < 0 ? `(-)${s}` : s);
 const fmtVal = (v: number | null | undefined) => {
   const n = Number(v) || 0;
-  if (n === 0) return "";
-  return neg(new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n)), n);
+  if (n === 0) return '';
+  return neg(
+    new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      Math.abs(n),
+    ),
+    n,
+  );
 };
 const fmtQty = (v: number | null | undefined, unit?: string) => {
   const n = Number(v) || 0;
-  if (n === 0) return "";
-  const s = Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  if (n === 0) return '';
+  const s = Math.abs(n).toLocaleString('en-IN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  });
   return neg(unit ? `${s} ${unit}` : s, n);
 };
 const fmtRate = (v: number | null | undefined, unit?: string) => {
   const n = Number(v) || 0;
-  if (n === 0) return "";
-  const s = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n));
+  if (n === 0) return '';
+  const s = new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(n));
   return neg(unit ? `${s}/${unit}` : s, n);
 };
-const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtDate = (d?: string | null) => {
-  if (!d) return "";
+  if (!d) return '';
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
   return m ? `${Number(m[3])}-${MON[Number(m[2]) - 1]}-${m[1].slice(2)}` : d;
 };
@@ -62,9 +73,9 @@ interface Props {
   /** Transfer voucher type the vouchers are filtered under (Transfer Analysis drill). */
   transferName?: string;
   /** Header direction word for the ledger case ("Inwards"/"Outwards"). */
-  direction?: "inward" | "outward";
+  direction?: 'inward' | 'outward';
   /** How rows are grouped into sections + the section labels. */
-  sectionMode?: "family" | "leg";
+  sectionMode?: 'family' | 'leg';
   sectionLabels?: { inward: string; outward: string };
   unit?: string;
   rows: VoucherRow[];
@@ -76,64 +87,108 @@ interface Props {
   footer?: React.ReactNode;
 }
 
-const TH = "px-2 py-1 font-bold text-zinc-700 border-b border-zinc-300";
+const TH = 'px-2 py-1 font-bold text-black border-b border-gray-200';
 
-type SectionMode = "family" | "leg";
+type SectionMode = 'family' | 'leg';
 
 /** Which section a row belongs to. "family": by voucher-type (Sales/Credit Note
  *  → outward). "leg": by which leg carries the qty (transfer Goods In/Out). */
-const famOf = (r: VoucherRow, mode: SectionMode): "inward" | "outward" =>
-  mode === "leg"
-    ? ((Number(r.inwards_qty) || 0) !== 0 || (Number(r.inwards_value) || 0) !== 0 ? "inward" : "outward")
-    : (/credit note|sales|sale/i.test(r.voucher_type || "") ? "outward" : "inward");
+const famOf = (r: VoucherRow, mode: SectionMode): 'inward' | 'outward' =>
+  mode === 'leg'
+    ? (Number(r.inwards_qty) || 0) !== 0 || (Number(r.inwards_value) || 0) !== 0
+      ? 'inward'
+      : 'outward'
+    : /credit note|sales|sale/i.test(r.voucher_type || '')
+      ? 'outward'
+      : 'inward';
 
 /** Project a row onto the 9-column shape, net of the opposite leg so a
  *  purchase/sales return reads as a negative line inside its family. */
 function project(r: VoucherRow, mode: SectionMode) {
-  const inQ = Number(r.inwards_qty) || 0,  outQ = Number(r.outwards_qty) || 0;
-  const inV = Number(r.inwards_value) || 0, outV = Number(r.outwards_value) || 0;
+  const inQ = Number(r.inwards_qty) || 0,
+    outQ = Number(r.outwards_qty) || 0;
+  const inV = Number(r.inwards_value) || 0,
+    outV = Number(r.outwards_value) || 0;
   const dir = famOf(r, mode);
-  const qty   = dir === "inward" ? inQ - outQ : outQ - inQ;
-  const basic = dir === "inward" ? inV - outV : outV - inV;
-  const addl  = Number(r.addl_cost) || 0;
-  return { qty, basicRate: qty ? basic / qty : 0, basicValue: basic, addl, total: basic + addl, effRate: qty ? (basic + addl) / qty : 0 };
+  const qty = dir === 'inward' ? inQ - outQ : outQ - inQ;
+  const basic = dir === 'inward' ? inV - outV : outV - inV;
+  const addl = Number(r.addl_cost) || 0;
+  return {
+    qty,
+    basicRate: qty ? basic / qty : 0,
+    basicValue: basic,
+    addl,
+    total: basic + addl,
+    effRate: qty ? (basic + addl) / qty : 0,
+  };
 }
 
 export default function ItemVoucherAnalysis({
-  itemName, companyName, periodLabel, ledgerName, groupName, transferName, direction,
-  sectionMode = "family", sectionLabels = { inward: "Purchases", outward: "Sales" }, unit,
-  rows, loading, error, selectedIndex, onSelectIndex, onOpenVoucher, footer,
+  itemName,
+  companyName,
+  periodLabel,
+  ledgerName,
+  groupName,
+  transferName,
+  direction,
+  sectionMode = 'family',
+  sectionLabels = { inward: 'Purchases', outward: 'Sales' },
+  unit,
+  rows,
+  loading,
+  error,
+  selectedIndex,
+  onSelectIndex,
+  onOpenVoucher,
+  footer,
 }: Props) {
-  const dataRows = rows.filter(r => r.voucher_id !== null);
+  const dataRows = rows.filter((r) => r.voucher_id !== null);
 
   const scope = groupName
-    ? { label: "Under Group", value: groupName }
+    ? { label: 'Under Group', value: groupName }
     : transferName
-      ? { label: "Under Transfer", value: transferName }
+      ? { label: 'Under Transfer', value: transferName }
       : ledgerName
-        ? { label: direction ? `${direction === "outward" ? "Outwards" : "Inwards"} Under Ledger` : "Under Ledger", value: ledgerName }
+        ? {
+            label: direction
+              ? `${direction === 'outward' ? 'Outwards' : 'Inwards'} Under Ledger`
+              : 'Under Ledger',
+            value: ledgerName,
+          }
         : null;
 
-  const tot = dataRows.reduce((a, r) => {
-    const p = project(r, sectionMode);
-    a.qty += p.qty; a.basic += p.basicValue; a.addl += p.addl; a.total += p.total;
-    return a;
-  }, { qty: 0, basic: 0, addl: 0, total: 0 });
+  const tot = dataRows.reduce(
+    (a, r) => {
+      const p = project(r, sectionMode);
+      a.qty += p.qty;
+      a.basic += p.basicValue;
+      a.addl += p.addl;
+      a.total += p.total;
+      return a;
+    },
+    { qty: 0, basic: 0, addl: 0, total: 0 },
+  );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
       {/* Title bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide">Item Voucher Analysis</span>
-        <span className="font-bold text-sm">{companyName || "Company"}</span>
+        <span className="font-bold text-sm">{companyName || 'Company'}</span>
         <span />
       </div>
       {/* Sub-header: stock item + scope (left), period (right) */}
-      <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+      <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-gray-200 font-mono text-[11px]">
         <div>
-          <div><span className="text-zinc-500">Stock Item:</span> <span className="font-semibold">{itemName}</span></div>
+          <div>
+            <span className="text-black">Stock Item:</span>{' '}
+            <span className="font-semibold">{itemName}</span>
+          </div>
           {scope && (
-            <div><span className="text-zinc-500">{scope.label}:</span> <span className="font-semibold">{scope.value}</span></div>
+            <div>
+              <span className="text-black">{scope.label}:</span>{' '}
+              <span className="font-semibold">{scope.value}</span>
+            </div>
           )}
         </div>
         <span className="font-semibold">{periodLabel}</span>
@@ -141,7 +196,7 @@ export default function ItemVoucherAnalysis({
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-zinc-100 z-10">
+          <thead className="sticky top-0 bg-black/[0.06] z-10">
             <tr>
               <th className={`${TH} text-left w-20`}>Date</th>
               <th className={`${TH} text-left`}>Particulars</th>
@@ -156,11 +211,23 @@ export default function ItemVoucherAnalysis({
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-400 italic">Loading…</td></tr>
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-black italic">
+                  Loading…
+                </td>
+              </tr>
             ) : error ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-600">{error}</td></tr>
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-black">
+                  {error}
+                </td>
+              </tr>
             ) : dataRows.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-400 italic">No vouchers found.</td></tr>
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-black italic">
+                  No vouchers found.
+                </td>
+              </tr>
             ) : (
               <>
                 {dataRows.map((r, idx) => {
@@ -173,7 +240,7 @@ export default function ItemVoucherAnalysis({
                       {showSection && (
                         <tr>
                           <td className="px-2 pt-2 pb-0.5" />
-                          <td colSpan={8} className="px-2 pt-2 pb-0.5 font-bold italic text-zinc-800">
+                          <td colSpan={8} className="px-2 pt-2 pb-0.5 font-bold italic text-black">
                             {sectionLabels[fam]}
                           </td>
                         </tr>
@@ -181,7 +248,7 @@ export default function ItemVoucherAnalysis({
                       <tr
                         onClick={() => onSelectIndex(idx)}
                         onDoubleClick={() => r.voucher_id && onOpenVoucher?.(r)}
-                        className={`border-b border-zinc-100 cursor-pointer ${selected ? "bg-zinc-200 text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                        className={`border-b border-gray-200 cursor-pointer ${selected ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                         title="Enter / double-click: open voucher"
                       >
                         <td className="px-2 py-1 whitespace-nowrap">{fmtDate(r.date)}</td>
@@ -195,10 +262,11 @@ export default function ItemVoucherAnalysis({
                         <td className="px-2 py-1 text-right">{fmtRate(p.effRate, unit)}</td>
                       </tr>
                       {selected && (
-                        <tr className="text-zinc-500">
+                        <tr className="text-black">
                           <td className="px-2 py-0.5" />
                           <td colSpan={8} className="px-6 py-0.5 italic text-[10px]">
-                            {fmtDate(r.date)}&nbsp;&nbsp;{r.voucher_type}&nbsp;&nbsp;{r.voucher_number}
+                            {fmtDate(r.date)}&nbsp;&nbsp;{r.voucher_type}&nbsp;&nbsp;
+                            {r.voucher_number}
                           </td>
                         </tr>
                       )}
@@ -206,7 +274,7 @@ export default function ItemVoucherAnalysis({
                   );
                 })}
                 {/* Total */}
-                <tr className="border-t border-zinc-900 font-bold text-zinc-900">
+                <tr className="border-t border-gray-200 font-bold text-black">
                   <td className="px-2 py-1" />
                   <td className="px-2 py-1 text-right">Total</td>
                   <td className="px-2 py-1 text-right">{fmtQty(tot.qty, unit)}</td>
@@ -215,7 +283,9 @@ export default function ItemVoucherAnalysis({
                   <td className="px-2 py-1 text-right">{fmtVal(tot.basic)}</td>
                   <td className="px-2 py-1 text-right">{fmtVal(tot.addl)}</td>
                   <td className="px-2 py-1 text-right">{fmtVal(tot.total)}</td>
-                  <td className="px-2 py-1 text-right">{fmtRate(tot.qty ? tot.total / tot.qty : 0, unit)}</td>
+                  <td className="px-2 py-1 text-right">
+                    {fmtRate(tot.qty ? tot.total / tot.qty : 0, unit)}
+                  </td>
                 </tr>
               </>
             )}

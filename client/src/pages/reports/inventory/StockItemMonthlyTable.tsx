@@ -135,13 +135,13 @@ export default function StockItemMonthlyTable({
   const colSpanCount = showProfit ? 10 : 7;
 
   const body = (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px] min-w-0">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px] min-w-0">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide">{title}</span>
         <span className="font-bold text-sm">{companyName || 'Company'}</span>
         <span />
       </div>
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono text-[11px]">
         <span className="font-semibold">{itemName}</span>
         <span>
           {periodLabel}
@@ -151,23 +151,23 @@ export default function StockItemMonthlyTable({
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
             <tr>
               <th
                 rowSpan={2}
-                className="px-3 py-1 text-left font-bold align-bottom border-b border-zinc-300"
+                className="px-3 py-1 text-left font-bold align-bottom border-b border-gray-200"
               >
                 {particularsLabel}
               </th>
               <th
                 colSpan={2}
-                className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                className="px-2 py-0.5 text-center font-bold border-b border-l border-gray-200"
               >
                 Inwards
               </th>
               <th
                 colSpan={2}
-                className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                className="px-2 py-0.5 text-center font-bold border-b border-l border-gray-200"
               >
                 Outwards
               </th>
@@ -175,19 +175,19 @@ export default function StockItemMonthlyTable({
                 <>
                   <th
                     rowSpan={2}
-                    className="px-2 py-1 text-right font-bold w-28 border-b border-l border-zinc-200 align-bottom"
+                    className="px-2 py-1 text-right font-bold w-28 border-b border-l border-gray-200 align-bottom"
                   >
                     Consumption
                   </th>
                   <th
                     rowSpan={2}
-                    className="px-2 py-1 text-right font-bold w-28 border-b border-l border-zinc-200 align-bottom"
+                    className="px-2 py-1 text-right font-bold w-28 border-b border-l border-gray-200 align-bottom"
                   >
                     Gross Profit
                   </th>
                   <th
                     rowSpan={2}
-                    className="px-2 py-1 text-right font-bold w-16 border-b border-l border-zinc-200 align-bottom"
+                    className="px-2 py-1 text-right font-bold w-16 border-b border-l border-gray-200 align-bottom"
                   >
                     Perc %
                   </th>
@@ -195,21 +195,21 @@ export default function StockItemMonthlyTable({
               )}
               <th
                 colSpan={2}
-                className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                className="px-2 py-0.5 text-center font-bold border-b border-l border-gray-200"
               >
                 Closing Balance
               </th>
             </tr>
             <tr>
-              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">
+              <th className="px-2 py-1 text-right font-bold w-28 border-l border-gray-200">
                 Quantity
               </th>
               <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">
+              <th className="px-2 py-1 text-right font-bold w-28 border-l border-gray-200">
                 Quantity
               </th>
               <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-              <th className="px-2 py-1 text-right font-bold w-28 border-l border-zinc-200">
+              <th className="px-2 py-1 text-right font-bold w-28 border-l border-gray-200">
                 Quantity
               </th>
               <th className="px-2 py-1 text-right font-bold w-28">Value</th>
@@ -218,35 +218,35 @@ export default function StockItemMonthlyTable({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={colSpanCount} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={colSpanCount} className="px-4 py-8 text-center text-black italic">
                   Loading...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={colSpanCount} className="px-4 py-8 text-center text-zinc-600">
+                <td colSpan={colSpanCount} className="px-4 py-8 text-center text-black">
                   {error}
                 </td>
               </tr>
             ) : (
               <>
                 <tr
-                  className={`border-b border-zinc-100 ${selectedIndex === -1 ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'text-zinc-800'}`}
+                  className={`border-b border-gray-200 ${selectedIndex === -1 ? 'bg-black/[0.06] text-black font-bold' : 'text-black'}`}
                   onClick={() => onSelectIndex(-1)}
                 >
                   <td className="px-3 py-1 italic">Opening Balance</td>
-                  <td className={`${numCell} border-l border-zinc-100`} />
+                  <td className={`${numCell} border-l border-gray-200`} />
                   <td className={numCell} />
-                  <td className={`${numCell} border-l border-zinc-100`} />
+                  <td className={`${numCell} border-l border-gray-200`} />
                   <td className={numCell} />
                   {showProfit && (
                     <>
-                      <td className={`${numCell} border-l border-zinc-100`} />
-                      <td className={`${numCell} border-l border-zinc-100`} />
-                      <td className={`${numCell} border-l border-zinc-100`} />
+                      <td className={`${numCell} border-l border-gray-200`} />
+                      <td className={`${numCell} border-l border-gray-200`} />
+                      <td className={`${numCell} border-l border-gray-200`} />
                     </>
                   )}
-                  <td className={`${numCell} border-l border-zinc-100`}>
+                  <td className={`${numCell} border-l border-gray-200`}>
                     {fmtQty(openingQty, unit)}
                   </td>
                   <td className={numCell}>{fmt(openingValue)}</td>
@@ -265,31 +265,31 @@ export default function StockItemMonthlyTable({
                       // falls back to plain selection when the row isn't drillable.
                       onClick={() => (onActivate ? onActivate(idx) : onSelectIndex(idx))}
                       onDoubleClick={() => onActivate?.(idx)}
-                      className={`border-b border-zinc-100 ${onActivate ? 'cursor-pointer' : ''} ${idx === selectedIndex ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+                      className={`border-b border-gray-200 ${onActivate ? 'cursor-pointer' : ''} ${idx === selectedIndex ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                     >
                       <td className="px-3 py-1">{m.month}</td>
-                      <td className={`${numCell} border-l border-zinc-100`}>
+                      <td className={`${numCell} border-l border-gray-200`}>
                         {fmtQty(m.in_qty, unit)}
                       </td>
                       <td className={numCell}>{fmt(m.in_value)}</td>
-                      <td className={`${numCell} border-l border-zinc-100`}>
+                      <td className={`${numCell} border-l border-gray-200`}>
                         {fmtQty(m.out_qty, unit)}
                       </td>
                       <td className={numCell}>{fmt(m.out_value)}</td>
                       {showProfit && p && (
                         <>
-                          <td className={`${numCell} border-l border-zinc-100`}>
+                          <td className={`${numCell} border-l border-gray-200`}>
                             {fmt(p.consumption)}
                           </td>
-                          <td className={`${numCell} border-l border-zinc-100`}>
+                          <td className={`${numCell} border-l border-gray-200`}>
                             {fmt(p.gross_profit)}
                           </td>
-                          <td className={`${numCell} border-l border-zinc-100`}>
+                          <td className={`${numCell} border-l border-gray-200`}>
                             {fmtPct(p.perc)}
                           </td>
                         </>
                       )}
-                      <td className={`${numCell} border-l border-zinc-100`}>
+                      <td className={`${numCell} border-l border-gray-200`}>
                         {hasMovement ? fmtQty(m.closing_qty, unit) : ''}
                       </td>
                       <td className={numCell}>{hasMovement ? fmt(m.closing_value) : ''}</td>
@@ -304,24 +304,24 @@ export default function StockItemMonthlyTable({
 
       {chart}
 
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+      <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
         <span className="flex-1">Grand Total</span>
-        <span className="w-28 text-right border-l border-zinc-300 pr-1">
+        <span className="w-28 text-right border-l border-gray-200 pr-1">
           {fmtQty(tot.inQ, unit)}
         </span>
         <span className="w-28 text-right pr-1">{fmt(tot.inV)}</span>
-        <span className="w-28 text-right border-l border-zinc-300 pr-1">
+        <span className="w-28 text-right border-l border-gray-200 pr-1">
           {fmtQty(tot.outQ, unit)}
         </span>
         <span className="w-28 text-right pr-1">{fmt(tot.outV)}</span>
         {showProfit && (
           <>
-            <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmt(totCons)}</span>
-            <span className="w-28 text-right border-l border-zinc-300 pr-1">{fmt(totGP)}</span>
-            <span className="w-16 text-right border-l border-zinc-300 pr-1">{fmtPct(totGPpc)}</span>
+            <span className="w-28 text-right border-l border-gray-200 pr-1">{fmt(totCons)}</span>
+            <span className="w-28 text-right border-l border-gray-200 pr-1">{fmt(totGP)}</span>
+            <span className="w-16 text-right border-l border-gray-200 pr-1">{fmtPct(totGPpc)}</span>
           </>
         )}
-        <span className="w-28 text-right border-l border-zinc-300 pr-1">
+        <span className="w-28 text-right border-l border-gray-200 pr-1">
           {fmtQty(finalCQty, unit)}
         </span>
         <span className="w-28 text-right pr-1">{fmt(finalCVal)}</span>

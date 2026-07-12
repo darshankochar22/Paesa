@@ -421,8 +421,8 @@ export default function StockItemReport() {
   // ── Render — selection popup ───────────────────────────────────────────
   if (level.step === 'select') {
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
           <span className="font-bold text-sm tracking-wide">Stock Item</span>
           <span className="font-bold text-sm">{selectedCompany?.name ?? ''}</span>
           <span />
@@ -463,8 +463,8 @@ export default function StockItemReport() {
         onSelectIndex={setVIdx}
         onOpenVoucher={(r) => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
         footer={
-          <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-            <span className="text-zinc-400">Enter: Open Voucher · ↑↓: Navigate · Esc: Back</span>
+          <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
+            <span className="text-black">Enter: Open Voucher · ↑↓: Navigate · Esc: Back</span>
           </div>
         }
       />
@@ -537,8 +537,8 @@ export default function StockItemReport() {
         chart={chartBars.length ? <StockBarChart bars={chartBars} selectedIndex={rowIdx} /> : null}
         sidebar={sidebar}
         footer={
-          <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-            <span className="text-zinc-400">
+          <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
+            <span className="text-black">
               Enter: Show Vouchers · F7: {showProfit ? 'Hide' : 'Show'} Profit · ↑↓: Navigate
             </span>
           </div>

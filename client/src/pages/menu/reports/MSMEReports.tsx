@@ -21,16 +21,16 @@ export default function MSMEReports() {
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
-        <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">
+        <div className="text-[11px] italic text-black flex flex-wrap gap-1">
+          <Link to="/" className="hover:underline hover:text-black">
             Gateway
           </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+          <Link to="/reports/display-more" className="hover:underline hover:text-black">
             Display More Reports
           </Link>
           <span>&gt;</span>
-          <Link to="/reports/statutory" className="hover:underline hover:text-zinc-900">
+          <Link to="/reports/statutory" className="hover:underline hover:text-black">
             Statutory Reports
           </Link>
         </div>
@@ -47,7 +47,7 @@ export default function MSMEReports() {
                 asChild
                 variant="ghost"
                 size="xs"
-                className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700"
+                className="justify-start text-[11px] font-normal px-2 h-7 text-black"
               >
                 <Link to={route}>{item}</Link>
               </Button>
@@ -60,7 +60,7 @@ export default function MSMEReports() {
               variant="ghost"
               size="xs"
               disabled
-              className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-400"
+              className="justify-start text-[11px] font-normal px-2 h-7 text-black"
             >
               {item}
             </Button>

@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { MasterSelectionPanel, type TableColumn } from "@/components/ui";
-import ExciseBookForm from "./ExciseBookForm";
-import type { ExciseBookType } from "@/types/api";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { MasterSelectionPanel, NotificationBanner, type TableColumn } from '@/components/ui';
+import ExciseBookForm from './ExciseBookForm';
+import type { ExciseBookType } from '@/types/api';
 
 export default function ExciseBookAlter() {
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ export default function ExciseBookAlter() {
       setSelected(null);
       load();
     } else {
-      window.alert(res.error || "Failed to delete excise book.");
+      window.alert(res.error || 'Failed to delete excise book.');
     }
   };
 
@@ -49,27 +49,27 @@ export default function ExciseBookAlter() {
   if (!selected) {
     const columns: TableColumn[] = [
       {
-        key: "name",
-        label: "Name",
-        span: "col-span-5",
+        key: 'name',
+        label: 'Name',
+        span: 'col-span-5',
         render: (r: ExciseBookType) => (
           <span className="font-bold text-zinc-900 text-xs">{r.name}</span>
         ),
       },
       {
-        key: "numbering_method",
-        label: "Method of numbering",
-        span: "col-span-4",
+        key: 'numbering_method',
+        label: 'Method of numbering',
+        span: 'col-span-4',
         render: (r: ExciseBookType) => (
-          <span className="text-zinc-500 font-semibold">{r.numbering_method || "—"}</span>
+          <span className="text-zinc-500 font-semibold">{r.numbering_method || '—'}</span>
         ),
       },
       {
-        key: "used_for",
-        label: "Used for",
-        span: "col-span-3",
+        key: 'used_for',
+        label: 'Used for',
+        span: 'col-span-3',
         render: (r: ExciseBookType) => (
-          <span className="text-zinc-500 font-semibold">{r.used_for || "—"}</span>
+          <span className="text-zinc-500 font-semibold">{r.used_for || '—'}</span>
         ),
       },
     ];
@@ -77,12 +77,7 @@ export default function ExciseBookAlter() {
     return (
       <div className="flex-1 flex flex-col h-full">
         {success && (
-          <div className="mx-6 mt-4 p-2 border border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-sans">
-            <span>• {success}</span>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">
-              &times;
-            </button>
-          </div>
+          <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
         )}
         <MasterSelectionPanel<ExciseBookType>
           title="Alter Excise Book"
@@ -91,12 +86,12 @@ export default function ExciseBookAlter() {
           items={books}
           filterFn={(b, q) =>
             b.name.toLowerCase().includes(q.toLowerCase()) ||
-            (b.used_for ?? "").toLowerCase().includes(q.toLowerCase())
+            (b.used_for ?? '').toLowerCase().includes(q.toLowerCase())
           }
           columns={columns}
           onSelect={handleSelect}
-          onCancel={() => navigate("/master/alter")}
-          onCreate={() => navigate("/master/create/excise-book")}
+          onCancel={() => navigate('/master/alter')}
+          onCreate={() => navigate('/master/create/excise-book')}
           createLabel="Create Excise Book"
           rowKey={(b) => b.excise_book_id!}
           emptyMessage="No excise books found."
@@ -115,7 +110,7 @@ export default function ExciseBookAlter() {
         setSelected(null);
         load();
       }}
-      onCancel={() => navigate("/master/alter")}
+      onCancel={() => navigate('/master/alter')}
       onBack={() => setSelected(null)}
       onDelete={handleDelete}
     />

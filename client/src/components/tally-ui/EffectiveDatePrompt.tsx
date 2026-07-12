@@ -63,34 +63,41 @@ export function EffectiveDatePrompt({
 
   const options = presets.filter((o) => o.val);
   const inputCls =
-    'w-36 border border-zinc-400 bg-white px-2 py-0.5 text-black text-right focus:outline-none focus:border-black';
+    'w-36 border border-gray-200 bg-white px-2 py-0.5 text-black text-right focus:outline-none focus:border-gray-200';
 
   return (
-    <div className="fixed inset-0 z-[11000] flex items-center justify-center bg-black/20 text-xs font-sans">
+    <div className="fixed inset-0 z-[11000] flex items-center justify-center bg-black/[0.06] text-xs font-sans">
       <div className="flex items-start gap-4">
         {/* Effective Date box */}
-        <div className="w-[380px] bg-white border border-black shadow-xl">
-          <div className="border-b border-black px-3 py-1.5 font-bold text-sm text-center">Effective Date</div>
+        <div className="w-[380px] bg-white border border-gray-200 shadow-xl">
+          <div className="border-b border-gray-200 px-3 py-1.5 font-bold text-sm text-center">
+            Effective Date
+          </div>
           <div className="p-4 flex items-center justify-between gap-3">
-            <label className="text-zinc-800">{label}</label>
+            <label className="text-black">{label}</label>
             <input
               type="date"
               autoFocus
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && date) onAccept(date); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && date) onAccept(date);
+              }}
               className={inputCls}
             />
           </div>
         </div>
 
         {/* List of Effective Dates */}
-        <div className="w-[280px] bg-white border border-black shadow-xl">
-          <div className="bg-zinc-800 text-white font-bold px-3 py-1.5">List of Effective Dates</div>
+        <div className="w-[280px] bg-white border border-gray-200 shadow-xl">
+          <div className="bg-black text-white font-bold px-3 py-1.5">List of Effective Dates</div>
           <button
             type="button"
-            onClick={() => { setNewDate(date || ''); setShowNew(true); }}
-            className="w-full text-right px-3 py-1 italic text-zinc-600 hover:bg-zinc-100 border-b border-zinc-200"
+            onClick={() => {
+              setNewDate(date || '');
+              setShowNew(true);
+            }}
+            className="w-full text-right px-3 py-1 italic text-black hover:bg-black/[0.03] border-b border-gray-200"
           >
             New Effective Date
           </button>
@@ -100,10 +107,10 @@ export function EffectiveDatePrompt({
                 key={o.label}
                 type="button"
                 onClick={() => onAccept(o.val)}
-                className="w-full flex justify-between gap-4 px-3 py-1 text-left hover:bg-zinc-100"
+                className="w-full flex justify-between gap-4 px-3 py-1 text-left hover:bg-black/[0.03]"
               >
-                <span className="tabular-nums text-zinc-900">{fmtDate(o.val)}</span>
-                <span className="italic text-zinc-600">{o.label}</span>
+                <span className="tabular-nums text-black">{fmtDate(o.val)}</span>
+                <span className="italic text-black">{o.label}</span>
               </button>
             ))}
           </div>
@@ -112,23 +119,27 @@ export function EffectiveDatePrompt({
 
       {/* New Effective Date sub-popup */}
       {showNew && (
-        <div className="absolute inset-0 z-[11010] flex items-center justify-center bg-black/20">
-          <div className="w-64 bg-white border border-black shadow-xl">
-            <div className="border-b border-black px-3 py-1.5 font-bold text-sm text-center">New Effective Date</div>
+        <div className="absolute inset-0 z-[11010] flex items-center justify-center bg-black/[0.06]">
+          <div className="w-64 bg-white border border-gray-200 shadow-xl">
+            <div className="border-b border-gray-200 px-3 py-1.5 font-bold text-sm text-center">
+              New Effective Date
+            </div>
             <div className="p-4">
               <input
                 type="date"
                 autoFocus
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && newDate) onAccept(newDate); }}
-                className="w-full border border-zinc-400 bg-white px-2 py-0.5 text-black focus:outline-none focus:border-black"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newDate) onAccept(newDate);
+                }}
+                className="w-full border border-gray-200 bg-white px-2 py-0.5 text-black focus:outline-none focus:border-gray-200"
               />
               <div className="flex justify-end gap-2 mt-3">
                 <button
                   type="button"
                   onClick={() => setShowNew(false)}
-                  className="px-3 py-1 border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                  className="px-3 py-1 border border-gray-200 text-black hover:bg-black/[0.03]"
                 >
                   Cancel
                 </button>
@@ -136,7 +147,7 @@ export function EffectiveDatePrompt({
                   type="button"
                   disabled={!newDate}
                   onClick={() => onAccept(newDate)}
-                  className="px-3 py-1 bg-black text-white hover:bg-zinc-800 disabled:opacity-50"
+                  className="px-3 py-1 bg-black text-white hover:bg-black/80 disabled:opacity-50"
                 >
                   Accept
                 </button>

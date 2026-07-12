@@ -15,8 +15,8 @@ interface Props {
   onClose: () => void;
 }
 
-const ROW = 'flex items-center justify-between px-1 py-1.5 border-b border-zinc-100';
-const LBL = 'text-[11px] text-zinc-700 font-semibold pr-4';
+const ROW = 'flex items-center justify-between px-1 py-1.5 border-b border-gray-200';
+const LBL = 'text-[11px] text-black font-semibold pr-4';
 
 /**
  * TallyPrime "Save View" dialog. Basic form collapses extra config behind a
@@ -45,16 +45,16 @@ export default function SaveViewDialog({ defaultName, onSave, onClose }: Props) 
   }, [name, isDefault, saveFor, withMaster, withPeriod, defaultName, onSave]);
 
   const YesNo = ({ value, onChange }: { value: boolean; onChange: (b: boolean) => void }) => (
-    <div className="flex border border-zinc-300 text-[10px] font-bold">
+    <div className="flex border border-gray-200 text-[10px] font-bold">
       <button
         onClick={() => onChange(true)}
-        className={`px-3 py-0.5 ${value ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600'}`}
+        className={`px-3 py-0.5 ${value ? 'bg-black text-white' : 'bg-white text-black'}`}
       >
         Yes
       </button>
       <button
         onClick={() => onChange(false)}
-        className={`px-3 py-0.5 border-l border-zinc-300 ${!value ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600'}`}
+        className={`px-3 py-0.5 border-l border-gray-200 ${!value ? 'bg-black text-white' : 'bg-white text-black'}`}
       >
         No
       </button>
@@ -63,27 +63,27 @@ export default function SaveViewDialog({ defaultName, onSave, onClose }: Props) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/20"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/[0.06]"
       onClick={onClose}
     >
       <div
-        className="mt-20 w-[420px] bg-white border border-zinc-900 shadow-lg flex flex-col select-none"
+        className="mt-20 w-[420px] bg-white border border-gray-200 shadow-lg flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+        <div className="px-3 py-1.5 bg-white border-b-2 border-gray-200">
           <span className="font-bold text-xs tracking-wide">Save View</span>
         </div>
 
         <div className="px-4 py-3">
           <div className="mb-3">
-            <label className="block text-[10px] font-bold uppercase tracking-wide text-zinc-500 mb-1">
+            <label className="block text-[10px] font-bold uppercase tracking-wide text-black mb-1">
               Name
             </label>
             <input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-2 py-1 text-[11px] border border-zinc-300 focus:border-zinc-900 outline-none font-mono"
+              className="w-full px-2 py-1 text-[11px] border border-gray-200 focus:border-gray-200 outline-none font-mono"
             />
           </div>
 
@@ -103,7 +103,7 @@ export default function SaveViewDialog({ defaultName, onSave, onClose }: Props) 
                 <select
                   value={saveFor}
                   onChange={(e) => setSaveFor(e.target.value as 'all' | 'company')}
-                  className="text-[11px] border border-zinc-300 px-2 py-0.5 outline-none focus:border-zinc-900 bg-white"
+                  className="text-[11px] border border-gray-200 px-2 py-0.5 outline-none focus:border-gray-200 bg-white"
                 >
                   <option value="all">All Companies — (On This Computer)</option>
                   <option value="company">This Company</option>
@@ -121,10 +121,10 @@ export default function SaveViewDialog({ defaultName, onSave, onClose }: Props) 
           )}
         </div>
 
-        <div className="px-3 py-1.5 border-t border-zinc-200 flex justify-end gap-2">
+        <div className="px-3 py-1.5 border-t border-gray-200 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1 text-[11px] font-semibold border border-zinc-900 bg-white text-zinc-900 hover:bg-zinc-50"
+            className="px-3 py-1 text-[11px] font-semibold border border-gray-200 bg-white text-black hover:bg-black/[0.03]"
           >
             Quit
           </button>
@@ -138,7 +138,7 @@ export default function SaveViewDialog({ defaultName, onSave, onClose }: Props) 
                 withPeriod,
               })
             }
-            className="px-3 py-1 text-[11px] font-semibold bg-zinc-900 text-white hover:bg-zinc-700"
+            className="px-3 py-1 text-[11px] font-semibold bg-black text-white hover:bg-black/80"
           >
             Accept
           </button>

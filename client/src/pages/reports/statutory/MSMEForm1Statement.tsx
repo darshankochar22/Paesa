@@ -34,7 +34,9 @@ export default function MSMEForm1Statement() {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
-  const periodLabel = activeFY ? `${fmtDate(activeFY.start_date)} to ${fmtDate(activeFY.end_date)}` : '';
+  const periodLabel = activeFY
+    ? `${fmtDate(activeFY.start_date)} to ${fmtDate(activeFY.end_date)}`
+    : '';
 
   const [rows, setRows] = useState<Form1Row[]>([]);
   const [total, setTotal] = useState(0);
@@ -87,40 +89,47 @@ export default function MSMEForm1Statement() {
           <div className="flex-1 overflow-auto">
             <table className="text-xs border-collapse w-full">
               <thead className="sticky top-0 bg-white z-10">
-                <tr className="border-b border-black">
+                <tr className="border-b border-gray-200">
                   <th className={TH}>Date</th>
                   <th className={TH}>Ref. No.</th>
                   <th className={TH}>Party&apos;s Name</th>
                   <th className={TH}>PAN/IT No.</th>
                   <th className={THR}>
                     Amount Pending
-                    <div className="font-normal italic text-[10px] text-black/60">
+                    <div className="font-normal italic text-[10px] text-black">
                       after Due Date (as per MSME)
                     </div>
                   </th>
                   <th className={THR}>Due on</th>
                   <th className={THR}>
                     Overdue
-                    <div className="font-normal italic text-[10px] text-black/60">by days</div>
+                    <div className="font-normal italic text-[10px] text-black">by days</div>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-6 text-gray-400 italic">
+                    <td colSpan={7} className="text-center py-6 text-black italic">
                       No amounts overdue to Micro/Small enterprises for this period.
                     </td>
                   </tr>
                 ) : (
                   rows.map((r, i) => (
-                    <tr key={`${r.ledger_id}-${r.ref_no}-${i}`} className="border-b border-black/10 hover:bg-black/[0.04]">
+                    <tr
+                      key={`${r.ledger_id}-${r.ref_no}-${i}`}
+                      className="border-b border-gray-200 hover:bg-black/[0.03]"
+                    >
                       <td className="px-3 py-1 whitespace-nowrap">{fmtDate(r.date)}</td>
                       <td className="px-3 py-1">{r.ref_no || '—'}</td>
                       <td className="px-3 py-1 font-semibold">{r.party}</td>
                       <td className="px-3 py-1">{r.pan || '—'}</td>
-                      <td className="px-3 py-1 text-right tabular-nums">{fmtAmount(r.amount_pending)}</td>
-                      <td className="px-3 py-1 text-right whitespace-nowrap">{fmtDate(r.due_on)}</td>
+                      <td className="px-3 py-1 text-right tabular-nums">
+                        {fmtAmount(r.amount_pending)}
+                      </td>
+                      <td className="px-3 py-1 text-right whitespace-nowrap">
+                        {fmtDate(r.due_on)}
+                      </td>
                       <td className="px-3 py-1 text-right tabular-nums">{r.overdue_days || ''}</td>
                     </tr>
                   ))

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { PageTitleBar, RightActionPanel, Select } from '@/components/ui';
+import { PageTitleBar, RightActionPanel, Select, NotificationBanner } from '@/components/ui';
 import type { ScenarioType, ScenarioVoucher, VoucherTypeType } from '@/types/api';
 
 const inputCls =
@@ -122,15 +122,7 @@ export default function ScenarioForm({
       />
 
       {error && (
-        <div className="mx-6 mt-4 p-2 border border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-sans">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">
@@ -150,12 +142,15 @@ export default function ScenarioForm({
                 />
               </Row>
               <Row label="Include actuals">
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
+                  data-enter-click
                   onClick={() => setIncludeActuals((v) => !v)}
-                  className="text-[12px] font-bold font-mono px-2 py-0.5 border border-zinc-300 rounded hover:bg-zinc-50"
+                  className="inline-block cursor-pointer text-[12px] font-bold font-mono px-2 py-0.5 border border-zinc-300 rounded hover:bg-zinc-50 focus:bg-zinc-100 outline-none"
                 >
                   {includeActuals ? 'Yes' : 'No'}
-                </button>
+                </div>
               </Row>
             </div>
 

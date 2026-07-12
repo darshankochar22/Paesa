@@ -14,15 +14,15 @@ type MenuCardProps = {
   onItemClick?: () => void;
 };
 
-const ITEM = 'text-left px-3 py-1 text-sm hover:bg-zinc-100 text-zinc-800';
-const DISABLED = 'text-left px-3 py-1 text-sm text-zinc-400 cursor-not-allowed';
+const ITEM = 'text-left px-3 py-1 text-sm hover:bg-black/[0.03] text-black';
+const DISABLED = 'text-left px-3 py-1 text-sm text-black cursor-not-allowed';
 
 function MenuItem({ option, onItemClick }: { option: OptionType; onItemClick?: () => void }) {
   const [open, setOpen] = useState(false);
 
   if (option.heading) {
     return (
-      <div className="px-3 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 select-none">
+      <div className="px-3 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-black select-none">
         {option.label}
       </div>
     );
@@ -37,7 +37,7 @@ function MenuItem({ option, onItemClick }: { option: OptionType; onItemClick?: (
       >
         <button className={`${ITEM} w-full flex items-center justify-between`}>
           <span>{option.label}</span>
-          <span className="text-zinc-400">›</span>
+          <span className="text-black">›</span>
         </button>
         {open && (
           <div className="absolute top-0 left-full -ml-px w-52 flex flex-col border rounded bg-white py-1 shadow-md z-50">

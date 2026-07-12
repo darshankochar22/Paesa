@@ -1,6 +1,6 @@
-import * as React from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
+import * as React from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
 
 interface LedgerRow {
   voucher_id: number;
@@ -30,22 +30,22 @@ interface LedgerVouchersLayoutProps {
 
 const fmt = (val: number) =>
   val === 0
-    ? ""
-    : new Intl.NumberFormat("en-IN", {
+    ? ''
+    : new Intl.NumberFormat('en-IN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }).format(val);
 
 const fmtTotal = (val: number) =>
-  new Intl.NumberFormat("en-IN", {
+  new Intl.NumberFormat('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(val);
 
 const formatBalance = (val: number) => {
-  if (val === 0) return "0.00";
+  if (val === 0) return '0.00';
   const abs = Math.abs(val);
-  const formatted = new Intl.NumberFormat("en-IN", {
+  const formatted = new Intl.NumberFormat('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(abs);
@@ -53,12 +53,12 @@ const formatBalance = (val: number) => {
 };
 
 const formatDate = (dateStr: string) => {
-  if (!dateStr) return "";
+  if (!dateStr) return '';
   try {
-    return new Date(dateStr).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
     });
   } catch {
     return dateStr;
@@ -70,7 +70,7 @@ export default function LedgerVouchersLayout({ fromDate, toDate }: LedgerVoucher
   const [searchParams] = useSearchParams();
   const { selectedCompany, activeFY } = useCompany();
 
-  const ledgerIdParam = searchParams.get("ledger_id");
+  const ledgerIdParam = searchParams.get('ledger_id');
   const ledgerId = ledgerIdParam ? Number(ledgerIdParam) : 1;
 
   const [data, setData] = React.useState<LedgerResponse | null>(null);
@@ -78,23 +78,31 @@ export default function LedgerVouchersLayout({ fromDate, toDate }: LedgerVoucher
   const [error, setError] = React.useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = React.useState<number>(0);
 
-const companyId = selectedCompany?.company_id;
-const fyId = activeFY?.fy_id;
+  const companyId = selectedCompany?.company_id;
+  const fyId = activeFY?.fy_id;
 
-const fetchLedgerReport = React.useCallback(async () => {
-  if (!companyId || !fyId) return;
-  setLoading(true);
-  setError(null);
-  try {
-    const res = await (window as any).api.report.ledgerReport(
-      companyId, fyId, ledgerId, fromDate, toDate
-    );
-    if (res.success) { setData(res); setFocusedIndex(0); }
-    else setError(res.error || "Failed to load ledger vouchers");
-  } catch (err: any) {
-    setError(err.message || "An error occurred");
-  } finally { setLoading(false); }
-}, [ledgerId, fromDate, toDate, companyId, fyId]);
+  const fetchLedgerReport = React.useCallback(async () => {
+    if (!companyId || !fyId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await (window as any).api.report.ledgerReport(
+        companyId,
+        fyId,
+        ledgerId,
+        fromDate,
+        toDate,
+      );
+      if (res.success) {
+        setData(res);
+        setFocusedIndex(0);
+      } else setError(res.error || 'Failed to load ledger vouchers');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [ledgerId, fromDate, toDate, companyId, fyId]);
 
   React.useEffect(() => {
     fetchLedgerReport();
@@ -107,7 +115,7 @@ const fetchLedgerReport = React.useCallback(async () => {
         navigate(`/transactions/voucher/${vId}`);
       }
     },
-    [navigate]
+    [navigate],
   );
 
   React.useEffect(() => {
@@ -115,38 +123,38 @@ const fetchLedgerReport = React.useCallback(async () => {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
-        document.activeElement?.tagName === "INPUT" ||
-        document.activeElement?.tagName === "SELECT" ||
-        document.activeElement?.tagName === "TEXTAREA"
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'SELECT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
       ) {
         return;
       }
 
-      if (e.key === "ArrowDown") {
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.min(data.rows.length - 1, prev + 1));
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.max(0, prev - 1));
-      } else if (e.key === "Enter") {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         const activeRow = data.rows[focusedIndex];
         if (activeRow) {
           handleRowClick(activeRow);
         }
-      } else if (e.key === "Backspace" || e.key === "Escape") {
+      } else if (e.key === 'Backspace' || e.key === 'Escape') {
         e.preventDefault();
         navigate(-1);
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [data, focusedIndex, handleRowClick, navigate]);
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">
         Loading Ledger Vouchers...
       </div>
     );
@@ -162,7 +170,7 @@ const fetchLedgerReport = React.useCallback(async () => {
 
   if (!data) {
     return (
-      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">
         No data available.
       </div>
     );
@@ -177,7 +185,7 @@ const fetchLedgerReport = React.useCallback(async () => {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black">
+          <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
             <tr>
               <th className="px-4 py-2 text-left font-bold" rowSpan={3}>
                 Date
@@ -185,12 +193,15 @@ const fetchLedgerReport = React.useCallback(async () => {
               <th className="px-4 py-2 text-left font-bold" rowSpan={3}>
                 Particulars
               </th>
-              <th className="px-4 py-0.5 text-center font-bold border-b border-black/10" colSpan={5}>
-                {data.ledger_name} / {selectedCompany?.name || "No Company"}
+              <th
+                className="px-4 py-0.5 text-center font-bold border-b border-gray-200"
+                colSpan={5}
+              >
+                {data.ledger_name} / {selectedCompany?.name || 'No Company'}
               </th>
             </tr>
             <tr>
-              <th className="px-4 py-0.5 text-center font-normal italic text-black/60" colSpan={5}>
+              <th className="px-4 py-0.5 text-center font-normal italic text-black" colSpan={5}>
                 {periodLabel}
               </th>
             </tr>
@@ -204,7 +215,7 @@ const fetchLedgerReport = React.useCallback(async () => {
           </thead>
           <tbody>
             {/* Opening Balance Row */}
-            <tr className="border-b border-black/10 font-semibold text-black">
+            <tr className="border-b border-gray-200 font-semibold text-black">
               <td className="px-4 py-1.5 text-left" />
               <td className="px-4 py-1.5 text-left italic">Opening Balance</td>
               <td className="px-4 py-1.5 text-left" />
@@ -218,7 +229,7 @@ const fetchLedgerReport = React.useCallback(async () => {
 
             {/* Voucher Transaction Rows */}
             {data.rows.length === 0 ? (
-              <tr className="border-b border-black/10 text-black/60 italic">
+              <tr className="border-b border-gray-200 text-black italic">
                 <td className="px-4 py-1.5 text-center" colSpan={7}>
                   No vouchers found for this period.
                 </td>
@@ -229,10 +240,10 @@ const fetchLedgerReport = React.useCallback(async () => {
                 return (
                   <tr
                     key={idx}
-                    className={`border-b border-black/10 cursor-pointer transition-colors ${
+                    className={`border-b border-gray-200 cursor-pointer transition-colors ${
                       isFocused
-                        ? "bg-black/10 text-black font-bold"
-                        : "hover:bg-black/[0.04] text-black"
+                        ? 'bg-black/[0.06] text-black font-bold'
+                        : 'hover:bg-black/[0.03] text-black'
                     }`}
                     onClick={() => {
                       setFocusedIndex(idx);
@@ -243,15 +254,15 @@ const fetchLedgerReport = React.useCallback(async () => {
                       {formatDate(row.date)}
                     </td>
                     <td className="px-4 py-1.5 text-left truncate max-w-xs" title={row.particulars}>
-                      {row.particulars || "—"}
+                      {row.particulars || '—'}
                     </td>
                     <td className="px-4 py-1.5 text-left">{row.voucher_type}</td>
-                    <td className="px-4 py-1.5 text-right">{row.voucher_number || "—"}</td>
+                    <td className="px-4 py-1.5 text-right">{row.voucher_number || '—'}</td>
                     <td className="px-4 py-1.5 text-right font-mono">
-                      {row.debit !== 0 ? fmt(row.debit) : ""}
+                      {row.debit !== 0 ? fmt(row.debit) : ''}
                     </td>
                     <td className="px-4 py-1.5 text-right font-mono">
-                      {row.credit !== 0 ? fmt(row.credit) : ""}
+                      {row.credit !== 0 ? fmt(row.credit) : ''}
                     </td>
                     <td className="px-4 py-1.5 text-right whitespace-nowrap font-mono">
                       {formatBalance(row.balance)}
@@ -265,16 +276,16 @@ const fetchLedgerReport = React.useCallback(async () => {
       </div>
 
       {/* Grand Total Bar */}
-      <div className="border-t border-black bg-white px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-black select-none shrink-0">
+      <div className="border-t border-gray-200 bg-white px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-black select-none shrink-0">
         <span className="w-24">Grand Total</span>
         <div className="flex-1 flex justify-end gap-0">
           <span className="w-24 text-right" /> {/* Vch Type spacer */}
           <span className="w-20 text-right" /> {/* Vch No spacer */}
           <span className="w-28 text-right pr-2">
-            {totalDebit !== 0 ? fmtTotal(totalDebit) : ""}
+            {totalDebit !== 0 ? fmtTotal(totalDebit) : ''}
           </span>
           <span className="w-28 text-right pr-2">
-            {totalCredit !== 0 ? fmtTotal(totalCredit) : ""}
+            {totalCredit !== 0 ? fmtTotal(totalCredit) : ''}
           </span>
           <span className="w-32 text-right whitespace-nowrap">
             {formatBalance(data.closing_balance)}

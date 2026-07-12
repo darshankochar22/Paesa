@@ -235,7 +235,6 @@ export default function AttendanceTypeCreate() {
       <MasterFormFooter
         onCancel={() => navigate('/master/create')}
         onSubmit={handleSubmit}
-        submitLabel="Create"
         loading={loading}
       />
     </div>

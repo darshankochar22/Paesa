@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from '@/components/ui';
+import {
+  FormRow,
+  PageTitleBar,
+  RightActionPanel,
+  SearchInput,
+  DataTable,
+  NotificationBanner,
+} from '@/components/ui';
 import UnitDropdown from './UnitDropdown';
 import type { UnitType } from '@/types/entities/Unit';
 import { UqcPopup } from './UqcPopup';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 
 const inputCls =
   'w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors';
@@ -139,7 +147,7 @@ export default function UnitAlter() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showUqc, setShowUqc] = useState(false);
-  const uqcAnchorRef = useRef<HTMLButtonElement>(null);
+  const uqcAnchorRef = useRef<HTMLSpanElement>(null);
 
   const fetchUnitsList = useCallback(async () => {
     const company_id = selectedCompany?.company_id;
@@ -363,26 +371,10 @@ export default function UnitAlter() {
       />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold font-sans"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
-          <span>• {success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="text-green-500 hover:text-green-700 text-xs font-bold font-sans"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">
@@ -452,14 +444,16 @@ export default function UnitAlter() {
                   labelWidth="w-56"
                   className="flex items-center min-h-[26px] relative"
                 >
-                  <button
+                  <span
                     ref={uqcAnchorRef}
-                    type="button"
-                    className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    data-enter-click
+                    className="flex-1 cursor-pointer text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
                     onClick={() => setShowUqc((v) => !v)}
                   >
                     ◆ {form.unit_quantity_code || 'Not Applicable'}
-                  </button>
+                  </span>
                   {showUqc && (
                     <UqcPopup
                       selected={form.unit_quantity_code || 'Not Applicable'}
@@ -468,7 +462,7 @@ export default function UnitAlter() {
                           f ? { ...f, unit_quantity_code: v === 'Not Applicable' ? '' : v } : f,
                         );
                         setShowUqc(false);
-                        setTimeout(() => uqcAnchorRef.current?.focus(), 0);
+                        focusFieldAfter(uqcAnchorRef.current);
                       }}
                       onClose={() => setShowUqc(false)}
                     />
@@ -560,6 +554,7 @@ export default function UnitAlter() {
           </button>
           <button
             onClick={handleSubmit}
+            data-enter-accept
             disabled={loading || (isCompound && simpleUnits.length === 0)}
             className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
           >

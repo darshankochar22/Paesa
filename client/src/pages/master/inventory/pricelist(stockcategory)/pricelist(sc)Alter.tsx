@@ -469,7 +469,10 @@ export default function PricelistscAlter() {
   // ════════════════════════════════════════════════════════════
   if (step === 'select') {
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
+      <div
+        className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950"
+        data-enter-nav
+      >
         <PageTitleBar
           title="Price List (Stock Category) — Alter"
           subtitle={selectedCompany?.name}

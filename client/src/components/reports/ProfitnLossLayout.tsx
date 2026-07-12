@@ -164,7 +164,7 @@ class ReportErrorBoundary extends React.Component<{ children: React.ReactNode },
   render() {
     if (this.state.error) {
       return (
-        <div className="flex-1 flex items-center justify-center text-zinc-700 text-xs font-mono">
+        <div className="flex-1 flex items-center justify-center text-black text-xs font-mono">
           <div>
             <div className="font-bold">Profit &amp; Loss report failed to render</div>
             <div>{this.state.error.message}</div>
@@ -210,8 +210,8 @@ function TRow({
       onDoubleClick={onDoubleClick}
       className={[
         'border-b border-transparent select-none',
-        onClick ? 'cursor-pointer hover:bg-zinc-50' : '',
-        isFocused ? 'bg-[#e4e4e7] text-zinc-950' : '',
+        onClick ? 'cursor-pointer hover:bg-black/[0.03]' : '',
+        isFocused ? 'bg-black/[0.06] text-black' : '',
         isTotal || isGrossEntry ? 'font-semibold' : '',
         isGrossEntry ? 'italic' : '',
       ].join(' ')}
@@ -219,7 +219,7 @@ function TRow({
       <td
         className={[
           'py-[3px] text-left text-[13px]',
-          isSubItem ? 'pl-8 pr-2 text-zinc-500' : 'px-2',
+          isSubItem ? 'pl-8 pr-2 text-black' : 'px-2',
           isTotal || isGrossEntry ? 'font-semibold' : 'font-normal',
         ].join(' ')}
       >
@@ -235,9 +235,9 @@ function TRow({
 /* Subtotal row (bold, underlined on both sides) */
 function SubtotalRow({ amount }: { amount: number }) {
   return (
-    <tr className="border-t border-zinc-400">
+    <tr className="border-t border-gray-200">
       <td className="py-[2px] text-left px-2 text-[13px] font-semibold" />
-      <td className="py-[2px] text-right font-mono text-[13px] font-semibold pr-2 border-b-2 border-zinc-600">
+      <td className="py-[2px] text-right font-mono text-[13px] font-semibold pr-2 border-b-2 border-gray-200">
         {fmt(amount)}
       </td>
     </tr>
@@ -308,9 +308,9 @@ function GroupSection({
 
 function ColHeader({ companyName, periodLabel }: { companyName: string; periodLabel: string }) {
   return (
-    <div className="flex justify-between items-start px-3 py-2 border-b border-zinc-300">
-      <div className="text-[16px] tracking-[0.2em] font-semibold text-zinc-800">Particulars</div>
-      <div className="text-right text-[11px] leading-tight text-zinc-700">
+    <div className="flex justify-between items-start px-3 py-2 border-b border-gray-200">
+      <div className="text-[16px] tracking-[0.2em] font-semibold text-black">Particulars</div>
+      <div className="text-right text-[11px] leading-tight text-black">
         <div className="font-semibold text-[12px]">{companyName}</div>
         <div>{periodLabel}</div>
       </div>
@@ -401,28 +401,28 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">
         Loading Profit &amp; Loss…
       </div>
     );
   }
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
   }
   if (!selectedCompany?.company_id || !activeFY?.fy_id) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
         Select a company and financial year to view the Profit &amp; Loss report.
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">
         No data available.
       </div>
     );
@@ -485,14 +485,14 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
   return (
     <div className="flex flex-col h-full w-full bg-white text-black overflow-hidden font-sans">
       {/* T-format title bar */}
-      <div className="h-6 bg-[#e4e4e7] border-b border-zinc-300 flex items-center justify-center text-sm font-semibold tracking-wide">
+      <div className="h-6 bg-black/[0.06] border-b border-gray-200 flex items-center justify-center text-sm font-semibold tracking-wide">
         Profit &amp; Loss A/c
       </div>
 
       {/* Two-column body */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* ══════════════ LEFT SIDE (Debit) ══════════════ */}
-        <div className="flex-1 border-r border-zinc-300 flex flex-col">
+        <div className="flex-1 border-r border-gray-200 flex flex-col">
           <ColHeader companyName={companyName} periodLabel={periodLabel} />
 
           <div className="flex-1 overflow-y-auto">
@@ -589,7 +589,7 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
           </div>
 
           {/* Grand Total — left */}
-          <div className="border-t-2 border-zinc-500 flex justify-between px-3 py-1 font-semibold text-[13px]">
+          <div className="border-t-2 border-black flex justify-between px-3 py-1 font-semibold text-[13px]">
             <span>Total</span>
             <span className="font-mono">{fmt(grandTotal)}</span>
           </div>
@@ -693,7 +693,7 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
           </div>
 
           {/* Grand Total — right */}
-          <div className="border-t-2 border-zinc-500 flex justify-between px-3 py-1 font-semibold text-[13px]">
+          <div className="border-t-2 border-black flex justify-between px-3 py-1 font-semibold text-[13px]">
             <span>Total</span>
             <span className="font-mono">{fmt(grandTotal)}</span>
           </div>

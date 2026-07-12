@@ -8,15 +8,15 @@ interface Props {
 }
 
 const STYLES = {
-  error: 'border-zinc-300 bg-zinc-900 text-white',
-  success: 'border-zinc-200 bg-zinc-50 text-zinc-800',
-  warning: 'border-zinc-900 border-l-4 bg-white text-zinc-900 font-bold',
+  error: 'border-gray-200 bg-black text-white',
+  success: 'border-gray-200 bg-white text-black',
+  warning: 'border-gray-200 border-l-4 bg-white text-black font-bold',
 };
 
 const DISMISS_STYLES = {
-  error: 'text-zinc-400 hover:text-white',
-  success: 'text-zinc-400 hover:text-zinc-900',
-  warning: 'text-zinc-400 hover:text-zinc-900',
+  error: 'text-black hover:text-white',
+  success: 'text-black hover:text-black',
+  warning: 'text-black hover:text-black',
 };
 
 export default function AlertBanner({ type, message, onDismiss, actions }: Props) {

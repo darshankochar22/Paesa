@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar } from '@/components/ui';
+import { PageTitleBar, NotificationBanner } from '@/components/ui';
 import GroupFlatList from '@/components/GroupFlatList';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { GroupType } from '@/types/api';
@@ -74,6 +74,7 @@ export default function GroupAlterEdit() {
   const companyId = selectedCompany?.company_id;
   const [form, setForm] = useState<Partial<GroupType>>({});
   const underRowRef = useRef<HTMLDivElement>(null);
+  const classAnchorRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!companyId || !id) return;
@@ -276,26 +277,14 @@ export default function GroupAlterEdit() {
       <div className="flex-1 flex">
         <div className="flex-1 p-6 overflow-y-auto">
           {error && (
-            <div className="mb-4 p-2 border border-red-200 text-red-700 text-sm flex justify-between items-center">
-              <span>{error}</span>
-              <button
-                onClick={() => setError(null)}
-                className="text-red-500 hover:text-red-700 text-xs"
-              >
-                dismiss
-              </button>
-            </div>
+            <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
           )}
           {success && (
-            <div className="mb-4 p-2 border border-green-200 text-green-700 text-sm flex justify-between items-center">
-              <span>{success}</span>
-              <button
-                onClick={() => setSuccess(null)}
-                className="text-green-500 hover:text-green-700 text-xs"
-              >
-                dismiss
-              </button>
-            </div>
+            <NotificationBanner
+              type="success"
+              message={success}
+              onDismiss={() => setSuccess(null)}
+            />
           )}
 
           <div className="flex flex-col gap-6 max-w-3xl">
@@ -357,18 +346,21 @@ export default function GroupAlterEdit() {
               <Row
                 label="Group behaves like a sub-ledger"
                 onClick={toggleField('behaves_like_subledger')}
+                enterClick
               >
                 <span className="text-sm py-1">{form.behaves_like_subledger ? 'Yes' : 'No'}</span>
               </Row>
               <Row
                 label="Nett Debit/Credit Balances for Reporting"
                 onClick={toggleField('show_net_debit_credit')}
+                enterClick
               >
                 <span className="text-sm py-1">{form.show_net_debit_credit ? 'Yes' : 'No'}</span>
               </Row>
               <Row
                 label="Used for calculation (for example: taxes, discounts) (for sales invoice entries)"
                 onClick={toggleField('used_for_calculation')}
+                enterClick
               >
                 <span className="text-sm py-1">{form.used_for_calculation ? 'Yes' : 'No'}</span>
               </Row>
@@ -390,7 +382,12 @@ export default function GroupAlterEdit() {
                 const dbKey = meta.dbKey as keyof GroupType;
                 const isYes = form[dbKey] as number;
                 return (
-                  <Row key={key} label={meta.label} onClick={() => handleFeatureToggle(dbKey, key)}>
+                  <Row
+                    key={key}
+                    label={meta.label}
+                    onClick={() => handleFeatureToggle(dbKey, key)}
+                    enterClick
+                  >
                     <span className="text-sm py-1">{isYes ? 'Yes' : 'No'}</span>
                   </Row>
                 );
@@ -406,6 +403,7 @@ export default function GroupAlterEdit() {
                 companyId={companyId}
                 gstClassifications={gstClassifications}
                 onOpenClassPanel={(target) => {
+                  classAnchorRef.current = document.activeElement as HTMLElement | null;
                   setShowGroupPanel(false);
                   setShowClassPanel(target);
                 }}
@@ -510,6 +508,7 @@ export default function GroupAlterEdit() {
                           setForm((f) => ({ ...f, gst_classification_id: c.gc_id }));
                         }
                         setShowClassPanel(null);
+                        focusFieldAfter(classAnchorRef.current);
                       }}
                       className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isSelected ? 'bg-zinc-100 font-semibold text-black' : 'text-zinc-700 hover:bg-zinc-50'}`}
                     >

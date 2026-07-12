@@ -91,13 +91,13 @@ const fmtDisc = (disc: number | null | undefined, rate: number, qty: number) => 
   return `${((disc / gross) * 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}%`;
 };
 
-const TH = 'px-2 py-1 text-[10px] font-bold text-zinc-700 bg-zinc-100 border-b border-zinc-300';
-const TD = 'px-2 py-0.5 text-[11px] border-b border-zinc-100';
+const TH = 'px-2 py-1 text-[10px] font-bold text-black bg-black/[0.06] border-b border-gray-200';
+const TD = 'px-2 py-0.5 text-[11px] border-b border-gray-200';
 const TDR = `${TD} text-right`;
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-center font-bold text-[11px] border-b border-zinc-400 pb-0.5 mb-1 uppercase tracking-wide">
+    <div className="text-center font-bold text-[11px] border-b border-gray-200 pb-0.5 mb-1 uppercase tracking-wide">
       {children}
     </div>
   );
@@ -107,9 +107,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function HRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex text-[11px] leading-5">
-      <span className="w-40 shrink-0 text-zinc-500">{label}</span>
-      <span className="mr-2 text-zinc-400">:</span>
-      <span className="font-semibold text-zinc-900">{value || ' '}</span>
+      <span className="w-40 shrink-0 text-black">{label}</span>
+      <span className="mr-2 text-black">:</span>
+      <span className="font-semibold text-black">{value || ' '}</span>
     </div>
   );
 }
@@ -136,7 +136,7 @@ function TxPanel({
   return (
     <div className="flex-1 min-w-0 px-2">
       <SectionTitle>{title}</SectionTitle>
-      <div className="text-[10px] text-zinc-600 font-mono mb-1 truncate">
+      <div className="text-[10px] text-black font-mono mb-1 truncate">
         {last
           ? `Last ${verb} on: ${dmy(last.date)}   ${last.party_name || '—'}   ${fmtQty(last.quantity, unit)} @ ${perUnit(last.rate, unit)}`
           : `Last ${verb} on: —`}
@@ -155,7 +155,7 @@ function TxPanel({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-2 py-2 text-zinc-400 italic text-[10px]">
+              <td colSpan={6} className="px-2 py-2 text-black italic text-[10px]">
                 No {title.toLowerCase()}
               </td>
             </tr>
@@ -165,7 +165,7 @@ function TxPanel({
                 key={i}
                 onClick={() => onFocusRow(i)}
                 onDoubleClick={() => r.voucher_id && onOpen(r.voucher_id)}
-                className={`${i === focusIdx ? 'bg-zinc-200 font-bold' : 'hover:bg-zinc-50'} ${r.voucher_id ? 'cursor-pointer' : ''}`}
+                className={`${i === focusIdx ? 'bg-black/[0.06] font-bold' : 'hover:bg-black/[0.03]'} ${r.voucher_id ? 'cursor-pointer' : ''}`}
                 title={r.voucher_id ? 'Enter / double-click: display voucher' : undefined}
               >
                 <td className={TD}>{dmy(r.date)}</td>
@@ -318,8 +318,8 @@ export default function StockQuery() {
   // ── Render — selection popup ───────────────────────────────────────────
   if (level.step === 'select') {
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
           <span className="font-bold text-sm tracking-wide">Stock Query</span>
           <span className="font-bold text-sm">{selectedCompany?.name ?? ''}</span>
           <span />
@@ -353,9 +353,9 @@ export default function StockQuery() {
   const openVoucher = (id: number) => setDisplayVoucherId(id);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
       {/* Title bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide">Stock Query</span>
         <span className="font-bold text-sm">{selectedCompany?.name ?? ''}</span>
         <span />
@@ -364,14 +364,14 @@ export default function StockQuery() {
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="py-8 text-center text-zinc-400 italic">Loading…</div>
+          <div className="py-8 text-center text-black italic">Loading…</div>
         ) : err ? (
-          <div className="py-8 text-center text-zinc-600">{err}</div>
+          <div className="py-8 text-center text-black">{err}</div>
         ) : !data || !it ? null : (
           <>
             {/* ── Two-column header ── */}
-            <div className="grid grid-cols-2 border-b-2 border-zinc-900">
-              <div className="border-r border-zinc-300 px-4 py-3 font-mono">
+            <div className="grid grid-cols-2 border-b-2 border-gray-200">
+              <div className="border-r border-gray-200 px-4 py-3 font-mono">
                 <HRow label="Name" value={it.name} />
                 <HRow label="Group" value={it.group_name} />
                 <HRow label="Closing Balance" value={fmtQty(it.closing_qty, unit) || '0'} />
@@ -389,7 +389,7 @@ export default function StockQuery() {
             </div>
 
             {/* ── Purchases + Sales ── */}
-            <div className="flex border-b-2 border-zinc-900 py-2">
+            <div className="flex border-b-2 border-gray-200 py-2">
               <TxPanel
                 title="Purchases"
                 verb="purchased"
@@ -399,7 +399,7 @@ export default function StockQuery() {
                 onFocusRow={setTxIdx}
                 onOpen={openVoucher}
               />
-              <div className="w-px bg-zinc-300" />
+              <div className="w-px bg-black/[0.06]" />
               <TxPanel
                 title="Sales"
                 verb="sold"
@@ -414,7 +414,7 @@ export default function StockQuery() {
             {/* ── Godown/Batch + Items of Same Category ── */}
             <div className="flex py-2">
               {/* Godown / Batch */}
-              <div className="flex-1 px-2 border-r border-zinc-300">
+              <div className="flex-1 px-2 border-r border-gray-200">
                 <SectionTitle>Godown / Batch Details</SectionTitle>
                 <table className="w-full border-collapse text-[11px] font-mono">
                   <thead>
@@ -427,20 +427,20 @@ export default function StockQuery() {
                   <tbody>
                     {data.godownDetails.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-2 py-2 text-zinc-400 italic text-[10px]">
+                        <td colSpan={3} className="px-2 py-2 text-black italic text-[10px]">
                           No godown allocations
                         </td>
                       </tr>
                     ) : (
                       <>
                         {data.godownDetails.map((r, i) => (
-                          <tr key={i} className="hover:bg-zinc-50">
+                          <tr key={i} className="hover:bg-black/[0.03]">
                             <td className={TD}>{r.godown_name || 'Main Location'}</td>
                             <td className={TD}>{r.batch || '—'}</td>
                             <td className={TDR}>{fmtQty(r.qty, unit)}</td>
                           </tr>
                         ))}
-                        <tr className="font-bold border-t border-zinc-900">
+                        <tr className="font-bold border-t border-gray-200">
                           <td className={TD}>Total</td>
                           <td className={TD} />
                           <td className={TDR}>{fmtQty(godownTotal, unit)}</td>
@@ -469,7 +469,7 @@ export default function StockQuery() {
                       if (others.length === 0) {
                         return (
                           <tr>
-                            <td colSpan={4} className="px-2 py-2 text-zinc-400 italic text-[10px]">
+                            <td colSpan={4} className="px-2 py-2 text-black italic text-[10px]">
                               {it.category_name === 'Not Applicable'
                                 ? 'No category assigned'
                                 : 'No other items in this category'}
@@ -481,7 +481,7 @@ export default function StockQuery() {
                         <tr
                           key={r.item_id}
                           onClick={() => openDetail({ item_id: r.item_id, name: r.item_name })}
-                          className="hover:bg-zinc-100 cursor-pointer"
+                          className="hover:bg-black/[0.03] cursor-pointer"
                           title="Open Stock Query for this item"
                         >
                           <td className={TD}>{r.item_name}</td>
@@ -502,10 +502,10 @@ export default function StockQuery() {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-        <span className="text-zinc-400">↑↓: Move</span>
-        <span className="text-zinc-400">Enter: Display Vch</span>
-        <span className="text-zinc-400">Esc: Back to Selection</span>
+      <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
+        <span className="text-black">↑↓: Move</span>
+        <span className="text-black">Enter: Display Vch</span>
+        <span className="text-black">Esc: Back to Selection</span>
       </div>
     </div>
   );

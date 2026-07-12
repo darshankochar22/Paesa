@@ -37,7 +37,7 @@ export default function NPSContributionDetails() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && (
           <EmptyState message="Preparing Subscriber Contribution Details…" className="italic" />
         )}
@@ -127,7 +127,7 @@ export function NPSSummary() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing NPS Summary…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[720px] text-[11px] text-black">
@@ -140,7 +140,7 @@ export function NPSSummary() {
 
             <NPSEstablishment est={payload?.establishment} />
 
-            <div className="mt-4 border-t border-black">
+            <div className="mt-4 border-t border-gray-200">
               <StatementLine label="Number of Subscribers" value={s.subscribers ?? 0} />
               <StatementLine label="Subscribers with PRAN" value={s.with_pran ?? 0} />
               <StatementLine label="Subscribers without PRAN" value={s.without_pran ?? 0} />
@@ -176,7 +176,7 @@ export function NPSPranNotAvailable() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing PRAN Not Available…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[860px] text-[11px] text-black">

@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { MasterSelectionPanel, type TableColumn } from "@/components/ui";
-import BudgetForm from "./BudgetForm";
-import type { GroupType, LedgerType, CostCentreType, BudgetType } from "@/types/api";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { MasterSelectionPanel, NotificationBanner, type TableColumn } from '@/components/ui';
+import BudgetForm from './BudgetForm';
+import type { GroupType, LedgerType, CostCentreType, BudgetType } from '@/types/api';
 
 export default function BudgetAlter() {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ export default function BudgetAlter() {
       setSelected(null);
       load();
     } else {
-      window.alert(res.error || "Failed to delete budget.");
+      window.alert(res.error || 'Failed to delete budget.');
     }
   };
 
@@ -60,27 +60,31 @@ export default function BudgetAlter() {
   if (!selected) {
     const columns: TableColumn[] = [
       {
-        key: "name",
-        label: "Name",
-        span: "col-span-5",
-        render: (r: BudgetType) => <span className="font-bold text-zinc-900 text-xs">{r.name}</span>,
+        key: 'name',
+        label: 'Name',
+        span: 'col-span-5',
+        render: (r: BudgetType) => (
+          <span className="font-bold text-zinc-900 text-xs">{r.name}</span>
+        ),
       },
       {
-        key: "under",
-        label: "Under",
-        span: "col-span-4",
+        key: 'under',
+        label: 'Under',
+        span: 'col-span-4',
         render: (r: BudgetType) => {
           const parent = budgets.find((p) => p.budget_id === r.parent_id);
-          return <span className="text-zinc-500 font-semibold">{parent ? parent.name : "Primary"}</span>;
+          return (
+            <span className="text-zinc-500 font-semibold">{parent ? parent.name : 'Primary'}</span>
+          );
         },
       },
       {
-        key: "period",
-        label: "Period",
-        span: "col-span-3",
+        key: 'period',
+        label: 'Period',
+        span: 'col-span-3',
         render: (r: BudgetType) => (
           <span className="text-zinc-500 font-semibold">
-            {r.period_from || r.period_to ? `${r.period_from || "…"} – ${r.period_to || "…"}` : "—"}
+            {r.period_from || r.period_to ? `${r.period_from || '…'} – ${r.period_to || '…'}` : '—'}
           </span>
         ),
       },
@@ -89,12 +93,7 @@ export default function BudgetAlter() {
     return (
       <div className="flex-1 flex flex-col h-full">
         {success && (
-          <div className="mx-6 mt-4 p-2 border border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-sans">
-            <span>• {success}</span>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">
-              &times;
-            </button>
-          </div>
+          <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
         )}
         <MasterSelectionPanel<BudgetType>
           title="Alter Budget"
@@ -104,8 +103,8 @@ export default function BudgetAlter() {
           filterFn={(b, s) => b.name.toLowerCase().includes(s.toLowerCase())}
           columns={columns}
           onSelect={handleSelect}
-          onCancel={() => navigate("/master/alter")}
-          onCreate={() => navigate("/master/create/budget")}
+          onCancel={() => navigate('/master/alter')}
+          onCreate={() => navigate('/master/create/budget')}
           createLabel="Create Budget"
           rowKey={(b) => b.budget_id!}
           emptyMessage="No budgets found."
@@ -128,7 +127,7 @@ export default function BudgetAlter() {
         setSelected(null);
         load();
       }}
-      onCancel={() => navigate("/master/alter")}
+      onCancel={() => navigate('/master/alter')}
       onBack={() => setSelected(null)}
       onDelete={handleDelete}
     />

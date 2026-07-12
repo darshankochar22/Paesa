@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
 import GroupTree from '@/components/GroupTree';
 import GroupFlatList from '@/components/GroupFlatList';
 import type { GroupType } from '@/types/api';
@@ -125,15 +126,7 @@ export default function GroupCOA() {
       </div>
 
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold"
-          >
-            dismiss
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       {/* Main Workspace */}

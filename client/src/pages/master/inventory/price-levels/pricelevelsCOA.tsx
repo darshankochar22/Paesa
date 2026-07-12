@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
 
 interface PriceLevel {
   index: number;
@@ -18,7 +19,7 @@ export default function PriceLevelsCOA() {
   const [error, setError] = useState<string | null>(null);
 
   // View States
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
   const [showChangeViewModal, setShowChangeViewModal] = useState(false);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
@@ -35,12 +36,12 @@ export default function PriceLevelsCOA() {
             // Only show named (non-empty) slots
             const loaded: PriceLevel[] = (result.data as string[])
               .map((name: string, i: number) => ({ index: i, name }))
-              .filter((pl) => pl.name.trim() !== "");
+              .filter((pl) => pl.name.trim() !== '');
             setPriceLevels(loaded);
           }
         }
       } catch (err) {
-        setError("Failed to load price levels.");
+        setError('Failed to load price levels.');
       } finally {
         setLoading(false);
       }
@@ -51,14 +52,29 @@ export default function PriceLevelsCOA() {
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); navigate("/master/coa"); }
-      if (e.key === "F5") { e.preventDefault(); navigate("/master/coa/stock-category"); }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "h" || e.key === "H")) { e.preventDefault(); setShowChangeViewModal((p) => !p); }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "j" || e.key === "J")) { e.preventDefault(); setShowExceptionModal((p) => !p); }
-      if (e.altKey && (e.key === "c" || e.key === "C")) { e.preventDefault(); navigate("/master/alter/price-levels"); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/master/coa');
+      }
+      if (e.key === 'F5') {
+        e.preventDefault();
+        navigate('/master/coa/stock-category');
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        setShowChangeViewModal((p) => !p);
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'j' || e.key === 'J')) {
+        e.preventDefault();
+        setShowExceptionModal((p) => !p);
+      }
+      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        navigate('/master/alter/price-levels');
+      }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
   const filteredLevels = priceLevels.filter((pl) => {
@@ -72,12 +88,11 @@ export default function PriceLevelsCOA() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800">
-
       {/* Header */}
       <div className="px-4 py-2 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="text-xs text-zinc-500 hover:text-zinc-800 px-2 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
           >
             ← Back
@@ -91,10 +106,10 @@ export default function PriceLevelsCOA() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-zinc-400">
-            {priceLevels.length} {priceLevels.length === 1 ? "level" : "levels"}
+            {priceLevels.length} {priceLevels.length === 1 ? 'level' : 'levels'}
           </span>
           <button
-            onClick={() => navigate("/master/alter/price-levels")}
+            onClick={() => navigate('/master/alter/price-levels')}
             className="text-[11px] font-semibold text-white bg-black hover:bg-zinc-800 px-3 py-1 rounded shadow-sm"
           >
             Edit Levels
@@ -104,21 +119,18 @@ export default function PriceLevelsCOA() {
 
       {/* Error Bar */}
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">✕</button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
-
         {/* Left: Search + List */}
         <div className="flex-1 flex flex-col min-w-0 h-full">
-
           {/* Search */}
           <div className="px-4 py-1.5 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">Search:</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">
+              Search:
+            </span>
             <input
               type="text"
               placeholder="Search price levels..."
@@ -128,7 +140,7 @@ export default function PriceLevelsCOA() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => setSearchQuery('')}
                 className="text-xs text-zinc-400 hover:text-black font-bold px-1.5"
               >
                 Clear
@@ -144,8 +156,8 @@ export default function PriceLevelsCOA() {
             ) : filteredLevels.length === 0 ? (
               <div className="text-xs text-zinc-400 text-center py-8">
                 {priceLevels.length === 0
-                  ? "No price levels configured. Use Edit Levels to add some."
-                  : "No matching price levels found."}
+                  ? 'No price levels configured. Use Edit Levels to add some.'
+                  : 'No matching price levels found.'}
               </div>
             ) : (
               <div className="py-2">
@@ -154,7 +166,7 @@ export default function PriceLevelsCOA() {
                     <div key={pl.index} className="flex flex-col">
                       <div
                         className="flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group px-2"
-                        onClick={() => navigate("/master/alter/price-levels")}
+                        onClick={() => navigate('/master/alter/price-levels')}
                       >
                         {/* Index badge */}
                         <span className="w-7 text-[11px] font-mono text-zinc-400 shrink-0 text-right mr-3 select-none">
@@ -162,7 +174,9 @@ export default function PriceLevelsCOA() {
                         </span>
 
                         <div className="flex-1 flex items-center justify-between pr-4">
-                          <span className="font-semibold text-zinc-800 text-[13px] group-hover:text-sky-800 transition-colors">{pl.name}</span>
+                          <span className="font-semibold text-zinc-800 text-[13px] group-hover:text-sky-800 transition-colors">
+                            {pl.name}
+                          </span>
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] text-zinc-400">Level {pl.index + 1}</span>
                           </div>
@@ -179,7 +193,7 @@ export default function PriceLevelsCOA() {
         {/* Right Sidebar */}
         <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           <button
-            onClick={() => navigate("/master/coa/stock-category")}
+            onClick={() => navigate('/master/coa/stock-category')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">F5</span>
@@ -203,7 +217,7 @@ export default function PriceLevelsCOA() {
           </button>
 
           <button
-            onClick={() => navigate("/master/alter/price-levels")}
+            onClick={() => navigate('/master/alter/price-levels')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Alt+C</span>
@@ -213,7 +227,7 @@ export default function PriceLevelsCOA() {
           <div className="flex-1" />
 
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-zinc-200 hover:bg-zinc-300 text-zinc-800 transition-colors text-left shadow-sm font-semibold mt-auto"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Esc</span>
@@ -222,34 +236,77 @@ export default function PriceLevelsCOA() {
         </div>
       </div>
 
-  
       {showChangeViewModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center z-50">
           <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-80 overflow-hidden select-none">
             <div className="bg-zinc-100 px-4 py-2 text-xs font-bold text-zinc-750 border-b border-zinc-200 flex justify-between items-center">
               <span>Change View</span>
-              <button onClick={() => setShowChangeViewModal(false)} className="text-zinc-400 hover:text-black font-semibold">✕</button>
+              <button
+                onClick={() => setShowChangeViewModal(false)}
+                className="text-zinc-400 hover:text-black font-semibold"
+              >
+                ✕
+              </button>
             </div>
             <div className="p-1 flex flex-col text-xs">
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/stock-group"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/stock-group');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
                 Stock Groups & Items Tree
               </button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/stock-category"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/stock-category');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
                 Stock Categories Tree
               </button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/unit"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/unit');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
                 Units of Measure List
               </button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/godown"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/godown');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
                 Godowns / Locations Tree
               </button>
-              <button disabled className="w-full text-left px-3 py-2 rounded bg-zinc-100 font-bold text-zinc-400 cursor-not-allowed">
+              <button
+                disabled
+                className="w-full text-left px-3 py-2 rounded bg-zinc-100 font-bold text-zinc-400 cursor-not-allowed"
+              >
                 Price Levels (Active)
               </button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/group"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors border-t border-zinc-100">
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/group');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors border-t border-zinc-100"
+              >
                 Groups Chart of Accounts
               </button>
-              <button onClick={() => { setShowChangeViewModal(false); navigate("/master/coa/ledger"); }} className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors">
+              <button
+                onClick={() => {
+                  setShowChangeViewModal(false);
+                  navigate('/master/coa/ledger');
+                }}
+                className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
+              >
                 Ledgers Chart of Accounts
               </button>
             </div>
@@ -262,18 +319,29 @@ export default function PriceLevelsCOA() {
           <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-72 overflow-hidden select-none">
             <div className="bg-zinc-100 px-4 py-2 text-xs font-bold text-zinc-750 border-b border-zinc-200 flex justify-between items-center">
               <span>Exception Reports</span>
-              <button onClick={() => setShowExceptionModal(false)} className="text-zinc-400 hover:text-black font-semibold">✕</button>
+              <button
+                onClick={() => setShowExceptionModal(false)}
+                className="text-zinc-400 hover:text-black font-semibold"
+              >
+                ✕
+              </button>
             </div>
             <div className="p-1 flex flex-col text-xs">
               <button
-                onClick={() => { setShowExceptionModal(false); setShowUnusedOnly(true); }}
-                className={`w-full text-left px-3 py-2 rounded transition-colors ${showUnusedOnly ? "bg-zinc-100 text-black font-semibold" : "hover:bg-black hover:text-white"}`}
+                onClick={() => {
+                  setShowExceptionModal(false);
+                  setShowUnusedOnly(true);
+                }}
+                className={`w-full text-left px-3 py-2 rounded transition-colors ${showUnusedOnly ? 'bg-zinc-100 text-black font-semibold' : 'hover:bg-black hover:text-white'}`}
               >
                 Show Unused / Empty Levels Only
               </button>
               <button
-                onClick={() => { setShowExceptionModal(false); setShowUnusedOnly(false); }}
-                className={`w-full text-left px-3 py-2 rounded transition-colors border-t border-zinc-100 ${!showUnusedOnly ? "bg-zinc-100 text-black font-semibold" : "hover:bg-black hover:text-white"}`}
+                onClick={() => {
+                  setShowExceptionModal(false);
+                  setShowUnusedOnly(false);
+                }}
+                className={`w-full text-left px-3 py-2 rounded transition-colors border-t border-zinc-100 ${!showUnusedOnly ? 'bg-zinc-100 text-black font-semibold' : 'hover:bg-black hover:text-white'}`}
               >
                 Show All Price Levels
               </button>

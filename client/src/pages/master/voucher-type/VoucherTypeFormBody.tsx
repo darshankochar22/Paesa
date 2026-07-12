@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FormRow } from '@/components/ui';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type {
   NumberingRestartRow,
   NumberingAffixRow,
@@ -631,9 +632,11 @@ export function VoucherTypeFormBody({
                 onChange={(e) => setNewClassName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter') return;
-                  e.preventDefault();
                   const name = newClassName.trim();
+                  // Empty field: let the global Enter-nav walk to the next field
+                  // (WhatsApp row) instead of dead-ending here.
                   if (!name) return;
+                  e.preventDefault();
                   if (
                     config.voucher_classes.some((c) => c.name.toLowerCase() === name.toLowerCase())
                   )
@@ -663,7 +666,12 @@ export function VoucherTypeFormBody({
         <CategoryListPanel
           selected={form.category}
           onSelect={(v) => setForm((f) => ({ ...f, category: v }))}
-          onClose={() => setShowCategoryPanel(false)}
+          onClose={() => {
+            setShowCategoryPanel(false);
+            // Resume the Enter chain at Abbreviation after the panel closes
+            // (both select-then-close and manual close route through here).
+            focusFieldAfter(categoryBtnRef.current);
+          }}
           categories={categories}
         />
       )}

@@ -8,8 +8,8 @@ import { downloadTextFile, fixedRow } from '@/lib/exportText';
 // white sheet (Tally's print preview look). Rows come from the employee master:
 // Form 5 = joiners of the fund in the period, Form 10 = leavers.
 
-const CELL = 'border border-black px-2 py-1 align-top';
-const HEADCELL = 'border border-black px-2 py-1 text-center font-bold align-top';
+const CELL = 'border border-gray-200 px-2 py-1 align-top';
+const HEADCELL = 'border border-gray-200 px-2 py-1 text-center font-bold align-top';
 
 const monthLabel = (activeFY?: { end_date?: string } | null) => {
   const d = activeFY?.end_date ? new Date(activeFY.end_date) : new Date(2000, 0, 1);
@@ -115,7 +115,7 @@ function EReturnExportBar({ onExport }: { onExport: () => void }) {
     <button
       type="button"
       onClick={onExport}
-      className="px-3 h-7 bg-black text-white text-[11px] font-semibold hover:bg-zinc-800"
+      className="px-3 h-7 bg-black text-white text-[11px] font-semibold hover:bg-black/80"
     >
       Export E-Return File (Alt+E)
     </button>
@@ -255,7 +255,7 @@ function PFSheet({
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
       footerControls={footerControls}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message={loadingMsg} className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[980px] text-[11px] text-black">
@@ -329,7 +329,7 @@ export default function PFForm5({ eReturn = false }: { eReturn?: boolean }) {
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
       footerControls={eReturn ? <EReturnExportBar onExport={onExport} /> : undefined}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 5…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[900px] text-[11px] text-black">
@@ -425,7 +425,7 @@ export function PFForm10({ eReturn = false }: { eReturn?: boolean }) {
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
       footerControls={eReturn ? <EReturnExportBar onExport={onExport} /> : undefined}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 10…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[900px] text-[11px] text-black">
@@ -513,7 +513,7 @@ export function PFForm12A({ eReturn = false }: { eReturn?: boolean }) {
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
       footerControls={eReturn ? <EReturnExportBar onExport={onExport} /> : undefined}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 12A…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[900px] text-[11px] text-black">
@@ -846,7 +846,7 @@ export function PFForm3A({ eReturn = false }: { eReturn?: boolean }) {
         </span>
       </div>
       {members.length === 0 && (
-        <div className="px-4 py-6 italic text-gray-500 text-center">
+        <div className="px-4 py-6 italic text-black text-center">
           No PF members found for this company.
         </div>
       )}

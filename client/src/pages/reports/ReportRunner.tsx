@@ -446,9 +446,7 @@ export function ReportRunner() {
             Valuation: <span className="font-bold">{config.valuationMethod}</span>
           </span>
           {reportType === 'edit-log' && auditChainStatus && (
-            <span
-              className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase ${auditChainStatus.intact ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-200 text-zinc-800'}`}
-            >
+            <span className="px-2 py-0.5 rounded font-bold text-[10px] uppercase bg-black text-white">
               {auditChainStatus.intact
                 ? '✔ Chain Intact'
                 : `⚠ Chain Broken at Log #${auditChainStatus.brokenAt}`}
@@ -465,15 +463,15 @@ export function ReportRunner() {
     >
       <div className="flex h-full w-full overflow-hidden">
         {error ? (
-          <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center animate-fade-in">
+          <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center animate-fade-in">
             {error}
           </div>
         ) : loading ? (
-          <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">
+          <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">
             Loading report data...
           </div>
         ) : notice && rows.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center animate-fade-in">
+          <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center animate-fade-in">
             {notice}
           </div>
         ) : (
@@ -570,36 +568,36 @@ export function ReportRunner() {
 
       {/* F2 Period Modal */}
       <Dialog open={isPeriodOpen} onOpenChange={(open) => !open && setIsPeriodOpen(false)}>
-        <DialogContent className="sm:max-w-md bg-white text-zinc-900 border border-zinc-200">
+        <DialogContent className="sm:max-w-md bg-white text-black border border-gray-200">
           <DialogHeader>
-            <DialogTitle className="text-zinc-900 font-bold">Select Period (F2)</DialogTitle>
+            <DialogTitle className="text-black font-bold">Select Period (F2)</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-zinc-700">From Date</label>
+              <label className="text-xs font-semibold text-black">From Date</label>
               <Input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
+                className="text-xs h-9 border-gray-200 focus:border-gray-200 focus:ring-black text-black"
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-zinc-700">To Date</label>
+              <label className="text-xs font-semibold text-black">To Date</label>
               <Input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
+                className="text-xs h-9 border-gray-200 focus:border-gray-200 focus:ring-black text-black"
               />
             </div>
           </div>
-          <DialogFooter className="flex justify-end gap-2 bg-zinc-50 border-t border-zinc-100 p-3 -mx-4 -mb-4 rounded-b-xl">
+          <DialogFooter className="flex justify-end gap-2 bg-white border-t border-gray-200 p-3 -mx-4 -mb-4 rounded-b-xl">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsPeriodOpen(false)}
-              className="text-xs border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+              className="text-xs border-gray-200 hover:bg-black/[0.03] text-black"
             >
               Cancel
             </Button>
@@ -610,7 +608,7 @@ export function ReportRunner() {
                 loadData();
                 setIsPeriodOpen(false);
               }}
-              className="text-xs bg-zinc-900 hover:bg-zinc-800 text-white font-semibold"
+              className="text-xs bg-black hover:bg-black/80 text-white font-semibold"
             >
               Set Period
             </Button>
@@ -620,9 +618,9 @@ export function ReportRunner() {
 
       {/* F3 Company Modal */}
       <Dialog open={isCompanyOpen} onOpenChange={(open) => !open && setIsCompanyOpen(false)}>
-        <DialogContent className="sm:max-w-md bg-white text-zinc-900 border border-zinc-200">
+        <DialogContent className="sm:max-w-md bg-white text-black border border-gray-200">
           <DialogHeader>
-            <DialogTitle className="text-zinc-900 font-bold">Change Company (F3)</DialogTitle>
+            <DialogTitle className="text-black font-bold">Change Company (F3)</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2 py-4">
             {companies.map((comp) => (
@@ -639,10 +637,10 @@ export function ReportRunner() {
                   }
                   setIsCompanyOpen(false);
                 }}
-                className={`w-full text-left px-3 py-2 text-xs font-semibold border rounded hover:bg-zinc-50 ${
+                className={`w-full text-left px-3 py-2 text-xs font-semibold border rounded hover:bg-black/[0.03] ${
                   comp.company_id === selectedCompany?.company_id
-                    ? 'border-zinc-800 bg-zinc-100 text-zinc-900 font-bold'
-                    : 'border-zinc-200 text-zinc-700'
+                    ? 'border-gray-200 bg-black/[0.06] text-black font-bold'
+                    : 'border-gray-200 text-black'
                 }`}
               >
                 {comp.name}

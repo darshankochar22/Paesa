@@ -696,7 +696,6 @@ export default function PayHeadCreate() {
       <MasterFormFooter
         onCancel={() => navigate('/master/create')}
         onSubmit={handleSubmit}
-        submitLabel="Create"
         loading={loading}
       />
 

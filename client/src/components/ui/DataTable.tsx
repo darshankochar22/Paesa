@@ -1,6 +1,6 @@
-import * as React from "react";
-import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import {
   TABLE_HEADER,
   TABLE_ROW,
@@ -10,18 +10,18 @@ import {
   GROUP_ROW,
   PLACEHOLDER,
   rowStripe,
-} from "./tokens";
+} from './tokens';
 
 export interface TableColumn {
   key: string;
   label: string;
   /** Tailwind col-span within the 12-col grid, e.g. "col-span-7". */
   span: string;
-  align?: "left" | "right" | "center";
+  align?: 'left' | 'right' | 'center';
   render?: (row: any, idx: number) => ReactNode;
 }
 
-type Variant = "list" | "report";
+type Variant = 'list' | 'report';
 
 interface Props {
   columns: TableColumn[];
@@ -41,16 +41,16 @@ interface Props {
   variant?: Variant;
   dense?: boolean;
   /** Classify a row for styling. Falls back to row.isTotal / row.isHeader. */
-  getRowVariant?: (row: any, idx: number) => "default" | "total" | "header";
+  getRowVariant?: (row: any, idx: number) => 'default' | 'total' | 'header';
 }
 
 const ALIGN: Record<string, string> = {
-  left: "text-left",
-  right: "text-right",
-  center: "text-center",
+  left: 'text-left',
+  right: 'text-right',
+  center: 'text-center',
 };
 
-const GRID = { gridTemplateColumns: "repeat(12, minmax(0, 1fr))" } as const;
+const GRID = { gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' } as const;
 
 export default function DataTable({
   columns,
@@ -58,26 +58,32 @@ export default function DataTable({
   onRowClick,
   onRowActivate,
   loading,
-  emptyMessage = "No records found.",
+  emptyMessage = 'No records found.',
   rowKey,
   rowClassName,
-  variant = "list",
+  variant = 'list',
   dense,
   getRowVariant,
 }: Props) {
-  const isReport = variant === "report";
+  const isReport = variant === 'report';
   const [focus, setFocus] = React.useState(0);
   const [expanded, setExpanded] = React.useState<Record<string | number, boolean>>({});
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const classify = React.useCallback(
-    (row: any, idx: number): "default" | "total" | "header" => {
+    (row: any, idx: number): 'default' | 'total' | 'header' => {
       if (getRowVariant) return getRowVariant(row, idx);
-      if (row?.isTotal || String(row?.label ?? "").toLowerCase().includes("total")) return "total";
-      if (row?.isHeader) return "header";
-      return "default";
+      if (
+        row?.isTotal ||
+        String(row?.label ?? '')
+          .toLowerCase()
+          .includes('total')
+      )
+        return 'total';
+      if (row?.isHeader) return 'header';
+      return 'default';
     },
-    [getRowVariant]
+    [getRowVariant],
   );
 
   // ── Report keyboard navigation ────────────────────────────────────────────
@@ -85,18 +91,15 @@ export default function DataTable({
     if (!isReport) return;
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement;
-      if (
-        el &&
-        (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA")
-      )
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA'))
         return;
-      if (e.key === "ArrowDown") {
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         setFocus((p) => Math.min(rows.length - 1, p + 1));
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setFocus((p) => Math.max(0, p - 1));
-      } else if (e.key === "Enter") {
+      } else if (e.key === 'Enter') {
         const r = rows[focus];
         if (r) {
           e.preventDefault();
@@ -104,8 +107,8 @@ export default function DataTable({
         }
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [isReport, rows, focus, onRowActivate, onRowClick]);
 
   React.useEffect(() => {
@@ -114,28 +117,28 @@ export default function DataTable({
 
   React.useEffect(() => {
     const node = containerRef.current?.querySelector(`[data-row-index="${focus}"]`);
-    node?.scrollIntoView({ block: "nearest" });
+    node?.scrollIntoView({ block: 'nearest' });
   }, [focus]);
 
   const clickable = !!(onRowClick || onRowActivate);
-  const padY = dense ? "py-1" : "py-2.5";
+  const padY = dense ? 'py-1' : 'py-2.5';
 
-  const renderCells = (row: any, idx: number, extraCellClass = "") =>
+  const renderCells = (row: any, idx: number, extraCellClass = '') =>
     columns.map((col) => (
-      <div key={col.key} className={cn(col.span, ALIGN[col.align ?? "left"], extraCellClass)}>
-        {col.render ? col.render(row, idx) : (row[col.key] ?? (isReport ? "" : "—"))}
+      <div key={col.key} className={cn(col.span, ALIGN[col.align ?? 'left'], extraCellClass)}>
+        {col.render ? col.render(row, idx) : (row[col.key] ?? (isReport ? '' : '—'))}
       </div>
     ));
 
   return (
     <div
       ref={containerRef}
-      className={cn("flex-1 overflow-y-auto min-h-0", isReport && "font-mono text-[11px]")}
+      className={cn('flex-1 overflow-y-auto min-h-0', isReport && 'font-mono text-[11px]')}
     >
       {/* Header */}
-      <div className={cn("grid sticky top-0 z-10 px-3 py-2", TABLE_HEADER)} style={GRID}>
+      <div className={cn('grid sticky top-0 z-10 px-3 py-2', TABLE_HEADER)} style={GRID}>
         {columns.map((col) => (
-          <div key={col.key} className={cn(col.span, ALIGN[col.align ?? "left"])}>
+          <div key={col.key} className={cn(col.span, ALIGN[col.align ?? 'left'])}>
             {col.label}
           </div>
         ))}
@@ -147,8 +150,8 @@ export default function DataTable({
       {!loading &&
         rows.map((row, idx) => {
           const kind = classify(row, idx);
-          const isTotal = kind === "total";
-          const isHeader = kind === "header";
+          const isTotal = kind === 'total';
+          const isHeader = kind === 'header';
           const isFocused = isReport && idx === focus;
           const hasSub = isReport && Array.isArray(row.subItems) && row.subItems.length > 0;
           const open = expanded[rowKey(row)];
@@ -164,7 +167,7 @@ export default function DataTable({
                 }}
                 onDoubleClick={() => (onRowActivate ?? onRowClick)?.(row)}
                 className={cn(
-                  "grid px-3 items-center",
+                  'grid px-3 items-center',
                   padY,
                   TABLE_ROW,
                   !isReport && rowStripe(idx),
@@ -172,19 +175,19 @@ export default function DataTable({
                   isHeader && GROUP_ROW,
                   isTotal && TOTALS_ROW,
                   isFocused && TABLE_ROW_FOCUSED,
-                  rowClassName?.(row, idx)
+                  rowClassName?.(row, idx),
                 )}
                 style={GRID}
               >
                 {columns.map((col, ci) => (
                   <div
                     key={col.key}
-                    className={cn(col.span, ALIGN[col.align ?? "left"], isTotal && "font-bold")}
+                    className={cn(col.span, ALIGN[col.align ?? 'left'], isTotal && 'font-bold')}
                   >
                     {hasSub && ci === 0 && (
-                      <span className="mr-1 font-bold">{open ? "▼" : "▶"}</span>
+                      <span className="mr-1 font-bold">{open ? '▼' : '▶'}</span>
                     )}
-                    {col.render ? col.render(row, idx) : (row[col.key] ?? (isReport ? "" : "—"))}
+                    {col.render ? col.render(row, idx) : (row[col.key] ?? (isReport ? '' : '—'))}
                   </div>
                 ))}
               </div>
@@ -194,10 +197,12 @@ export default function DataTable({
                 row.subItems.map((sub: any, si: number) => (
                   <div
                     key={`${rowKey(row)}-sub-${si}`}
-                    className={cn("grid px-3 py-0.5 text-zinc-500 bg-zinc-50/40 border-b border-zinc-100")}
+                    className={cn(
+                      'grid px-3 py-0.5 text-black font-semibold border-b border-gray-200',
+                    )}
                     style={GRID}
                   >
-                    {renderCells(sub, si, "pl-3")}
+                    {renderCells(sub, si, 'pl-3')}
                   </div>
                 ))}
             </React.Fragment>

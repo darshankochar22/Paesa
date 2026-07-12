@@ -41,7 +41,7 @@ const fmtQty = (v: number | null | undefined, unit?: string) => {
   return unit ? `${num} ${unit}` : num;
 };
 
-const TH = 'px-2 py-1 font-bold text-[10px] bg-zinc-100 border-b border-zinc-300';
+const TH = 'px-2 py-1 font-bold text-[10px] bg-black/[0.06] border-b border-gray-200';
 
 export default function BillsPending({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
@@ -123,13 +123,13 @@ export default function BillsPending({ mode }: { mode: Mode }) {
   }, [rows, idx, navigate, otherRoute]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide">{title}</span>
         <span className="font-bold text-sm">{selectedCompany?.name ?? ''}</span>
         <span />
       </div>
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono text-[11px]">
         <span className="font-semibold">{sectionLabel}</span>
         <span>{periodLabel}</span>
       </div>
@@ -150,19 +150,19 @@ export default function BillsPending({ mode }: { mode: Mode }) {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={7} className="px-4 py-8 text-center text-black italic">
                   Loading…
                 </td>
               </tr>
             ) : err ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-zinc-600">
+                <td colSpan={7} className="px-4 py-8 text-center text-black">
                   {err}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={7} className="px-4 py-8 text-center text-black italic">
                   No bills pending.
                 </td>
               </tr>
@@ -174,7 +174,7 @@ export default function BillsPending({ mode }: { mode: Mode }) {
                     onDoubleClick={() =>
                       r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)
                     }
-                    className={`border-b border-zinc-100 cursor-pointer ${i === idx ? 'bg-[#e4e4e7] font-bold' : 'hover:bg-zinc-50'}`}
+                    className={`border-b border-gray-200 cursor-pointer ${i === idx ? 'bg-black/[0.06] font-bold' : 'hover:bg-black/[0.03]'}`}
                   >
                     <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
                     <td className="px-2 py-1">{r.tracking_no}</td>
@@ -184,9 +184,9 @@ export default function BillsPending({ mode }: { mode: Mode }) {
                     <td className="px-2 py-1 text-right w-24">{fmtNum(r.rate)}</td>
                     <td className="px-2 py-1 text-right w-28">{fmtNum(r.value)}</td>
                   </tr>
-                  <tr className={i === idx ? 'bg-[#e4e4e7]' : ''}>
+                  <tr className={i === idx ? 'bg-black/[0.06]' : ''}>
                     <td />
-                    <td colSpan={6} className="px-2 pb-1 italic text-zinc-500">
+                    <td colSpan={6} className="px-2 pb-1 italic text-black">
                       To: {r.party_name || '—'}
                     </td>
                   </tr>
@@ -198,7 +198,7 @@ export default function BillsPending({ mode }: { mode: Mode }) {
       </div>
 
       {/* Total row — fixed widths mirror the numeric columns so it aligns */}
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-2 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
+      <div className="border-t-2 border-black bg-white px-2 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
         <span className="flex-1 pl-2">Total</span>
         <span className="w-28 text-right">
           {totalUnit ? fmtQty(totals.initial, totalUnit) : ''}
@@ -210,11 +210,11 @@ export default function BillsPending({ mode }: { mode: Mode }) {
         <span className="w-28 text-right">{fmtNum(totals.value)}</span>
       </div>
 
-      <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => navigate(otherRoute)} className="hover:text-zinc-900">
+      <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
+        <button onClick={() => navigate(otherRoute)} className="hover:text-black">
           F5: {otherTitle}
         </button>
-        <span className="text-zinc-400">Enter: Open voucher</span>
+        <span className="text-black">Enter: Open voucher</span>
       </div>
     </div>
   );

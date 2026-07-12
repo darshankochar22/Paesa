@@ -1,6 +1,7 @@
 export { default as PageTitleBar } from './PageTitleBar';
 export { default as StatusBadge } from './StatusBadge';
 export { default as AlertBanner } from './AlertBanner';
+export { default as NotificationBanner } from './NotificationBanner';
 export { default as SearchInput } from './SearchInput';
 export { default as SectionCard } from './SectionCard';
 export { default as DataTable } from './DataTable';
@@ -53,4 +54,3 @@ export type { DataTableCardProps, DataTableColumn } from './DataTableCard';
 
 // ── Style tokens ─────────────────────────────────────────────────────────────
 export * as tokens from './tokens';
-

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { CompanyTCSDetails } from "@/types/entities/CompanyTCSDetails";
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { CompanyTCSDetails } from '@/types/entities/CompanyTCSDetails';
 
 export default function TCSDetailsCOA() {
   const { selectedCompany } = useCompany();
@@ -40,8 +41,8 @@ export default function TCSDetailsCOA() {
           }
         }
       } catch (err) {
-        console.error("Failed to fetch TCS details for COA:", err);
-        setError("Failed to load statutory details.");
+        console.error('Failed to fetch TCS details for COA:', err);
+        setError('Failed to load statutory details.');
       } finally {
         setLoading(false);
       }
@@ -52,23 +53,23 @@ export default function TCSDetailsCOA() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.altKey && e.key.toLowerCase() === "a") {
+      if (e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        navigate("/master/alter/tcs-details");
+        navigate('/master/alter/tcs-details');
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   const Row = ({ label, value }: { label: string; value?: string }) => (
     <div className="flex justify-between gap-4">
       <span className="text-zinc-400 shrink-0">{label}:</span>
-      <span className="font-bold text-zinc-900 text-right break-all">{value || "—"}</span>
+      <span className="font-bold text-zinc-900 text-right break-all">{value || '—'}</span>
     </div>
   );
 
@@ -83,18 +84,14 @@ export default function TCSDetailsCOA() {
           <span className="text-sm font-semibold text-zinc-700">Company TCS Collector Details</span>
         </div>
         <button
-          onClick={() => navigate("/master/alter/tcs-details")}
+          onClick={() => navigate('/master/alter/tcs-details')}
           className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2.5 py-0.5 bg-white font-medium font-sans"
         >
           Alter Details
         </button>
       </div>
 
-      {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs font-bold font-sans">
-          • {error}
-        </div>
-      )}
+      {error && <NotificationBanner type="error" message={error} />}
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -108,7 +105,7 @@ export default function TCSDetailsCOA() {
             <div className="text-center py-12 text-zinc-500 text-xs space-y-3">
               <p className="italic">No TCS details have been configured for this company yet.</p>
               <button
-                onClick={() => navigate("/master/create/tcs-details")}
+                onClick={() => navigate('/master/create/tcs-details')}
                 className="text-xs px-4 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium rounded transition-colors"
               >
                 Configure TCS details
@@ -116,7 +113,6 @@ export default function TCSDetailsCOA() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-8 max-w-4xl text-[11px] font-mono">
-
               {/* Column 1: TAN & Collector + Rate Details */}
               <div className="space-y-4">
                 <div>
@@ -138,7 +134,7 @@ export default function TCSDetailsCOA() {
                   <div className="space-y-2">
                     <Row
                       label="Ignore IT Exemption Limit"
-                      value={tcsDetails.ignoreItExemption ? "Yes" : "No"}
+                      value={tcsDetails.ignoreItExemption ? 'Yes' : 'No'}
                     />
                   </div>
                 </div>
@@ -152,7 +148,10 @@ export default function TCSDetailsCOA() {
                 {tcsDetails.setAlterPersonResponsible ? (
                   <div className="space-y-2">
                     <Row label="Name" value={tcsDetails.personResponsibleName} />
-                    <Row label="Son/Daughter of" value={tcsDetails.personResponsibleSonDaughterOf} />
+                    <Row
+                      label="Son/Daughter of"
+                      value={tcsDetails.personResponsibleSonDaughterOf}
+                    />
                     <Row label="Designation" value={tcsDetails.personResponsibleDesignation} />
                     <Row label="PAN" value={tcsDetails.personResponsiblePan} />
 
@@ -186,14 +185,14 @@ export default function TCSDetailsCOA() {
         {/* Right Action Menu */}
         <div className="w-44 border-l border-zinc-200 flex flex-col bg-zinc-50/30 text-[10px] select-none shrink-0 font-sans">
           <button
-            onClick={() => navigate("/master/alter/tcs-details")}
+            onClick={() => navigate('/master/alter/tcs-details')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+A Alter
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit

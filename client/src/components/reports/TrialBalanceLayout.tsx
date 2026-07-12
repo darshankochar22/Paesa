@@ -1,8 +1,8 @@
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import DataTable, { type TableColumn } from "@/components/ui/DataTable";
-import { fmt } from "@/lib/format";
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import DataTable, { type TableColumn } from '@/components/ui/DataTable';
+import { fmt } from '@/lib/format';
 
 interface TBGroup {
   group_id: number;
@@ -28,9 +28,21 @@ interface TBRow {
 }
 
 const COLUMNS: TableColumn[] = [
-  { key: "name", label: "Particulars", span: "col-span-6", align: "left" },
-  { key: "dr", label: "Debit", span: "col-span-3", align: "right", render: (r: TBRow) => fmt(r.dr) },
-  { key: "cr", label: "Credit", span: "col-span-3", align: "right", render: (r: TBRow) => fmt(r.cr) },
+  { key: 'name', label: 'Particulars', span: 'col-span-6', align: 'left' },
+  {
+    key: 'dr',
+    label: 'Debit',
+    span: 'col-span-3',
+    align: 'right',
+    render: (r: TBRow) => fmt(r.dr),
+  },
+  {
+    key: 'cr',
+    label: 'Credit',
+    span: 'col-span-3',
+    align: 'right',
+    render: (r: TBRow) => fmt(r.cr),
+  },
 ];
 
 export function TrialBalanceLayout() {
@@ -58,7 +70,7 @@ export function TrialBalanceLayout() {
       .then(([tbRes, ledgerRes]: [any, any]) => {
         if (tbRes?.success) setData(tbRes);
         else {
-          setError(tbRes?.error || "Failed to load trial balance.");
+          setError(tbRes?.error || 'Failed to load trial balance.');
           return;
         }
 
@@ -67,8 +79,8 @@ export function TrialBalanceLayout() {
           let sumOpeningCredit = 0;
           ledgerRes.ledgers.forEach((l: any) => {
             const amt = l.opening_balance || 0;
-            if (l.opening_balance_type === "Dr") sumOpeningDebit += amt;
-            else if (l.opening_balance_type === "Cr") sumOpeningCredit += amt;
+            if (l.opening_balance_type === 'Dr') sumOpeningDebit += amt;
+            else if (l.opening_balance_type === 'Cr') sumOpeningCredit += amt;
             else if (amt > 0) sumOpeningDebit += amt;
             else sumOpeningCredit += Math.abs(amt);
           });
@@ -88,7 +100,7 @@ export function TrialBalanceLayout() {
 
   const openGroup = React.useCallback(
     (groupId: number) => navigate(`/reports/accounts/group-summary/${groupId}`),
-    [navigate]
+    [navigate],
   );
 
   const rows = React.useMemo<TBRow[]>(() => {
@@ -100,11 +112,17 @@ export function TrialBalanceLayout() {
       cr: g.cr,
     }));
     if (diffDr > 0 || diffCr > 0) {
-      list.push({ id: "diff", name: "Difference in opening balances", dr: diffDr, cr: diffCr, isDiff: true });
+      list.push({
+        id: 'diff',
+        name: 'Difference in opening balances',
+        dr: diffDr,
+        cr: diffCr,
+        isDiff: true,
+      });
     }
     list.push({
-      id: "__total",
-      name: "Grand Total",
+      id: '__total',
+      name: 'Grand Total',
       dr: (data.grandTotalDr || 0) + diffDr,
       cr: (data.grandTotalCr || 0) + diffCr,
       isTotal: true,
@@ -123,7 +141,7 @@ export function TrialBalanceLayout() {
       rows={rows}
       rowKey={(r: TBRow) => r.id}
       emptyMessage="No groups found."
-      rowClassName={(r: TBRow) => (r.isDiff ? "text-zinc-500 italic" : "")}
+      rowClassName={(r: TBRow) => (r.isDiff ? 'text-black italic' : '')}
       onRowActivate={(r: TBRow) => {
         if (!r.isDiff && !r.isTotal) openGroup(r.id as number);
       }}
@@ -133,7 +151,7 @@ export function TrialBalanceLayout() {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs px-8 text-center">
+    <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
       {children}
     </div>
   );

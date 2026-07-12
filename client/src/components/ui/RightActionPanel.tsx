@@ -50,21 +50,21 @@ export default function RightActionPanel({
 
   return (
     <div
-      className={`w-44 border-l border-zinc-200 flex flex-col shrink-0 bg-white select-none sticky right-0 top-0 h-full z-20 ${className}`}
+      className={`w-44 border-l border-gray-200 flex flex-col shrink-0 bg-white select-none sticky right-0 top-0 h-full z-20 ${className}`}
     >
       {/* Header */}
-      <div className="bg-white text-zinc-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-center border-b border-zinc-200">
+      <div className="bg-white text-black px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-center border-b border-gray-200">
         {title}
       </div>
 
       {/* Buttons List */}
-      <div className="flex-1 flex flex-col divide-y divide-zinc-100 overflow-y-auto min-h-0 bg-white">
+      <div className="flex-1 flex flex-col divide-y divide-gray-200 overflow-y-auto min-h-0 bg-white">
         {actions.map((act) => {
           const btnClass = act.active
-            ? 'text-zinc-950 font-bold border-l-4 border-zinc-950 bg-white'
+            ? 'text-black font-bold border-l-4 border-gray-200 bg-white'
             : act.disabled
-              ? 'text-zinc-300 bg-white cursor-not-allowed'
-              : 'text-zinc-650 hover:text-zinc-950 hover:bg-zinc-50/50 bg-white active:bg-zinc-100 border-l-4 border-transparent';
+              ? 'text-black bg-white cursor-not-allowed'
+              : 'text-black hover:text-black hover:bg-black/[0.03]/50 bg-white active:bg-black/[0.06] border-l-4 border-transparent';
 
           return (
             <button
@@ -86,10 +86,10 @@ export default function RightActionPanel({
               <span
                 className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider shrink-0 ${
                   act.active
-                    ? 'bg-zinc-950 text-white border-zinc-950'
+                    ? 'bg-black text-white border-gray-200'
                     : act.disabled
-                      ? 'border-zinc-200 text-zinc-300 bg-white'
-                      : 'bg-white text-zinc-700 border-zinc-300'
+                      ? 'border-gray-200 text-black bg-white'
+                      : 'bg-white text-black border-gray-200'
                 }`}
               >
                 {act.key}
@@ -100,7 +100,7 @@ export default function RightActionPanel({
       </div>
 
       {/* Footer Info */}
-      <div className="p-2 border-t border-zinc-200 bg-white text-[9px] text-zinc-400 font-bold uppercase text-center tracking-wider">
+      <div className="p-2 border-t border-gray-200 bg-white text-[9px] text-black font-bold uppercase text-center tracking-wider">
         &bull; ACTION BAR &bull;
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { NotificationBanner } from '@/components/ui';
 import type { BatchAllocation } from '../../types';
 import NewNumberPopup from './NewNumberPopup';
 import { parseDueOn } from '@/lib/dueDate';
@@ -298,12 +299,7 @@ export default function OrderDueOnAllocationPopup({
     >
       <div className="space-y-3">
         {error && (
-          <div className="border border-gray-400 border-l-2 border-l-black text-black text-xs px-3 py-2 flex justify-between items-center font-semibold">
-            <span>• {error}</span>
-            <button onClick={() => setError(null)} className="font-bold">
-              &times;
-            </button>
-          </div>
+          <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
         )}
         {fetchNotice && <div className="text-[10px] text-gray-600 italic px-1">{fetchNotice}</div>}
 

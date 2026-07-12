@@ -6,8 +6,8 @@ import { EmptyState } from '@/components/blocks/EmptyState';
 // ESI (Employee State Insurance) statutory documents, rendered as white-sheet forms
 // like the PF forms. #218 Form 3 = Return of Declaration Forms.
 
-const CELL = 'border border-black px-2 py-1 align-top';
-const HEADCELL = 'border border-black px-2 py-1 text-center font-bold align-top';
+const CELL = 'border border-gray-200 px-2 py-1 align-top';
+const HEADCELL = 'border border-gray-200 px-2 py-1 text-center font-bold align-top';
 
 const fmtAmt = (n: number) =>
   n ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
@@ -103,7 +103,7 @@ export default function ESIForm3() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 3…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[940px] text-[11px] text-black">
@@ -180,7 +180,7 @@ export function ESIEReturn() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing E-Return…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[940px] text-[11px] text-black">
@@ -255,7 +255,7 @@ export function ESIForm5() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 5…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[940px] text-[11px] text-black">
@@ -349,7 +349,7 @@ export function ESIForm6() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 6…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[1040px] text-[11px] text-black">
@@ -442,7 +442,7 @@ export function ESIMonthlyStatement() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Monthly Statement…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[940px] text-[11px] text-black">

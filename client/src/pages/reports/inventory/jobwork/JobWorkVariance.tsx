@@ -100,13 +100,13 @@ export default function JobWorkVariance({ kind }: Props) {
   const tVar = rows.reduce((s, r) => s + (Number(r.variance_qty) || 0), 0);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide">{title}</span>
         <span className="font-bold text-sm">{selectedCompany?.name || 'Company'}</span>
         <span />
       </div>
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
+      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono">
         <span className="font-semibold">
           {title}: {basis}
         </span>
@@ -115,19 +115,19 @@ export default function JobWorkVariance({ kind }: Props) {
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
             <tr>
               <th className="px-3 py-1 text-left font-bold">Particulars</th>
-              <th className="px-3 py-1 text-right font-bold w-36 border-l border-zinc-200">
+              <th className="px-3 py-1 text-right font-bold w-36 border-l border-gray-200">
                 Ordered Quantity
               </th>
-              <th className="px-3 py-1 text-right font-bold w-36 border-l border-zinc-200">
+              <th className="px-3 py-1 text-right font-bold w-36 border-l border-gray-200">
                 {actualHead}
               </th>
-              <th className="px-3 py-1 text-right font-bold w-36 border-l border-zinc-200">
+              <th className="px-3 py-1 text-right font-bold w-36 border-l border-gray-200">
                 Variance Quantity
               </th>
-              <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">
+              <th className="px-3 py-1 text-right font-bold w-28 border-l border-gray-200">
                 Variance %
               </th>
             </tr>
@@ -135,19 +135,19 @@ export default function JobWorkVariance({ kind }: Props) {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={5} className="px-4 py-8 text-center text-black italic">
                   Loading...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-600">
+                <td colSpan={5} className="px-4 py-8 text-center text-black">
                   {error}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={5} className="px-4 py-8 text-center text-black italic">
                   No records found.
                 </td>
               </tr>
@@ -158,19 +158,19 @@ export default function JobWorkVariance({ kind }: Props) {
                   <tr
                     key={r.item_id}
                     onClick={() => setIdx(i)}
-                    className={`border-b border-zinc-100 cursor-pointer ${focused ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+                    className={`border-b border-gray-200 cursor-pointer ${focused ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                   >
                     <td className="px-3 py-1">{r.item_name}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(r.ordered_qty, r.unit_name)}
                     </td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(r.actual_qty, r.unit_name)}
                     </td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(r.variance_qty, r.unit_name)}
                     </td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtPct(r.variance_pct)}
                     </td>
                   </tr>
@@ -181,18 +181,18 @@ export default function JobWorkVariance({ kind }: Props) {
         </table>
       </div>
 
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+      <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
         <span className="flex-1">Grand Total</span>
-        <span className="w-36 text-right border-l border-zinc-300 pr-2">{fmtQty(tOrdered)}</span>
-        <span className="w-36 text-right border-l border-zinc-300 pr-2">{fmtQty(tActual)}</span>
-        <span className="w-36 text-right border-l border-zinc-300 pr-2">{fmtQty(tVar)}</span>
-        <span className="w-28 border-l border-zinc-300" />
+        <span className="w-36 text-right border-l border-gray-200 pr-2">{fmtQty(tOrdered)}</span>
+        <span className="w-36 text-right border-l border-gray-200 pr-2">{fmtQty(tActual)}</span>
+        <span className="w-36 text-right border-l border-gray-200 pr-2">{fmtQty(tVar)}</span>
+        <span className="w-28 border-l border-gray-200" />
       </div>
 
-      <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
+      <div className="flex items-center gap-4 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
         <button
           onClick={() => setDirection((p) => (p === 'in' ? 'out' : 'in'))}
-          className="hover:underline hover:text-zinc-900"
+          className="hover:underline hover:text-black"
         >
           F8: {direction === 'in' ? 'Job Work Out' : 'Job Work In'}
         </button>

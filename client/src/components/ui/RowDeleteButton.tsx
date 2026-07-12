@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 // The hover-reveal "✕ remove row" button repeated across every voucher grid.
 // Gray only — appears on row hover (parent needs `group`).
@@ -12,7 +12,7 @@ export interface RowDeleteButtonProps {
 export default function RowDeleteButton({
   onClick,
   className,
-  title = "Remove row",
+  title = 'Remove row',
 }: RowDeleteButtonProps) {
   return (
     <button
@@ -22,9 +22,9 @@ export default function RowDeleteButton({
       aria-label={title}
       title={title}
       className={cn(
-        "shrink-0 ml-1 font-bold text-[10px] text-zinc-400 hover:text-zinc-900",
-        "opacity-0 group-hover:opacity-100 transition-opacity",
-        className
+        'shrink-0 ml-1 font-bold text-[10px] text-black hover:text-black',
+        'opacity-0 group-hover:opacity-100 transition-opacity',
+        className,
       )}
     >
       &times;

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 interface Props {
   value: string;
@@ -11,7 +11,13 @@ interface Props {
 /**
  * Styled search input reused in LedgerPanel, VoucherList, COA pages, etc.
  */
-export default function SearchInput({ value, onChange, placeholder = "Search…", autoFocus, className }: Props) {
+export default function SearchInput({
+  value,
+  onChange,
+  placeholder = 'Search…',
+  autoFocus,
+  className,
+}: Props) {
   const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -23,9 +29,9 @@ export default function SearchInput({ value, onChange, placeholder = "Search…"
       ref={ref}
       type="text"
       value={value}
-      onChange={e => onChange(e.target.value)}
+      onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 focus:ring-1 focus:ring-zinc-800 transition-all bg-white w-full ${className ?? ""}`}
+      className={`text-xs px-2.5 py-1.5 border border-gray-200 rounded outline-none focus:border-gray-200 focus:ring-1 focus:ring-black transition-all bg-white w-full ${className ?? ''}`}
     />
   );
 }

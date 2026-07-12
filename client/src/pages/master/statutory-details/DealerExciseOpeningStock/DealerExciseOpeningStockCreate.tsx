@@ -73,7 +73,8 @@ export default function DealerExciseOpeningStockCreate() {
   const [itemSearch, setItemSearch] = useState('');
   const [godownRowId, setGodownRowId] = useState<number | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
-  // Enter chain continues after this field once its side panel closes
+  // Enter chain continues after these fields once their side panels/popups close
+  const partyTriggerRef = useRef<HTMLInputElement | null>(null);
   const purchaseTriggerRef = useRef<HTMLInputElement | null>(null);
 
   // ── load ──────────────────────────────────────────────────────────────
@@ -488,6 +489,7 @@ export default function DealerExciseOpeningStockCreate() {
                 <span className="w-36 text-sm text-black shrink-0">Party A/c name</span>
                 <span className="text-sm text-black shrink-0">:</span>
                 <input
+                  ref={partyTriggerRef}
                   type="text"
                   readOnly
                   data-enter-click
@@ -825,10 +827,16 @@ export default function DealerExciseOpeningStockCreate() {
             partyLedger={partyLedger}
             allLedgers={allLedgers}
             initialDetails={partyDetails}
-            onClose={() => setPartyDetailsOpen(false)}
+            onClose={() => {
+              setPartyDetailsOpen(false);
+              // Party sub-flow finished → resume Enter chain into Purchase ledger.
+              focusFieldAfter(partyTriggerRef.current);
+            }}
             onSave={(d) => {
               setPartyDetails(d);
               setPartyDetailsOpen(false);
+              // Party sub-flow finished → resume Enter chain into Purchase ledger.
+              focusFieldAfter(partyTriggerRef.current);
             }}
             onCreateLedger={() => navigate('/master/create/ledger')}
           />
@@ -840,11 +848,20 @@ export default function DealerExciseOpeningStockCreate() {
         <div data-enter-nav-ignore>
           <ReceiptDetailsPopup
             initialDetails={receiptDetails}
-            onClose={() => setReceiptOpen(false)}
+            onClose={() => {
+              setReceiptOpen(false);
+              // Closed without chaining to Party Details → resume into Purchase ledger.
+              focusFieldAfter(partyTriggerRef.current);
+            }}
             onSave={(d) => {
               setReceiptDetails(d);
               setReceiptOpen(false);
-              if (partyLedger && !partyDetails) setPartyDetailsOpen(true);
+              if (partyLedger && !partyDetails) {
+                setPartyDetailsOpen(true);
+              } else {
+                // Party sub-flow finished → resume Enter chain into Purchase ledger.
+                focusFieldAfter(partyTriggerRef.current);
+              }
             }}
           />
         </div>

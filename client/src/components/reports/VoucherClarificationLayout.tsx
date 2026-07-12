@@ -1,23 +1,23 @@
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
 
 const CLARIFICATION_ITEMS = [
-  { key: "verification", label: "Verification of Vouchers" },
-  { key: "related-party", label: "Related Party Transactions" },
-  { key: "forex", label: "Forex Transactions" },
+  { key: 'verification', label: 'Verification of Vouchers' },
+  { key: 'related-party', label: 'Related Party Transactions' },
+  { key: 'forex', label: 'Forex Transactions' },
 ];
 
 interface ClarificationCount {
   verification: number;
-  "related-party": number;
+  'related-party': number;
   forex: number;
 }
 
 const fmt = (val: number) =>
   val === 0
-    ? ""
-    : new Intl.NumberFormat("en-IN", {
+    ? ''
+    : new Intl.NumberFormat('en-IN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }).format(val);
@@ -28,7 +28,7 @@ export default function VoucherClarificationLayout() {
 
   const [counts] = React.useState<ClarificationCount>({
     verification: 0,
-    "related-party": 0,
+    'related-party': 0,
     forex: 0,
   });
   const [loading, setLoading] = React.useState(true);
@@ -68,38 +68,39 @@ export default function VoucherClarificationLayout() {
     (key: string) => {
       navigate(`/reports/accounts/voucher-clarification/${key}`);
     },
-    [navigate]
+    [navigate],
   );
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (
-        document.activeElement?.tagName === "INPUT" ||
-        document.activeElement?.tagName === "SELECT" ||
-        document.activeElement?.tagName === "TEXTAREA"
-      ) return;
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'SELECT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      )
+        return;
 
-      if (e.key === "ArrowDown") {
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.min(CLARIFICATION_ITEMS.length - 1, prev + 1));
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.max(0, prev - 1));
-      } else if (e.key === "Enter") {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         handleDrilldown(CLARIFICATION_ITEMS[focusedIndex].key);
-      } else if (e.key === "Backspace" || e.key === "Escape") {
+      } else if (e.key === 'Backspace' || e.key === 'Escape') {
         e.preventDefault();
         navigate(-1);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [focusedIndex, handleDrilldown, navigate]);
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">
         Loading...
       </div>
     );
@@ -119,7 +120,7 @@ export default function VoucherClarificationLayout() {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black select-none">
+          <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black select-none">
             <tr>
               <th className="px-4 py-2 text-left font-bold">Particulars</th>
               <th className="w-48 text-right px-4 py-2 font-bold">Need Clarification</th>
@@ -132,10 +133,10 @@ export default function VoucherClarificationLayout() {
               return (
                 <tr
                   key={item.key}
-                  className={`border-b border-black/10 cursor-pointer select-none transition-colors ${
+                  className={`border-b border-gray-200 cursor-pointer select-none transition-colors ${
                     isFocused
-                      ? "bg-black/10 text-black font-bold"
-                      : "hover:bg-black/[0.04] text-black font-semibold"
+                      ? 'bg-black/[0.06] text-black font-bold'
+                      : 'hover:bg-black/[0.03] text-black font-semibold'
                   }`}
                   onClick={() => setFocusedIndex(idx)}
                   onDoubleClick={() => handleDrilldown(item.key)}
@@ -149,7 +150,7 @@ export default function VoucherClarificationLayout() {
         </table>
       </div>
 
-      <div className="border-t-2 border-double border-black bg-white px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-black select-none">
+      <div className="border-t-2 border-double border-gray-200 bg-white px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-black select-none">
         <span className="flex-1">Grand Total</span>
         <span className="w-48 text-right pr-0">{fmt(total)}</span>
       </div>

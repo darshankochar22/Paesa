@@ -2,7 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { INDIAN_STATES } from '@/constants/states';
-import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from '@/components/ui';
+import {
+  FormRow,
+  PageTitleBar,
+  RightActionPanel,
+  SearchInput,
+  DataTable,
+  NotificationBanner,
+} from '@/components/ui';
 import RightPanel from '@/components/RightPanel.tsx';
 import type { TaxUnitType } from '@/types/entities';
 import { ExciseDetailsPopup, EMPTY_TARIFF, type Tariff } from './exciseDetailsPopups';
@@ -416,12 +423,7 @@ export default function TaxAlter() {
         <div className="flex-1 flex min-h-0">
           <div className="flex-1 flex flex-col bg-white border-r border-zinc-300">
             {error && (
-              <div className="p-3 text-red-700 bg-red-50 border-b border-red-200 text-xs flex justify-between items-center">
-                <span>{error}</span>
-                <button onClick={() => setError(null)} className="font-bold">
-                  &times;
-                </button>
-              </div>
+              <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
             )}
             <DataTable
               columns={columns}
@@ -466,20 +468,14 @@ export default function TaxAlter() {
               keep the global enter-nav out of this zone. */}
           <div className="p-6 space-y-1.5 flex-1 max-w-2xl" data-enter-nav-ignore>
             {error && (
-              <div className="mb-2 px-2 py-1 text-xs text-red-700 bg-red-50 border border-red-200 rounded flex justify-between items-center">
-                <span>{error}</span>
-                <button onClick={() => setError(null)} className="font-bold">
-                  &times;
-                </button>
-              </div>
+              <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
             )}
             {success && (
-              <div className="mb-2 px-2 py-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded flex justify-between items-center">
-                <span>{success}</span>
-                <button onClick={() => setSuccess(null)} className="font-bold">
-                  &times;
-                </button>
-              </div>
+              <NotificationBanner
+                type="success"
+                message={success}
+                onDismiss={() => setSuccess(null)}
+              />
             )}
 
             <FormRow label="Name" labelWidth="w-56">

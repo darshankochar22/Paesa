@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PageTitleBar, RightActionPanel, MasterFormFooter, FormRow } from '@/components/ui';
+import {
+  PageTitleBar,
+  RightActionPanel,
+  MasterFormFooter,
+  FormRow,
+  NotificationBanner,
+} from '@/components/ui';
 import { PAYMENT_METHODS, type MerchantProfileType } from '@/types/entities/MerchantProfile';
 
 const inputCls =
@@ -92,15 +98,7 @@ export default function MerchantProfileForm({
       />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">

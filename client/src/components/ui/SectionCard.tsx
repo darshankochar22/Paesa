@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 interface Props {
   title: string;
@@ -14,9 +14,9 @@ interface Props {
  */
 export default function SectionCard({ title, headerRight, children, className }: Props) {
   return (
-    <div className={`border border-zinc-200 rounded-lg overflow-hidden ${className ?? ""}`}>
-      <div className="bg-zinc-50 px-3 py-2 border-b border-zinc-200 flex justify-between items-center shrink-0">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{title}</span>
+    <div className={`border border-gray-200 rounded-lg overflow-hidden ${className ?? ''}`}>
+      <div className="bg-white px-3 py-2 border-b border-gray-200 flex justify-between items-center shrink-0">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-black">{title}</span>
         {headerRight && <div className="flex items-center gap-2">{headerRight}</div>}
       </div>
       {children}

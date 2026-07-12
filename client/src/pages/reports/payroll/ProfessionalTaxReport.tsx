@@ -25,7 +25,7 @@ export default function ProfessionalTaxReport() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && (
           <EmptyState message="Preparing Professional Tax statement…" className="italic" />
         )}

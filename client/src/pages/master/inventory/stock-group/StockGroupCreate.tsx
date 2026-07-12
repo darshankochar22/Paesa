@@ -1,7 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import { useCompany } from '@/context/CompanyContext';
-import { FormRow, PageTitleBar, RightActionPanel } from '@/components/ui';
+import {
+  FormRow,
+  PageTitleBar,
+  RightActionPanel,
+  NotificationBanner,
+  MasterFormFooter,
+} from '@/components/ui';
 import type { StockGroupType } from '@/types/api';
 import StatutorySection from '@/pages/master/group/StatutorySection';
 import {
@@ -170,6 +177,8 @@ export default function StockGroupCreate() {
   const nameRef = useRef<HTMLInputElement>(null);
   const aliasRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLSelectElement>(null);
+  // Classification field that opened the panel — resume the Enter chain from it.
+  const classAnchorRef = useRef<HTMLElement | null>(null);
 
   const companyId = selectedCompany?.company_id;
 
@@ -279,26 +288,10 @@ export default function StockGroupCreate() {
       <PageTitleBar title="Stock Group Creation" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
-          <span>• {success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="text-green-500 hover:text-green-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">
@@ -375,6 +368,7 @@ export default function StockGroupCreate() {
                 entityWord="Stock Group"
                 showOtherStatutory={false}
                 onOpenClassPanel={(target) => {
+                  classAnchorRef.current = document.activeElement as HTMLElement | null;
                   setShowPanel(false);
                   setShowClassPanel(target);
                 }}
@@ -403,7 +397,10 @@ export default function StockGroupCreate() {
 
         {/* GST classification panel */}
         {showClassPanel && (
-          <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+          <div
+            className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white"
+            data-enter-nav-ignore
+          >
             <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
               <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
                 List of Classifications
@@ -450,6 +447,7 @@ export default function StockGroupCreate() {
                           setStat((f) => ({ ...f, gst_classification_id: c.gc_id }));
                         }
                         setShowClassPanel(null);
+                        focusFieldAfter(classAnchorRef.current);
                       }}
                       className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isSelected ? 'bg-zinc-100 font-semibold text-black' : 'text-zinc-700 hover:bg-zinc-50'}`}
                     >
@@ -466,21 +464,11 @@ export default function StockGroupCreate() {
       </div>
 
       {/* Footer */}
-      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
-        <button
-          onClick={() => navigate('/master/create')}
-          className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium"
-        >
-          &larr; Back to Masters
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
-        >
-          {loading ? 'Saving...' : 'Create'}
-        </button>
-      </div>
+      <MasterFormFooter
+        onCancel={() => navigate('/master/create')}
+        onSubmit={handleSubmit}
+        loading={loading}
+      />
     </div>
   );
 }

@@ -42,7 +42,7 @@ export default function IncomeTaxComputation() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Income Tax Computation…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[1000px] text-[11px] text-black">
@@ -136,7 +136,7 @@ export function SalaryProjection() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Salary Projection…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[1040px] text-[11px] text-black">
@@ -247,7 +247,7 @@ export function ITChallanReconciliation() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Challan Reconciliation…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[1000px] text-[11px] text-black">
@@ -341,7 +341,7 @@ export function E24Q() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing E-24Q return…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[940px] text-[11px] text-black">
@@ -429,7 +429,7 @@ export function Form27A() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 27A…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[760px] text-[11px] text-black">
@@ -443,7 +443,7 @@ export function Form27A() {
 
             <Deductor est={est} />
 
-            <div className="mt-4 border-t border-black">
+            <div className="mt-4 border-t border-gray-200">
               <StatementLine label="Number of Deductee Records" value={c.deductee_records ?? 0} />
               <StatementLine
                 label="Total Amount Paid / Credited"
@@ -479,7 +479,7 @@ export function Form24Q() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Form 24Q…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[940px] text-[11px] text-black">
@@ -565,7 +565,7 @@ export function AnnexureI() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Annexure I…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[1080px] text-[11px] text-black">
@@ -668,7 +668,7 @@ export function AnnexureII() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Annexure II…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[1120px] text-[11px] text-black">
@@ -776,7 +776,7 @@ export function Form16() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex flex-col items-center bg-gray-200 py-6 font-sans gap-6">
+      <div className="w-full flex flex-col items-center bg-black/[0.06] py-6 font-sans gap-6">
         {loading && <EmptyState message="Preparing Form 16 certificates…" className="italic" />}
         {!loading && certificates.length === 0 && (
           <EmptyState message="No taxable employees for Form 16." className="italic" />
@@ -801,7 +801,7 @@ export function Form16() {
                 <HeaderRow label="Designation" value={c.designation} />
               </div>
 
-              <div className="font-bold mb-1 text-[11px] border-t border-black pt-2">
+              <div className="font-bold mb-1 text-[11px] border-t border-gray-200 pt-2">
                 Part B — Computation of Income &amp; Tax
               </div>
               <div>

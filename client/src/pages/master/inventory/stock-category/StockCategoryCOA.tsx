@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { StockCategoryType } from "@/types/api";
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { StockCategoryType } from '@/types/api';
 
 interface TreeItem {
   id: number;
@@ -53,7 +54,7 @@ export default function StockCategoryCOA() {
 
   // View States
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showChangeViewModal, setShowChangeViewModal] = useState(false);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
 
@@ -69,7 +70,7 @@ export default function StockCategoryCOA() {
         const sc = await window.api.stockCategory.getAll(companyId);
         if (sc.success) setStockCategories(sc.stockCategories ?? []);
       } catch (err) {
-        setError("Failed to load stock categories.");
+        setError('Failed to load stock categories.');
       } finally {
         setLoading(false);
       }
@@ -80,29 +81,29 @@ export default function StockCategoryCOA() {
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.key === "F5" || e.key === "f5") {
+      if (e.key === 'F5' || e.key === 'f5') {
         e.preventDefault();
-        navigate("/master/coa/unit");
+        navigate('/master/coa/unit');
       }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "h" || e.key === "H")) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'h' || e.key === 'H')) {
         e.preventDefault();
         setShowChangeViewModal((prev) => !prev);
       }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "j" || e.key === "J")) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'j' || e.key === 'J')) {
         e.preventDefault();
         setShowExceptionModal((prev) => !prev);
       }
-      if (e.altKey && (e.key === "c" || e.key === "C")) {
+      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault();
-        navigate("/master/create/stock-category");
+        navigate('/master/create/stock-category');
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
   const handleExpandAll = () => {
@@ -117,7 +118,10 @@ export default function StockCategoryCOA() {
     setExpandedCategories({});
   };
 
-  const categoryTree = useMemo(() => buildTree(stockCategories, "sc_id", "parent_category_id"), [stockCategories]);
+  const categoryTree = useMemo(
+    () => buildTree(stockCategories, 'sc_id', 'parent_category_id'),
+    [stockCategories],
+  );
 
   const filteredCategoryTree = useMemo(() => {
     const filterTree = (nodes: TreeItem[]): TreeItem[] => {
@@ -135,8 +139,8 @@ export default function StockCategoryCOA() {
           const isCategoryUnused = !node.rawData.is_active;
 
           if (
-            (searchQuery.trim() ? (categoryMatches || children.length > 0) : true) &&
-            (showUnusedOnly ? (children.length > 0 || isCategoryUnused) : true)
+            (searchQuery.trim() ? categoryMatches || children.length > 0 : true) &&
+            (showUnusedOnly ? children.length > 0 || isCategoryUnused : true)
           ) {
             return {
               ...node,
@@ -171,30 +175,33 @@ export default function StockCategoryCOA() {
           >
             <span
               className="w-5 flex items-center justify-center text-zinc-400 shrink-0"
-              onClick={(e) => { e.stopPropagation(); if (hasChildren) toggleCategory(cId); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (hasChildren) toggleCategory(cId);
+              }}
             >
               {hasChildren ? (
                 <span className="text-xs transition-transform duration-100 hover:text-zinc-700">
-                  {isExpanded ? "▼" : "▶"}
+                  {isExpanded ? '▼' : '▶'}
                 </span>
               ) : (
                 <span className="text-[10px] opacity-30">•</span>
               )}
             </span>
             <div className="flex-1 flex items-center justify-between pr-4">
-              <span className="font-semibold text-zinc-800 text-[13px] group-hover:text-sky-800 transition-colors">{node.name}</span>
+              <span className="font-semibold text-zinc-800 text-[13px] group-hover:text-sky-800 transition-colors">
+                {node.name}
+              </span>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] text-zinc-400">
-                  {raw.is_active ? "Active" : "Inactive"}
+                  {raw.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
             </div>
           </div>
 
           {isExpanded && hasChildren && (
-            <div className="flex flex-col">
-              {renderCategoryTree(node.children!, depth + 1)}
-            </div>
+            <div className="flex flex-col">{renderCategoryTree(node.children!, depth + 1)}</div>
           )}
         </div>
       );
@@ -207,12 +214,14 @@ export default function StockCategoryCOA() {
       <div className="px-4 py-2 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="text-xs text-zinc-500 hover:text-zinc-800 px-2 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
           >
             ← Back
           </button>
-          <span className="font-bold text-sm text-zinc-800">Stock Categories Chart of Accounts</span>
+          <span className="font-bold text-sm text-zinc-800">
+            Stock Categories Chart of Accounts
+          </span>
           {showUnusedOnly && (
             <span className="bg-emerald-50 text-emerald-700 text-[10px] font-semibold px-2 py-0.5 border border-emerald-200 rounded-full shadow-inner animate-pulse">
               Exception: Inactive / Unused
@@ -235,7 +244,7 @@ export default function StockCategoryCOA() {
             Collapse All
           </button>
           <button
-            onClick={() => navigate("/master/create/stock-category")}
+            onClick={() => navigate('/master/create/stock-category')}
             className="text-[11px] font-semibold text-white bg-black hover:bg-zinc-800 px-3 py-1 rounded shadow-sm font-medium"
           >
             + Create Category
@@ -243,10 +252,9 @@ export default function StockCategoryCOA() {
         </div>
       </div>
 
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">✕</button>
-        </div>
+      {error && (
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
+      )}
 
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
@@ -254,7 +262,9 @@ export default function StockCategoryCOA() {
         <div className="flex-1 flex flex-col min-w-0 bg-white h-full">
           {/* Dynamic Filter Search Box */}
           <div className="px-4 py-1.5 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">Search:</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 select-none">
+              Search:
+            </span>
             <input
               type="text"
               placeholder="Search in stock categories tree..."
@@ -264,7 +274,7 @@ export default function StockCategoryCOA() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => setSearchQuery('')}
                 className="text-xs text-zinc-400 hover:text-black font-bold px-1.5"
               >
                 Clear
@@ -274,11 +284,15 @@ export default function StockCategoryCOA() {
 
           <div className="flex-1 overflow-y-auto min-h-0 bg-white px-4 py-2">
             {loading ? (
-              <div className="flex items-center justify-center h-48 text-xs text-zinc-400">Loading stock categories...</div>
+              <div className="flex items-center justify-center h-48 text-xs text-zinc-400">
+                Loading stock categories...
+              </div>
             ) : (
               <div className="py-2">
                 {filteredCategoryTree.length === 0 ? (
-                  <div className="text-xs text-zinc-400 text-center py-8">No matching stock categories found.</div>
+                  <div className="text-xs text-zinc-400 text-center py-8">
+                    No matching stock categories found.
+                  </div>
                 ) : (
                   renderCategoryTree(filteredCategoryTree, 0)
                 )}
@@ -290,7 +304,7 @@ export default function StockCategoryCOA() {
         {/* Right-Hand Sidebar - Tally Signature Action Bar */}
         <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           <button
-            onClick={() => navigate("/master/coa/unit")}
+            onClick={() => navigate('/master/coa/unit')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">F5</span>
@@ -314,7 +328,7 @@ export default function StockCategoryCOA() {
           </button>
 
           <button
-            onClick={() => navigate("/master/create/stock-category")}
+            onClick={() => navigate('/master/create/stock-category')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Alt+C</span>
@@ -324,7 +338,7 @@ export default function StockCategoryCOA() {
           <div className="flex-1"></div>
 
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-zinc-200 hover:bg-zinc-300 text-zinc-800 transition-colors text-left shadow-sm font-semibold mt-auto"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Esc</span>
@@ -350,7 +364,7 @@ export default function StockCategoryCOA() {
               <button
                 onClick={() => {
                   setShowChangeViewModal(false);
-                  navigate("/master/coa/stock-group");
+                  navigate('/master/coa/stock-group');
                 }}
                 className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
               >
@@ -365,7 +379,7 @@ export default function StockCategoryCOA() {
               <button
                 onClick={() => {
                   setShowChangeViewModal(false);
-                  navigate("/master/coa/unit");
+                  navigate('/master/coa/unit');
                 }}
                 className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
               >
@@ -374,7 +388,7 @@ export default function StockCategoryCOA() {
               <button
                 onClick={() => {
                   setShowChangeViewModal(false);
-                  navigate("/master/coa/godown");
+                  navigate('/master/coa/godown');
                 }}
                 className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
               >
@@ -383,7 +397,7 @@ export default function StockCategoryCOA() {
               <button
                 onClick={() => {
                   setShowChangeViewModal(false);
-                  navigate("/master/coa/group");
+                  navigate('/master/coa/group');
                 }}
                 className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors border-t border-zinc-100"
               >
@@ -392,7 +406,7 @@ export default function StockCategoryCOA() {
               <button
                 onClick={() => {
                   setShowChangeViewModal(false);
-                  navigate("/master/coa/ledger");
+                  navigate('/master/coa/ledger');
                 }}
                 className="w-full text-left px-3 py-2 rounded hover:bg-black hover:text-white transition-colors"
               >
@@ -423,7 +437,9 @@ export default function StockCategoryCOA() {
                   setShowUnusedOnly(true);
                 }}
                 className={`w-full text-left px-3 py-2 rounded transition-colors ${
-                  showUnusedOnly ? "bg-zinc-100 text-black font-semibold" : "hover:bg-black hover:text-white"
+                  showUnusedOnly
+                    ? 'bg-zinc-100 text-black font-semibold'
+                    : 'hover:bg-black hover:text-white'
                 }`}
               >
                 Show Inactive Categories Only
@@ -434,7 +450,9 @@ export default function StockCategoryCOA() {
                   setShowUnusedOnly(false);
                 }}
                 className={`w-full text-left px-3 py-2 rounded transition-colors border-t border-zinc-100 ${
-                  !showUnusedOnly ? "bg-zinc-100 text-black font-semibold" : "hover:bg-black hover:text-white"
+                  !showUnusedOnly
+                    ? 'bg-zinc-100 text-black font-semibold'
+                    : 'hover:bg-black hover:text-white'
                 }`}
               >
                 Show All Categories

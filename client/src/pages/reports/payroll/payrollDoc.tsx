@@ -5,8 +5,8 @@ import { useCompany } from '@/context/CompanyContext';
 // Tax / NPS / Gratuity / Income Tax). These are low-level building blocks only — each
 // report composes its OWN distinct layout and table from them.
 
-export const CELL = 'border border-black px-2 py-1 align-top';
-export const HEADCELL = 'border border-black px-2 py-1 text-center font-bold align-top';
+export const CELL = 'border border-gray-200 px-2 py-1 align-top';
+export const HEADCELL = 'border border-gray-200 px-2 py-1 text-center font-bold align-top';
 
 export const fmtAmt = (n: number) =>
   n ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
@@ -39,7 +39,7 @@ export function StatementLine({
   bold?: boolean;
 }) {
   return (
-    <div className={`flex border-b border-black py-1.5 ${bold ? 'font-bold' : ''}`}>
+    <div className={`flex border-b border-gray-200 py-1.5 ${bold ? 'font-bold' : ''}`}>
       <div className="flex-1">{label}</div>
       <div className="w-56 text-right tabular-nums">{value}</div>
     </div>

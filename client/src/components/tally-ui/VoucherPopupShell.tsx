@@ -62,21 +62,21 @@ export function VoucherPopupShell({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 select-none">
       <div
         className={cn(
-          'bg-white border border-gray-300 shadow-2xl flex flex-col overflow-hidden',
+          'bg-white border border-gray-200 shadow-2xl flex flex-col overflow-hidden',
           size === 'max'
             ? 'w-[calc(100vw-64px)] h-[calc(100vh-64px)] max-w-[1500px]'
             : 'min-w-[420px] max-w-[92vw] max-h-[90vh]',
         )}
       >
         {/* Header — long, clean, white */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-3 border-b border-gray-300 bg-white">
+        <div className="shrink-0 flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white">
           <span className="text-base font-semibold text-black tracking-wide">{title}</span>
           <div className="flex items-center gap-4">
-            {headerRight && <div className="text-sm text-gray-700">{headerRight}</div>}
+            {headerRight && <div className="text-sm text-black">{headerRight}</div>}
             <button
               onClick={onClose}
               aria-label="Close"
-              className="text-gray-500 hover:text-black text-lg leading-none px-1"
+              className="text-black hover:text-black text-lg leading-none px-1"
             >
               ×
             </button>
@@ -89,22 +89,22 @@ export function VoucherPopupShell({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-3 border-t border-gray-300 bg-white">
-          <span className="text-xs text-gray-600">
+        <div className="shrink-0 flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-white">
+          <span className="text-xs text-black">
             {hint ?? (onAccept ? 'Alt+A: Accept  ·  Esc: Close' : 'Esc: Close')}
           </span>
           <div className="flex items-center gap-2">
             {footerExtra}
             <button
               onClick={onClose}
-              className="text-sm px-4 py-1.5 border border-black text-black bg-white hover:bg-gray-100"
+              className="text-sm px-4 py-1.5 border border-gray-200 text-black bg-white hover:bg-black/[0.03]"
             >
               Cancel
             </button>
             {onAccept && (
               <button
                 onClick={onAccept}
-                className="text-sm px-5 py-1.5 bg-black text-white hover:bg-gray-800"
+                className="text-sm px-5 py-1.5 bg-black text-white hover:bg-black/80"
               >
                 {acceptLabel}
               </button>

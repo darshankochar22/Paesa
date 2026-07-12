@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { GSTRegistrationType } from "@/types/entities/GSTRegistration";
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { GSTRegistrationType } from '@/types/entities/GSTRegistration';
 
 export default function GSTRegistrationCOA() {
   const { selectedCompany } = useCompany();
@@ -11,7 +12,7 @@ export default function GSTRegistrationCOA() {
   const [regs, setRegs] = useState<GSTRegistrationType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showChangeView, setShowChangeView] = useState(false);
 
   useEffect(() => {
@@ -29,10 +30,10 @@ export default function GSTRegistrationCOA() {
         if (res.success) {
           setRegs(res.gstRegistrations ?? []);
         } else {
-          setError(res.error || "Failed to load GST registrations.");
+          setError(res.error || 'Failed to load GST registrations.');
         }
       } catch {
-        if (!cancelled) setError("Failed to load GST registrations.");
+        if (!cancelled) setError('Failed to load GST registrations.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -50,41 +51,41 @@ export default function GSTRegistrationCOA() {
         (r.gstin && r.gstin.toLowerCase().includes(q)) ||
         (r.state_id && r.state_id.toLowerCase().includes(q)) ||
         (r.trade_name && r.trade_name.toLowerCase().includes(q)) ||
-        (r.legal_name && r.legal_name.toLowerCase().includes(q))
+        (r.legal_name && r.legal_name.toLowerCase().includes(q)),
     );
   }, [regs, searchQuery]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.ctrlKey && e.key === "h") {
+      if (e.ctrlKey && e.key === 'h') {
         e.preventDefault();
         setShowChangeView((p) => !p);
       }
-      if (e.altKey && e.key.toLowerCase() === "c") {
+      if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        navigate("/master/create/gst-registration");
+        navigate('/master/create/gst-registration');
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   const changeViewItems = [
-    { label: "Ledgers", path: "/master/coa/ledger" },
-    { label: "Groups", path: "/master/coa/group" },
-    { label: "Currencies", path: "/master/coa/currency" },
-    { label: "Voucher Types", path: "/master/coa/voucher-type" },
-    { label: "GST Registrations", path: "/master/coa/gst-registration" },
-    { label: "GST Classifications", path: "/master/coa/gst-classification" },
-    { label: "Stock Groups & Items", path: "/master/coa/stock-group" },
-    { label: "Stock Categories", path: "/master/coa/stock-category" },
-    { label: "Godowns", path: "/master/coa/godown" },
-    { label: "Units of Measure", path: "/master/coa/unit" },
-    { label: "Employees", path: "/master/coa/employee" },
+    { label: 'Ledgers', path: '/master/coa/ledger' },
+    { label: 'Groups', path: '/master/coa/group' },
+    { label: 'Currencies', path: '/master/coa/currency' },
+    { label: 'Voucher Types', path: '/master/coa/voucher-type' },
+    { label: 'GST Registrations', path: '/master/coa/gst-registration' },
+    { label: 'GST Classifications', path: '/master/coa/gst-classification' },
+    { label: 'Stock Groups & Items', path: '/master/coa/stock-group' },
+    { label: 'Stock Categories', path: '/master/coa/stock-category' },
+    { label: 'Godowns', path: '/master/coa/godown' },
+    { label: 'Units of Measure', path: '/master/coa/unit' },
+    { label: 'Employees', path: '/master/coa/employee' },
   ];
 
   return (
@@ -98,7 +99,7 @@ export default function GSTRegistrationCOA() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate("/master/create/gst-registration")}
+            onClick={() => navigate('/master/create/gst-registration')}
             className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium shadow-sm"
           >
             + Create
@@ -107,10 +108,7 @@ export default function GSTRegistrationCOA() {
       </div>
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 font-bold font-sans">&times;</button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -126,7 +124,7 @@ export default function GSTRegistrationCOA() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => setSearchQuery('')}
                 className="text-[10px] text-zinc-400 hover:text-zinc-600 font-sans"
               >
                 Clear
@@ -135,9 +133,13 @@ export default function GSTRegistrationCOA() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading GST registrations...</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                Loading GST registrations...
+              </div>
             ) : filteredRegs.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching registrations found.</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                No matching registrations found.
+              </div>
             ) : (
               filteredRegs.map((node) => {
                 const nodeId = node.gst_id!;
@@ -146,17 +148,17 @@ export default function GSTRegistrationCOA() {
                   <div key={nodeId}>
                     <div
                       className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
-                      onClick={() => navigate("/master/alter/gst-registration")}
+                      onClick={() => navigate('/master/alter/gst-registration')}
                     >
                       <span className="w-44 text-sm font-bold text-zinc-800 tracking-wider">
                         {node.gstin}
                       </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
-                        {node.trade_name || node.legal_name || "—"}
+                        {node.trade_name || node.legal_name || '—'}
                         <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
                           {node.registration_type}
                         </span>
-                        {node.registration_status !== "Active" && (
+                        {node.registration_status !== 'Active' && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-rose-50 text-rose-600 rounded tracking-wider border border-rose-200">
                             {node.registration_status}
                           </span>
@@ -183,14 +185,14 @@ export default function GSTRegistrationCOA() {
             Ctrl+H Change View
           </button>
           <button
-            onClick={() => navigate("/master/create/gst-registration")}
+            onClick={() => navigate('/master/create/gst-registration')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+C Create
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit

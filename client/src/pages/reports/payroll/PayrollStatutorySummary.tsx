@@ -49,13 +49,13 @@ export default function PayrollStatutorySummary() {
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
-        <div className="px-2 py-1 border-b border-gray-300 font-bold">
+        <div className="px-2 py-1 border-b border-gray-200 font-bold">
           Payroll Statutory Computation
         </div>
         {loading && <EmptyState message="Computing…" className="italic" />}
         {!loading && (
           <>
-            <div className="flex font-bold px-2 py-1 border-b border-gray-300">
+            <div className="flex font-bold px-2 py-1 border-b border-gray-200">
               <div className="flex-1">P a r t i c u l a r s</div>
               <div className="w-36 text-right">Payable Amount</div>
               <div className="w-36 text-right">Paid Amount</div>
@@ -66,7 +66,7 @@ export default function PayrollStatutorySummary() {
                 {sec.rows.map((r) => (
                   <div
                     key={r.label}
-                    className="flex px-4 py-0.5 font-semibold cursor-pointer hover:bg-zinc-100"
+                    className="flex px-4 py-0.5 font-semibold cursor-pointer hover:bg-black/[0.03]"
                     onClick={() =>
                       navigate(
                         `/reports/statutory/payroll/pay-head-details?component=${sec.key}&row=${encodeURIComponent(r.label)}`,
@@ -80,7 +80,7 @@ export default function PayrollStatutorySummary() {
                 ))}
               </div>
             ))}
-            <div className="flex font-bold px-2 py-1 mt-4 border-t border-gray-400">
+            <div className="flex font-bold px-2 py-1 mt-4 border-t border-gray-200">
               <div className="flex-1">G r a n d&nbsp;&nbsp;T o t a l</div>
               <div className="w-36 text-right tabular-nums">{fmt(grandTotal)}</div>
               <div className="w-36 text-right" />
@@ -130,33 +130,33 @@ export function PayrollStatutoryPayHeadDetails() {
       rightSubtitle={<div>{activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : ''}</div>}
     >
       <div className="w-full flex flex-col font-sans text-xs pb-4">
-        <div className="px-2 py-1 border-b border-gray-300">
-          <span className="text-gray-600">Pay Head Type:&nbsp;</span>
+        <div className="px-2 py-1 border-b border-gray-200">
+          <span className="text-black">Pay Head Type:&nbsp;</span>
           <span className="font-bold">{rowLabel || 'All'}</span>
         </div>
         {loading && <EmptyState message="Loading…" className="italic" />}
         {!loading && (
           <>
-            <div className="flex font-bold px-2 py-1 border-b border-gray-300">
+            <div className="flex font-bold px-2 py-1 border-b border-gray-200">
               <div className="flex-1">P a r t i c u l a r s</div>
               <div className="w-32 text-right">Gross Amount</div>
               <div className="w-32 text-right">Payable Amount</div>
               <div className="w-32 text-right">Paid Amount</div>
             </div>
             {rows.length === 0 && (
-              <div className="px-4 py-3 italic text-gray-400 text-center">
+              <div className="px-4 py-3 italic text-black text-center">
                 No pay heads found for this statutory category.
               </div>
             )}
             {rows.map((r) => (
-              <div key={r.pay_head_id} className="flex px-2 py-0.5 hover:bg-zinc-50">
+              <div key={r.pay_head_id} className="flex px-2 py-0.5 hover:bg-black/[0.03]">
                 <div className="flex-1 font-semibold">{r.name}</div>
                 <div className="w-32 text-right tabular-nums">{fmt(r.gross)}</div>
                 <div className="w-32 text-right tabular-nums">{fmt(r.payable)}</div>
                 <div className="w-32 text-right tabular-nums">{fmt(r.paid)}</div>
               </div>
             ))}
-            <div className="flex font-bold px-2 py-1 mt-3 border-t border-gray-400">
+            <div className="flex font-bold px-2 py-1 mt-3 border-t border-gray-200">
               <div className="flex-1">G r a n d&nbsp;&nbsp;T o t a l</div>
               <div className="w-32 text-right tabular-nums">{fmt(grand.gross)}</div>
               <div className="w-32 text-right tabular-nums">{fmt(grand.payable)}</div>

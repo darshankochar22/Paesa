@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, FormRow, RightActionPanel } from '@/components/ui';
+import { PageTitleBar, FormRow, RightActionPanel, NotificationBanner } from '@/components/ui';
 import { useTDSDetails } from './hooks/useTDSDetails';
 import PersonResponsibleModal from './PersonResponsibleModal';
 
@@ -176,26 +176,10 @@ export default function TDSDetailsAlter() {
       />
 
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-4 py-2 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
-          <span>• {success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="text-green-500 hover:text-green-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex-grow flex min-h-0 relative">

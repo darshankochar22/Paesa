@@ -1,7 +1,12 @@
 import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, RightActionPanel, MasterFormFooter } from '@/components/ui';
+import {
+  PageTitleBar,
+  RightActionPanel,
+  MasterFormFooter,
+  NotificationBanner,
+} from '@/components/ui';
 import { useExciseRegistrationDetails } from './useExciseRegistrationDetails';
 import { ExciseRegistrationDetailsForm } from './ExciseRegistrationDetailsForm';
 
@@ -46,26 +51,10 @@ export default function ExciseRDCreate({
       <PageTitleBar title="Excise Registration Details" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
-          <span>• {success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="text-green-500 hover:text-green-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">

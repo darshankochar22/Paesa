@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { CompanyTDSDetails } from "@/types/entities/CompanyTDSDetails";
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { CompanyTDSDetails } from '@/types/entities/CompanyTDSDetails';
 
 export default function TDSDetailsCOA() {
   const { selectedCompany } = useCompany();
@@ -40,8 +41,8 @@ export default function TDSDetailsCOA() {
           }
         }
       } catch (err) {
-        console.error("Failed to fetch TDS details for COA:", err);
-        setError("Failed to load statutory details.");
+        console.error('Failed to fetch TDS details for COA:', err);
+        setError('Failed to load statutory details.');
       } finally {
         setLoading(false);
       }
@@ -52,17 +53,17 @@ export default function TDSDetailsCOA() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.altKey && e.key.toLowerCase() === "a") {
+      if (e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        navigate("/master/alter/tds-details");
+        navigate('/master/alter/tds-details');
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   return (
@@ -76,18 +77,14 @@ export default function TDSDetailsCOA() {
           <span className="text-sm font-semibold text-zinc-700">Company TDS Deductor Details</span>
         </div>
         <button
-          onClick={() => navigate("/master/alter/tds-details")}
+          onClick={() => navigate('/master/alter/tds-details')}
           className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2.5 py-0.5 bg-white font-medium font-sans"
         >
           Alter Details
         </button>
       </div>
 
-      {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs font-bold font-sans">
-          • {error}
-        </div>
-      )}
+      {error && <NotificationBanner type="error" message={error} />}
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -101,7 +98,7 @@ export default function TDSDetailsCOA() {
             <div className="text-center py-12 text-zinc-500 text-xs space-y-3">
               <p className="italic">No TDS details have been configured for this company yet.</p>
               <button
-                onClick={() => navigate("/master/create/tds-details")}
+                onClick={() => navigate('/master/create/tds-details')}
                 className="text-xs px-4 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium rounded transition-colors"
               >
                 Configure TDS details
@@ -118,19 +115,25 @@ export default function TDSDetailsCOA() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-zinc-400">TAN Registration Number:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.tanRegNumber || "—"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.tanRegNumber || '—'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Account Number (TAN):</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.tan || "—"}</span>
+                      <span className="font-bold text-zinc-900">{tdsDetails.tan || '—'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Deductor Type:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.deductorType || "—"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.deductorType || '—'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Branch / Division:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.deductorBranch || "—"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.deductorBranch || '—'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -142,11 +145,15 @@ export default function TDSDetailsCOA() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Ignore IT Exemption Limit:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.ignoreItExemption ? "Yes" : "No"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.ignoreItExemption ? 'Yes' : 'No'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Activate TDS for Stock Items:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.activateTdsForItems ? "Yes" : "No"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.activateTdsForItems ? 'Yes' : 'No'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -161,23 +168,33 @@ export default function TDSDetailsCOA() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Name:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.personResponsibleName || "—"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.personResponsibleName || '—'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Designation:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.personResponsibleDesignation || "—"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.personResponsibleDesignation || '—'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">PAN:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.personResponsiblePan || "—"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.personResponsiblePan || '—'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Mobile / Phone:</span>
-                      <span className="font-bold text-zinc-900">{tdsDetails.personResponsiblePhone || "—"}</span>
+                      <span className="font-bold text-zinc-900">
+                        {tdsDetails.personResponsiblePhone || '—'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Email:</span>
-                      <span className="font-bold text-zinc-900 text-right break-all">{tdsDetails.personResponsibleEmail || "—"}</span>
+                      <span className="font-bold text-zinc-900 text-right break-all">
+                        {tdsDetails.personResponsibleEmail || '—'}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -191,14 +208,14 @@ export default function TDSDetailsCOA() {
         {/* Right Action Menu */}
         <div className="w-44 border-l border-zinc-200 flex flex-col bg-zinc-50/30 text-[10px] select-none shrink-0 font-sans">
           <button
-            onClick={() => navigate("/master/alter/tds-details")}
+            onClick={() => navigate('/master/alter/tds-details')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+A Alter
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit

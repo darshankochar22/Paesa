@@ -26,7 +26,7 @@ export default function GratuityReport() {
       companyName={selectedCompany?.name || 'Company'}
       rightSubtitle={<div>{fyRange(activeFY)}</div>}
     >
-      <div className="w-full flex justify-center bg-gray-200 py-6 font-sans">
+      <div className="w-full flex justify-center bg-black/[0.06] py-6 font-sans">
         {loading && <EmptyState message="Preparing Gratuity statement…" className="italic" />}
         {!loading && (
           <div className="bg-white shadow px-10 py-8 w-[1000px] text-[11px] text-black">

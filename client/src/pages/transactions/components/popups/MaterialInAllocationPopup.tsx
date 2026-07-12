@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { NotificationBanner } from '@/components/ui';
 import { createPortal } from 'react-dom';
 import type { BatchAllocation } from '../../types';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
@@ -390,11 +391,7 @@ export default function MaterialInAllocationPopup({
           </div>
 
           <div className="px-8 py-4">
-            {error && (
-              <div className="border border-black text-sm px-3 py-1.5 mb-3 font-bold">
-                • {error}
-              </div>
-            )}
+            {error && <NotificationBanner type="error" message={error} />}
 
             {rows.map((row, i) => {
               const amount = (Number(row.quantity) || 0) * (Number(row.rate) || 0);

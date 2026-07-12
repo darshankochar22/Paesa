@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { GSTClassificationType } from "@/types/entities/GSTClassification";
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { GSTClassificationType } from '@/types/entities/GSTClassification';
 
 export default function GSTClassificationCOA() {
   const { selectedCompany } = useCompany();
@@ -11,11 +12,14 @@ export default function GSTClassificationCOA() {
   const [classes, setClasses] = useState<GSTClassificationType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showChangeView, setShowChangeView] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -24,14 +28,16 @@ export default function GSTClassificationCOA() {
         const res = await window.api.gstClassification.getAll(companyId);
         if (cancelled) return;
         if (res.success) setClasses(res.gstClassifications ?? []);
-        else setError(res.error || "Failed to load GST classifications.");
+        else setError(res.error || 'Failed to load GST classifications.');
       } catch {
-        if (!cancelled) setError("Failed to load GST classifications.");
+        if (!cancelled) setError('Failed to load GST classifications.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [companyId]);
 
   const filteredClasses = useMemo(() => {
@@ -41,32 +47,41 @@ export default function GSTClassificationCOA() {
       (c) =>
         c.name?.toLowerCase().includes(q) ||
         (c.hsn_sac_code && c.hsn_sac_code.toLowerCase().includes(q)) ||
-        (c.nature_of_transaction && c.nature_of_transaction.toLowerCase().includes(q))
+        (c.nature_of_transaction && c.nature_of_transaction.toLowerCase().includes(q)),
     );
   }, [classes, searchQuery]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); navigate("/master/coa"); }
-      if (e.ctrlKey && e.key === "h") { e.preventDefault(); setShowChangeView((p) => !p); }
-      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/create/gst-classification"); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/master/coa');
+      }
+      if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault();
+        setShowChangeView((p) => !p);
+      }
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        navigate('/master/create/gst-classification');
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   const changeViewItems = [
-    { label: "Ledgers", path: "/master/coa/ledger" },
-    { label: "Groups", path: "/master/coa/group" },
-    { label: "Currencies", path: "/master/coa/currency" },
-    { label: "Voucher Types", path: "/master/coa/voucher-type" },
-    { label: "GST Registrations", path: "/master/coa/gst-registration" },
-    { label: "GST Classifications", path: "/master/coa/gst-classification" },
-    { label: "Stock Groups & Items", path: "/master/coa/stock-group" },
-    { label: "Stock Categories", path: "/master/coa/stock-category" },
-    { label: "Godowns", path: "/master/coa/godown" },
-    { label: "Units of Measure", path: "/master/coa/unit" },
-    { label: "Employees", path: "/master/coa/employee" },
+    { label: 'Ledgers', path: '/master/coa/ledger' },
+    { label: 'Groups', path: '/master/coa/group' },
+    { label: 'Currencies', path: '/master/coa/currency' },
+    { label: 'Voucher Types', path: '/master/coa/voucher-type' },
+    { label: 'GST Registrations', path: '/master/coa/gst-registration' },
+    { label: 'GST Classifications', path: '/master/coa/gst-classification' },
+    { label: 'Stock Groups & Items', path: '/master/coa/stock-group' },
+    { label: 'Stock Categories', path: '/master/coa/stock-category' },
+    { label: 'Godowns', path: '/master/coa/godown' },
+    { label: 'Units of Measure', path: '/master/coa/unit' },
+    { label: 'Employees', path: '/master/coa/employee' },
   ];
 
   return (
@@ -79,7 +94,7 @@ export default function GSTClassificationCOA() {
           <span className="text-sm font-semibold text-zinc-700 font-sans">GST Classifications</span>
         </div>
         <button
-          onClick={() => navigate("/master/create/gst-classification")}
+          onClick={() => navigate('/master/create/gst-classification')}
           className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium shadow-sm"
         >
           + Create
@@ -87,15 +102,11 @@ export default function GSTClassificationCOA() {
       </div>
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 font-bold font-sans">&times;</button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
-
           {/* Search */}
           <div className="px-4 py-1.5 border-b border-zinc-100 flex items-center gap-2">
             <span className="text-xs text-zinc-400 font-medium font-sans">Search:</span>
@@ -107,7 +118,10 @@ export default function GSTClassificationCOA() {
               autoFocus
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="text-[10px] text-zinc-400 hover:text-zinc-600 font-sans">
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-[10px] text-zinc-400 hover:text-zinc-600 font-sans"
+              >
                 Clear
               </button>
             )}
@@ -115,9 +129,13 @@ export default function GSTClassificationCOA() {
 
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading GST classifications...</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                Loading GST classifications...
+              </div>
             ) : filteredClasses.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching classifications found.</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                No matching classifications found.
+              </div>
             ) : (
               filteredClasses.map((node) => {
                 const nodeId = node.gc_id!;
@@ -126,10 +144,10 @@ export default function GSTClassificationCOA() {
                   <div key={nodeId}>
                     <div
                       className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
-                      onClick={() => navigate("/master/alter/gst-classification")}
+                      onClick={() => navigate('/master/alter/gst-classification')}
                     >
                       <span className="w-16 text-sm font-bold text-zinc-600">
-                        {node.hsn_sac_code || "—"}
+                        {node.hsn_sac_code || '—'}
                       </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
@@ -162,14 +180,14 @@ export default function GSTClassificationCOA() {
             Ctrl+H Change View
           </button>
           <button
-            onClick={() => navigate("/master/create/gst-classification")}
+            onClick={() => navigate('/master/create/gst-classification')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+C Create
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit

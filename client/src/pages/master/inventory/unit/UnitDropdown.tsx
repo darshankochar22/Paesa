@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { UnitType } from '@/types/entities/Unit';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 
 export default function UnitDropdown({
   value,
@@ -16,7 +17,7 @@ export default function UnitDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const selectedUnit = units.find((u) => String(u.unit_id) === value);
@@ -25,6 +26,16 @@ export default function UnitDropdown({
     label: u.symbol,
     formal: u.formal_name,
   }));
+
+  // Select an option and resume the Tally Enter-navigation chain from the trigger.
+  const handleSelect = useCallback(
+    (id: string) => {
+      onChange(id);
+      setOpen(false);
+      focusFieldAfter(triggerRef.current);
+    },
+    [onChange],
+  );
 
   useEffect(() => {
     setHighlightedIndex(0);
@@ -69,30 +80,35 @@ export default function UnitDropdown({
           setOpen(false);
         } else {
           const opt = allOptions[highlightedIndex - 1];
-          if (opt) {
-            onChange(opt.id);
-            setOpen(false);
-          }
+          if (opt) handleSelect(opt.id);
         }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, highlightedIndex, allOptions, onCreate, onChange]);
+  }, [open, highlightedIndex, allOptions, onCreate, handleSelect]);
 
   return (
     <div className="relative" data-enter-nav-ignore>
-      <button
+      <div
         ref={triggerRef}
-        type="button"
+        role="button"
+        tabIndex={0}
+        data-enter-click
         onClick={() => setOpen((o) => !o)}
-        className="text-left text-sm px-1.5 py-1 min-w-[90px] border border-zinc-200 rounded bg-white hover:border-zinc-300 focus:border-zinc-500 focus:outline-none transition-colors flex items-center justify-between gap-1"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className="cursor-pointer text-left text-sm px-1.5 py-1 min-w-[90px] border border-zinc-200 rounded bg-white hover:border-zinc-300 focus:border-zinc-500 focus:outline-none transition-colors flex items-center justify-between gap-1"
       >
         <span className={selectedUnit ? 'text-zinc-900 font-medium uppercase' : 'text-zinc-400'}>
           {selectedUnit ? selectedUnit.symbol : placeholder}
         </span>
         <span className="text-zinc-400 text-[10px] ml-1">{open ? '▲' : '▼'}</span>
-      </button>
+      </div>
 
       {open && (
         <div
@@ -126,10 +142,7 @@ export default function UnitDropdown({
                   ? 'bg-zinc-900 text-white'
                   : 'hover:bg-zinc-50 text-zinc-800'
               } ${value === opt.id ? 'font-semibold' : ''}`}
-              onClick={() => {
-                onChange(opt.id);
-                setOpen(false);
-              }}
+              onClick={() => handleSelect(opt.id)}
               onMouseEnter={() => setHighlightedIndex(idx + 1)}
             >
               <span className="uppercase">{opt.label}</span>

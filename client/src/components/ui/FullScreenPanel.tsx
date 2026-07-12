@@ -86,7 +86,7 @@ export default function FullScreenPanel({
       >
         {children}
       </div>
-      {footer && <div className="border-t border-zinc-200 bg-zinc-50">{footer}</div>}
+      {footer && <div className="border-t border-gray-200 bg-white">{footer}</div>}
     </div>
   );
 }

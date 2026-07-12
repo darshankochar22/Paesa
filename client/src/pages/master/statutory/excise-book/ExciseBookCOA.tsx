@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { ExciseBookType } from "@/types/api";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { ExciseBookType } from '@/types/api';
 
 export default function ExciseBookCOA() {
   const { selectedCompany } = useCompany();
@@ -11,7 +12,7 @@ export default function ExciseBookCOA() {
   const [books, setBooks] = useState<ExciseBookType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -20,9 +21,9 @@ export default function ExciseBookCOA() {
       setLoading(true);
       const res = await window.api.exciseBook.getAll(companyId);
       if (res.success) setBooks(res.exciseBooks ?? []);
-      else setError(res.error || "Failed to load excise books.");
+      else setError(res.error || 'Failed to load excise books.');
     } catch {
-      setError("Failed to load excise books.");
+      setError('Failed to load excise books.');
     } finally {
       setLoading(false);
     }
@@ -34,21 +35,21 @@ export default function ExciseBookCOA() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.altKey && e.key.toLowerCase() === "c") {
+      if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        navigate("/master/create/excise-book");
+        navigate('/master/create/excise-book');
       }
-      if (e.altKey && e.key.toLowerCase() === "a" && selectedId) {
+      if (e.altKey && e.key.toLowerCase() === 'a' && selectedId) {
         e.preventDefault();
-        navigate("/master/alter/excise-book");
+        navigate('/master/alter/excise-book');
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, selectedId]);
 
   const filtered = useMemo(() => {
@@ -56,7 +57,7 @@ export default function ExciseBookCOA() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(
-        (b) => b.name.toLowerCase().includes(q) || (b.used_for ?? "").toLowerCase().includes(q)
+        (b) => b.name.toLowerCase().includes(q) || (b.used_for ?? '').toLowerCase().includes(q),
       );
     }
     return list.sort((a, b) => a.name.localeCompare(b.name));
@@ -83,12 +84,7 @@ export default function ExciseBookCOA() {
       </div>
 
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-sans shrink-0">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">
-            dismiss
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
@@ -103,7 +99,10 @@ export default function ExciseBookCOA() {
               className="flex-1 bg-white border border-zinc-300 rounded px-2.5 py-1 text-xs text-zinc-800 focus:outline-none focus:border-zinc-500 shadow-inner font-sans"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="text-xs text-zinc-400 hover:text-black font-bold px-1.5">
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-xs text-zinc-400 hover:text-black font-bold px-1.5"
+              >
                 Clear
               </button>
             )}
@@ -118,7 +117,9 @@ export default function ExciseBookCOA() {
 
           <div className="flex-1 overflow-y-auto min-h-0 bg-white">
             {loading ? (
-              <div className="flex items-center justify-center h-48 text-xs text-zinc-400 font-sans italic">Loading…</div>
+              <div className="flex items-center justify-center h-48 text-xs text-zinc-400 font-sans italic">
+                Loading…
+              </div>
             ) : filtered.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-xs text-zinc-400 font-sans italic">
                 No excise books found.
@@ -130,13 +131,15 @@ export default function ExciseBookCOA() {
                   onClick={() => setSelectedId(b.excise_book_id ?? null)}
                   className={`grid grid-cols-[5fr_4fr_3fr] border-b border-zinc-100 cursor-pointer text-[12px] ${
                     selectedId === b.excise_book_id
-                      ? "bg-zinc-100 font-bold text-black"
-                      : "text-zinc-700 hover:bg-zinc-50"
+                      ? 'bg-zinc-100 font-bold text-black'
+                      : 'text-zinc-700 hover:bg-zinc-50'
                   }`}
                 >
                   <div className="py-1.5 px-3 border-r border-zinc-100 truncate">{b.name}</div>
-                  <div className="py-1.5 px-3 border-r border-zinc-100 truncate text-zinc-500">{b.numbering_method || "—"}</div>
-                  <div className="py-1.5 px-3 truncate text-zinc-500">{b.used_for || "—"}</div>
+                  <div className="py-1.5 px-3 border-r border-zinc-100 truncate text-zinc-500">
+                    {b.numbering_method || '—'}
+                  </div>
+                  <div className="py-1.5 px-3 truncate text-zinc-500">{b.used_for || '—'}</div>
                 </div>
               ))
             )}
@@ -146,7 +149,7 @@ export default function ExciseBookCOA() {
         {/* Right action bar */}
         <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700 font-sans">
           <button
-            onClick={() => navigate("/master/create/excise-book")}
+            onClick={() => navigate('/master/create/excise-book')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Alt+C</span>
@@ -154,7 +157,7 @@ export default function ExciseBookCOA() {
           </button>
           {selectedId && (
             <button
-              onClick={() => navigate("/master/alter/excise-book")}
+              onClick={() => navigate('/master/alter/excise-book')}
               className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
             >
               <span className="font-bold text-zinc-900 text-[10px]">Alt+A</span>
@@ -163,7 +166,7 @@ export default function ExciseBookCOA() {
           )}
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-zinc-200 hover:bg-zinc-300 text-zinc-800 transition-colors text-left shadow-sm font-semibold mt-auto"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Esc</span>

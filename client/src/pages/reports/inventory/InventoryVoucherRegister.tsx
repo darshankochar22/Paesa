@@ -248,33 +248,33 @@ export default function InventoryVoucherRegister({
     const totalVouchers = months.reduce((s, r) => s + (Number(r.total_vouchers) || 0), 0);
     const totalCancelled = months.reduce((s, r) => s + (Number(r.cancelled) || 0), 0);
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
           <span className="font-bold text-sm tracking-wide">{title}</span>
           <span className="font-bold text-sm">{selectedCompany?.name || 'Company'}</span>
           <span />
         </div>
-        <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
+        <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono">
           <span>{subtitle ?? voucherType}</span>
           <span>{periodLabel}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
               <tr>
                 <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom">
                   Particulars
                 </th>
                 <th
                   colSpan={2}
-                  className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                  className="px-3 py-0.5 text-center font-bold border-b border-l border-gray-200"
                 >
                   Transactions
                 </th>
               </tr>
               <tr>
-                <th className="px-3 py-1 text-right font-bold w-40 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-40 border-l border-gray-200">
                   Total Vouchers
                 </th>
                 <th className="px-3 py-1 text-right font-bold w-40">(cancelled )</th>
@@ -283,13 +283,13 @@ export default function InventoryVoucherRegister({
             <tbody>
               {loadingMonths ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={3} className="px-4 py-8 text-center text-black italic">
                     Loading...
                   </td>
                 </tr>
               ) : monthsError ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-zinc-600">
+                  <td colSpan={3} className="px-4 py-8 text-center text-black">
                     {monthsError}
                   </td>
                 </tr>
@@ -301,13 +301,13 @@ export default function InventoryVoucherRegister({
                       key={row.month}
                       onClick={() => setMonthIndex(idx)}
                       onDoubleClick={() => loadVouchers(row.month)}
-                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+                      className={`border-b border-gray-200 cursor-pointer ${isFocused ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                     >
                       <td className="px-3 py-1">{row.month}</td>
-                      <td className="px-3 py-1 text-right border-l border-zinc-100">
+                      <td className="px-3 py-1 text-right border-l border-gray-200">
                         {row.total_vouchers > 0 ? row.total_vouchers : ''}
                       </td>
-                      <td className="px-3 py-1 text-right text-zinc-500">
+                      <td className="px-3 py-1 text-right text-black">
                         {row.cancelled > 0 ? `(${row.cancelled} )` : ''}
                       </td>
                     </tr>
@@ -318,12 +318,12 @@ export default function InventoryVoucherRegister({
           </table>
         </div>
 
-        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+        <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
           <span className="flex-1">Grand Total</span>
-          <span className="w-40 text-right border-l border-zinc-300 pr-2">
+          <span className="w-40 text-right border-l border-gray-200 pr-2">
             {totalVouchers > 0 ? totalVouchers : ''}
           </span>
-          <span className="w-40 text-right text-zinc-500 pr-2">
+          <span className="w-40 text-right text-black pr-2">
             {totalCancelled > 0 ? `(${totalCancelled} )` : ''}
           </span>
         </div>
@@ -343,20 +343,20 @@ export default function InventoryVoucherRegister({
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide">Voucher Register</span>
         <span className="font-bold text-sm">{selectedCompany?.name || 'Company'}</span>
         <span />
       </div>
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
+      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono">
         <span>List of All {voucherType} Vouchers</span>
         <span>{periodLabel}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
             <tr>
               <th className="px-3 py-1 text-left font-bold w-20">Date</th>
               <th className="px-3 py-1 text-left font-bold">Particulars</th>
@@ -364,12 +364,12 @@ export default function InventoryVoucherRegister({
               <th className="px-3 py-1 text-right font-bold w-20">Vch No.</th>
               {isAccounting ? (
                 <>
-                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
+                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
                     Debit
                     <br />
                     Amount
                   </th>
-                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
+                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
                     Credit
                     <br />
                     Amount
@@ -377,12 +377,12 @@ export default function InventoryVoucherRegister({
                 </>
               ) : isOrder ? (
                 <>
-                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">
+                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-gray-200">
                     Order
                     <br />
                     Ref No.
                   </th>
-                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
+                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
                     Order
                     <br />
                     Amount
@@ -390,12 +390,12 @@ export default function InventoryVoucherRegister({
                 </>
               ) : (
                 <>
-                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">
+                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-gray-200">
                     Inwards
                     <br />
                     Quantity
                   </th>
-                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">
+                  <th className="px-3 py-1 text-right font-bold w-28 border-l border-gray-200">
                     Outwards
                     <br />
                     Quantity
@@ -407,19 +407,19 @@ export default function InventoryVoucherRegister({
           <tbody>
             {loadingVouchers ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={6} className="px-4 py-8 text-center text-black italic">
                   Loading vouchers...
                 </td>
               </tr>
             ) : voucherError ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-600">
+                <td colSpan={6} className="px-4 py-8 text-center text-black">
                   {voucherError}
                 </td>
               </tr>
             ) : voucherRows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={6} className="px-4 py-8 text-center text-black italic">
                   No records found.
                 </td>
               </tr>
@@ -431,7 +431,7 @@ export default function InventoryVoucherRegister({
                     key={row.voucher_id}
                     onClick={() => setVoucherIndex(idx)}
                     onDoubleClick={() => navigate(`/transactions/voucher/${row.voucher_id}`)}
-                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+                    className={`border-b border-gray-200 cursor-pointer ${isFocused ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                   >
                     <td className="px-3 py-1 whitespace-nowrap">{formatDate(row.date)}</td>
                     <td className="px-3 py-1 truncate max-w-xs">{row.particulars}</td>
@@ -439,28 +439,28 @@ export default function InventoryVoucherRegister({
                     <td className="px-3 py-1 text-right">{row.voucher_number || ''}</td>
                     {isAccounting ? (
                       <>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {fmtAmt(row.debit)}
                         </td>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {fmtAmt(row.credit)}
                         </td>
                       </>
                     ) : isOrder ? (
                       <>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {row.order_ref || ''}
                         </td>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {fmtAmt(row.order_amount)}
                         </td>
                       </>
                     ) : (
                       <>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {fmtQty(row.inwards_qty, row.unit_symbol)}
                         </td>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {fmtQty(row.outwards_qty, row.unit_symbol)}
                         </td>
                       </>
@@ -473,26 +473,26 @@ export default function InventoryVoucherRegister({
         </table>
       </div>
 
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+      <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
         <span className="w-20" />
         <span className="flex-1" />
         <span className="w-28" />
         <span className="w-20" />
         {isAccounting ? (
-          <span className="w-64 text-right pr-2 border-l border-zinc-300">
+          <span className="w-64 text-right pr-2 border-l border-gray-200">
             Total:&nbsp;&nbsp;{fmtAmt(totalDrCr)}
           </span>
         ) : isOrder ? (
           <>
-            <span className="w-28 text-right pr-2 border-l border-zinc-300" />
-            <span className="w-32 text-right pr-2 border-l border-zinc-300">
+            <span className="w-28 text-right pr-2 border-l border-gray-200" />
+            <span className="w-32 text-right pr-2 border-l border-gray-200">
               {fmtAmt(totalAmt)}
             </span>
           </>
         ) : (
           <>
-            <span className="w-28 text-right pr-2 border-l border-zinc-300">{fmtQty(totalIn)}</span>
-            <span className="w-28 text-right pr-2 border-l border-zinc-300">
+            <span className="w-28 text-right pr-2 border-l border-gray-200">{fmtQty(totalIn)}</span>
+            <span className="w-28 text-right pr-2 border-l border-gray-200">
               {fmtQty(totalOut)}
             </span>
           </>

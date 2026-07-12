@@ -1,14 +1,22 @@
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
 
 const fmtAmount = (val: number) =>
-  val === 0 ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+  val === 0
+    ? ''
+    : new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+        val,
+      );
 
 const formatDate = (dateStr: string) => {
-  if (!dateStr) return "";
+  if (!dateStr) return '';
   try {
-    return new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   } catch {
     return dateStr;
   }
@@ -41,7 +49,7 @@ export default function ContraRegisterLayout() {
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
-  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
+  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '';
 
   // Level 1: monthly summary
   const [monthRows, setMonthRows] = React.useState<MonthRow[]>([]);
@@ -66,7 +74,7 @@ export default function ContraRegisterLayout() {
           setMonthRows(res.rows || []);
           setFocusedMonthIndex(0);
         } else {
-          setError(res.error || "Failed to load Contra Register");
+          setError(res.error || 'Failed to load Contra Register');
         }
       })
       .catch((err: any) => setError(err.message))
@@ -77,8 +85,18 @@ export default function ContraRegisterLayout() {
     (monthName: string): { from: string; to: string } | null => {
       if (!activeFY?.start_date || !activeFY?.end_date) return null;
       const monthNames = [
-        "april", "may", "june", "july", "august", "september",
-        "october", "november", "december", "january", "february", "march",
+        'april',
+        'may',
+        'june',
+        'july',
+        'august',
+        'september',
+        'october',
+        'november',
+        'december',
+        'january',
+        'february',
+        'march',
       ];
       const mIndex = monthNames.findIndex((m) => m === monthName.toLowerCase());
       if (mIndex === -1) return null;
@@ -92,13 +110,13 @@ export default function ContraRegisterLayout() {
 
       const start = new Date(year, calendarMonth, 1);
       const end = new Date(year, calendarMonth + 1, 0);
-      const pad = (n: number) => String(n).padStart(2, "0");
+      const pad = (n: number) => String(n).padStart(2, '0');
       return {
         from: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
         to: `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`,
       };
     },
-    [activeFY]
+    [activeFY],
   );
 
   const loadVouchersForMonth = React.useCallback(
@@ -115,13 +133,13 @@ export default function ContraRegisterLayout() {
           if (res.success) {
             setVoucherRows(res.rows || []);
           } else {
-            setError(res.error || "Failed to load Contra vouchers");
+            setError(res.error || 'Failed to load Contra vouchers');
           }
         })
         .catch((err: any) => setError(err.message))
         .finally(() => setLoadingVouchers(false));
     },
-    [companyId, fyId, getMonthDateRange]
+    [companyId, fyId, getMonthDateRange],
   );
 
   const goBackToMonths = React.useCallback(() => {
@@ -133,51 +151,51 @@ export default function ContraRegisterLayout() {
   React.useEffect(() => {
     if (selectedMonth || !monthRows.length) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === "INPUT") return;
-      if (e.key === "ArrowDown") {
+      if (document.activeElement?.tagName === 'INPUT') return;
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         setFocusedMonthIndex((p) => Math.min(monthRows.length - 1, p + 1));
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setFocusedMonthIndex((p) => Math.max(0, p - 1));
-      } else if (e.key === "Enter") {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         const r = monthRows[focusedMonthIndex];
         if (r) loadVouchersForMonth(r);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedMonth, monthRows, focusedMonthIndex, loadVouchersForMonth]);
 
   // Keyboard nav — voucher level
   React.useEffect(() => {
     if (!selectedMonth || !voucherRows.length) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === "INPUT") return;
-      if (e.key === "ArrowDown") {
+      if (document.activeElement?.tagName === 'INPUT') return;
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         setFocusedVoucherIndex((p) => Math.min(voucherRows.length - 1, p + 1));
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setFocusedVoucherIndex((p) => Math.max(0, p - 1));
-      } else if (e.key === "Enter") {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         const r = voucherRows[focusedVoucherIndex];
         const id = r?.voucher_id || r?.id;
         if (id) navigate(`/transactions/voucher/${id}`);
-      } else if (e.key === "Escape" || e.key === "Backspace") {
+      } else if (e.key === 'Escape' || e.key === 'Backspace') {
         e.preventDefault();
         goBackToMonths();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedMonth, voucherRows, focusedVoucherIndex, navigate, goBackToMonths]);
 
   if (loadingMonths) {
     return (
-      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">
         Loading Contra Register...
       </div>
     );
@@ -199,7 +217,7 @@ export default function ContraRegisterLayout() {
       <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-white border-b border-black z-10 text-black">
+            <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
               <tr>
                 <th className="px-4 py-2 text-left font-bold w-24">Date</th>
                 <th className="px-4 py-2 text-left font-bold">Particulars</th>
@@ -209,7 +227,10 @@ export default function ContraRegisterLayout() {
                 <th className="px-4 py-2 text-right font-bold w-32">Credit Amount</th>
               </tr>
               <tr className="bg-white">
-                <th colSpan={6} className="px-4 py-0.5 text-right font-normal italic text-black/60 border-b border-black/10">
+                <th
+                  colSpan={6}
+                  className="px-4 py-0.5 text-right font-normal italic text-black border-b border-gray-200"
+                >
                   List of All Contra Vouchers — {selectedCompany?.name} — {selectedMonth.month}
                 </th>
               </tr>
@@ -217,13 +238,13 @@ export default function ContraRegisterLayout() {
             <tbody>
               {loadingVouchers ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-black/60 italic">
+                  <td colSpan={6} className="px-4 py-8 text-center text-black italic">
                     Loading vouchers...
                   </td>
                 </tr>
               ) : voucherRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-black/60 italic">
+                  <td colSpan={6} className="px-4 py-8 text-center text-black italic">
                     No records found.
                   </td>
                 </tr>
@@ -238,16 +259,22 @@ export default function ContraRegisterLayout() {
                         const id = row.voucher_id || row.id;
                         if (id) navigate(`/transactions/voucher/${id}`);
                       }}
-                      className={`border-b border-black/10 cursor-pointer transition-colors ${
-                        isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"
+                      className={`border-b border-gray-200 cursor-pointer transition-colors ${
+                        isFocused
+                          ? 'bg-black/[0.06] text-black font-bold'
+                          : 'hover:bg-black/[0.03] text-black'
                       }`}
                     >
                       <td className="px-4 py-1.5 whitespace-nowrap">{formatDate(row.date)}</td>
-                      <td className="px-4 py-1.5 truncate max-w-xs">{row.particulars || "—"}</td>
-                      <td className="px-4 py-1.5">{row.voucher_type || "Contra"}</td>
-                      <td className="px-4 py-1.5 text-right">{row.voucher_number ?? "—"}</td>
-                      <td className="px-4 py-1.5 text-right font-mono">{fmtAmount(Number(row.debit) || 0)}</td>
-                      <td className="px-4 py-1.5 text-right font-mono">{fmtAmount(Number(row.credit) || 0)}</td>
+                      <td className="px-4 py-1.5 truncate max-w-xs">{row.particulars || '—'}</td>
+                      <td className="px-4 py-1.5">{row.voucher_type || 'Contra'}</td>
+                      <td className="px-4 py-1.5 text-right">{row.voucher_number ?? '—'}</td>
+                      <td className="px-4 py-1.5 text-right font-mono">
+                        {fmtAmount(Number(row.debit) || 0)}
+                      </td>
+                      <td className="px-4 py-1.5 text-right font-mono">
+                        {fmtAmount(Number(row.credit) || 0)}
+                      </td>
                     </tr>
                   );
                 })
@@ -274,9 +301,12 @@ export default function ContraRegisterLayout() {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-white text-black border-b border-black z-10">
+          <thead className="sticky top-0 bg-white text-black border-b border-gray-200 z-10">
             <tr className="bg-white">
-              <th rowSpan={5} className="border-b border-r border-black px-3 py-1.5 text-left font-bold w-[50%] align-bottom">
+              <th
+                rowSpan={5}
+                className="border-b border-r border-gray-200 px-3 py-1.5 text-left font-bold w-[50%] align-bottom"
+              >
                 Particulars
               </th>
               <th colSpan={2} className="px-3 py-0.5 text-right font-normal italic">
@@ -285,7 +315,7 @@ export default function ContraRegisterLayout() {
             </tr>
             <tr className="bg-white">
               <th colSpan={2} className="px-3 py-0.5 text-right font-bold text-black">
-                {selectedCompany?.name || "—"}
+                {selectedCompany?.name || '—'}
               </th>
             </tr>
             <tr className="bg-white">
@@ -293,20 +323,22 @@ export default function ContraRegisterLayout() {
                 {periodLabel}
               </th>
             </tr>
-            <tr className="bg-white border-t border-black/10">
-              <th colSpan={2} className="px-3 py-1 text-center font-bold border-b border-black/10">
+            <tr className="bg-white border-t border-gray-200">
+              <th colSpan={2} className="px-3 py-1 text-center font-bold border-b border-gray-200">
                 Transactions
               </th>
             </tr>
-            <tr className="bg-white border-b border-black">
-              <th className="border-r border-black px-3 py-1 text-right font-bold w-[25%]">Total Vouchers</th>
+            <tr className="bg-white border-b border-gray-200">
+              <th className="border-r border-gray-200 px-3 py-1 text-right font-bold w-[25%]">
+                Total Vouchers
+              </th>
               <th className="px-3 py-1 text-right font-bold w-[25%]">(cancelled )</th>
             </tr>
           </thead>
           <tbody>
             {monthRows.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-black/60 italic">
+                <td colSpan={3} className="px-4 py-8 text-center text-black italic">
                   No records found.
                 </td>
               </tr>
@@ -318,16 +350,16 @@ export default function ContraRegisterLayout() {
                     key={row.month}
                     onClick={() => setFocusedMonthIndex(idx)}
                     onDoubleClick={() => loadVouchersForMonth(row)}
-                    className={`border-b border-black/10 hover:bg-black/[0.04] transition-colors cursor-pointer ${
-                      isFocused ? "bg-black/10 text-black font-bold" : "text-black"
+                    className={`border-b border-gray-200 hover:bg-black/[0.03] transition-colors cursor-pointer ${
+                      isFocused ? 'bg-black/[0.06] text-black font-bold' : 'text-black'
                     }`}
                   >
-                    <td className="border-r border-black/10 px-3 py-1.5 text-left">{row.month}</td>
-                    <td className="border-r border-black/10 px-3 py-1.5 text-right font-mono">
-                      {row.total_vouchers ? row.total_vouchers.toLocaleString("en-IN") : ""}
+                    <td className="border-r border-gray-200 px-3 py-1.5 text-left">{row.month}</td>
+                    <td className="border-r border-gray-200 px-3 py-1.5 text-right font-mono">
+                      {row.total_vouchers ? row.total_vouchers.toLocaleString('en-IN') : ''}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono text-black/60">
-                      {row.cancelled && row.cancelled > 0 ? `(${row.cancelled} )` : ""}
+                    <td className="px-3 py-1.5 text-right font-mono text-black">
+                      {row.cancelled && row.cancelled > 0 ? `(${row.cancelled} )` : ''}
                     </td>
                   </tr>
                 );
@@ -335,13 +367,13 @@ export default function ContraRegisterLayout() {
             )}
 
             {/* Grand Total Row */}
-            <tr className="border-t-2 border-b-2 border-black bg-white font-bold text-black">
-              <td className="border-r border-black px-3 py-2 text-left">Grand Total</td>
-              <td className="border-r border-black px-3 py-2 text-right font-mono">
-                {totalVouchersSum > 0 ? totalVouchersSum : ""}
+            <tr className="border-t-2 border-b-2 border-gray-200 bg-white font-bold text-black">
+              <td className="border-r border-gray-200 px-3 py-2 text-left">Grand Total</td>
+              <td className="border-r border-gray-200 px-3 py-2 text-right font-mono">
+                {totalVouchersSum > 0 ? totalVouchersSum : ''}
               </td>
-              <td className="px-3 py-2 text-right font-mono text-black/60">
-                {totalCancelledSum > 0 ? `(${totalCancelledSum} )` : ""}
+              <td className="px-3 py-2 text-right font-mono text-black">
+                {totalCancelledSum > 0 ? `(${totalCancelledSum} )` : ''}
               </td>
             </tr>
           </tbody>

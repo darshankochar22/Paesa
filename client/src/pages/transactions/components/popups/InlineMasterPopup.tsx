@@ -1,21 +1,22 @@
-import { useState, useEffect, useRef } from "react";
-import type { GroupType } from "@/types/api";
-import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+import { useState, useEffect, useRef } from 'react';
+import { NotificationBanner } from '@/components/ui';
+import type { GroupType } from '@/types/api';
+import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
 
 interface Props {
   companyId: number;
-  initialType?: "ledger" | "stockItem" | "godown";
+  initialType?: 'ledger' | 'stockItem' | 'godown';
   onClose: () => void;
-  onSuccess: (type: "ledger" | "stockItem" | "godown", created: any) => void;
+  onSuccess: (type: 'ledger' | 'stockItem' | 'godown', created: any) => void;
 }
 
 export default function InlineMasterPopup({
   companyId,
-  initialType = "ledger",
+  initialType = 'ledger',
   onClose,
   onSuccess,
 }: Props) {
-  const [type, setType] = useState<"ledger" | "stockItem" | "godown">(initialType);
+  const [type, setType] = useState<'ledger' | 'stockItem' | 'godown'>(initialType);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,31 +33,31 @@ export default function InlineMasterPopup({
   // ── Form states ────────────────────────────────────────────────────────────
 
   const [ledgerForm, setLedgerForm] = useState({
-    name: "",
-    alias: "",
-    group_id: "",
+    name: '',
+    alias: '',
+    group_id: '',
     opening_balance: 0,
     is_bill_wise: 0,
     allow_cost_centres: 0,
   });
 
   const [stockItemForm, setStockItemForm] = useState({
-    name: "",
-    alias: "",
+    name: '',
+    alias: '',
     // FIX — use sg_id (not group_id) for stock groups
-    sg_id: "",
-    unit_id: "",
+    sg_id: '',
+    unit_id: '',
     opening_qty: 0,
     opening_rate: 0,
     opening_value: 0,
-    hsn_code: "",
+    hsn_code: '',
     gst_rate: 0,
   });
 
   const [godownForm, setGodownForm] = useState({
-    name: "",
-    alias: "",
-    address: "",
+    name: '',
+    alias: '',
+    address: '',
   });
 
   // ── Load dropdown data ─────────────────────────────────────────────────────
@@ -77,11 +78,11 @@ export default function InlineMasterPopup({
           // a voucher is almost always a party ledger. Stable sort keeps the rest
           // in the server's order.
           const priority = (g: GroupType) => {
-            const n = (g.name || "").toLowerCase().trim();
-            return n === "sundry debtors" ? 0 : n === "sundry creditors" ? 1 : 2;
+            const n = (g.name || '').toLowerCase().trim();
+            return n === 'sundry debtors' ? 0 : n === 'sundry creditors' ? 1 : 2;
           };
           const grps: GroupType[] = [...(gRes.groups ?? [])].sort(
-            (a, b) => priority(a) - priority(b)
+            (a, b) => priority(a) - priority(b),
           );
           setGroups(grps);
           if (grps[0]) {
@@ -112,10 +113,12 @@ export default function InlineMasterPopup({
           }
         }
       } catch (err) {
-        console.error("InlineMasterPopup: failed to load options", err);
+        console.error('InlineMasterPopup: failed to load options', err);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [companyId]);
 
   // Autofocus name input whenever type changes
@@ -134,21 +137,21 @@ export default function InlineMasterPopup({
     let cur = groupId ? byId.get(Number(groupId)) : undefined;
     let hops = 0;
     while (cur && hops < 25) {
-      const name = (cur.name || "").toLowerCase().trim();
+      const name = (cur.name || '').toLowerCase().trim();
       if (
-        name === "bank od a/c" ||
-        name === "bank od accounts" ||
-        name === "bank od account" ||
-        name === "bank occ a/c"
+        name === 'bank od a/c' ||
+        name === 'bank od accounts' ||
+        name === 'bank od account' ||
+        name === 'bank occ a/c'
       )
-        return "Bank OD";
-      if (name === "bank accounts") return "Bank";
-      if (name === "cash-in-hand" || name === "cash in hand") return "Cash";
+        return 'Bank OD';
+      if (name === 'bank accounts') return 'Bank';
+      if (name === 'cash-in-hand' || name === 'cash in hand') return 'Cash';
       if (!cur.parent_group_id) break;
       cur = byId.get(cur.parent_group_id);
       hops++;
     }
-    return "General";
+    return 'General';
   };
 
   const handleSubmit = async () => {
@@ -157,8 +160,12 @@ export default function InlineMasterPopup({
     setError(null);
     setLoading(true);
     try {
-      if (type === "ledger") {
-        if (!ledgerForm.name.trim()) { setError("Name is required."); setLoading(false); return; }
+      if (type === 'ledger') {
+        if (!ledgerForm.name.trim()) {
+          setError('Name is required.');
+          setLoading(false);
+          return;
+        }
         const res = await window.api.ledger.create({
           company_id: companyId,
           name: ledgerForm.name.trim(),
@@ -168,13 +175,16 @@ export default function InlineMasterPopup({
           is_bill_wise: ledgerForm.is_bill_wise,
           allow_cost_centres: ledgerForm.allow_cost_centres,
           ledger_type: deriveLedgerType(ledgerForm.group_id),
-          registration_type: "Unregistered",
+          registration_type: 'Unregistered',
         });
-        if (res.success && res.ledger) onSuccess("ledger", res.ledger);
-        else setError(res.error || "Failed to create ledger.");
-
-      } else if (type === "stockItem") {
-        if (!stockItemForm.name.trim()) { setError("Name is required."); setLoading(false); return; }
+        if (res.success && res.ledger) onSuccess('ledger', res.ledger);
+        else setError(res.error || 'Failed to create ledger.');
+      } else if (type === 'stockItem') {
+        if (!stockItemForm.name.trim()) {
+          setError('Name is required.');
+          setLoading(false);
+          return;
+        }
         // HSN / GST — mirror the full StockItem create screen's "Specified Here"
         // payload (calculateGstDetails in pages/master/inventory/stock-item/utils.ts):
         // hsn_sac + legacy hsn_code, gst_rate with the CGST/SGST split.
@@ -190,15 +200,13 @@ export default function InlineMasterPopup({
           opening_quantity: Number(stockItemForm.opening_qty) || 0,
           opening_rate: Number(stockItemForm.opening_rate) || 0,
           opening_value: Number(stockItemForm.opening_value) || 0,
-          ...(hsn || gstRate > 0 ? { gst_applicable: "Applicable" } : {}),
-          ...(hsn
-            ? { hsn_sac: hsn, hsn_code: hsn, source_of_details: "Specified Here" }
-            : {}),
+          ...(hsn || gstRate > 0 ? { gst_applicable: 'Applicable' } : {}),
+          ...(hsn ? { hsn_sac: hsn, hsn_code: hsn, source_of_details: 'Specified Here' } : {}),
           ...(gstRate > 0
             ? {
-                gst_rate_details: "specify_here",
-                source_of_gst_rate: "Specified Here",
-                taxability_type: "Taxable",
+                gst_rate_details: 'specify_here',
+                source_of_gst_rate: 'Specified Here',
+                taxability_type: 'Taxable',
                 gst_rate: gstRate,
                 igst_rate: gstRate,
                 cgst_rate: gstRate / 2,
@@ -206,22 +214,25 @@ export default function InlineMasterPopup({
               }
             : {}),
         });
-        if (res.success && res.item) onSuccess("stockItem", res.item);
-        else setError(res.error || "Failed to create stock item.");
-
-      } else if (type === "godown") {
-        if (!godownForm.name.trim()) { setError("Name is required."); setLoading(false); return; }
+        if (res.success && res.item) onSuccess('stockItem', res.item);
+        else setError(res.error || 'Failed to create stock item.');
+      } else if (type === 'godown') {
+        if (!godownForm.name.trim()) {
+          setError('Name is required.');
+          setLoading(false);
+          return;
+        }
         const res = await window.api.godown.create({
           company_id: companyId,
           name: godownForm.name.trim(),
           alias: godownForm.alias.trim() || undefined,
           address: godownForm.address.trim() || undefined,
         });
-        if (res.success && res.godown) onSuccess("godown", res.godown);
-        else setError(res.error || "Failed to create godown.");
+        if (res.success && res.godown) onSuccess('godown', res.godown);
+        else setError(res.error || 'Failed to create godown.');
       }
     } catch (err: any) {
-      setError(err?.message || "An unexpected error occurred.");
+      setError(err?.message || 'An unexpected error occurred.');
     } finally {
       inFlightRef.current = false;
       setLoading(false);
@@ -235,58 +246,82 @@ export default function InlineMasterPopup({
       size="compact"
       title="Inline Master Creation"
       onClose={onClose}
-      onAccept={() => { if (!loading) handleSubmit(); }}
-      acceptLabel={loading ? "Creating…" : "Accept"}
+      onAccept={() => {
+        if (!loading) handleSubmit();
+      }}
+      acceptLabel={loading ? 'Creating…' : 'Accept'}
     >
       <div className="w-[440px] space-y-3">
         {/* Type selector */}
         <div className="flex gap-4 border-b border-gray-300 pb-2 select-none">
-          {(["ledger", "stockItem", "godown"] as const).map((t) => (
-            <label key={t} className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer text-gray-700">
+          {(['ledger', 'stockItem', 'godown'] as const).map((t) => (
+            <label
+              key={t}
+              className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer text-gray-700"
+            >
               <input
                 type="radio"
                 checked={type === t}
-                onChange={() => { setType(t); setError(null); }}
+                onChange={() => {
+                  setType(t);
+                  setError(null);
+                }}
                 className="accent-black"
               />
-              {t === "ledger" ? "Ledger" : t === "stockItem" ? "Stock Item" : "Godown"}
+              {t === 'ledger' ? 'Ledger' : t === 'stockItem' ? 'Stock Item' : 'Godown'}
             </label>
           ))}
         </div>
 
         {error && (
-          <div className="border border-black text-black text-xs px-3 py-1.5 flex justify-between items-center font-bold">
-            <span>• {error}</span>
-            <button onClick={() => setError(null)} className="font-bold">&times;</button>
-          </div>
+          <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
         )}
 
         {/* ── LEDGER ── */}
-        {type === "ledger" && (
+        {type === 'ledger' && (
           <div className="space-y-3">
             <Field label="Name">
-              <input ref={nameInputRef} type="text" value={ledgerForm.name}
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={ledgerForm.name}
                 onChange={(e) => setLedgerForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Sales Account" className={inputCls} />
+                placeholder="e.g. Sales Account"
+                className={inputCls}
+              />
             </Field>
             <Field label="Alias">
-              <input type="text" value={ledgerForm.alias}
+              <input
+                type="text"
+                value={ledgerForm.alias}
                 onChange={(e) => setLedgerForm((p) => ({ ...p, alias: e.target.value }))}
-                placeholder="Optional alias" className={inputCls} />
+                placeholder="Optional alias"
+                className={inputCls}
+              />
             </Field>
             <Field label="Under Group">
-              <select value={ledgerForm.group_id}
+              <select
+                value={ledgerForm.group_id}
                 onChange={(e) => setLedgerForm((p) => ({ ...p, group_id: e.target.value }))}
-                className={inputCls}>
+                className={inputCls}
+              >
                 {groups.map((g) => (
-                  <option key={g.group_id} value={g.group_id}>{g.name}</option>
+                  <option key={g.group_id} value={g.group_id}>
+                    {g.name}
+                  </option>
                 ))}
               </select>
             </Field>
             <Field label="Opening Balance">
-              <input type="number" step="0.01" value={ledgerForm.opening_balance}
-                onChange={(e) => setLedgerForm((p) => ({ ...p, opening_balance: Number(e.target.value) || 0 }))}
-                className={inputCls + " text-right"} />
+              <input
+                type="number"
+                step="0.01"
+                value={ledgerForm.opening_balance}
+                onChange={(e) =>
+                  setLedgerForm((p) => ({ ...p, opening_balance: Number(e.target.value) || 0 }))
+                }
+                className={inputCls + ' text-right'}
+              />
             </Field>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <ToggleField
@@ -304,35 +339,52 @@ export default function InlineMasterPopup({
         )}
 
         {/* ── STOCK ITEM ── */}
-        {type === "stockItem" && (
+        {type === 'stockItem' && (
           <div className="space-y-3">
             <Field label="Item Name">
-              <input ref={nameInputRef} type="text" value={stockItemForm.name}
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={stockItemForm.name}
                 onChange={(e) => setStockItemForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Dell Monitor 24" className={inputCls} />
+                placeholder="e.g. Dell Monitor 24"
+                className={inputCls}
+              />
             </Field>
             <Field label="Alias">
-              <input type="text" value={stockItemForm.alias}
+              <input
+                type="text"
+                value={stockItemForm.alias}
                 onChange={(e) => setStockItemForm((p) => ({ ...p, alias: e.target.value }))}
-                placeholder="Optional alias" className={inputCls} />
+                placeholder="Optional alias"
+                className={inputCls}
+              />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Stock Group">
                 {/* FIX — key and value use sg_id */}
-                <select value={stockItemForm.sg_id}
+                <select
+                  value={stockItemForm.sg_id}
                   onChange={(e) => setStockItemForm((p) => ({ ...p, sg_id: e.target.value }))}
-                  className={inputCls}>
+                  className={inputCls}
+                >
                   {stockGroups.map((sg) => (
-                    <option key={sg.sg_id} value={sg.sg_id}>{sg.name}</option>
+                    <option key={sg.sg_id} value={sg.sg_id}>
+                      {sg.name}
+                    </option>
                   ))}
                 </select>
               </Field>
               <Field label="Unit">
-                <select value={stockItemForm.unit_id}
+                <select
+                  value={stockItemForm.unit_id}
                   onChange={(e) => setStockItemForm((p) => ({ ...p, unit_id: e.target.value }))}
-                  className={inputCls}>
+                  className={inputCls}
+                >
                   {units.map((u) => (
-                    <option key={u.unit_id} value={u.unit_id}>{u.symbol} ({u.formal_name})</option>
+                    <option key={u.unit_id} value={u.unit_id}>
+                      {u.symbol} ({u.formal_name})
+                    </option>
                   ))}
                 </select>
               </Field>
@@ -343,7 +395,9 @@ export default function InlineMasterPopup({
             </div>
             <div className="grid grid-cols-3 gap-2">
               <Field label="Qty">
-                <input type="number" value={stockItemForm.opening_qty}
+                <input
+                  type="number"
+                  value={stockItemForm.opening_qty}
                   onChange={(e) => {
                     const qty = Number(e.target.value) || 0;
                     setStockItemForm((p) => ({
@@ -352,10 +406,13 @@ export default function InlineMasterPopup({
                       opening_value: qty * p.opening_rate,
                     }));
                   }}
-                  className={inputCls + " text-right"} />
+                  className={inputCls + ' text-right'}
+                />
               </Field>
               <Field label="Rate">
-                <input type="number" value={stockItemForm.opening_rate}
+                <input
+                  type="number"
+                  value={stockItemForm.opening_rate}
                   onChange={(e) => {
                     const rate = Number(e.target.value) || 0;
                     setStockItemForm((p) => ({
@@ -364,10 +421,13 @@ export default function InlineMasterPopup({
                       opening_value: p.opening_qty * rate,
                     }));
                   }}
-                  className={inputCls + " text-right"} />
+                  className={inputCls + ' text-right'}
+                />
               </Field>
               <Field label="Value">
-                <input type="number" value={stockItemForm.opening_value}
+                <input
+                  type="number"
+                  value={stockItemForm.opening_value}
                   onChange={(e) => {
                     const value = Number(e.target.value) || 0;
                     setStockItemForm((p) => ({
@@ -380,43 +440,66 @@ export default function InlineMasterPopup({
                           : p.opening_rate,
                     }));
                   }}
-                  className={inputCls + " text-right"} />
+                  className={inputCls + ' text-right'}
+                />
               </Field>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="HSN Code">
-                <input type="text" value={stockItemForm.hsn_code}
+                <input
+                  type="text"
+                  value={stockItemForm.hsn_code}
                   onChange={(e) => setStockItemForm((p) => ({ ...p, hsn_code: e.target.value }))}
-                  placeholder="Optional" className={inputCls} />
+                  placeholder="Optional"
+                  className={inputCls}
+                />
               </Field>
               <Field label="GST Rate (%)">
-                <input type="number" step="0.01" value={stockItemForm.gst_rate}
-                  onChange={(e) => setStockItemForm((p) => ({ ...p, gst_rate: Number(e.target.value) || 0 }))}
-                  className={inputCls + " text-right"} />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={stockItemForm.gst_rate}
+                  onChange={(e) =>
+                    setStockItemForm((p) => ({ ...p, gst_rate: Number(e.target.value) || 0 }))
+                  }
+                  className={inputCls + ' text-right'}
+                />
               </Field>
             </div>
           </div>
         )}
 
         {/* ── GODOWN ── */}
-        {type === "godown" && (
+        {type === 'godown' && (
           <div className="space-y-3">
             <Field label="Godown Name">
-              <input ref={nameInputRef} type="text" value={godownForm.name}
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={godownForm.name}
                 onChange={(e) => setGodownForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Warehouse A" className={inputCls} />
+                placeholder="e.g. Warehouse A"
+                className={inputCls}
+              />
             </Field>
             <Field label="Alias">
-              <input type="text" value={godownForm.alias}
+              <input
+                type="text"
+                value={godownForm.alias}
                 onChange={(e) => setGodownForm((p) => ({ ...p, alias: e.target.value }))}
-                placeholder="Optional alias" className={inputCls} />
+                placeholder="Optional alias"
+                className={inputCls}
+              />
             </Field>
             <Field label="Address">
-              <textarea value={godownForm.address}
+              <textarea
+                value={godownForm.address}
                 onChange={(e) => setGodownForm((p) => ({ ...p, address: e.target.value }))}
-                placeholder="Street, city, etc." rows={3}
-                className={inputCls + " resize-none"} />
+                placeholder="Street, city, etc."
+                rows={3}
+                className={inputCls + ' resize-none'}
+              />
             </Field>
           </div>
         )}
@@ -428,7 +511,7 @@ export default function InlineMasterPopup({
 // ── Small sub-components ───────────────────────────────────────────────────
 
 const inputCls =
-  "text-xs px-2.5 py-1.5 border border-gray-400 outline-none focus:border-black w-full font-medium bg-white transition-colors";
+  'text-xs px-2.5 py-1.5 border border-gray-400 outline-none focus:border-black w-full font-medium bg-white transition-colors';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

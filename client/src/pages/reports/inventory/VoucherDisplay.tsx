@@ -71,9 +71,9 @@ const qty = (v: number | null | undefined, unit?: string | null) => {
 function HRow({ label, value, w = 'w-40' }: { label: string; value: React.ReactNode; w?: string }) {
   return (
     <div className="flex leading-5">
-      <span className={`${w} shrink-0 text-zinc-600`}>{label}</span>
-      <span className="mr-2 text-zinc-400">:</span>
-      <span className="font-semibold text-zinc-900">{value}</span>
+      <span className={`${w} shrink-0 text-black`}>{label}</span>
+      <span className="mr-2 text-black">:</span>
+      <span className="font-semibold text-black">{value}</span>
     </div>
   );
 }
@@ -155,14 +155,14 @@ export default function VoucherDisplay({
   const unit0 = voucher?.stock_entries?.[0]?.unit_symbol ?? '';
 
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0 bg-white select-none text-zinc-900 font-mono text-[11px]">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-white select-none text-black font-mono text-[11px]">
       {/* Title bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide font-sans">Voucher Display</span>
         <span className="font-bold text-sm font-sans">{selectedCompany?.name ?? ''}</span>
         <button
           onClick={onClose}
-          className="text-sm font-bold text-zinc-500 hover:text-zinc-900 font-sans"
+          className="text-sm font-bold text-black hover:text-black font-sans"
         >
           &times;
         </button>
@@ -170,9 +170,9 @@ export default function VoucherDisplay({
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="py-8 text-center text-zinc-400 italic">Loading…</div>
+          <div className="py-8 text-center text-black italic">Loading…</div>
         ) : err ? (
-          <div className="py-8 text-center text-zinc-600">{err}</div>
+          <div className="py-8 text-center text-black">{err}</div>
         ) : !voucher ? null : (
           <div className="px-6 py-3">
             {/* Voucher type, centered */}
@@ -189,8 +189,8 @@ export default function VoucherDisplay({
                 value={
                   <span>
                     {voucher.supplier_invoice_no || '—'}
-                    <span className="ml-16 text-zinc-600">Date</span>
-                    <span className="mx-2 text-zinc-400">:</span>
+                    <span className="ml-16 text-black">Date</span>
+                    <span className="mx-2 text-black">:</span>
                     <span className="font-semibold">
                       {dmy(voucher.supplier_invoice_date) || '—'}
                     </span>
@@ -216,7 +216,7 @@ export default function VoucherDisplay({
             {/* Item table */}
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-y border-zinc-400">
+                <tr className="border-y border-gray-200">
                   <th className="text-left py-1 font-bold">Name of Item</th>
                   <th className="text-right py-1 font-bold w-24">Actual</th>
                   <th className="text-right py-1 font-bold w-24">Billed</th>
@@ -224,7 +224,7 @@ export default function VoucherDisplay({
                   <th className="text-center py-1 font-bold w-12">per</th>
                   <th className="text-right py-1 font-bold w-32">Amount</th>
                 </tr>
-                <tr className="text-[9px] text-zinc-500">
+                <tr className="text-[9px] text-black">
                   <th />
                   <th className="text-right font-normal">Quantity</th>
                   <th className="text-right font-normal">Quantity</th>
@@ -247,7 +247,7 @@ export default function VoucherDisplay({
                     {detailed && (
                       <tr>
                         <td colSpan={6} className="pb-1 pl-3">
-                          <div className="italic text-zinc-600">Inventory Allocations:</div>
+                          <div className="italic text-black">Inventory Allocations:</div>
                           <div className="pl-3 flex flex-wrap gap-x-6">
                             <span>
                               Godown Name:{' '}
@@ -257,7 +257,7 @@ export default function VoucherDisplay({
                               {qty(r.quantity, r.unit_symbol)} @ {amt(r.rate)} = {amt(r.amount)}
                             </span>
                           </div>
-                          <div className="pl-3 flex flex-wrap gap-x-6 text-zinc-700">
+                          <div className="pl-3 flex flex-wrap gap-x-6 text-black">
                             <span>Tracking No : Not Applicable</span>
                             {voucher.order_details?.order_nos && (
                               <span>Order No : {voucher.order_details.order_nos}</span>
@@ -270,7 +270,7 @@ export default function VoucherDisplay({
                 ))}
               </tbody>
               <tfoot>
-                <tr className="font-bold border-t border-zinc-900">
+                <tr className="font-bold border-t border-gray-200">
                   <td className="py-1">Total</td>
                   <td className="text-right">{qty(totActual, unit0)}</td>
                   <td className="text-right">{qty(totActual, unit0)}</td>
@@ -284,7 +284,7 @@ export default function VoucherDisplay({
             {/* Accounting Allocations */}
             {detailed && acctEntries.length > 0 && (
               <div className="mt-3">
-                <div className="italic text-zinc-600">Accounting Allocations:</div>
+                <div className="italic text-black">Accounting Allocations:</div>
                 {acctEntries.map((e, i) => (
                   <div key={i} className="pl-3 flex">
                     <span className="flex-1 font-semibold">{e.ledger_name}</span>
@@ -313,8 +313,8 @@ export default function VoucherDisplay({
             )}
 
             {/* Narration */}
-            <div className="mt-4 border-t border-zinc-300 pt-1">
-              <span className="text-zinc-600">Narration:</span>
+            <div className="mt-4 border-t border-gray-200 pt-1">
+              <span className="text-black">Narration:</span>
               <span className="ml-2">{voucher.narration || ''}</span>
             </div>
           </div>
@@ -322,11 +322,11 @@ export default function VoucherDisplay({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => setDetailed((d) => !d)} className="hover:text-zinc-900">
+      <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
+        <button onClick={() => setDetailed((d) => !d)} className="hover:text-black">
           F: {detailed ? 'Condensed' : 'Detailed'}
         </button>
-        <span className="text-zinc-400">Esc: Back to Stock Query</span>
+        <span className="text-black">Esc: Back to Stock Query</span>
       </div>
     </div>
   );

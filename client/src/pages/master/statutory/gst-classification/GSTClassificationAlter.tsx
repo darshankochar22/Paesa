@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, RightActionPanel } from '@/components/ui';
+import { PageTitleBar, RightActionPanel, NotificationBanner } from '@/components/ui';
 import { useGSTClassificationForm } from './hooks/useGSTClassificationForm';
 import GSTClassificationFormFields from './components/GSTClassificationFormFields';
 import GSTClassificationSelectionPanel from './components/GSTClassificationSelectionPanel';
@@ -102,26 +102,10 @@ export default function GSTClassificationAlter() {
       />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold font-sans"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
-          <span>• {success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="text-green-500 hover:text-green-700 text-xs font-bold font-sans"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
       {isPredefined && (
         <div className="px-3 py-1.5 border-b border-zinc-200 bg-zinc-50 text-zinc-500 text-xs shrink-0 select-none">

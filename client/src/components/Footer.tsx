@@ -48,6 +48,19 @@ export default function Footer() {
         allowInInputs: true,
         allowInDialogs: true,
       },
+      {
+        // Global Escape = Quit. Runs deferred: only fires if no popup/dialog on
+        // the escape stack and no per-screen Escape handler already claimed the
+        // key. Guarantees Escape always quits one level — pops one page from
+        // history (stack-style), never a jump to the gateway.
+        keys: 'Escape',
+        handler: () => {
+          if (location.pathname !== '/') navigate(-1);
+        },
+        defer: true,
+        allowInInputs: true,
+        allowInDialogs: true,
+      },
     ],
     { priority: PRIORITY.GLOBAL },
   );
@@ -62,26 +75,20 @@ export default function Footer() {
     dispatchKey('Escape');
 
     setTimeout(() => {
+      // Fallback only — the screen had no Escape handler of its own. Pop exactly
+      // one page from history (stack-style), never a jump straight to the
+      // gateway. Each Quit/Escape releases one layer at a time.
       if (location.pathname === currentPath && currentPath !== '/') {
-        if (currentPath.startsWith('/master/coa/')) {
-          navigate('/master/coa');
-        } else if (currentPath.startsWith('/master/')) {
-          navigate('/');
-        } else if (currentPath.startsWith('/transactions/')) {
-          navigate('/');
-        } else if (currentPath.startsWith('/utilities/')) {
-          navigate('/');
-        } else if (currentPath.startsWith('/data/')) {
-          navigate('/');
-        } else {
-          navigate(-1);
-        }
+        navigate(-1);
       }
     }, 60);
   };
 
   const handleAccept = () => {
-    dispatchKey('a', { ctrlKey: true });
+    // Alt+A is the app-wide Accept combo: every master screen registers Alt+A,
+    // and voucher entry accepts on Alt+A OR Ctrl+A — so a single Alt+A dispatch
+    // reliably drives Accept everywhere. (Was Ctrl+A, which masters ignored.)
+    dispatchKey('a', { altKey: true });
   };
 
   const handleDelete = () => {

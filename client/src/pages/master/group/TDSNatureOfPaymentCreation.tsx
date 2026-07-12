@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { NotificationBanner } from '@/components/ui';
 
 const inputCls =
   'w-full bg-transparent text-[13px] outline-none py-1 px-1 placeholder:text-zinc-400 border-b border-transparent focus:border-zinc-400 transition-colors';
@@ -119,15 +120,7 @@ export default function TDSNatureOfPaymentCreation({
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 bg-white">
           {error && (
-            <div className="mb-3 p-2 border border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-              <span>{error}</span>
-              <button
-                onClick={() => setError(null)}
-                className="text-red-500 hover:text-red-700 text-xs"
-              >
-                dismiss
-              </button>
-            </div>
+            <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
           )}
 
           <div className="flex items-center gap-2 mb-3">

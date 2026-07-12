@@ -110,12 +110,12 @@ export default function AccountBooksMenu() {
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
-        <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">
+        <div className="text-[11px] italic text-black flex flex-wrap gap-1">
+          <Link to="/" className="hover:underline hover:text-black">
             Gateway
           </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+          <Link to="/reports/display-more" className="hover:underline hover:text-black">
             Display More Reports
           </Link>
         </div>
@@ -125,7 +125,7 @@ export default function AccountBooksMenu() {
       <CardContent className="flex flex-col gap-4">
         {sections.map((section, si) => (
           <div key={si} className="flex flex-col gap-1.5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-black px-1">
               {section.title}
             </div>
             <div className="flex flex-col pl-3 gap-0.5">
@@ -135,7 +135,7 @@ export default function AccountBooksMenu() {
                   asChild
                   variant="ghost"
                   size="xs"
-                  className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700"
+                  className="justify-start text-[11px] font-normal px-2 h-7 text-black"
                 >
                   <Link to={item.route}>{item.label}</Link>
                 </Button>

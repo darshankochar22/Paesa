@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import CostCentreFlatList from '@/components/CostCentreFlatList';
+import { MasterFormFooter, NotificationBanner } from '@/components/ui';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { CostCentreType } from '@/types/api';
 
@@ -180,26 +181,10 @@ export default function CostCentreCreate() {
         </div>
 
         {error && (
-          <div className="mb-4 p-2 border border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
-            <span>• {error}</span>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-500 hover:text-red-700 font-bold"
-            >
-              &times;
-            </button>
-          </div>
+          <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
         )}
         {success && (
-          <div className="mb-4 p-2 border border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
-            <span>• {success}</span>
-            <button
-              onClick={() => setSuccess(null)}
-              className="text-green-500 hover:text-green-700 font-bold"
-            >
-              &times;
-            </button>
-          </div>
+          <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
         )}
 
         <div className="flex-1 flex items-center justify-center p-4">
@@ -262,24 +247,12 @@ export default function CostCentreCreate() {
           </div>
         </div>
 
-        <div className="border-t border-zinc-200 pt-3 flex justify-end bg-zinc-50 shrink-0 font-sans pr-2">
-          <div className="flex gap-3">
-            <button
-              onClick={() => navigate('/master/create')}
-              className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
-            >
-              Quit
-            </button>
-            <button
-              data-enter-accept
-              onClick={() => setShowAcceptPrompt(true)}
-              disabled={loading}
-              className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
-            >
-              {loading ? 'Saving...' : 'Accept'}
-            </button>
-          </div>
-        </div>
+        <MasterFormFooter
+          onCancel={() => navigate('/master/create')}
+          onSubmit={() => setShowAcceptPrompt(true)}
+          cancelLabel="Quit"
+          loading={loading}
+        />
       </div>
 
       {/* Parent cost centre panel */}

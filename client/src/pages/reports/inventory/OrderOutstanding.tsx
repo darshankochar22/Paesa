@@ -447,7 +447,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   ]);
 
   const TitleBar = ({ title }: { title: string }) => (
-    <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+    <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
       <span className="font-bold text-sm tracking-wide">{title}</span>
       <span className="font-bold text-sm">{selectedCompany?.name ?? ''}</span>
       <span />
@@ -457,17 +457,17 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   // ── Dimension sub-menu ───────────────────────────────────────────────────
   if (level.step === 'menu') {
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
         <TitleBar title={heading} />
         <div className="max-w-sm mx-auto mt-10 w-full flex flex-col gap-0.5 px-4">
-          <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1 mb-1">
-            <button onClick={() => navigate('/')} className="hover:underline hover:text-zinc-900">
+          <div className="text-[11px] italic text-black flex flex-wrap gap-1 mb-1">
+            <button onClick={() => navigate('/')} className="hover:underline hover:text-black">
               Gateway
             </button>
             <span>&gt;</span>
             <button
               onClick={() => navigate('/reports/statements-of-inventory')}
-              className="hover:underline hover:text-zinc-900"
+              className="hover:underline hover:text-black"
             >
               Statements of Inventory
             </button>
@@ -478,7 +478,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
               key={d.key}
               onClick={() => openDim(d)}
               onMouseEnter={() => setMenuIdx(i)}
-              className={`text-left px-2 h-7 text-[12px] ${d.groupStart ? 'mt-3' : ''} ${i === menuIdx ? 'bg-[#e4e4e7] font-bold' : 'hover:bg-zinc-50'}`}
+              className={`text-left px-2 h-7 text-[12px] ${d.groupStart ? 'mt-3' : ''} ${i === menuIdx ? 'bg-black/[0.06] font-bold' : 'hover:bg-black/[0.03]'}`}
             >
               {d.label}
             </button>
@@ -497,7 +497,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   // ── Entity selection popup ───────────────────────────────────────────────
   if (level.step === 'select') {
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
         <TitleBar title={level.dim.selectTitle!} />
         <SelectionPopup
           title={level.dim.selectTitle!}
@@ -534,12 +534,12 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   // stacked block: scope · company · period · "<Sales> Orders Outstanding" ·
   // "Pending Orders". "Particulars" sits at the far left of the same band.
   const InfoBand = ({ context }: { context?: string }) => (
-    <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+    <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-gray-200 font-mono text-[11px]">
       <span className="font-bold tracking-wide">Particulars</span>
       <div className="text-right leading-tight">
         <div className="italic">{context ?? entityLabel}</div>
         <div className="font-bold">{selectedCompany?.name ?? ''}</div>
-        <div className="text-zinc-600">{periodLabel}</div>
+        <div className="text-black">{periodLabel}</div>
         <div className="italic">{orderWord} Orders Outstanding</div>
         <div className="font-bold">Pending Orders</div>
       </div>
@@ -551,21 +551,21 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
     const grandQty = summary.reduce((s, r) => s + r.qty, 0);
     const grandVal = summary.reduce((s, r) => s + r.value, 0);
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
         <TitleBar title={reportTitle} />
         <InfoBand />
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono">
-            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
               <tr>
                 <th className="px-3 py-1 text-left font-bold" />
-                <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
                   Quantity
                 </th>
-                <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-28 border-l border-gray-200">
                   Rate
                 </th>
-                <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
                   Value
                 </th>
               </tr>
@@ -573,19 +573,19 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={4} className="px-4 py-8 text-center text-black italic">
                     Loading…
                   </td>
                 </tr>
               ) : err ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-600">
+                  <td colSpan={4} className="px-4 py-8 text-center text-black">
                     {err}
                   </td>
                 </tr>
               ) : summary.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={4} className="px-4 py-8 text-center text-black italic">
                     No outstanding orders.
                   </td>
                 </tr>
@@ -598,16 +598,16 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                       setDrill({ key: r.key, name: r.name });
                       setRowIdx(0);
                     }}
-                    className={`border-b border-zinc-100 cursor-pointer ${i === sumIdx ? 'bg-[#e4e4e7] font-bold' : 'hover:bg-zinc-50'}`}
+                    className={`border-b border-gray-200 cursor-pointer ${i === sumIdx ? 'bg-black/[0.06] font-bold' : 'hover:bg-black/[0.03]'}`}
                   >
                     <td className="px-3 py-1">{r.name}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(r.qty, r.unit)}
                     </td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtNum(r.rate)}
                     </td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtNum(r.value)}
                     </td>
                   </tr>
@@ -616,31 +616,31 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
             </tbody>
           </table>
         </div>
-        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
+        <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
           <span className="flex-1">Grand Total</span>
-          <span className="w-32 text-right border-l border-zinc-300 pr-2">
+          <span className="w-32 text-right border-l border-gray-200 pr-2">
             {totalUnit !== null ? fmtQty(grandQty, totalUnit) : ''}
           </span>
-          <span className="w-28 border-l border-zinc-300" />
-          <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtNum(grandVal)}</span>
+          <span className="w-28 border-l border-gray-200" />
+          <span className="w-32 text-right border-l border-gray-200 pr-2">{fmtNum(grandVal)}</span>
         </div>
-        <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
+        <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
           <button
             onClick={() =>
               setLevel(level.dim.fetch ? { step: 'select', dim: level.dim } : { step: 'menu' })
             }
-            className="hover:text-zinc-900"
+            className="hover:text-black"
           >
             Q: Back
           </button>
-          <span className="text-zinc-400">Enter: Order-wise details</span>
+          <span className="text-black">Enter: Order-wise details</span>
         </div>
       </div>
     );
   }
 
   // ---- Order Details drill: outstanding + over-received sections -----------
-  const TH = 'px-2 py-1 font-bold text-[10px] bg-zinc-100 border-b border-zinc-300';
+  const TH = 'px-2 py-1 font-bold text-[10px] bg-black/[0.06] border-b border-gray-200';
   // Two Order Details modes: an item drilled from a summary (itemFixed → primary
   // column is the party) vs the "All Orders" direct list (primary column is the
   // item, with a "To: <party>" sub-line). Header for a drilled item is
@@ -675,16 +675,16 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   ].filter((s) => s.rows.length > 0);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
       <TitleBar title="Order Details" />
-      <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+      <div className="flex justify-between items-start px-3 py-1.5 bg-white border-b border-gray-200 font-mono text-[11px]">
         <div>
           {itemFixed && <div className="font-bold">{drillTitle}</div>}
-          <div className={itemFixed ? 'italic text-zinc-600' : 'font-bold'}>
+          <div className={itemFixed ? 'italic text-black' : 'font-bold'}>
             {orderWord} Orders (All Orders)
           </div>
         </div>
-        <span className="text-zinc-600">{periodLabel}</span>
+        <span className="text-black">{periodLabel}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -704,7 +704,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
           <tbody>
             {lineRows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={8} className="px-4 py-8 text-center text-black italic">
                   No outstanding orders.
                 </td>
               </tr>
@@ -735,7 +735,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                               r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)
                             }
                             title="Click: show order breakup · Double-click: open voucher"
-                            className={`cursor-pointer ${gi === rowIdx ? 'bg-[#e4e4e7] font-bold' : 'hover:bg-zinc-50'} ${itemFixed ? 'border-b border-zinc-100' : ''}`}
+                            className={`cursor-pointer ${gi === rowIdx ? 'bg-black/[0.06] font-bold' : 'hover:bg-black/[0.03]'} ${itemFixed ? 'border-b border-gray-200' : ''}`}
                           >
                             <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
                             <td className="px-2 py-1">{r.order_no}</td>
@@ -753,10 +753,10 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                             <td className="px-2 py-1 whitespace-nowrap">{dmy(r.due_on)}</td>
                           </tr>
                           {!itemFixed && (
-                            <tr className={gi === rowIdx ? 'bg-[#e4e4e7]' : ''}>
+                            <tr className={gi === rowIdx ? 'bg-black/[0.06]' : ''}>
                               <td />
                               <td />
-                              <td className="px-2 pb-1 italic text-zinc-500">
+                              <td className="px-2 pb-1 italic text-black">
                                 To: {r.party_name || '—'}
                               </td>
                               <td colSpan={5} />
@@ -765,7 +765,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                           {/* Row breakup dropdown — order voucher + its fulfilments */}
                           {expanded.has(moveKey(r)) &&
                             (moves[moveKey(r)] ?? []).map((m, mi) => (
-                              <tr key={`${gi}-m${mi}`} className="text-[10px] italic text-zinc-500">
+                              <tr key={`${gi}-m${mi}`} className="text-[10px] italic text-black">
                                 <td className="px-2 py-0.5 pl-6 whitespace-nowrap">
                                   {dmy(m.date)}
                                 </td>
@@ -778,13 +778,13 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
                             ))}
                           {expanded.has(moveKey(r)) && (
                             <tr>
-                              <td colSpan={8} className="border-b border-zinc-100" />
+                              <td colSpan={8} className="border-b border-gray-200" />
                             </tr>
                           )}
                         </React.Fragment>
                       );
                     })}
-                    <tr className="border-t border-zinc-300 font-bold">
+                    <tr className="border-t border-gray-200 font-bold">
                       <td />
                       <td />
                       <td />
@@ -802,14 +802,14 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
         </table>
       </div>
 
-      <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
+      <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
         <button
           onClick={() => (itemFixed ? setDrill(null) : setLevel({ step: 'menu' }))}
-          className="hover:text-zinc-900"
+          className="hover:text-black"
         >
           Q: Back
         </button>
-        <span className="text-zinc-400">Enter: Open order voucher</span>
+        <span className="text-black">Enter: Open order voucher</span>
       </div>
     </div>
   );

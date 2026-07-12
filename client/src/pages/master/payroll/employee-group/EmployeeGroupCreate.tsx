@@ -300,7 +300,6 @@ export default function EmployeeGroupCreate() {
       <MasterFormFooter
         onCancel={() => navigate('/master/create')}
         onSubmit={handleSubmit}
-        submitLabel="Create"
         loading={loading}
       />
 

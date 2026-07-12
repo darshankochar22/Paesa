@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { NotificationBanner } from '@/components/ui';
 import { createPortal } from 'react-dom';
 import type { BatchAllocation } from '../../types';
 import NewNumberPopup from './NewNumberPopup';
@@ -568,12 +569,7 @@ export default function OrderItemAllocationPopup({
       >
         <div className="space-y-3">
           {error && (
-            <div className="border border-gray-400 text-black text-xs px-3 py-2 flex justify-between items-center font-semibold">
-              <span>• {error}</span>
-              <button onClick={() => setError(null)} className="font-bold">
-                &times;
-              </button>
-            </div>
+            <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
           )}
 
           <div className="border border-gray-300">

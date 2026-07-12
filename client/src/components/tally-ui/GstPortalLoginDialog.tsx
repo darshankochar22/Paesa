@@ -107,7 +107,7 @@ export default function GstPortalLoginDialog({
 
   const row = (label: string, value: ReactNode) => (
     <div className="flex items-center gap-2 px-3 py-1 text-xs">
-      <span className="w-36 text-zinc-600">{label}</span>
+      <span className="w-36 text-black">{label}</span>
       <span>:</span>
       <span className="font-bold">{value}</span>
     </div>
@@ -117,17 +117,17 @@ export default function GstPortalLoginDialog({
     <div
       role="dialog"
       aria-label="GST Portal Login"
-      className="fixed inset-0 z-[10000] bg-black/10 flex items-start justify-center"
+      className="fixed inset-0 z-[10000] bg-black/[0.06] flex items-start justify-center"
     >
-      <div className="mt-24 w-[460px] bg-white border border-zinc-500 shadow-2xl">
-        <div className="flex items-center justify-between bg-zinc-800 text-white font-bold px-3 py-1.5 text-xs">
+      <div className="mt-24 w-[460px] bg-white border border-gray-200 shadow-2xl">
+        <div className="flex items-center justify-between bg-black text-white font-bold px-3 py-1.5 text-xs">
           <span>GST Portal Login (GSTN Session)</span>
-          <button onClick={onClose} className="hover:text-zinc-300" aria-label="Close">
+          <button onClick={onClose} className="hover:text-black" aria-label="Close">
             ✕
           </button>
         </div>
 
-        <div className="py-2 border-b border-zinc-200">
+        <div className="py-2 border-b border-gray-200">
           {row('GSTIN', status?.gstin || '—')}
           {row('Provider', status?.provider || '—')}
           {row('Mode', status?.sandbox === false ? 'Production' : 'Sandbox')}
@@ -147,7 +147,7 @@ export default function GstPortalLoginDialog({
           <div className="px-3 py-3 flex flex-col gap-2">
             {step === 'otp' && (
               <div className="flex items-center gap-2">
-                <span className="w-36 text-xs text-zinc-600">OTP</span>
+                <span className="w-36 text-xs text-black">OTP</span>
                 <Input
                   ref={otpRef}
                   value={otp}
@@ -162,12 +162,12 @@ export default function GstPortalLoginDialog({
                 />
               </div>
             )}
-            {msg && <div className="text-xs text-zinc-700">{msg}</div>}
+            {msg && <div className="text-xs text-black">{msg}</div>}
             {err && <div className="text-xs font-bold">{err}</div>}
           </div>
         )}
 
-        <div className="flex justify-end gap-2 px-3 py-2 border-t border-zinc-200 bg-zinc-50">
+        <div className="flex justify-end gap-2 px-3 py-2 border-t border-gray-200 bg-white">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={busy}>
             Cancel
           </Button>

@@ -68,28 +68,28 @@ export default function SelectionPopup({
   }, [index]);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center bg-zinc-900/30 pt-16 select-none">
+    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/30 pt-16 select-none">
       <div
         style={{ width: width ?? 420 }}
-        className="bg-white border border-zinc-400 shadow-xl flex flex-col max-h-[72vh]"
+        className="bg-white border border-gray-200 shadow-xl flex flex-col max-h-[72vh]"
       >
-        <div className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-semibold text-center">
+        <div className="px-3 py-1.5 bg-black text-white text-xs font-semibold text-center">
           {title}
         </div>
 
         {companyName && (
-          <div className="px-3 py-1.5 border-b border-zinc-300 bg-zinc-50 text-center text-[11px] font-semibold">
+          <div className="px-3 py-1.5 border-b border-gray-200 bg-white text-center text-[11px] font-semibold">
             {companyName}
           </div>
         )}
 
         {subtitle && (
-          <div className="px-3 py-1.5 border-b border-zinc-300 text-[11px] text-zinc-700">
+          <div className="px-3 py-1.5 border-b border-gray-200 text-[11px] text-black">
             {subtitle}
           </div>
         )}
 
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-300">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200">
           <span className="text-xs shrink-0">{fieldLabel}</span>
           <span className="text-xs">:</span>
           {onSearchChange ? (
@@ -97,23 +97,23 @@ export default function SelectionPopup({
               autoFocus
               value={search ?? ''}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="flex-1 border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs outline-none focus:border-zinc-500"
+              className="flex-1 border border-gray-200 bg-black/[0.06] px-2 py-1 text-xs outline-none focus:border-gray-200"
             />
           ) : (
-            <span className="flex-1 border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs font-bold truncate">
+            <span className="flex-1 border border-gray-200 bg-black/[0.06] px-2 py-1 text-xs font-bold truncate">
               {items[index]?.name ?? ''}
             </span>
           )}
         </div>
 
-        <div className="flex items-center justify-between px-3 py-1 border-b border-zinc-300 bg-zinc-50">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-600">
+        <div className="flex items-center justify-between px-3 py-1 border-b border-gray-200 bg-white">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-black">
             {listLabel}
           </span>
           {onCreate && (
             <button
               onClick={onCreate}
-              className="text-[10px] font-bold text-zinc-500 hover:text-zinc-900"
+              className="text-[10px] font-bold text-black hover:text-black"
             >
               Create
             </button>
@@ -121,7 +121,7 @@ export default function SelectionPopup({
         </div>
 
         {columns && columns.length > 0 && (
-          <div className="flex px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-zinc-600">
+          <div className="flex px-3 py-1 border-b border-gray-200 bg-white text-[10px] font-bold text-black">
             <span className="flex-1">{nameColLabel}</span>
             {columns.map((c, i) => (
               <span
@@ -136,9 +136,9 @@ export default function SelectionPopup({
 
         <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
-            <div className="px-3 py-4 text-xs text-zinc-400 italic">Loading…</div>
+            <div className="px-3 py-4 text-xs text-black italic">Loading…</div>
           ) : items.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-zinc-400 italic">{emptyText}</div>
+            <div className="px-3 py-4 text-xs text-black italic">{emptyText}</div>
           ) : (
             items.map((it, idx) => (
               <div
@@ -148,8 +148,8 @@ export default function SelectionPopup({
                 onDoubleClick={() => onAccept(idx)}
                 className={`flex px-3 py-1 text-xs cursor-pointer ${
                   idx === index
-                    ? 'bg-zinc-200 text-zinc-950 font-bold'
-                    : 'hover:bg-zinc-100 text-zinc-800'
+                    ? 'bg-black/[0.06] text-black font-bold'
+                    : 'hover:bg-black/[0.03] text-black'
                 }`}
               >
                 {columns && columns.length > 0 ? (
@@ -172,11 +172,11 @@ export default function SelectionPopup({
           )}
         </div>
 
-        <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600">
+        <div className="flex items-center gap-4 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black">
           <button
             onClick={() => !loading && items.length > 0 && onAccept(index)}
             className={
-              loading || items.length === 0 ? 'text-zinc-300 cursor-default' : 'hover:text-zinc-900'
+              loading || items.length === 0 ? 'text-black cursor-default' : 'hover:text-black'
             }
           >
             Enter: Accept

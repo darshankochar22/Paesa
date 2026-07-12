@@ -13,7 +13,7 @@ export interface PanelItem {
 
 export function OutstandingsRightPanel({ items }: { items: PanelItem[] }) {
   return (
-    <div className="w-32 bg-white border-l border-black flex flex-col gap-px p-1 select-none h-full shrink-0 overflow-y-auto">
+    <div className="w-32 bg-white border-l border-gray-200 flex flex-col gap-px p-1 select-none h-full shrink-0 overflow-y-auto">
       {items.map((it, i) =>
         it.spacer ? (
           <div key={`sp-${i}`} className="h-2 shrink-0" />
@@ -22,14 +22,14 @@ export function OutstandingsRightPanel({ items }: { items: PanelItem[] }) {
             key={`${it.key}-${i}`}
             onClick={it.onClick}
             disabled={!it.onClick}
-            className="w-full text-left px-1.5 py-1 border border-black/20 bg-white hover:bg-black/[0.06] active:bg-black/10 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+            className="w-full text-left px-1.5 py-1 border border-gray-200 bg-white hover:bg-black/[0.03] active:bg-black/[0.06] disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
           >
-            <span className="block font-bold text-[8px] leading-tight text-black/50">{it.key}</span>
+            <span className="block font-bold text-[8px] leading-tight text-black">{it.key}</span>
             <span className="block font-semibold text-[9px] leading-tight mt-0.5 text-black line-clamp-1">
               {it.label}
             </span>
           </button>
-        )
+        ),
       )}
     </div>
   );

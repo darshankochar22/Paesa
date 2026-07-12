@@ -6,7 +6,7 @@ import type {
   ClassAllocationRow,
   ClassAdditionalEntryRow,
 } from '@/types/entities/VoucherType';
-import { PageTitleBar, MasterFormFooter } from '@/components/ui';
+import { PageTitleBar, MasterFormFooter, NotificationBanner } from '@/components/ui';
 import { useCompany } from '@/context/CompanyContext';
 import { isTaxFeatureEnabled, type TaxFeature } from '@/lib/taxFeatures';
 import SelectionPopup, { type SelectionItem } from '@/pages/reports/inventory/SelectionPopup';
@@ -326,12 +326,7 @@ export default function VoucherClassConfigPopup({
           </div>
 
           {error && (
-            <div className="border border-zinc-400 text-xs px-3 py-2 flex justify-between items-center">
-              <span>• {error}</span>
-              <button onClick={() => setError(null)} className="font-bold">
-                &times;
-              </button>
-            </div>
+            <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
           )}
 
           {/* 1. Group restriction */}

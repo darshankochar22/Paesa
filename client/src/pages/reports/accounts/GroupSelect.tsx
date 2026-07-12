@@ -58,37 +58,35 @@ export default function GroupSelect() {
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
       <CardHeader className="gap-1 pb-1">
-        <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1">
-          <Link to="/" className="hover:underline hover:text-zinc-900">
+        <div className="text-[11px] italic text-black flex flex-wrap gap-1">
+          <Link to="/" className="hover:underline hover:text-black">
             Gateway
           </Link>
           <span>&gt;</span>
-          <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">
+          <Link to="/reports/display-more" className="hover:underline hover:text-black">
             Display More Reports
           </Link>
           <span>&gt;</span>
-          <Link to="/reports/account-books" className="hover:underline hover:text-zinc-900">
+          <Link to="/reports/account-books" className="hover:underline hover:text-black">
             Account Books
           </Link>
         </div>
         <CardTitle className="text-base font-semibold">Select Group</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="px-4 py-1.5 bg-zinc-100 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-500 select-none">
+        <div className="px-4 py-1.5 bg-black/[0.06] border-b border-gray-200 text-[10px] font-bold uppercase tracking-wider text-black select-none">
           Name of Group
         </div>
         <div
           onClick={() => navigate('/master/create/group')}
-          className="px-4 py-1.5 cursor-pointer text-[12px] font-mono font-bold select-none border-b border-zinc-200 text-right hover:bg-zinc-50 transition-colors"
+          className="px-4 py-1.5 cursor-pointer text-[12px] font-mono font-bold select-none border-b border-gray-200 text-right hover:bg-black/[0.03] transition-colors"
         >
           Create
         </div>
         {loading ? (
-          <div className="px-4 py-6 text-zinc-400 text-center font-mono text-[11px]">
-            Loading...
-          </div>
+          <div className="px-4 py-6 text-black text-center font-mono text-[11px]">Loading...</div>
         ) : groups.length === 0 ? (
-          <div className="px-4 py-6 text-zinc-400 text-center font-mono text-[11px]">
+          <div className="px-4 py-6 text-black text-center font-mono text-[11px]">
             No groups found
           </div>
         ) : (
@@ -100,10 +98,10 @@ export default function GroupSelect() {
                   key={group.group_id}
                   onClick={() => handleSelect(group)}
                   onMouseEnter={() => setSelectedId(group.group_id)}
-                  className={`px-4 py-1 cursor-pointer text-[12px] font-mono select-none border-b border-zinc-50 transition-colors ${
+                  className={`px-4 py-1 cursor-pointer text-[12px] font-mono select-none border-b border-gray-200 transition-colors ${
                     isSelected
-                      ? 'bg-[#e4e4e7] text-zinc-950 font-bold'
-                      : 'text-zinc-700 hover:bg-[#e4e4e7] hover:text-zinc-950'
+                      ? 'bg-black/[0.06] text-black font-bold'
+                      : 'text-black hover:bg-black/[0.03] hover:text-black'
                   }`}
                 >
                   {group.name}

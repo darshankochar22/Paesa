@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, RightActionPanel } from '@/components/ui';
+import { PageTitleBar, RightActionPanel, NotificationBanner } from '@/components/ui';
 
 const inputCls =
   'bg-transparent outline-none text-[11px] font-mono font-bold text-zinc-950 w-full px-1 py-0.5 border border-transparent focus:border-zinc-300 rounded';
@@ -152,26 +152,10 @@ export default function PriceLevelsAlter() {
       <PageTitleBar title="Alter Price Levels" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-4 py-2 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
-          <span>• {success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="text-green-500 hover:text-green-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">

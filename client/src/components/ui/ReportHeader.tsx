@@ -38,16 +38,16 @@ export default function ReportHeader({
   return (
     <div
       className={cn(
-        'bg-zinc-900 text-white px-3 py-1.5 flex items-center justify-between select-none',
+        'bg-black text-white px-3 py-1.5 flex items-center justify-between select-none',
         className,
       )}
     >
       <div className="flex flex-col min-w-0">
         {breadcrumb && breadcrumb.length > 0 && (
-          <div className="flex items-center gap-1 text-[9px] text-zinc-400 mb-0.5">
+          <div className="flex items-center gap-1 text-[9px] text-white mb-0.5">
             {breadcrumb.map((c, i) => (
               <React.Fragment key={i}>
-                {i > 0 && <span className="text-zinc-600">/</span>}
+                {i > 0 && <span className="text-white">/</span>}
                 {c.to ? (
                   <button
                     onClick={() => navigate(c.to!)}
@@ -64,12 +64,12 @@ export default function ReportHeader({
         )}
         <div className="flex items-baseline gap-2 min-w-0">
           <span className="text-xs font-semibold uppercase tracking-wider truncate">{title}</span>
-          {companyName && <span className="text-[10px] text-zinc-400 truncate">{companyName}</span>}
+          {companyName && <span className="text-[10px] text-white truncate">{companyName}</span>}
         </div>
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        {periodLabel && <span className="text-[10px] text-zinc-400 font-mono">{periodLabel}</span>}
+        {periodLabel && <span className="text-[10px] text-white font-mono">{periodLabel}</span>}
         {right}
       </div>
     </div>

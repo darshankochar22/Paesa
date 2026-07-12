@@ -312,7 +312,7 @@ export default function FundsFlowStatement() {
             x={cx}
             y={height - 6}
             textAnchor="middle"
-            className="fill-zinc-500 font-mono text-[9px]"
+            className="fill-black font-mono text-[9px]"
             style={{ fontSize: 9 }}
           >
             {monthLabels[idx]}
@@ -332,7 +332,7 @@ export default function FundsFlowStatement() {
             y={y + 3}
             textAnchor="end"
             style={{ fontSize: 8 }}
-            className="fill-zinc-400 font-mono"
+            className="fill-black font-mono"
           >
             {v === 0 ? '0' : v > 0 ? `+${(v / 1000).toFixed(0)}k` : `${(v / 1000).toFixed(0)}k`}
           </text>
@@ -341,13 +341,12 @@ export default function FundsFlowStatement() {
     });
 
     return (
-      <div className="bg-zinc-50 border-t border-zinc-200 shrink-0 px-2 pb-1">
-        <div className="text-[10px] font-bold text-zinc-500 mt-1 mb-0.5 font-mono uppercase tracking-wider pl-12 flex gap-4">
+      <div className="bg-white border-t border-gray-200 shrink-0 px-2 pb-1">
+        <div className="text-[10px] font-bold text-black mt-1 mb-0.5 font-mono uppercase tracking-wider pl-12 flex gap-4">
           <span>Working Capital — Monthly Funds Flow</span>
-          <span className="flex items-center gap-1 normal-case font-normal text-zinc-400">
-            <span className="inline-block w-3 h-2 bg-[#52525b] opacity-85 rounded-sm"></span>{' '}
-            Increase
-            <span className="inline-block w-3 h-2 bg-[#71717a] opacity-85 rounded-sm ml-2"></span>{' '}
+          <span className="flex items-center gap-1 normal-case font-normal text-black">
+            <span className="inline-block w-3 h-2 bg-black opacity-85 rounded-sm"></span> Increase
+            <span className="inline-block w-3 h-2 bg-black opacity-85 rounded-sm ml-2"></span>{' '}
             Decrease
           </span>
         </div>
@@ -464,7 +463,7 @@ export default function FundsFlowStatement() {
               setSelectedMonth(null);
               setFocusedIndex(0);
             }}
-            className="text-zinc-700 hover:underline font-bold text-[10px] uppercase mb-1"
+            className="text-black hover:underline font-bold text-[10px] uppercase mb-1"
           >
             ◀ Back to Monthly Summary
           </button>
@@ -475,42 +474,42 @@ export default function FundsFlowStatement() {
       <div className="flex-1 flex h-full min-h-0">
         <div className="flex-grow flex flex-col min-h-0 bg-white">
           {error && (
-            <div className="bg-zinc-100 text-zinc-800 text-[11px] p-2 border-b border-zinc-200">
+            <div className="bg-black/[0.06] text-black text-[11px] p-2 border-b border-gray-200">
               {error}
             </div>
           )}
 
           {loading ? (
-            <div className="flex-grow flex items-center justify-center italic text-zinc-500 py-10 font-mono text-[11px]">
+            <div className="flex-grow flex items-center justify-center italic text-black py-10 font-mono text-[11px]">
               Loading Funds Flow data...
             </div>
           ) : viewMode === 'monthly' ? (
             /* ──────────────── MONTHLY SUMMARY VIEW ──────────────── */
             <>
               <div className="flex-grow overflow-auto min-h-0">
-                <table className="w-full border-collapse font-mono text-[11px] select-none text-zinc-800">
-                  <thead className="sticky top-0 bg-[#18181b] text-white z-10">
-                    <tr className="border-b border-[#18181b]">
+                <table className="w-full border-collapse font-mono text-[11px] select-none text-black">
+                  <thead className="sticky top-0 bg-white text-black border-b border-gray-300 z-10">
+                    <tr className="border-b border-gray-200">
                       <th className="px-3 py-1.5 text-left font-bold w-[40%]">Particulars</th>
                       <th
                         colSpan={2}
-                        className="px-3 py-1 text-center font-bold border-l border-[#18181b] border-b border-[#18181b]"
+                        className="px-3 py-1 text-center font-bold border-l border-gray-200 border-b border-gray-200"
                       >
                         Working Capital
                       </th>
-                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#18181b]">
+                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-gray-200">
                         Funds Flow
                       </th>
                     </tr>
                     <tr>
                       <th></th>
-                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#18181b]">
+                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-gray-200">
                         Opening
                       </th>
-                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#18181b]">
+                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-gray-200">
                         Closing
                       </th>
-                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-[#18181b]">
+                      <th className="px-3 py-1 text-right font-bold w-[20%] border-l border-gray-200">
                         Nett Flow
                       </th>
                     </tr>
@@ -525,17 +524,17 @@ export default function FundsFlowStatement() {
                           onClick={() => setFocusedIndex(idx)}
                           onDoubleClick={() => handleRowAction(idx)}
                           className={cn(
-                            'border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer',
-                            isFocused ? 'bg-[#d4d4d8] text-zinc-900 font-bold' : '',
+                            'border-b border-gray-200 hover:bg-black/[0.03] transition-colors cursor-pointer',
+                            isFocused ? 'bg-black/20 text-black font-bold' : '',
                           )}
                         >
-                          <td className="px-3 py-1.5 text-left border-r border-zinc-100 font-semibold">
+                          <td className="px-3 py-1.5 text-left border-r border-gray-200 font-semibold">
                             {row.name}
                           </td>
-                          <td className="px-3 py-1.5 text-right border-r border-zinc-100 text-zinc-700">
+                          <td className="px-3 py-1.5 text-right border-r border-gray-200 text-black">
                             {fmt(row.opening)}
                           </td>
-                          <td className="px-3 py-1.5 text-right border-r border-zinc-100 text-zinc-700">
+                          <td className="px-3 py-1.5 text-right border-r border-gray-200 text-black">
                             {fmt(row.closing)}
                           </td>
                           <td
@@ -543,10 +542,10 @@ export default function FundsFlowStatement() {
                               'px-3 py-1.5 text-right font-semibold',
                               !isFocused &&
                                 (isNeg
-                                  ? 'text-zinc-700'
+                                  ? 'text-black'
                                   : row.netChange > 0
-                                    ? 'text-zinc-700'
-                                    : 'text-zinc-400'),
+                                    ? 'text-black'
+                                    : 'text-black'),
                             )}
                           >
                             {row.netChange !== 0 ? (
@@ -562,23 +561,23 @@ export default function FundsFlowStatement() {
                       );
                     })}
                     {/* Grand Total */}
-                    <tr className="border-t-2 border-b-2 border-zinc-800 bg-zinc-50 font-bold text-zinc-900 sticky bottom-0">
+                    <tr className="border-t-2 border-b-2 border-gray-200 bg-white font-bold text-black sticky bottom-0">
                       <td className="px-3 py-2 text-left uppercase font-mono tracking-wide">
                         Grand Total
                       </td>
-                      <td className="px-3 py-2 text-right border-r border-zinc-300">
+                      <td className="px-3 py-2 text-right border-r border-gray-200">
                         {fmt(totalOpening)}
                       </td>
-                      <td className="px-3 py-2 text-right border-r border-zinc-300">
+                      <td className="px-3 py-2 text-right border-r border-gray-200">
                         {fmt(totalClosing)}
                       </td>
                       <td
                         className={cn(
                           'px-3 py-2 text-right',
                           totalNetChange < 0
-                            ? 'text-zinc-800'
+                            ? 'text-black'
                             : totalNetChange > 0
-                              ? 'text-zinc-700'
+                              ? 'text-black'
                               : '',
                         )}
                       >
@@ -606,25 +605,25 @@ export default function FundsFlowStatement() {
             detailData && (
               <div className="flex-grow overflow-auto min-h-0 flex flex-col">
                 {/* Company name + period sub-header */}
-                <div className="flex border-b border-zinc-300 bg-white sticky top-0 z-10 font-mono text-[11px]">
-                  <div className="flex-1 px-3 py-1.5 border-r border-zinc-300">
-                    <span className="font-bold text-zinc-900">Sources</span>
-                    <span className="ml-3 text-zinc-500">{companyName}</span>
-                    <span className="ml-2 text-zinc-400 text-[10px]">{detailPeriodLabel}</span>
+                <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10 font-mono text-[11px]">
+                  <div className="flex-1 px-3 py-1.5 border-r border-gray-200">
+                    <span className="font-bold text-black">Sources</span>
+                    <span className="ml-3 text-black">{companyName}</span>
+                    <span className="ml-2 text-black text-[10px]">{detailPeriodLabel}</span>
                   </div>
                   <div className="flex-1 px-3 py-1.5">
-                    <span className="font-bold text-zinc-900">Applications</span>
-                    <span className="ml-3 text-zinc-500">{companyName}</span>
-                    <span className="ml-2 text-zinc-400 text-[10px]">{detailPeriodLabel}</span>
+                    <span className="font-bold text-black">Applications</span>
+                    <span className="ml-3 text-black">{companyName}</span>
+                    <span className="ml-2 text-black text-[10px]">{detailPeriodLabel}</span>
                   </div>
                 </div>
 
                 {/* Two-column T-format body */}
                 <div className="flex flex-grow min-h-0">
                   {/* Sources column */}
-                  <div className="flex-1 border-r border-zinc-300 flex flex-col">
-                    <table className="w-full border-collapse font-mono text-[11px] text-zinc-800">
-                      <thead className="bg-[#18181b] text-white">
+                  <div className="flex-1 border-r border-gray-200 flex flex-col">
+                    <table className="w-full border-collapse font-mono text-[11px] text-black">
+                      <thead className="bg-white text-black border-b border-gray-300">
                         <tr>
                           <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
                           <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
@@ -640,21 +639,19 @@ export default function FundsFlowStatement() {
                                 ? `View ledger: ${s.particulars}`
                                 : 'View Profit & Loss for this period'
                             }
-                            className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
+                            className="border-b border-gray-200 hover:bg-black/[0.03] cursor-pointer transition-colors"
                           >
                             <td className="px-3 py-1.5 pl-5">{s.particulars}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-700">
-                              {fmt(s.amount)}
-                            </td>
+                            <td className="px-3 py-1.5 text-right text-black">{fmt(s.amount)}</td>
                           </tr>
                         ))}
                         {/* Net decrease in working capital is the balancing source. */}
                         {detailData.workingCapitalChange < 0 && (
-                          <tr className="border-b border-zinc-200 bg-[#d4d4d8]/20">
-                            <td className="px-3 py-1.5 pl-5 font-semibold text-zinc-800">
+                          <tr className="border-b border-gray-200 bg-black/20/20">
+                            <td className="px-3 py-1.5 pl-5 font-semibold text-black">
                               Net Decrease in Working Capital
                             </td>
-                            <td className="px-3 py-1.5 text-right font-semibold text-zinc-700">
+                            <td className="px-3 py-1.5 text-right font-semibold text-black">
                               {fmt(Math.abs(detailData.workingCapitalChange))}
                             </td>
                           </tr>
@@ -662,17 +659,14 @@ export default function FundsFlowStatement() {
                         {detailData.sources.length === 0 &&
                           detailData.workingCapitalChange >= 0 && (
                             <tr>
-                              <td
-                                colSpan={2}
-                                className="px-3 py-4 text-zinc-400 italic text-center"
-                              >
+                              <td colSpan={2} className="px-3 py-4 text-black italic text-center">
                                 No sources
                               </td>
                             </tr>
                           )}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t-2 border-zinc-700 bg-zinc-100 font-bold text-zinc-900">
+                        <tr className="border-t-2 border-black bg-black/[0.06] font-bold text-black">
                           <td className="px-3 py-2 uppercase tracking-wide">Total</td>
                           <td className="px-3 py-2 text-right">
                             {fmt(Math.max(detailData.totalSources, detailData.totalApplications))}
@@ -684,8 +678,8 @@ export default function FundsFlowStatement() {
 
                   {/* Applications column */}
                   <div className="flex-1 flex flex-col">
-                    <table className="w-full border-collapse font-mono text-[11px] text-zinc-800">
-                      <thead className="bg-[#18181b] text-white">
+                    <table className="w-full border-collapse font-mono text-[11px] text-black">
+                      <thead className="bg-white text-black border-b border-gray-300">
                         <tr>
                           <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
                           <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
@@ -701,21 +695,19 @@ export default function FundsFlowStatement() {
                                 ? `View ledger: ${a.particulars}`
                                 : 'View Profit & Loss for this period'
                             }
-                            className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
+                            className="border-b border-gray-200 hover:bg-black/[0.03] cursor-pointer transition-colors"
                           >
                             <td className="px-3 py-1.5 pl-5">{a.particulars}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-700">
-                              {fmt(a.amount)}
-                            </td>
+                            <td className="px-3 py-1.5 text-right text-black">{fmt(a.amount)}</td>
                           </tr>
                         ))}
                         {/* Net increase in working capital is the balancing application. */}
                         {detailData.workingCapitalChange > 0 && (
-                          <tr className="border-b border-zinc-200 bg-[#d4d4d8]/20">
-                            <td className="px-3 py-1.5 pl-5 font-semibold text-zinc-800">
+                          <tr className="border-b border-gray-200 bg-black/20/20">
+                            <td className="px-3 py-1.5 pl-5 font-semibold text-black">
                               Net Increase in Working Capital
                             </td>
-                            <td className="px-3 py-1.5 text-right font-semibold text-zinc-700">
+                            <td className="px-3 py-1.5 text-right font-semibold text-black">
                               {fmt(detailData.workingCapitalChange)}
                             </td>
                           </tr>
@@ -723,17 +715,14 @@ export default function FundsFlowStatement() {
                         {detailData.applications.length === 0 &&
                           detailData.workingCapitalChange <= 0 && (
                             <tr>
-                              <td
-                                colSpan={2}
-                                className="px-3 py-4 text-zinc-400 italic text-center"
-                              >
+                              <td colSpan={2} className="px-3 py-4 text-black italic text-center">
                                 No applications
                               </td>
                             </tr>
                           )}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t-2 border-zinc-700 bg-zinc-100 font-bold text-zinc-900">
+                        <tr className="border-t-2 border-black bg-black/[0.06] font-bold text-black">
                           <td className="px-3 py-2 uppercase tracking-wide">Total</td>
                           <td className="px-3 py-2 text-right">
                             {fmt(Math.max(detailData.totalSources, detailData.totalApplications))}
@@ -745,18 +734,18 @@ export default function FundsFlowStatement() {
                 </div>
 
                 {/* Working Capital footer — matching img3 bottom rows */}
-                <div className="border-t-2 border-zinc-400 bg-zinc-50 shrink-0">
-                  <table className="w-full border-collapse font-mono text-[11px] text-zinc-800">
+                <div className="border-t-2 border-black bg-white shrink-0">
+                  <table className="w-full border-collapse font-mono text-[11px] text-black">
                     <thead>
-                      <tr className="bg-zinc-200 text-zinc-700 text-[10px] uppercase">
+                      <tr className="bg-black/[0.06] text-black text-[10px] uppercase">
                         <th className="px-3 py-1 text-left w-[40%]">Particulars</th>
-                        <th className="px-3 py-1 text-right w-[20%] border-l border-zinc-300">
+                        <th className="px-3 py-1 text-right w-[20%] border-l border-gray-200">
                           Opening Balance
                         </th>
-                        <th className="px-3 py-1 text-right w-[20%] border-l border-zinc-300">
+                        <th className="px-3 py-1 text-right w-[20%] border-l border-gray-200">
                           Closing Balance
                         </th>
-                        <th className="px-3 py-1 text-right w-[20%] border-l border-zinc-300">
+                        <th className="px-3 py-1 text-right w-[20%] border-l border-gray-200">
                           Wkg Cap Increase
                         </th>
                       </tr>
@@ -769,18 +758,18 @@ export default function FundsFlowStatement() {
                         }
                         title={detailData.caGroupId ? 'View Current Assets group' : undefined}
                         className={cn(
-                          'border-b border-zinc-200 transition-colors',
-                          detailData.caGroupId && 'cursor-pointer hover:bg-zinc-100',
+                          'border-b border-gray-200 transition-colors',
+                          detailData.caGroupId && 'cursor-pointer hover:bg-black/[0.03]',
                         )}
                       >
                         <td className="px-3 py-1.5">Current Assets</td>
-                        <td className="px-3 py-1.5 text-right text-zinc-600">
+                        <td className="px-3 py-1.5 text-right text-black">
                           {fmt(detailData.currentAssetsOpening)} Dr
                         </td>
-                        <td className="px-3 py-1.5 text-right text-zinc-600">
+                        <td className="px-3 py-1.5 text-right text-black">
                           {fmt(detailData.currentAssetsClosing)} Dr
                         </td>
-                        <td className="px-3 py-1.5 text-right text-zinc-700 font-semibold">
+                        <td className="px-3 py-1.5 text-right text-black font-semibold">
                           {detailData.currentAssetsClosing - detailData.currentAssetsOpening !== 0
                             ? fmt(detailData.currentAssetsClosing - detailData.currentAssetsOpening)
                             : ''}
@@ -793,18 +782,18 @@ export default function FundsFlowStatement() {
                         }
                         title={detailData.clGroupId ? 'View Current Liabilities group' : undefined}
                         className={cn(
-                          'border-b border-zinc-200 transition-colors',
-                          detailData.clGroupId && 'cursor-pointer hover:bg-zinc-100',
+                          'border-b border-gray-200 transition-colors',
+                          detailData.clGroupId && 'cursor-pointer hover:bg-black/[0.03]',
                         )}
                       >
                         <td className="px-3 py-1.5">Current Liabilities</td>
-                        <td className="px-3 py-1.5 text-right text-zinc-600">
+                        <td className="px-3 py-1.5 text-right text-black">
                           {fmt(detailData.currentLiabilitiesOpening)} Cr
                         </td>
-                        <td className="px-3 py-1.5 text-right text-zinc-600">
+                        <td className="px-3 py-1.5 text-right text-black">
                           {fmt(detailData.currentLiabilitiesClosing)} Cr
                         </td>
-                        <td className="px-3 py-1.5 text-right text-zinc-700 font-semibold">
+                        <td className="px-3 py-1.5 text-right text-black font-semibold">
                           {detailData.currentLiabilitiesClosing -
                             detailData.currentLiabilitiesOpening !==
                           0
@@ -812,7 +801,7 @@ export default function FundsFlowStatement() {
                             : ''}
                         </td>
                       </tr>
-                      <tr className="font-bold text-zinc-900 bg-zinc-100 border-t border-zinc-400">
+                      <tr className="font-bold text-black bg-black/[0.06] border-t border-gray-200">
                         <td className="px-3 py-1.5">Working Capital</td>
                         <td className="px-3 py-1.5 text-right">
                           {fmt(detailData.workingCapitalOpening)} Dr
@@ -823,7 +812,7 @@ export default function FundsFlowStatement() {
                         <td
                           className={cn(
                             'px-3 py-1.5 text-right',
-                            detailData.workingCapitalChange < 0 ? 'text-zinc-800' : 'text-zinc-700',
+                            detailData.workingCapitalChange < 0 ? 'text-black' : 'text-black',
                           )}
                         >
                           {detailData.workingCapitalChange < 0

@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { VoucherTypeType } from "@/types/entities/VoucherType";
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { VoucherTypeType } from '@/types/entities/VoucherType';
 
 interface VoucherTypeWithConfig extends VoucherTypeType {
   config?: {
@@ -25,11 +26,14 @@ export default function VoucherTypeCOA() {
   const [vts, setVts] = useState<VoucherTypeWithConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showChangeView, setShowChangeView] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -44,20 +48,24 @@ export default function VoucherTypeCOA() {
               try {
                 const configRes = await window.api.voucherType.getConfig(vt.vt_id!);
                 return { ...vt, config: configRes.success ? configRes.config : undefined };
-              } catch { return vt; }
-            })
+              } catch {
+                return vt;
+              }
+            }),
           );
           if (!cancelled) setVts(enriched);
         } else {
-          if (!cancelled) setError(res.error || "Failed to load voucher types.");
+          if (!cancelled) setError(res.error || 'Failed to load voucher types.');
         }
       } catch {
-        if (!cancelled) setError("Failed to load voucher types.");
+        if (!cancelled) setError('Failed to load voucher types.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [companyId]);
 
   const filteredVTs = useMemo(() => {
@@ -67,37 +75,45 @@ export default function VoucherTypeCOA() {
       (vt) =>
         vt.name.toLowerCase().includes(q) ||
         (vt.short_name && vt.short_name.toLowerCase().includes(q)) ||
-        (vt.category && vt.category.toLowerCase().includes(q))
+        (vt.category && vt.category.toLowerCase().includes(q)),
     );
   }, [vts, searchQuery]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); navigate("/master/coa"); }
-      if (e.ctrlKey && e.key === "h") { e.preventDefault(); setShowChangeView((p) => !p); }
-      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/create/voucher-type"); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/master/coa');
+      }
+      if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault();
+        setShowChangeView((p) => !p);
+      }
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        navigate('/master/create/voucher-type');
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   const changeViewItems = [
-    { label: "Ledgers",               path: "/master/coa/ledger"            },
-    { label: "Groups",                path: "/master/coa/group"             },
-    { label: "Currencies",            path: "/master/coa/currency"          },
-    { label: "Voucher Types",         path: "/master/coa/voucher-type"      },
-    { label: "GST Registrations",     path: "/master/coa/gst-registration"  },
-    { label: "GST Classifications",   path: "/master/coa/gst-classification"},
-    { label: "Stock Groups & Items",  path: "/master/coa/stock-group"       },
-    { label: "Stock Categories",      path: "/master/coa/stock-category"    },
-    { label: "Godowns",               path: "/master/coa/godown"            },
-    { label: "Units of Measure",      path: "/master/coa/unit"              },
-    { label: "Employees",             path: "/master/coa/employee"          },
+    { label: 'Ledgers', path: '/master/coa/ledger' },
+    { label: 'Groups', path: '/master/coa/group' },
+    { label: 'Currencies', path: '/master/coa/currency' },
+    { label: 'Voucher Types', path: '/master/coa/voucher-type' },
+    { label: 'GST Registrations', path: '/master/coa/gst-registration' },
+    { label: 'GST Classifications', path: '/master/coa/gst-classification' },
+    { label: 'Stock Groups & Items', path: '/master/coa/stock-group' },
+    { label: 'Stock Categories', path: '/master/coa/stock-category' },
+    { label: 'Godowns', path: '/master/coa/godown' },
+    { label: 'Units of Measure', path: '/master/coa/unit' },
+    { label: 'Employees', path: '/master/coa/employee' },
   ];
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800 font-sans">
-
       <div className="px-4 py-2 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/master/coa" className="text-xs text-zinc-500 hover:text-zinc-800 font-medium">
@@ -106,7 +122,7 @@ export default function VoucherTypeCOA() {
           <span className="text-sm font-semibold text-zinc-700">Voucher Types</span>
         </div>
         <button
-          onClick={() => navigate("/master/create/voucher-type")}
+          onClick={() => navigate('/master/create/voucher-type')}
           className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium shadow-sm"
         >
           + Create
@@ -114,15 +130,11 @@ export default function VoucherTypeCOA() {
       </div>
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 font-bold">&times;</button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
-
           <div className="px-4 py-1.5 border-b border-zinc-100 flex items-center gap-2">
             <span className="text-xs text-zinc-400 font-medium">Search:</span>
             <input
@@ -133,7 +145,10 @@ export default function VoucherTypeCOA() {
               autoFocus
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="text-[10px] text-zinc-400 hover:text-zinc-600">
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-[10px] text-zinc-400 hover:text-zinc-600"
+              >
                 Clear
               </button>
             )}
@@ -141,9 +156,13 @@ export default function VoucherTypeCOA() {
 
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading voucher types...</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                Loading voucher types...
+              </div>
             ) : filteredVTs.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching voucher types found.</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                No matching voucher types found.
+              </div>
             ) : (
               filteredVTs.map((node) => {
                 const nodeId = node.vt_id!;
@@ -152,10 +171,10 @@ export default function VoucherTypeCOA() {
                   <div key={nodeId}>
                     <div
                       className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
-                      onClick={() => navigate("/master/alter/voucher-type")}
+                      onClick={() => navigate('/master/alter/voucher-type')}
                     >
                       <span className="w-16 text-sm font-bold text-zinc-600">
-                        {node.short_name || "—"}
+                        {node.short_name || '—'}
                       </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
@@ -166,7 +185,9 @@ export default function VoucherTypeCOA() {
                         )}
                       </span>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-zinc-400 font-bold uppercase">{node.category}</span>
+                        <span className="text-xs text-zinc-400 font-bold uppercase">
+                          {node.category}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -184,14 +205,14 @@ export default function VoucherTypeCOA() {
             Ctrl+H Change View
           </button>
           <button
-            onClick={() => navigate("/master/create/voucher-type")}
+            onClick={() => navigate('/master/create/voucher-type')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+C Create
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit
@@ -203,7 +224,6 @@ export default function VoucherTypeCOA() {
         <span>{vts.length} voucher types</span>
         <span>Startup ERP</span>
       </div>
-
 
       {showChangeView && (
         <div

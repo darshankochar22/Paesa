@@ -58,14 +58,14 @@ export default function ScaleFactorPopup({ current, onSelect, onClose }: Props) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/20"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/[0.06]"
       onClick={onClose}
     >
       <div
-        className="mt-24 w-64 bg-white border border-zinc-900 shadow-lg flex flex-col select-none"
+        className="mt-24 w-64 bg-white border border-gray-200 shadow-lg flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+        <div className="px-3 py-1.5 bg-white border-b-2 border-gray-200">
           <span className="font-bold text-xs tracking-wide">Basis of Values — Scale Factor</span>
         </div>
         <div className="max-h-80 overflow-y-auto">
@@ -75,21 +75,23 @@ export default function ScaleFactorPopup({ current, onSelect, onClose }: Props) 
               onClick={() => onSelect(s)}
               onMouseEnter={() => setIdx(i)}
               className={`w-full text-left px-4 py-1 text-[11px] flex items-center justify-between ${
-                i === idx ? 'bg-zinc-200 text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'
+                i === idx
+                  ? 'bg-black/[0.06] text-black font-bold'
+                  : 'hover:bg-black/[0.03] text-black'
               }`}
             >
               <span>{s.label}</span>
               {s.label === current.label && (
-                <span className="text-[9px] text-zinc-500">(current)</span>
+                <span className="text-[9px] text-black">(current)</span>
               )}
             </button>
           ))}
         </div>
-        <div className="px-3 py-1 border-t border-zinc-200 flex justify-end gap-3 text-[10px] font-semibold text-zinc-600">
-          <button onClick={onClose} className="hover:text-zinc-900">
+        <div className="px-3 py-1 border-t border-gray-200 flex justify-end gap-3 text-[10px] font-semibold text-black">
+          <button onClick={onClose} className="hover:text-black">
             Esc: Quit
           </button>
-          <span className="text-zinc-400">Enter: Accept</span>
+          <span className="text-black">Enter: Accept</span>
         </div>
       </div>
     </div>

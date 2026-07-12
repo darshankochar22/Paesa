@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { MasterSelectionPanel, type TableColumn } from "@/components/ui";
-import ScenarioForm from "./ScenarioForm";
-import type { VoucherTypeType, ScenarioType } from "@/types/api";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { MasterSelectionPanel, NotificationBanner, type TableColumn } from '@/components/ui';
+import ScenarioForm from './ScenarioForm';
+import type { VoucherTypeType, ScenarioType } from '@/types/api';
 
 export default function ScenarioAlter() {
   const navigate = useNavigate();
@@ -43,7 +43,7 @@ export default function ScenarioAlter() {
       setSelected(null);
       load();
     } else {
-      window.alert(res.error || "Failed to delete scenario.");
+      window.alert(res.error || 'Failed to delete scenario.');
     }
   };
 
@@ -54,17 +54,19 @@ export default function ScenarioAlter() {
   if (!selected) {
     const columns: TableColumn[] = [
       {
-        key: "name",
-        label: "Name",
-        span: "col-span-7",
-        render: (r: ScenarioType) => <span className="font-bold text-zinc-900 text-xs">{r.name}</span>,
+        key: 'name',
+        label: 'Name',
+        span: 'col-span-7',
+        render: (r: ScenarioType) => (
+          <span className="font-bold text-zinc-900 text-xs">{r.name}</span>
+        ),
       },
       {
-        key: "actuals",
-        label: "Include actuals",
-        span: "col-span-5",
+        key: 'actuals',
+        label: 'Include actuals',
+        span: 'col-span-5',
         render: (r: ScenarioType) => (
-          <span className="text-zinc-500 font-semibold">{r.include_actuals ? "Yes" : "No"}</span>
+          <span className="text-zinc-500 font-semibold">{r.include_actuals ? 'Yes' : 'No'}</span>
         ),
       },
     ];
@@ -72,12 +74,7 @@ export default function ScenarioAlter() {
     return (
       <div className="flex-1 flex flex-col h-full">
         {success && (
-          <div className="mx-6 mt-4 p-2 border border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-sans">
-            <span>• {success}</span>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">
-              &times;
-            </button>
-          </div>
+          <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
         )}
         <MasterSelectionPanel<ScenarioType>
           title="Alter Scenario"
@@ -87,8 +84,8 @@ export default function ScenarioAlter() {
           filterFn={(s, q) => s.name.toLowerCase().includes(q.toLowerCase())}
           columns={columns}
           onSelect={handleSelect}
-          onCancel={() => navigate("/master/alter")}
-          onCreate={() => navigate("/master/create/scenario")}
+          onCancel={() => navigate('/master/alter')}
+          onCreate={() => navigate('/master/create/scenario')}
           createLabel="Create Scenario"
           rowKey={(s) => s.scenario_id!}
           emptyMessage="No scenarios found."
@@ -109,7 +106,7 @@ export default function ScenarioAlter() {
         setSelected(null);
         load();
       }}
-      onCancel={() => navigate("/master/alter")}
+      onCancel={() => navigate('/master/alter')}
       onBack={() => setSelected(null)}
       onDelete={handleDelete}
     />

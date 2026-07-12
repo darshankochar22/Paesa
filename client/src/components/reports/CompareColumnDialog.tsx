@@ -1,14 +1,25 @@
-import * as React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/shadcn/dialog";
-import { Button } from "@/components/shadcn/button";
-import { Input } from "@/components/shadcn/input";
-import { Label } from "@/components/shadcn/label";
-import type { CompanyType } from "@/types/api";
+import * as React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/shadcn/dialog';
+import { Button } from '@/components/shadcn/button';
+import { Input } from '@/components/shadcn/input';
+import { Label } from '@/components/shadcn/label';
+import type { CompanyType } from '@/types/api';
 
 interface CompareColumnDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (config: { companyId: number; companyName: string; fromDate: string; toDate: string }) => void;
+  onAdd: (config: {
+    companyId: number;
+    companyName: string;
+    fromDate: string;
+    toDate: string;
+  }) => void;
   companies: CompanyType[];
   currentCompanyId?: number;
   defaultFromDate?: string;
@@ -21,8 +32,8 @@ export function CompareColumnDialog({
   onAdd,
   companies,
   currentCompanyId,
-  defaultFromDate = "",
-  defaultToDate = "",
+  defaultFromDate = '',
+  defaultToDate = '',
 }: CompareColumnDialogProps) {
   const [selectedCompanyId, setSelectedCompanyId] = React.useState<number>(currentCompanyId || 0);
   const [fromDate, setFromDate] = React.useState(defaultFromDate);
@@ -30,7 +41,7 @@ export function CompareColumnDialog({
 
   React.useEffect(() => {
     if (isOpen) {
-      setSelectedCompanyId(currentCompanyId || (companies[0]?.company_id || 0));
+      setSelectedCompanyId(currentCompanyId || companies[0]?.company_id || 0);
       setFromDate(defaultFromDate);
       setToDate(defaultToDate);
     }
@@ -51,20 +62,20 @@ export function CompareColumnDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-white text-zinc-900 border border-zinc-200">
+      <DialogContent className="sm:max-w-md bg-white text-black border border-gray-200">
         <DialogHeader>
-          <DialogTitle className="text-zinc-900 font-bold">New Column (Alt+C)</DialogTitle>
+          <DialogTitle className="text-black font-bold">New Column (Alt+C)</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="compare-company" className="text-xs font-semibold text-zinc-700">
+            <Label htmlFor="compare-company" className="text-xs font-semibold text-black">
               Company
             </Label>
             <select
               id="compare-company"
               value={selectedCompanyId}
               onChange={(e) => setSelectedCompanyId(Number(e.target.value))}
-              className="w-full text-xs h-9 px-2 rounded-md border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-zinc-800 focus:ring-1 focus:ring-zinc-400"
+              className="w-full text-xs h-9 px-2 rounded-md border border-gray-200 bg-white text-black focus:outline-none focus:border-gray-200 focus:ring-1 focus:ring-black"
             >
               {companies.map((c) => (
                 <option key={c.company_id} value={c.company_id}>
@@ -76,7 +87,7 @@ export function CompareColumnDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="compare-from" className="text-xs font-semibold text-zinc-700">
+              <Label htmlFor="compare-from" className="text-xs font-semibold text-black">
                 From Date
               </Label>
               <Input
@@ -84,11 +95,11 @@ export function CompareColumnDialog({
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
+                className="text-xs h-9 border-gray-200 focus:border-gray-200 focus:ring-black text-black"
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="compare-to" className="text-xs font-semibold text-zinc-700">
+              <Label htmlFor="compare-to" className="text-xs font-semibold text-black">
                 To Date
               </Label>
               <Input
@@ -96,17 +107,17 @@ export function CompareColumnDialog({
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="text-xs h-9 border-zinc-300 focus:border-zinc-800 focus:ring-zinc-400 text-zinc-900"
+                className="text-xs h-9 border-gray-200 focus:border-gray-200 focus:ring-black text-black"
               />
             </div>
           </div>
         </div>
-        <DialogFooter className="flex justify-end gap-2 bg-zinc-50 border-t border-zinc-100 p-3 -mx-4 -mb-4 rounded-b-xl">
+        <DialogFooter className="flex justify-end gap-2 bg-white border-t border-gray-200 p-3 -mx-4 -mb-4 rounded-b-xl">
           <Button
             variant="outline"
             size="sm"
             onClick={onClose}
-            className="text-xs border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+            className="text-xs border-gray-200 hover:bg-black/[0.03] text-black"
           >
             Cancel
           </Button>
@@ -114,7 +125,7 @@ export function CompareColumnDialog({
             variant="default"
             size="sm"
             onClick={handleAdd}
-            className="text-xs bg-zinc-900 hover:bg-zinc-800 text-white font-semibold"
+            className="text-xs bg-black hover:bg-black/80 text-white font-semibold"
           >
             Add Column
           </Button>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { NotificationBanner } from '@/components/ui';
 import type { BatchAllocation } from '../../types';
 import NewNumberPopup from './NewNumberPopup';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
@@ -555,12 +556,7 @@ export default function BatchAllocationPopup({
         <div className="flex h-full min-h-0">
           <div className="flex-1 min-w-0 overflow-y-auto px-6 py-4 space-y-3">
             {error && (
-              <div className="border border-gray-400 text-black text-xs px-3 py-2 flex justify-between items-center font-semibold">
-                <span>• {error}</span>
-                <button onClick={() => setError(null)} className="font-bold">
-                  &times;
-                </button>
-              </div>
+              <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
             )}
 
             <div className="border border-gray-300">

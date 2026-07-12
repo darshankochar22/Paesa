@@ -43,7 +43,7 @@ export function TallyReportLayout({
 
       {/* Breadcrumb Navigation */}
       {breadcrumb && breadcrumb.length > 0 && (
-        <div className="flex items-center gap-1 px-3 py-1 bg-white border-b border-black text-[10px]">
+        <div className="flex items-center gap-1 px-3 py-1 bg-white border-b border-gray-200 text-[10px]">
           {breadcrumb.map((crumb, idx) => (
             <React.Fragment key={idx}>
               {idx > 0 && <span className="text-black mx-1">›</span>}
@@ -61,7 +61,7 @@ export function TallyReportLayout({
 
       {/* Subtitle Info Area — period/context (left) and report actions (right) */}
       {(leftSubtitle || rightSubtitle || footerControls) && (
-        <div className="flex justify-between items-center px-3 py-1 bg-white border-b border-black">
+        <div className="flex justify-between items-center px-3 py-1 bg-white border-b border-gray-200">
           <div className="flex items-center gap-3 text-[10px] text-black">{leftSubtitle}</div>
           <div className="flex items-center gap-3 text-[10px] font-bold text-black">
             {rightSubtitle}

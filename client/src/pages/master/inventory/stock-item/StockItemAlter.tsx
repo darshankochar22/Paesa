@@ -8,6 +8,7 @@ import {
   DataTable,
   FormRow,
   MasterFormFooter,
+  NotificationBanner,
 } from '@/components/ui';
 import type {
   StockGroupType,
@@ -156,6 +157,8 @@ export default function StockItemAlter({
   const underRef = useRef<HTMLDivElement>(null);
   const categoryRef = useRef<HTMLDivElement>(null);
   const unitRef = useRef<HTMLDivElement>(null);
+  const hsnClassRef = useRef<HTMLSpanElement>(null);
+  const rateClassRef = useRef<HTMLSpanElement>(null);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
     setForm((f) => (f ? { ...f, ...updater(f) } : null));
@@ -556,26 +559,10 @@ export default function StockItemAlter({
       />
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="font-bold text-red-400 hover:text-red-700"
-          >
-            ×
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
-          <span>• {success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="font-bold text-green-400 hover:text-green-700"
-          >
-            ×
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -777,6 +764,8 @@ export default function StockItemAlter({
               setActivePanel={setShowPanel}
               gstClassifications={gstClassifications}
               onOpenOtherStatutory={() => setShowOtherStatutory(true)}
+              hsnClassRef={hsnClassRef}
+              rateClassRef={rateClassRef}
             />
           </div>
 
@@ -911,6 +900,7 @@ export default function StockItemAlter({
             onSelect={(val) => {
               setVal('hsn_classification_id', val);
               setShowPanel(null);
+              focusFieldAfter(hsnClassRef.current);
             }}
             onClose={() => setShowPanel(null)}
             showCreate
@@ -925,6 +915,7 @@ export default function StockItemAlter({
             onSelect={(val) => {
               setVal('rate_classification_id', val);
               setShowPanel(null);
+              focusFieldAfter(rateClassRef.current);
             }}
             onClose={() => setShowPanel(null)}
             showCreate

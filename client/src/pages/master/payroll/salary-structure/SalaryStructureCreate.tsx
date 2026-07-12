@@ -228,7 +228,6 @@ export default function SalaryStructureCreate() {
       <MasterFormFooter
         onCancel={() => navigate('/master/create')}
         onSubmit={handleSubmit}
-        submitLabel="Create"
         loading={loading}
       />
     </div>

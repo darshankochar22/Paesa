@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { PageTitleBar, RightActionPanel, Select } from '@/components/ui';
+import { PageTitleBar, RightActionPanel, Select, NotificationBanner } from '@/components/ui';
 import type { ExciseBookType, ExciseBookRestartRow, ExciseBookAffixRow } from '@/types/api';
 import {
   EXCISE_NUMBERING_METHODS,
@@ -169,15 +169,7 @@ export default function ExciseBookForm({
       <PageTitleBar title={title} />
 
       {error && (
-        <div className="mx-6 mt-4 p-2 border border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-sans">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">

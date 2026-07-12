@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, RightActionPanel, FormRow, MasterFormFooter } from '@/components/ui';
+import {
+  PageTitleBar,
+  RightActionPanel,
+  FormRow,
+  MasterFormFooter,
+  NotificationBanner,
+} from '@/components/ui';
 import type { StockGroupType, StockCategoryType, UnitType, GodownType } from '@/types/api';
 import type { StockItemType } from '@/types/entities/StockItem';
 import BomListModal from './components/BomListModal';
@@ -47,6 +53,8 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
   const underRef = useRef<HTMLDivElement>(null);
   const categoryRef = useRef<HTMLDivElement>(null);
   const unitRef = useRef<HTMLDivElement>(null);
+  const hsnClassRef = useRef<HTMLSpanElement>(null);
+  const rateClassRef = useRef<HTMLSpanElement>(null);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
     setForm((f) => ({ ...f, ...updater(f) }));
@@ -301,20 +309,10 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
       <PageTitleBar title="Stock Item Creation" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-2 font-bold">
-            ×
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
-          <span>{success}</span>
-          <button onClick={() => setSuccess(null)} className="ml-2 font-bold">
-            ×
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -526,6 +524,8 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
               setActivePanel={setActivePanel}
               gstClassifications={gstClassifications}
               onOpenOtherStatutory={() => setShowOtherStatutory(true)}
+              hsnClassRef={hsnClassRef}
+              rateClassRef={rateClassRef}
             />
           </div>
 
@@ -674,6 +674,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
             onSelect={(val) => {
               setVal('hsn_classification_id', val);
               setActivePanel(null);
+              focusFieldAfter(hsnClassRef.current);
             }}
             onClose={() => setActivePanel(null)}
             showCreate
@@ -688,6 +689,7 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
             onSelect={(val) => {
               setVal('rate_classification_id', val);
               setActivePanel(null);
+              focusFieldAfter(rateClassRef.current);
             }}
             onClose={() => setActivePanel(null)}
             showCreate

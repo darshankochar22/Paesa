@@ -40,8 +40,8 @@ function CashFlowGraph({ data }: { data: MonthRow[] }) {
   const maxVal = Math.max(...data.map((d) => Math.max(d.inflow, d.outflow)), 1000);
 
   return (
-    <div className="border-t border-zinc-300 p-3 bg-white select-none mt-auto">
-      <div className="flex h-24 items-end gap-4 border-b border-zinc-400 pb-1 font-mono text-[9px]">
+    <div className="border-t border-gray-200 p-3 bg-white select-none mt-auto">
+      <div className="flex h-24 items-end gap-4 border-b border-gray-200 pb-1 font-mono text-[9px]">
         {data.map((m) => {
           const inflowHeight = (m.inflow / maxVal) * 80;
           const outflowHeight = (m.outflow / maxVal) * 80;
@@ -52,17 +52,17 @@ function CashFlowGraph({ data }: { data: MonthRow[] }) {
                 {m.inflow > 0 && (
                   <div
                     style={{ height: `${Math.max(inflowHeight, 2)}%` }}
-                    className="w-2.5 bg-zinc-900"
+                    className="w-2.5 bg-black"
                   />
                 )}
                 {m.outflow > 0 && (
                   <div
                     style={{ height: `${Math.max(outflowHeight, 2)}%` }}
-                    className="w-2.5 bg-zinc-800"
+                    className="w-2.5 bg-black"
                   />
                 )}
               </div>
-              <span className="mt-1 text-zinc-600 text-[9px] font-sans">
+              <span className="mt-1 text-black text-[9px] font-sans">
                 {m.month_name.slice(0, 3)}
               </span>
             </div>
@@ -108,40 +108,40 @@ export default function CashFlowStatement() {
   }, [selectedCompany, activeFY]);
 
   if (loading)
-    return <div className="p-6 text-xs font-mono text-zinc-500">Loading Cash Flow Data...</div>;
-  if (error) return <div className="p-6 text-xs font-mono text-zinc-600">{error}</div>;
+    return <div className="p-6 text-xs font-mono text-black">Loading Cash Flow Data...</div>;
+  if (error) return <div className="p-6 text-xs font-mono text-black">{error}</div>;
   if (!reportData)
-    return <div className="p-6 text-xs font-mono text-zinc-400">No entries available.</div>;
+    return <div className="p-6 text-xs font-mono text-black">No entries available.</div>;
 
   const dateLabel = activeFY ? `For 1-Apr-${new Date(activeFY.start_date).getFullYear()}` : '';
 
   if (currentView === 'monthly') {
     return (
       <div className="flex flex-col h-full w-full bg-white font-mono text-[11px]">
-        <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 flex justify-between items-center font-bold">
-          <span className="text-zinc-800 uppercase">Cash Flow</span>
-          <span className="text-zinc-600">{dateLabel}</span>
+        <div className="bg-white border-b border-gray-200 px-3 py-1 flex justify-between items-center font-bold">
+          <span className="text-black uppercase">Cash Flow</span>
+          <span className="text-black">{dateLabel}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-zinc-50 border-b border-zinc-300 text-zinc-700 font-bold select-none">
-                <th className="px-3 py-1 text-left border-r border-zinc-200">Particulars</th>
-                <th className="px-3 py-1 text-right border-r border-zinc-200 w-40">Inflow</th>
-                <th className="px-3 py-1 text-right border-r border-zinc-200 w-40">Outflow</th>
+              <tr className="bg-white border-b border-gray-200 text-black font-bold select-none">
+                <th className="px-3 py-1 text-left border-r border-gray-200">Particulars</th>
+                <th className="px-3 py-1 text-right border-r border-gray-200 w-40">Inflow</th>
+                <th className="px-3 py-1 text-right border-r border-gray-200 w-40">Outflow</th>
                 <th className="px-3 py-1 text-right w-40">Nett Flow</th>
               </tr>
             </thead>
             <tbody>
               {/* Opening Balance row */}
-              <tr className="border-b border-zinc-200 bg-zinc-50">
-                <td className="px-3 py-1.5 text-left font-bold text-zinc-700">Opening Balance</td>
+              <tr className="border-b border-gray-200 bg-white">
+                <td className="px-3 py-1.5 text-left font-bold text-black">Opening Balance</td>
                 <td
-                  className="px-3 py-1.5 text-right font-mono border-r border-zinc-100"
+                  className="px-3 py-1.5 text-right font-mono border-r border-gray-200"
                   colSpan={2}
                 ></td>
-                <td className="px-3 py-1.5 text-right font-mono font-bold text-zinc-700">
+                <td className="px-3 py-1.5 text-right font-mono font-bold text-black">
                   {fmtSigned(reportData.openingBalance)}
                 </td>
               </tr>
@@ -150,10 +150,10 @@ export default function CashFlowStatement() {
                 return (
                   <tr
                     key={m.month_name}
-                    className={`border-b border-zinc-100 cursor-pointer ${
+                    className={`border-b border-gray-200 cursor-pointer ${
                       isFocused
-                        ? 'bg-[#e4e4e7] font-bold text-zinc-950'
-                        : 'hover:bg-zinc-50 text-zinc-800'
+                        ? 'bg-black/[0.06] font-bold text-black'
+                        : 'hover:bg-black/[0.03] text-black'
                     }`}
                     onClick={() => setFocusedKey(`m-${idx}`)}
                     onDoubleClick={() => {
@@ -163,10 +163,10 @@ export default function CashFlowStatement() {
                     }}
                   >
                     <td className="px-3 py-1.5 text-left font-semibold">{m.month_name}</td>
-                    <td className="px-3 py-1.5 text-right font-mono border-r border-zinc-100">
+                    <td className="px-3 py-1.5 text-right font-mono border-r border-gray-200">
                       {m.inflow > 0 ? fmt(m.inflow) : ''}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono border-r border-zinc-100">
+                    <td className="px-3 py-1.5 text-right font-mono border-r border-gray-200">
                       {m.outflow > 0 ? fmt(m.outflow) : ''}
                     </td>
                     <td className="px-3 py-1.5 text-right font-mono font-bold">
@@ -179,7 +179,7 @@ export default function CashFlowStatement() {
           </table>
         </div>
 
-        <div className="border-t-2 border-b border-double border-zinc-400 bg-[#f4f4f5] px-3 py-1 flex justify-between font-bold text-zinc-900 select-none">
+        <div className="border-t-2 border-b border-double border-gray-200 bg-white px-3 py-1 flex justify-between font-bold text-black select-none">
           <span className="flex-1 text-left">Grand Total</span>
           <span className="w-40 text-right font-mono">{fmt(reportData.grandTotal.inflow)}</span>
           <span className="w-40 text-right font-mono">{fmt(reportData.grandTotal.outflow)}</span>
@@ -189,7 +189,7 @@ export default function CashFlowStatement() {
         </div>
 
         {/* Closing Balance */}
-        <div className="border-b border-zinc-300 bg-[#e4e4e7] px-3 py-1.5 flex justify-between font-bold text-zinc-900 select-none">
+        <div className="border-b border-gray-200 bg-black/[0.06] px-3 py-1.5 flex justify-between font-bold text-black select-none">
           <span>Closing Balance</span>
           <span className="font-mono">₹{fmtSigned(reportData.closingBalance)}</span>
         </div>
@@ -211,23 +211,23 @@ export default function CashFlowStatement() {
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono text-[11px]">
-      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 flex justify-between items-center font-bold">
+      <div className="bg-white border-b border-gray-200 px-3 py-1 flex justify-between items-center font-bold">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentView('monthly')}
-            className="text-[10px] bg-zinc-300 hover:bg-zinc-400 text-zinc-800 px-1.5 rounded font-sans"
+            className="text-[10px] bg-black/[0.06] hover:bg-black/[0.03] text-black px-1.5 rounded font-sans"
           >
             ← Back
           </button>
-          <span className="text-zinc-800 uppercase">Cash Flow Summary ({selectedMonth})</span>
+          <span className="text-black uppercase">Cash Flow Summary ({selectedMonth})</span>
         </div>
-        <span className="text-zinc-500">{dateLabel}</span>
+        <span className="text-black">{dateLabel}</span>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
         {/* INFLOW SIDE */}
-        <div className="flex-1 flex flex-col border-r border-zinc-300 overflow-hidden">
-          <div className="bg-zinc-100 border-b border-zinc-200 px-3 py-1 font-bold text-zinc-700 flex justify-between">
+        <div className="flex-1 flex flex-col border-r border-gray-200 overflow-hidden">
+          <div className="bg-black/[0.06] border-b border-gray-200 px-3 py-1 font-bold text-black flex justify-between">
             <span>Inflow</span>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -239,10 +239,10 @@ export default function CashFlowStatement() {
                   return (
                     <tr
                       key={key}
-                      className={`border-b border-zinc-50 cursor-pointer ${
+                      className={`border-b border-gray-200 cursor-pointer ${
                         isFocused
-                          ? 'bg-[#e4e4e7] font-bold text-zinc-950'
-                          : 'hover:bg-zinc-50 text-zinc-800'
+                          ? 'bg-black/[0.06] font-bold text-black'
+                          : 'hover:bg-black/[0.03] text-black'
                       }`}
                       onClick={() => setFocusedKey(key)}
                       onDoubleClick={() =>
@@ -256,7 +256,7 @@ export default function CashFlowStatement() {
                 })}
                 {activeSummary.inflows.length === 0 && (
                   <tr>
-                    <td className="px-3 py-3 text-center text-zinc-400" colSpan={2}>
+                    <td className="px-3 py-3 text-center text-black" colSpan={2}>
                       No inflows
                     </td>
                   </tr>
@@ -268,7 +268,7 @@ export default function CashFlowStatement() {
 
         {/* OUTFLOW SIDE */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="bg-zinc-100 border-b border-zinc-200 px-3 py-1 font-bold text-zinc-700 flex justify-between">
+          <div className="bg-black/[0.06] border-b border-gray-200 px-3 py-1 font-bold text-black flex justify-between">
             <span>Outflow</span>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -280,10 +280,10 @@ export default function CashFlowStatement() {
                   return (
                     <tr
                       key={key}
-                      className={`border-b border-zinc-50 cursor-pointer ${
+                      className={`border-b border-gray-200 cursor-pointer ${
                         isFocused
-                          ? 'bg-[#e4e4e7] font-bold text-zinc-950'
-                          : 'hover:bg-zinc-50 text-zinc-800'
+                          ? 'bg-black/[0.06] font-bold text-black'
+                          : 'hover:bg-black/[0.03] text-black'
                       }`}
                       onClick={() => setFocusedKey(key)}
                       onDoubleClick={() =>
@@ -297,7 +297,7 @@ export default function CashFlowStatement() {
                 })}
                 {activeSummary.outflows.length === 0 && (
                   <tr>
-                    <td className="px-3 py-3 text-center text-zinc-400" colSpan={2}>
+                    <td className="px-3 py-3 text-center text-black" colSpan={2}>
                       No outflows
                     </td>
                   </tr>
@@ -308,8 +308,8 @@ export default function CashFlowStatement() {
         </div>
       </div>
 
-      <div className="flex font-bold text-zinc-900 border-t border-zinc-400 bg-[#f4f4f5] select-none text-[11px]">
-        <div className="flex-1 px-3 py-1.5 flex justify-between border-r border-zinc-300">
+      <div className="flex font-bold text-black border-t border-gray-200 bg-white select-none text-[11px]">
+        <div className="flex-1 px-3 py-1.5 flex justify-between border-r border-gray-200">
           <span>Total Inflow</span>
           <span className="font-mono">{fmt(summaryInflowTotal)}</span>
         </div>
@@ -319,7 +319,7 @@ export default function CashFlowStatement() {
         </div>
       </div>
 
-      <div className="border-t border-zinc-300 bg-[#e4e4e7] text-center py-1.5 font-bold text-zinc-900 select-none text-[11px]">
+      <div className="border-t border-gray-200 bg-black/[0.06] text-center py-1.5 font-bold text-black select-none text-[11px]">
         Nett Flow:{' '}
         <span className="font-mono">₹{fmtSigned(summaryInflowTotal - summaryOutflowTotal)}</span>
       </div>

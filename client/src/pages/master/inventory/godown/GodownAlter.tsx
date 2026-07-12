@@ -8,6 +8,7 @@ import {
   SearchInput,
   DataTable,
   SideSelectionPanel,
+  NotificationBanner,
 } from '@/components/ui';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import TaxUnitSidePanel from './TaxUnitSidePanel';
@@ -322,26 +323,10 @@ export default function GodownAlter() {
       />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
-          <span>• {error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold font-sans"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
-          <span>• {success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="text-green-500 hover:text-green-700 text-xs font-bold font-sans"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex-1 flex min-h-0">
@@ -438,6 +423,7 @@ export default function GodownAlter() {
           <button
             onClick={handleSubmit}
             disabled={loading}
+            data-enter-accept
             className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
           >
             {loading ? 'Saving...' : 'Accept'}
@@ -456,6 +442,7 @@ export default function GodownAlter() {
           }}
           onClose={() => setShowPanel(false)}
           showPrimary
+          keyboard
         />
       )}
     </div>

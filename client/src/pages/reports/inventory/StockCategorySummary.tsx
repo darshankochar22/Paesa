@@ -370,13 +370,13 @@ export default function StockCategorySummary() {
     const grandQty = items.reduce((s, r) => s + (Number(r.closing_qty) || 0), 0);
     const grandValue = items.reduce((s, r) => s + (Number(r.closing_value) || 0), 0);
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
           <span className="font-bold text-sm tracking-wide">Stock Category Summary</span>
           <span className="font-bold text-sm">{selectedCompany?.name || 'Company'}</span>
           <span />
         </div>
-        <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
+        <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono">
           <span>
             Stock Category: <span className="font-bold">{level.category.name}</span>
           </span>
@@ -385,16 +385,16 @@ export default function StockCategorySummary() {
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
               <tr>
                 <th className="px-3 py-1 text-left font-bold">Particulars</th>
-                <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
                   Quantity
                 </th>
-                <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-28 border-l border-gray-200">
                   Rate
                 </th>
-                <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
                   Value
                 </th>
               </tr>
@@ -402,19 +402,19 @@ export default function StockCategorySummary() {
             <tbody>
               {loadingItems ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={4} className="px-4 py-8 text-center text-black italic">
                     Loading...
                   </td>
                 </tr>
               ) : itemsError ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-600">
+                  <td colSpan={4} className="px-4 py-8 text-center text-black">
                     {itemsError}
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={4} className="px-4 py-8 text-center text-black italic">
                     No records found.
                   </td>
                 </tr>
@@ -426,16 +426,16 @@ export default function StockCategorySummary() {
                       key={row.item_id}
                       onClick={() => setItemIndex(idx)}
                       onDoubleClick={() => loadMonths(level.category, row)}
-                      className={`border-b border-zinc-100 cursor-pointer ${isFocused ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+                      className={`border-b border-gray-200 cursor-pointer ${isFocused ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                     >
                       <td className="px-3 py-1">{row.item_name}</td>
-                      <td className="px-3 py-1 text-right border-l border-zinc-100">
+                      <td className="px-3 py-1 text-right border-l border-gray-200">
                         {fmtQty(row.closing_qty, row.unit_name)}
                       </td>
-                      <td className="px-3 py-1 text-right border-l border-zinc-100">
+                      <td className="px-3 py-1 text-right border-l border-gray-200">
                         {fmtAmount(row.rate)}
                       </td>
-                      <td className="px-3 py-1 text-right border-l border-zinc-100">
+                      <td className="px-3 py-1 text-right border-l border-gray-200">
                         {fmtAmount(row.closing_value)}
                       </td>
                     </tr>
@@ -446,17 +446,17 @@ export default function StockCategorySummary() {
           </table>
         </div>
 
-        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+        <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
           <span className="flex-1">Grand Total</span>
-          <span className="w-32 text-right border-l border-zinc-300 pr-2">{fmtQty(grandQty)}</span>
-          <span className="w-28 border-l border-zinc-300" />
-          <span className="w-32 text-right border-l border-zinc-300 pr-2">
+          <span className="w-32 text-right border-l border-gray-200 pr-2">{fmtQty(grandQty)}</span>
+          <span className="w-28 border-l border-gray-200" />
+          <span className="w-32 text-right border-l border-gray-200 pr-2">
             {fmtAmount(grandValue)}
           </span>
         </div>
 
-        <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-          <button onClick={backToCategories} className="hover:underline hover:text-zinc-900">
+        <div className="flex items-center gap-4 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
+          <button onClick={backToCategories} className="hover:underline hover:text-black">
             F4: Stock Category
           </button>
         </div>
@@ -476,13 +476,13 @@ export default function StockCategorySummary() {
     const lastClosingVal = months.length ? months[months.length - 1].closing_value : 0;
 
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
           <span className="font-bold text-sm tracking-wide">Stock Item Monthly Summary</span>
           <span className="font-bold text-sm">{selectedCompany?.name || 'Company'}</span>
           <span />
         </div>
-        <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
+        <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono">
           <span>
             Stock Item: <span className="font-bold">{level.item.item_name}</span>
           </span>
@@ -491,40 +491,40 @@ export default function StockCategorySummary() {
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
               <tr>
                 <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom">
                   Particulars
                 </th>
                 <th
                   colSpan={2}
-                  className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                  className="px-3 py-0.5 text-center font-bold border-b border-l border-gray-200"
                 >
                   Inwards
                 </th>
                 <th
                   colSpan={2}
-                  className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                  className="px-3 py-0.5 text-center font-bold border-b border-l border-gray-200"
                 >
                   Outwards
                 </th>
                 <th
                   colSpan={2}
-                  className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                  className="px-3 py-0.5 text-center font-bold border-b border-l border-gray-200"
                 >
                   Closing Balance
                 </th>
               </tr>
               <tr>
-                <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-20 border-l border-gray-200">
                   Quantity
                 </th>
                 <th className="px-3 py-1 text-right font-bold w-24">Value</th>
-                <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-20 border-l border-gray-200">
                   Quantity
                 </th>
                 <th className="px-3 py-1 text-right font-bold w-24">Value</th>
-                <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">
+                <th className="px-3 py-1 text-right font-bold w-20 border-l border-gray-200">
                   Quantity
                 </th>
                 <th className="px-3 py-1 text-right font-bold w-24">Value</th>
@@ -533,25 +533,25 @@ export default function StockCategorySummary() {
             <tbody>
               {loadingMonths ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={7} className="px-4 py-8 text-center text-black italic">
                     Loading...
                   </td>
                 </tr>
               ) : monthsError ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-600">
+                  <td colSpan={7} className="px-4 py-8 text-center text-black">
                     {monthsError}
                   </td>
                 </tr>
               ) : (
                 <>
-                  <tr className="border-b border-zinc-100 text-zinc-500 italic">
+                  <tr className="border-b border-gray-200 text-black italic">
                     <td className="px-3 py-1">Opening Balance</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">—</td>
+                    <td className="px-3 py-1 text-right border-l border-gray-200">—</td>
                     <td className="px-3 py-1 text-right">—</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">—</td>
+                    <td className="px-3 py-1 text-right border-l border-gray-200">—</td>
                     <td className="px-3 py-1 text-right">—</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(monthsOpening.qty)}
                     </td>
                     <td className="px-3 py-1 text-right">{fmtAmount(monthsOpening.value)}</td>
@@ -568,18 +568,18 @@ export default function StockCategorySummary() {
                             loadVouchers(level.category, level.item, from, to);
                           } else loadVouchers(level.category, level.item);
                         }}
-                        className={`border-b border-zinc-100 cursor-pointer ${isFocused ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+                        className={`border-b border-gray-200 cursor-pointer ${isFocused ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                       >
                         <td className="px-3 py-1">{row.month}</td>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {fmtQty(row.in_qty)}
                         </td>
                         <td className="px-3 py-1 text-right">{fmtAmount(row.in_value)}</td>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {fmtQty(row.out_qty)}
                         </td>
                         <td className="px-3 py-1 text-right">{fmtAmount(row.out_value)}</td>
-                        <td className="px-3 py-1 text-right border-l border-zinc-100">
+                        <td className="px-3 py-1 text-right border-l border-gray-200">
                           {fmtQty(row.closing_qty)}
                         </td>
                         <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
@@ -592,19 +592,19 @@ export default function StockCategorySummary() {
           </table>
         </div>
 
-        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+        <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
           <span className="flex-1">Grand Total</span>
-          <span className="w-20 text-right border-l border-zinc-300 pr-2">{fmtQty(totIn)}</span>
+          <span className="w-20 text-right border-l border-gray-200 pr-2">{fmtQty(totIn)}</span>
           <span className="w-24 text-right pr-2">{fmtAmount(totInVal)}</span>
-          <span className="w-20 text-right border-l border-zinc-300 pr-2">{fmtQty(totOut)}</span>
+          <span className="w-20 text-right border-l border-gray-200 pr-2">{fmtQty(totOut)}</span>
           <span className="w-24 text-right pr-2">{fmtAmount(totOutVal)}</span>
-          <span className="w-20 text-right border-l border-zinc-300 pr-2">
+          <span className="w-20 text-right border-l border-gray-200 pr-2">
             {fmtQty(lastClosingQty)}
           </span>
           <span className="w-24 text-right pr-2">{fmtAmount(lastClosingVal)}</span>
         </div>
 
-        <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
+        <div className="flex items-center gap-4 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
           <button
             onClick={() => {
               if (activeFY?.start_date) {
@@ -612,7 +612,7 @@ export default function StockCategorySummary() {
                 loadVouchers(level.category, level.item, from, to);
               } else loadVouchers(level.category, level.item);
             }}
-            className="hover:underline hover:text-zinc-900"
+            className="hover:underline hover:text-black"
           >
             Enter: Vouchers
           </button>
@@ -634,13 +634,13 @@ export default function StockCategorySummary() {
     : 0;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide">Stock Item Vouchers</span>
         <span className="font-bold text-sm">{selectedCompany?.name || 'Company'}</span>
         <span />
       </div>
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
+      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono">
         <span>
           Stock Item: <span className="font-bold">{level.item.item_name}</span>
         </span>
@@ -649,61 +649,61 @@ export default function StockCategorySummary() {
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
             <tr>
               <th
                 rowSpan={2}
-                className="px-3 py-1 text-left font-bold w-20 border-b border-zinc-300 align-bottom"
+                className="px-3 py-1 text-left font-bold w-20 border-b border-gray-200 align-bottom"
               >
                 Date
               </th>
               <th
                 rowSpan={2}
-                className="px-3 py-1 text-left font-bold border-b border-zinc-300 align-bottom"
+                className="px-3 py-1 text-left font-bold border-b border-gray-200 align-bottom"
               >
                 Particulars
               </th>
               <th
                 rowSpan={2}
-                className="px-3 py-1 text-left font-bold w-28 border-b border-zinc-300 align-bottom"
+                className="px-3 py-1 text-left font-bold w-28 border-b border-gray-200 align-bottom"
               >
                 Vch Type
               </th>
               <th
                 rowSpan={2}
-                className="px-3 py-1 text-right font-bold w-20 border-b border-zinc-300 align-bottom"
+                className="px-3 py-1 text-right font-bold w-20 border-b border-gray-200 align-bottom"
               >
                 Vch No.
               </th>
               <th
                 colSpan={2}
-                className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                className="px-3 py-0.5 text-center font-bold border-b border-l border-gray-200"
               >
                 Inwards
               </th>
               <th
                 colSpan={2}
-                className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                className="px-3 py-0.5 text-center font-bold border-b border-l border-gray-200"
               >
                 Outwards
               </th>
               <th
                 colSpan={2}
-                className="px-3 py-0.5 text-center font-bold border-b border-l border-zinc-200"
+                className="px-3 py-0.5 text-center font-bold border-b border-l border-gray-200"
               >
                 Closing
               </th>
             </tr>
             <tr>
-              <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">
+              <th className="px-3 py-1 text-right font-bold w-20 border-l border-gray-200">
                 Quantity
               </th>
               <th className="px-3 py-1 text-right font-bold w-24">Value</th>
-              <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">
+              <th className="px-3 py-1 text-right font-bold w-20 border-l border-gray-200">
                 Quantity
               </th>
               <th className="px-3 py-1 text-right font-bold w-24">Value</th>
-              <th className="px-3 py-1 text-right font-bold w-20 border-l border-zinc-200">
+              <th className="px-3 py-1 text-right font-bold w-20 border-l border-gray-200">
                 Quantity
               </th>
               <th className="px-3 py-1 text-right font-bold w-24">Value</th>
@@ -712,19 +712,19 @@ export default function StockCategorySummary() {
           <tbody>
             {loadingVouchers ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={10} className="px-4 py-8 text-center text-black italic">
                   Loading vouchers...
                 </td>
               </tr>
             ) : voucherError ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-zinc-600">
+                <td colSpan={10} className="px-4 py-8 text-center text-black">
                   {voucherError}
                 </td>
               </tr>
             ) : voucherRows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={10} className="px-4 py-8 text-center text-black italic">
                   No records found.
                 </td>
               </tr>
@@ -738,21 +738,21 @@ export default function StockCategorySummary() {
                     onDoubleClick={() =>
                       row.voucher_id && navigate(`/transactions/voucher/${row.voucher_id}`)
                     }
-                    className={`border-b border-zinc-100 cursor-pointer ${isFocused ? 'bg-[#e4e4e7] text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+                    className={`border-b border-gray-200 cursor-pointer ${isFocused ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                   >
                     <td className="px-3 py-1 whitespace-nowrap">{formatDate(row.date)}</td>
                     <td className="px-3 py-1 truncate max-w-xs">{row.particulars}</td>
                     <td className="px-3 py-1">{row.voucher_type}</td>
                     <td className="px-3 py-1 text-right">{row.voucher_number || ''}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(row.inwards_qty)}
                     </td>
                     <td className="px-3 py-1 text-right">{fmtAmount(row.inwards_value)}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(row.outwards_qty)}
                     </td>
                     <td className="px-3 py-1 text-right">{fmtAmount(row.outwards_value)}</td>
-                    <td className="px-3 py-1 text-right border-l border-zinc-100">
+                    <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(row.closing_qty)}
                     </td>
                     <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
@@ -764,28 +764,28 @@ export default function StockCategorySummary() {
         </table>
       </div>
 
-      <div className="border-t border-zinc-300 px-3 py-1 text-center text-[10px] italic text-zinc-500">
+      <div className="border-t border-gray-200 px-3 py-1 text-center text-[10px] italic text-black">
         Totals as per 'Default' valuation :
       </div>
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
+      <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
         <span className="w-20" />
         <span className="flex-1" />
         <span className="w-28" />
         <span className="w-20" />
-        <span className="w-20 text-right pr-2 border-l border-zinc-300">{fmtQty(totalInQty)}</span>
+        <span className="w-20 text-right pr-2 border-l border-gray-200">{fmtQty(totalInQty)}</span>
         <span className="w-24 text-right pr-2">{fmtAmount(totalInValue)}</span>
-        <span className="w-20 text-right pr-2 border-l border-zinc-300">{fmtQty(totalOutQty)}</span>
+        <span className="w-20 text-right pr-2 border-l border-gray-200">{fmtQty(totalOutQty)}</span>
         <span className="w-24 text-right pr-2">{fmtAmount(totalOutValue)}</span>
-        <span className="w-20 text-right pr-2 border-l border-zinc-300">
+        <span className="w-20 text-right pr-2 border-l border-gray-200">
           {fmtQty(finalClosingQty)}
         </span>
         <span className="w-24 text-right pr-2">{fmtAmount(finalClosingValue)}</span>
       </div>
 
-      <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
+      <div className="flex items-center gap-4 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
         <button
           onClick={() => backToMonthly(level.category, level.item)}
-          className="hover:underline hover:text-zinc-900"
+          className="hover:underline hover:text-black"
         >
           F4: Stock Category
         </button>

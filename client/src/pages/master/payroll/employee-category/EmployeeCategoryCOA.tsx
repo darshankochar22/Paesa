@@ -1,7 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { EmployeeCategoryType, EmployeeGroupType, EmployeeType } from "@/types/entities/Employee";
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type {
+  EmployeeCategoryType,
+  EmployeeGroupType,
+  EmployeeType,
+} from '@/types/entities/Employee';
 
 export default function EmployeeCategoryCOA() {
   const { selectedCompany } = useCompany();
@@ -13,7 +18,7 @@ export default function EmployeeCategoryCOA() {
   const [employees, setEmployees] = useState<EmployeeType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showChangeView, setShowChangeView] = useState(false);
 
   useEffect(() => {
@@ -36,13 +41,13 @@ export default function EmployeeCategoryCOA() {
         if (catRes.success) {
           setCategories(catRes.employeeCategories ?? []);
         } else {
-          setError(catRes.error || "Failed to load categories.");
+          setError(catRes.error || 'Failed to load categories.');
         }
 
         if (grpRes.success) setGroups(grpRes.employeeGroups ?? []);
         if (empRes.success) setEmployees(empRes.employees ?? []);
       } catch {
-        if (!cancelled) setError("Failed to load data.");
+        if (!cancelled) setError('Failed to load data.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -56,44 +61,42 @@ export default function EmployeeCategoryCOA() {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return categories;
     return categories.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.alias && c.alias.toLowerCase().includes(q))
+      (c) => c.name.toLowerCase().includes(q) || (c.alias && c.alias.toLowerCase().includes(q)),
     );
   }, [categories, searchQuery]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.ctrlKey && e.key === "h") {
+      if (e.ctrlKey && e.key === 'h') {
         e.preventDefault();
         setShowChangeView((p) => !p);
       }
-      if (e.altKey && e.key.toLowerCase() === "c") {
+      if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        navigate("/master/create/employee-category");
+        navigate('/master/create/employee-category');
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   const changeViewItems = [
-    { label: "Ledgers", path: "/master/coa/ledger" },
-    { label: "Groups", path: "/master/coa/group" },
-    { label: "Stock Groups & Items", path: "/master/coa/stock-group" },
-    { label: "Stock Categories", path: "/master/coa/stock-category" },
-    { label: "Godowns", path: "/master/coa/godown" },
-    { label: "Units of Measure", path: "/master/coa/unit" },
-    { label: "Employees", path: "/master/coa/employee" },
-    { label: "Employee Groups", path: "/master/coa/employee-group" },
-    { label: "Attendance Types", path: "/master/coa/attendance-type" },
-    { label: "Pay Heads", path: "/master/coa/pay-head" },
-    { label: "Payroll Units", path: "/master/coa/payroll-unit" },
-    { label: "Salary Structures", path: "/master/coa/salary-structure" },
+    { label: 'Ledgers', path: '/master/coa/ledger' },
+    { label: 'Groups', path: '/master/coa/group' },
+    { label: 'Stock Groups & Items', path: '/master/coa/stock-group' },
+    { label: 'Stock Categories', path: '/master/coa/stock-category' },
+    { label: 'Godowns', path: '/master/coa/godown' },
+    { label: 'Units of Measure', path: '/master/coa/unit' },
+    { label: 'Employees', path: '/master/coa/employee' },
+    { label: 'Employee Groups', path: '/master/coa/employee-group' },
+    { label: 'Attendance Types', path: '/master/coa/attendance-type' },
+    { label: 'Pay Heads', path: '/master/coa/pay-head' },
+    { label: 'Payroll Units', path: '/master/coa/payroll-unit' },
+    { label: 'Salary Structures', path: '/master/coa/salary-structure' },
   ];
 
   return (
@@ -107,7 +110,7 @@ export default function EmployeeCategoryCOA() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate("/master/create/employee-category")}
+            onClick={() => navigate('/master/create/employee-category')}
             className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium font-sans"
           >
             + Create
@@ -116,10 +119,7 @@ export default function EmployeeCategoryCOA() {
       </div>
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 font-bold font-sans">&times;</button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -134,7 +134,7 @@ export default function EmployeeCategoryCOA() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => setSearchQuery('')}
                 className="text-[10px] text-zinc-400 hover:text-zinc-600 font-sans"
               >
                 Clear
@@ -143,24 +143,24 @@ export default function EmployeeCategoryCOA() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading categories...</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                Loading categories...
+              </div>
             ) : filteredCategories.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching categories found.</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                No matching categories found.
+              </div>
             ) : (
               filteredCategories.map((node) => {
                 const nodeId = node.employee_category_id!;
-                const empCount = employees.filter(
-                  (e) => e.employee_category_id === nodeId
-                ).length;
-                const grpCount = groups.filter(
-                  (g) => g.employee_category_id === nodeId
-                ).length;
+                const empCount = employees.filter((e) => e.employee_category_id === nodeId).length;
+                const grpCount = groups.filter((g) => g.employee_category_id === nodeId).length;
 
                 return (
                   <div key={nodeId}>
                     <div
                       className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
-                      onClick={() => navigate("/master/alter/employee-category")}
+                      onClick={() => navigate('/master/alter/employee-category')}
                     >
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
@@ -172,10 +172,10 @@ export default function EmployeeCategoryCOA() {
                       </span>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-zinc-400">
-                          {grpCount > 0 ? `${grpCount} grp` : ""}
+                          {grpCount > 0 ? `${grpCount} grp` : ''}
                         </span>
                         <span className="text-xs text-zinc-400">
-                          {empCount > 0 ? `${empCount} emp` : ""}
+                          {empCount > 0 ? `${empCount} emp` : ''}
                         </span>
                       </div>
                     </div>
@@ -194,14 +194,14 @@ export default function EmployeeCategoryCOA() {
             Ctrl+H Change View
           </button>
           <button
-            onClick={() => navigate("/master/create/employee-category")}
+            onClick={() => navigate('/master/create/employee-category')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+C Create
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit

@@ -462,7 +462,10 @@ export default function PriceListSGAlter() {
   // ════════════════════════════════════════════════════════════
   if (step === 'select') {
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
+      <div
+        className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950"
+        data-enter-nav
+      >
         <PageTitleBar title="Price List — Alter" subtitle={selectedCompany?.name} />
 
         {error && <Banner text={error} onDismiss={() => setError(null)} />}

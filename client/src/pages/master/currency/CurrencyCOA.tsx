@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { CurrencyType } from "@/types/entities/Currency";
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { CurrencyType } from '@/types/entities/Currency';
 
 export default function CurrencyCOA() {
   const { selectedCompany } = useCompany();
@@ -11,7 +12,7 @@ export default function CurrencyCOA() {
   const [currencies, setCurrencies] = useState<CurrencyType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showChangeView, setShowChangeView] = useState(false);
 
   useEffect(() => {
@@ -29,10 +30,10 @@ export default function CurrencyCOA() {
         if (res.success) {
           setCurrencies(res.currencies ?? []);
         } else {
-          setError(res.error || "Failed to load currencies.");
+          setError(res.error || 'Failed to load currencies.');
         }
       } catch {
-        if (!cancelled) setError("Failed to load currency list.");
+        if (!cancelled) setError('Failed to load currency list.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -47,42 +48,41 @@ export default function CurrencyCOA() {
     if (!q) return currencies;
     return currencies.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.iso_code && c.iso_code.toLowerCase().includes(q))
+        c.name.toLowerCase().includes(q) || (c.iso_code && c.iso_code.toLowerCase().includes(q)),
     );
   }, [currencies, searchQuery]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.ctrlKey && e.key === "h") {
+      if (e.ctrlKey && e.key === 'h') {
         e.preventDefault();
         setShowChangeView((p) => !p);
       }
-      if (e.altKey && e.key.toLowerCase() === "c") {
+      if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        navigate("/master/create/currency");
+        navigate('/master/create/currency');
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   const changeViewItems = [
-    { label: "Ledgers", path: "/master/coa/ledger" },
-    { label: "Groups", path: "/master/coa/group" },
-    { label: "Currencies", path: "/master/coa/currency" },
-    { label: "Voucher Types", path: "/master/coa/voucher-type" },
-    { label: "GST Registrations", path: "/master/coa/gst-registration" },
-    { label: "GST Classifications", path: "/master/coa/gst-classification" },
-    { label: "Stock Groups & Items", path: "/master/coa/stock-group" },
-    { label: "Stock Categories", path: "/master/coa/stock-category" },
-    { label: "Godowns", path: "/master/coa/godown" },
-    { label: "Units of Measure", path: "/master/coa/unit" },
-    { label: "Employees", path: "/master/coa/employee" },
+    { label: 'Ledgers', path: '/master/coa/ledger' },
+    { label: 'Groups', path: '/master/coa/group' },
+    { label: 'Currencies', path: '/master/coa/currency' },
+    { label: 'Voucher Types', path: '/master/coa/voucher-type' },
+    { label: 'GST Registrations', path: '/master/coa/gst-registration' },
+    { label: 'GST Classifications', path: '/master/coa/gst-classification' },
+    { label: 'Stock Groups & Items', path: '/master/coa/stock-group' },
+    { label: 'Stock Categories', path: '/master/coa/stock-category' },
+    { label: 'Godowns', path: '/master/coa/godown' },
+    { label: 'Units of Measure', path: '/master/coa/unit' },
+    { label: 'Employees', path: '/master/coa/employee' },
   ];
 
   return (
@@ -96,7 +96,7 @@ export default function CurrencyCOA() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate("/master/create/currency")}
+            onClick={() => navigate('/master/create/currency')}
             className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium font-sans"
           >
             + Create
@@ -105,10 +105,7 @@ export default function CurrencyCOA() {
       </div>
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 font-bold font-sans">&times;</button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -123,7 +120,7 @@ export default function CurrencyCOA() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => setSearchQuery('')}
                 className="text-[10px] text-zinc-400 hover:text-zinc-600 font-sans"
               >
                 Clear
@@ -132,9 +129,13 @@ export default function CurrencyCOA() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading currencies...</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                Loading currencies...
+              </div>
             ) : filteredCurrencies.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching currencies found.</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                No matching currencies found.
+              </div>
             ) : (
               filteredCurrencies.map((node) => {
                 const nodeId = node.currency_id!;
@@ -143,10 +144,10 @@ export default function CurrencyCOA() {
                   <div key={nodeId}>
                     <div
                       className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
-                      onClick={() => navigate("/master/alter/currency")}
+                      onClick={() => navigate('/master/alter/currency')}
                     >
                       <span className="w-16 text-sm font-bold text-zinc-600">
-                        {node.symbol || "—"}
+                        {node.symbol || '—'}
                       </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
@@ -182,14 +183,14 @@ export default function CurrencyCOA() {
             Ctrl+H Change View
           </button>
           <button
-            onClick={() => navigate("/master/create/currency")}
+            onClick={() => navigate('/master/create/currency')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+C Create
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit

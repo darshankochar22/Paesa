@@ -263,8 +263,8 @@ export default function MovementAnalysis() {
   // ── Render — selection popup ───────────────────────────────────────────
   if (level.step === 'select') {
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
           <span className="font-bold text-sm tracking-wide">Item Movement Analysis</span>
           <span className="font-bold text-sm">{selectedCompany?.name ?? ''}</span>
           <span />
@@ -305,16 +305,16 @@ export default function MovementAnalysis() {
         onSelectIndex={setDetailIdx}
         onOpenVoucher={(r) => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
         footer={
-          <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
+          <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
             <button
               onClick={() =>
                 setLevel({ step: 'movement', item: level.item, allRows: allRowsRef.current })
               }
-              className="hover:text-zinc-900"
+              className="hover:text-black"
             >
               Q: Back
             </button>
-            <span className="text-zinc-400">Enter: Open Voucher · Esc: Back to Movement</span>
+            <span className="text-black">Enter: Open Voucher · Esc: Back to Movement</span>
           </div>
         }
       />
@@ -334,16 +334,16 @@ export default function MovementAnalysis() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+    <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
       {/* Title bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
         <span className="font-bold text-sm tracking-wide">Item Movement Analysis</span>
         <span className="font-bold text-sm">{selectedCompany?.name ?? ''}</span>
         <span />
       </div>
 
       {/* Subtitle: item + period */}
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono text-[11px]">
         <span className="font-semibold">Stock Item: {level.item.name}</span>
         <span>Movement Values: Qty | Value&nbsp;&nbsp;{periodLabel}</span>
       </div>
@@ -351,9 +351,9 @@ export default function MovementAnalysis() {
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
         {movLoading ? (
-          <div className="px-4 py-8 text-center text-zinc-400 italic">Loading…</div>
+          <div className="px-4 py-8 text-center text-black italic">Loading…</div>
         ) : movErr ? (
-          <div className="px-4 py-8 text-center text-zinc-600">{movErr}</div>
+          <div className="px-4 py-8 text-center text-black">{movErr}</div>
         ) : (
           <table className="w-full border-collapse text-[11px] font-mono">
             <colgroup>
@@ -361,7 +361,7 @@ export default function MovementAnalysis() {
               <col className="w-32" />
               <col className="w-36" />
             </colgroup>
-            <thead className="sticky top-0 bg-zinc-100 border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-black/[0.06] border-b border-gray-200 z-10 text-black">
               <tr>
                 <th className="px-3 py-1 text-left font-bold">Particulars</th>
                 <th className="px-3 py-1 text-right font-bold">Quantity</th>
@@ -370,19 +370,19 @@ export default function MovementAnalysis() {
             </thead>
             <tbody>
               {/* ── Movement Inward section ── */}
-              <tr className="bg-zinc-50 border-t border-zinc-300">
-                <td colSpan={3} className="px-3 py-1 font-bold text-zinc-900 tracking-wide">
+              <tr className="bg-white border-t border-gray-200">
+                <td colSpan={3} className="px-3 py-1 font-bold text-black tracking-wide">
                   Movement Inward:
                 </td>
               </tr>
-              <tr className="bg-zinc-50 border-b border-zinc-200">
-                <td colSpan={3} className="px-6 py-0.5 text-zinc-500 italic text-[10px]">
+              <tr className="bg-white border-b border-gray-200">
+                <td colSpan={3} className="px-6 py-0.5 text-black italic text-[10px]">
                   Suppliers
                 </td>
               </tr>
               {inRows.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-6 py-2 text-zinc-400 italic">
+                  <td colSpan={3} className="px-6 py-2 text-black italic">
                     No inward movement
                   </td>
                 </tr>
@@ -392,10 +392,10 @@ export default function MovementAnalysis() {
                     key={r.name}
                     onClick={() => setCursor({ section: 'inward', idx })}
                     onDoubleClick={() => openDetail(level.item, r.name)}
-                    className={`border-b border-zinc-100 cursor-pointer ${
+                    className={`border-b border-gray-200 cursor-pointer ${
                       cursor.section === 'inward' && cursor.idx === idx
-                        ? 'bg-zinc-200 text-zinc-950 font-bold'
-                        : 'hover:bg-zinc-50 text-zinc-800'
+                        ? 'bg-black/[0.06] text-black font-bold'
+                        : 'hover:bg-black/[0.03] text-black'
                     }`}
                   >
                     <td className="px-6 py-1">{r.name}</td>
@@ -404,7 +404,7 @@ export default function MovementAnalysis() {
                   </tr>
                 ))
               )}
-              <tr className="border-t border-zinc-300 bg-zinc-50 font-bold text-zinc-900">
+              <tr className="border-t border-gray-200 bg-white font-bold text-black">
                 <td className="px-6 py-1">Total</td>
                 <td className="px-3 py-1 text-right">{fmtQty(inTotal.qty)}</td>
                 <td className="px-3 py-1 text-right">{fmtVal(inTotal.value)}</td>
@@ -416,19 +416,19 @@ export default function MovementAnalysis() {
               </tr>
 
               {/* ── Movement Outward section ── */}
-              <tr className="bg-zinc-50 border-t border-zinc-300">
-                <td colSpan={3} className="px-3 py-1 font-bold text-zinc-900 tracking-wide">
+              <tr className="bg-white border-t border-gray-200">
+                <td colSpan={3} className="px-3 py-1 font-bold text-black tracking-wide">
                   Movement Outward:
                 </td>
               </tr>
-              <tr className="bg-zinc-50 border-b border-zinc-200">
-                <td colSpan={3} className="px-6 py-0.5 text-zinc-500 italic text-[10px]">
+              <tr className="bg-white border-b border-gray-200">
+                <td colSpan={3} className="px-6 py-0.5 text-black italic text-[10px]">
                   Buyers
                 </td>
               </tr>
               {outRows.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-6 py-2 text-zinc-400 italic">
+                  <td colSpan={3} className="px-6 py-2 text-black italic">
                     No outward movement
                   </td>
                 </tr>
@@ -438,10 +438,10 @@ export default function MovementAnalysis() {
                     key={r.name}
                     onClick={() => setCursor({ section: 'outward', idx })}
                     onDoubleClick={() => openDetail(level.item, r.name)}
-                    className={`border-b border-zinc-100 cursor-pointer ${
+                    className={`border-b border-gray-200 cursor-pointer ${
                       cursor.section === 'outward' && cursor.idx === idx
-                        ? 'bg-zinc-200 text-zinc-950 font-bold'
-                        : 'hover:bg-zinc-50 text-zinc-800'
+                        ? 'bg-black/[0.06] text-black font-bold'
+                        : 'hover:bg-black/[0.03] text-black'
                     }`}
                   >
                     <td className="px-6 py-1">{r.name}</td>
@@ -450,7 +450,7 @@ export default function MovementAnalysis() {
                   </tr>
                 ))
               )}
-              <tr className="border-t border-zinc-300 bg-zinc-50 font-bold text-zinc-900">
+              <tr className="border-t border-gray-200 bg-white font-bold text-black">
                 <td className="px-6 py-1">Total</td>
                 <td className="px-3 py-1 text-right">{fmtQty(outTotal.qty)}</td>
                 <td className="px-3 py-1 text-right">{fmtVal(outTotal.value)}</td>
@@ -461,10 +461,10 @@ export default function MovementAnalysis() {
       </div>
 
       {/* Footer action bar */}
-      <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">
-        <span className="text-zinc-400">Enter: Show Vouchers</span>
-        <span className="text-zinc-400">↑↓: Navigate sections</span>
-        <span className="text-zinc-400">Esc: Back to Selection</span>
+      <div className="flex items-center gap-6 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
+        <span className="text-black">Enter: Show Vouchers</span>
+        <span className="text-black">↑↓: Navigate sections</span>
+        <span className="text-black">Esc: Back to Selection</span>
       </div>
     </div>
   );

@@ -67,13 +67,13 @@ type Level =
     };
 
 const FooterBar = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
+  <div className="flex items-center gap-4 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
     {children}
   </div>
 );
 
 const TH =
-  'px-2 py-1 text-right font-bold text-zinc-700 border-b border-zinc-300 align-bottom whitespace-pre-line w-24';
+  'px-2 py-1 text-right font-bold text-black border-b border-gray-200 align-bottom whitespace-pre-line w-24';
 
 export default function ReorderStatus() {
   const navigate = useNavigate();
@@ -323,7 +323,7 @@ export default function ReorderStatus() {
   ]);
 
   const TitleBar = ({ title }: { title: string }) => (
-    <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+    <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
       <span className="font-bold text-sm tracking-wide">{title}</span>
       <span className="font-bold text-sm">{selectedCompany?.name || 'Company'}</span>
       <span />
@@ -333,11 +333,11 @@ export default function ReorderStatus() {
   // ── Submenu ──────────────────────────────────────────────────────────────
   if (level.step === 'submenu') {
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
         <TitleBar title="Reorder Status" />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-72 border border-zinc-300">
-            <div className="bg-zinc-900 text-white px-3 py-1 text-sm font-semibold">
+          <div className="w-72 border border-gray-200">
+            <div className="bg-black text-white px-3 py-1 text-sm font-semibold">
               Reorder Status
             </div>
             {SUB.map((s, i) => (
@@ -345,7 +345,7 @@ export default function ReorderStatus() {
                 key={s.scope}
                 onClick={() => openSelect(s.scope)}
                 onMouseEnter={() => setSubIdx(i)}
-                className={`px-3 py-1.5 cursor-pointer border-b border-zinc-100 ${i === subIdx ? 'bg-zinc-200 font-bold' : 'hover:bg-zinc-50'}`}
+                className={`px-3 py-1.5 cursor-pointer border-b border-gray-200 ${i === subIdx ? 'bg-black/[0.06] font-bold' : 'hover:bg-black/[0.03]'}`}
               >
                 {s.label}
               </div>
@@ -353,7 +353,7 @@ export default function ReorderStatus() {
           </div>
         </div>
         <FooterBar>
-          <span className="text-zinc-400">Enter: Select</span>
+          <span className="text-black">Enter: Select</span>
         </FooterBar>
       </div>
     );
@@ -363,7 +363,7 @@ export default function ReorderStatus() {
   if (level.step === 'select') {
     const isCat = level.scope === 'category';
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
         <TitleBar title="Reorder Status" />
         <SelectionPopup
           title={isCat ? 'Select Stock Category' : 'Select Stock Group'}
@@ -394,23 +394,23 @@ export default function ReorderStatus() {
     const title =
       level.scope === 'category' ? 'Stock Category Reorder Status' : 'Stock Group Reorder Status';
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
+      <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
         <TitleBar title={title} />
-        <div className="flex justify-between items-start px-3 py-1 bg-white border-b border-zinc-300 font-mono text-[11px]">
+        <div className="flex justify-between items-start px-3 py-1 bg-white border-b border-gray-200 font-mono text-[11px]">
           <div>
             <div>
-              <span className="text-zinc-500">Items Under:</span>{' '}
+              <span className="text-black">Items Under:</span>{' '}
               <span className="font-semibold">{level.ref.name}</span>
             </div>
-            <div className="text-[10px] italic text-zinc-500">(all items)</div>
+            <div className="text-[10px] italic text-black">(all items)</div>
           </div>
           <span className="font-semibold">as at {asAt}</span>
         </div>
         <div className="flex-1 overflow-auto">
           <table className="w-full border-collapse text-[11px] font-mono">
-            <thead className="sticky top-0 bg-zinc-100 z-10">
+            <thead className="sticky top-0 bg-black/[0.06] z-10">
               <tr>
-                <th className="px-2 py-1 text-left font-bold text-zinc-700 border-b border-zinc-300 align-bottom">
+                <th className="px-2 py-1 text-left font-bold text-black border-b border-gray-200 align-bottom">
                   Name of Item
                 </th>
                 <th className={TH}>{'Closing\nStock'}</th>
@@ -426,19 +426,19 @@ export default function ReorderStatus() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={9} className="px-4 py-8 text-center text-black italic">
                     Loading…
                   </td>
                 </tr>
               ) : err ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-zinc-600">
+                  <td colSpan={9} className="px-4 py-8 text-center text-black">
                     {err}
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={9} className="px-4 py-8 text-center text-black italic">
                     No items in this {level.scope === 'category' ? 'category' : 'group'}.
                   </td>
                 </tr>
@@ -450,7 +450,7 @@ export default function ReorderStatus() {
                       key={it.item_id}
                       onClick={() => setRowIdx(idx)}
                       onDoubleClick={() => loadMovement(level.scope, level.ref, it)}
-                      className={`border-b border-zinc-100 cursor-pointer ${idx === rowIdx ? 'bg-zinc-200 text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+                      className={`border-b border-gray-200 cursor-pointer ${idx === rowIdx ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                       title="Enter / double-click: item movement analysis"
                     >
                       <td className="px-2 py-1">{it.item_name}</td>
@@ -472,11 +472,11 @@ export default function ReorderStatus() {
         <FooterBar>
           <button
             onClick={() => openSelect(level.scope)}
-            className="hover:underline hover:text-zinc-900"
+            className="hover:underline hover:text-black"
           >
             Q: Back
           </button>
-          <span className="text-zinc-400">Enter: Item movement analysis</span>
+          <span className="text-black">Enter: Item movement analysis</span>
         </FooterBar>
       </div>
     );
@@ -502,11 +502,11 @@ export default function ReorderStatus() {
           <FooterBar>
             <button
               onClick={() => loadReport(level.scope, level.ref)}
-              className="hover:underline hover:text-zinc-900"
+              className="hover:underline hover:text-black"
             >
               Q: Back to Reorder Status
             </button>
-            <span className="text-zinc-400">Enter: Item voucher analysis</span>
+            <span className="text-black">Enter: Item voucher analysis</span>
           </FooterBar>
         }
       />
@@ -533,14 +533,14 @@ export default function ReorderStatus() {
         <FooterBar>
           <button
             onClick={() => loadMovement(level.scope, level.ref, it)}
-            className="hover:underline hover:text-zinc-900"
+            className="hover:underline hover:text-black"
           >
             Q: Back
           </button>
-          <span className="text-zinc-400">Enter: Alter</span>
-          <span className="text-zinc-400">A: Add Vch</span>
-          <span className="text-zinc-400">2: Duplicate Vch</span>
-          <span className="text-zinc-400">I: Insert Vch</span>
+          <span className="text-black">Enter: Alter</span>
+          <span className="text-black">A: Add Vch</span>
+          <span className="text-black">2: Duplicate Vch</span>
+          <span className="text-black">I: Insert Vch</span>
         </FooterBar>
       }
     />

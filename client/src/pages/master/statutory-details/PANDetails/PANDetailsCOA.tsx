@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { CompanyPanCinDetails } from "@/types/entities/CompanyPanCinDetails";
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { CompanyPanCinDetails } from '@/types/entities/CompanyPanCinDetails';
 
 export default function PANDetailsCOA() {
   const { selectedCompany } = useCompany();
@@ -40,8 +41,8 @@ export default function PANDetailsCOA() {
           }
         }
       } catch (err) {
-        console.error("Failed to fetch PAN/CIN details for COA:", err);
-        setError("Failed to load statutory details.");
+        console.error('Failed to fetch PAN/CIN details for COA:', err);
+        setError('Failed to load statutory details.');
       } finally {
         setLoading(false);
       }
@@ -52,17 +53,17 @@ export default function PANDetailsCOA() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.altKey && e.key.toLowerCase() === "a") {
+      if (e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        navigate("/master/alter/pan-cin-details");
+        navigate('/master/alter/pan-cin-details');
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   return (
@@ -76,18 +77,14 @@ export default function PANDetailsCOA() {
           <span className="text-sm font-semibold text-zinc-700">PAN/CIN Details</span>
         </div>
         <button
-          onClick={() => navigate("/master/alter/pan-cin-details")}
+          onClick={() => navigate('/master/alter/pan-cin-details')}
           className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2.5 py-0.5 bg-white font-medium font-sans"
         >
           Alter Details
         </button>
       </div>
 
-      {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs font-bold font-sans">
-          • {error}
-        </div>
-      )}
+      {error && <NotificationBanner type="error" message={error} />}
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -99,9 +96,11 @@ export default function PANDetailsCOA() {
             </div>
           ) : !panDetails ? (
             <div className="text-center py-12 text-zinc-500 text-xs space-y-3">
-              <p className="italic">No PAN/CIN details have been configured for this company yet.</p>
+              <p className="italic">
+                No PAN/CIN details have been configured for this company yet.
+              </p>
               <button
-                onClick={() => navigate("/master/create/pan-cin-details")}
+                onClick={() => navigate('/master/create/pan-cin-details')}
                 className="text-xs px-4 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium rounded transition-colors"
               >
                 Configure PAN/CIN details
@@ -115,11 +114,11 @@ export default function PANDetailsCOA() {
               <div className="space-y-3">
                 <div className="flex justify-between max-w-md">
                   <span className="text-zinc-400">PAN/Income tax no.:</span>
-                  <span className="font-bold text-zinc-900">{panDetails.pan || "—"}</span>
+                  <span className="font-bold text-zinc-900">{panDetails.pan || '—'}</span>
                 </div>
                 <div className="flex justify-between max-w-md">
                   <span className="text-zinc-400">Corporate Identity No. (CIN):</span>
-                  <span className="font-bold text-zinc-900">{panDetails.cin || "—"}</span>
+                  <span className="font-bold text-zinc-900">{panDetails.cin || '—'}</span>
                 </div>
               </div>
             </div>
@@ -129,14 +128,14 @@ export default function PANDetailsCOA() {
         {/* Right Action Menu */}
         <div className="w-44 border-l border-zinc-200 flex flex-col bg-zinc-50/30 text-[10px] select-none shrink-0 font-sans">
           <button
-            onClick={() => navigate("/master/alter/pan-cin-details")}
+            onClick={() => navigate('/master/alter/pan-cin-details')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+A Alter
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit

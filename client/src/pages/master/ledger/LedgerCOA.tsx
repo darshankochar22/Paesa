@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
 import type { LedgerType, GroupType } from '@/types/api';
 
 interface TreeNode extends GroupType {
@@ -284,15 +285,7 @@ export default function LedgerCOA() {
       </div>
 
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center animate-shake">
-          <span>{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold"
-          >
-            dismiss
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0 bg-white">

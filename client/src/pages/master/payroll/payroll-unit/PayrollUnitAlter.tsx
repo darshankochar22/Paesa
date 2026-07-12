@@ -9,6 +9,7 @@ import {
   AlertBanner,
 } from '@/components/ui';
 import { useMasterShortcuts } from '@/hooks/useMasterShortcuts';
+import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { PayrollUnitType } from '@/types/entities/Payroll';
 import { UqcPopup } from '../../inventory/unit/UqcPopup';
 
@@ -49,7 +50,7 @@ export default function PayrollUnitAlter() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showUqc, setShowUqc] = useState(false);
-  const uqcAnchorRef = useRef<HTMLButtonElement>(null);
+  const uqcAnchorRef = useRef<HTMLSpanElement>(null);
 
   const loadUnits = useCallback(async () => {
     if (!companyId) return;
@@ -255,20 +256,23 @@ export default function PayrollUnitAlter() {
                   />
                 </FormRow>
                 <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="relative">
-                  <button
+                  <span
                     ref={uqcAnchorRef}
-                    type="button"
-                    className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    data-enter-click
+                    className="flex-1 cursor-pointer text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
                     onClick={() => setShowUqc((v) => !v)}
                   >
                     ◆ {form.uqc || 'Not Applicable'}
-                  </button>
+                  </span>
                   {showUqc && (
                     <UqcPopup
                       selected={form.uqc}
                       onSelect={(v) => {
                         setForm((f) => ({ ...f, uqc: v }));
                         setShowUqc(false);
+                        focusFieldAfter(uqcAnchorRef.current);
                       }}
                       onClose={() => setShowUqc(false)}
                     />

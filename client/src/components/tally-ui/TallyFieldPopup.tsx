@@ -13,7 +13,7 @@ import { useEscape } from '@/hooks/useEscape';
  *
  * Colour note: Tally paints the active field yellow. This project's theme is
  * strict black/white/gray (see UI.md), so callers highlight the focused input
- * with a gray fill (`focus:bg-gray-200`) instead — same *behaviour*, no hue.
+ * with a gray fill (`focus:bg-black/[0.06]`) instead — same *behaviour*, no hue.
  *
  * Keyboard (Tally, no mouse needed): Enter advances to the next field in DOM
  * order; Enter on the LAST field accepts the whole form. Fields that need their
@@ -105,15 +105,15 @@ export function TallyFieldPopup({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/[0.06] select-none">
       <div
         ref={boxRef}
         onKeyDown={handleEnterNav}
-        className="bg-white border border-gray-500 shadow-md flex flex-col"
+        className="bg-white border border-gray-200 shadow-md flex flex-col"
         style={{ width, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 32px)' }}
       >
         {/* Title — bold, centred, thin divider (Tally sub-form header) */}
-        <div className="shrink-0 text-center text-[13px] font-bold text-black py-1 border-b border-gray-300">
+        <div className="shrink-0 text-center text-[13px] font-bold text-black py-1 border-b border-gray-200">
           {title}
         </div>
         {/* Body */}

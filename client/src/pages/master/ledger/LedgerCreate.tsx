@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import GroupFlatList from '@/components/GroupFlatList';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
-import { FormRow, PageTitleBar, RightActionPanel } from '@/components/ui';
+import {
+  FormRow,
+  PageTitleBar,
+  RightActionPanel,
+  NotificationBanner,
+  MasterFormFooter,
+} from '@/components/ui';
 import BankDetailsPopup from './components/BankDetailsPopup';
 import type { GroupType } from '@/types/api';
 import {
@@ -470,26 +476,10 @@ export default function LedgerCreate() {
       <PageTitleBar title="Ledger Creation" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
       {success && (
-        <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
-          <span>{success}</span>
-          <button
-            onClick={() => setSuccess(null)}
-            className="text-green-500 hover:text-green-700 text-xs font-bold"
-          >
-            &times;
-          </button>
-        </div>
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
@@ -797,22 +787,11 @@ export default function LedgerCreate() {
         <RightActionPanel actions={ledgerActions} />
       </div>
 
-      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
-        <Link
-          to="/master/create"
-          className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium"
-        >
-          &larr; Back to Masters
-        </Link>
-        <button
-          data-enter-accept
-          onClick={handleSubmit}
-          disabled={loading}
-          className="text-sm px-6 py-1.5 rounded bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50 transition-all font-semibold shadow-sm hover:shadow active:scale-95 duration-150"
-        >
-          {loading ? 'Saving...' : 'Create'}
-        </button>
-      </div>
+      <MasterFormFooter
+        onCancel={() => navigate('/master/create')}
+        onSubmit={handleSubmit}
+        loading={loading}
+      />
     </div>
   );
 }

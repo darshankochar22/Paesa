@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from "react";
-import GSTDetailsListPanel from "./GSTDetailsListPanel";
-import SlabBasedRateDetails, { type SlabRow } from "./SlabBasedRateDetails";
+import { useEffect, useState, useRef } from 'react';
+import { NotificationBanner } from '@/components/ui';
+import GSTDetailsListPanel from './GSTDetailsListPanel';
+import SlabBasedRateDetails, { type SlabRow } from './SlabBasedRateDetails';
 
 interface GSTClassificationSecondaryModalProps {
   isOpen: boolean;
@@ -11,16 +12,16 @@ interface GSTClassificationSecondaryModalProps {
 
 const SECONDARY_DROPDOWN_CONFIGS: Record<string, { title: string; options: string[] }> = {
   hsnSacType: {
-    title: "List of HSN/SAC Details",
-    options: ["Not Defined", "Specify Details Here"],
+    title: 'List of HSN/SAC Details',
+    options: ['Not Defined', 'Specify Details Here'],
   },
   gstRateDetails: {
-    title: "GST Rate Details",
-    options: ["Not Defined", "Specify Details Here", "Specify Slab-Based Rates"],
+    title: 'GST Rate Details',
+    options: ['Not Defined', 'Specify Details Here', 'Specify Slab-Based Rates'],
   },
   taxabilityType: {
-    title: "Taxability Type",
-    options: ["Taxable", "Exempt", "Nil Rated", "Non GST"],
+    title: 'Taxability Type',
+    options: ['Taxable', 'Exempt', 'Nil Rated', 'Non GST'],
   },
 };
 
@@ -33,20 +34,20 @@ export default function GSTClassificationSecondaryModal({
   if (!isOpen) return null;
 
   // ── Form state ──────────────────────────────────────────────────────────────
-  const [name, setName] = useState("");
-  const [hsnSacType, setHsnSacType] = useState("Not Defined");
-  const [hsnSacCode, setHsnSacCode] = useState("");
-  const [description, setDescription] = useState("");
-  const [gstRateDetails, setGstRateDetails] = useState("Not Defined");
-  const [taxabilityType, setTaxabilityType] = useState("Taxable");
+  const [name, setName] = useState('');
+  const [hsnSacType, setHsnSacType] = useState('Not Defined');
+  const [hsnSacCode, setHsnSacCode] = useState('');
+  const [description, setDescription] = useState('');
+  const [gstRateDetails, setGstRateDetails] = useState('Not Defined');
+  const [taxabilityType, setTaxabilityType] = useState('Taxable');
   const [gstRate, setGstRate] = useState(0);
   const [slabRows, setSlabRows] = useState<SlabRow[]>([]);
 
   // ── UI state ────────────────────────────────────────────────────────────────
-  const [activeField, setActiveField] = useState("name");
+  const [activeField, setActiveField] = useState('name');
   const [listPanelOpen, setListPanelOpen] = useState(false);
   const [listOptions, setListOptions] = useState<string[]>([]);
-  const [listTitle, setListTitle] = useState("");
+  const [listTitle, setListTitle] = useState('');
   const [listSelectedIndex, setListSelectedIndex] = useState(0);
   const [showAcceptPrompt, setShowAcceptPrompt] = useState(false);
   const [showSlabOverlay, setShowSlabOverlay] = useState(false);
@@ -62,16 +63,16 @@ export default function GSTClassificationSecondaryModal({
 
   useEffect(() => {
     containerRef.current?.focus();
-    setActiveField("name");
+    setActiveField('name');
     nameRef.current?.focus();
   }, []);
 
   // ── Focus sync ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (activeField === "name") nameRef.current?.focus();
-    else if (activeField === "hsnSacCode") hsnCodeRef.current?.focus();
-    else if (activeField === "description") descRef.current?.focus();
-    else if (activeField === "gstRate") rateRef.current?.focus();
+    if (activeField === 'name') nameRef.current?.focus();
+    else if (activeField === 'hsnSacCode') hsnCodeRef.current?.focus();
+    else if (activeField === 'description') descRef.current?.focus();
+    else if (activeField === 'gstRate') rateRef.current?.focus();
   }, [activeField]);
 
   // ── List panel sync ─────────────────────────────────────────────────────────
@@ -81,16 +82,16 @@ export default function GSTClassificationSecondaryModal({
 
   // ── Field order ─────────────────────────────────────────────────────────────
   const getFocusableFields = (): string[] => {
-    const list = ["name", "hsnSacType"];
-    if (hsnSacType === "Specify Details Here") {
-      list.push("hsnSacCode", "description");
+    const list = ['name', 'hsnSacType'];
+    if (hsnSacType === 'Specify Details Here') {
+      list.push('hsnSacCode', 'description');
     }
-    list.push("gstRateDetails");
+    list.push('gstRateDetails');
     // Only show taxability/rate when "Specify Details Here" (NOT slab-based)
-    if (gstRateDetails === "Specify Details Here") {
-      list.push("taxabilityType");
-      if (taxabilityType === "Taxable") {
-        list.push("gstRate");
+    if (gstRateDetails === 'Specify Details Here') {
+      list.push('taxabilityType');
+      if (taxabilityType === 'Taxable') {
+        list.push('gstRate');
       }
     }
     return list;
@@ -106,10 +107,10 @@ export default function GSTClassificationSecondaryModal({
     setListTitle(config.title);
     setListPanelOpen(true);
 
-    let currentValue = "";
-    if (fieldId === "hsnSacType") currentValue = hsnSacType;
-    else if (fieldId === "gstRateDetails") currentValue = gstRateDetails;
-    else if (fieldId === "taxabilityType") currentValue = taxabilityType;
+    let currentValue = '';
+    if (fieldId === 'hsnSacType') currentValue = hsnSacType;
+    else if (fieldId === 'gstRateDetails') currentValue = gstRateDetails;
+    else if (fieldId === 'taxabilityType') currentValue = taxabilityType;
 
     const idx = config.options.indexOf(currentValue);
     setListSelectedIndex(idx >= 0 ? idx : 0);
@@ -118,7 +119,10 @@ export default function GSTClassificationSecondaryModal({
   const moveFocus = (direction: 1 | -1) => {
     const fields = getFocusableFields();
     let idx = fields.indexOf(activeField);
-    if (idx === -1) { setActiveField(fields[0]); return; }
+    if (idx === -1) {
+      setActiveField(fields[0]);
+      return;
+    }
     idx += direction;
     if (idx >= fields.length) {
       setShowAcceptPrompt(true);
@@ -130,17 +134,17 @@ export default function GSTClassificationSecondaryModal({
   };
 
   const handleSelectOption = (fieldId: string, val: string) => {
-    if (fieldId === "hsnSacType") {
+    if (fieldId === 'hsnSacType') {
       setHsnSacType(val);
-    } else if (fieldId === "gstRateDetails") {
+    } else if (fieldId === 'gstRateDetails') {
       setGstRateDetails(val);
       // When slab-based is selected, open slab overlay immediately after moving focus
-      if (val === "Specify Slab-Based Rates") {
+      if (val === 'Specify Slab-Based Rates') {
         setListPanelOpen(false);
         setTimeout(() => setShowSlabOverlay(true), 50);
         return; // don't moveFocus — slab overlay takes over
       }
-    } else if (fieldId === "taxabilityType") {
+    } else if (fieldId === 'taxabilityType') {
       setTaxabilityType(val);
     }
     moveFocus(1);
@@ -148,9 +152,9 @@ export default function GSTClassificationSecondaryModal({
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setError("Name is required");
+      setError('Name is required');
       setShowAcceptPrompt(false);
-      setActiveField("name");
+      setActiveField('name');
       return;
     }
     setLoading(true);
@@ -159,20 +163,18 @@ export default function GSTClassificationSecondaryModal({
       const payload = {
         company_id: companyId,
         name: name.trim(),
-        description: hsnSacType === "Specify Details Here" ? description : "",
-        hsn_sac_code: hsnSacType === "Specify Details Here" ? hsnSacCode : "",
+        description: hsnSacType === 'Specify Details Here' ? description : '',
+        hsn_sac_code: hsnSacType === 'Specify Details Here' ? hsnSacCode : '',
         taxability:
-          gstRateDetails === "Not Defined"
-            ? "Not Defined"
-            : gstRateDetails === "Specify Slab-Based Rates"
-            ? "Slab-Based"
-            : taxabilityType,
+          gstRateDetails === 'Not Defined'
+            ? 'Not Defined'
+            : gstRateDetails === 'Specify Slab-Based Rates'
+              ? 'Slab-Based'
+              : taxabilityType,
         gst_rate:
-          gstRateDetails === "Specify Details Here" && taxabilityType === "Taxable"
-            ? gstRate
-            : 0,
+          gstRateDetails === 'Specify Details Here' && taxabilityType === 'Taxable' ? gstRate : 0,
         rate_type: gstRateDetails,
-        slab_rows: gstRateDetails === "Specify Slab-Based Rates" ? JSON.stringify(slabRows) : null,
+        slab_rows: gstRateDetails === 'Specify Slab-Based Rates' ? JSON.stringify(slabRows) : null,
         is_active: 1,
       };
 
@@ -180,11 +182,11 @@ export default function GSTClassificationSecondaryModal({
       if (result.success) {
         onSaveSuccess(name.trim());
       } else {
-        setError(result.error || "Failed to create GST classification");
+        setError(result.error || 'Failed to create GST classification');
         setShowAcceptPrompt(false);
       }
     } catch {
-      setError("An unexpected error occurred");
+      setError('An unexpected error occurred');
       setShowAcceptPrompt(false);
     } finally {
       setLoading(false);
@@ -196,7 +198,7 @@ export default function GSTClassificationSecondaryModal({
     if (showSlabOverlay) return; // slab overlay handles its own keys
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         if (showAcceptPrompt) {
           setShowAcceptPrompt(false);
@@ -208,7 +210,7 @@ export default function GSTClassificationSecondaryModal({
         return;
       }
 
-      if (e.altKey && e.key.toLowerCase() === "a") {
+      if (e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setShowAcceptPrompt(true);
         return;
@@ -216,8 +218,10 @@ export default function GSTClassificationSecondaryModal({
 
       if (showAcceptPrompt) {
         const k = e.key.toLowerCase();
-        if (k === "y" || e.key === "Enter") { e.preventDefault(); handleSave(); }
-        else if (k === "n") {
+        if (k === 'y' || e.key === 'Enter') {
+          e.preventDefault();
+          handleSave();
+        } else if (k === 'n') {
           e.preventDefault();
           setShowAcceptPrompt(false);
           const fields = getFocusableFields();
@@ -227,37 +231,37 @@ export default function GSTClassificationSecondaryModal({
       }
 
       if (listPanelOpen && listOptions.length > 0) {
-        if (e.key === "ArrowDown") {
+        if (e.key === 'ArrowDown') {
           e.preventDefault();
           setListSelectedIndex((prev) => (prev + 1) % listOptions.length);
           return;
         }
-        if (e.key === "ArrowUp") {
+        if (e.key === 'ArrowUp') {
           e.preventDefault();
           setListSelectedIndex((prev) => (prev - 1 + listOptions.length) % listOptions.length);
           return;
         }
-        if (e.key === "Enter") {
+        if (e.key === 'Enter') {
           e.preventDefault();
           handleSelectOption(activeField, listOptions[listSelectedIndex]);
           return;
         }
       }
 
-      if (e.key === "Enter" || e.key === "Tab") {
+      if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         moveFocus(e.shiftKey ? -1 : 1);
-      } else if (e.key === "ArrowDown") {
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         moveFocus(1);
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         moveFocus(-1);
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     showSlabOverlay,
     activeField,
@@ -275,8 +279,8 @@ export default function GSTClassificationSecondaryModal({
   ]);
 
   // ── Styles ──────────────────────────────────────────────────────────────────
-  const activeClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950";
-  const inactiveClass = "border-transparent bg-transparent text-zinc-900";
+  const activeClass = 'bg-[#ffea5d] border-[#e6c300] text-zinc-950';
+  const inactiveClass = 'border-transparent bg-transparent text-zinc-900';
   const dropdownStyle = (isActive: boolean) =>
     `px-2 py-0.5 border cursor-pointer font-bold select-none ${isActive ? activeClass : inactiveClass}`;
   const inputStyle = (isActive: boolean) =>
@@ -291,14 +295,12 @@ export default function GSTClassificationSecondaryModal({
         className="outline-none flex gap-4 max-h-[85vh] items-stretch animate-fade-in"
       >
         <div className="bg-white border border-zinc-500 w-[550px] flex flex-col shadow-2xl overflow-hidden relative">
-
           {/* Header */}
           <div className="bg-[#007a78] text-white font-bold text-xs py-2 px-3 tracking-wide flex justify-between">
             <span>GST Classification Creation (Secondary)</span>
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-
             {/* Name */}
             <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
               <span className="text-zinc-700">Name</span>
@@ -308,8 +310,8 @@ export default function GSTClassificationSecondaryModal({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                onFocus={() => setActiveField("name")}
-                className={`${inputStyle(activeField === "name")} flex-1`}
+                onFocus={() => setActiveField('name')}
+                className={`${inputStyle(activeField === 'name')} flex-1`}
               />
             </div>
 
@@ -323,14 +325,14 @@ export default function GSTClassificationSecondaryModal({
                 <span className="text-zinc-700">HSN/SAC Details</span>
                 <span className="text-zinc-400 text-center">:</span>
                 <div
-                  onClick={() => setActiveField("hsnSacType")}
-                  className={`${dropdownStyle(activeField === "hsnSacType")} flex-1`}
+                  onClick={() => setActiveField('hsnSacType')}
+                  className={`${dropdownStyle(activeField === 'hsnSacType')} flex-1`}
                 >
                   ♦ {hsnSacType}
                 </div>
               </div>
 
-              {hsnSacType === "Specify Details Here" && (
+              {hsnSacType === 'Specify Details Here' && (
                 <>
                   <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
                     <span className="text-zinc-700">HSN/SAC</span>
@@ -340,9 +342,9 @@ export default function GSTClassificationSecondaryModal({
                       type="text"
                       maxLength={8}
                       value={hsnSacCode}
-                      onChange={(e) => setHsnSacCode(e.target.value.replace(/\D/g, ""))}
-                      onFocus={() => setActiveField("hsnSacCode")}
-                      className={`${inputStyle(activeField === "hsnSacCode")} w-28`}
+                      onChange={(e) => setHsnSacCode(e.target.value.replace(/\D/g, ''))}
+                      onFocus={() => setActiveField('hsnSacCode')}
+                      className={`${inputStyle(activeField === 'hsnSacCode')} w-28`}
                     />
                   </div>
 
@@ -354,8 +356,8 @@ export default function GSTClassificationSecondaryModal({
                       type="text"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      onFocus={() => setActiveField("description")}
-                      className={`${inputStyle(activeField === "description")} flex-1`}
+                      onFocus={() => setActiveField('description')}
+                      className={`${inputStyle(activeField === 'description')} flex-1`}
                     />
                   </div>
                 </>
@@ -372,15 +374,15 @@ export default function GSTClassificationSecondaryModal({
                 <span className="text-zinc-700">GST Rate Details</span>
                 <span className="text-zinc-400 text-center">:</span>
                 <div
-                  onClick={() => setActiveField("gstRateDetails")}
-                  className={`${dropdownStyle(activeField === "gstRateDetails")} flex-1`}
+                  onClick={() => setActiveField('gstRateDetails')}
+                  className={`${dropdownStyle(activeField === 'gstRateDetails')} flex-1`}
                 >
                   ♦ {gstRateDetails}
                 </div>
               </div>
 
               {/* Slab-Based: show summary row + Edit button */}
-              {gstRateDetails === "Specify Slab-Based Rates" && (
+              {gstRateDetails === 'Specify Slab-Based Rates' && (
                 <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
                   <span className="text-zinc-700">Slab Rates</span>
                   <span className="text-zinc-400 text-center">:</span>
@@ -390,26 +392,26 @@ export default function GSTClassificationSecondaryModal({
                   >
                     {slabRows.length > 0
                       ? `${slabRows.length} slab(s) configured — Edit`
-                      : "Not configured — Click to define"}
+                      : 'Not configured — Click to define'}
                   </button>
                 </div>
               )}
 
               {/* Specify Details Here: Taxability + GST Rate */}
-              {gstRateDetails === "Specify Details Here" && (
+              {gstRateDetails === 'Specify Details Here' && (
                 <>
                   <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
                     <span className="text-zinc-700">Taxability Type</span>
                     <span className="text-zinc-400 text-center">:</span>
                     <div
-                      onClick={() => setActiveField("taxabilityType")}
-                      className={`${dropdownStyle(activeField === "taxabilityType")} flex-1`}
+                      onClick={() => setActiveField('taxabilityType')}
+                      className={`${dropdownStyle(activeField === 'taxabilityType')} flex-1`}
                     >
                       {taxabilityType}
                     </div>
                   </div>
 
-                  {taxabilityType === "Taxable" && (
+                  {taxabilityType === 'Taxable' && (
                     <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
                       <span className="text-zinc-700">GST Rate</span>
                       <span className="text-zinc-400 text-center">:</span>
@@ -417,10 +419,10 @@ export default function GSTClassificationSecondaryModal({
                         <input
                           ref={rateRef}
                           type="number"
-                          value={gstRate || ""}
+                          value={gstRate || ''}
                           onChange={(e) => setGstRate(Number(e.target.value))}
-                          onFocus={() => setActiveField("gstRate")}
-                          className={`${inputStyle(activeField === "gstRate")} w-20 text-right`}
+                          onFocus={() => setActiveField('gstRate')}
+                          className={`${inputStyle(activeField === 'gstRate')} w-20 text-right`}
                         />
                         <span className="font-bold text-zinc-500">%</span>
                       </div>
@@ -430,16 +432,18 @@ export default function GSTClassificationSecondaryModal({
               )}
             </div>
 
-            {error && (
-              <div className="text-red-600 font-bold mt-2">• {error}</div>
-            )}
+            {error && <NotificationBanner type="error" message={error} />}
           </div>
 
           {/* Action bar */}
           <div className="bg-zinc-100 border-t border-zinc-300 px-4 py-2 flex justify-between items-center text-[10px] text-zinc-600 font-sans shrink-0">
             <div className="flex gap-4">
-              <span><span className="underline font-bold text-zinc-800">Q</span>: Quit</span>
-              <span><span className="underline font-bold text-zinc-800">A</span>lt+A: Accept</span>
+              <span>
+                <span className="underline font-bold text-zinc-800">Q</span>: Quit
+              </span>
+              <span>
+                <span className="underline font-bold text-zinc-800">A</span>lt+A: Accept
+              </span>
             </div>
             <div className="flex gap-2">
               <button
@@ -453,7 +457,7 @@ export default function GSTClassificationSecondaryModal({
                 disabled={loading}
                 className="px-4 py-1 rounded bg-[#007a78] text-white hover:bg-[#005a58] disabled:opacity-50 text-xs font-medium"
               >
-                {loading ? "Saving..." : "Accept"}
+                {loading ? 'Saving...' : 'Accept'}
               </button>
             </div>
           </div>

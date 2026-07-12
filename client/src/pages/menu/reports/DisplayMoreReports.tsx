@@ -113,10 +113,8 @@ export default function DisplayMoreReports() {
       <div className="flex items-center justify-between pb-2">
         <div className="text-xl font-semibold">Display More Reports</div>
         <div className="text-right">
-          <div className="text-xs text-zinc-600 font-medium">
-            {selectedCompany?.name || 'Company'}
-          </div>
-          {fyLabel && <div className="text-[10px] text-zinc-400">{fyLabel}</div>}
+          <div className="text-xs text-black font-medium">{selectedCompany?.name || 'Company'}</div>
+          {fyLabel && <div className="text-[10px] text-black">{fyLabel}</div>}
         </div>
       </div>
 
@@ -130,10 +128,10 @@ export default function DisplayMoreReports() {
                 <Link
                   key={item.label}
                   to={item.route}
-                  className="text-left rounded px-2 py-1 hover:bg-zinc-100 transition-colors flex items-center justify-between"
+                  className="text-left rounded px-2 py-1 hover:bg-black/[0.03] transition-colors flex items-center justify-between"
                 >
                   <span>{item.label}</span>
-                  <span className="text-xs text-zinc-400 font-mono ml-2">{item.count}</span>
+                  <span className="text-xs text-black font-mono ml-2">{item.count}</span>
                 </Link>
               ))}
             </div>
@@ -141,7 +139,7 @@ export default function DisplayMoreReports() {
         ))}
       </div>
 
-      <div className="text-xs text-zinc-400 border-t pt-3 flex items-center justify-between">
+      <div className="text-xs text-black border-t pt-3 flex items-center justify-between">
         <span>585 Reports · 15 Categories</span>
       </div>
     </aside>

@@ -89,7 +89,7 @@ export default function ChangeViewPopup({ currentView, onSelect, onClose }: Prop
 
   const renderGroup = (label: string, entries: Entry[]) => (
     <>
-      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500 bg-zinc-50 border-y border-zinc-200">
+      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-black bg-white border-y border-gray-200">
         {label}
       </div>
       {entries.map((e) => {
@@ -103,11 +103,11 @@ export default function ChangeViewPopup({ currentView, onSelect, onClose }: Prop
             onClick={() => onSelect(e.sel)}
             onMouseEnter={() => setIdx(fi)}
             className={`w-full text-left px-4 py-1 text-[11px] flex items-center justify-between ${
-              active ? 'bg-zinc-200 text-zinc-950 font-bold' : 'hover:bg-zinc-50 text-zinc-800'
+              active ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'
             }`}
           >
             <span>{e.label}</span>
-            {isCurrent && <span className="text-[9px] text-zinc-500">(current)</span>}
+            {isCurrent && <span className="text-[9px] text-black">(current)</span>}
           </button>
         );
       })}
@@ -116,34 +116,34 @@ export default function ChangeViewPopup({ currentView, onSelect, onClose }: Prop
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/20"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/[0.06]"
       onClick={onClose}
     >
       <div
-        className="mt-24 w-72 bg-white border border-zinc-900 shadow-lg flex flex-col select-none"
+        className="mt-24 w-72 bg-white border border-gray-200 shadow-lg flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-1.5 bg-white border-b-2 border-zinc-900 flex items-center justify-between">
+        <div className="px-3 py-1.5 bg-white border-b-2 border-gray-200 flex items-center justify-between">
           <span className="font-bold text-xs tracking-wide">Change View</span>
           <button
             onClick={() => setShowMore((m) => !m)}
-            className="text-[10px] font-semibold text-zinc-600 hover:text-zinc-900 underline"
+            className="text-[10px] font-semibold text-black hover:text-black underline"
           >
             {showMore ? 'Show Less' : 'Show More'}
           </button>
         </div>
-        <div className="px-3 py-1.5 border-b border-zinc-200">
+        <div className="px-3 py-1.5 border-b border-gray-200">
           <input
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search views…"
-            className="w-full px-2 py-1 text-[11px] border border-zinc-300 focus:border-zinc-900 outline-none font-mono"
+            className="w-full px-2 py-1 text-[11px] border border-gray-200 focus:border-gray-200 outline-none font-mono"
           />
         </div>
         <div className="max-h-80 overflow-y-auto">
           {flat.length === 0 ? (
-            <div className="px-4 py-3 text-[11px] text-zinc-400 italic">No matching views</div>
+            <div className="px-4 py-3 text-[11px] text-black italic">No matching views</div>
           ) : (
             <>
               {views.some((v) => flat.includes(v)) && renderGroup('Views', views)}
@@ -151,11 +151,11 @@ export default function ChangeViewPopup({ currentView, onSelect, onClose }: Prop
             </>
           )}
         </div>
-        <div className="px-3 py-1 border-t border-zinc-200 flex justify-end gap-3 text-[10px] font-semibold text-zinc-600">
-          <button onClick={onClose} className="hover:text-zinc-900">
+        <div className="px-3 py-1 border-t border-gray-200 flex justify-end gap-3 text-[10px] font-semibold text-black">
+          <button onClick={onClose} className="hover:text-black">
             Esc: Quit
           </button>
-          <span className="text-zinc-400">Enter: Accept</span>
+          <span className="text-black">Enter: Accept</span>
         </div>
       </div>
     </div>

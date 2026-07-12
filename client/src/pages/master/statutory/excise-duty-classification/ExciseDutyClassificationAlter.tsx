@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import { MasterSelectionPanel, type TableColumn } from "@/components/ui";
-import ExciseDutyClassificationForm from "./ExciseDutyClassificationForm";
-import type { ExciseDutyClassificationType } from "@/types/api";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { MasterSelectionPanel, NotificationBanner, type TableColumn } from '@/components/ui';
+import ExciseDutyClassificationForm from './ExciseDutyClassificationForm';
+import type { ExciseDutyClassificationType } from '@/types/api';
 
 export default function ExciseDutyClassificationAlter() {
   const navigate = useNavigate();
@@ -32,13 +32,15 @@ export default function ExciseDutyClassificationAlter() {
   const handleDelete = async () => {
     if (!selected) return;
     if (!window.confirm(`Delete excise duty classification "${selected.name}"?`)) return;
-    const res = await window.api.exciseDutyClassification.delete(selected.excise_duty_classification_id!);
+    const res = await window.api.exciseDutyClassification.delete(
+      selected.excise_duty_classification_id!,
+    );
     if (res.success) {
       setSuccess(`Excise Duty Classification "${selected.name}" deleted.`);
       setSelected(null);
       load();
     } else {
-      window.alert(res.error || "Failed to delete excise duty classification.");
+      window.alert(res.error || 'Failed to delete excise duty classification.');
     }
   };
 
@@ -49,27 +51,29 @@ export default function ExciseDutyClassificationAlter() {
   if (!selected) {
     const columns: TableColumn[] = [
       {
-        key: "name",
-        label: "Name",
-        span: "col-span-5",
+        key: 'name',
+        label: 'Name',
+        span: 'col-span-5',
         render: (r: ExciseDutyClassificationType) => (
           <span className="font-bold text-zinc-900 text-xs">{r.name}</span>
         ),
       },
       {
-        key: "duty_code",
-        label: "Duty code",
-        span: "col-span-4",
+        key: 'duty_code',
+        label: 'Duty code',
+        span: 'col-span-4',
         render: (r: ExciseDutyClassificationType) => (
-          <span className="text-zinc-500 font-semibold">{r.duty_code || "—"}</span>
+          <span className="text-zinc-500 font-semibold">{r.duty_code || '—'}</span>
         ),
       },
       {
-        key: "calculation_methods",
-        label: "Calculation method",
-        span: "col-span-3",
+        key: 'calculation_methods',
+        label: 'Calculation method',
+        span: 'col-span-3',
         render: (r: ExciseDutyClassificationType) => (
-          <span className="text-zinc-500 font-semibold">{r.calculation_methods?.join(", ") || "—"}</span>
+          <span className="text-zinc-500 font-semibold">
+            {r.calculation_methods?.join(', ') || '—'}
+          </span>
         ),
       },
     ];
@@ -77,12 +81,7 @@ export default function ExciseDutyClassificationAlter() {
     return (
       <div className="flex-1 flex flex-col h-full">
         {success && (
-          <div className="mx-6 mt-4 p-2 border border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-sans">
-            <span>• {success}</span>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">
-              &times;
-            </button>
-          </div>
+          <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
         )}
         <MasterSelectionPanel<ExciseDutyClassificationType>
           title="Alter Excise Duty Classification"
@@ -91,12 +90,12 @@ export default function ExciseDutyClassificationAlter() {
           items={classifications}
           filterFn={(c, q) =>
             c.name.toLowerCase().includes(q.toLowerCase()) ||
-            (c.duty_code ?? "").toLowerCase().includes(q.toLowerCase())
+            (c.duty_code ?? '').toLowerCase().includes(q.toLowerCase())
           }
           columns={columns}
           onSelect={handleSelect}
-          onCancel={() => navigate("/master/alter")}
-          onCreate={() => navigate("/master/create/excise-duty-classification")}
+          onCancel={() => navigate('/master/alter')}
+          onCreate={() => navigate('/master/create/excise-duty-classification')}
           createLabel="Create Excise Duty Classification"
           rowKey={(c) => c.excise_duty_classification_id!}
           emptyMessage="No excise duty classifications found."
@@ -115,7 +114,7 @@ export default function ExciseDutyClassificationAlter() {
         setSelected(null);
         load();
       }}
-      onCancel={() => navigate("/master/alter")}
+      onCancel={() => navigate('/master/alter')}
       onBack={() => setSelected(null)}
       onDelete={handleDelete}
     />

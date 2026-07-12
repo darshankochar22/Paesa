@@ -1,15 +1,25 @@
-import * as React from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
+import * as React from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
 
 const fmt = (val: number) =>
-  val === 0 ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+  val === 0
+    ? ''
+    : new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+        val,
+      );
 
 const formatDate = (dateStr: string) => {
-  if (!dateStr) return "";
+  if (!dateStr) return '';
   try {
-    return new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-  } catch { return dateStr; }
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
 };
 
 export default function GroupVouchersLayout() {
@@ -29,10 +39,19 @@ export default function GroupVouchersLayout() {
     if (!companyId || !fyId || !groupId) return;
     setLoading(true);
     setError(null);
-    (window as any).api.report.run("group_vouchers", { company_id: companyId, fy_id: fyId, group_id: Number(groupId), from_date: activeFY?.start_date, to_date: activeFY?.end_date })
+    (window as any).api.report
+      .run('group_vouchers', {
+        company_id: companyId,
+        fy_id: fyId,
+        group_id: Number(groupId),
+        from_date: activeFY?.start_date,
+        to_date: activeFY?.end_date,
+      })
       .then((res: any) => {
-        if (res.success) { setData(res); setFocusedIndex(0); }
-        else setError(res.error || "Failed to load group vouchers");
+        if (res.success) {
+          setData(res);
+          setFocusedIndex(0);
+        } else setError(res.error || 'Failed to load group vouchers');
       })
       .catch((err: any) => setError(err.message))
       .finally(() => setLoading(false));
@@ -43,28 +62,54 @@ export default function GroupVouchersLayout() {
   React.useEffect(() => {
     if (!rows.length) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === "INPUT") return;
-      if (e.key === "ArrowDown") { e.preventDefault(); setFocusedIndex(p => Math.min(rows.length - 1, p + 1)); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setFocusedIndex(p => Math.max(0, p - 1)); }
-      else if (e.key === "Enter") { e.preventDefault(); const r = rows[focusedIndex]; if (r?.voucher_id || r?.id) navigate(`/transactions/voucher/${r.voucher_id || r.id}`); }
-      else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); navigate(-1); }
+      if (document.activeElement?.tagName === 'INPUT') return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex((p) => Math.min(rows.length - 1, p + 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex((p) => Math.max(0, p - 1));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const r = rows[focusedIndex];
+        if (r?.voucher_id || r?.id) navigate(`/transactions/voucher/${r.voucher_id || r.id}`);
+      } else if (e.key === 'Escape' || e.key === 'Backspace') {
+        e.preventDefault();
+        navigate(-1);
+      }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [rows, focusedIndex, navigate]);
 
-  if (loading) return <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">Loading Group Vouchers...</div>;
-  if (error) return <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">{error}</div>;
+  if (loading)
+    return (
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">
+        Loading Group Vouchers...
+      </div>
+    );
+  if (error)
+    return (
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
+        {error}
+      </div>
+    );
 
-  const totalDebit = rows.reduce((s: number, r: any) => s + (Number(r.debit) || Number(r.debit_total) || 0), 0);
-  const totalCredit = rows.reduce((s: number, r: any) => s + (Number(r.credit) || Number(r.credit_total) || 0), 0);
-  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
+  const totalDebit = rows.reduce(
+    (s: number, r: any) => s + (Number(r.debit) || Number(r.debit_total) || 0),
+    0,
+  );
+  const totalCredit = rows.reduce(
+    (s: number, r: any) => s + (Number(r.credit) || Number(r.credit_total) || 0),
+    0,
+  );
+  const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '';
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black">
+          <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
             <tr>
               <th className="px-4 py-2 text-left font-bold w-24">Date</th>
               <th className="px-4 py-2 text-left font-bold">Particulars</th>
@@ -74,14 +119,22 @@ export default function GroupVouchersLayout() {
               <th className="px-4 py-2 text-right font-bold w-32">Credit</th>
             </tr>
             <tr className="bg-white">
-              <th colSpan={6} className="px-4 py-0.5 text-right font-normal italic text-black/60 border-b border-black/10">
-                {data?.group_name || `Group ID: ${groupId}`} / {selectedCompany?.name} — {periodLabel}
+              <th
+                colSpan={6}
+                className="px-4 py-0.5 text-right font-normal italic text-black border-b border-gray-200"
+              >
+                {data?.group_name || `Group ID: ${groupId}`} / {selectedCompany?.name} —{' '}
+                {periodLabel}
               </th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-black/60 italic">No vouchers found.</td></tr>
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-black italic">
+                  No vouchers found.
+                </td>
+              </tr>
             ) : (
               rows.map((row: any, idx: number) => {
                 const isFocused = idx === focusedIndex;
@@ -89,15 +142,28 @@ export default function GroupVouchersLayout() {
                   <tr
                     key={idx}
                     onClick={() => setFocusedIndex(idx)}
-                    onDoubleClick={() => { const id = row.voucher_id || row.id; if (id) navigate(`/transactions/voucher/${id}`); }}
-                    className={`border-b border-black/10 cursor-pointer transition-colors ${isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"}`}
+                    onDoubleClick={() => {
+                      const id = row.voucher_id || row.id;
+                      if (id) navigate(`/transactions/voucher/${id}`);
+                    }}
+                    className={`border-b border-gray-200 cursor-pointer transition-colors ${isFocused ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                   >
-                    <td className="px-4 py-1.5 whitespace-nowrap">{formatDate(row.date || row.voucher_date)}</td>
-                    <td className="px-4 py-1.5 truncate max-w-xs">{row.particulars || row.party_name || row.narration || "—"}</td>
+                    <td className="px-4 py-1.5 whitespace-nowrap">
+                      {formatDate(row.date || row.voucher_date)}
+                    </td>
+                    <td className="px-4 py-1.5 truncate max-w-xs">
+                      {row.particulars || row.party_name || row.narration || '—'}
+                    </td>
                     <td className="px-4 py-1.5">{row.voucher_type}</td>
-                    <td className="px-4 py-1.5 text-right">{row.voucher_number || row.vch_no || "—"}</td>
-                    <td className="px-4 py-1.5 text-right font-mono">{fmt(Number(row.debit) || Number(row.debit_total) || 0)}</td>
-                    <td className="px-4 py-1.5 text-right font-mono">{fmt(Number(row.credit) || Number(row.credit_total) || 0)}</td>
+                    <td className="px-4 py-1.5 text-right">
+                      {row.voucher_number || row.vch_no || '—'}
+                    </td>
+                    <td className="px-4 py-1.5 text-right font-mono">
+                      {fmt(Number(row.debit) || Number(row.debit_total) || 0)}
+                    </td>
+                    <td className="px-4 py-1.5 text-right font-mono">
+                      {fmt(Number(row.credit) || Number(row.credit_total) || 0)}
+                    </td>
                   </tr>
                 );
               })

@@ -554,6 +554,7 @@ export default function PricelistscCreate() {
             </button>
             <button
               onClick={handlePage1Accept}
+              data-enter-accept
               className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 transition-colors font-medium"
             >
               Accept

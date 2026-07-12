@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { NotificationBanner } from '@/components/ui';
 import { createPortal } from 'react-dom';
 import type { StockItemType, GodownType, UnitType } from '@/types/api';
 import type { BatchAllocation, InventoryAllocationItem } from '../../types';
@@ -283,12 +284,7 @@ export default function InventoryAllocationPopup({
       >
         <div className="space-y-3">
           {error && (
-            <div className="border border-black text-black text-xs px-3 py-2 flex justify-between items-center font-bold">
-              <span>• {error}</span>
-              <button onClick={() => setError(null)} className="font-bold">
-                &times;
-              </button>
-            </div>
+            <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
           )}
 
           <div className="border border-gray-300">

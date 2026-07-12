@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import type { TDSNatureOfPaymentType } from "@/types/entities/TDSNatureOfPayment";
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import { NotificationBanner } from '@/components/ui';
+import type { TDSNatureOfPaymentType } from '@/types/entities/TDSNatureOfPayment';
 
 export default function TDSNatureOfPaymentCOA() {
   const { selectedCompany } = useCompany();
@@ -11,11 +12,14 @@ export default function TDSNatureOfPaymentCOA() {
   const [tdsList, setTdsList] = useState<TDSNatureOfPaymentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showChangeView, setShowChangeView] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -24,14 +28,16 @@ export default function TDSNatureOfPaymentCOA() {
         const res = await window.api.tdsNatureOfPayment.getAll(companyId);
         if (cancelled) return;
         if (res.success) setTdsList(res.tdsNatureOfPaymentList ?? []);
-        else setError(res.error || "Failed to load TDS Nature of Payment list.");
+        else setError(res.error || 'Failed to load TDS Nature of Payment list.');
       } catch {
-        if (!cancelled) setError("Failed to load TDS Nature of Payment list.");
+        if (!cancelled) setError('Failed to load TDS Nature of Payment list.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [companyId]);
 
   const filteredTdsList = useMemo(() => {
@@ -41,34 +47,43 @@ export default function TDSNatureOfPaymentCOA() {
       (t) =>
         t.name?.toLowerCase().includes(q) ||
         (t.section && t.section.toLowerCase().includes(q)) ||
-        (t.payment_code && t.payment_code.toLowerCase().includes(q))
+        (t.payment_code && t.payment_code.toLowerCase().includes(q)),
     );
   }, [tdsList, searchQuery]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); navigate("/master/coa"); }
-      if (e.ctrlKey && e.key === "h") { e.preventDefault(); setShowChangeView((p) => !p); }
-      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/create/tds-nature-of-payment"); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/master/coa');
+      }
+      if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault();
+        setShowChangeView((p) => !p);
+      }
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        navigate('/master/create/tds-nature-of-payment');
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [navigate]);
 
   const changeViewItems = [
-    { label: "Ledgers", path: "/master/coa/ledger" },
-    { label: "Groups", path: "/master/coa/group" },
-    { label: "Currencies", path: "/master/coa/currency" },
-    { label: "Voucher Types", path: "/master/coa/voucher-type" },
-    { label: "GST Registrations", path: "/master/coa/gst-registration" },
-    { label: "GST Classifications", path: "/master/coa/gst-classification" },
-    { label: "TCS Nature of Goods", path: "/master/coa/tcs-nature-of-goods" },
-    { label: "TDS Nature of Payment", path: "/master/coa/tds-nature-of-payment" },
-    { label: "Stock Groups & Items", path: "/master/coa/stock-group" },
-    { label: "Stock Categories", path: "/master/coa/stock-category" },
-    { label: "Godowns", path: "/master/coa/godown" },
-    { label: "Units of Measure", path: "/master/coa/unit" },
-    { label: "Employees", path: "/master/coa/employee" },
+    { label: 'Ledgers', path: '/master/coa/ledger' },
+    { label: 'Groups', path: '/master/coa/group' },
+    { label: 'Currencies', path: '/master/coa/currency' },
+    { label: 'Voucher Types', path: '/master/coa/voucher-type' },
+    { label: 'GST Registrations', path: '/master/coa/gst-registration' },
+    { label: 'GST Classifications', path: '/master/coa/gst-classification' },
+    { label: 'TCS Nature of Goods', path: '/master/coa/tcs-nature-of-goods' },
+    { label: 'TDS Nature of Payment', path: '/master/coa/tds-nature-of-payment' },
+    { label: 'Stock Groups & Items', path: '/master/coa/stock-group' },
+    { label: 'Stock Categories', path: '/master/coa/stock-category' },
+    { label: 'Godowns', path: '/master/coa/godown' },
+    { label: 'Units of Measure', path: '/master/coa/unit' },
+    { label: 'Employees', path: '/master/coa/employee' },
   ];
 
   return (
@@ -78,10 +93,12 @@ export default function TDSNatureOfPaymentCOA() {
           <Link to="/master/coa" className="text-xs text-zinc-500 hover:text-zinc-800 font-medium">
             &larr; Back
           </Link>
-          <span className="text-sm font-semibold text-zinc-700 font-sans">TDS Nature of Payment</span>
+          <span className="text-sm font-semibold text-zinc-700 font-sans">
+            TDS Nature of Payment
+          </span>
         </div>
         <button
-          onClick={() => navigate("/master/create/tds-nature-of-payment")}
+          onClick={() => navigate('/master/create/tds-nature-of-payment')}
           className="text-[10px] text-zinc-500 hover:text-zinc-800 border border-zinc-200 rounded px-2 py-0.5 bg-white font-medium shadow-sm"
         >
           + Create
@@ -89,10 +106,7 @@ export default function TDSNatureOfPaymentCOA() {
       </div>
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 font-bold font-sans">&times;</button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -108,7 +122,10 @@ export default function TDSNatureOfPaymentCOA() {
               autoFocus
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="text-[10px] text-zinc-400 hover:text-zinc-600 font-sans">
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-[10px] text-zinc-400 hover:text-zinc-600 font-sans"
+              >
                 Clear
               </button>
             )}
@@ -116,9 +133,13 @@ export default function TDSNatureOfPaymentCOA() {
 
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">Loading TDS Nature of Payment...</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                Loading TDS Nature of Payment...
+              </div>
             ) : filteredTdsList.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 italic">No matching records found.</div>
+              <div className="p-8 text-center text-xs text-zinc-400 italic">
+                No matching records found.
+              </div>
             ) : (
               filteredTdsList.map((node) => {
                 const nodeId = node.tds_id!;
@@ -127,10 +148,10 @@ export default function TDSNatureOfPaymentCOA() {
                   <div key={nodeId}>
                     <div
                       className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
-                      onClick={() => navigate("/master/alter/tds-nature-of-payment")}
+                      onClick={() => navigate('/master/alter/tds-nature-of-payment')}
                     >
                       <span className="w-16 text-sm font-bold text-zinc-600">
-                        {node.section || "—"}
+                        {node.section || '—'}
                       </span>
                       <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
@@ -142,7 +163,8 @@ export default function TDSNatureOfPaymentCOA() {
                       </span>
                       <div className="flex items-center gap-3">
                         <span className="text-sm text-zinc-700 font-bold">
-                          Indiv: {node.rate_individual_with_pan ?? 0}% / Other: {node.rate_other_with_pan ?? 0}%
+                          Indiv: {node.rate_individual_with_pan ?? 0}% / Other:{' '}
+                          {node.rate_other_with_pan ?? 0}%
                         </span>
                       </div>
                     </div>
@@ -162,14 +184,14 @@ export default function TDSNatureOfPaymentCOA() {
             Ctrl+H Change View
           </button>
           <button
-            onClick={() => navigate("/master/create/tds-nature-of-payment")}
+            onClick={() => navigate('/master/create/tds-nature-of-payment')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-b border-zinc-100 font-bold uppercase text-zinc-600 tracking-wider transition-colors"
           >
             Alt+C Create
           </button>
           <div className="flex-1" />
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="px-3 py-2.5 text-left hover:bg-zinc-100 border-t border-zinc-200 font-bold uppercase text-zinc-500 tracking-wider transition-colors"
           >
             Esc Quit

@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "@/context/CompanyContext";
-import CostCentreFlatList from "@/components/CostCentreFlatList";
-import type { CostCentreType } from "@/types/api";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCompany } from '@/context/CompanyContext';
+import CostCentreFlatList from '@/components/CostCentreFlatList';
+import { NotificationBanner } from '@/components/ui';
+import type { CostCentreType } from '@/types/api';
 
 interface TreeNode extends CostCentreType {
   children?: TreeNode[];
@@ -26,14 +27,12 @@ function CostCentreNode({
     <div>
       <div
         className={`flex items-center min-h-[26px] cursor-pointer text-[12px] select-none hover:bg-zinc-50 ${
-          isSelected ? "bg-zinc-100 font-bold text-black" : "text-zinc-700"
+          isSelected ? 'bg-zinc-100 font-bold text-black' : 'text-zinc-700'
         }`}
         style={{ paddingLeft: `${depth * 20 + 12}px` }}
         onClick={() => onSelect(node)}
       >
-        <span className="mr-1.5 text-zinc-400 select-none">
-          {hasChildren ? "▪" : "▫"}
-        </span>
+        <span className="mr-1.5 text-zinc-400 select-none">{hasChildren ? '▪' : '▫'}</span>
         <span className="truncate">{node.name}</span>
         {node.alias && (
           <span className="text-zinc-400 text-[10px] ml-2 font-normal">({node.alias})</span>
@@ -62,7 +61,7 @@ export default function CostCentreCOA() {
   const [loading, setLoading] = useState(true);
 
   const [isFlatView, setIsFlatView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCCId, setSelectedCCId] = useState<number | null>(null);
 
   const companyId = selectedCompany?.company_id;
@@ -82,7 +81,7 @@ export default function CostCentreCOA() {
         setFlatCCs(allRes.costCentres ?? []);
       }
     } catch (e) {
-      setError("Failed to load cost centres.");
+      setError('Failed to load cost centres.');
     } finally {
       setLoading(false);
     }
@@ -95,25 +94,25 @@ export default function CostCentreCOA() {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        navigate("/master/coa");
+        navigate('/master/coa');
       }
-      if (e.key === "F5" || e.key === "f5") {
+      if (e.key === 'F5' || e.key === 'f5') {
         e.preventDefault();
         setIsFlatView((prev) => !prev);
       }
-      if (e.altKey && e.key.toLowerCase() === "c") {
+      if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        navigate("/master/create/cost-centre");
+        navigate('/master/create/cost-centre');
       }
-      if (e.altKey && e.key.toLowerCase() === "a" && selectedCCId) {
+      if (e.altKey && e.key.toLowerCase() === 'a' && selectedCCId) {
         e.preventDefault();
-        navigate("/master/alter/cost-centre");
+        navigate('/master/alter/cost-centre');
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, selectedCCId]);
 
   const filteredFlatCCs = useMemo(() => {
@@ -122,8 +121,7 @@ export default function CostCentreCOA() {
       const q = searchQuery.toLowerCase();
       list = list.filter(
         (cc) =>
-          cc.name.toLowerCase().includes(q) ||
-          (cc.alias && cc.alias.toLowerCase().includes(q))
+          cc.name.toLowerCase().includes(q) || (cc.alias && cc.alias.toLowerCase().includes(q)),
       );
     }
     return list.sort((a, b) => a.name.localeCompare(b.name));
@@ -161,7 +159,7 @@ export default function CostCentreCOA() {
             &larr; Back
           </Link>
           <span className="font-bold text-sm text-zinc-800">
-            {isFlatView ? "List of Cost Centres" : "Chart of Accounts: Cost Centres"}
+            {isFlatView ? 'List of Cost Centres' : 'Chart of Accounts: Cost Centres'}
           </span>
         </div>
 
@@ -176,12 +174,7 @@ export default function CostCentreCOA() {
       </div>
 
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-sans shrink-0">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">
-            dismiss
-          </button>
-        </div>
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
       )}
 
       {/* Main Workspace */}
@@ -190,7 +183,9 @@ export default function CostCentreCOA() {
         <div className="flex-1 flex flex-col min-w-0 bg-white h-full border-r border-zinc-100">
           {/* Search Box */}
           <div className="px-4 py-1.5 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2 font-sans shrink-0">
-            <span className="text-[10px] mercantile-label font-bold text-zinc-400 select-none">Search:</span>
+            <span className="text-[10px] mercantile-label font-bold text-zinc-400 select-none">
+              Search:
+            </span>
             <input
               type="text"
               placeholder="Type cost centre name to filter..."
@@ -200,7 +195,7 @@ export default function CostCentreCOA() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => setSearchQuery('')}
                 className="text-xs text-zinc-400 hover:text-black font-bold px-1.5"
               >
                 Clear
@@ -210,7 +205,9 @@ export default function CostCentreCOA() {
 
           <div className="flex-1 overflow-y-auto min-h-0 bg-white py-1">
             {loading ? (
-              <div className="flex items-center justify-center h-48 text-xs text-zinc-400 font-sans italic">Loading cost centres...</div>
+              <div className="flex items-center justify-center h-48 text-xs text-zinc-400 font-sans italic">
+                Loading cost centres...
+              </div>
             ) : isFlatView ? (
               <CostCentreFlatList
                 costCentres={filteredFlatCCs}
@@ -219,7 +216,9 @@ export default function CostCentreCOA() {
                 showHeader={false}
               />
             ) : filteredCCTree.length === 0 ? (
-              <div className="flex items-center justify-center h-48 text-xs text-zinc-400 font-sans italic">No matching cost centres found.</div>
+              <div className="flex items-center justify-center h-48 text-xs text-zinc-400 font-sans italic">
+                No matching cost centres found.
+              </div>
             ) : (
               filteredCCTree.map((node) => (
                 <CostCentreNode
@@ -241,11 +240,11 @@ export default function CostCentreCOA() {
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">F5</span>
-            <span>{isFlatView ? "Tree View" : "Alphabetical List"}</span>
+            <span>{isFlatView ? 'Tree View' : 'Alphabetical List'}</span>
           </button>
 
           <button
-            onClick={() => navigate("/master/create/cost-centre")}
+            onClick={() => navigate('/master/create/cost-centre')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Alt+C</span>
@@ -254,7 +253,7 @@ export default function CostCentreCOA() {
 
           {selectedCCId && (
             <button
-              onClick={() => navigate("/master/alter/cost-centre")}
+              onClick={() => navigate('/master/alter/cost-centre')}
               className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
             >
               <span className="font-bold text-zinc-900 text-[10px]">Alt+A</span>
@@ -265,7 +264,7 @@ export default function CostCentreCOA() {
           <div className="flex-1" />
 
           <button
-            onClick={() => navigate("/master/coa")}
+            onClick={() => navigate('/master/coa')}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-zinc-200 hover:bg-zinc-300 text-zinc-800 transition-colors text-left shadow-sm font-semibold mt-auto"
           >
             <span className="font-bold text-zinc-900 text-[10px]">Esc</span>
