@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { INDIAN_STATES } from '../../../../constants/states';
 import LedgerListPanel from '../LedgerListPanel';
 import { TallyFieldPopup } from '@/components/tally-ui/TallyFieldPopup';
+import { useCompany } from '@/context/CompanyContext';
 
 export interface PartyDetails {
   supplier_name?: string;
@@ -288,6 +289,17 @@ export default function PartyDetailsPopup({
   buyerLabel = 'Supplier (Bill from)',
   natureOfReturnLabel,
 }: Props) {
+  // Company's own state/country — Tally treats a party with no mailing state as
+  // local to the company, so we fall back to these when the ledger has none
+  // (seeded/quick-created parties often store no address). "Not Applicable" or
+  // a non-Indian-state value is treated as "no usable state".
+  const { selectedCompany } = useCompany();
+  const companyState =
+    selectedCompany?.state && INDIAN_STATES.includes(selectedCompany.state)
+      ? selectedCompany.state
+      : '';
+  const companyCountry = selectedCompany?.country || 'India';
+
   // Buyer-side defaults, reused as the Consignee fallback so a fresh voucher's
   // Ship-to mirrors the Bill-to (matches TallyPrime, where consignee defaults to buyer).
   const dName = initialDetails?.supplier_name ?? partyLedger?.name ?? '';
@@ -295,8 +307,10 @@ export default function PartyDetailsPopup({
     initialDetails?.mailing_name ?? partyLedger?.mailing_name ?? partyLedger?.name ?? '';
   const dAddress = initialDetails?.address ?? ledgerAddress(partyLedger);
   const dPincode = initialDetails?.pincode ?? partyLedger?.pincode ?? '';
-  const dState = initialDetails?.state ?? partyLedger?.state ?? '';
-  const dCountry = initialDetails?.country ?? partyLedger?.country ?? 'India';
+  // State/Country fall back to the company's when the party ledger has none, so
+  // the field is populated (blank State breaks GST place-of-supply).
+  const dState = initialDetails?.state ?? partyLedger?.state ?? companyState ?? '';
+  const dCountry = initialDetails?.country ?? partyLedger?.country ?? companyCountry;
   // The ledger master column is `registration_type` (default 'Unregistered'),
   // NOT `gst_registration_type` — read the real column so the party's actual GST
   // registration shows instead of silently defaulting to Regular.
@@ -318,8 +332,7 @@ export default function PartyDetailsPopup({
     gst_registration_type: dGstType,
     gstin: dGstin,
     nature_of_return: initialDetails?.nature_of_return ?? '',
-    place_of_supply:
-      initialDetails?.place_of_supply ?? partyLedger?.place_of_supply ?? partyLedger?.state ?? '',
+    place_of_supply: initialDetails?.place_of_supply ?? partyLedger?.place_of_supply ?? dState,
     consignee_name: initialDetails?.consignee_name ?? dName,
     consignee_mailing_name: initialDetails?.consignee_mailing_name ?? dMailing,
     consignee_address: initialDetails?.consignee_address ?? dAddress,
@@ -408,15 +421,17 @@ export default function PartyDetailsPopup({
         [map.mailingName]: item.mailing_name || item.name,
         [map.address]: ledgerAddress(item),
         [map.pincode]: item.pincode || '',
-        [map.state]: item.state || '',
-        [map.country]: item.country || 'India',
+        // Fall back to the company's state/country when the picked ledger stores
+        // none, so the field stays populated (mirrors the initial defaults).
+        [map.state]: item.state || companyState || '',
+        [map.country]: item.country || companyCountry,
         [map.gstin]: item.gstin || '',
         // Ledger master exposes `registration_type`; fall back to the legacy
         // key just in case a caller passes an already-mapped object.
         [map.gstType]: item.registration_type || item.gst_registration_type || 'Regular',
       };
       // Buyer state always re-derives Place of Supply on a fresh party selection.
-      if (target === 'buyer') next.place_of_supply = item.state || '';
+      if (target === 'buyer') next.place_of_supply = item.state || companyState || '';
       return next;
     });
 

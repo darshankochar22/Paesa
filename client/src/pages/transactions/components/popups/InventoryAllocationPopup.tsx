@@ -55,6 +55,8 @@ export default function InventoryAllocationPopup({
   );
   const [search, setSearch] = useState('');
   const [showList, setShowList] = useState(false);
+  // Keyboard highlight into the item dropdown (arrow keys move it, Enter picks it).
+  const [hi, setHi] = useState(0);
   // F11 "Use separate Actual and Billed Quantity columns" — single qty column when No.
   const { features } = useCompany();
   const showBilled = features?.use_separate_actual_billed_qty !== 0;
@@ -146,6 +148,31 @@ export default function InventoryAllocationPopup({
     const q = search.trim().toLowerCase();
     return allStockItems.filter((s) => !q || s.name.toLowerCase().includes(q));
   }, [allStockItems, search]);
+
+  // Keep the highlight in range as the filtered list shrinks/grows.
+  useEffect(() => {
+    setHi((h) => Math.min(Math.max(h, 0), Math.max(filtered.length - 1, 0)));
+  }, [filtered.length]);
+
+  // Arrow keys move the highlight; Enter picks the highlighted item; Esc closes
+  // the list (Tally keyboard flow — no mouse needed to add a stock item).
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showList || filtered.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHi((h) => Math.min(h + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHi((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      // Claim Enter so the shell's field-nav doesn't also fire.
+      e.preventDefault();
+      const item = filtered[hi];
+      if (item) pickItem(item);
+    } else if (e.key === 'Escape') {
+      setShowList(false);
+    }
+  };
 
   // Build an item line from its godown/batch split. Amount is explicit
   // rate × qty × (1 − disc%); the line keeps the *entered* (gross) rate and the
@@ -388,8 +415,10 @@ export default function InventoryAllocationPopup({
                     onChange={(e) => {
                       setSearch(e.target.value);
                       setShowList(true);
+                      setHi(0);
                     }}
                     onFocus={() => setShowList(true)}
+                    onKeyDown={onSearchKeyDown}
                     className="w-full text-xs px-1.5 py-1 border border-gray-400 outline-none focus:border-black bg-white"
                     autoComplete="off"
                   />
@@ -412,12 +441,15 @@ export default function InventoryAllocationPopup({
                         {filtered.length === 0 ? (
                           <div className="px-2 py-2 text-[11px] text-gray-500 italic">No items</div>
                         ) : (
-                          filtered.map((s) => (
+                          filtered.map((s, idx) => (
                             <button
                               key={s.item_id ?? s.name}
                               type="button"
                               onClick={() => pickItem(s)}
-                              className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
+                              onMouseEnter={() => setHi(idx)}
+                              className={`flex w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 font-semibold ${
+                                idx === hi ? 'bg-gray-200' : 'hover:bg-gray-100'
+                              }`}
                             >
                               {s.name}
                             </button>

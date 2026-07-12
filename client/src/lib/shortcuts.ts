@@ -47,6 +47,15 @@ export interface ShortcutBinding {
   allowInDialogs?: boolean;
   /** Run only after the event fully dispatches and no other handler claimed it (legacy screens win). GLOBAL bindings only. */
   defer?: boolean;
+  /**
+   * Handle the key in the CAPTURE phase — before React's root handlers, any
+   * focused element's onKeyDown, and every legacy window listener. This makes
+   * the shortcut win unconditionally over the current screen/voucher state
+   * (TallyPrime's "shortcut always switches" behaviour). Use for truly global
+   * keys (voucher openers, F2/F3, Ctrl+A/Ctrl+N) that must never be swallowed
+   * by whatever field or popup happens to be focused. Cannot combine with defer.
+   */
+  capture?: boolean;
 }
 
 interface RegistryEntry {
@@ -129,7 +138,7 @@ function matchesCombo(binding: ShortcutBinding, combo: string): boolean {
   return specs.some((s) => normalizeCombo(s) === combo);
 }
 
-function dispatch(e: KeyboardEvent) {
+function dispatch(e: KeyboardEvent, phase: 'capture' | 'bubble') {
   if (e.defaultPrevented) return; // an element-level handler already claimed it
   const combo = comboFromEvent(e);
   if (!combo) return;
@@ -141,6 +150,8 @@ function dispatch(e: KeyboardEvent) {
   const matches: { entry: RegistryEntry; binding: ShortcutBinding }[] = [];
   for (const entry of registry) {
     for (const binding of entry.getBindings()) {
+      // Each binding is handled in exactly one phase; the other phase ignores it.
+      if (!!binding.capture !== (phase === 'capture')) continue;
       if (matchesCombo(binding, combo)) matches.push({ entry, binding });
     }
   }
@@ -174,7 +185,11 @@ function dispatch(e: KeyboardEvent) {
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('keydown', dispatch);
+  // Capture pass runs before React's root handlers / element onKeyDown / legacy
+  // window listeners — so `capture: true` bindings win unconditionally. Bubble
+  // pass keeps the cooperative behaviour (element preventDefault wins, defer).
+  window.addEventListener('keydown', (e) => dispatch(e, 'capture'), true);
+  window.addEventListener('keydown', (e) => dispatch(e, 'bubble'), false);
 }
 
 /**

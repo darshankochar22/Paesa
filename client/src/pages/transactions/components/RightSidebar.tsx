@@ -223,7 +223,7 @@ export default function RightSidebar({
             className="w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal text-black hover:bg-gray-100"
           >
             {/* Tally shows the action you can take: "Optional" when Regular, "Regular" when Optional. */}
-            <span className="text-gray-500">L</span>: {isOptional ? 'Regular' : 'Optional'}
+            <span className="text-gray-500">Ctrl+L</span>: {isOptional ? 'Regular' : 'Optional'}
           </Button>
         </div>
       )}
@@ -234,7 +234,8 @@ export default function RightSidebar({
           onClick={onStatusChange}
           className="w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal text-black hover:bg-gray-100"
         >
-          <span className="text-gray-500">T</span>: {status === 'Post-Dated' ? '✓ ' : ''}Post-Dated
+          <span className="text-gray-500">Ctrl+T</span>: {status === 'Post-Dated' ? '✓ ' : ''}
+          Post-Dated
         </Button>
       </div>
 

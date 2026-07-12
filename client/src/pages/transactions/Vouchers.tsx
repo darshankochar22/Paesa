@@ -23,11 +23,14 @@ import { useEInvoiceFlow } from './hooks/useEInvoiceFlow';
 import { EInvoiceGeneratePrompt, EInvoiceInfoPopup } from './components/popups/EInvoiceFlowDialogs';
 import VoucherPrintPopup from './components/popups/VoucherPrintPopup';
 import { INVENTORY_CREATION_TYPES, ORDER_CREATION_TYPES } from './voucherConstants';
-import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
+import { PRIORITY, useShortcuts, type ShortcutBinding } from '@/lib/shortcuts';
+import { useVoucherQuickActions } from './hooks/useVoucherQuickActions';
+import TallyConfirm from '@/components/ui/TallyConfirm';
+import { useVoucherEnterNav } from './hooks/useVoucherEnterNav';
 
 export default function Vouchers() {
   const navigate = useNavigate();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, activeFY } = useCompany();
 
   const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
   const [voucherTypeParentMap, setVoucherTypeParentMap] = useState<Record<string, string>>({});
@@ -117,6 +120,7 @@ export default function Vouchers() {
   const [itemExcise, setItemExcise] = useState<ItemExciseState | null>(null);
   const [showOtherVouchers, setShowOtherVouchers] = useState(false);
   const [subDropdownType, setSubDropdownType] = useState<string | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Detail sub-screen visibility + Tally's party-driven auto-open chains.
   const popups = useAutoOpenDetailPopups(form, effectiveVoucherType);
@@ -203,6 +207,8 @@ export default function Vouchers() {
     physicalStockGodownNewItem,
     handleStockJournalItemEndOfList,
     journalParticularEndOfList,
+    stockItemEndOfList,
+    additionalLedgerEndOfList,
     handleSaveBatchAllocations,
     handleSaveMaterialInAllocations,
     handleSaveJobWorkAllocations,
@@ -249,6 +255,13 @@ export default function Vouchers() {
   // ─── Ledger panel items ──────────────────────────────────────────────
 
   const panelOpen = !!form.activeField;
+
+  // Generic Enter-to-advance navigation for the voucher body (every voucher).
+  // The engine reads live DOM order, so it needs no per-voucher wiring; it only
+  // acts on fields that don't already handle Enter themselves. Scoped to the
+  // body container so the picker panel/popups (rendered outside it) keep theirs.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useVoucherEnterNav(bodyRef);
 
   const panelItems = useMemo(
     () => computePanelItems(form, effectiveVoucherType),
@@ -345,49 +358,159 @@ export default function Vouchers() {
     };
   }, [effectiveVoucherType, voucherTypeIdByName]);
 
-  const handleTypeKey = useCallback(
+  // Close every open sub-screen / detail popup / dropdown. Called before a
+  // voucher switch so the target voucher opens clean (TallyPrime behaviour).
+  const closeAllSubScreens = useCallback(() => {
+    setShowDatePicker(false);
+    setShowApplicableUptoPicker(false);
+    setShowOtherVouchers(false);
+    setShowTaxRegistrationPopup(false);
+    setSubDropdownType(null);
+    setInventoryAlloc(null);
+    setItemExcise(null);
+    setShowDispatchDetails(false);
+    setShowReceiptDetails(false);
+    setShowPartyDetails(false);
+    setShowManufacturerDetails(false);
+    setShowCreditNoteDetails(false);
+    setShowExciseDetails(false);
+    setShowVatDetails(false);
+    setShowDebitNoteExcise(false);
+    setShowOrderDetails(false);
+    setShowDebitNoteDetails(false);
+  }, [
+    setShowDispatchDetails,
+    setShowReceiptDetails,
+    setShowPartyDetails,
+    setShowManufacturerDetails,
+    setShowCreditNoteDetails,
+    setShowExciseDetails,
+    setShowVatDetails,
+    setShowDebitNoteExcise,
+    setShowOrderDetails,
+    setShowDebitNoteDetails,
+  ]);
+
+  // The single, global voucher switch. Closes whatever is open and switches the
+  // voucher type directly — no matter which voucher / popup / field is active.
+  // `setVoucherType` resets the form (see useVoucherForm's type-change effect),
+  // so the new voucher is always clean. Keyboard switching is direct (unlike the
+  // sidebar's handleTypeKey, which may open a custom-type sub-dropdown on click).
+  const switchVoucher = useCallback(
     (type: string) => {
-      const children = voucherTypeChildren[type];
-      if (children && children.length > 0) {
-        setSubDropdownType((prev) => (prev === type ? null : type));
-      } else {
-        setSubDropdownType(null);
-        form.setVoucherType(type);
-        form.setVoucherClass('');
-      }
+      closeAllSubScreens();
+      form.setVoucherClass('');
+      form.setVoucherType(type);
     },
-    [voucherTypeChildren, form.setVoucherType, form.setVoucherClass],
+    [closeAllSubScreens, form.setVoucherClass, form.setVoucherType],
   );
 
-  // TallyPrime voucher-open + header shortcuts, via the central registry.
-  // Exact-combo matching means plain F5 (Payment) and Alt+F5 (Debit Note) no
-  // longer collide, and all F-keys fire even while a field is focused — as in
-  // TallyPrime. The complex Escape / Alt+A / Alt+H logic stays in the effect
-  // below (it depends on many popup-open guards).
+  // Any voucher sub-screen / detail popup currently open. Accept and Escape
+  // yield to an open popup (it handles its own keys); voucher-open shortcuts do
+  // not — they close it and switch, per the requirement.
+  const anyPopupOpen =
+    showDatePicker ||
+    showApplicableUptoPicker ||
+    showOtherVouchers ||
+    showTaxRegistrationPopup ||
+    !!inventoryAlloc ||
+    !!itemExcise ||
+    showDispatchDetails ||
+    showReceiptDetails ||
+    showPartyDetails ||
+    showManufacturerDetails ||
+    showCreditNoteDetails ||
+    showExciseDetails ||
+    showVatDetails ||
+    showDebitNoteExcise ||
+    showOrderDetails ||
+    showDebitNoteDetails ||
+    !!subDropdownType;
+
+  // TallyPrime global shortcuts — registered in the CAPTURE phase so they fire
+  // before any focused field/popup handler and win regardless of the current
+  // voucher state. Every voucher is reachable directly from every other voucher.
+  const voucherOpenBindings: ShortcutBinding[] = [
+    { keys: 'F2', handler: () => setShowDatePicker(true) },
+    { keys: 'F3', handler: () => setShowTaxRegistrationPopup(true) },
+    { keys: 'F10', handler: () => setShowOtherVouchers(true) },
+    { keys: 'F4', handler: () => switchVoucher('Contra') },
+    { keys: 'F5', handler: () => switchVoucher('Payment') },
+    { keys: 'F6', handler: () => switchVoucher('Receipt') },
+    { keys: 'F7', handler: () => switchVoucher('Journal') },
+    { keys: 'F8', handler: () => switchVoucher('Sales') },
+    { keys: 'F9', handler: () => switchVoucher('Purchase') },
+    { keys: 'Alt+F5', handler: () => switchVoucher('Debit Note') },
+    { keys: 'Alt+F6', handler: () => switchVoucher('Credit Note') },
+    { keys: 'Alt+F7', handler: () => switchVoucher('Stock Journal') },
+    { keys: 'Alt+F8', handler: () => switchVoucher('Delivery Note') },
+    { keys: 'Alt+F9', handler: () => switchVoucher('Receipt Note') },
+    { keys: 'Ctrl+F4', handler: () => switchVoucher('Payroll') },
+    { keys: 'Ctrl+F5', handler: () => switchVoucher('Rejection Out') },
+    { keys: 'Ctrl+F6', handler: () => switchVoucher('Rejection In') },
+    { keys: 'Ctrl+F7', handler: () => switchVoucher('Physical Stock') },
+    { keys: 'Ctrl+F8', handler: () => switchVoucher('Sales Order') },
+    { keys: 'Ctrl+F9', handler: () => switchVoucher('Purchase Order') },
+  ].map((b) => ({ ...b, capture: true, allowInInputs: true, allowInDialogs: true }));
+
   useShortcuts(
     [
-      { keys: 'F2', handler: () => setShowDatePicker(true) },
-      { keys: 'F3', handler: () => setShowTaxRegistrationPopup(true) },
-      { keys: 'F10', handler: () => setShowOtherVouchers(true) },
-      { keys: 'F4', handler: () => handleTypeKey('Contra') },
-      { keys: 'F5', handler: () => handleTypeKey('Payment') },
-      { keys: 'F6', handler: () => handleTypeKey('Receipt') },
-      { keys: 'F7', handler: () => handleTypeKey('Journal') },
-      { keys: 'F8', handler: () => handleTypeKey('Sales') },
-      { keys: 'F9', handler: () => handleTypeKey('Purchase') },
-      { keys: 'Alt+F5', handler: () => handleTypeKey('Debit Note') },
-      { keys: 'Alt+F6', handler: () => handleTypeKey('Credit Note') },
-      { keys: 'Alt+F7', handler: () => handleTypeKey('Stock Journal') },
-      { keys: 'Alt+F8', handler: () => handleTypeKey('Delivery Note') },
-      { keys: 'Alt+F9', handler: () => handleTypeKey('Receipt Note') },
-      { keys: 'Ctrl+F4', handler: () => handleTypeKey('Payroll') },
-      { keys: 'Ctrl+F5', handler: () => handleTypeKey('Rejection Out') },
-      { keys: 'Ctrl+F6', handler: () => handleTypeKey('Rejection In') },
-      { keys: 'Ctrl+F7', handler: () => handleTypeKey('Physical Stock') },
-      { keys: 'Ctrl+F8', handler: () => handleTypeKey('Sales Order') },
-      { keys: 'Ctrl+F9', handler: () => handleTypeKey('Purchase Order') },
+      ...voucherOpenBindings,
+      // Ctrl+A is TallyPrime's Accept; Alt+A kept as an alias. Declines (so the
+      // event flows on) while a sub-screen is open — that popup accepts itself.
+      {
+        keys: ['Ctrl+A', 'Alt+A'],
+        capture: true,
+        allowInInputs: true,
+        handler: () => {
+          if (anyPopupOpen) return false;
+          if (canAccept) handleAccept();
+        },
+      },
     ],
-    { priority: PRIORITY.SCREEN },
+    // Suspended while the Cancel? prompt is up — it owns the keyboard then.
+    { priority: PRIORITY.PANEL, enabled: !showCancelConfirm },
+  );
+
+  // Quick actions that need data access (cancel, narration retrieval, prev/next).
+  const quickActions = useVoucherQuickActions({
+    companyId: selectedCompany?.company_id,
+    fyId: activeFY?.fy_id ?? undefined,
+    voucherType: effectiveVoucherType,
+    editVoucherId: editVoucherId ?? null,
+    partyLedgerId: form.partyLedger?.ledger_id,
+    setNarration: form.setNarration,
+    resetForm: form.resetForm,
+    navigate,
+  });
+
+  // Voucher operation shortcuts (Ctrl+L/T, Alt+X, Ctrl+R, Alt+R, Page Up/Down).
+  // Capture-phase so they win over field handlers; each declines (returns false,
+  // letting the key flow on to whatever picker/popup is open) unless the main
+  // voucher body is the active surface — so PgUp/PgDn still pages an open list,
+  // and Ctrl+L etc. don't fire mid-popup.
+  const bodyActive = !anyPopupOpen && !form.activeField && !form.activeAllocation;
+  const guarded = (fn: () => void) => () => {
+    if (!bodyActive) return false;
+    fn();
+    return undefined;
+  };
+  useShortcuts(
+    [
+      { keys: 'Ctrl+L', handler: guarded(() => form.setIsOptional((p: boolean) => !p)) },
+      {
+        keys: 'Ctrl+T',
+        handler: guarded(() =>
+          form.setStatus((p) => (p === 'Post-Dated' ? 'Regular' : 'Post-Dated')),
+        ),
+      },
+      { keys: 'Alt+X', handler: guarded(() => setShowCancelConfirm(true)) },
+      { keys: 'Ctrl+R', handler: guarded(() => void quickActions.copyNarrationSameType()) },
+      { keys: 'Alt+R', handler: guarded(() => void quickActions.retrieveNarrationSameParty()) },
+      { keys: 'PageUp', handler: guarded(() => void quickActions.openAdjacentVoucher(-1)) },
+      { keys: 'PageDown', handler: guarded(() => void quickActions.openAdjacentVoucher(1)) },
+    ].map((b) => ({ ...b, capture: true, allowInInputs: true })),
+    { priority: PRIORITY.PANEL, enabled: !showCancelConfirm },
   );
 
   useEffect(() => {
@@ -411,11 +534,6 @@ export default function Vouchers() {
             p === 'single' ? 'double' : 'single',
           );
         }
-      }
-      // Ctrl+A is TallyPrime's Accept; Alt+A kept as an alias.
-      if ((e.altKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A')) {
-        e.preventDefault();
-        if (canAccept) handleAccept();
       }
       if (e.altKey && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault();
@@ -446,7 +564,6 @@ export default function Vouchers() {
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [
-    handleTypeKey,
     form.setPaymentEntryMode,
     form.setJournalEntryMode,
     form.setContraEntryMode,
@@ -454,8 +571,6 @@ export default function Vouchers() {
     effectiveVoucherType,
     form.activeField,
     form.activeAllocation,
-    canAccept,
-    handleAccept,
     showDatePicker,
     showApplicableUptoPicker,
     showDispatchDetails,
@@ -633,7 +748,11 @@ export default function Vouchers() {
       </div>
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
+        <div
+          ref={bodyRef}
+          data-enter-nav
+          className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black"
+        >
           <VoucherBody
             effectiveVoucherType={effectiveVoucherType}
             form={form}
@@ -749,14 +868,22 @@ export default function Vouchers() {
               form.activeField?.type === 'stockItem'
                 ? effectiveVoucherType === 'Physical Stock'
                   ? physicalStockEndEntry
-                  : () => form.handleFieldBlur()
-                : form.activeField?.type === 'stockGodown' &&
-                    effectiveVoucherType === 'Physical Stock'
-                  ? () => physicalStockGodownNewItem((form.activeField as any).rowId)
-                  : form.activeField?.type === 'particular' &&
-                      ['Journal', 'Reversing Journal', 'Memorandum'].includes(effectiveVoucherType)
-                    ? journalParticularEndOfList
-                    : undefined
+                  : ['Stock Journal', 'Manufacturing Journal'].includes(effectiveVoucherType)
+                    ? handleStockJournalItemEndOfList
+                    : // Trade vouchers: End of List finishes items → Tax/Ledger section.
+                      stockItemEndOfList
+                : // Tax/Ledger row (Sales/Purchase/CN/DN): End of List finishes GST entry.
+                  form.activeField?.type === 'additional'
+                  ? additionalLedgerEndOfList
+                  : form.activeField?.type === 'stockGodown' &&
+                      effectiveVoucherType === 'Physical Stock'
+                    ? () => physicalStockGodownNewItem((form.activeField as any).rowId)
+                    : form.activeField?.type === 'particular' &&
+                        ['Journal', 'Reversing Journal', 'Memorandum'].includes(
+                          effectiveVoucherType,
+                        )
+                      ? journalParticularEndOfList
+                      : undefined
             }
             onEnterEmpty={
               // Payroll: blank Enter on a Pay Head → finish this employee, add & focus a new
@@ -797,7 +924,13 @@ export default function Vouchers() {
                               effectiveVoucherType,
                             )
                           ? journalParticularEndOfList
-                          : undefined
+                          : // Trade vouchers: a blank Enter on the item field = End of List.
+                            form.activeField?.type === 'stockItem'
+                            ? stockItemEndOfList
+                            : // Blank Enter on a Tax/Ledger row = End of List (finish GST).
+                              form.activeField?.type === 'additional'
+                              ? additionalLedgerEndOfList
+                              : undefined
             }
             stockBalances={form.activeField?.type === 'stockItem' ? form.stockBalances : undefined}
             godownBalances={
@@ -852,7 +985,7 @@ export default function Vouchers() {
         {/* ── Right sidebar ── */}
         <RightSidebar
           voucherType={effectiveVoucherType}
-          onTypeChange={form.setVoucherType}
+          onTypeChange={switchVoucher}
           voucherTypeChildren={voucherTypeChildren}
           subDropdownType={subDropdownType}
           onSubDropdownToggle={(type) =>
@@ -1023,6 +1156,17 @@ export default function Vouchers() {
           }}
         />
       )}
+
+      {/* Alt+X — TallyPrime "Cancel ?" prompt. Y cancels the voucher, N/Esc dismisses. */}
+      <TallyConfirm
+        open={showCancelConfirm}
+        message="Cancel ?"
+        onYes={() => {
+          setShowCancelConfirm(false);
+          void quickActions.cancelVoucher();
+        }}
+        onNo={() => setShowCancelConfirm(false)}
+      />
     </div>
   );
 }

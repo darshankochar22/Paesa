@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { useVoucherForm } from './useVoucherForm';
 import { validateTaxLedgerSelection } from '../utils/interstate';
 import type { InventoryAllocState } from './useStockEntryFlow';
+import { advanceFromLastField } from '../lib/voucherNav';
 
 // Enter-on-amount allocation dispatch (bank / bill-wise / cost-centre) and the
 // selection-time twin that opens the same popups when a balancing row's amount
@@ -373,6 +374,28 @@ export function useAmountConfirmFlow(
         return;
       }
 
+      // The main Sales/Purchase ledger: once picked, land on the first stock
+      // item. Deterministic (not advanceFromLastField) because this list is
+      // opened via state after Party Details — the field itself was never DOM-
+      // focused, so the nav tracker's "last field" would be stale here.
+      if (field?.type === 'salesPurchase') {
+        setTimeout(() => {
+          (document.querySelector('[data-stock-item="1"]') as HTMLInputElement | null)?.focus();
+        }, 50);
+        return;
+      }
+
+      // Account (Contra/Payment/Receipt) and tax/additional ledgers: once picked,
+      // advance to the next field via the nav engine. Generic — DOM order decides
+      // the next field. These fields ARE DOM-focused when their list opens, so
+      // the tracker's "last field" is accurate. Party is excluded on purpose — it
+      // starts the Dispatch/Party-Details popup chain, which hands off focus when
+      // it closes.
+      if (field?.type === 'account' || field?.type === 'additional') {
+        setTimeout(() => advanceFromLastField(), 50);
+        return;
+      }
+
       if (field?.type !== 'particular') return;
 
       const dbl =
@@ -388,7 +411,12 @@ export function useAmountConfirmFlow(
                   form.journalEntryMode === 'double'
                 ? form.journalRows
                 : null;
-      if (!dbl) return;
+      // Single-entry particular (Payment/Receipt/Journal single): no double-entry
+      // allocation — just move on to this row's amount cell.
+      if (!dbl) {
+        setTimeout(() => advanceFromLastField(), 50);
+        return;
+      }
 
       const isBankAllocVoucher =
         effectiveVoucherType === 'Contra' ||
@@ -403,7 +431,11 @@ export function useAmountConfirmFlow(
         form.checkIsParty(item) ||
         item.is_bill_wise === 1 ||
         item.allow_cost_centres === 1;
-      if (!opensPopup) return;
+      // A plain ledger (no allocation popup) → advance to this row's amount cell.
+      if (!opensPopup) {
+        setTimeout(() => advanceFromLastField(), 50);
+        return;
+      }
 
       const idx = dbl.findIndex((r) => r.id === field.rowId);
       const row = dbl[idx];

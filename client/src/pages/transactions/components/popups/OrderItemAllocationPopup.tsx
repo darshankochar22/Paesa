@@ -92,6 +92,9 @@ export default function OrderItemAllocationPopup({
   const [openTrackRow, setOpenTrackRow] = useState<number | null>(null);
   const [openOrderRow, setOpenOrderRow] = useState<number | null>(null);
   const [openGodownRow, setOpenGodownRow] = useState<number | null>(null);
+  // Keyboard highlight into the open "List of Godowns" (arrows move it, Enter
+  // picks it). Reset to 0 each time the list opens or its filter changes.
+  const [godownHi, setGodownHi] = useState(0);
   const [newNumber, setNewNumber] = useState<{
     row: number;
     field: 'tracking' | 'order' | 'batch';
@@ -371,9 +374,10 @@ export default function OrderItemAllocationPopup({
       ...(t?.rate ? { rate: t.rate } : {}),
     });
     setOpenTrackRow(null);
-    // Order No. / Due on are always available (a note can be order-tracked
-    // without a tracking number) — Enter lands on Order No. either way.
-    focusSel(`[data-oa-order="${i}"]`);
+    // Not Applicable → no order tracking; jump straight to the Godown so the
+    // user keys the allocation (Godown → Qty → Rate). A real tracking number
+    // lands on Order No. (a note can be order-tracked without a tracking no.).
+    focusSel(v === NA ? `[data-oa-godown="${i}"]` : `[data-oa-order="${i}"]`);
   };
 
   // Order No. picked from the list → autofill godown / due-on / quantity / rate
@@ -515,7 +519,12 @@ export default function OrderItemAllocationPopup({
     );
     const kept = rowFilled ? rows : rows.filter((_, idx) => idx !== i);
     if (!kept.some((x) => x.godown || Number(x.quantity) > 0)) {
-      onClose();
+      // Nothing allocated anywhere yet — don't close on the first Enter (that
+      // stranded the user back on the voucher's stock row). Skip optional
+      // tracking (Not Applicable) and move INTO this row so they can key the
+      // Godown → Qty → Rate. To abort an empty allocation, press Esc.
+      update(i, { tracking_no: NA });
+      focusSel(`[data-oa-godown="${i}"]`);
       return;
     }
     saveAllocations(kept);
@@ -612,6 +621,15 @@ export default function OrderItemAllocationPopup({
             <div>
               {rows.map((row, i) => {
                 const baseIso = trackMfg && row.mfg_date ? row.mfg_date : voucherDate;
+                // Godown list filtered by what's typed in the Godown cell — the
+                // keyboard highlight (godownHi) indexes into this filtered set.
+                const gq = (row.godown ?? '').trim().toLowerCase();
+                const godownOpts = godowns.filter((g) => !gq || g.name.toLowerCase().includes(gq));
+                const pickGodown = (name: string) => {
+                  update(i, { godown: name });
+                  setOpenGodownRow(null);
+                  focusSel(showBatch ? `[data-oa-batch="${i}"]` : `[data-oa-actual="${i}"]`);
+                };
                 return (
                   <div key={i} className="border-b border-gray-200">
                     <OrderRowTrackingLine
@@ -658,16 +676,41 @@ export default function OrderItemAllocationPopup({
                           value={row.godown ?? ''}
                           onFocus={() => {
                             setOpenGodownRow(i);
+                            setGodownHi(0);
                             setOpenTrackRow(null);
                             setOpenOrderRow(null);
                           }}
-                          onChange={(e) => update(i, { godown: e.target.value })}
-                          onKeyDown={enter(() => {
-                            setOpenGodownRow(null);
-                            focusSel(
-                              showBatch ? `[data-oa-batch="${i}"]` : `[data-oa-actual="${i}"]`,
-                            );
-                          })}
+                          onChange={(e) => {
+                            update(i, { godown: e.target.value });
+                            setOpenGodownRow(i);
+                            setGodownHi(0);
+                          }}
+                          onKeyDown={(e) => {
+                            const open = openGodownRow === i;
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              if (!open) {
+                                setOpenGodownRow(i);
+                                setGodownHi(0);
+                              } else {
+                                setGodownHi((h) => Math.min(h + 1, godownOpts.length - 1));
+                              }
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setGodownHi((h) => Math.max(h - 1, 0));
+                            } else if (e.key === 'Escape') {
+                              if (open) {
+                                e.preventDefault();
+                                setOpenGodownRow(null);
+                              }
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              // Adopt the highlighted godown when the list is open
+                              // and matches; otherwise keep the typed value.
+                              const g = open ? godownOpts[godownHi] : undefined;
+                              pickGodown(g ? g.name : (row.godown ?? ''));
+                            }
+                          }}
                           placeholder="Location"
                           className={inputCls}
                         />
@@ -687,21 +730,18 @@ export default function OrderItemAllocationPopup({
                               <div className={`${listHeadCls} text-[10px] px-2 py-0.5`}>
                                 List of Godowns
                               </div>
-                              {godowns.map((g) => (
+                              {godownOpts.map((g, gi) => (
                                 <button
                                   key={g.godown_id ?? g.name}
                                   type="button"
+                                  onMouseEnter={() => setGodownHi(gi)}
                                   onMouseDown={(e) => {
                                     e.preventDefault();
-                                    update(i, { godown: g.name });
-                                    setOpenGodownRow(null);
-                                    focusSel(
-                                      showBatch
-                                        ? `[data-oa-batch="${i}"]`
-                                        : `[data-oa-actual="${i}"]`,
-                                    );
+                                    pickGodown(g.name);
                                   }}
-                                  className="flex w-full items-center text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+                                  className={`flex w-full items-center text-left text-[11px] px-2 py-1 border-b border-gray-100 ${
+                                    gi === godownHi ? 'bg-gray-200' : 'hover:bg-gray-100'
+                                  }`}
                                 >
                                   <div className="flex-1 font-semibold">{g.name}</div>
                                   <div className="w-14 text-right font-mono text-gray-600">

@@ -202,6 +202,33 @@ export default function JobWorkItemAllocationPopup({
   // Inline validation message (Mfg Date vs Due on).
   const [error, setError] = useState<string | null>(null);
 
+  // Keyboard highlight into whichever list dropdown is currently open (only one
+  // is ever open at a time). Arrow keys move it, Enter selects it, Esc closes —
+  // so every list here is operable with no mouse (Tally flow).
+  const [hi, setHi] = useState(0);
+
+  // Godown options for a row's List of Godowns — same filter the list renders,
+  // so the highlight index maps 1:1 onto the visible rows.
+  const godownOpts = (row: AllocRow) =>
+    allGodowns.filter(
+      (g: any) => !row.godown || g.name.toLowerCase().includes(row.godown.toLowerCase()),
+    );
+
+  // Batch options for a row's List of Active Batches (the leading "♦ Any" row is
+  // index 0, these follow at index 1..n).
+  const batchOpts = (row: AllocRow): BatchOption[] =>
+    [
+      ...activeBatches,
+      ...createdBatches
+        .filter((n) => !activeBatches.some((b) => b.name === n))
+        .map((n) => ({ name: n }) as BatchOption),
+    ].filter(
+      (b) =>
+        !row.batch_lot ||
+        row.batch_lot === 'Any' ||
+        b.name.toLowerCase().includes(row.batch_lot.toLowerCase()),
+    );
+
   // Manufacturing Date can't be after the row's Due on date (Tally rejects it) —
   // the goods must exist by the time they're due. Reject the entry and flag why.
   const setMfgDate = (row: AllocRow, value: string) => {
@@ -297,7 +324,15 @@ export default function JobWorkItemAllocationPopup({
   // Shell handles Esc / Alt+A; suppress both while the nested Components popup
   // is open so its own keys don't also close/accept this parent.
   const shellClose = () => {
-    if (!compPopupData && newBatchRow === null) onClose();
+    if (compPopupData || newBatchRow !== null) return;
+    // An open list dropdown swallows Esc — close it and keep the popup open
+    // (Tally: Esc backs out one level, the list before the whole screen).
+    if (showTrackDD || rows.some((r) => r.showGodownDD || r.showBatchDD)) {
+      setShowTrackDD(false);
+      setRows((prev) => prev.map((r) => ({ ...r, showGodownDD: false, showBatchDD: false })));
+      return;
+    }
+    onClose();
   };
   const shellAccept = () => {
     if (!compPopupData && newBatchRow === null) handleAccept();
@@ -341,6 +376,34 @@ export default function JobWorkItemAllocationPopup({
               <button
                 type="button"
                 onClick={() => setShowTrackDD((v) => !v)}
+                onKeyDown={(e) => {
+                  const opts = ['Yes', 'No'] as const;
+                  if (!showTrackDD) {
+                    // Closed: Enter / arrows open the list, highlighting the
+                    // current value.
+                    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setHi(opts.indexOf(trackComponents));
+                      setShowTrackDD(true);
+                    }
+                    return;
+                  }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setHi((h) => Math.min(h + 1, opts.length - 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setHi((h) => Math.max(h - 1, 0));
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    setTrackComponents(opts[hi]);
+                    setShowTrackDD(false);
+                    focusEl('[data-jw-godown="0"]');
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowTrackDD(false);
+                  }
+                }}
                 className="text-xs px-2 py-0.5 border border-gray-400 bg-white font-bold min-w-[52px] text-left focus:border-black"
               >
                 {trackComponents}
@@ -350,16 +413,17 @@ export default function JobWorkItemAllocationPopup({
                   <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 border-b border-gray-300">
                     Track Components
                   </div>
-                  {(['Yes', 'No'] as const).map((opt) => (
+                  {(['Yes', 'No'] as const).map((opt, oi) => (
                     <button
                       key={opt}
                       type="button"
+                      onMouseEnter={() => setHi(oi)}
                       onMouseDown={(e) => {
                         e.preventDefault();
                         setTrackComponents(opt);
                         setShowTrackDD(false);
                       }}
-                      className={`block w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 ${opt === trackComponents ? 'font-bold' : ''}`}
+                      className={`block w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 ${oi === hi ? 'bg-gray-200' : 'hover:bg-gray-100'} ${opt === trackComponents ? 'font-bold' : ''}`}
                     >
                       {opt === trackComponents ? `♦ ${opt}` : opt}
                     </button>
@@ -436,10 +500,52 @@ export default function JobWorkItemAllocationPopup({
                     data-jw-godown={idx}
                     autoFocus={idx === 0}
                     value={row.godown}
-                    onChange={(e) => update(row.id, { godown: e.target.value })}
-                    onFocus={() => update(row.id, { showGodownDD: true })}
+                    onChange={(e) => {
+                      update(row.id, { godown: e.target.value });
+                      setHi(0);
+                    }}
+                    onFocus={() => {
+                      update(row.id, { showGodownDD: true });
+                      setHi(0);
+                    }}
                     onBlur={() => setTimeout(() => update(row.id, { showGodownDD: false }), 150)}
                     onKeyDown={(e) => {
+                      const opts = godownOpts(row);
+                      // List closed → ArrowDown reopens it (Esc had hidden it).
+                      if (!row.showGodownDD && e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        update(row.id, { showGodownDD: true });
+                        setHi(0);
+                        return;
+                      }
+                      if (row.showGodownDD && opts.length) {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setHi((h) => Math.min(h + 1, opts.length - 1));
+                          return;
+                        }
+                        if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setHi((h) => Math.max(h - 1, 0));
+                          return;
+                        }
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const g = opts[hi];
+                          if (g) {
+                            update(row.id, { godown: g.name, showGodownDD: false });
+                            focusEl(
+                              isBatch ? `[data-jw-batch="${idx}"]` : `[data-jw-qty="${idx}"]`,
+                            );
+                          }
+                          return;
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault();
+                          update(row.id, { showGodownDD: false });
+                          return;
+                        }
+                      }
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         focusEl(isBatch ? `[data-jw-batch="${idx}"]` : `[data-jw-qty="${idx}"]`);
@@ -463,31 +569,26 @@ export default function JobWorkItemAllocationPopup({
                         <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 border-b border-gray-300">
                           List of Godowns
                         </div>
-                        {allGodowns
-                          .filter(
-                            (g) =>
-                              !row.godown ||
-                              g.name.toLowerCase().includes(row.godown.toLowerCase()),
-                          )
-                          .map((g: any) => (
-                            <button
-                              key={g.godown_id ?? g.name}
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                update(row.id, { godown: g.name, showGodownDD: false });
-                                focusEl(`[data-jw-qty="${idx}"]`);
-                              }}
-                              className="flex w-full items-center justify-between text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
-                            >
-                              <span className="truncate">{g.name}</span>
-                              <span className="font-mono text-gray-600 shrink-0 ml-2">
-                                {g.godown_id != null
-                                  ? fmtQty(godownBal[g.godown_id], unitSymbol)
-                                  : ''}
-                              </span>
-                            </button>
-                          ))}
+                        {godownOpts(row).map((g: any, gi: number) => (
+                          <button
+                            key={g.godown_id ?? g.name}
+                            type="button"
+                            onMouseEnter={() => setHi(gi)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              update(row.id, { godown: g.name, showGodownDD: false });
+                              focusEl(`[data-jw-qty="${idx}"]`);
+                            }}
+                            className={`flex w-full items-center justify-between text-left text-[11px] px-2 py-1 border-b border-gray-100 font-semibold ${gi === hi ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                          >
+                            <span className="truncate">{g.name}</span>
+                            <span className="font-mono text-gray-600 shrink-0 ml-2">
+                              {g.godown_id != null
+                                ? fmtQty(godownBal[g.godown_id], unitSymbol)
+                                : ''}
+                            </span>
+                          </button>
+                        ))}
                       </div>,
                       document.body,
                     )}
@@ -501,10 +602,68 @@ export default function JobWorkItemAllocationPopup({
                       type="text"
                       data-jw-batch={idx}
                       value={row.batch_lot}
-                      onChange={(e) => update(row.id, { batch_lot: e.target.value })}
-                      onFocus={() => update(row.id, { showBatchDD: true })}
+                      onChange={(e) => {
+                        update(row.id, { batch_lot: e.target.value });
+                        setHi(0);
+                      }}
+                      onFocus={() => {
+                        update(row.id, { showBatchDD: true });
+                        setHi(0);
+                      }}
                       onBlur={() => setTimeout(() => update(row.id, { showBatchDD: false }), 150)}
                       onKeyDown={(e) => {
+                        const opts = batchOpts(row); // index 0 = ♦ Any, then 1..n
+                        const total = opts.length + 1;
+                        // List closed → ArrowDown reopens it (Esc had hidden it).
+                        if (!row.showBatchDD && e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          update(row.id, { showBatchDD: true });
+                          setHi(0);
+                          return;
+                        }
+                        if (row.showBatchDD) {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setHi((h) => Math.min(h + 1, total - 1));
+                            return;
+                          }
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setHi((h) => Math.max(h - 1, 0));
+                            return;
+                          }
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (hi === 0 && row.batch_lot && row.batch_lot !== 'Any') {
+                              // Free-typed new lot with "Any" still highlighted →
+                              // keep what was typed (existing behaviour).
+                              update(row.id, { showBatchDD: false });
+                            } else if (hi === 0) {
+                              update(row.id, {
+                                batch_lot: 'Any',
+                                mfg_date: '',
+                                expiry_date: '',
+                                showBatchDD: false,
+                              });
+                            } else {
+                              const b = opts[hi - 1];
+                              if (b)
+                                update(row.id, {
+                                  batch_lot: b.name,
+                                  mfg_date: b.mfg_date ?? row.mfg_date,
+                                  expiry_date: b.expiry_date ?? row.expiry_date,
+                                  showBatchDD: false,
+                                });
+                            }
+                            focusEl(`[data-jw-qty="${idx}"]`);
+                            return;
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault();
+                            update(row.id, { showBatchDD: false });
+                            return;
+                          }
+                        }
                         if (e.key === 'Enter') {
                           e.preventDefault();
                           update(row.id, { showBatchDD: false });
@@ -566,6 +725,7 @@ export default function JobWorkItemAllocationPopup({
                         {/* Any — no specific lot. */}
                         <button
                           type="button"
+                          onMouseEnter={() => setHi(0)}
                           onMouseDown={(e) => {
                             e.preventDefault();
                             update(row.id, {
@@ -576,47 +736,36 @@ export default function JobWorkItemAllocationPopup({
                             });
                             focusEl(`[data-jw-qty="${idx}"]`);
                           }}
-                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold"
+                          className={`flex w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 font-semibold ${hi === 0 ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
                         >
                           {ANY}
                         </button>
-                        {[
-                          ...activeBatches,
-                          ...createdBatches
-                            .filter((n) => !activeBatches.some((b) => b.name === n))
-                            .map((n) => ({ name: n }) as BatchOption),
-                        ]
-                          .filter(
-                            (b) =>
-                              !row.batch_lot ||
-                              row.batch_lot === 'Any' ||
-                              b.name.toLowerCase().includes(row.batch_lot.toLowerCase()),
-                          )
-                          .map((b) => (
-                            <button
-                              key={b.name}
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                update(row.id, {
-                                  batch_lot: b.name,
-                                  mfg_date: b.mfg_date ?? row.mfg_date,
-                                  expiry_date: b.expiry_date ?? row.expiry_date,
-                                  showBatchDD: false,
-                                });
-                                focusEl(`[data-jw-qty="${idx}"]`);
-                              }}
-                              className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
-                            >
-                              <div className="flex-1 font-semibold truncate">{b.name}</div>
-                              <div className="w-14 text-center font-mono text-gray-600">
-                                {fmtDate(b.expiry_date ?? '')}
-                              </div>
-                              <div className="w-12 text-right font-mono text-gray-600">
-                                {b.balance ? fmtQty(b.balance, unitSymbol) : ''}
-                              </div>
-                            </button>
-                          ))}
+                        {batchOpts(row).map((b, bi) => (
+                          <button
+                            key={b.name}
+                            type="button"
+                            onMouseEnter={() => setHi(bi + 1)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              update(row.id, {
+                                batch_lot: b.name,
+                                mfg_date: b.mfg_date ?? row.mfg_date,
+                                expiry_date: b.expiry_date ?? row.expiry_date,
+                                showBatchDD: false,
+                              });
+                              focusEl(`[data-jw-qty="${idx}"]`);
+                            }}
+                            className={`flex w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 ${hi === bi + 1 ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                          >
+                            <div className="flex-1 font-semibold truncate">{b.name}</div>
+                            <div className="w-14 text-center font-mono text-gray-600">
+                              {fmtDate(b.expiry_date ?? '')}
+                            </div>
+                            <div className="w-12 text-right font-mono text-gray-600">
+                              {b.balance ? fmtQty(b.balance, unitSymbol) : ''}
+                            </div>
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>

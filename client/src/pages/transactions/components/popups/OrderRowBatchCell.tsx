@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
 import type { BatchAllocation } from '../../types';
@@ -51,6 +52,63 @@ export default function OrderRowBatchCell({
   activeBatches,
   typedBatches,
 }: Props) {
+  // Keyboard highlight into the open "List of Active Batches" (arrows move it,
+  // Enter picks it). Reset to 0 each time the list opens or its typed filter
+  // changes — mirrors the Godown picker in OrderItemAllocationPopup.
+  const [hi, setHi] = useState(0);
+
+  // Navigable rows, in DOM order: ♦ Any, then existing lots, then this-session
+  // lots. "New Number" stays a fixed mouse row (it opens a separate popup, not a
+  // list pick). Each select() matches that row's existing click action exactly.
+  const opts = useMemo(() => {
+    const done = () => {
+      setOpenListRow(null);
+      focusSel(`[data-oa-actual="${i}"]`);
+    };
+    const list: { key: string; select: () => void }[] = [
+      {
+        key: 'any',
+        select: () => {
+          update(i, { batch_number: 'Any' });
+          done();
+        },
+      },
+    ];
+    activeBatches.forEach((b) =>
+      list.push({
+        key: `b-${b.name}`,
+        select: () => {
+          update(i, {
+            batch_number: b.name,
+            mfg_date: b.mfg_date ?? undefined,
+            expiry_date: b.expiry_date ?? undefined,
+          });
+          done();
+        },
+      }),
+    );
+    typedBatches.forEach((n) =>
+      list.push({
+        key: `t-${n}`,
+        select: () => {
+          update(i, { batch_number: n });
+          done();
+        },
+      }),
+    );
+    return list;
+  }, [activeBatches, typedBatches, i, update, setOpenListRow]);
+
+  useEffect(() => {
+    setHi(0);
+  }, [openListRow, row.batch_number]);
+  useEffect(() => {
+    setHi((h) => Math.min(Math.max(h, 0), Math.max(opts.length - 1, 0)));
+  }, [opts.length]);
+
+  const batchBase = 1; // opts index of activeBatches[0]
+  const typedBase = 1 + activeBatches.length; // opts index of typedBatches[0]
+
   return (
     <div
       className={`${cell} ${batchW} relative`}
@@ -64,10 +122,45 @@ export default function OrderRowBatchCell({
         value={row.batch_number}
         onChange={(e) => update(i, { batch_number: e.target.value })}
         onFocus={() => setOpenListRow(i)}
-        onKeyDown={enter(() => {
-          setOpenListRow(null);
-          focusSel(`[data-oa-actual="${i}"]`);
-        })}
+        onKeyDown={(e) => {
+          const open = openListRow === i;
+          if (open) {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              setHi((h) => Math.min(h + 1, opts.length - 1));
+              return;
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              setHi((h) => Math.max(h - 1, 0));
+              return;
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setOpenListRow(null);
+              return;
+            }
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const typed = (row.batch_number || '').trim();
+              // Adopt the highlighted row when the user hasn't free-typed a lot:
+              // empty / "Any", or they deliberately arrowed off the default (hi≠0).
+              // Otherwise keep the typed value — never clobber a new lot number.
+              const wantsHighlight = hi !== 0 || !typed || typed.toLowerCase() === 'any';
+              if (wantsHighlight && opts[hi]) {
+                opts[hi].select();
+              } else {
+                setOpenListRow(null);
+                focusSel(`[data-oa-actual="${i}"]`);
+              }
+              return;
+            }
+          }
+          enter(() => {
+            setOpenListRow(null);
+            focusSel(`[data-oa-actual="${i}"]`);
+          })(e);
+        }}
         placeholder="Any / New Number…"
         className={`${inputCls} font-semibold`}
       />
@@ -137,31 +230,29 @@ export default function OrderRowBatchCell({
             {/* Any — no specific lot. */}
             <button
               type="button"
+              onMouseEnter={() => setHi(0)}
               onMouseDown={(e) => {
                 e.preventDefault();
-                update(i, { batch_number: 'Any' });
-                setOpenListRow(null);
-                focusSel(`[data-oa-actual="${i}"]`);
+                opts[0].select();
               }}
-              className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+              className={`flex w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 ${
+                hi === 0 ? 'bg-gray-200' : 'hover:bg-gray-100'
+              }`}
             >
               <div className="flex-1 font-semibold">&#9670; Any</div>
             </button>
-            {activeBatches.map((b) => (
+            {activeBatches.map((b, idx) => (
               <button
                 key={b.name}
                 type="button"
+                onMouseEnter={() => setHi(batchBase + idx)}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  update(i, {
-                    batch_number: b.name,
-                    mfg_date: b.mfg_date ?? undefined,
-                    expiry_date: b.expiry_date ?? undefined,
-                  });
-                  setOpenListRow(null);
-                  focusSel(`[data-oa-actual="${i}"]`);
+                  opts[batchBase + idx]?.select();
                 }}
-                className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+                className={`flex w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 ${
+                  hi === batchBase + idx ? 'bg-gray-200' : 'hover:bg-gray-100'
+                }`}
               >
                 <div className="flex-1 font-semibold">{b.name}</div>
                 <div className="w-16 font-mono">{fmtDate(b.expiry_date)}</div>
@@ -169,17 +260,18 @@ export default function OrderRowBatchCell({
               </button>
             ))}
             {/* Lots created this session (New Number) show up too. */}
-            {typedBatches.map((n) => (
+            {typedBatches.map((n, idx) => (
               <button
                 key={`t-${n}`}
                 type="button"
+                onMouseEnter={() => setHi(typedBase + idx)}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  update(i, { batch_number: n });
-                  setOpenListRow(null);
-                  focusSel(`[data-oa-actual="${i}"]`);
+                  opts[typedBase + idx]?.select();
                 }}
-                className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
+                className={`flex w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 ${
+                  hi === typedBase + idx ? 'bg-gray-200' : 'hover:bg-gray-100'
+                }`}
               >
                 <div className="flex-1 font-semibold">{n}</div>
               </button>

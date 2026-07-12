@@ -1,7 +1,8 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { BatchAllocation } from '../../types';
-import { NA, EOL, fmtDate, focusSel } from './orderItemAllocationShared';
+import { NA, EOL, fmtDate, focusSel, hasTracking } from './orderItemAllocationShared';
 
 // One allocation row's "Tracking No. / Order No. / Due on" header line with its
 // portal dropdowns. Extracted from OrderItemAllocationPopup.tsx; markup and
@@ -71,6 +72,134 @@ export default function OrderRowTrackingLine({
   // Order No. / Due on always show — order tracking works with or without a
   // tracking number (Tally shows both side by side).
   const showOrder = true;
+
+  // Keyboard highlight into whichever dropdown is open (only one at a time).
+  // Arrow keys move it, Enter picks the highlighted row, Esc closes — Tally
+  // flow, no mouse needed. Mirrors LedgerListPanel / InventoryAllocationPopup.
+  const [hi, setHi] = useState(0);
+
+  // Selectable rows in DOM order, each with the exact action its onMouseDown runs.
+  const trackList = useMemo(
+    () => sessionTracking.filter((t) => t.no !== row.tracking_no),
+    [sessionTracking, row.tracking_no],
+  );
+  const orderList = useMemo(
+    () => sessionOrders.filter((o) => o.no !== row.order_no),
+    [sessionOrders, row.order_no],
+  );
+  const trackOptions = useMemo<Array<() => void>>(
+    () => [
+      () => endOfList(i),
+      () => afterTracking(i, NA),
+      () => {
+        setOpenTrackRow(null);
+        setNewNumber({ row: i, field: 'tracking' });
+      },
+      ...trackList.map((t) => () => afterTracking(i, t.no)),
+    ],
+    [i, trackList, endOfList, afterTracking, setOpenTrackRow, setNewNumber],
+  );
+  const orderOptions = useMemo<Array<() => void>>(
+    () => [
+      () => {
+        update(i, { order_no: NA });
+        setOpenOrderRow(null);
+        focusSel(`[data-oa-due="${i}"]`);
+      },
+      () => {
+        setOpenOrderRow(null);
+        setNewNumber({ row: i, field: 'order' });
+      },
+      ...orderList.map((o) => () => selectOrder(i, o)),
+    ],
+    [i, orderList, update, setOpenOrderRow, setNewNumber, selectOrder],
+  );
+
+  // Reset the highlight whenever a list opens or its filter (typed value) changes.
+  useEffect(() => {
+    setHi(0);
+  }, [openTrackRow, openOrderRow, row.tracking_no, row.order_no]);
+
+  // Keep the highlighted option scrolled into view while arrowing / paging. The
+  // option <button>s render in the same order as the `hi` index, so the hi-th
+  // button is the highlighted one.
+  useEffect(() => {
+    const dd =
+      openTrackRow === i
+        ? trackDropdownRef.current
+        : openOrderRow === i
+          ? orderDropdownRef.current
+          : null;
+    dd?.querySelectorAll<HTMLElement>('button')[hi]?.scrollIntoView({ block: 'nearest' });
+  }, [hi, openTrackRow, openOrderRow, i, trackDropdownRef, orderDropdownRef]);
+
+  // A blank allocation line — no godown / qty / batch / tracking / order yet.
+  // Tally: Enter on such a line accepts the sub-screen (keeping the filled rows)
+  // and returns to the voucher; it must NOT walk this empty row's fields, which
+  // would append yet another blank line on every Enter.
+  const rowEmpty =
+    !(row.godown && String(row.godown).trim()) &&
+    !(Number(row.quantity) > 0) &&
+    !(Number(row.actual_quantity) > 0) &&
+    !(row.batch_number || '').trim() &&
+    !hasTracking(row) &&
+    !(row.tracking_no || '').trim() &&
+    !(row.order_no && row.order_no !== NA);
+
+  const listKeyDown =
+    (open: boolean, options: Array<() => void>, close: () => void, fallback: () => void) =>
+    (e: React.KeyboardEvent) => {
+      if (open && options.length) {
+        const last = options.length - 1;
+        const PAGE = 10; // rows per PgUp/PgDn jump (TallyPrime-style)
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setHi((h) => Math.min(h + 1, last));
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setHi((h) => Math.max(h - 1, 0));
+          return;
+        }
+        if (e.key === 'PageDown') {
+          e.preventDefault();
+          setHi((h) => Math.min(h + PAGE, last));
+          return;
+        }
+        if (e.key === 'PageUp') {
+          e.preventDefault();
+          setHi((h) => Math.max(h - PAGE, 0));
+          return;
+        }
+        if (e.key === 'Home') {
+          e.preventDefault();
+          setHi(0);
+          return;
+        }
+        if (e.key === 'End') {
+          e.preventDefault();
+          setHi(last);
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          close();
+          return;
+        }
+        if (e.key === 'Enter') {
+          const action = options[hi];
+          if (action) {
+            e.preventDefault();
+            action();
+            return;
+          }
+        }
+      }
+      // List closed or nothing highlighted → existing Enter behaviour.
+      enter(fallback)(e);
+    };
+
   return (
     <div className="flex items-center px-3 pt-1.5 gap-2 text-[11px]">
       <span className="italic text-gray-600 shrink-0">Tracking No. :</span>
@@ -92,7 +221,26 @@ export default function OrderRowTrackingLine({
             setOpenGodownRow(null);
           }}
           onChange={(e) => update(i, { tracking_no: e.target.value })}
-          onKeyDown={enter(() => afterTracking(i, (row.tracking_no || '').trim()))}
+          onKeyDown={(e) => {
+            // Blank line → "End of List": endOfList accepts the sub-screen when
+            // an allocation already exists, but on a FRESH sub-screen (nothing
+            // allocated yet) it now advances into this row (Godown → Qty → Rate)
+            // instead of closing, so the user can actually key the quantity. The
+            // ONLY exception: the list is open AND the user arrowed onto a
+            // specific entry (hi > 0) to pick a real tracking number — then defer
+            // to listKeyDown so selection still works.
+            if (e.key === 'Enter' && rowEmpty && !(openTrackRow === i && hi > 0)) {
+              e.preventDefault();
+              endOfList(i);
+              return;
+            }
+            listKeyDown(
+              openTrackRow === i,
+              trackOptions,
+              () => setOpenTrackRow(null),
+              () => afterTracking(i, (row.tracking_no || '').trim()),
+            )(e);
+          }}
           placeholder="New Number…"
           className={`w-28 ${smallInputCls}`}
         />
@@ -119,52 +267,60 @@ export default function OrderRowTrackingLine({
               </div>
               <button
                 type="button"
+                onMouseEnter={() => setHi(0)}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   endOfList(i);
                 }}
-                className={optSpecial + ' border-b border-gray-100'}
+                className={
+                  optSpecial + ' border-b border-gray-100' + (hi === 0 ? ' bg-gray-200' : '')
+                }
               >
                 {EOL}
               </button>
               <button
                 type="button"
+                onMouseEnter={() => setHi(1)}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   afterTracking(i, NA);
                 }}
-                className={optSpecial + ' border-b border-gray-100'}
+                className={
+                  optSpecial + ' border-b border-gray-100' + (hi === 1 ? ' bg-gray-200' : '')
+                }
               >
                 {NA}
               </button>
               <button
                 type="button"
+                onMouseEnter={() => setHi(2)}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   setOpenTrackRow(null);
                   setNewNumber({ row: i, field: 'tracking' });
                 }}
-                className={optNew}
+                className={optNew + (hi === 2 ? ' bg-gray-200' : '')}
               >
                 New Number
               </button>
-              {sessionTracking
-                .filter((t) => t.no !== row.tracking_no)
-                .map((t) => (
-                  <button
-                    key={t.no}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      afterTracking(i, t.no);
-                    }}
-                    className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
-                  >
-                    <div className="flex-1 font-semibold">{t.no}</div>
-                    <div className="w-16 truncate">{t.godown}</div>
-                    <div className="w-12 text-right font-mono">{t.balance || ''}</div>
-                  </button>
-                ))}
+              {trackList.map((t, k) => (
+                <button
+                  key={t.no}
+                  type="button"
+                  onMouseEnter={() => setHi(3 + k)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    afterTracking(i, t.no);
+                  }}
+                  className={`flex w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 ${
+                    hi === 3 + k ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex-1 font-semibold">{t.no}</div>
+                  <div className="w-16 truncate">{t.godown}</div>
+                  <div className="w-12 text-right font-mono">{t.balance || ''}</div>
+                </button>
+              ))}
             </div>,
             document.body,
           )}
@@ -190,10 +346,15 @@ export default function OrderRowTrackingLine({
                 setOpenGodownRow(null);
               }}
               onChange={(e) => update(i, { order_no: e.target.value })}
-              onKeyDown={enter(() => {
-                setOpenOrderRow(null);
-                focusSel(`[data-oa-due="${i}"]`);
-              })}
+              onKeyDown={listKeyDown(
+                openOrderRow === i,
+                orderOptions,
+                () => setOpenOrderRow(null),
+                () => {
+                  setOpenOrderRow(null);
+                  focusSel(`[data-oa-due="${i}"]`);
+                },
+              )}
               placeholder="New Number…"
               className={`w-24 ${smallInputCls}`}
             />
@@ -219,45 +380,50 @@ export default function OrderRowTrackingLine({
                   </div>
                   <button
                     type="button"
+                    onMouseEnter={() => setHi(0)}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       update(i, { order_no: NA });
                       setOpenOrderRow(null);
                       focusSel(`[data-oa-due="${i}"]`);
                     }}
-                    className={optSpecial + ' border-b border-gray-100'}
+                    className={
+                      optSpecial + ' border-b border-gray-100' + (hi === 0 ? ' bg-gray-200' : '')
+                    }
                   >
                     {NA}
                   </button>
                   <button
                     type="button"
+                    onMouseEnter={() => setHi(1)}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setOpenOrderRow(null);
                       setNewNumber({ row: i, field: 'order' });
                     }}
-                    className={optNew}
+                    className={optNew + (hi === 1 ? ' bg-gray-200' : '')}
                   >
                     New Number
                   </button>
-                  {sessionOrders
-                    .filter((o) => o.no !== row.order_no)
-                    .map((o) => (
-                      <button
-                        key={o.no}
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectOrder(i, o);
-                        }}
-                        className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100"
-                      >
-                        <div className="flex-1 font-semibold">{o.no}</div>
-                        <div className="w-14 truncate">{o.godown}</div>
-                        <div className="w-14 truncate">{fmtDate(o.due)}</div>
-                        <div className="w-12 text-right font-mono">{o.balance || ''}</div>
-                      </button>
-                    ))}
+                  {orderList.map((o, k) => (
+                    <button
+                      key={o.no}
+                      type="button"
+                      onMouseEnter={() => setHi(2 + k)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectOrder(i, o);
+                      }}
+                      className={`flex w-full text-left text-[11px] px-2 py-1 border-b border-gray-100 ${
+                        hi === 2 + k ? 'bg-gray-200' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex-1 font-semibold">{o.no}</div>
+                      <div className="w-14 truncate">{o.godown}</div>
+                      <div className="w-14 truncate">{fmtDate(o.due)}</div>
+                      <div className="w-12 text-right font-mono">{o.balance || ''}</div>
+                    </button>
+                  ))}
                 </div>,
                 document.body,
               )}

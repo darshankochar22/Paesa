@@ -143,10 +143,17 @@ export default function MaterialInAllocationPopup({
   const [openOrderList, setOpenOrderList] = useState<number | null>(null);
   const [openBatchList, setOpenBatchList] = useState<number | null>(null);
   const [openGodownList, setOpenGodownList] = useState<number | null>(null);
+  // Keyboard highlight index for whichever list is currently open (only one opens
+  // at a time). Reset to 0 whenever a list opens/closes (effect below).
+  const [listHi, setListHi] = useState(0);
   const [newNumberRow, setNewNumberRow] = useState<number | null>(null);
   const [newNumberField, setNewNumberField] = useState<'order' | 'batch'>('order');
   const [newNumberValue, setNewNumberValue] = useState('');
   const orderRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Trigger buttons for the Godown / Batch dropdowns — used to advance focus to
+  // the next field after a keyboard/mouse selection (Tally keeps Enter flowing).
+  const godownTriggerRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const batchTriggerRefs = useRef<(HTMLButtonElement | null)[]>([]);
   // Anchors for the Order/Batch list popups, portaled to <body> with fixed
   // coordinates below — rows sit inside a scrollable (overflow-y-auto) body, so
   // plain absolute-positioned dropdowns get clipped by that ancestor.
@@ -283,6 +290,97 @@ export default function MaterialInAllocationPopup({
     setNewNumberRow(null);
   };
 
+  // Whenever a list opens (or closes), reset the keyboard highlight to the top row.
+  useEffect(() => {
+    setListHi(0);
+  }, [openOrderList, openBatchList, openGodownList]);
+
+  // Move focus to the next focusable field after `el` (DOM order), so Enter keeps
+  // flowing after a list selection instead of stranding focus on <body>. Runs after
+  // the list's portal has unmounted and the row has re-rendered.
+  const focusNextFrom = (el: HTMLElement | null) => {
+    if (!el) return;
+    setTimeout(() => {
+      if (!document.contains(el)) return;
+      const focusables = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          'input:not([disabled]), select:not([disabled]), button:not([disabled])',
+        ),
+      ).filter((n) => n.offsetParent !== null && n.tabIndex !== -1);
+      const idx = focusables.indexOf(el);
+      if (idx >= 0 && idx < focusables.length - 1) focusables[idx + 1].focus();
+    }, 30);
+  };
+
+  type ListKind = 'order' | 'godown' | 'batch';
+  // Number of selectable rows in a given open list (order list has a leading
+  // "Not Applicable" clear-row at index 0).
+  const listCount = (kind: ListKind) =>
+    kind === 'order'
+      ? existingOrders.length + 1
+      : kind === 'batch'
+        ? existingBatches.length
+        : godowns.length;
+
+  // Commit the highlighted (or clicked) list row, close the list, and advance focus.
+  const selectListItem = (kind: ListKind, i: number, idx: number) => {
+    if (kind === 'order') {
+      if (idx <= 0) update(i, { order_no: '' });
+      else {
+        const o = existingOrders[idx - 1];
+        if (o) update(i, { order_no: o.name });
+      }
+      setOpenOrderList(null);
+      focusNextFrom(orderRefs.current[i]);
+    } else if (kind === 'godown') {
+      const g = godowns[idx];
+      if (g) update(i, { godown: g.name });
+      setOpenGodownList(null);
+      focusNextFrom(godownTriggerRefs.current[i]);
+    } else {
+      const b = existingBatches[idx];
+      if (b) update(i, { batch_number: b.name, expiry_date: b.expiry || rows[i]?.expiry_date });
+      setOpenBatchList(null);
+      focusNextFrom(batchTriggerRefs.current[i]);
+    }
+  };
+
+  // Keyboard driver for a dropdown trigger button: Enter/ArrowDown opens the list;
+  // once open, ArrowUp/Down move the highlight, Enter selects it, Esc closes.
+  const onListKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, kind: ListKind, i: number) => {
+    const isOpen =
+      kind === 'order'
+        ? openOrderList === i
+        : kind === 'batch'
+          ? openBatchList === i
+          : openGodownList === i;
+    if (!isOpen) {
+      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (kind === 'order') setOpenOrderList(i);
+        else if (kind === 'batch') setOpenBatchList(i);
+        else setOpenGodownList(i);
+      }
+      return;
+    }
+    const count = listCount(kind);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setListHi((h) => Math.min(h + 1, count - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setListHi((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (count > 0) selectListItem(kind, i, listHi);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      if (kind === 'order') setOpenOrderList(null);
+      else if (kind === 'batch') setOpenBatchList(null);
+      else setOpenGodownList(null);
+    }
+  };
+
   const handleSave = useCallback(() => {
     if (total <= 0) {
       setError('Enter a quantity for at least one row.');
@@ -413,12 +511,7 @@ export default function MaterialInAllocationPopup({
                         }}
                         type="button"
                         onClick={() => setOpenOrderList(openOrderList === i ? null : i)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            setOpenOrderList(i);
-                          }
-                        }}
+                        onKeyDown={(e) => onListKeyDown(e, 'order', i)}
                         className={`${cell} w-44 text-left not-italic truncate`}
                       >
                         {row.order_no || NOT_APPLICABLE}
@@ -464,11 +557,11 @@ export default function MaterialInAllocationPopup({
                               <div className="max-h-48 overflow-y-auto">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    update(i, { order_no: '' });
-                                    setOpenOrderList(null);
-                                  }}
-                                  className={`${ORDER_COLS} w-full text-left px-2 py-1 text-xs hover:bg-gray-100`}
+                                  onClick={() => selectListItem('order', i, 0)}
+                                  onMouseEnter={() => setListHi(0)}
+                                  className={`${ORDER_COLS} w-full text-left px-2 py-1 text-xs ${
+                                    listHi === 0 ? 'bg-gray-200' : 'hover:bg-gray-100'
+                                  }`}
                                 >
                                   <span>{NOT_APPLICABLE}</span>
                                   <span />
@@ -478,15 +571,15 @@ export default function MaterialInAllocationPopup({
                                   <span />
                                   <span />
                                 </button>
-                                {existingOrders.map((o) => (
+                                {existingOrders.map((o, oIdx) => (
                                   <button
                                     key={o.name}
                                     type="button"
-                                    onClick={() => {
-                                      update(i, { order_no: o.name });
-                                      setOpenOrderList(null);
-                                    }}
-                                    className={`${ORDER_COLS} w-full text-left px-2 py-1 text-xs hover:bg-gray-100`}
+                                    onClick={() => selectListItem('order', i, oIdx + 1)}
+                                    onMouseEnter={() => setListHi(oIdx + 1)}
+                                    className={`${ORDER_COLS} w-full text-left px-2 py-1 text-xs ${
+                                      listHi === oIdx + 1 ? 'bg-gray-200' : 'hover:bg-gray-100'
+                                    }`}
                                   >
                                     <span className="font-mono">{o.name}</span>
                                     <span className="truncate">{o.batch || ''}</span>
@@ -519,6 +612,14 @@ export default function MaterialInAllocationPopup({
                         <select
                           value={row.component_of ?? ''}
                           onChange={(e) => update(i, { component_of: e.target.value })}
+                          onKeyDown={(e) => {
+                            // Native select handles arrows/value change; Enter just
+                            // advances to the next field so the row keeps flowing.
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              focusNextFrom(e.currentTarget);
+                            }
+                          }}
                           className={`${cell} w-64 not-italic`}
                         >
                           <option value={NOT_APPLICABLE}>{NOT_APPLICABLE}</option>
@@ -545,8 +646,12 @@ export default function MaterialInAllocationPopup({
                           }}
                         >
                           <button
+                            ref={(el) => {
+                              godownTriggerRefs.current[i] = el;
+                            }}
                             type="button"
                             onClick={() => setOpenGodownList(openGodownList === i ? null : i)}
+                            onKeyDown={(e) => onListKeyDown(e, 'godown', i)}
                             className={`${cell} w-full text-left truncate ${row.godown ? '' : 'text-gray-400'}`}
                           >
                             {row.godown || 'Select'}
@@ -572,7 +677,7 @@ export default function MaterialInAllocationPopup({
                                     List of Godowns
                                   </div>
                                   <div className="max-h-48 overflow-y-auto">
-                                    {godowns.map((g) => {
+                                    {godowns.map((g, gIdx) => {
                                       const q =
                                         g.godown_id != null
                                           ? fmtQty(godownBal[g.godown_id], unitSymbol)
@@ -581,11 +686,11 @@ export default function MaterialInAllocationPopup({
                                         <button
                                           key={g.godown_id ?? g.name}
                                           type="button"
-                                          onClick={() => {
-                                            update(i, { godown: g.name });
-                                            setOpenGodownList(null);
-                                          }}
-                                          className="w-full text-left px-2 py-1 text-xs hover:bg-gray-100 flex justify-between gap-3"
+                                          onClick={() => selectListItem('godown', i, gIdx)}
+                                          onMouseEnter={() => setListHi(gIdx)}
+                                          className={`w-full text-left px-2 py-1 text-xs flex justify-between gap-3 ${
+                                            listHi === gIdx ? 'bg-gray-200' : 'hover:bg-gray-100'
+                                          }`}
                                         >
                                           <span className="truncate">{g.name}</span>
                                           {q && (
@@ -623,8 +728,12 @@ export default function MaterialInAllocationPopup({
                           }}
                         >
                           <button
+                            ref={(el) => {
+                              batchTriggerRefs.current[i] = el;
+                            }}
                             type="button"
                             onClick={() => setOpenBatchList(openBatchList === i ? null : i)}
+                            onKeyDown={(e) => onListKeyDown(e, 'batch', i)}
                             className={`${cell} w-full text-left font-semibold truncate ${row.batch_number ? '' : 'text-gray-400 font-normal'}`}
                           >
                             {row.batch_number || 'New Number…'}
@@ -673,18 +782,15 @@ export default function MaterialInAllocationPopup({
                                         No active batches — use New Number
                                       </div>
                                     )}
-                                    {existingBatches.map((b) => (
+                                    {existingBatches.map((b, bIdx) => (
                                       <button
                                         key={b.name}
                                         type="button"
-                                        onClick={() => {
-                                          update(i, {
-                                            batch_number: b.name,
-                                            expiry_date: b.expiry || row.expiry_date,
-                                          });
-                                          setOpenBatchList(null);
-                                        }}
-                                        className={`${BATCH_COLS} w-full text-left px-2 py-1 text-xs hover:bg-gray-100`}
+                                        onClick={() => selectListItem('batch', i, bIdx)}
+                                        onMouseEnter={() => setListHi(bIdx)}
+                                        className={`${BATCH_COLS} w-full text-left px-2 py-1 text-xs ${
+                                          listHi === bIdx ? 'bg-gray-200' : 'hover:bg-gray-100'
+                                        }`}
                                       >
                                         <span className="truncate font-semibold">{b.name}</span>
                                         <span className="text-right font-mono">{b.expiry}</span>

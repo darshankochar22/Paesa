@@ -187,6 +187,68 @@ describe('useShortcuts registry', () => {
     h.unmount();
   });
 
+  it('capture-phase binding wins even when an element handler preventDefaults the key', () => {
+    // Reproduces the voucher-switch bug: a focused field / React root handler
+    // calls preventDefault in the bubble phase, which would kill a bubble-phase
+    // shortcut — a capture-phase binding fires first and still switches.
+    const captureFn = vi.fn();
+    const h = renderHook(() =>
+      useShortcuts([{ keys: 'Ctrl+F4', handler: captureFn, capture: true }], {
+        priority: PRIORITY.PANEL,
+      }),
+    );
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    el.addEventListener('keydown', (e) => e.preventDefault()); // element preempts bubble
+    const e = press('F4', { ctrl: true, target: el });
+    expect(captureFn).toHaveBeenCalledTimes(1);
+    expect(e.defaultPrevented).toBe(true);
+    h.unmount();
+  });
+
+  it('a bubble-phase binding IS preempted by the same element preventDefault (contrast)', () => {
+    const bubbleFn = vi.fn();
+    const h = renderHook(() => useShortcuts([{ keys: 'Ctrl+F4', handler: bubbleFn }]));
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    el.addEventListener('keydown', (e) => e.preventDefault());
+    press('F4', { ctrl: true, target: el });
+    expect(bubbleFn).not.toHaveBeenCalled();
+    h.unmount();
+  });
+
+  it('capture binding runs before (and blocks) a bubble binding for the same key', () => {
+    const captureFn = vi.fn();
+    const bubbleFn = vi.fn();
+    const h1 = renderHook(() =>
+      useShortcuts([{ keys: 'F5', handler: captureFn, capture: true }], {
+        priority: PRIORITY.PANEL,
+      }),
+    );
+    const h2 = renderHook(() =>
+      useShortcuts([{ keys: 'F5', handler: bubbleFn }], { priority: PRIORITY.SCREEN }),
+    );
+    press('F5');
+    expect(captureFn).toHaveBeenCalledTimes(1);
+    expect(bubbleFn).not.toHaveBeenCalled();
+    h1.unmount();
+    h2.unmount();
+  });
+
+  it('capture Accept declines (returns false) so the event flows on when a popup is open', () => {
+    // Mirrors Vouchers: Ctrl+A yields to an open sub-screen instead of accepting.
+    const accept = vi.fn(() => false as const);
+    const h = renderHook(() =>
+      useShortcuts([{ keys: 'Ctrl+A', handler: accept, capture: true }], {
+        priority: PRIORITY.PANEL,
+      }),
+    );
+    const e = press('a', { ctrl: true });
+    expect(accept).toHaveBeenCalledTimes(1);
+    expect(e.defaultPrevented).toBe(false); // declined → not consumed
+    h.unmount();
+  });
+
   it('does not register when disabled', () => {
     const fn = vi.fn();
     const h = renderHook(() => useShortcuts([{ keys: 'F6', handler: fn }], { enabled: false }));

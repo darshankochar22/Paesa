@@ -71,6 +71,18 @@ export function TallyFieldPopup({
   // Esc pops this layer off the central escape stack.
   useEscape(onClose);
 
+  // Pull focus INTO the popup on open (unless a child already claimed it via
+  // autoFocus), so Enter navigates the popup's fields — not the voucher screen
+  // behind it (which would walk the stock row qty→rate instead).
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box || box.contains(document.activeElement)) return;
+    const fields = Array.from(box.querySelectorAll<HTMLElement>(FIELD_SELECTOR)).filter(
+      isFocusableField,
+    );
+    if (fields[0]) focusField(fields[0]);
+  }, []);
+
   // Ctrl+A accepts from anywhere (Tally).
   useEffect(() => {
     if (!onAccept) return;
@@ -105,7 +117,10 @@ export function TallyFieldPopup({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/[0.06] select-none">
+    <div
+      data-voucher-popup
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 select-none"
+    >
       <div
         ref={boxRef}
         onKeyDown={handleEnterNav}

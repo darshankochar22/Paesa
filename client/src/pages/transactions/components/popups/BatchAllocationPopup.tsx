@@ -86,9 +86,9 @@ export default function BatchAllocationPopup({
       .catch(() => {});
   }, [companyId, itemId]);
 
-  // Enter-to-advance: focus the given field on a row (actual → billed → rate →
-  // disc → next row / accept). rAF waits for the row to (re)render.
-  const focusRowField = (row: number, field: 'actual' | 'billed' | 'rate' | 'disc') => {
+  // Enter-to-advance: focus the given field on a row (batch → actual → billed →
+  // rate → disc → next row / accept). rAF waits for the row to (re)render.
+  const focusRowField = (row: number, field: 'batch' | 'actual' | 'billed' | 'rate' | 'disc') => {
     requestAnimationFrame(() => {
       const el = document.querySelector<HTMLInputElement>(
         `[data-ba-row="${row}"][data-ba-field="${field}"]`,
@@ -377,12 +377,16 @@ export default function BatchAllocationPopup({
       expiry_date: b.expiry_date ?? undefined,
     });
     closePanel();
+    // Advance past the batch field to Quantity so keyboard flow keeps moving.
+    focusRowField(i, 'actual');
   };
 
   const pickGodown = (i: number, name: string) => {
     update(i, { godown: name });
     closePanel();
-    focusRowField(i, 'actual');
+    // Advance to Batch when batches are tracked (focusing it reopens the List
+    // of Active Batches); otherwise straight to Quantity.
+    focusRowField(i, showBatch ? 'batch' : 'actual');
   };
 
   const addRow = () => {
@@ -505,7 +509,18 @@ export default function BatchAllocationPopup({
           }
         } else {
           const b = batchPanelItems[panelHi];
-          if (b) pickBatch(activePanelRow, b);
+          if (b) {
+            pickBatch(activePanelRow, b);
+          } else {
+            // No highlighted match — the user typed a brand-new batch number.
+            // It is already set on the row via the input's onChange; accept it
+            // and advance to Quantity (the "New Number" typed path).
+            const typed = (rows[activePanelRow]?.batch_number ?? '').trim();
+            if (typed) {
+              closePanel();
+              focusRowField(activePanelRow, 'actual');
+            }
+          }
         }
       }
     };
@@ -521,6 +536,7 @@ export default function BatchAllocationPopup({
     panelLength,
     godownPanelItems,
     batchPanelItems,
+    rows,
   ]);
 
   const cell = 'shrink-0';
@@ -665,6 +681,8 @@ export default function BatchAllocationPopup({
                           <div className={`${cell} ${W.batch}`}>
                             <input
                               type="text"
+                              data-ba-row={i}
+                              data-ba-field="batch"
                               value={row.batch_number}
                               onChange={(e) => update(i, { batch_number: e.target.value })}
                               onFocus={() => {

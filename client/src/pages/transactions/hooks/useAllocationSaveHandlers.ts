@@ -320,6 +320,27 @@ export function useAllocationSaveHandlers(
     ],
   );
 
+  // ── Keyboard hand-off after a detail-popup chain ───────────────────────────
+  // When the LAST popup in a trade voucher's chain closes, Tally drops the user
+  // on the Sales/Purchase ledger with its List open. We open it via state
+  // (handleFieldFocus = what a click does), DEFERRED to the next tick: opening
+  // it in the same commit that unmounts the closing popup lets the browser send
+  // focus to <body> when the popup's focused field is removed, stealing it from
+  // the list (the list shows but the cursor isn't in it → Enter does nothing —
+  // the reported bug). Deferring lets the popup unmount first, so the List's
+  // autofocus lands cleanly.
+  const openSalesPurchaseLedger = useCallback(() => {
+    setTimeout(() => form.handleFieldFocus({ type: 'salesPurchase' }), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.handleFieldFocus]);
+
+  // Inventory-only party vouchers have no sales/purchase ledger — go to item 1.
+  const focusFirstStockItem = useCallback(() => {
+    setTimeout(() => {
+      (document.querySelector('[data-stock-item="1"]') as HTMLElement | null)?.focus();
+    }, 0);
+  }, []);
+
   const handleSaveDispatchDetails = useCallback(
     (details: any) => {
       form.setDispatchDetails(details);
@@ -431,50 +452,68 @@ export function useAllocationSaveHandlers(
       } else if (effectiveVoucherType === 'Debit Note') {
         setShowDebitNoteExcise(true);
       } else if (effectiveVoucherType === 'Purchase') {
-        // Purchase (excise) chains to the Manufacturer / Importer Details popup.
-        setShowManufacturerDetails(true);
+        // Purchase goes straight to the Purchase ledger List — the Manufacturer /
+        // Importer Details popup is intentionally skipped.
+        openSalesPurchaseLedger();
       } else if (effectiveVoucherType === 'Sales') {
         // Tally Sales chain: Dispatch → Party → VAT Details.
         setShowVatDetails(true);
+      } else {
+        // Inventory-only party vouchers (Delivery/Receipt Note, Rejection In):
+        // no further detail popup and no sales/purchase ledger → first item.
+        focusFirstStockItem();
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [form.setPartyDetails, form.setPlaceOfSupply, effectiveVoucherType],
   );
 
+  // Purchase chain terminal → open the Purchase ledger List.
   const handleSaveManufacturerDetails = useCallback(
     (details: any) => {
       form.setManufacturerImporterDetails(details);
       setShowManufacturerDetails(false);
+      if (effectiveVoucherType === 'Purchase') openSalesPurchaseLedger();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form.setManufacturerImporterDetails],
+    [form.setManufacturerImporterDetails, effectiveVoucherType, openSalesPurchaseLedger],
   );
+  // Credit Note chain terminal → open the Sales ledger List.
   const handleSaveExciseDetails = useCallback(
     (details: any) => {
       form.setExciseDetails(details);
       setShowExciseDetails(false);
+      if (effectiveVoucherType === 'Credit Note') openSalesPurchaseLedger();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form.setExciseDetails],
+    [form.setExciseDetails, effectiveVoucherType, openSalesPurchaseLedger],
   );
 
+  // Debit Note chain terminal → open the Purchase ledger List.
   const handleSaveDebitNoteExcise = useCallback(
     (details: any) => {
       form.setDebitNoteDetails({ ...form.debitNoteDetails, ...details });
       setShowDebitNoteExcise(false);
+      if (effectiveVoucherType === 'Debit Note') openSalesPurchaseLedger();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form.setDebitNoteDetails, form.debitNoteDetails],
+    [
+      form.setDebitNoteDetails,
+      form.debitNoteDetails,
+      effectiveVoucherType,
+      openSalesPurchaseLedger,
+    ],
   );
 
+  // Sales chain terminal → open the Sales ledger List.
   const handleSaveVatDetails = useCallback(
     (details: any) => {
       form.setVatDetails({ ...form.vatDetails, ...details });
       setShowVatDetails(false);
+      if (effectiveVoucherType === 'Sales') openSalesPurchaseLedger();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form.setVatDetails, form.vatDetails],
+    [form.setVatDetails, form.vatDetails, effectiveVoucherType, openSalesPurchaseLedger],
   );
 
   const handleSaveCreditNoteDetails = useCallback(

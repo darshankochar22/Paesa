@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import GoToPalette from '@/components/GoToPalette';
+import CalculatorPanel from '@/components/CalculatorPanel';
 import { useGlobalEnterNavigation } from '@/hooks/useEnterNavigation';
 
 export default function Layout() {
@@ -14,6 +15,7 @@ export default function Layout() {
       </main>
       <Footer />
       <GoToPalette />
+      <CalculatorPanel />
     </div>
   );
 }

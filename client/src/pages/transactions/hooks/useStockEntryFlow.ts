@@ -42,7 +42,12 @@ export function useStockEntryFlow(
   useEffect(() => {
     const prev = prevActiveFieldRef.current;
     const curr = form.activeField;
-    if (prev?.type === 'stockItem' && curr === null) {
+    // Item picked → move to Quantity — but ONLY when no allocation popup opened.
+    // Batch / order-tracked items (all Sales/Purchase items) open the Item
+    // Allocations sub-screen on selection; that popup owns focus (Godown → Qty →
+    // Rate) and writes qty/rate back on accept. Stealing focus to the main-grid
+    // Quantity here left the popup unfocused, so Enter drove the voucher row.
+    if (prev?.type === 'stockItem' && curr === null && !form.activeAllocation) {
       const rowIdx = form.stockEntries.findIndex((e) => e.id === prev.rowId);
       if (rowIdx >= 0 && form.stockEntries[rowIdx].stockItem) {
         setTimeout(() => {
@@ -54,7 +59,7 @@ export function useStockEntryFlow(
       }
     }
     prevActiveFieldRef.current = curr;
-  }, [form.activeField, form.stockEntries]);
+  }, [form.activeField, form.stockEntries, form.activeAllocation]);
 
   const focusStockQty = useCallback((idx: number) => {
     setTimeout(() => {
@@ -230,6 +235,57 @@ export function useStockEntryFlow(
       (document.querySelector(`[data-narration="true"]`) as HTMLInputElement | null)?.focus();
     }, 50);
   }, [form.handleFieldBlur]);
+
+  // Trade vouchers: "End of List" (or a blank Enter) on the item field finishes
+  // item entry — like TallyPrime — WITHOUT appending another stock row. The
+  // current empty item row is left as-is; it carries no stock item, so voucher
+  // save drops it (End of List is a navigation marker, never data).
+  //
+  // Sales / Purchase / Credit-Debit Note: TallyPrime then opens the List of
+  // Ledger Accounts to add GST / other ledgers. We mirror that — ensure a
+  // Tax/Ledger row exists, then focus its ledger cell, whose onFocus opens the
+  // picker (an unfilled row is dropped on save: voucherSubmit filters additional
+  // rows without a ledger + amount). Inventory-only party vouchers (Delivery /
+  // Receipt Note) have no tax section, so they go straight to the Narration.
+  const stockItemEndOfList = useCallback(() => {
+    form.handleFieldBlur();
+    const hasTaxSection = ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(
+      effectiveVoucherType,
+    );
+    if (hasTaxSection && form.additionalEntries.length === 0) {
+      form.handleAddAdditionalRow();
+    }
+    setTimeout(() => {
+      const target = hasTaxSection
+        ? ((document.querySelector('[data-additional-ledger="1"]') as HTMLElement | null) ??
+          (document.querySelector('[data-narration="true"]') as HTMLElement | null))
+        : (document.querySelector('[data-narration="true"]') as HTMLElement | null);
+      target?.focus();
+    }, 60);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    form.handleFieldBlur,
+    form.additionalEntries.length,
+    form.handleAddAdditionalRow,
+    effectiveVoucherType,
+  ]);
+
+  // "End of List" (or blank Enter) on a Tax/Ledger row's List of Ledger Accounts
+  // → done adding tax ledgers (stops the endless add-a-row loop). Drop the empty
+  // trailing row we were about to fill, then move to the "Provide GST/e-Way Bill
+  // details" toggle (Yes/No); if the voucher has no such toggle, go to Narration.
+  const additionalLedgerEndOfList = useCallback(() => {
+    const af = form.activeField;
+    form.handleFieldBlur();
+    if (af?.type === 'additional') form.handleRemoveAdditionalRow(af.rowId);
+    setTimeout(() => {
+      const target =
+        (document.querySelector('[data-gst-eway]') as HTMLElement | null) ??
+        (document.querySelector('[data-narration="true"]') as HTMLElement | null);
+      target?.focus();
+    }, 60);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.activeField, form.handleFieldBlur, form.handleRemoveAdditionalRow]);
 
   const handleSaveBatchAllocations = useCallback(
     (allocations: BatchAllocation[]) => {
@@ -465,6 +521,8 @@ export function useStockEntryFlow(
     physicalStockGodownNewItem,
     handleStockJournalItemEndOfList,
     journalParticularEndOfList,
+    stockItemEndOfList,
+    additionalLedgerEndOfList,
     handleSaveBatchAllocations,
     handleSaveMaterialInAllocations,
     handleSaveJobWorkAllocations,

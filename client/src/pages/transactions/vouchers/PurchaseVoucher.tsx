@@ -302,6 +302,7 @@ import { useState } from 'react';
 import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
 import StockItemDescription from '../components/StockItemDescription';
+import TallyDateInput from '../components/TallyDateInput';
 import { gstRowInfo } from '../utils/gstRow';
 import { useCompany } from '../../../context/CompanyContext';
 
@@ -355,15 +356,13 @@ export default function PurchaseVoucher({
         <div className="flex items-center gap-2">
           <span className="text-sm text-black shrink-0">Date</span>
           <span className="text-sm text-black shrink-0">:</span>
-          <input
-            type="date"
-            data-field-type="supplierInvoiceDate"
-            className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+          <TallyDateInput
+            dataFieldType="supplierInvoiceDate"
+            className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black w-28"
             value={form.supplierInvoiceDate}
-            onChange={(e) => form.setSupplierInvoiceDate(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter') return;
-              e.preventDefault();
+            refIso={form.date}
+            onChange={form.setSupplierInvoiceDate}
+            onEnter={() => {
               setTimeout(
                 () => (document.querySelector('[data-field-type="party"]') as HTMLElement)?.focus(),
                 50,
@@ -702,7 +701,22 @@ function PurchaseGstEwayRow() {
     <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
       <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
       <span className="text-sm text-black">:</span>
-      <div className="flex gap-2">
+      {/* Keyboard: ←/→ toggle Yes/No; Enter moves to Narration. data-gst-eway is
+          the End-of-List focus target from the Tax/Ledger list. */}
+      <div
+        data-gst-eway
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            setProvide((p) => (p === 'Yes' ? 'No' : 'Yes'));
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            (document.querySelector('[data-narration="true"]') as HTMLElement | null)?.focus();
+          }
+        }}
+        className="flex gap-2 outline-none focus:ring-1 focus:ring-black"
+      >
         <button
           type="button"
           onClick={() => setProvide('Yes')}

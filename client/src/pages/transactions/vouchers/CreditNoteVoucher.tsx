@@ -325,7 +325,27 @@ function CreditNoteGstEwayDetails({ form }: { form: any }) {
       <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
         <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
         <span className="text-sm text-black">:</span>
-        <div className="flex gap-2">
+        {/* Keyboard: ←/→ toggle Yes/No; Enter on Yes opens the popup, Enter on No
+            moves to Narration. data-gst-eway is the End-of-List focus target. */}
+        <div
+          data-gst-eway
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+              e.preventDefault();
+              setProvide((p) => (p === 'Yes' ? 'No' : 'Yes'));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (provide === 'Yes') {
+                setShowPopup(true);
+              } else {
+                setShowPopup(false);
+                (document.querySelector('[data-narration="true"]') as HTMLElement | null)?.focus();
+              }
+            }
+          }}
+          className="flex gap-2 outline-none focus:ring-1 focus:ring-black"
+        >
           <button
             type="button"
             onClick={() => {

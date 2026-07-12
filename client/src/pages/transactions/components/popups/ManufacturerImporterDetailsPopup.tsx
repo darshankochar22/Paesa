@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import LedgerListPanel from '../LedgerListPanel';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
 
@@ -60,6 +60,25 @@ export default function ManufacturerImporterDetailsPopup({
 
   const [showLedgerPanel, setShowLedgerPanel] = useState(false);
   const [ledgerSearchTerm, setLedgerSearchTerm] = useState('');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Move focus to the field right AFTER the Name input, so closing the ledger
+  // picker hands control back into the form and Enter keeps advancing. Focusing
+  // Name itself would re-open the picker (its onFocus) and trap Enter in a loop.
+  const focusAfterName = () => {
+    const root = contentRef.current;
+    if (!root) return;
+    const fields = Array.from(root.querySelectorAll<HTMLElement>('input, select, textarea')).filter(
+      (el) => !(el as HTMLInputElement).disabled && el.offsetParent !== null,
+    );
+    const nameEl = root.querySelector<HTMLElement>('[data-mid-name]');
+    const idx = nameEl ? fields.indexOf(nameEl) : -1;
+    const next = idx >= 0 ? fields[idx + 1] : undefined;
+    if (next) {
+      next.focus();
+      if (next.tagName === 'INPUT') (next as HTMLInputElement).select();
+    }
+  };
 
   // Picking a ledger fills Name + Address (matches the Party Details picker).
   const handleLedgerSelect = useCallback((item: any) => {
@@ -70,13 +89,21 @@ export default function ManufacturerImporterDetailsPopup({
     }));
     setShowLedgerPanel(false);
     setLedgerSearchTerm('');
+    // Hand focus back into the form so Enter continues to the next field.
+    setTimeout(focusAfterName, 0);
   }, []);
+
+  // Close the picker and return focus to the form (Enter keeps flowing).
+  const dismissPicker = () => {
+    setShowLedgerPanel(false);
+    setLedgerSearchTerm('');
+    setTimeout(focusAfterName, 0);
+  };
 
   // While the picker is open, Esc / Cancel closes it, not the whole popup.
   const handleClose = () => {
     if (showLedgerPanel) {
-      setShowLedgerPanel(false);
-      setLedgerSearchTerm('');
+      dismissPicker();
     } else {
       onClose();
     }
@@ -93,12 +120,13 @@ export default function ManufacturerImporterDetailsPopup({
         onClose={handleClose}
         onAccept={handleAccept}
       >
-        <div className="max-w-2xl space-y-2">
+        <div ref={contentRef} className="max-w-2xl space-y-2">
           <div className="flex items-center gap-2">
             <span className={labelCls}>Name</span>
             <span className={colonCls}>:</span>
             <input
               type="text"
+              data-mid-name
               className={inputCls}
               value={form.name ?? ''}
               onChange={(e) => set('name', e.target.value)}
@@ -216,10 +244,7 @@ export default function ManufacturerImporterDetailsPopup({
             searchTerm={ledgerSearchTerm}
             onSearchChange={setLedgerSearchTerm}
             onSelect={handleLedgerSelect}
-            onClose={() => {
-              setShowLedgerPanel(false);
-              setLedgerSearchTerm('');
-            }}
+            onClose={dismissPicker}
             onCreateNew={onCreateLedger}
             createLabel="Create"
             height="h-screen"
