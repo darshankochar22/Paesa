@@ -60,24 +60,96 @@ module.exports = {
 
       const company_id = Number(inserted[0].id);
 
-      try { await groupService.seedDefaultGroups(company_id); console.log('groups ok'); } catch(e) { console.error('groups failed:', e.message); }
-      try { const allGroups = (await groupService.getAll(company_id)).groups; await ledgerService.seedDefaultLedgers(company_id, allGroups); console.log('ledgers ok'); } catch(e) { console.error('ledgers failed:', e.message); }
+      try {
+        await groupService.seedDefaultGroups(company_id);
+        console.log('groups ok');
+      } catch (e) {
+        console.error('groups failed:', e.message);
+      }
+      try {
+        const allGroups = (await groupService.getAll(company_id)).groups;
+        await ledgerService.seedDefaultLedgers(company_id, allGroups);
+        console.log('ledgers ok');
+      } catch (e) {
+        console.error('ledgers failed:', e.message);
+      }
       // Units are NOT pre-seeded — the user creates their own (the List of Units starts empty).
-      try { await stockGroupService.seedDefaultStockGroups(company_id); console.log('stockGroups ok'); } catch(e) { console.error('stockGroups failed:', e.message); }
-      try { await godownService.seedDefaultGodowns(company_id); console.log('godowns ok'); } catch(e) { console.error('godowns failed:', e.message); }
-      try { await currencyService.seedDefaultCurrency(company_id); console.log('currency ok'); } catch(e) { console.error('currency failed:', e.message); }
-      try { await voucherTypeService.seedDefaultVoucherTypes(company_id); console.log('voucherTypes ok'); } catch(e) { console.error('voucherTypes failed:', e.message); }
-      try { await gstClassificationService.seedDefaultGSTClassifications(company_id); console.log('gstClassifications ok'); } catch(e) { console.error('gstClassifications failed:', e.message); }
-      try { await employeeCategoryService.seedDefaultEmployeeCategory(company_id); console.log('employeeCategories ok'); } catch(e) { console.error('employeeCategories failed:', e.message); }
-      try { await employeeGroupService.seedDefaultEmployeeGroups(company_id); console.log('employeeGroups ok'); } catch(e) { console.error('employeeGroups failed:', e.message); }
-      try { await payrollUnitService.seedDefaultPayrollUnits(company_id); console.log('payrollUnits ok'); } catch(e) { console.error('payrollUnits failed:', e.message); }
-      try { await tallyFeaturesService.seedDefaultFeatures(company_id); console.log('tallyFeatures ok'); } catch(e) { console.error('tallyFeatures failed:', e.message); }
-      try { await companyCreationSuccessService.seedCompanyCreationSuccess(company_id); console.log('companyCreationSuccess ok'); } catch(e) { console.error('companyCreationSuccess failed:', e.message); }
-      try { await companyFeatureValuesService.seedCompanyFeatureValues(company_id); console.log('companyFeatureValues ok'); } catch(e) { console.error('companyFeatureValues failed:', e.message); }
+      try {
+        await stockGroupService.seedDefaultStockGroups(company_id);
+        console.log('stockGroups ok');
+      } catch (e) {
+        console.error('stockGroups failed:', e.message);
+      }
+      try {
+        await godownService.seedDefaultGodowns(company_id);
+        console.log('godowns ok');
+      } catch (e) {
+        console.error('godowns failed:', e.message);
+      }
+      try {
+        await currencyService.seedDefaultCurrency(company_id);
+        console.log('currency ok');
+      } catch (e) {
+        console.error('currency failed:', e.message);
+      }
+      try {
+        await voucherTypeService.seedDefaultVoucherTypes(company_id);
+        console.log('voucherTypes ok');
+      } catch (e) {
+        console.error('voucherTypes failed:', e.message);
+      }
+      // GST classifications are no longer auto-seeded — companies start with none
+      // and users add their own. (seedDefaultGSTClassifications kept for tests.)
+      try {
+        await employeeCategoryService.seedDefaultEmployeeCategory(company_id);
+        console.log('employeeCategories ok');
+      } catch (e) {
+        console.error('employeeCategories failed:', e.message);
+      }
+      try {
+        await employeeGroupService.seedDefaultEmployeeGroups(company_id);
+        console.log('employeeGroups ok');
+      } catch (e) {
+        console.error('employeeGroups failed:', e.message);
+      }
+      try {
+        await payrollUnitService.seedDefaultPayrollUnits(company_id);
+        console.log('payrollUnits ok');
+      } catch (e) {
+        console.error('payrollUnits failed:', e.message);
+      }
+      try {
+        await tallyFeaturesService.seedDefaultFeatures(company_id);
+        console.log('tallyFeatures ok');
+      } catch (e) {
+        console.error('tallyFeatures failed:', e.message);
+      }
+      try {
+        await companyCreationSuccessService.seedCompanyCreationSuccess(company_id);
+        console.log('companyCreationSuccess ok');
+      } catch (e) {
+        console.error('companyCreationSuccess failed:', e.message);
+      }
+      try {
+        await companyFeatureValuesService.seedCompanyFeatureValues(company_id);
+        console.log('companyFeatureValues ok');
+      } catch (e) {
+        console.error('companyFeatureValues failed:', e.message);
+      }
       // Attendance / Production types are NOT pre-seeded — the user creates their own
       // (the List of Attendance/Production Types starts empty, with only "Create").
-      try { await payHeadService.seedDefaultPayHeads(company_id); console.log('payHeads ok'); } catch(e) { console.error('payHeads failed:', e.message); }
-      try { await financialYearService.seedDefaultFY(company_id, data.financial_year_beginning_from); console.log('fy ok'); } catch(e) {  console.error('fy failed:', e.message); }
+      try {
+        await payHeadService.seedDefaultPayHeads(company_id);
+        console.log('payHeads ok');
+      } catch (e) {
+        console.error('payHeads failed:', e.message);
+      }
+      try {
+        await financialYearService.seedDefaultFY(company_id, data.financial_year_beginning_from);
+        console.log('fy ok');
+      } catch (e) {
+        console.error('fy failed:', e.message);
+      }
 
       const company = await findRow(sql`${companies.companyId} = ${company_id}`);
       const { password, ...safe } = company;
@@ -113,9 +185,7 @@ module.exports = {
       const current = await findRow(sql`${companies.companyId} = ${data.company_id}`);
       if (!current) return { success: false, error: 'Company not found' };
 
-      const newPassword = data.password
-        ? await bcrypt.hash(data.password, 10)
-        : current.password;
+      const newPassword = data.password ? await bcrypt.hash(data.password, 10) : current.password;
 
       await db
         .update(companies)
@@ -183,7 +253,10 @@ module.exports = {
     try {
       const current = await findRow(sql`${companies.companyId} = ${company_id}`);
       if (!current) return { success: false, error: 'Company not found' };
-      return { success: true, current_default_gst_registration_id: current.current_default_gst_registration_id ?? null };
+      return {
+        success: true,
+        current_default_gst_registration_id: current.current_default_gst_registration_id ?? null,
+      };
     } catch (err) {
       return { success: false, error: err.message };
     }

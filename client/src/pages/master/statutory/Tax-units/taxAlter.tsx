@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { INDIAN_STATES } from '@/constants/states';
@@ -9,28 +9,18 @@ import {
   SearchInput,
   DataTable,
   NotificationBanner,
+  MasterFormFooter,
 } from '@/components/ui';
-import RightPanel from '@/components/RightPanel.tsx';
 import type { TaxUnitType } from '@/types/entities';
 import { ExciseDetailsPopup, EMPTY_TARIFF, type Tariff } from './exciseDetailsPopups';
 
-const activeClass =
-  'bg-zinc-100 border-zinc-800 text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs uppercase';
-const inactiveClass =
-  'border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border hover:border-zinc-200 w-64 font-mono font-bold text-xs uppercase';
-const getSelectCls = (isActive: boolean) => `${isActive ? activeClass : inactiveClass}`;
-const getInputCls = (isActive: boolean) => `${isActive ? activeClass : inactiveClass}`;
+const inputCls =
+  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
+const selectCls =
+  'bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
-const FIELDS = [
-  'name',
-  'alias',
-  'addressLine1',
-  'state',
-  'pincode',
-  'telephone',
-  'registeredFor',
-  'setAlterExciseDetails',
-];
+const rowCls = 'flex items-center min-h-[26px]';
+const LABEL_W = 'w-56';
 
 // "Registered for" — the statutory registration the tax unit is created under.
 const REGISTERED_FOR_OPTIONS = ['Excise'];
@@ -72,21 +62,6 @@ export default function TaxAlter() {
   const [rule11Book, setRule11Book] = useState('');
 
   const [showExcisePopup, setShowExcisePopup] = useState(false);
-
-  const [activeField, setActiveField] = useState('name');
-  const [showAccept, setShowAccept] = useState(false);
-
-  const nameRef = useRef<HTMLInputElement>(null);
-  const aliasRef = useRef<HTMLInputElement>(null);
-  const addressLine1Ref = useRef<HTMLInputElement>(null);
-  const addressLine2Ref = useRef<HTMLInputElement>(null);
-  const addressLine3Ref = useRef<HTMLInputElement>(null);
-  const addressLine4Ref = useRef<HTMLInputElement>(null);
-  const stateRef = useRef<HTMLSelectElement>(null);
-  const pincodeRef = useRef<HTMLInputElement>(null);
-  const telephoneRef = useRef<HTMLInputElement>(null);
-  const registeredForRef = useRef<HTMLSelectElement>(null);
-  const setAlterExciseDetailsRef = useRef<HTMLSelectElement>(null);
 
   const fetchTaxUnits = async () => {
     if (!companyId) {
@@ -151,8 +126,6 @@ export default function TaxAlter() {
     setRule11Book(unit.rule11_book || '');
     setError(null);
     setSuccess(null);
-    setActiveField('name');
-    setShowAccept(false);
   };
 
   const handleBack = () => {
@@ -202,12 +175,9 @@ export default function TaxAlter() {
 
     try {
       const result = await window.api.taxUnits.update(payload);
-
       if (result.success) {
         setSuccess('Tax unit updated successfully!');
-        setTimeout(() => {
-          handleBack();
-        }, 1000);
+        setTimeout(() => handleBack(), 1000);
       } else {
         setError(result.error || 'Failed to update tax unit');
       }
@@ -229,9 +199,7 @@ export default function TaxAlter() {
       const result = await window.api.taxUnits.delete(selectedTaxUnit.tax_unit_id);
       if (result.success) {
         setSuccess('Tax unit deleted successfully!');
-        setTimeout(() => {
-          handleBack();
-        }, 1000);
+        setTimeout(() => handleBack(), 1000);
       } else {
         setError(result.error || 'Failed to delete tax unit');
       }
@@ -244,119 +212,32 @@ export default function TaxAlter() {
 
   useEffect(() => {
     if (showExcisePopup) return;
-
-    if (showAccept) {
-      const handler = (e: KeyboardEvent) => {
-        const key = e.key.toLowerCase();
-        if (key === 'y' || e.key === 'Enter') {
-          e.preventDefault();
-          setShowAccept(false);
-          handleSave();
-        } else if (key === 'n' || e.key === 'Escape') {
-          e.preventDefault();
-          setShowAccept(false);
-        }
-      };
-      window.addEventListener('keydown', handler);
-      return () => window.removeEventListener('keydown', handler);
-    }
-
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (selectedTaxUnit) {
-          handleBack();
-        } else {
-          navigate('/master/alter');
-        }
+        if (selectedTaxUnit) handleBack();
+        else navigate('/master/alter');
         return;
       }
-
       if (selectedTaxUnit) {
         if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
           e.preventDefault();
-          setShowAccept(true);
-          return;
+          handleSave();
         }
         if (e.altKey && e.key.toLowerCase() === 'd') {
           e.preventDefault();
           handleDelete();
-          return;
         }
-
-        // Traversal
-        const idx = FIELDS.indexOf(activeField);
-        if (idx !== -1) {
-          if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
-            e.preventDefault();
-            if (idx === FIELDS.length - 1) {
-              setShowAccept(true);
-            } else {
-              setActiveField(FIELDS[idx + 1]);
-            }
-            return;
-          }
-          if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
-            e.preventDefault();
-            if (idx > 0) {
-              setActiveField(FIELDS[idx - 1]);
-            }
-            return;
-          }
-
-          // Y/N shortcut for yes/no field
-          if (activeField === 'setAlterExciseDetails') {
-            const key = e.key.toLowerCase();
-            if (key === 'y' || key === 'n') {
-              e.preventDefault();
-              const val = key === 'y';
-              handleExciseToggle(val);
-              if (!val) {
-                setShowAccept(true);
-              }
-            }
-          }
-        }
-      } else {
-        if (e.altKey && e.key.toLowerCase() === 'c') {
-          e.preventDefault();
-          navigate('/master/create/tax-units');
-        }
+      } else if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        navigate('/master/create/tax-units');
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [
-    selectedTaxUnit,
-    handleSave,
-    handleDelete,
-    handleBack,
-    activeField,
-    showExcisePopup,
-    showAccept,
-    navigate,
-  ]);
+  }, [selectedTaxUnit, handleSave, handleDelete, handleBack, showExcisePopup, navigate]);
 
-  useEffect(() => {
-    if (!selectedTaxUnit) return;
-    if (showExcisePopup) return;
-    const refMap: Record<string, React.RefObject<HTMLInputElement | HTMLSelectElement | null>> = {
-      name: nameRef,
-      alias: aliasRef,
-      addressLine1: addressLine1Ref,
-      addressLine2: addressLine2Ref,
-      addressLine3: addressLine3Ref,
-      addressLine4: addressLine4Ref,
-      state: stateRef,
-      pincode: pincodeRef,
-      telephone: telephoneRef,
-      registeredFor: registeredForRef,
-      setAlterExciseDetails: setAlterExciseDetailsRef,
-    };
-    refMap[activeField]?.current?.focus();
-  }, [activeField, showExcisePopup, selectedTaxUnit]);
-
-  // If in selection mode
+  // ── Selection mode ──
   if (!selectedTaxUnit) {
     const filteredList = taxUnitsList.filter(
       (t) =>
@@ -370,24 +251,20 @@ export default function TaxAlter() {
         key: 'name',
         label: 'Tax Unit Name',
         span: 'col-span-5',
-        render: (r: TaxUnitType) => (
-          <span className="font-bold text-zinc-950 uppercase">{r.name}</span>
-        ),
+        render: (r: TaxUnitType) => <span className="font-bold text-black">{r.name}</span>,
       },
       {
         key: 'alias',
         label: 'Alias',
         span: 'col-span-3',
-        render: (r: TaxUnitType) => (
-          <span className="text-zinc-500 font-semibold">{r.alias || '—'}</span>
-        ),
+        render: (r: TaxUnitType) => <span className="text-zinc-500">{r.alias || '—'}</span>,
       },
       {
         key: 'registration_type',
         label: 'Reg Type',
         span: 'col-span-2',
         render: (r: TaxUnitType) => (
-          <span className="text-zinc-500 uppercase">{r.registration_type || '—'}</span>
+          <span className="text-zinc-500">{r.registration_type || '—'}</span>
         ),
       },
       {
@@ -395,7 +272,7 @@ export default function TaxAlter() {
         label: 'ECC Number',
         span: 'col-span-2',
         render: (r: TaxUnitType) => (
-          <span className="text-zinc-700 font-bold uppercase">{r.ecc_number || '—'}</span>
+          <span className="text-zinc-700 font-semibold">{r.ecc_number || '—'}</span>
         ),
       },
     ];
@@ -410,7 +287,7 @@ export default function TaxAlter() {
     ];
 
     return (
-      <div className="flex flex-col h-screen w-screen bg-white select-none font-mono text-[11px] text-zinc-950">
+      <div className="flex-1 flex flex-col h-full bg-white select-none">
         <PageTitleBar title="Alter Tax Unit" subtitle="Select Tax Unit to Alter" />
         <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0">
           <SearchInput
@@ -421,7 +298,7 @@ export default function TaxAlter() {
           />
         </div>
         <div className="flex-1 flex min-h-0">
-          <div className="flex-1 flex flex-col bg-white border-r border-zinc-300">
+          <div className="flex-1 flex flex-col bg-white border-r border-zinc-200">
             {error && (
               <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
             )}
@@ -436,90 +313,52 @@ export default function TaxAlter() {
           </div>
           <RightActionPanel actions={actions} />
         </div>
-        <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 font-sans">
-          <button
-            onClick={() => navigate('/master/alter')}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm"
-          >
-            Quit
-          </button>
-        </div>
       </div>
     );
   }
 
-  // If in edit mode
+  // ── Edit mode ──
   const alterActions = [
-    { key: 'Alt+A', label: 'Accept', onClick: () => setShowAccept(true) },
+    { key: 'Alt+A', label: 'Accept', onClick: handleSave },
     { key: 'Alt+D', label: 'Delete', onClick: handleDelete },
-    { key: 'Esc', label: 'Quit', onClick: handleBack },
+    { key: 'Esc', label: 'Back', onClick: handleBack },
   ];
 
   return (
-    <div
-      className="flex flex-col h-screen w-screen bg-zinc-100 font-mono text-[11px] select-none text-zinc-950 relative"
-      data-enter-nav
-    >
+    <div className="flex-1 flex flex-col h-full bg-white select-none relative" data-enter-nav>
       <PageTitleBar title="Tax Unit Alteration" subtitle={selectedTaxUnit.name} />
 
-      <div className="flex flex-1 min-h-0">
-        <div className="flex-1 bg-white border-r border-zinc-300 flex flex-col overflow-y-auto">
-          {/* Self-managed Tally-style field walk (window keydown + activeField):
-              keep the global enter-nav out of this zone. */}
-          <div className="p-6 space-y-1.5 flex-1 max-w-2xl" data-enter-nav-ignore>
-            {error && (
-              <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
-            )}
-            {success && (
-              <NotificationBanner
-                type="success"
-                message={success}
-                onDismiss={() => setSuccess(null)}
-              />
-            )}
+      {error && (
+        <NotificationBanner type="error" message={error} onDismiss={() => setError(null)} />
+      )}
+      {success && (
+        <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
+      )}
 
-            <FormRow label="Name" labelWidth="w-56">
-              <input
-                ref={nameRef}
-                className={getInputCls(activeField === 'name')}
-                value={form.name}
-                onChange={set('name')}
-                onFocus={() => setActiveField('name')}
-              />
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto">
+          <div className="p-3 space-y-1 max-w-2xl">
+            <FormRow label="Name" labelWidth={LABEL_W} className={rowCls} required>
+              <input autoFocus className={inputCls} value={form.name} onChange={set('name')} />
             </FormRow>
 
-            <FormRow label="(alias)" labelWidth="w-56">
-              <input
-                ref={aliasRef}
-                className={getInputCls(activeField === 'alias')}
-                value={form.alias}
-                onChange={set('alias')}
-                onFocus={() => setActiveField('alias')}
-              />
+            <FormRow label="(alias)" labelWidth={LABEL_W} className={rowCls}>
+              <input className={inputCls} value={form.alias} onChange={set('alias')} />
             </FormRow>
 
-            <div className="py-2" />
-
-            {/* Address — single line, on the same row as its label */}
-            <FormRow label="Address" labelWidth="w-56">
+            <FormRow label="Address" labelWidth={LABEL_W} className={rowCls}>
               <input
-                ref={addressLine1Ref}
-                className={`${getInputCls(activeField === 'addressLine1')} normal-case`}
+                className={inputCls}
                 value={form.addressLine1}
                 onChange={set('addressLine1')}
-                onFocus={() => setActiveField('addressLine1')}
               />
             </FormRow>
 
-            <div className="py-2" />
-
-            <FormRow label="State" labelWidth="w-56">
+            <FormRow label="State" labelWidth={LABEL_W} className={rowCls}>
               <select
-                ref={stateRef}
-                className={getSelectCls(activeField === 'state')}
+                className={selectCls}
                 value={form.state}
                 onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value }))}
-                onFocus={() => setActiveField('state')}
               >
                 <option value="">Not Applicable</option>
                 {INDIAN_STATES.map((s) => (
@@ -530,35 +369,19 @@ export default function TaxAlter() {
               </select>
             </FormRow>
 
-            <FormRow label="Pincode" labelWidth="w-56">
-              <input
-                ref={pincodeRef}
-                className={getInputCls(activeField === 'pincode')}
-                value={form.pincode}
-                onChange={set('pincode')}
-                onFocus={() => setActiveField('pincode')}
-              />
+            <FormRow label="Pincode" labelWidth={LABEL_W} className={rowCls}>
+              <input className={inputCls} value={form.pincode} onChange={set('pincode')} />
             </FormRow>
 
-            <FormRow label="Telephone" labelWidth="w-56">
-              <input
-                ref={telephoneRef}
-                className={getInputCls(activeField === 'telephone')}
-                value={form.telephone}
-                onChange={set('telephone')}
-                onFocus={() => setActiveField('telephone')}
-              />
+            <FormRow label="Telephone" labelWidth={LABEL_W} className={rowCls}>
+              <input className={inputCls} value={form.telephone} onChange={set('telephone')} />
             </FormRow>
 
-            <div className="py-2" />
-
-            <FormRow label="Registered for" labelWidth="w-56">
+            <FormRow label="Registered for" labelWidth={LABEL_W} className={rowCls}>
               <select
-                ref={registeredForRef}
-                className={getSelectCls(activeField === 'registeredFor')}
+                className={selectCls}
                 value={registeredFor}
                 onChange={(e) => setRegisteredFor(e.target.value)}
-                onFocus={() => setActiveField('registeredFor')}
               >
                 {REGISTERED_FOR_OPTIONS.map((o) => (
                   <option key={o} value={o}>
@@ -568,53 +391,31 @@ export default function TaxAlter() {
               </select>
             </FormRow>
 
-            <div className="py-2" />
-
-            <FormRow label="Set/alter excise details" labelWidth="w-56">
+            <FormRow label="Set/alter excise details" labelWidth={LABEL_W} className={rowCls}>
               <select
-                ref={setAlterExciseDetailsRef}
-                className={getSelectCls(activeField === 'setAlterExciseDetails')}
+                className={selectCls}
                 value={form.setAlterExciseDetails ? 'Yes' : 'No'}
                 onChange={(e) => handleExciseToggle(e.target.value === 'Yes')}
-                onFocus={() => setActiveField('setAlterExciseDetails')}
               >
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>
               </select>
             </FormRow>
           </div>
-
-          <div className="border-t border-zinc-200 flex text-xs shrink-0 font-sans">
-            <button
-              onClick={handleDelete}
-              disabled={saving}
-              className="py-2 px-4 text-center hover:bg-red-50 text-red-600 border-r border-zinc-200 disabled:opacity-50"
-            >
-              Delete
-            </button>
-            <div className="flex-1" />
-            <button
-              onClick={handleBack}
-              disabled={saving}
-              className="py-2 px-4 text-center hover:bg-zinc-100 border-l border-r border-zinc-200 disabled:opacity-50"
-            >
-              Quit (Esc)
-            </button>
-            <button
-              onClick={() => setShowAccept(true)}
-              disabled={saving}
-              className="py-2 px-6 text-center hover:bg-zinc-100 disabled:opacity-50 font-bold"
-            >
-              Accept (Alt+A)
-            </button>
-          </div>
+          <div className="flex-1" />
         </div>
 
-        <div className="w-64 flex-shrink-0 bg-zinc-50 border-l border-zinc-300 flex flex-col font-sans">
-          <RightPanel />
-          <RightActionPanel actions={alterActions} />
-        </div>
+        <RightActionPanel actions={alterActions} />
       </div>
+
+      <MasterFormFooter
+        onCancel={handleBack}
+        onSubmit={handleSave}
+        onDelete={handleDelete}
+        submitLabel="Accept"
+        cancelLabel="Back"
+        loading={saving}
+      />
 
       {showExcisePopup && (
         <ExciseDetailsPopup
@@ -636,33 +437,6 @@ export default function TaxAlter() {
           setRule11Book={setRule11Book}
           onClose={() => setShowExcisePopup(false)}
         />
-      )}
-
-      {showAccept && (
-        <div
-          className="absolute bottom-16 right-72 bg-white border border-zinc-800 w-[165px] shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono text-zinc-950"
-          data-enter-nav-ignore
-        >
-          <h4 className="font-bold text-[11px] mb-3">Accept?</h4>
-          <div className="flex items-center gap-3 w-full justify-center">
-            <button
-              onClick={() => {
-                setShowAccept(false);
-                handleSave();
-              }}
-              disabled={saving}
-              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              Yes
-            </button>
-            <button
-              onClick={() => setShowAccept(false)}
-              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center transition-colors cursor-pointer"
-            >
-              No
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

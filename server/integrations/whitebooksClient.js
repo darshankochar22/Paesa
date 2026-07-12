@@ -155,6 +155,25 @@ const normalize = (res) => {
 
 // --- token caches per product -------------------------------------------------------
 const caches = { einv: null, eway: null, gst: null };
+// The GST-returns login is per-registration: the taxpayer picks one of the company's
+// GST Registrations, and its GSTN username/GSTIN/state drive the OTP handshake while the
+// GSP client_id/secret stay shared (.env). `activeGst` holds the registration currently
+// logged in (or mid-login), so subsequent data calls ride the right session.
+let activeGst = null;
+// Merge a selected registration over the .env GST defaults. Client creds are always the
+// shared .env ones; username/gstin/state come from the chosen registration.
+function resolveGstReg(cfg, reg) {
+  const base = cfg.gst;
+  const r = reg || activeGst || base;
+  const gstin = String(r.gstin || base.gstin || '').trim();
+  return {
+    clientId: base.clientId,
+    clientSecret: base.clientSecret,
+    username: String(r.username || base.username || '').trim(),
+    gstin,
+    stateCd: String(r.stateCd || (gstin ? gstin.slice(0, 2) : base.stateCd) || '').trim(),
+  };
+}
 const tokenValid = (c) =>
   c && c.expiry && new Date() < new Date(String(c.expiry).replace(' ', 'T'));
 const q = (email, extra = '') => `?email=${encodeURIComponent(email)}${extra}`;
@@ -269,11 +288,13 @@ async function ewayRequest(method, path, body, extraQuery = '') {
 // ===================================================================================
 // GST Return Filing — GSTN OTP session (taxpayer receives an OTP on their mobile)
 // ===================================================================================
-async function gstOtpRequest() {
+async function gstOtpRequest(reg) {
   const cfg = getWhitebooksConfig();
   if (!cfg) return { ok: false, error: 'WhiteBooks not configured (.env)' };
+  const g = resolveGstReg(cfg, reg);
+  if (!g.username) return { ok: false, error: 'Registration has no GST Username configured.' };
+  activeGst = g; // the picked registration drives this and the follow-up authenticate
   const ip = await publicIp(cfg);
-  const g = cfg.gst;
   const res = await httpReq(cfg.baseUrl, 'GET', '/authentication/otprequest' + q(cfg.email), {
     gst_username: g.username,
     state_cd: g.stateCd,
@@ -285,6 +306,8 @@ async function gstOtpRequest() {
   if (n.ok)
     caches.gst = {
       ...(caches.gst || {}),
+      gstin: g.gstin,
+      username: g.username,
       pendingTxn:
         (n.data && n.data.txn) || (res.body && res.body.header && res.body.header.txn) || null,
       ip,
@@ -292,11 +315,12 @@ async function gstOtpRequest() {
   return n;
 }
 
-async function gstAuthenticate(otp) {
+async function gstAuthenticate(reg, otp) {
   const cfg = getWhitebooksConfig();
   if (!cfg) return { ok: false, error: 'WhiteBooks not configured (.env)' };
+  const g = resolveGstReg(cfg, reg);
+  activeGst = g;
   const ip = (caches.gst && caches.gst.ip) || (await publicIp(cfg));
-  const g = cfg.gst;
   const txn = (caches.gst && caches.gst.pendingTxn) || '';
   if (!txn) return { ok: false, error: 'Request an OTP first (no txn in session).' };
   const res = await httpReq(
@@ -317,18 +341,25 @@ async function gstAuthenticate(otp) {
   if (isSuccess(res.body)) {
     const d = dataOf(res.body) || {};
     const expiry = d.expiry || d.TokenExpiry || new Date(Date.now() + 50 * 60 * 1000).toISOString();
-    caches.gst = { token: d.auth_token || d.AuthToken || 'session', txn: d.txn || txn, expiry, ip };
+    caches.gst = {
+      token: d.auth_token || d.AuthToken || 'session',
+      txn: d.txn || txn,
+      expiry,
+      ip,
+      gstin: g.gstin,
+      username: g.username,
+    };
     return { ok: true };
   }
   return { ok: false, error: errOf(res) };
 }
 
 // Release the GSTN session (frees the per-username concurrent-session slot).
-async function gstLogout() {
+async function gstLogout(reg) {
   const cfg = getWhitebooksConfig();
   if (!cfg) return { ok: false, error: 'WhiteBooks not configured (.env)' };
+  const g = resolveGstReg(cfg, reg);
   const ip = (caches.gst && caches.gst.ip) || (await publicIp(cfg));
-  const g = cfg.gst;
   const res = await httpReq(cfg.baseUrl, 'GET', '/authentication/logout' + q(cfg.email), {
     gst_username: g.username,
     state_cd: g.stateCd,
@@ -338,6 +369,7 @@ async function gstLogout() {
     client_secret: g.clientSecret,
   });
   caches.gst = null;
+  activeGst = null;
   return normalize(res);
 }
 
@@ -353,7 +385,7 @@ async function gstRequest(method, path, { query = {}, headers = {}, body = null 
       ok: false,
       error: 'GST session not authenticated — request an OTP and authenticate first.',
     };
-  const g = cfg.gst;
+  const g = resolveGstReg(cfg); // ride the logged-in registration's session
   const qs = new URLSearchParams({ email: cfg.email, ...query }).toString();
   const res = await httpReq(
     cfg.baseUrl,
@@ -385,8 +417,9 @@ function getStatus() {
     gstin: cfg.gstin || null,
     einvReady: !!(cfg.einv.clientId && cfg.einv.username),
     ewayReady: !!cfg.eway.clientId,
-    gstReady: !!(cfg.gst.clientId && cfg.gst.username),
+    gstReady: !!cfg.gst.clientId, // per-registration username comes from the DB, not .env
     gstSession: tokenValid(caches.gst),
+    activeGstin: (caches.gst && caches.gst.gstin) || null,
   };
 }
 

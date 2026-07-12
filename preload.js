@@ -844,7 +844,7 @@ contextBridge.exposeInMainWorld('api', {
     markAsFiled: (payload) => invoke('gstFiling:markAsFiled', payload),
     updateArn: (payload) => invoke('gstFiling:updateArn', payload),
     getFilingInfo: (payload) => invoke('gstFiling:getFilingInfo', payload),
-    requestOtp: (company_id) => invoke('gstFiling:requestOtp', { company_id }),
+    requestOtp: (company_id, gstin) => invoke('gstFiling:requestOtp', { company_id, gstin }),
     authenticate: (payload) => invoke('gstFiling:authenticate', payload),
     requestEvc: (company_id) => invoke('gstFiling:requestEvc', { company_id }),
     getReturnStatus: (payload) => invoke('gstFiling:getReturnStatus', payload),

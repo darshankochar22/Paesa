@@ -11,6 +11,7 @@ export interface IntegrationStatus {
   einvoiceBaseUrl?: string;
   ewaybillBaseUrl?: string;
   gstSession?: boolean;
+  activeGstin?: string | null;
   einvReady?: boolean;
   ewayReady?: boolean;
   gstReady?: boolean;
@@ -196,9 +197,11 @@ export interface GstIntegrationsAPI {
     }) => Promise<ApiResult>;
     requestOtp: (
       company_id: number,
+      gstin?: string,
     ) => Promise<{ success: boolean; message?: string; error?: string }>;
     authenticate: (p: {
       company_id: number;
+      gstin?: string;
       otp: string;
     }) => Promise<{ success: boolean; error?: string }>;
     requestEvc: (

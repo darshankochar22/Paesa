@@ -27,41 +27,104 @@ const parseSlabRows = (classification) => {
 
 const seedDefaultGSTClassifications = async (company_id) => {
   const defaults = [
-    { name: 'GST 0%',    igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
-    { name: 'GST 5%',    igst_rate: 5,  cgst_rate: 2.5, sgst_rate: 2.5, cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
-    { name: 'GST 12%',   igst_rate: 12, cgst_rate: 6,   sgst_rate: 6,   cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
-    { name: 'GST 18%',   igst_rate: 18, cgst_rate: 9,   sgst_rate: 9,   cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
-    { name: 'GST 28%',   igst_rate: 28, cgst_rate: 14,  sgst_rate: 14,  cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
-    { name: 'Exempt',    igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Exempt',   nature_of_transaction: 'Not Applicable' },
-    { name: 'Nil Rated', igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Nil Rated',nature_of_transaction: 'Not Applicable' },
-    { name: 'Non GST',   igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Unknown',  nature_of_transaction: 'Not Applicable', is_non_gst_goods: 1 },
+    {
+      name: 'GST 0%',
+      igst_rate: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      cess_rate: 0,
+      taxability: 'Taxable',
+      nature_of_transaction: 'Not Applicable',
+    },
+    {
+      name: 'GST 5%',
+      igst_rate: 5,
+      cgst_rate: 2.5,
+      sgst_rate: 2.5,
+      cess_rate: 0,
+      taxability: 'Taxable',
+      nature_of_transaction: 'Not Applicable',
+    },
+    {
+      name: 'GST 12%',
+      igst_rate: 12,
+      cgst_rate: 6,
+      sgst_rate: 6,
+      cess_rate: 0,
+      taxability: 'Taxable',
+      nature_of_transaction: 'Not Applicable',
+    },
+    {
+      name: 'GST 18%',
+      igst_rate: 18,
+      cgst_rate: 9,
+      sgst_rate: 9,
+      cess_rate: 0,
+      taxability: 'Taxable',
+      nature_of_transaction: 'Not Applicable',
+    },
+    {
+      name: 'GST 28%',
+      igst_rate: 28,
+      cgst_rate: 14,
+      sgst_rate: 14,
+      cess_rate: 0,
+      taxability: 'Taxable',
+      nature_of_transaction: 'Not Applicable',
+    },
+    {
+      name: 'Exempt',
+      igst_rate: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      cess_rate: 0,
+      taxability: 'Exempt',
+      nature_of_transaction: 'Not Applicable',
+    },
+    {
+      name: 'Nil Rated',
+      igst_rate: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      cess_rate: 0,
+      taxability: 'Nil Rated',
+      nature_of_transaction: 'Not Applicable',
+    },
+    {
+      name: 'Non GST',
+      igst_rate: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      cess_rate: 0,
+      taxability: 'Unknown',
+      nature_of_transaction: 'Not Applicable',
+      is_non_gst_goods: 1,
+    },
   ];
 
   for (const g of defaults) {
-    await db
-      .insert(gstClassifications)
-      .values({
-        companyId: company_id,
-        name: g.name,
-        description: null,
-        hsnSacCode: null,
-        isNonGstGoods: g.is_non_gst_goods ?? 0,
-        natureOfTransaction: g.nature_of_transaction,
-        taxability: g.taxability,
-        isReverseCharge: 0,
-        isIneligibleForItc: 0,
-        rateType: 'Fixed Rate',
-        igstRate: g.igst_rate,
-        igstValuationType: 'Based on Value',
-        cgstRate: g.cgst_rate,
-        cgstValuationType: 'Based on Value',
-        sgstRate: g.sgst_rate,
-        sgstValuationType: 'Based on Value',
-        cessRate: g.cess_rate,
-        cessValuationType: 'Based on Value',
-        isPredefined: 1,
-        isActive: 1,
-      });
+    await db.insert(gstClassifications).values({
+      companyId: company_id,
+      name: g.name,
+      description: null,
+      hsnSacCode: null,
+      isNonGstGoods: g.is_non_gst_goods ?? 0,
+      natureOfTransaction: g.nature_of_transaction,
+      taxability: g.taxability,
+      isReverseCharge: 0,
+      isIneligibleForItc: 0,
+      rateType: 'Fixed Rate',
+      igstRate: g.igst_rate,
+      igstValuationType: 'Based on Value',
+      cgstRate: g.cgst_rate,
+      cgstValuationType: 'Based on Value',
+      sgstRate: g.sgst_rate,
+      sgstValuationType: 'Based on Value',
+      cessRate: g.cess_rate,
+      cessValuationType: 'Based on Value',
+      isPredefined: 1,
+      isActive: 1,
+    });
   }
 };
 
@@ -74,7 +137,7 @@ module.exports = {
         sql`SELECT * FROM ${gstClassifications}
             WHERE ${gstClassifications.companyId} = ${data.company_id}
               AND LOWER(${gstClassifications.name}) = LOWER(${data.name})
-              AND ${gstClassifications.isActive} = 1`
+              AND ${gstClassifications.isActive} = 1`,
       );
       if (exists.length > 0) return { success: false, error: 'GST Classification already exists' };
 
@@ -120,7 +183,7 @@ module.exports = {
       const rows = await db.all(
         sql`SELECT * FROM ${gstClassifications}
             WHERE ${gstClassifications.companyId} = ${company_id}
-              AND ${gstClassifications.isActive} = 1`
+              AND ${gstClassifications.isActive} = 1`,
       );
       return {
         success: true,
@@ -145,7 +208,8 @@ module.exports = {
     try {
       const c = await findRow(sql`${gstClassifications.gcId} = ${data.gc_id}`);
       if (!c) return { success: false, error: 'GST Classification not found' };
-      if (c.is_predefined) return { success: false, error: 'Cannot edit predefined GST classifications' };
+      if (c.is_predefined)
+        return { success: false, error: 'Cannot edit predefined GST classifications' };
 
       await db
         .update(gstClassifications)
@@ -186,7 +250,8 @@ module.exports = {
     try {
       const existing = await findRow(sql`${gstClassifications.gcId} = ${id}`);
       if (!existing) return { success: false, error: 'GST Classification not found' };
-      if (existing.is_predefined) return { success: false, error: 'Cannot delete predefined GST classifications' };
+      // Predefined classifications may be deleted (users can remove the seeded
+      // slabs they don't want); only editing them stays blocked.
 
       await db
         .update(gstClassifications)

@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, RightActionPanel, NotificationBanner } from '@/components/ui';
+import {
+  PageTitleBar,
+  RightActionPanel,
+  NotificationBanner,
+  MasterFormFooter,
+} from '@/components/ui';
 import { useGSTClassificationForm } from './hooks/useGSTClassificationForm';
 import GSTClassificationFormFields from './components/GSTClassificationFormFields';
 
 export default function GSTClassificationCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const [activeField, setActiveField] = useState<string>('name');
-  const [showAccept, setShowAccept] = useState(false);
 
   const {
     form,
@@ -26,22 +29,6 @@ export default function GSTClassificationCreate() {
   } = useGSTClassificationForm({ mode: 'create' });
 
   useEffect(() => {
-    if (showAccept) {
-      const handler = (e: KeyboardEvent) => {
-        const key = e.key.toLowerCase();
-        if (key === 'y' || e.key === 'Enter') {
-          e.preventDefault();
-          setShowAccept(false);
-          handleSubmit();
-        } else if (key === 'n' || e.key === 'Escape') {
-          e.preventDefault();
-          setShowAccept(false);
-        }
-      };
-      window.addEventListener('keydown', handler);
-      return () => window.removeEventListener('keydown', handler);
-    }
-
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -49,7 +36,7 @@ export default function GSTClassificationCreate() {
       }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        setShowAccept(true);
+        handleSubmit();
       }
       if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
@@ -58,10 +45,10 @@ export default function GSTClassificationCreate() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleSubmit, navigate, showAccept]);
+  }, [handleSubmit, navigate]);
 
   const actions = [
-    { key: 'Alt+A', label: 'Accept', onClick: () => setShowAccept(true) },
+    { key: 'Alt+A', label: 'Accept', onClick: handleSubmit },
     {
       key: 'Alt+C',
       label: 'Alter Mode',
@@ -71,10 +58,7 @@ export default function GSTClassificationCreate() {
   ];
 
   return (
-    <div
-      className="flex flex-col h-full relative overflow-hidden bg-white select-none font-mono"
-      data-enter-nav
-    >
+    <div className="flex-1 flex flex-col h-full bg-white select-none relative" data-enter-nav>
       <PageTitleBar title="GST Classification Creation" subtitle={selectedCompany?.name} />
 
       {error && (
@@ -91,57 +75,16 @@ export default function GSTClassificationCreate() {
           addSlabRow={addSlabRow}
           updateSlabRow={updateSlabRow}
           removeSlabRow={removeSlabRow}
-          activeField={activeField}
-          setActiveField={setActiveField}
-          onSubmitPrompt={() => setShowAccept(true)}
         />
-        <RightActionPanel actions={actions} className="h-full" />
+        <RightActionPanel actions={actions} />
       </div>
 
-      <div className="px-3 py-3 border-t border-zinc-200 flex justify-end bg-zinc-50 shrink-0">
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate('/master/create')}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium font-sans"
-          >
-            Quit
-          </button>
-          <button
-            onClick={() => setShowAccept(true)}
-            disabled={loading}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium font-sans"
-          >
-            {loading ? 'Creating...' : 'Accept'}
-          </button>
-        </div>
-      </div>
-
-      {showAccept && (
-        <div
-          className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in"
-          data-enter-nav-ignore
-        >
-          <h4 className="font-bold text-zinc-900 text-[11px] mb-3">Accept?</h4>
-          <div className="flex items-center gap-3 w-full justify-center">
-            <button
-              onClick={() => {
-                setShowAccept(false);
-                handleSubmit();
-              }}
-              disabled={loading}
-              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              Yes
-            </button>
-            <button
-              onClick={() => setShowAccept(false)}
-              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center transition-colors cursor-pointer"
-            >
-              No
-            </button>
-          </div>
-        </div>
-      )}
+      <MasterFormFooter
+        onCancel={() => navigate('/master/create')}
+        onSubmit={handleSubmit}
+        submitLabel="Accept"
+        loading={loading}
+      />
     </div>
   );
 }

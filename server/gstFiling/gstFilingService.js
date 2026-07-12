@@ -13,6 +13,26 @@ const wb = require('../integrations/whitebooksClient');
 const { getFilingConfig, getWhitebooksConfig } = require('../integrations/gspConfig');
 const gstr1Service = require('../gst/gstr1Service');
 const gstr3bService = require('../gst/gstr3bService');
+const gstRegistrationService = require('../gstRegistration/gstRegistrationService');
+
+// The GSTN OTP login is per GST Registration. The renderer sends the chosen registration's
+// gstin; we look up its GSTN username here (authoritative — never trust a client-sent
+// username) and derive the state code from the GSTIN. Returns null to fall back to the
+// .env default registration, or { error } when the picked registration is unusable.
+const resolveReg = async (company_id, gstin) => {
+  if (!gstin) return null;
+  const r = await gstRegistrationService.getAll(company_id);
+  const rows = (r && r.success && r.gstRegistrations) || [];
+  const row = rows.find((x) => String(x.gstin || '').trim() === String(gstin).trim());
+  if (!row) return { error: `No GST Registration found for ${gstin}.` };
+  if (!row.gst_username)
+    return { error: `Set the GST Portal Username on registration ${gstin} first.` };
+  return {
+    username: String(row.gst_username).trim(),
+    gstin: String(row.gstin).trim(),
+    stateCd: String(row.gstin).slice(0, 2),
+  };
+};
 
 // WhiteBooks GSTN return endpoints (retsave = save data; retevcfile = file with EVC OTP).
 const WB_RET = {
@@ -103,6 +123,7 @@ const getStatus = async (company_id) => {
       gstin: wbc.gst.gstin || null,
       sandbox: st.sandbox,
       gstSession: st.gstSession,
+      activeGstin: st.activeGstin || null,
       records,
     };
   }
@@ -119,22 +140,26 @@ const getStatus = async (company_id) => {
 // Flow: requestOtp -> authenticate(otp) [login session] -> saveToPortal -> requestEvc
 //       -> fileReturn(evc_otp). The two OTPs are distinct: login vs EVC-for-filing.
 
-// Send the GSTN login OTP to the taxpayer's registered mobile.
-const requestOtp = async () => {
+// Send the GSTN login OTP to the chosen registration's registered mobile & e-mail.
+const requestOtp = async (company_id, { gstin } = {}) => {
   if (!getWhitebooksConfig())
     return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
-  const r = await wb.gst.otpRequest();
+  const reg = await resolveReg(company_id, gstin);
+  if (reg && reg.error) return { success: false, error: reg.error };
+  const r = await wb.gst.otpRequest(reg);
   return r.ok
-    ? { success: true, message: 'OTP sent to the taxpayer’s registered mobile.' }
+    ? { success: true, message: 'OTP sent to the registered mobile & e-mail.' }
     : { success: false, error: r.error };
 };
 
-// Exchange the login OTP for a GSTN session (required before save/file).
-const authenticate = async (company_id, { otp } = {}) => {
+// Exchange the login OTP for a GSTN session on the chosen registration.
+const authenticate = async (company_id, { gstin, otp } = {}) => {
   if (!getWhitebooksConfig())
     return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
   if (!otp) return { success: false, error: 'OTP is required.' };
-  const r = await wb.gst.authenticate(String(otp).trim());
+  const reg = await resolveReg(company_id, gstin);
+  if (reg && reg.error) return { success: false, error: reg.error };
+  const r = await wb.gst.authenticate(reg, String(otp).trim());
   return r.ok ? { success: true } : { success: false, error: r.error };
 };
 
