@@ -41,6 +41,13 @@ function getFormRowField(labelText: string | RegExp, elementTag: 'input' | 'sele
   return field as HTMLInputElement | HTMLSelectElement;
 }
 
+// Selecting from the Under panel schedules a 50ms focus jump to the Accept
+// button (focusFieldAfter in useEnterNavigation). Flush it before typing so a
+// space keystroke can't land on the button and spuriously submit.
+function flushDeferredFocus() {
+  return new Promise((r) => setTimeout(r, 75));
+}
+
 // ─── Setup ───────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -104,10 +111,8 @@ describe('GodownCreate — validation & submission', () => {
     const user = userEvent.setup();
     renderGodownCreate();
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
-    );
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() => expect(screen.getByText(/Name is required/i)).toBeInTheDocument());
     expect(window.api.godown.create).not.toHaveBeenCalled();
@@ -122,7 +127,7 @@ describe('GodownCreate — validation & submission', () => {
     await user.type(getFormRowField('Name'), 'Central Warehouse');
     await user.type(getFormRowField('(alias)'), 'C-WH');
 
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.godown.create).toHaveBeenCalledWith({
@@ -162,10 +167,11 @@ describe('GodownCreate — parent godown selection panel', () => {
     // Panel should close and field label updates
     await waitFor(() => expect(screen.queryByText('List of Godowns')).not.toBeInTheDocument());
     expect(screen.getByText('Main Location')).toBeInTheDocument();
+    await flushDeferredFocus();
 
     // Submit and check parent_godown_id is number 11
     await user.type(getFormRowField('Name'), 'Shelf 1');
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.godown.create).toHaveBeenCalledWith({

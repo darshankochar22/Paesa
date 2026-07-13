@@ -102,10 +102,8 @@ describe('StockGroupCreate — validation & submission', () => {
     const user = userEvent.setup();
     renderStockGroupCreate();
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
-    );
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() => expect(screen.getByText(/Name is required/i)).toBeInTheDocument());
     expect(window.api.stockGroup.create).not.toHaveBeenCalled();
@@ -119,7 +117,7 @@ describe('StockGroupCreate — validation & submission', () => {
 
     await user.type(getFormRowField('Name'), 'Hardware');
     await user.type(getFormRowField('(alias)'), 'HW');
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       // statutory_details is a serialized default-config JSON blob (implementation
@@ -173,7 +171,7 @@ describe('StockGroupCreate — validation & submission', () => {
     await user.clear(gstRateInput);
     await user.type(gstRateInput, '18');
 
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       // 18% splits into 9/9; taxability flows through; statutory_details is a JSON

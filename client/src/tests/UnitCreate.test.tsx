@@ -108,10 +108,8 @@ describe('UnitCreate — Simple Unit Flow', () => {
     const user = userEvent.setup();
     renderUnitCreate();
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
-    );
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() => expect(screen.getByText(/Symbol is required/i)).toBeInTheDocument());
     expect(window.api.unit.create).not.toHaveBeenCalled();
@@ -127,7 +125,7 @@ describe('UnitCreate — Simple Unit Flow', () => {
     await user.type(getFormRowField('Formal Name'), 'Pieces');
     await user.selectOptions(getFormRowField('Number of Decimal Places', 'select'), '2');
 
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.unit.create).toHaveBeenCalledWith({
@@ -159,7 +157,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
       expect(screen.getByText('Units with Multiplier Factors')).toBeInTheDocument(),
     );
 
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() => expect(screen.getByText(/First unit is required/i)).toBeInTheDocument());
     expect(window.api.unit.create).not.toHaveBeenCalled();
@@ -195,7 +193,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
     const conversionInput = screen.getByRole('spinbutton');
     await user.type(conversionInput, '0');
 
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(screen.getByText(/Conversion factor must be greater than 0/i)).toBeInTheDocument(),
@@ -231,7 +229,7 @@ describe('UnitCreate — Compound Unit Flow', () => {
     const conversionInput = screen.getByRole('spinbutton');
     await user.type(conversionInput, '10');
 
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.unit.create).toHaveBeenCalledWith({

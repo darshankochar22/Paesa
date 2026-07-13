@@ -65,6 +65,13 @@ function getFormRowField(
   return field as HTMLInputElement | HTMLSelectElement;
 }
 
+// Selecting from the Under panel schedules a 50ms focus jump to the Accept
+// button (focusFieldAfter in useEnterNavigation). Flush it before typing so a
+// space keystroke can't land on the button and spuriously submit.
+function flushDeferredFocus() {
+  return new Promise((r) => setTimeout(r, 75));
+}
+
 // ─── Setup ───────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -123,10 +130,8 @@ describe('LedgerCreate — validations & submission', () => {
     const user = userEvent.setup();
     renderLedgerCreate();
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument(),
-    );
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() => expect(screen.getByText(/Name is required/i)).toBeInTheDocument());
     expect(window.api.ledger.create).not.toHaveBeenCalled();
@@ -140,7 +145,7 @@ describe('LedgerCreate — validations & submission', () => {
 
     await user.type(getFormRowField('Name'), 'Equity Share Capital');
     await user.type(getFormRowField('(alias)'), 'ESC');
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.ledger.create).toHaveBeenCalledWith(
@@ -170,6 +175,7 @@ describe('LedgerCreate — Group Lineage and banking flows', () => {
     // Select "Bank Accounts" group
     await user.click(screen.getByText('Bank Accounts'));
     await waitFor(() => expect(screen.queryByText('List of Groups')).not.toBeInTheDocument());
+    await flushDeferredFocus();
 
     // For Bank Accounts, the banking form is rendered directly inline
     await waitFor(() => {
@@ -185,7 +191,7 @@ describe('LedgerCreate — Group Lineage and banking flows', () => {
 
     // Enter name & submit
     await user.type(getFormRowField('Name'), 'SBI Bank Account');
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.ledger.create).toHaveBeenCalledWith(
@@ -216,6 +222,7 @@ describe('LedgerCreate — Group Lineage and banking flows', () => {
     // Select "Sundry Debtors" group
     await user.click(screen.getByText('Sundry Debtors'));
     await waitFor(() => expect(screen.queryByText('List of Groups')).not.toBeInTheDocument());
+    await flushDeferredFocus();
 
     // Verify banking details section is rendered (since lineage.isBank is false)
     await waitFor(() => expect(screen.getByText('Banking Details')).toBeInTheDocument());
@@ -235,7 +242,7 @@ describe('LedgerCreate — Group Lineage and banking flows', () => {
 
     // Type name and submit — the ledger still creates under the selected group.
     await user.type(getFormRowField('Name'), 'Debtor Bank Ledger');
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.ledger.create).toHaveBeenCalledWith(

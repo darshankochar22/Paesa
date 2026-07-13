@@ -27,7 +27,7 @@ function renderStockCategoryCreate() {
       <CompanyProvider>
         <StockCategoryCreate />
       </CompanyProvider>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -39,6 +39,13 @@ function getFormRowField(labelText: string | RegExp) {
   const field = container.querySelector('input');
   if (!field) throw new Error(`Could not find input field under label: ${labelText}`);
   return field as HTMLInputElement;
+}
+
+// Selecting from the Under panel schedules a 50ms focus jump to the Accept
+// button (focusFieldAfter in useEnterNavigation). Flush it before typing so a
+// space keystroke can't land on the button and spuriously submit.
+function flushDeferredFocus() {
+  return new Promise((r) => setTimeout(r, 75));
 }
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
@@ -75,9 +82,7 @@ beforeEach(() => {
 describe('StockCategoryCreate — initial render', () => {
   it('renders the "Stock Category Creation" page title', async () => {
     renderStockCategoryCreate();
-    await waitFor(() =>
-      expect(screen.getByText('Stock Category Creation')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Stock Category Creation')).toBeInTheDocument());
   });
 
   it('renders the Name and Alias input fields', async () => {
@@ -90,9 +95,7 @@ describe('StockCategoryCreate — initial render', () => {
 
   it('calls stockCategory.getAll with company id on mount', async () => {
     renderStockCategoryCreate();
-    await waitFor(() =>
-      expect(window.api.stockCategory.getAll).toHaveBeenCalledWith(1)
-    );
+    await waitFor(() => expect(window.api.stockCategory.getAll).toHaveBeenCalledWith(1));
   });
 });
 
@@ -101,12 +104,10 @@ describe('StockCategoryCreate — validation & submission', () => {
     const user = userEvent.setup();
     renderStockCategoryCreate();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/Name is required/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/Name is required/i)).toBeInTheDocument());
     expect(window.api.stockCategory.create).not.toHaveBeenCalled();
   });
 
@@ -118,7 +119,7 @@ describe('StockCategoryCreate — validation & submission', () => {
 
     await user.type(getFormRowField('Name'), 'Beverages');
     await user.type(getFormRowField('(alias)'), 'Drinks');
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.stockCategory.create).toHaveBeenCalledWith({
@@ -126,11 +127,11 @@ describe('StockCategoryCreate — validation & submission', () => {
         name: 'Beverages',
         alias: 'Drinks',
         parent_category_id: undefined,
-      })
+      }),
     );
 
     await waitFor(() =>
-      expect(screen.getByText(/Stock Category "Beverages" created/i)).toBeInTheDocument()
+      expect(screen.getByText(/Stock Category "Beverages" created/i)).toBeInTheDocument(),
     );
   });
 });
@@ -154,10 +155,11 @@ describe('StockCategoryCreate — parent category panel select', () => {
     // Panel should close and field label updates
     await waitFor(() => expect(screen.queryByText('List of Categories')).not.toBeInTheDocument());
     expect(screen.getByText('Dry Fruits')).toBeInTheDocument();
+    await flushDeferredFocus();
 
     // Now submit to verify parent_category_id is passed as number
     await user.type(getFormRowField('Name'), 'Cashews');
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
 
     await waitFor(() =>
       expect(window.api.stockCategory.create).toHaveBeenCalledWith({
@@ -165,7 +167,7 @@ describe('StockCategoryCreate — parent category panel select', () => {
         name: 'Cashews',
         alias: undefined,
         parent_category_id: 11,
-      })
+      }),
     );
   });
 });
