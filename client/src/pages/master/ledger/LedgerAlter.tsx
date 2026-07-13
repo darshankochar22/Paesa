@@ -525,325 +525,11 @@ export default function LedgerAlter() {
       )}
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
-        <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
-          <div className="p-3 space-y-1">
-            <div
-              ref={ledgerPickRef}
-              tabIndex={0}
-              data-enter-click
-              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group mb-2 border border-zinc-200 bg-zinc-50/30"
-              onClick={() => {
-                setShowLedgerPanel((v) => !v);
-                setShowGroupPanel(false);
-              }}
-            >
-              <span className="w-16 text-sm shrink-0 font-medium text-zinc-500">Ledger</span>
-              <span className="text-zinc-400 mr-2 shrink-0">:</span>
-              <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
-                {selectedLedgerId ? (
-                  (ledgers.find((l) => l.ledger_id === selectedLedgerId)?.name ?? '—')
-                ) : (
-                  <span className="text-zinc-400 italic">Select ledger to alter…</span>
-                )}
-              </span>
-            </div>
-
-            {selectedLedgerId && (
-              <>
-                <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
-                  <input
-                    autoFocus
-                    className={inputCls}
-                    value={form.name || ''}
-                    onChange={setField('name')}
-                  />
-                </FormRow>
-                <FormRow
-                  label="(alias)"
-                  labelWidth="w-20"
-                  className="flex items-center min-h-[26px]"
-                >
-                  <input
-                    className={inputCls}
-                    value={form.alias || ''}
-                    onChange={setField('alias')}
-                  />
-                </FormRow>
-              </>
-            )}
-          </div>
-
-          {selectedLedgerId && (
-            <div className="p-3 border-t border-zinc-100 bg-zinc-50/20">
-              <div
-                ref={underRef}
-                tabIndex={0}
-                data-enter-click
-                className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group"
-                onClick={() => {
-                  setShowGroupPanel((v) => !v);
-                  setShowLedgerPanel(false);
-                }}
-              >
-                <span className="w-16 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">
-                  Under
-                </span>
-                <span className="text-zinc-400 mr-2 shrink-0">:</span>
-                <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
-                  {selectedGroup?.name || '—'}
-                </span>
-                {groupLineage.primaryGroupName &&
-                  groupLineage.primaryGroupName !== selectedGroup?.name && (
-                    <span className="text-xs text-zinc-400 ml-2 font-normal">
-                      (Group: {groupLineage.primaryGroupName})
-                    </span>
-                  )}
-              </div>
-            </div>
-          )}
-
-          {/* Type of Ledger (Purchase / Sales / Direct / Indirect groups) */}
-          {selectedLedgerId && (
-            <LedgerRoundingPanel
-              form={form}
-              setForm={setForm}
-              setField={setField}
-              setNumber={setNumber}
-              groupLineage={groupLineage}
-            />
-          )}
-
-          {/* Duty Tax fields for Duties & Taxes groups */}
-          {selectedLedgerId && groupLineage.isTax && (
-            <DutyTaxSection
-              statutoryForm={statutoryForm}
-              setStatutoryField={setStatutoryField}
-              setStatutoryNumber={setStatutoryNumber}
-            />
-          )}
-
-          {/* Behave as Payment Gateway */}
-          {selectedLedgerId && currentConfig.paymentGateway && (
-            <div className="p-3 border-t border-zinc-100 bg-white space-y-1">
-              <FormRow
-                label="Behave as Payment Gateway ledger"
-                labelWidth="w-60"
-                className="flex items-center min-h-[26px]"
-              >
-                <select
-                  className={selectCls}
-                  value={form.behave_as_payment_gateway ? 'Yes' : 'No'}
-                  onChange={handlePaymentGatewayChange}
-                >
-                  <option value="No">No</option>
-                  <option value="Yes">Yes</option>
-                </select>
-              </FormRow>
-              {!!form.behave_as_payment_gateway && (
-                <FormRow
-                  label="Payment Gateway Name"
-                  labelWidth="w-60"
-                  className="flex items-center min-h-[26px]"
-                >
-                  <span className="text-sm text-zinc-700 px-1.5">&#9670; Not Applicable</span>
-                </FormRow>
-              )}
-            </div>
-          )}
-
-          {selectedLedgerId && (
-            <LedgerBillwisePanel
-              form={form}
-              setForm={setForm}
-              setNumber={setNumber}
-              groupLineage={groupLineage}
-            />
-          )}
-
-          {selectedLedgerId && (
-            <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
-              <FormRow
-                label="Activate interest calculation"
-                labelWidth="w-52"
-                className="flex items-center min-h-[26px]"
-              >
-                <select
-                  className={selectCls}
-                  value={form.activate_interest ? 'Yes' : 'No'}
-                  onChange={handleActivateInterestChange}
-                >
-                  <option value="No">No</option>
-                  <option value="Yes">Yes</option>
-                </select>
-              </FormRow>
-              {groupLineage.isOD && (
-                <FormRow
-                  label="Set OD limit"
-                  labelWidth="w-52"
-                  className="flex items-center min-h-[26px]"
-                >
-                  <input
-                    type="number"
-                    step="0.01"
-                    className={`${inputCls} max-w-[140px] text-right`}
-                    value={form.od_limit ?? ''}
-                    onChange={setNumber('od_limit')}
-                    placeholder="0.00"
-                  />
-                </FormRow>
-              )}
-            </div>
-          )}
-
-          {/* Statutory Details (LEFT panel, matches Tally) */}
-          {selectedLedgerId && showLeftStatutorySection && (
-            <LedgerStatutoryLeftPanel
-              statutoryForm={statutoryForm}
-              setStatutoryField={setStatutoryField}
-              setStatutoryNumber={setStatutoryNumber}
-              setOtherStatutory={setOtherStatutory}
-              setShowOtherStatutoryModal={setShowOtherStatutoryModal}
-              groupLineage={groupLineage}
-              currentConfig={currentConfig}
-              assessableGstSelected={assessableGstSelected}
-              isOtherStatutoryActive={isOtherStatutoryActive}
-              statutorySections={statutorySections}
-              inputCls={inputCls}
-            />
-          )}
-
-          {selectedLedgerId && !form.behave_as_payment_gateway && (
-            <LedgerBankDetailsForm
-              ledgerName={form.name || ''}
-              bankForm={bankForm}
-              setBankField={setBankField}
-              setBankForm={setBankForm}
-              groupLineage={groupLineage}
-            />
-          )}
-
-          <div className="flex-1" />
-
-          {selectedLedgerId ? (
-            <div className="border-t border-zinc-200 bg-zinc-50/50 p-3 flex items-center justify-center gap-2">
-              <span className="text-sm font-semibold text-zinc-600">Opening Balance</span>
-              <span className="text-sm text-zinc-500">( on {fyLabel} ) :</span>
-              <input
-                type="number"
-                step="0.01"
-                className="w-36 border border-zinc-300 rounded text-sm text-right px-2 py-1 outline-none focus:border-zinc-800 transition-all"
-                value={form.opening_balance ?? 0}
-                onChange={setNumber('opening_balance')}
-              />
-              <select
-                className="bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded"
-                value={(form as any).opening_balance_type || 'Dr'}
-                onChange={setField('opening_balance_type')}
-              >
-                <option value="Dr">Dr</option>
-                <option value="Cr">Cr</option>
-              </select>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-zinc-400 text-sm italic select-none">
-              Click &ldquo;Ledger&rdquo; above to select a ledger to alter.
-            </div>
-          )}
-        </div>
-
-        <div className="w-[480px] border-l border-zinc-200 flex flex-col overflow-y-auto shrink-0 bg-zinc-50/25">
-          {selectedLedgerId ? (
-            <>
-              <div className="p-3 flex justify-end">
-                <div className="w-48 border border-zinc-300 rounded-md shrink-0 bg-white shadow-sm overflow-hidden">
-                  <div className="text-center text-[9px] font-bold border-b border-zinc-200 py-1 bg-zinc-100 text-zinc-600 uppercase tracking-wider">
-                    Total Opening Balance
-                  </div>
-                  <div className="flex divide-x divide-zinc-100">
-                    <div className="flex-1 text-center py-1.5">
-                      <div className="text-[9px] font-semibold text-zinc-500 uppercase">Dr</div>
-                      <div className="text-xs font-bold tabular-nums text-zinc-900 mt-0.5">
-                        {totalOpeningBalance ? totalOpeningBalance.totalDr.toFixed(2) : '0.00'}
-                      </div>
-                    </div>
-                    <div className="flex-1 text-center py-1.5">
-                      <div className="text-[9px] font-semibold text-zinc-500 uppercase">Cr</div>
-                      <div className="text-xs font-bold tabular-nums text-zinc-900 mt-0.5">
-                        {totalOpeningBalance ? totalOpeningBalance.totalCr.toFixed(2) : '0.00'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="border-t border-zinc-200 py-1 text-center bg-zinc-50/40">
-                    <div className="text-[9px] font-semibold text-zinc-500 uppercase">Net</div>
-                    <div className="text-sm font-extrabold tabular-nums text-zinc-900">
-                      {totalOpeningBalance
-                        ? `${totalOpeningBalance.netBalance.toFixed(2)} ${totalOpeningBalance.balanceType}`
-                        : '—'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <LedgerMailingPanel form={form} setField={setField} groupLineage={groupLineage} />
-
-              <LedgerBankingPanel
-                provideBank={provideBank}
-                handleProvideBankChange={handleProvideBankChange}
-                bankForm={bankForm}
-                showBankPopup={showBankPopup}
-                setShowBankPopup={setShowBankPopup}
-                groupLineage={groupLineage}
-              />
-
-              <LedgerTaxPanel
-                form={form}
-                setField={setField}
-                statutoryForm={statutoryForm}
-                setStatutoryField={setStatutoryField}
-                setStatutoryNumber={setStatutoryNumber}
-                setStatutoryForm={setStatutoryForm}
-                groupLineage={groupLineage}
-                config={currentConfig}
-                vatActive={otherStatutory.vat.set_alter_vat_details === 1}
-                exciseActive={otherStatutory.excise.set_alter_excise_details === 1}
-                onGSTDetailsChange={(val) => {
-                  if (val === 'Yes') handleGSTDetailsOpen();
-                  else handleGSTDetailsClose();
-                }}
-                onServiceTaxDetailsChange={(val) => {
-                  if (val === 'Yes') handleServiceTaxOpen();
-                  else handleServiceTaxClose();
-                }}
-                onVATDetailsChange={(val) => {
-                  if (val === 'Yes') handleVATDetailsOpen();
-                  else handleVATDetailsClose();
-                }}
-                onExciseDetailsChange={(val) => {
-                  if (val === 'Yes') {
-                    setOtherStatutory((p) => ({
-                      ...p,
-                      excise: { ...p.excise, set_alter_excise_details: 1 },
-                    }));
-                    setShowExciseTariffPopup(true);
-                  } else {
-                    setOtherStatutory((p) => ({
-                      ...p,
-                      excise: { ...p.excise, set_alter_excise_details: 0 },
-                    }));
-                  }
-                }}
-              />
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-zinc-300 text-sm select-none italic">
-              No ledger selected
-            </div>
-          )}
-        </div>
-
-        {showLedgerPanel && (
+        {(showLedgerPanel || !selectedLedgerId) && (
           <LedgerListPanel
+            fullWidth={!selectedLedgerId}
             ledgers={ledgers}
+            groups={flatGroups}
             selectedId={selectedLedgerId}
             onSelect={(l) => {
               loadLedger(l.ledger_id!);
@@ -851,6 +537,330 @@ export default function LedgerAlter() {
             }}
             onClose={() => setShowLedgerPanel(false)}
           />
+        )}
+
+        {selectedLedgerId && (
+          <>
+            <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
+              <div className="p-3 space-y-1">
+                <div
+                  ref={ledgerPickRef}
+                  tabIndex={0}
+                  data-enter-click
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group mb-2 border border-zinc-200 bg-zinc-50/30"
+                  onClick={() => {
+                    setShowLedgerPanel((v) => !v);
+                    setShowGroupPanel(false);
+                  }}
+                >
+                  <span className="w-16 text-sm shrink-0 font-medium text-zinc-500">Ledger</span>
+                  <span className="text-zinc-400 mr-2 shrink-0">:</span>
+                  <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
+                    {selectedLedgerId ? (
+                      (ledgers.find((l) => l.ledger_id === selectedLedgerId)?.name ?? '—')
+                    ) : (
+                      <span className="text-zinc-400 italic">Select ledger to alter…</span>
+                    )}
+                  </span>
+                </div>
+
+                {selectedLedgerId && (
+                  <>
+                    <FormRow
+                      label="Name"
+                      labelWidth="w-20"
+                      className="flex items-center min-h-[26px]"
+                    >
+                      <input
+                        autoFocus
+                        className={inputCls}
+                        value={form.name || ''}
+                        onChange={setField('name')}
+                      />
+                    </FormRow>
+                    <FormRow
+                      label="(alias)"
+                      labelWidth="w-20"
+                      className="flex items-center min-h-[26px]"
+                    >
+                      <input
+                        className={inputCls}
+                        value={form.alias || ''}
+                        onChange={setField('alias')}
+                      />
+                    </FormRow>
+                  </>
+                )}
+              </div>
+
+              {selectedLedgerId && (
+                <div className="p-3 border-t border-zinc-100 bg-zinc-50/20">
+                  <div
+                    ref={underRef}
+                    tabIndex={0}
+                    data-enter-click
+                    className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-100/60 focus:bg-zinc-100 outline-none px-2 py-0.5 rounded transition-colors group"
+                    onClick={() => {
+                      setShowGroupPanel((v) => !v);
+                      setShowLedgerPanel(false);
+                    }}
+                  >
+                    <span className="w-16 text-sm shrink-0 font-medium text-zinc-500 group-hover:text-zinc-800">
+                      Under
+                    </span>
+                    <span className="text-zinc-400 mr-2 shrink-0">:</span>
+                    <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
+                      {selectedGroup?.name || '—'}
+                    </span>
+                    {groupLineage.primaryGroupName &&
+                      groupLineage.primaryGroupName !== selectedGroup?.name && (
+                        <span className="text-xs text-zinc-400 ml-2 font-normal">
+                          (Group: {groupLineage.primaryGroupName})
+                        </span>
+                      )}
+                  </div>
+                </div>
+              )}
+
+              {/* Type of Ledger (Purchase / Sales / Direct / Indirect groups) */}
+              {selectedLedgerId && (
+                <LedgerRoundingPanel
+                  form={form}
+                  setForm={setForm}
+                  setField={setField}
+                  setNumber={setNumber}
+                  groupLineage={groupLineage}
+                />
+              )}
+
+              {/* Duty Tax fields for Duties & Taxes groups */}
+              {selectedLedgerId && groupLineage.isTax && (
+                <DutyTaxSection
+                  statutoryForm={statutoryForm}
+                  setStatutoryField={setStatutoryField}
+                  setStatutoryNumber={setStatutoryNumber}
+                />
+              )}
+
+              {/* Behave as Payment Gateway */}
+              {selectedLedgerId && currentConfig.paymentGateway && (
+                <div className="p-3 border-t border-zinc-100 bg-white space-y-1">
+                  <FormRow
+                    label="Behave as Payment Gateway ledger"
+                    labelWidth="w-60"
+                    className="flex items-center min-h-[26px]"
+                  >
+                    <select
+                      className={selectCls}
+                      value={form.behave_as_payment_gateway ? 'Yes' : 'No'}
+                      onChange={handlePaymentGatewayChange}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </FormRow>
+                  {!!form.behave_as_payment_gateway && (
+                    <FormRow
+                      label="Payment Gateway Name"
+                      labelWidth="w-60"
+                      className="flex items-center min-h-[26px]"
+                    >
+                      <span className="text-sm text-zinc-700 px-1.5">&#9670; Not Applicable</span>
+                    </FormRow>
+                  )}
+                </div>
+              )}
+
+              {selectedLedgerId && (
+                <LedgerBillwisePanel
+                  form={form}
+                  setForm={setForm}
+                  setNumber={setNumber}
+                  groupLineage={groupLineage}
+                />
+              )}
+
+              {selectedLedgerId && (
+                <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
+                  <FormRow
+                    label="Activate interest calculation"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px]"
+                  >
+                    <select
+                      className={selectCls}
+                      value={form.activate_interest ? 'Yes' : 'No'}
+                      onChange={handleActivateInterestChange}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </FormRow>
+                  {groupLineage.isOD && (
+                    <FormRow
+                      label="Set OD limit"
+                      labelWidth="w-52"
+                      className="flex items-center min-h-[26px]"
+                    >
+                      <input
+                        type="number"
+                        step="0.01"
+                        className={`${inputCls} max-w-[140px] text-right`}
+                        value={form.od_limit ?? ''}
+                        onChange={setNumber('od_limit')}
+                        placeholder="0.00"
+                      />
+                    </FormRow>
+                  )}
+                </div>
+              )}
+
+              {/* Statutory Details (LEFT panel, matches Tally) */}
+              {selectedLedgerId && showLeftStatutorySection && (
+                <LedgerStatutoryLeftPanel
+                  statutoryForm={statutoryForm}
+                  setStatutoryField={setStatutoryField}
+                  setStatutoryNumber={setStatutoryNumber}
+                  setOtherStatutory={setOtherStatutory}
+                  setShowOtherStatutoryModal={setShowOtherStatutoryModal}
+                  groupLineage={groupLineage}
+                  currentConfig={currentConfig}
+                  assessableGstSelected={assessableGstSelected}
+                  isOtherStatutoryActive={isOtherStatutoryActive}
+                  statutorySections={statutorySections}
+                  inputCls={inputCls}
+                />
+              )}
+
+              {selectedLedgerId && !form.behave_as_payment_gateway && (
+                <LedgerBankDetailsForm
+                  ledgerName={form.name || ''}
+                  bankForm={bankForm}
+                  setBankField={setBankField}
+                  setBankForm={setBankForm}
+                  groupLineage={groupLineage}
+                />
+              )}
+
+              <div className="flex-1" />
+
+              {selectedLedgerId ? (
+                <div className="border-t border-zinc-200 bg-zinc-50/50 p-3 flex items-center justify-center gap-2">
+                  <span className="text-sm font-semibold text-zinc-600">Opening Balance</span>
+                  <span className="text-sm text-zinc-500">( on {fyLabel} ) :</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-36 border border-zinc-300 rounded text-sm text-right px-2 py-1 outline-none focus:border-zinc-800 transition-all"
+                    value={form.opening_balance ?? 0}
+                    onChange={setNumber('opening_balance')}
+                  />
+                  <select
+                    className="bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded"
+                    value={(form as any).opening_balance_type || 'Dr'}
+                    onChange={setField('opening_balance_type')}
+                  >
+                    <option value="Dr">Dr</option>
+                    <option value="Cr">Cr</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-zinc-400 text-sm italic select-none">
+                  Click &ldquo;Ledger&rdquo; above to select a ledger to alter.
+                </div>
+              )}
+            </div>
+
+            <div className="w-[480px] border-l border-zinc-200 flex flex-col overflow-y-auto shrink-0 bg-zinc-50/25">
+              {selectedLedgerId ? (
+                <>
+                  <div className="p-3 flex justify-end">
+                    <div className="w-48 border border-zinc-300 rounded-md shrink-0 bg-white shadow-sm overflow-hidden">
+                      <div className="text-center text-[9px] font-bold border-b border-zinc-200 py-1 bg-zinc-100 text-zinc-600 uppercase tracking-wider">
+                        Total Opening Balance
+                      </div>
+                      <div className="flex divide-x divide-zinc-100">
+                        <div className="flex-1 text-center py-1.5">
+                          <div className="text-[9px] font-semibold text-zinc-500 uppercase">Dr</div>
+                          <div className="text-xs font-bold tabular-nums text-zinc-900 mt-0.5">
+                            {totalOpeningBalance ? totalOpeningBalance.totalDr.toFixed(2) : '0.00'}
+                          </div>
+                        </div>
+                        <div className="flex-1 text-center py-1.5">
+                          <div className="text-[9px] font-semibold text-zinc-500 uppercase">Cr</div>
+                          <div className="text-xs font-bold tabular-nums text-zinc-900 mt-0.5">
+                            {totalOpeningBalance ? totalOpeningBalance.totalCr.toFixed(2) : '0.00'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="border-t border-zinc-200 py-1 text-center bg-zinc-50/40">
+                        <div className="text-[9px] font-semibold text-zinc-500 uppercase">Net</div>
+                        <div className="text-sm font-extrabold tabular-nums text-zinc-900">
+                          {totalOpeningBalance
+                            ? `${totalOpeningBalance.netBalance.toFixed(2)} ${totalOpeningBalance.balanceType}`
+                            : '—'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <LedgerMailingPanel form={form} setField={setField} groupLineage={groupLineage} />
+
+                  <LedgerBankingPanel
+                    provideBank={provideBank}
+                    handleProvideBankChange={handleProvideBankChange}
+                    bankForm={bankForm}
+                    showBankPopup={showBankPopup}
+                    setShowBankPopup={setShowBankPopup}
+                    groupLineage={groupLineage}
+                  />
+
+                  <LedgerTaxPanel
+                    form={form}
+                    setField={setField}
+                    statutoryForm={statutoryForm}
+                    setStatutoryField={setStatutoryField}
+                    setStatutoryNumber={setStatutoryNumber}
+                    setStatutoryForm={setStatutoryForm}
+                    groupLineage={groupLineage}
+                    config={currentConfig}
+                    vatActive={otherStatutory.vat.set_alter_vat_details === 1}
+                    exciseActive={otherStatutory.excise.set_alter_excise_details === 1}
+                    onGSTDetailsChange={(val) => {
+                      if (val === 'Yes') handleGSTDetailsOpen();
+                      else handleGSTDetailsClose();
+                    }}
+                    onServiceTaxDetailsChange={(val) => {
+                      if (val === 'Yes') handleServiceTaxOpen();
+                      else handleServiceTaxClose();
+                    }}
+                    onVATDetailsChange={(val) => {
+                      if (val === 'Yes') handleVATDetailsOpen();
+                      else handleVATDetailsClose();
+                    }}
+                    onExciseDetailsChange={(val) => {
+                      if (val === 'Yes') {
+                        setOtherStatutory((p) => ({
+                          ...p,
+                          excise: { ...p.excise, set_alter_excise_details: 1 },
+                        }));
+                        setShowExciseTariffPopup(true);
+                      } else {
+                        setOtherStatutory((p) => ({
+                          ...p,
+                          excise: { ...p.excise, set_alter_excise_details: 0 },
+                        }));
+                      }
+                    }}
+                  />
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-zinc-300 text-sm select-none italic">
+                  No ledger selected
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {showGroupPanel && (

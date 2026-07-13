@@ -25,7 +25,7 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
          LEFT JOIN ${vouchers} v ON v.voucher_id = e.voucher_id AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
            AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0
          WHERE l.ledger_id = ${ledger_id} AND l.company_id = ${company_id}
-         GROUP BY l.ledger_id`
+         GROUP BY l.ledger_id`,
   );
   const row = rows[0];
   if (!row) return { success: false, error: 'Ledger not found' };
@@ -37,9 +37,8 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
 
   // Legacy data: negative opening_balance means Cr (from Tally imports, etc.)
   // New data: positive opening_balance, use opening_balance_type to determine sign
-  const effectiveOpening = rawOpening < 0
-    ? rawOpening
-    : (isDrNature === isDrType ? absOpening : -absOpening);
+  const effectiveOpening =
+    rawOpening < 0 ? rawOpening : isDrNature === isDrType ? absOpening : -absOpening;
 
   const totalDr = Number(row.total_dr) || 0;
   const totalCr = Number(row.total_cr) || 0;
@@ -48,10 +47,20 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
     ? effectiveOpening + totalDr - totalCr
     : effectiveOpening + totalCr - totalDr;
 
+  // `balance` is positive on the ledger's *natural* side (Dr for asset/expense,
+  // Cr for liability/income). A credit-nature ledger holding a genuine Cr balance
+  // (Sales, Capital, Sundry Creditors, …) therefore comes through positive, so the
+  // Dr/Cr side must be derived from the nature — a bare `balance > 0 ? 'Dr'` used to
+  // mislabel every Income/Liability balance as "Dr".
   let label;
-  if (balance > 0.01) label = `${balance.toFixed(2)} Dr`;
-  else if (balance < -0.01) label = `${Math.abs(balance).toFixed(2)} Cr`;
-  else label = '0.00';
+  const absBalance = Math.abs(balance);
+  if (absBalance <= 0.01) {
+    label = '0.00';
+  } else {
+    const onNaturalSide = balance > 0;
+    const side = isDrNature === onNaturalSide ? 'Dr' : 'Cr';
+    label = `${absBalance.toFixed(2)} ${side}`;
+  }
   return { success: true, balance: label, rawBalance: balance, totalDr, totalCr };
 };
 
@@ -60,7 +69,7 @@ const searchLedgers = async (company_id, searchTerm) => {
   const rows = await db.all(
     sql`SELECT * FROM ${ledgers} WHERE ${ledgers.companyId} = ${company_id} AND ${ledgers.isActive} = 1
         AND (LOWER(${ledgers.name}) LIKE LOWER(${likeTerm}) OR LOWER(COALESCE(${ledgers.alias}, '')) LIKE LOWER(${likeTerm}))
-        ORDER BY ${ledgers.name} LIMIT 50`
+        ORDER BY ${ledgers.name} LIMIT 50`,
   );
   return { success: true, ledgers: rows };
 };
@@ -85,11 +94,11 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
         GROUP BY vbr.bill_name
         HAVING total_amount > 0.01
         ORDER BY MAX(v.date) DESC
-      `
+      `,
     );
 
     const ledgerRows = await db.all(
-      sql`SELECT default_credit_period, check_credit_days FROM ${ledgers} WHERE ${ledgers.ledgerId} = ${ledger_id}`
+      sql`SELECT default_credit_period, check_credit_days FROM ${ledgers} WHERE ${ledgers.ledgerId} = ${ledger_id}`,
     );
     const defaultCreditPeriod = ledgerRows[0]?.default_credit_period || 0;
     const checkCreditDays = ledgerRows[0]?.check_credit_days || 0;
@@ -119,7 +128,7 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
             AND COALESCE(v.is_optional, 0) = 0
             AND COALESCE(v.is_post_dated, 0) = 0
           GROUP BY vod.order_nos
-          ORDER BY MAX(v.date), vod.order_nos`
+          ORDER BY MAX(v.date), vod.order_nos`,
     );
     for (const r of orderRows) {
       if (pendingBills.some((b) => b.bill_name === r.bill_name)) continue;
@@ -143,7 +152,7 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
 const recalculateLedgerBalances = async (voucher_id, company_id, fy_id) => {
   try {
     const affected = await db.all(
-      sql`SELECT DISTINCT ledger_id FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${voucher_id} AND ${voucherEntries.ledgerId} IS NOT NULL`
+      sql`SELECT DISTINCT ledger_id FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${voucher_id} AND ${voucherEntries.ledgerId} IS NOT NULL`,
     );
     for (const row of affected) {
       try {
@@ -154,21 +163,25 @@ const recalculateLedgerBalances = async (voucher_id, company_id, fy_id) => {
             .set({ closingBalance: balRes.rawBalance })
             .where(eq(ledgers.ledgerId, row.ledger_id));
         }
-      } catch (_e) { /* ignore individual errors */ }
+      } catch (_e) {
+        /* ignore individual errors */
+      }
     }
-  } catch (_e) { /* ignore */ }
+  } catch (_e) {
+    /* ignore */
+  }
 };
 
 const getOrCreatePayHeadLedger = async (company_id, payHeadName) => {
   const existing = await db.all(
-    sql`SELECT ledger_id FROM ${ledgers} WHERE ${ledgers.companyId} = ${company_id} AND LOWER(${ledgers.name}) = LOWER(${payHeadName}) AND ${ledgers.isActive} = 1`
+    sql`SELECT ledger_id FROM ${ledgers} WHERE ${ledgers.companyId} = ${company_id} AND LOWER(${ledgers.name}) = LOWER(${payHeadName}) AND ${ledgers.isActive} = 1`,
   );
   if (existing.length > 0) {
     return Number(existing[0].ledger_id);
   }
 
   const group = await db.all(
-    sql`SELECT group_id FROM ${groups} WHERE ${groups.companyId} = ${company_id} AND LOWER(${groups.name}) = 'indirect expenses'`
+    sql`SELECT group_id FROM ${groups} WHERE ${groups.companyId} = ${company_id} AND LOWER(${groups.name}) = 'indirect expenses'`,
   );
   const groupId = group.length > 0 ? Number(group[0].group_id) : null;
 

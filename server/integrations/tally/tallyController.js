@@ -166,7 +166,10 @@ module.exports = {
         parsed = m.parsed;
       }
 
-      const result = await importer.importMasters(parsed, { company_id, fy_id });
+      // importMode carries Tally opening balances onto pre-seeded ledgers
+      // (Cash / P&L A/c) and inserts historical tax lines verbatim — the same
+      // fidelity the .1800 folder import gets.
+      const result = await importer.importMasters(parsed, { company_id, fy_id, importMode: true });
       return {
         success: true,
         groups: result.groups,
@@ -201,7 +204,7 @@ module.exports = {
         parsed = v.parsed;
       }
 
-      const result = await importer.importVouchers(parsed, { company_id, fy_id });
+      const result = await importer.importVouchers(parsed, { company_id, fy_id, importMode: true });
       return { success: true, vouchers: result.vouchers };
     } catch (err) {
       return { success: false, error: err && err.message ? err.message : String(err) };
