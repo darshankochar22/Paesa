@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useCompany } from '../../../../context/CompanyContext';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
+import { openField } from '../../lib/voucherNav';
 
 interface PendingBill {
   bill_name: string;
@@ -97,6 +98,7 @@ export default function BillWiseAllocationPopup({
   const [loadingBills, setLoadingBills] = useState(false);
   const [activeAgstRow, setActiveAgstRow] = useState<number | null>(null);
   const hydratedRef = useRef(false);
+  const didFocusRef = useRef(false);
   const agstDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Close pending-bills dropdown on outside click or Escape
@@ -185,6 +187,21 @@ export default function BillWiseAllocationPopup({
       );
     }
   }, [defaultCreditPeriod, checkCreditDays, voucherDate, initialAllocations.length]);
+
+  // Land the cursor on the first "Type of Ref" cell and pop its dropdown open
+  // once the row exists, so Arrow+Enter picks a reference type immediately (Tally
+  // behaviour). The shared popup shell focuses on mount, but the rows here are
+  // created in an effect after the pending-bills fetch resolves — so at mount
+  // there is nothing to focus yet.
+  useEffect(() => {
+    if (didFocusRef.current || allocations.length === 0) return;
+    didFocusRef.current = true;
+    const t = setTimeout(
+      () => openField(document.querySelector('[data-bw-type="0"]') as HTMLElement | null),
+      0,
+    );
+    return () => clearTimeout(t);
+  }, [allocations.length]);
 
   const allocated = allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
   const remaining = totalAmount - allocated;

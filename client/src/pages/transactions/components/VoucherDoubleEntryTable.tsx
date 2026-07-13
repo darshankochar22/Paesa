@@ -101,6 +101,10 @@ export default function VoucherDoubleEntryTable({
             >
               <div className="col-span-1 text-center">
                 <select
+                  // Not a keyboard focus stop: Tally derives Dr/Cr from the row,
+                  // so Enter/initial focus lands on the ledger name (opening the
+                  // list) instead of pausing here. Still clickable to flip a row.
+                  tabIndex={-1}
                   className="bg-transparent font-bold outline-none text-black text-xs"
                   value={row.type}
                   onChange={(e) => onUpdateRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })}

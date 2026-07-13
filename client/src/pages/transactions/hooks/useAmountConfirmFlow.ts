@@ -449,9 +449,15 @@ export function useAmountConfirmFlow(
           ? existing
           : Math.abs(row.type === 'Dr' ? crTotal - drTotal : drTotal - crTotal);
 
-      // First row has no balancing figure yet → let the user type it (Enter then
-      // opens the allocation through the normal path).
-      if (amount <= 0.01) return;
+      // No balancing figure yet (e.g. the first row) → the amount must be typed.
+      // The ledger list just closed (focus fell to <body>), so advance the cursor
+      // to this row's amount cell — otherwise the keyboard flow dies here and Enter
+      // does nothing (the reported "Enter-Enter not working" on Contra/Payment/
+      // Receipt/Journal). Enter in the amount then confirms and opens any allocation.
+      if (amount <= 0.01) {
+        setTimeout(() => advanceFromLastField(), 50);
+        return;
+      }
 
       handleAmountConfirm({ ...row, ledger: item, amountRaw: String(amount) }, idx);
     },

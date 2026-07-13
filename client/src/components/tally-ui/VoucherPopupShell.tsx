@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { useEscape } from '@/hooks/useEscape';
 import { useEnterFieldNav } from '@/pages/transactions/hooks/useVoucherEnterNav';
-import { focusFirstField } from '@/pages/transactions/lib/voucherNav';
+import { openFirstField } from '@/pages/transactions/lib/voucherNav';
 
 /**
  * Shared shell for every popup opened from a voucher entry screen
@@ -63,8 +63,10 @@ export function VoucherPopupShell({
   // so every popup built on this shell is keyboard-operable with no per-popup
   // wiring. Additive: fields with their own Enter handler (amount confirm, add
   // row, open a sub-picker) call preventDefault and keep their behaviour.
+  // Enter walks the popup's fields; Enter on the LAST field accepts the form
+  // (Tally behaviour) when an Accept handler exists.
   const bodyRef = useRef<HTMLDivElement>(null);
-  useEnterFieldNav(bodyRef);
+  useEnterFieldNav(bodyRef, { onExhausted: onAccept });
 
   // Pull keyboard focus INTO the popup on open (unless a child already claimed
   // it via autoFocus), so Enter navigates the popup — not the voucher screen
@@ -72,7 +74,7 @@ export function VoucherPopupShell({
   // stock row (qty→rate) instead of the allocation fields.
   useEffect(() => {
     const body = bodyRef.current;
-    if (body && !body.contains(document.activeElement)) focusFirstField(body);
+    if (body && !body.contains(document.activeElement)) openFirstField(body);
   }, []);
 
   useEffect(() => {

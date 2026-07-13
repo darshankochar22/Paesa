@@ -162,7 +162,13 @@ export function useVoucherAcceptFlow(
         form.journalEntryMode === 'double';
       const isJSingle = effectiveVoucherType === 'Journal' && form.journalEntryMode === 'single';
       const isPayDouble = effectiveVoucherType === 'Payment' && form.paymentEntryMode === 'double';
-      const isInv = ['Sales', 'Purchase'].includes(effectiveVoucherType);
+      // Trade invoices that render the shared AdditionalTaxLedgerRows (Sales flow):
+      // their tax/ledger lines live in form.additionalEntries, so Enter on a tax
+      // amount must append the NEXT additional row (e.g. CGST → SGST) and focus it —
+      // not fall through to the particulars grid. Credit/Debit Note reuse this flow.
+      const isInv = ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(
+        effectiveVoucherType,
+      );
       const isContraDouble = effectiveVoucherType === 'Contra' && form.contraEntryMode === 'double';
       const isReceiptDouble =
         effectiveVoucherType === 'Receipt' && form.receiptEntryMode === 'double';
@@ -208,7 +214,18 @@ export function useVoucherAcceptFlow(
       const isBalanced = drTotal > 0 && Math.abs(drTotal - crTotal) < 0.01;
 
       if (idx === list.length - 1) {
-        if (isDoubleAccounting && isBalanced) return;
+        if (isDoubleAccounting && isBalanced) {
+          // Balanced double-entry voucher: don't append an empty row — but keep the
+          // keyboard flow going (Tally) by advancing the cursor to Narration, from
+          // where Enter accepts the voucher. Without this the cursor would be stuck
+          // on the last amount and the user would have to reach for the mouse/Ctrl+A.
+          setTimeout(
+            () =>
+              (document.querySelector('[data-narration="true"]') as HTMLElement | null)?.focus(),
+            50,
+          );
+          return;
+        }
         addRow();
       }
 

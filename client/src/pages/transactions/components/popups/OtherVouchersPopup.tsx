@@ -1,40 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
-import type { VoucherTypeType } from "@/types/api";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
+import type { VoucherTypeType } from '@/types/api';
 
 const PRIMARY_VOUCHER_TYPES = [
-  { key: "Contra", label: "Contra" },
-  { key: "Payment", label: "Payment" },
-  { key: "Receipt", label: "Receipt" },
-  { key: "Journal", label: "Journal" },
-  { key: "Sales", label: "Sales" },
-  { key: "Purchase", label: "Purchase" },
+  { key: 'Contra', label: 'Contra' },
+  { key: 'Payment', label: 'Payment' },
+  { key: 'Receipt', label: 'Receipt' },
+  { key: 'Journal', label: 'Journal' },
+  { key: 'Sales', label: 'Sales' },
+  { key: 'Purchase', label: 'Purchase' },
 ];
 
 const OTHER_VOUCHER_TYPES = [
-  { key: "Attendance", label: "Attendance" },
-  { key: "Credit Note", label: "Credit Note" },
-  { key: "Debit Note", label: "Debit Note" },
-  { key: "Delivery Note", label: "Delivery Note" },
-  { key: "Job Work In Order", label: "Job Work In Order" },
-  { key: "Job Work Out Order", label: "Job Work Out Order" },
-  { key: "Material In", label: "Material In" },
-  { key: "Material Out", label: "Material Out" },
-  { key: "Manufacturing Journal", label: "Manufacturing Journal" },
-  { key: "Memorandum", label: "Memorandum" },
-  { key: "Payroll", label: "Payroll" },
-  { key: "Physical Stock", label: "Physical Stock" },
-  { key: "Purchase Order", label: "Purchase Order" },
-  { key: "Receipt Note", label: "Receipt Note" },
-  { key: "Rejection In", label: "Rejection In" },
-  { key: "Rejection Out", label: "Rejection Out" },
-  { key: "Reversing Journal", label: "Reversing Journal" },
-  { key: "Sales Order", label: "Sales Order" },
-  { key: "Stock Journal", label: "Stock Journal" },
+  { key: 'Attendance', label: 'Attendance' },
+  { key: 'Credit Note', label: 'Credit Note' },
+  { key: 'Debit Note', label: 'Debit Note' },
+  { key: 'Delivery Note', label: 'Delivery Note' },
+  { key: 'Job Work In Order', label: 'Job Work In Order' },
+  { key: 'Job Work Out Order', label: 'Job Work Out Order' },
+  { key: 'Material In', label: 'Material In' },
+  { key: 'Material Out', label: 'Material Out' },
+  { key: 'Manufacturing Journal', label: 'Manufacturing Journal' },
+  { key: 'Memorandum', label: 'Memorandum' },
+  { key: 'Payroll', label: 'Payroll' },
+  { key: 'Physical Stock', label: 'Physical Stock' },
+  { key: 'Purchase Order', label: 'Purchase Order' },
+  { key: 'Receipt Note', label: 'Receipt Note' },
+  { key: 'Rejection In', label: 'Rejection In' },
+  { key: 'Rejection Out', label: 'Rejection Out' },
+  { key: 'Reversing Journal', label: 'Reversing Journal' },
+  { key: 'Sales Order', label: 'Sales Order' },
+  { key: 'Stock Journal', label: 'Stock Journal' },
 ];
 
 const CANONICAL_NAMES = new Set(
-  [...PRIMARY_VOUCHER_TYPES, ...OTHER_VOUCHER_TYPES].map((t) => t.key)
+  [...PRIMARY_VOUCHER_TYPES, ...OTHER_VOUCHER_TYPES].map((t) => t.key),
 );
 
 interface Props {
@@ -73,7 +73,9 @@ export default function OtherVouchersPopup({
         /* non-fatal — keep canonical lists */
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [companyId]);
 
   // Merge fetched user-created types into the sections. Custom types with a
@@ -131,25 +133,25 @@ export default function OtherVouchersPopup({
   // Tally-style keyboard navigation: Up/Down move the highlight, Enter selects.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") {
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         setActiveIndex((i) => (i + 1) % flatItems.length);
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setActiveIndex((i) => (i - 1 + flatItems.length) % flatItems.length);
-      } else if (e.key === "Enter") {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         const key = flatItems[activeIndex];
         if (key) handleSelect(key);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flatItems, activeIndex]);
 
   useEffect(() => {
-    itemRefs.current[activeIndex]?.scrollIntoView({ block: "nearest" });
+    itemRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex]);
 
   const renderTypeItems = (items: { key: string; label: string }[]) => {
@@ -160,14 +162,16 @@ export default function OtherVouchersPopup({
       return (
         <div key={t.key}>
           <button
-            ref={(el) => { itemRefs.current[idx] = el; }}
+            ref={(el) => {
+              itemRefs.current[idx] = el;
+            }}
             onClick={() => handleSelect(t.key)}
             onMouseEnter={() => setActiveIndex(idx)}
             className={`w-full text-left px-3 py-2 text-sm transition-colors ${
               voucherType === t.key
-                ? "bg-gray-100 font-bold text-black"
-                : "text-black hover:bg-gray-50"
-            } ${idx === activeIndex ? "bg-gray-100 outline outline-1 -outline-offset-1 outline-black" : ""}`}
+                ? 'bg-gray-100 font-bold text-black'
+                : 'text-black hover:bg-gray-50'
+            } ${idx === activeIndex ? 'bg-gray-100 outline outline-1 -outline-offset-1 outline-black' : ''}`}
           >
             {t.label}
           </button>
@@ -177,14 +181,16 @@ export default function OtherVouchersPopup({
               return (
                 <button
                   key={child}
-                  ref={(el) => { itemRefs.current[childIdx] = el; }}
+                  ref={(el) => {
+                    itemRefs.current[childIdx] = el;
+                  }}
                   onClick={() => handleSelect(child)}
                   onMouseEnter={() => setActiveIndex(childIdx)}
                   className={`w-full text-left pl-6 pr-3 py-1.5 text-sm transition-colors ${
                     voucherType === child
-                      ? "bg-gray-100 font-bold text-black"
-                      : "text-gray-600 hover:bg-gray-50"
-                  } ${childIdx === activeIndex ? "bg-gray-100 outline outline-1 -outline-offset-1 outline-black" : ""}`}
+                      ? 'bg-gray-100 font-bold text-black'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  } ${childIdx === activeIndex ? 'bg-gray-100 outline outline-1 -outline-offset-1 outline-black' : ''}`}
                 >
                   {child}
                 </button>
@@ -198,10 +204,11 @@ export default function OtherVouchersPopup({
   return (
     <VoucherPopupShell
       title="Other Vouchers"
+      size="tally"
       onClose={onClose}
       hint="↑↓ to move · Enter to select · Esc to close"
     >
-      <div className="max-w-md">
+      <div>
         <div className="px-3 pb-1 text-sm font-bold text-black border-b border-gray-400 select-none">
           Primary Vouchers
         </div>

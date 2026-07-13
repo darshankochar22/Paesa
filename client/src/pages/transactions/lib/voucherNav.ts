@@ -114,6 +114,37 @@ export function focusFirstField(container: HTMLElement): boolean {
 }
 
 /**
+ * Focus a field and, for a native `<select>`, also pop its dropdown open — so
+ * the option list is shown immediately and Arrow+Enter picks a value without a
+ * click (Tally behaviour for "Type of Ref", entry-mode, etc.). Custom fields
+ * (the ledger input) open their own panel via `onFocus`, so plain focus is
+ * enough for them. `showPicker()` needs transient user activation and throws on
+ * unsupported controls — guarded, so the field is always at least focused and
+ * keyboard-navigable even when the picker can't be shown programmatically.
+ */
+export function openField(el: HTMLElement | null | undefined): void {
+  if (!el) return;
+  focusField(el);
+  if (el.tagName === 'SELECT') {
+    const sel = el as HTMLSelectElement & { showPicker?: () => void };
+    try {
+      sel.showPicker?.();
+    } catch {
+      /* no user activation / unsupported — focus alone still allows Arrow+Enter */
+    }
+  }
+}
+
+/** Focus (and, for a native select, open) the first navigable field — used by
+ *  popups so the keyboard flow is live the moment the dialog opens. */
+export function openFirstField(container: HTMLElement): boolean {
+  const fields = navigableFields(container);
+  if (fields.length === 0) return false;
+  openField(fields[0]);
+  return true;
+}
+
+/**
  * Focus a specific field by selector, then continue from it — used by popup
  * "return focus" hand-offs where the anchor is known (e.g. jump to the sales
  * ledger field after Party Details closes). Falls back gracefully if absent.

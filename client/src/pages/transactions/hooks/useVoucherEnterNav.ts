@@ -30,10 +30,20 @@ import {
  */
 export function useEnterFieldNav(
   containerRef: RefObject<HTMLElement | null>,
-  opts?: { enabled?: boolean; guardDialogOverlay?: boolean },
+  opts?: {
+    enabled?: boolean;
+    guardDialogOverlay?: boolean;
+    /**
+     * Called when Enter is pressed on the LAST navigable field (focus can't
+     * advance). Popups pass their Accept handler here so Enter walks the fields
+     * and then accepts the form (Tally behaviour). Omitted by the body variant.
+     */
+    onExhausted?: () => void;
+  },
 ): void {
   const enabled = opts?.enabled ?? true;
   const guardDialogOverlay = opts?.guardDialogOverlay ?? false;
+  const onExhausted = opts?.onExhausted;
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -82,14 +92,20 @@ export function useEnterFieldNav(
 
       // Enter: TEXTAREA keeps newlines; buttons keep activation.
       if (tag !== 'INPUT' && tag !== 'SELECT') return;
-      // Only claim the key if focus actually advanced; otherwise (last field)
-      // leave it so a field-level "Enter = Accept" handler can still fire.
-      if (focusNextField(container, target)) e.preventDefault();
+      // Claim the key if focus advanced; on the last field, accept the form when
+      // an onExhausted handler is supplied (popup Accept), else leave the key so
+      // a field-level "Enter = Accept" handler can still fire.
+      if (focusNextField(container, target)) {
+        e.preventDefault();
+      } else if (onExhausted) {
+        e.preventDefault();
+        onExhausted();
+      }
     };
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [containerRef, enabled, guardDialogOverlay]);
+  }, [containerRef, enabled, guardDialogOverlay, onExhausted]);
 }
 
 /**

@@ -27,6 +27,7 @@ import { PRIORITY, useShortcuts, type ShortcutBinding } from '@/lib/shortcuts';
 import { useVoucherQuickActions } from './hooks/useVoucherQuickActions';
 import TallyConfirm from '@/components/ui/TallyConfirm';
 import { useVoucherEnterNav } from './hooks/useVoucherEnterNav';
+import { focusFirstField } from './lib/voucherNav';
 
 export default function Vouchers() {
   const navigate = useNavigate();
@@ -426,6 +427,34 @@ export default function Vouchers() {
     showOrderDetails ||
     showDebitNoteDetails ||
     !!subDropdownType;
+
+  // Initial focus (Tally "start typing, no click"): when a voucher opens or its
+  // type / entry-mode changes (which resets the form), place the cursor on the
+  // first editable field of the body. The generic Enter-nav engine then walks
+  // every field from there. Guarded so it never steals focus from an open popup,
+  // the ledger list, an allocation, or a field the user already moved to; waits
+  // for master data so the first field (which may open the ledger list) is ready.
+  useEffect(() => {
+    if (form.ledgersLoading) return;
+    if (anyPopupOpen || form.activeField || form.activeAllocation) return;
+    const body = bodyRef.current;
+    if (!body) return;
+    const t = setTimeout(() => {
+      if (form.activeField || form.activeAllocation) return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && body.contains(active)) return;
+      focusFirstField(body);
+    }, 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    effectiveVoucherType,
+    form.contraEntryMode,
+    form.paymentEntryMode,
+    form.receiptEntryMode,
+    form.journalEntryMode,
+    form.ledgersLoading,
+  ]);
 
   // TallyPrime global shortcuts — registered in the CAPTURE phase so they fire
   // before any focused field/popup handler and win regardless of the current
@@ -878,10 +907,11 @@ export default function Vouchers() {
                   : form.activeField?.type === 'stockGodown' &&
                       effectiveVoucherType === 'Physical Stock'
                     ? () => physicalStockGodownNewItem((form.activeField as any).rowId)
-                    : form.activeField?.type === 'particular' &&
-                        ['Journal', 'Reversing Journal', 'Memorandum'].includes(
-                          effectiveVoucherType,
-                        )
+                    : // Any accounting voucher's ledger row (Payment / Receipt / Contra /
+                      // Journal, single or double entry): End of List finishes ledger
+                      // entry and moves to Narration. `particular` uniquely identifies
+                      // these — trade vouchers use stockItem / additional instead.
+                      form.activeField?.type === 'particular'
                       ? journalParticularEndOfList
                       : undefined
             }
@@ -919,10 +949,9 @@ export default function Vouchers() {
                           (effectiveVoucherType === 'Stock Journal' ||
                             effectiveVoucherType === 'Manufacturing Journal')
                         ? handleStockJournalItemEndOfList
-                        : form.activeField?.type === 'particular' &&
-                            ['Journal', 'Reversing Journal', 'Memorandum'].includes(
-                              effectiveVoucherType,
-                            )
+                        : // Any accounting voucher's ledger row (single or double entry):
+                          // a blank Enter finishes ledger entry → Narration.
+                          form.activeField?.type === 'particular'
                           ? journalParticularEndOfList
                           : // Trade vouchers: a blank Enter on the item field = End of List.
                             form.activeField?.type === 'stockItem'

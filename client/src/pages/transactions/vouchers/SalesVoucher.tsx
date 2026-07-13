@@ -277,6 +277,7 @@
 import { useState } from 'react';
 import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
+import { openField } from '../lib/voucherNav';
 import StockItemDescription from '../components/StockItemDescription';
 import VatAdditionalDetailsPopup from '../components/popups/VatAdditionalDetailsPopup';
 import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
@@ -308,10 +309,6 @@ export default function SalesVoucher({
   hideVatDetails = false,
   hideAdditionalLedgers = false,
 }: Props) {
-  // ASSUMED: GST Registration / Tax Unit live on selectedCompany.
-  // Confirm actual field names — these are guesses based on the screenshot labels.
-  const [openList, setOpenList] = useState<null | 'regTax' | 'priceLevel'>(null);
-
   // F11 "Use separate Actual and Billed Quantity columns" — when No, collapse
   // the split into a single Quantity column. Shown unless the flag is explicitly 0.
   const { features } = useCompany();
@@ -321,86 +318,75 @@ export default function SalesVoucher({
   // F11 "Enable Value Added Tax (VAT)" — hide the Provide VAT details block when No.
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
 
-  const priceLevelLabel = form.priceLevel || '♦ Not Applicable';
+  // Price Level is a keyboard stop only when the company actually defines price
+  // levels (Tally hides the prompt otherwise). When shown it is a native <select>
+  // so the generic Enter-nav engine treats it as a field with no special wiring.
+  const hasPriceLevels = form.allPriceLevels.length > 0;
 
   return (
     <div className="flex flex-1 flex-col min-h-0">
-      {/* Party / Sales ledger block, with Price Level on the right */}
-      <div className="border-b border-gray-300 shrink-0 py-1 flex items-start">
-        <div className="flex-1">
-          <FieldRow
-            label="Party A/c name"
-            fieldType="party"
-            ledger={form.partyLedger}
-            balance={form.partyBalance}
-            form={form}
-            onEnterCommit={() =>
-              setTimeout(
-                () =>
-                  (
-                    document.querySelector('[data-field-type="salesPurchase"]') as HTMLElement
-                  )?.focus(),
-                50,
-              )
-            }
-          />
-          <FieldRow
-            label="Sales ledger"
-            fieldType="salesPurchase"
-            ledger={form.salesPurchaseLedger}
-            balance={form.salesPurchaseBalance}
-            form={form}
-            onEnterCommit={() =>
-              setTimeout(
-                () => (document.querySelector('[data-stock-item="1"]') as HTMLElement)?.focus(),
-                50,
-              )
-            }
-          />
-        </div>
+      {/* Party / Price Level / Sales ledger block.
+          DOM order == logical Enter order: Party → Price Level → Sales ledger.
+          Price Level is absolutely positioned top-right (its visual place) but
+          sits between Party and Sales ledger in the DOM, so the generic engine
+          walks the row left-to-right and then down with no per-voucher code. */}
+      <div className="relative border-b border-gray-300 shrink-0 py-1">
+        <FieldRow
+          label="Party A/c name"
+          fieldType="party"
+          ledger={form.partyLedger}
+          balance={form.partyBalance}
+          form={form}
+          onEnterCommit={() =>
+            setTimeout(() => {
+              const priceLevel = document.querySelector('[data-price-level]') as HTMLElement | null;
+              if (priceLevel) {
+                openField(priceLevel); // focus + pop the Price Level dropdown
+                return;
+              }
+              (
+                document.querySelector('[data-field-type="salesPurchase"]') as HTMLElement | null
+              )?.focus();
+            }, 50)
+          }
+        />
 
-        {/* ASSUMED field — confirm form.priceLevel exists on your hook */}
-        <div className="relative px-3 text-sm shrink-0">
+        {/* Price Level — visually top-right, logically after Party. */}
+        <div className="absolute top-1 right-3 text-sm flex items-center gap-2">
           <span className="text-black">Price Level</span>
-          <span className="text-black mx-2">:</span>
-          <span
-            className="text-zinc-500 cursor-pointer"
-            onClick={() => setOpenList(openList === 'priceLevel' ? null : 'priceLevel')}
-          >
-            {priceLevelLabel}
-          </span>
-
-          {openList === 'priceLevel' && (
-            <div className="absolute top-full right-0 z-50 w-56 bg-white border border-gray-400 shadow-lg">
-              <div className="bg-blue-700 text-white text-sm font-semibold px-2 py-1">
-                List of Price Levels
-              </div>
-              <div className="max-h-60 overflow-y-auto">
-                <div
-                  className="px-2 py-1 text-sm hover:bg-orange-200 cursor-pointer"
-                  onClick={() => {
-                    form.setPriceLevel('');
-                    setOpenList(null);
-                  }}
-                >
-                  ♦ Not Applicable
-                </div>
-                {form.allPriceLevels.map((name: string) => (
-                  <div
-                    key={name}
-                    className="px-2 py-1 text-sm hover:bg-orange-200 cursor-pointer"
-                    onClick={() => {
-                      form.setPriceLevel(name);
-                      setOpenList(null);
-                    }}
-                  >
-                    {name}
-                  </div>
-                ))}
-              </div>
-            </div>
+          <span className="text-black">:</span>
+          {hasPriceLevels ? (
+            <select
+              data-price-level
+              value={form.priceLevel}
+              onChange={(e) => form.setPriceLevel(e.target.value)}
+              className="text-sm bg-transparent outline-none border border-transparent focus:border-black px-1 py-0 text-black"
+            >
+              <option value="">♦ Not Applicable</option>
+              {form.allPriceLevels.map((name: string) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-zinc-500">♦ Not Applicable</span>
           )}
         </div>
+
+        <FieldRow
+          label="Sales ledger"
+          fieldType="salesPurchase"
+          ledger={form.salesPurchaseLedger}
+          balance={form.salesPurchaseBalance}
+          form={form}
+          onEnterCommit={() =>
+            setTimeout(
+              () => (document.querySelector('[data-stock-item="1"]') as HTMLElement)?.focus(),
+              50,
+            )
+          }
+        />
       </div>
       {/* Separator line like Tally */}
       <div className="border-b border-black shrink-0" />

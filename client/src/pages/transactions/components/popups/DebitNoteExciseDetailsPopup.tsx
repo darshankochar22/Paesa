@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+import { useState } from 'react';
+import { TallyFieldPopup } from '@/components/tally-ui/TallyFieldPopup';
 
 export interface DebitNoteExciseDetails {
   date_time_of_invoice?: string;
@@ -8,9 +8,9 @@ export interface DebitNoteExciseDetails {
 
 function defaultNow() {
   const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
+    d.getHours(),
   )}:${pad(d.getMinutes())}`;
 }
 
@@ -37,36 +37,36 @@ export default function DebitNoteExciseDetailsPopup({
 
   const handleSave = () => onSave(form);
 
-  const labelCls = "w-56 text-sm text-black shrink-0";
-  const colonCls = "text-sm text-black shrink-0";
+  const labelCls = 'w-52 text-[13px] text-black shrink-0';
+  const colonCls = 'text-[13px] text-black shrink-0';
   const inputCls =
-    "w-64 shrink-0 text-sm bg-white border border-gray-400 px-2 py-1 outline-none focus:border-black";
+    'flex-1 min-w-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black';
 
   return (
-    <VoucherPopupShell title="Excise Details" onClose={onClose} onAccept={handleSave}>
-      <div className="max-w-2xl space-y-3">
-        <div className="flex items-center gap-2">
+    <TallyFieldPopup title="Excise Details" onClose={onClose} onAccept={handleSave} width={480}>
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1">
           <span className={labelCls}>Date &amp; Time of Invoice</span>
           <span className={colonCls}>:</span>
           <input
             type="datetime-local"
             className={inputCls}
-            value={form.date_time_of_invoice ?? ""}
+            value={form.date_time_of_invoice ?? ''}
             onChange={(e) => setForm((p) => ({ ...p, date_time_of_invoice: e.target.value }))}
             autoFocus
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <span className={labelCls}>Date &amp; Time of Removal</span>
           <span className={colonCls}>:</span>
           <input
             type="datetime-local"
             className={inputCls}
-            value={form.date_time_of_removal ?? ""}
+            value={form.date_time_of_removal ?? ''}
             onChange={(e) => setForm((p) => ({ ...p, date_time_of_removal: e.target.value }))}
           />
         </div>
       </div>
-    </VoucherPopupShell>
+    </TallyFieldPopup>
   );
 }

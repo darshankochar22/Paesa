@@ -3,6 +3,7 @@ import type { MutableRefObject } from 'react';
 import type { useVoucherForm } from './useVoucherForm';
 import type { useAutoOpenDetailPopups } from './useAutoOpenDetailPopups';
 import { makeStockRow } from '../utils/rowFactories';
+import { openField } from '../lib/voucherNav';
 
 // Save handlers for every allocation / detail popup — bill-wise, cost centre,
 // bank details, cash denomination, dispatch/order/receipt/party details and the
@@ -330,7 +331,18 @@ export function useAllocationSaveHandlers(
   // the reported bug). Deferring lets the popup unmount first, so the List's
   // autofocus lands cleanly.
   const openSalesPurchaseLedger = useCallback(() => {
-    setTimeout(() => form.handleFieldFocus({ type: 'salesPurchase' }), 0);
+    setTimeout(() => {
+      // If the voucher shows a Price Level field (same row as Party), that is the
+      // next editable stop before the ledger — land on it so Enter walks Party →
+      // Price Level → Sales/Purchase ledger. Only SalesVoucher renders it, so
+      // every other trade voucher falls straight through to the ledger List.
+      const priceLevel = document.querySelector('[data-price-level]') as HTMLElement | null;
+      if (priceLevel) {
+        openField(priceLevel); // focus + pop the dropdown so its list is shown
+        return;
+      }
+      form.handleFieldFocus({ type: 'salesPurchase' });
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.handleFieldFocus]);
 
@@ -458,9 +470,13 @@ export function useAllocationSaveHandlers(
       } else if (effectiveVoucherType === 'Sales') {
         // Tally Sales chain: Dispatch → Party → VAT Details.
         setShowVatDetails(true);
+      } else if (effectiveVoucherType === 'Delivery Note') {
+        // Delivery Note renders the Party → Price Level → Sales ledger row, so
+        // hand focus there (not straight to the first item).
+        openSalesPurchaseLedger();
       } else {
-        // Inventory-only party vouchers (Delivery/Receipt Note, Rejection In):
-        // no further detail popup and no sales/purchase ledger → first item.
+        // Inventory-only party vouchers (Receipt Note, Rejection In): no further
+        // detail popup and no sales/purchase ledger → first item.
         focusFirstStockItem();
       }
     },
