@@ -11,7 +11,9 @@ interface TallyReportLayoutProps {
   children: React.ReactNode;
   onQuit?: () => void;
   footerControls?: React.ReactNode;
-  breadcrumb?: Array<{ label: string; to?: string }>;
+  // `state` is passed to the Link so drill screens that read location.state keep
+  // their context (kind/section/registration) when navigating back via the crumb.
+  breadcrumb?: Array<{ label: string; to?: string; state?: unknown }>;
 }
 
 export function TallyReportLayout({
@@ -48,7 +50,11 @@ export function TallyReportLayout({
             <React.Fragment key={idx}>
               {idx > 0 && <span className="text-black mx-1">›</span>}
               {crumb.to ? (
-                <Link to={crumb.to} className="text-black hover:underline font-medium">
+                <Link
+                  to={crumb.to}
+                  state={crumb.state}
+                  className="text-black hover:underline font-medium"
+                >
                   {crumb.label}
                 </Link>
               ) : (

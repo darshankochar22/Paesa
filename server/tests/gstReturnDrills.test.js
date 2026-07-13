@@ -443,11 +443,12 @@ describe('GST return drill chain', () => {
     });
     expect(badP.success ?? !!badP.voucher).toBeTruthy();
 
-    const res = await reconciliationService.getGSTR2AReconciliation(companyId, fyId);
+    const res = await reconciliationService.getReconSummary(companyId, fyId, '2A');
     expect(res.success).toBe(true);
     // The clean April purchase stays in B2B; the bad one is Uncertain, not unreconciled.
-    expect(res.payload.return_view.b2b.vch_count).toBe(1);
-    expect(res.payload.return_view.b2b.taxable_amount).toBe(5000);
+    const b2b = res.payload.return_view.find((r) => r.key === 'b2b');
+    expect(b2b.books.count).toBe(1);
+    expect(b2b.books.taxable).toBe(5000);
     expect(res.payload.voucher_status.uncertain).toBe(1);
 
     // Drill: the GSTR-2A uncertain list surfaces the bad purchase with its exception.
@@ -466,9 +467,10 @@ describe('GST return drill chain', () => {
   it('GSTR-2B Reconciliation counts uncertain inward vouchers and excludes them from the Return View', async () => {
     // The bad July purchase (missing place of supply, seeded in the 2A test above) is
     // Uncertain for GSTR-2B too; the clean April purchase stays in All-other-ITC.
-    const res = await reconciliationService.getGSTR2BReconciliation(companyId, fyId);
+    const res = await reconciliationService.getReconSummary(companyId, fyId, '2B');
     expect(res.success).toBe(true);
-    expect(res.payload.return_view.itc_available_other.vch_count).toBe(1);
+    const itc = res.payload.return_view.find((r) => r.key === 'b2b');
+    expect(itc.books.count).toBe(1);
     expect(res.payload.voucher_status.uncertain).toBe(1);
 
     // Drill: the GSTR-2B uncertain list surfaces the bad purchase with its exception.

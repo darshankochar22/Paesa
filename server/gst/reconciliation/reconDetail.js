@@ -57,6 +57,10 @@ const addBook = (acc, v) => {
 const addPortal = (acc, t) => {
   acc.count++;
   acc.taxable += Number(t.txval) || 0;
+  acc.igst += Number(t.igst) || 0;
+  acc.cgst += Number(t.cgst) || 0;
+  acc.sgst += Number(t.sgst) || 0;
+  acc.cess += Number(t.cess) || 0;
   acc.tax += Number(t.tax) || 0;
   acc.invoice += Number(t.val) || 0;
 };
@@ -97,9 +101,17 @@ const buildPortalIndex = (importedRows) => {
 };
 
 // Voucher-level match status vs the portal map. Mutates portal.matched.
-const voucherStatus = (v, portalMap) => {
+// A book document with no portal counterpart is "Available Only in Books" ONLY when the
+// portal statement for ITS return period was actually fetched — otherwise nothing can be
+// asserted about it and it is reported as "no_portal" (period not fetched) instead of a
+// false discrepancy.
+const voucherStatus = (v, portalMap, importedPeriods) => {
   const portal = portalMap.get(invMatchKey(v.party_gstin, v.reference_number || v.voucher_number));
-  if (!portal) return { status: portalMap.size > 0 ? 'only_books' : 'unreconciled', portal: null };
+  if (!portal) {
+    const d = String(v.date || '');
+    const period = `${d.slice(5, 7)}${d.slice(0, 4)}`;
+    return { status: importedPeriods.has(period) ? 'only_books' : 'no_portal', portal: null };
+  }
   portal.matched = true;
   const bookTax = (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
   const t = portal.totals;
@@ -118,22 +130,26 @@ const partyNode = (gstin, name) => ({
   books: zero(),
   portal: zero(),
   status: 'Reconciled',
-  counts: { reconciled: 0, mismatch: 0, only_books: 0, only_portal: 0 },
-  vouchers: { mismatch: [], only_portal: [], only_books: [], reconciled: [] },
+  counts: { reconciled: 0, mismatch: 0, only_books: 0, only_portal: 0, no_portal: 0 },
+  vouchers: { mismatch: [], only_portal: [], only_books: [], no_portal: [], reconciled: [] },
 });
 
 // The whole nested reconciliation for one statement kind. Everything else slices this.
-const buildReconDetail = async (company_id, fy_id, kind) => {
+// gst_registration_id scopes the books side to one GST registration (the screen header
+// names a registration — the data must honour it for multi-GSTIN companies).
+const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = null) => {
   const { fyLabel } = await getDatesForFY(fy_id);
   const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
     company_id,
     fy_id,
     null,
-    null,
+    gst_registration_id,
     true,
   );
 
   let portalMap = new Map();
+  const importedPeriods = new Set();
+  let lastImportAt = null;
   try {
     // Fixed table per kind (whitelisted) — tagged-template style, matching portalRecon.
     const importedRows =
@@ -145,6 +161,11 @@ const buildReconDetail = async (company_id, fy_id, kind) => {
             sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
           );
     portalMap = buildPortalIndex(importedRows);
+    for (const r of importedRows) {
+      if (r.return_period) importedPeriods.add(String(r.return_period));
+      if (r.created_at && (!lastImportAt || r.created_at > lastImportAt))
+        lastImportAt = r.created_at;
+    }
   } catch {
     /* imports table missing → books-only view */
   }
@@ -167,6 +188,7 @@ const buildReconDetail = async (company_id, fy_id, kind) => {
   };
 
   let uncertain = 0;
+  let notInScope = 0; // unregistered/consumer purchases — can never appear on the portal
   const voucherRow = (v) => ({
     date: v.date,
     party_name: v.ledger_name || v.party_name || '',
@@ -188,6 +210,10 @@ const buildReconDetail = async (company_id, fy_id, kind) => {
     doc_no: portal.inum,
     gstin: portal.ctin,
     taxable: portal.totals.txval,
+    igst: portal.totals.igst,
+    cgst: portal.totals.cgst,
+    sgst: portal.totals.sgst,
+    cess: portal.totals.cess,
     tax: portal.totals.tax,
     invoice: portal.totals.val,
   });
@@ -199,32 +225,46 @@ const buildReconDetail = async (company_id, fy_id, kind) => {
       uncertain++;
       continue;
     }
-    if (cls.bucket !== 'included') continue;
+    if (cls.bucket !== 'included') {
+      if (cls.category === 'Unregistered Party (Not on Portal)') notInScope++;
+      continue;
+    }
 
     const sec = ensureSection(bookSection(v));
-    const party = ensureParty(sec, v.party_gstin || '(no GSTIN)', v.ledger_name || v.party_name);
-    const { status, portal } = voucherStatus(v, portalMap);
+    const gstinKey =
+      String(v.party_gstin || '')
+        .trim()
+        .toUpperCase() || '(no GSTIN)';
+    const party = ensureParty(sec, gstinKey, v.ledger_name || v.party_name);
+    const { status, portal } = voucherStatus(v, portalMap, importedPeriods);
 
     addBook(sec.books, v);
     addBook(party.books, v);
-    if (portal) {
+    // A portal invoice is added to the aggregates ONCE, even if two book documents share
+    // its normalized number — otherwise the portal totals double-count.
+    if (portal && !portal.counted) {
+      portal.counted = true;
       addPortal(sec.portal, portal.totals);
       addPortal(party.portal, portal.totals);
     }
-    party.counts[status === 'unreconciled' ? 'only_books' : status]++;
+    party.counts[status]++;
     const row = voucherRow(v);
     if (status === 'reconciled')
       party.vouchers.reconciled.push({ book: row, portal: portalRowOf(portal) });
     else if (status === 'mismatch')
       party.vouchers.mismatch.push({ book: row, portal: portalRowOf(portal) });
-    else party.vouchers.only_books.push({ book: row, portal: null });
+    else party.vouchers[status].push({ book: row, portal: null });
   }
 
   // Portal invoices no book document matched → "Available Only on Portal".
   for (const portal of portalMap.values()) {
     if (portal.matched) continue;
     const sec = ensureSection(portal.section);
-    const party = ensureParty(sec, portal.ctin || '(no GSTIN)', '');
+    const ctinKey =
+      String(portal.ctin || '')
+        .trim()
+        .toUpperCase() || '(no GSTIN)';
+    const party = ensureParty(sec, ctinKey, '');
     addPortal(sec.portal, portal.totals);
     addPortal(party.portal, portal.totals);
     party.counts.only_portal++;
@@ -232,18 +272,20 @@ const buildReconDetail = async (company_id, fy_id, kind) => {
   }
 
   // Finalize: statuses + rounding. A party/section is Reconciled only when every one of
-  // its documents reconciled (no mismatch, nothing one-sided).
-  const totals = { reconciled: 0, mismatch: 0, only_books: 0, only_portal: 0 };
+  // its documents reconciled (no mismatch, nothing one-sided, no unverifiable period).
+  const totals = { reconciled: 0, mismatch: 0, only_books: 0, only_portal: 0, no_portal: 0 };
   for (const sec of Object.values(sections)) {
     let secClean = true;
     for (const party of sec.parties.values()) {
       const c = party.counts;
-      party.status = c.mismatch || c.only_books || c.only_portal ? 'Unreconciled' : 'Reconciled';
+      party.status =
+        c.mismatch || c.only_books || c.only_portal || c.no_portal ? 'Unreconciled' : 'Reconciled';
       if (party.status === 'Unreconciled') secClean = false;
       totals.reconciled += c.reconciled;
       totals.mismatch += c.mismatch;
       totals.only_books += c.only_books;
       totals.only_portal += c.only_portal;
+      totals.no_portal += c.no_portal;
       round(party.books);
       round(party.portal);
     }
@@ -252,17 +294,29 @@ const buildReconDetail = async (company_id, fy_id, kind) => {
     round(sec.portal);
   }
 
-  return { kind, fyLabel, uncertain, sections, totals, hasPortal: portalMap.size > 0 };
+  return {
+    kind,
+    fyLabel,
+    uncertain,
+    notInScope,
+    sections,
+    totals,
+    hasPortal: portalMap.size > 0,
+    lastImportAt,
+  };
 };
 
 // ── View getters ────────────────────────────────────────────────────────────────
 
 // Sum a list of {books, portal} data rows into one {books, portal} subtotal.
+// A row with sign -1 (ITC reversal) NETS OFF the amount columns; counts always add.
 const sumRows = (rows) => {
   const acc = { books: zero(), portal: zero() };
   for (const r of rows) {
+    const sign = r.sign === -1 ? -1 : 1;
     for (const side of ['books', 'portal']) {
-      for (const k of Object.keys(acc[side])) acc[side][k] += r[side]?.[k] || 0;
+      for (const k of Object.keys(acc[side]))
+        acc[side][k] += (k === 'count' ? 1 : sign) * (r[side]?.[k] || 0);
     }
   }
   round(acc.books);
@@ -275,13 +329,14 @@ const sumRows = (rows) => {
 // Available / Unavailable — Part A/Part B with subtotals. Only rows backed by real
 // book sections ('b2b' invoices, 'cdn' purchase-return notes) are drillable.
 const buildReturnView = (d, kind) => {
-  const dataRow = (key, label, bookKey) => {
+  const dataRow = (key, label, bookKey, sign = 1) => {
     const s = bookKey ? d.sections[bookKey] : null;
     const drillable = !!(s && s.parties.size);
     return {
       type: 'data',
       key: bookKey || key,
       label,
+      sign,
       books: s ? s.books : zero(),
       portal: s ? s.portal : zero(),
       status: s ? s.status : '',
@@ -307,14 +362,15 @@ const buildReturnView = (d, kind) => {
     dataRow('isd', 'Inward Supplies from ISD'),
     dataRow('rcm', 'Inward Supplies Liable for Reverse Charge'),
     dataRow('import', 'Import of Goods'),
-    dataRow('reversal', 'Reversal of Available ITC (Purchase Return) - Part B', 'cdn'),
+    // Purchase returns REVERSE ITC — they net off the available total, never add to it.
+    dataRow('reversal', 'Reversal of Available ITC (Purchase Return) - Part B', 'cdn', -1),
     dataRow('others', 'Others'),
   ];
   const unavail = [
     dataRow('u_other', 'All other ITC from Registered Persons (Excluding Reverse Charge)'),
     dataRow('u_isd', 'Inward Supplies from ISD'),
     dataRow('u_rcm', 'Inward Supplies Liable for Reverse Charge'),
-    dataRow('u_reversal', 'Reversal of Unavailable ITC (Purchase Return) - Part B'),
+    dataRow('u_reversal', 'Reversal of Unavailable ITC (Purchase Return) - Part B', null, -1),
     dataRow('u_others', 'Others'),
   ];
   const availTotal = sumRows(avail);
@@ -322,16 +378,16 @@ const buildReturnView = (d, kind) => {
   return [
     { type: 'group', label: 'Input Tax Credit Available - Part A' },
     ...avail,
-    { type: 'subtotal', label: 'Total Available ITC', ...availTotal },
+    { type: 'subtotal', label: 'Net ITC Available', ...availTotal },
     { type: 'group', label: 'Input Tax Credit Unavailable - Part A' },
     ...unavail,
     { type: 'subtotal', label: 'Total Unavailable ITC', ...unavailTotal },
   ];
 };
 
-const getReconSummary = async (company_id, fy_id, kind) => {
+const getReconSummary = async (company_id, fy_id, kind, gst_registration_id = null) => {
   try {
-    const d = await buildReconDetail(company_id, fy_id, kind);
+    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id);
     const return_view = buildReturnView(d, kind);
     const t = d.totals;
     return {
@@ -340,15 +396,22 @@ const getReconSummary = async (company_id, fy_id, kind) => {
         return_view,
         voucher_status: {
           reconciled: t.reconciled,
-          unreconciled: t.mismatch + t.only_books + t.only_portal,
+          unreconciled: t.mismatch + t.only_books + t.only_portal + t.no_portal,
           mismatch: t.mismatch,
           only_in_books: t.only_books,
           only_in_portal: t.only_portal,
+          // Book documents whose return period has no fetched portal statement —
+          // unverifiable, not a proven discrepancy.
+          no_portal: t.no_portal,
           uncertain: d.uncertain,
+          // Unregistered/consumer purchases — out of the portal's scope entirely.
+          not_in_portal_scope: d.notInScope,
         },
         period_label: d.fyLabel,
         has_portal: d.hasPortal,
-        last_gst_activity: d.hasPortal ? `GSTR-${kind} imported` : `No portal ${kind} imported`,
+        last_gst_activity: d.lastImportAt
+          ? `GSTR-${kind} imported on ${d.lastImportAt}`
+          : `No portal ${kind} imported`,
       },
     };
   } catch (err) {
@@ -356,9 +419,15 @@ const getReconSummary = async (company_id, fy_id, kind) => {
   }
 };
 
-const getReconPartySummary = async (company_id, fy_id, kind, section) => {
+const getReconPartySummary = async (
+  company_id,
+  fy_id,
+  kind,
+  section,
+  gst_registration_id = null,
+) => {
   try {
-    const d = await buildReconDetail(company_id, fy_id, kind);
+    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id);
     const sec = d.sections[section];
     const parties = sec
       ? [...sec.parties.values()].map((p) => ({
@@ -383,13 +452,28 @@ const getReconPartySummary = async (company_id, fy_id, kind, section) => {
   }
 };
 
-const getReconVoucherRegister = async (company_id, fy_id, kind, section, gstin) => {
+const getReconVoucherRegister = async (
+  company_id,
+  fy_id,
+  kind,
+  section,
+  gstin,
+  gst_registration_id = null,
+) => {
   try {
-    const d = await buildReconDetail(company_id, fy_id, kind);
-    const party = d.sections[section]?.parties.get(gstin);
+    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id);
+    const parties = d.sections[section]?.parties;
+    // Party keys are uppercased GSTINs (or the literal '(no GSTIN)') — try both.
+    const party =
+      parties?.get(gstin) ||
+      parties?.get(
+        String(gstin || '')
+          .trim()
+          .toUpperCase(),
+      );
     const groups = party
       ? party.vouchers
-      : { mismatch: [], only_portal: [], only_books: [], reconciled: [] };
+      : { mismatch: [], only_portal: [], only_books: [], no_portal: [], reconciled: [] };
     return {
       success: true,
       payload: {

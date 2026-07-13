@@ -1,6 +1,7 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../../db/schema');
+const { getOpeningBalances } = require('../utils/ledgerBalance');
 
 const getEntries = async (company_id, fy_id) => {
   return await db.all(
@@ -15,15 +16,9 @@ const getEntries = async (company_id, fy_id) => {
   );
 };
 
-const calcLedgerBalance = (
-  ledger_id,
-  entries,
-  opening_balance = 0,
-  opening_balance_type = 'Dr',
-) => {
-  const rawOpening = Number(opening_balance) || 0;
-  let balance =
-    rawOpening < 0 ? rawOpening : opening_balance_type === 'Cr' ? -rawOpening : rawOpening;
+// Balance from a pre-computed (carry-forward) opening seed + this year's entries.
+const calcFromOpening = (ledger_id, entries, openingSeed = 0) => {
+  let balance = openingSeed;
   for (const e of entries) {
     if (e.ledger_id === ledger_id) {
       balance += e.type === 'Dr' ? Number(e.amount) : -Number(e.amount);
@@ -68,6 +63,7 @@ const buildDescendantMap = (allGroups) => {
 const balanceSheet = async (company_id, fy_id) => {
   try {
     const entries = await getEntries(company_id, fy_id);
+    const { openings, plLedgerId } = await getOpeningBalances(company_id, fy_id);
     const allGroups = await db.all(
       sql`SELECT group_id, name, nature, parent_group_id, sort_order, display_order
       FROM ${groups}
@@ -81,18 +77,17 @@ const balanceSheet = async (company_id, fy_id) => {
           WHERE l.company_id = ${company_id} AND l.is_active = 1`,
     );
 
+    // The "Profit & Loss A/c" ledger is presented as a single dedicated line
+    // (brought-forward opening + current-year profit), so it is excluded from the
+    // normal group rollup to avoid showing it twice under Capital Account.
     const ledgerBalances = {};
     for (const l of allLedgers) {
+      if (plLedgerId != null && l.ledger_id === plLedgerId) continue;
       ledgerBalances[l.ledger_id] = {
         ledger_id: l.ledger_id,
         ledger_name: l.ledger_name,
         group_id: l.group_id,
-        balance: calcLedgerBalance(
-          l.ledger_id,
-          entries,
-          l.opening_balance || 0,
-          l.opening_balance_type || 'Dr',
-        ),
+        balance: calcFromOpening(l.ledger_id, entries, openings[l.ledger_id] || 0),
       };
     }
 
@@ -177,34 +172,29 @@ const balanceSheet = async (company_id, fy_id) => {
       .map((g) => groupBalances[g.group_id])
       .filter((g) => g.balance !== 0);
 
-    if (netProfit !== 0) {
-      // Tally shows P&L A/c broken into "Opening Balance" (profit/loss
-      // brought forward from prior years, via a P&L ledger's own opening
-      // balance if one exists) and "Current Period" (this year's movement
-      // from vouchers). If no such ledger is tracked, opening is just 0 and
-      // the whole figure sits under Current Period.
-      const pnlLedger = allLedgers.find((l) => l.ledger_name === 'Profit & Loss A/c');
-      const pnlOpening = pnlLedger
-        ? pnlLedger.opening_balance_type === 'Cr'
-          ? -(pnlLedger.opening_balance || 0)
-          : pnlLedger.opening_balance || 0
-        : 0;
-      const pnlCurrentPeriod = netProfit - pnlOpening;
-
+    // Tally shows the P&L A/c on the sheet as "Opening Balance" (profit/loss
+    // brought forward from prior years — the carried opening of the P&L A/c
+    // ledger, i.e. retained earnings) plus "Current Period" (this year's net
+    // profit from vouchers). broughtForward is signed (Cr = accumulated profit,
+    // negative); displayed as a positive liability it is its negation.
+    const broughtForward = plLedgerId != null ? openings[plLedgerId] || 0 : 0;
+    const pnlOpeningDisplayed = -broughtForward;
+    const pnlTotal = pnlOpeningDisplayed + netProfit;
+    if (Math.abs(pnlTotal) >= 0.01) {
       const pnlEntry = {
         group_id: -1,
-        group_name: netProfit >= 0 ? 'Profit & Loss A/c' : 'Profit & Loss A/c (Loss)',
-        nature: netProfit >= 0 ? 'Liabilities' : 'Assets',
-        balance: netProfit,
+        group_name: pnlTotal >= 0 ? 'Profit & Loss A/c' : 'Profit & Loss A/c (Loss)',
+        nature: pnlTotal >= 0 ? 'Liabilities' : 'Assets',
+        balance: pnlTotal,
         ledgers: [],
         childGroups: [],
         isPnL: true,
         pnlBreakup: {
-          openingBalance: pnlOpening,
-          currentPeriod: pnlCurrentPeriod,
+          openingBalance: pnlOpeningDisplayed,
+          currentPeriod: netProfit,
         },
       };
-      if (netProfit >= 0) {
+      if (pnlTotal >= 0) {
         liabilities.push(pnlEntry);
       } else {
         assets.push(pnlEntry);

@@ -1,6 +1,7 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../../db/schema');
+const { getOpeningBalances } = require('../utils/ledgerBalance');
 
 const getEntries = async (company_id, fy_id) => {
   return await db.all(
@@ -11,7 +12,7 @@ const getEntries = async (company_id, fy_id) => {
           AND v.fy_id      = ${fy_id}
           AND v.is_cancelled = 0
           AND COALESCE(v.is_optional,   0) = 0
-          AND COALESCE(v.is_post_dated, 0) = 0`
+          AND COALESCE(v.is_post_dated, 0) = 0`,
   );
 };
 
@@ -29,8 +30,11 @@ const buildDescendantMap = (allGroups) => {
     const queue = [group_id];
     while (queue.length) {
       const current = queue.shift();
-      for (const child of (childrenMap[current] || [])) {
-        if (!result.has(child)) { result.add(child); queue.push(child); }
+      for (const child of childrenMap[current] || []) {
+        if (!result.has(child)) {
+          result.add(child);
+          queue.push(child);
+        }
       }
     }
     return result;
@@ -49,32 +53,35 @@ const splitDrCr = (balance) =>
 const trialBalance = async (company_id, fy_id) => {
   try {
     const entries = await getEntries(company_id, fy_id);
+    const { openings } = await getOpeningBalances(company_id, fy_id);
 
     const allGroups = await db.all(
       sql`SELECT group_id, name, nature, parent_group_id, display_order
           FROM ${groups}
           WHERE company_id = ${company_id} AND is_active = 1
-          ORDER BY display_order ASC`
+          ORDER BY display_order ASC`,
     );
 
     const allLedgers = await db.all(
       sql`SELECT ledger_id, name AS ledger_name, opening_balance, opening_balance_type, group_id
           FROM ${ledgers}
-          WHERE company_id = ${company_id} AND is_active = 1`
+          WHERE company_id = ${company_id} AND is_active = 1`,
     );
 
-    // Per-ledger net balance
+    // Per-ledger net balance — opening carried forward from prior years.
     const ledgerBalances = {};
     for (const l of allLedgers) {
-      const rawOpening = Number(l.opening_balance) || 0;
-      let balance = rawOpening < 0
-        ? rawOpening
-        : (l.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
+      let balance = openings[l.ledger_id] || 0;
       for (const e of entries) {
         if (e.ledger_id === l.ledger_id)
           balance += e.type === 'Dr' ? Number(e.amount) : -Number(e.amount);
       }
-      ledgerBalances[l.ledger_id] = { ledger_id: l.ledger_id, ledger_name: l.ledger_name, group_id: l.group_id, balance };
+      ledgerBalances[l.ledger_id] = {
+        ledger_id: l.ledger_id,
+        ledger_name: l.ledger_name,
+        group_id: l.group_id,
+        balance,
+      };
     }
 
     const descendantMap = buildDescendantMap(allGroups);
@@ -92,13 +99,13 @@ const trialBalance = async (company_id, fy_id) => {
 
     // Top-level groups only (parent_group_id === null), skip zero
     const primaryGroups = allGroups
-      .filter(g => g.parent_group_id === null)
-      .map(g => {
+      .filter((g) => g.parent_group_id === null)
+      .map((g) => {
         const bal = groupBalances[g.group_id] || 0;
         const { dr, cr } = splitDrCr(bal);
         return { group_id: g.group_id, group_name: g.name, nature: g.nature, dr, cr };
       })
-      .filter(g => g.dr !== 0 || g.cr !== 0);
+      .filter((g) => g.dr !== 0 || g.cr !== 0);
 
     const grandTotalDr = primaryGroups.reduce((s, g) => s + g.dr, 0);
     const grandTotalCr = primaryGroups.reduce((s, g) => s + g.cr, 0);
@@ -115,31 +122,34 @@ const trialBalance = async (company_id, fy_id) => {
 const groupSummary = async (company_id, fy_id, group_id) => {
   try {
     const entries = await getEntries(company_id, fy_id);
+    const { openings } = await getOpeningBalances(company_id, fy_id);
 
     const allGroups = await db.all(
       sql`SELECT group_id, name, nature, parent_group_id, display_order
           FROM ${groups}
           WHERE company_id = ${company_id} AND is_active = 1
-          ORDER BY display_order ASC`
+          ORDER BY display_order ASC`,
     );
 
     const allLedgers = await db.all(
       sql`SELECT ledger_id, name AS ledger_name, opening_balance, opening_balance_type, group_id
           FROM ${ledgers}
-          WHERE company_id = ${company_id} AND is_active = 1`
+          WHERE company_id = ${company_id} AND is_active = 1`,
     );
 
     const ledgerBalances = {};
     for (const l of allLedgers) {
-      const rawOpening = Number(l.opening_balance) || 0;
-      let balance = rawOpening < 0
-        ? rawOpening
-        : (l.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
+      let balance = openings[l.ledger_id] || 0;
       for (const e of entries) {
         if (e.ledger_id === l.ledger_id)
           balance += e.type === 'Dr' ? Number(e.amount) : -Number(e.amount);
       }
-      ledgerBalances[l.ledger_id] = { ledger_id: l.ledger_id, ledger_name: l.ledger_name, group_id: l.group_id, balance };
+      ledgerBalances[l.ledger_id] = {
+        ledger_id: l.ledger_id,
+        ledger_name: l.ledger_name,
+        group_id: l.group_id,
+        balance,
+      };
     }
 
     const descendantMap = buildDescendantMap(allGroups);
@@ -156,24 +166,31 @@ const groupSummary = async (company_id, fy_id, group_id) => {
 
     // Direct children of the requested group
     const childGroups = allGroups
-      .filter(cg => cg.parent_group_id === group_id)
-      .map(cg => {
+      .filter((cg) => cg.parent_group_id === group_id)
+      .map((cg) => {
         const bal = groupBalances[cg.group_id] || 0;
         const { dr, cr } = splitDrCr(bal);
-        return { group_id: cg.group_id, group_name: cg.name, nature: cg.nature, dr, cr, type: 'group' };
+        return {
+          group_id: cg.group_id,
+          group_name: cg.name,
+          nature: cg.nature,
+          dr,
+          cr,
+          type: 'group',
+        };
       })
-      .filter(g => g.dr !== 0 || g.cr !== 0);
+      .filter((g) => g.dr !== 0 || g.cr !== 0);
 
     // Direct ledgers of this group
     const directLedgers = Object.values(ledgerBalances)
-      .filter(l => l.group_id === group_id && l.balance !== 0)
-      .map(l => {
+      .filter((l) => l.group_id === group_id && l.balance !== 0)
+      .map((l) => {
         const { dr, cr } = splitDrCr(l.balance);
         return { ledger_id: l.ledger_id, ledger_name: l.ledger_name, dr, cr, type: 'ledger' };
       });
 
     // Group info
-    const groupInfo = allGroups.find(g => g.group_id === group_id);
+    const groupInfo = allGroups.find((g) => g.group_id === group_id);
     const totalBal = groupBalances[group_id] || 0;
     const { dr: totalDr, cr: totalCr } = splitDrCr(totalBal);
 
@@ -198,9 +215,11 @@ const ledgerMonthlySummary = async (company_id, fy_id, ledger_id) => {
     const ledger = await db.get(
       sql`SELECT ledger_id, name AS ledger_name, opening_balance, opening_balance_type, group_id
           FROM ${ledgers}
-          WHERE ledger_id = ${ledger_id} AND company_id = ${company_id}`
+          WHERE ledger_id = ${ledger_id} AND company_id = ${company_id}`,
     );
     if (!ledger) return { success: false, error: 'Ledger not found' };
+
+    const { openings } = await getOpeningBalances(company_id, fy_id);
 
     const voucherRows = await db.all(
       sql`SELECT e.type, e.amount, v.date
@@ -211,27 +230,39 @@ const ledgerMonthlySummary = async (company_id, fy_id, ledger_id) => {
             AND e.ledger_id  = ${ledger_id}
             AND v.is_cancelled = 0
             AND COALESCE(v.is_optional,   0) = 0
-            AND COALESCE(v.is_post_dated, 0) = 0`
+            AND COALESCE(v.is_post_dated, 0) = 0`,
     );
 
-    const MONTHS = ['April','May','June','July','August','September','October','November','December','January','February','March'];
+    const MONTHS = [
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+      'January',
+      'February',
+      'March',
+    ];
     const monthIndex = (dateStr) => {
       const d = new Date(dateStr);
       const m = d.getMonth(); // 0=Jan
       return m >= 3 ? m - 3 : m + 9; // April=0, March=11
     };
 
-    const monthlyTxn = Array(12).fill(null).map(() => ({ debit: 0, credit: 0 }));
+    const monthlyTxn = Array(12)
+      .fill(null)
+      .map(() => ({ debit: 0, credit: 0 }));
     for (const row of voucherRows) {
       const idx = monthIndex(row.date);
-      if (row.type === 'Dr') monthlyTxn[idx].debit  += Number(row.amount);
-      else                   monthlyTxn[idx].credit += Number(row.amount);
+      if (row.type === 'Dr') monthlyTxn[idx].debit += Number(row.amount);
+      else monthlyTxn[idx].credit += Number(row.amount);
     }
 
-    const rawOpening = Number(ledger.opening_balance) || 0;
-    const openingBalance = rawOpening < 0
-      ? rawOpening
-      : (ledger.opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
+    const openingBalance = openings[ledger.ledger_id] || 0;
     let runningBalance = openingBalance;
     const rows = MONTHS.map((month, idx) => {
       const { debit, credit } = monthlyTxn[idx];

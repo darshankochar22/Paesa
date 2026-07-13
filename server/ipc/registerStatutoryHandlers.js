@@ -40,8 +40,6 @@ function register() {
   ipcMain.handle('gst:getAnnualComputation', gstController.getAnnualComputation);
   ipcMain.handle('gst:getGSTR1Reconciliation', gstController.getGSTR1Reconciliation);
   ipcMain.handle('gst:getRegistrationResolution', gstController.getRegistrationResolution);
-  ipcMain.handle('gst:getGSTR2AReconciliation', gstController.getGSTR2AReconciliation);
-  ipcMain.handle('gst:getGSTR2BReconciliation', gstController.getGSTR2BReconciliation);
   ipcMain.handle('gst:getReconSummary', gstController.getReconSummary);
   ipcMain.handle('gst:getReconPartySummary', gstController.getReconPartySummary);
   ipcMain.handle('gst:getReconVoucherRegister', gstController.getReconVoucherRegister);

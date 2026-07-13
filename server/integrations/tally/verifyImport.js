@@ -184,10 +184,119 @@ async function main() {
   process.exit(allOk ? 0 : 1);
 }
 
+// ---------------------------------------------------------------------------
+// reconcileFields — permanent, self-running field-level fidelity check.
+//
+// Given the already-parsed source tree and the imported company_id, compares
+// EVERY meaningful master field (ledger GST/PAN/address/opening, stock HSN/rate/
+// unit/group, group nature) source-vs-DB and reports per-field coverage. This is
+// the guardrail that keeps the importer honest: if a future change stops carrying
+// a field, coverage drops below 100% and the import summary flags it — no manual
+// audit needed. Pure reads; never writes.
+// ---------------------------------------------------------------------------
+const present = (v) => v != null && String(v).trim() !== '' && String(v).trim() !== '0';
+
+async function reconcileFields(db, parsed, companyId) {
+  const q = async (sql, args = []) => (await db.execute({ sql, args })).rows;
+  const dbLedgers = await q('SELECT * FROM ledgers WHERE company_id = ?', [companyId]);
+  const dbItems = await q('SELECT * FROM stock_items WHERE company_id = ?', [companyId]);
+  const dbGroups = await q('SELECT * FROM groups WHERE company_id = ?', [companyId]);
+
+  const checks = [];
+  const compare = (master, srcRows, dbRows, keyOf, fields) => {
+    const dbByKey = new Map(dbRows.map((r) => [keyOf(r), r]));
+    for (const [field, srcGet, dbGet, cmp] of fields) {
+      let srcHas = 0,
+        matched = 0,
+        missing = 0,
+        differ = 0;
+      const sample = [];
+      for (const s of srcRows) {
+        const sv = srcGet(s);
+        if (!present(sv)) continue;
+        srcHas++;
+        const d = dbByKey.get(keyOf(s));
+        if (!d) {
+          missing++;
+          continue;
+        }
+        const dv = dbGet(d);
+        const eq = cmp ? cmp(sv, dv) : norm(sv) === norm(dv);
+        if (eq) matched++;
+        else if (!present(dv)) {
+          missing++;
+          if (sample.length < 3) sample.push(`${s.name}: src=${JSON.stringify(sv)} db=∅`);
+        } else {
+          differ++;
+          if (sample.length < 3)
+            sample.push(`${s.name}: src=${JSON.stringify(sv)} db=${JSON.stringify(dv)}`);
+        }
+      }
+      checks.push({
+        master,
+        field,
+        srcHas,
+        matched,
+        missing,
+        differ,
+        ok: srcHas === 0 || matched === srcHas,
+        sample,
+      });
+    }
+  };
+
+  compare('ledger', parsed.ledgers, dbLedgers, (r) => norm(r.name), [
+    [
+      'opening_balance',
+      (s) => s.openingBalance,
+      (d) => d.opening_balance,
+      (a, b) => Math.abs(Number(a) - Math.abs(Number(b))) < 0.01,
+    ],
+    ['gstin', (s) => s.gstin, (d) => d.gstin],
+    ['registration_type', (s) => s.registrationType, (d) => d.registration_type],
+    ['pan', (s) => s.pan, (d) => d.pan],
+    ['state', (s) => s.state, (d) => d.state],
+    ['pincode', (s) => s.pincode, (d) => d.pincode],
+    ['country', (s) => s.country, (d) => d.country],
+    ['address', (s) => s.address, (d) => d.address1],
+    [
+      'is_bill_wise',
+      (s) => (s.isBillWise ? 1 : 0),
+      (d) => d.is_bill_wise,
+      (a, b) => Number(a) === Number(b),
+    ],
+    ['group_id', () => 1, (d) => (present(d.group_id) ? 1 : 0), (a, b) => Number(b) === 1],
+  ]);
+  compare('stock_item', parsed.stockItems, dbItems, (r) => norm(r.name), [
+    ['hsn_sac', (s) => s.hsnSac, (d) => d.hsn_sac],
+    [
+      'gst_rate',
+      (s) => s.gstRate,
+      (d) => d.gst_rate,
+      (a, b) => Math.abs(Number(a) - Number(b)) < 0.01,
+    ],
+    ['unit', (s) => s.baseUnit, (d) => (present(d.unit_id) ? 'y' : ''), (a, b) => b === 'y'],
+    ['group_id', () => 1, (d) => (present(d.group_id) ? 1 : 0), (a, b) => Number(b) === 1],
+    ['taxability', (s) => s.taxability, (d) => d.taxability_type],
+    ['type_of_supply', (s) => s.typeOfSupply, (d) => d.type_of_supply],
+  ]);
+  compare('group', parsed.groups, dbGroups, (r) => norm(r.name), [
+    ['nature', (s) => s.nature, (d) => d.nature],
+  ]);
+
+  const failed = checks.filter((c) => !c.ok);
+  return {
+    ok: failed.length === 0,
+    checks,
+    failed,
+    summary: `${checks.length - failed.length}/${checks.length} field checks at 100% coverage`,
+  };
+}
+
 if (require.main === module)
   main().catch((e) => {
     console.error('FATAL', e.stack);
     process.exit(1);
   });
 
-module.exports = { reconcile };
+module.exports = { reconcile, reconcileFields };

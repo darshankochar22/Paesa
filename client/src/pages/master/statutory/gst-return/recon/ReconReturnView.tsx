@@ -59,6 +59,8 @@ interface DataRow {
   type: 'data';
   key: string;
   label: string;
+  // -1 for ITC-reversal rows: their amounts NET OFF the totals instead of adding.
+  sign?: number;
   books: DualAmounts;
   portal: DualAmounts;
   status: string;
@@ -91,10 +93,14 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
 
   const loadData = useCallback(async () => {
     if (!companyId || !fyId) return;
-    if (!location.state?.registration && !fetchedReg) {
+    let reg = location.state?.registration || fetchedReg;
+    if (!reg) {
       try {
         const r = await window.api.gstRegistration.getAll(companyId);
-        if (r.success && r.gstRegistrations?.length) setFetchedReg(r.gstRegistrations[0]);
+        if (r.success && r.gstRegistrations?.length) {
+          reg = r.gstRegistrations[0];
+          setFetchedReg(reg);
+        }
       } catch {
         /* ignore */
       }
@@ -106,6 +112,8 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
         company_id: companyId,
         fy_id: fyId,
         kind,
+        // The books side must honour the registration named in the header.
+        gst_registration_id: reg?.gst_id ?? null,
       });
       if (res.success) setData(res.payload);
       else setError(res.error || `Failed to load GSTR-${kind} reconciliation`);
@@ -131,19 +139,21 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
       try {
         setLoading(true);
         const payload = JSON.parse(await file.text());
-        const period =
-          payload.fp ||
-          `${String(new Date().getMonth() + 1).padStart(2, '0')}${new Date().getFullYear()}`;
+        // The server derives the return period from the file (fp / rtnprd) and validates
+        // it against the financial year — never guess a period client-side.
         const call = kind === '2A' ? window.api.gst.importGSTR2A : window.api.gst.importGSTR2B;
         const res = await call({
           company_id: companyId,
           fy_id: fyId,
-          return_period: period,
+          return_period: null,
           payload,
         });
         if (res.success) {
           await loadData();
-          alert(`GSTR-${kind} JSON imported. Reconciliation updated.`);
+          alert(
+            `GSTR-${kind} JSON imported for period ${res.return_period} ` +
+              `(${res.documents} document(s)). Reconciliation updated.`,
+          );
         } else setError(res.error || 'Failed to import JSON');
       } catch (err: any) {
         setError('Invalid JSON file: ' + err.message);
@@ -163,17 +173,19 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
 
   const grand = dataRows.reduce(
     (acc, s) => {
+      // Reversal rows (sign -1) net off the amounts; counts always add.
+      const sign = s.sign === -1 ? -1 : 1;
       (['books', 'portal'] as const).forEach((side) => {
         const a = acc[side];
         const v = s[side];
         a.count += v.count;
-        a.taxable += v.taxable;
-        a.igst += v.igst;
-        a.cgst += v.cgst;
-        a.sgst += v.sgst;
-        a.cess += v.cess;
-        a.tax += v.tax;
-        a.invoice += v.invoice;
+        a.taxable += sign * v.taxable;
+        a.igst += sign * v.igst;
+        a.cgst += sign * v.cgst;
+        a.sgst += sign * v.sgst;
+        a.cess += sign * v.cess;
+        a.tax += sign * v.tax;
+        a.invoice += sign * v.invoice;
       });
       return acc;
     },
@@ -376,10 +388,19 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
                 indent={2}
               />
               <StatusLine
+                label="In Books, Period Not Fetched from Portal"
+                value={vs.no_portal ?? 0}
+                indent={2}
+              />
+              <StatusLine
                 label="Uncertain Transactions (Corrections needed)"
                 value={vs.uncertain ?? 0}
                 bold
                 onClick={drillUncertain}
+              />
+              <StatusLine
+                label="Unregistered Purchases (Not on Portal)"
+                value={vs.not_in_portal_scope ?? 0}
               />
             </div>
 

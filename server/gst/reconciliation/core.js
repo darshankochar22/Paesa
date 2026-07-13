@@ -120,9 +120,11 @@ const B2CL_THRESHOLD = 250000;
 // Credit / Debit notes are directional. A note booked against a customer (Sundry
 // Debtors) is an outward sales return → GSTR-1 (CDN). A note against a supplier
 // (Sundry Creditors) is an inward purchase return → belongs to GSTR-2/3B, so it is
-// NOT relevant to GSTR-1. Resolve by the party ledger's group; fall back to the
-// Tally convention (Credit Note = sales return/outward, Debit Note = purchase
-// return/inward) when the group can't be determined.
+// NOT relevant to GSTR-1. Resolve by the party ledger's group ANCESTRY (a ledger
+// under a custom subgroup like "Raw Material Suppliers" still resolves through its
+// Sundry Creditors ancestor); fall back to the Tally convention (Credit Note =
+// sales return/outward, Debit Note = purchase return/inward) when no ancestor
+// group name decides it.
 const noteDirection = (v) => {
   const grp = String(v.party_group || '');
   if (/creditor/i.test(grp)) return 'inward';
@@ -186,7 +188,7 @@ const fetchPeriodVouchers = async (
     sql`SELECT v.voucher_id, v.date, v.voucher_type, v.voucher_number, v.reference_number, v.party_name,
                v.place_of_supply, v.is_interstate,
                l.name AS ledger_name, l.gstin AS party_gstin, l.registration_type AS party_reg_type,
-               pg.name AS party_group,
+               l.group_id AS party_group_id, pg.name AS party_group,
                COALESCE(s.stock_count, 0) AS stock_count,
                COALESCE(s.taxable, 0) AS taxable,
                COALESCE(s.igst, 0) AS igst,
@@ -285,17 +287,59 @@ const fetchPeriodVouchers = async (
         ORDER BY v.date ASC, v.voucher_id ASC`,
   );
 
+  // Resolve each party group to its full ancestor chain (names joined), so directional
+  // checks (noteDirection's creditor/debtor test) work for ledgers under custom
+  // subgroups of Sundry Creditors / Sundry Debtors, not only direct children.
+  const groupById = new Map();
+  try {
+    const allGroups = await db.all(
+      sql`SELECT group_id, name, parent_group_id FROM groups WHERE company_id = ${company_id}`,
+    );
+    for (const g of allGroups) groupById.set(Number(g.group_id), g);
+  } catch (_) {}
+  const groupChain = (groupId) => {
+    const names = [];
+    let g = groupById.get(Number(groupId));
+    for (let i = 0; g && i < 20; i++) {
+      names.push(g.name);
+      g = groupById.get(Number(g.parent_group_id));
+    }
+    return names.join(' > ');
+  };
+
   // When the per-line stock-entry tax amounts weren't persisted (a real data condition),
   // fall back to the ACTUAL GST booked in the voucher's Duties & Taxes ledgers. A voucher
   // that charged no GST (no GST ledger postings) therefore shows zero tax — we never
   // fabricate tax from the item rate. Vouchers that DID persist stock-entry tax are kept.
   const r2 = (n) => Math.round(Number(n || 0) * 100) / 100;
   for (const row of rows) {
+    if (row.party_group_id != null) {
+      const chain = groupChain(row.party_group_id);
+      if (chain) row.party_group = chain;
+    }
     const stored = Number(row.igst || 0) + Number(row.cgst || 0) + Number(row.sgst || 0);
     if (stored < 0.01) {
       row.cgst = r2(row.e_cgst);
       row.sgst = r2(row.e_sgst);
       row.igst = r2(row.e_igst);
+    }
+    // Accounting-mode voucher (no stock lines) that DID book GST via Duties & Taxes
+    // ledgers: derive the taxable value from the party-side total minus the tax, so the
+    // 2A/2B reconciliation has a real amount to compare against the portal invoice.
+    if (
+      Number(row.stock_count || 0) === 0 &&
+      Number(row.gst_ledger_lines || 0) > 0 &&
+      !(Number(row.taxable) > 0)
+    ) {
+      const total =
+        row.party_side === 'Cr'
+          ? Number(row.cr_total || 0)
+          : row.party_side === 'Dr'
+            ? Number(row.dr_total || 0)
+            : 0;
+      const tax = Number(row.igst || 0) + Number(row.cgst || 0) + Number(row.sgst || 0);
+      const derived = r2(total - tax);
+      if (derived > 0) row.taxable = derived;
     }
   }
 
@@ -349,6 +393,29 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
     return { bucket: 'not_relevant', group, category, section: null, exceptions: [] };
   }
 
+  // 2A/2B reconciliation only covers supplies a REGISTERED supplier files on the portal.
+  // A purchase from an unregistered/consumer party (no registration type, no valid GSTIN)
+  // can never appear in GSTR-2A/2B — it is out of the reconciliation's scope, not an
+  // "Available Only in Books" discrepancy. (A party MARKED registered but carrying an
+  // invalid GSTIN still falls through to the exception below.)
+  if (inwardRecon) {
+    const registered = v.party_reg_type && v.party_reg_type !== 'Unregistered';
+    const gstinOk = GSTIN_RE.test(
+      String(v.party_gstin || '')
+        .trim()
+        .toUpperCase(),
+    );
+    if (!registered && !gstinOk) {
+      return {
+        bucket: 'not_relevant',
+        group: 'non_gst',
+        category: 'Unregistered Party (Not on Portal)',
+        section: null,
+        exceptions: [],
+      };
+    }
+  }
+
   // The company's own registration being invalid is a blocking, voucher-independent
   // problem — Tally surfaces ONLY this exception for such vouchers (No. of Exceptions: 1),
   // so short-circuit before the per-voucher data checks (avoids extra exception lines).
@@ -386,8 +453,14 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   if (stockCount === 0) {
     // Place of supply is auto-derived from the party/company state (as in TallyPrime), so a
     // blank place-of-supply is never surfaced; a voucher with no stock lines at all has
-    // nothing to derive GST from.
-    exceptions.push('No item or tax details available in the voucher');
+    // nothing to derive GST from — EXCEPT an accounting-mode purchase (no inventory lines)
+    // that booked real GST through Duties & Taxes ledgers: for the inward 2A/2B
+    // reconciliation that is a complete, matchable document, not a correction.
+    const accountingModeInward =
+      inwardRecon && Number(v.gst_ledger_lines || 0) > 0 && taxBooked >= 0.01;
+    if (!accountingModeInward) {
+      exceptions.push('No item or tax details available in the voucher');
+    }
   } else {
     // A linked item whose Taxability Type is blank / 'Not Defined' (Tally can't tell whether
     // it is taxable, exempt or non-GST) → correction needed.

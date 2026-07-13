@@ -328,13 +328,26 @@ export interface MasterDataAPI {
       address: string;
       error?: string;
     }>;
-    getGSTR2AReconciliation: (data: {
+    getReconSummary: (data: {
       company_id: number;
       fy_id: number;
+      kind: '2A' | '2B';
+      gst_registration_id?: number | null;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
-    getGSTR2BReconciliation: (data: {
+    getReconPartySummary: (data: {
       company_id: number;
       fy_id: number;
+      kind: '2A' | '2B';
+      section: string;
+      gst_registration_id?: number | null;
+    }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getReconVoucherRegister: (data: {
+      company_id: number;
+      fy_id: number;
+      kind: '2A' | '2B';
+      section: string;
+      gstin: string;
+      gst_registration_id?: number | null;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
     getGSTR1vs3BComparison: (data: {
       company_id: number;
@@ -355,9 +368,26 @@ export interface MasterDataAPI {
     importGSTR2B: (data: {
       company_id: number;
       fy_id: number;
-      return_period: string;
+      // Optional — the server derives it from the file's fp/rtnprd when omitted.
+      return_period?: string | null;
       payload: any;
-    }) => Promise<{ success: boolean; error?: string }>;
+    }) => Promise<{
+      success: boolean;
+      return_period?: string;
+      documents?: number;
+      error?: string;
+    }>;
+    importGSTR2A: (data: {
+      company_id: number;
+      fy_id: number;
+      return_period?: string | null;
+      payload: any;
+    }) => Promise<{
+      success: boolean;
+      return_period?: string;
+      documents?: number;
+      error?: string;
+    }>;
     getIMSInwardSupplies: (data: {
       company_id: number;
       fy_id: number;

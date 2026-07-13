@@ -24,6 +24,7 @@
 const groupService = require('../../group/groupService');
 const ledgerService = require('../../ledger/ledgerService');
 const stockItemService = require('../../stockItem/stockItemService');
+const stockGroupService = require('../../stockGroup/stockGroupService');
 const unitService = require('../../unit/unitService');
 const voucherService = require('../../voucher/voucherService');
 
@@ -106,17 +107,20 @@ const isDuplicateError = (err) => typeof err === 'string' && /already exists/i.t
 // existing row for this company so later phases (and re-runs) resolve names to
 // the rows that are already there. Returns a `ctx`-like resolver object.
 const buildResolver = async (company_id) => {
-  const groupNameToId = new Map(); // name -> group_id
+  const groupNameToId = new Map(); // name -> group_id (accounting)
   const groupNatureById = new Map(); // group_id -> nature
   const ledgerNameToId = new Map(); // name -> ledger_id
   const stockNameToId = new Map(); // name -> item_id
+  const stockGroupNameToId = new Map(); // name -> sg_id (inventory group)
   const unitSymbolToId = new Map(); // symbol AND name -> unit_id
+  let primaryStockGroupId = null;
 
-  const [g, l, s, u] = await Promise.all([
+  const [g, l, s, u, sg] = await Promise.all([
     groupService.getAll(company_id),
     ledgerService.getAll(company_id),
     stockItemService.getAll(company_id),
     unitService.getAll(company_id),
+    stockGroupService.getAll(company_id),
   ]);
 
   if (g.success) {
@@ -131,6 +135,12 @@ const buildResolver = async (company_id) => {
   if (s.success) {
     for (const row of s.stockItems) stockNameToId.set(norm(row.name), row.item_id);
   }
+  if (sg.success) {
+    for (const row of sg.stockGroups) {
+      stockGroupNameToId.set(norm(row.name), row.sg_id);
+      if (row.is_primary) primaryStockGroupId = row.sg_id;
+    }
+  }
   if (u.success) {
     for (const row of u.units) {
       if (row.symbol != null) unitSymbolToId.set(norm(row.symbol), row.unit_id);
@@ -143,10 +153,13 @@ const buildResolver = async (company_id) => {
     groupNatureById,
     ledgerNameToId,
     stockNameToId,
+    stockGroupNameToId,
     unitSymbolToId,
+    primaryStockGroupId,
     resolveGroup: (name) => groupNameToId.get(norm(name)),
     resolveLedger: (name) => ledgerNameToId.get(norm(name)),
     resolveStock: (name) => stockNameToId.get(norm(name)),
+    resolveStockGroup: (name) => stockGroupNameToId.get(norm(name)),
     resolveUnit: (sym) => unitSymbolToId.get(norm(sym)),
     natureOfGroup: (group_id) => (group_id != null ? groupNatureById.get(group_id) : undefined),
   };
@@ -305,8 +318,21 @@ const importLedgers = async (parsedLedgers, ctx, resolver) => {
   for (const led of parsedLedgers || []) {
     if (!led.name) continue;
 
-    if (resolver.resolveLedger(led.name) != null) {
+    const existingId = resolver.resolveLedger(led.name);
+    if (existingId != null) {
       summary.skipped++;
+      // A ledger already present (pre-seeded Cash / Profit & Loss A/c, or a
+      // re-import) never gets its Tally opening balance because create is
+      // skipped. In import mode, carry the source opening onto it so the books
+      // balance — otherwise the missing figure surfaces as "Difference in
+      // opening balances". SET semantics keep re-imports idempotent.
+      if (ctx.importMode && Number(led.openingBalance) > 0) {
+        await ledgerService.setOpeningBalance({
+          ledger_id: existingId,
+          opening_balance: led.openingBalance,
+          opening_balance_type: led.openingBalanceType || 'Dr',
+        });
+      }
       continue;
     }
 
@@ -390,7 +416,32 @@ const importStockItems = async (parsedStockItems, ctx, resolver, unitSummary) =>
       unitId = await ensureUnit(s.baseUnit, ctx, resolver, unitSummary || summary);
     }
 
-    const groupId = s.parent != null ? resolver.resolveGroup(s.parent) : null;
+    // Stock items belong to STOCK groups (stock_groups), not accounting groups.
+    // Resolve the item's parent stock group, creating it on demand; items with no
+    // parent (Tally companies that never made sub-groups) go under "Primary" so
+    // group_id is never left null and Stock Summary groups them correctly.
+    let stockGroupId = s.parent != null ? resolver.resolveStockGroup(s.parent) : null;
+    if (stockGroupId == null && s.parent) {
+      const created = await stockGroupService.create({
+        company_id: ctx.company_id,
+        name: s.parent,
+        parent_group_id: null,
+      });
+      if (created.success && created.group) {
+        stockGroupId = created.group.sg_id;
+        resolver.stockGroupNameToId.set(norm(s.parent), stockGroupId);
+      } else {
+        const all = await stockGroupService.getAll(ctx.company_id);
+        const row = (all.stockGroups || []).find((r) => norm(r.name) === norm(s.parent));
+        if (row) {
+          stockGroupId = row.sg_id;
+          resolver.stockGroupNameToId.set(norm(s.parent), stockGroupId);
+        }
+      }
+    }
+    if (stockGroupId == null) stockGroupId = resolver.primaryStockGroupId || null;
+
+    const groupId = stockGroupId;
     const gstRate = Number(s.gstRate) || 0;
     const gstApplicable =
       gstRate > 0 || norm(s.taxability) === 'taxable' ? 'Applicable' : 'Not Applicable';

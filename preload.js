@@ -520,8 +520,6 @@ contextBridge.exposeInMainWorld('api', {
     getAnnualComputation: (data) => invoke('gst:getAnnualComputation', data),
     getGSTR1Reconciliation: (data) => invoke('gst:getGSTR1Reconciliation', data),
     getRegistrationResolution: (data) => invoke('gst:getRegistrationResolution', data),
-    getGSTR2AReconciliation: (data) => invoke('gst:getGSTR2AReconciliation', data),
-    getGSTR2BReconciliation: (data) => invoke('gst:getGSTR2BReconciliation', data),
     getReconSummary: (data) => invoke('gst:getReconSummary', data),
     getReconPartySummary: (data) => invoke('gst:getReconPartySummary', data),
     getReconVoucherRegister: (data) => invoke('gst:getReconVoucherRegister', data),

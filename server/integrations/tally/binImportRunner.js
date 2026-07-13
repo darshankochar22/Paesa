@@ -35,6 +35,7 @@ const { initDB, db } = require('../../db/index');
 const companyService = require('../../company/companyService');
 const financialYearService = require('../../financialYear/financialYearService');
 const importer = require('./importer');
+const { reconcileFields } = require('./verifyImport');
 
 // GSTIN state-code (first 2 digits) -> state name, for the GST registration.
 const GST_STATE = {
@@ -441,6 +442,21 @@ const importParsed = async (parsed, opts = {}) => {
     }
   }
 
+  // Permanent self-check: every import verifies field-level fidelity against the
+  // parsed source. Any field that stops importing at 100% shows up here (and in
+  // the progress stream) instead of being discovered by a manual audit later.
+  let reconciliation = null;
+  try {
+    reconciliation = await reconcileFields(db, parsed, company.company_id);
+    progress('reconcile', {
+      ok: reconciliation.ok,
+      summary: reconciliation.summary,
+      failed: reconciliation.failed.map((c) => `${c.master}.${c.field}: ${c.matched}/${c.srcHas}`),
+    });
+  } catch (err) {
+    reconciliation = { ok: null, error: err.message, checks: [], failed: [] };
+  }
+
   return {
     company: { company_id: company.company_id, name: company.name, created },
     financialYears: [...fyMap.entries()].map(([s, r]) => ({ start: s, fy_id: r.fy_id || r.id })),
@@ -451,6 +467,7 @@ const importParsed = async (parsed, opts = {}) => {
       failed: total.failed,
       errors: total.errors.slice(0, 30),
     },
+    reconciliation,
   };
 };
 

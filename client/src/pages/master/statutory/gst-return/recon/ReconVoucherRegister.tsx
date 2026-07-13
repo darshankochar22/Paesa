@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
@@ -37,6 +37,7 @@ interface Groups {
   mismatch: Pair[];
   only_portal: Pair[];
   only_books: Pair[];
+  no_portal: Pair[];
   reconciled: Pair[];
 }
 
@@ -45,6 +46,7 @@ const GROUP_ORDER: { key: keyof Groups; label: string }[] = [
   { key: 'mismatch', label: 'Mismatched' },
   { key: 'only_portal', label: 'Available Only on Portal' },
   { key: 'only_books', label: 'Available Only in Books' },
+  { key: 'no_portal', label: 'In Books, Period Not Fetched from Portal' },
   { key: 'reconciled', label: 'Reconciled' },
 ];
 
@@ -61,6 +63,7 @@ export default function ReconVoucherRegister() {
   const sectionLabel: string = location.state?.sectionLabel || 'B2B Invoices';
   const gstin: string = location.state?.gstin || '';
   const partyName: string = location.state?.partyName || '';
+  const registration = location.state?.registration || null;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +81,7 @@ export default function ReconVoucherRegister() {
         kind,
         section,
         gstin,
+        gst_registration_id: registration?.gst_id ?? null,
       });
       if (res.success) {
         setGroups(res.payload.groups);
@@ -88,17 +92,19 @@ export default function ReconVoucherRegister() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId, kind, section, gstin]);
+  }, [companyId, fyId, kind, section, gstin, registration]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const pairRows = (p: Pair, i: number) => {
+  // `group` prefixes the row keys — indexes alone collide across the status groups
+  // (mismatch[0] and reconciled[0] would both render as key "0-b").
+  const pairRows = (p: Pair, i: number, group: string) => {
     const rows = [];
     if (p.book) {
       rows.push(
-        <TableRow key={`${i}-b`} className="border-0 hover:bg-zinc-50">
+        <TableRow key={`${group}-${i}-b`} className="border-0 hover:bg-zinc-50">
           <TableCell className="px-2 py-0.5">{p.book.date}</TableCell>
           <TableCell className="px-2 py-0.5">{p.book.party_name || partyName}</TableCell>
           <TableCell className="px-2 py-0.5">{p.book.vch_type}</TableCell>
@@ -117,7 +123,7 @@ export default function ReconVoucherRegister() {
     }
     if (p.portal) {
       rows.push(
-        <TableRow key={`${i}-p`} className={cn('border-0 hover:bg-zinc-50', PORTAL_ROW)}>
+        <TableRow key={`${group}-${i}-p`} className={cn('border-0 hover:bg-zinc-50', PORTAL_ROW)}>
           <TableCell className="px-2 py-0.5">{p.book ? '' : p.portal.doc_date}</TableCell>
           <TableCell className="px-2 py-0.5">{p.book ? '' : partyName}</TableCell>
           <TableCell className="px-2 py-0.5" />
@@ -156,10 +162,12 @@ export default function ReconVoucherRegister() {
         {
           label: `GSTR-${kind} Reconciliation`,
           to: `/master/statutory/gstr${kind.toLowerCase()}/reconciliation`,
+          state: { registration },
         },
         {
           label: sectionLabel,
           to: `/master/statutory/gstr${kind.toLowerCase()}/reconciliation/party`,
+          state: { kind, section, sectionLabel, registration },
         },
         { label: partyName || gstin },
       ]}
@@ -214,8 +222,8 @@ export default function ReconVoucherRegister() {
                 const list = groups[key] || [];
                 if (!list.length) return null;
                 return (
-                  <>
-                    <TableRow key={key} className="border-0 hover:bg-transparent">
+                  <Fragment key={key}>
+                    <TableRow className="border-0 hover:bg-transparent">
                       <TableCell
                         colSpan={13}
                         className="px-2 pt-2 pb-0.5 font-bold text-black underline"
@@ -223,8 +231,8 @@ export default function ReconVoucherRegister() {
                         {label} ({list.length})
                       </TableCell>
                     </TableRow>
-                    {list.flatMap((p, i) => pairRows(p, i))}
-                  </>
+                    {list.flatMap((p, i) => pairRows(p, i, key))}
+                  </Fragment>
                 );
               })}
             </TableBody>

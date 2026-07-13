@@ -94,13 +94,14 @@ describe('ReconReturnView (dual books-vs-portal)', () => {
     (window.api.gst as any).getReconSummary = vi.fn().mockResolvedValue(SUMMARY);
   });
 
-  it('calls getReconSummary with the kind', async () => {
+  it('calls getReconSummary with the kind and the scoped registration', async () => {
     wrap();
     await waitFor(() =>
       expect(window.api.gst.getReconSummary).toHaveBeenCalledWith({
         company_id: 1,
         fy_id: 1,
         kind: '2A',
+        gst_registration_id: 1,
       }),
     );
   });

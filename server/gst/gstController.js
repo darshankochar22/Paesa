@@ -160,28 +160,39 @@ module.exports = {
     });
   },
 
-  getGSTR2AReconciliation: async (event, { company_id, fy_id }) => {
-    return await reconciliationService.getGSTR2AReconciliation(company_id, fy_id);
-  },
-
-  getGSTR2BReconciliation: async (event, { company_id, fy_id }) => {
-    return await reconciliationService.getGSTR2BReconciliation(company_id, fy_id);
-  },
-
   // Tally-style dual books-vs-portal recon drill (kind = '2A' | '2B').
-  getReconSummary: async (event, { company_id, fy_id, kind }) => {
-    return await reconciliationService.getReconSummary(company_id, fy_id, kind);
+  // gst_registration_id scopes the books side to the registration shown in the header.
+  getReconSummary: async (event, { company_id, fy_id, kind, gst_registration_id }) => {
+    return await reconciliationService.getReconSummary(
+      company_id,
+      fy_id,
+      kind,
+      gst_registration_id ?? null,
+    );
   },
-  getReconPartySummary: async (event, { company_id, fy_id, kind, section }) => {
-    return await reconciliationService.getReconPartySummary(company_id, fy_id, kind, section);
+  getReconPartySummary: async (
+    event,
+    { company_id, fy_id, kind, section, gst_registration_id },
+  ) => {
+    return await reconciliationService.getReconPartySummary(
+      company_id,
+      fy_id,
+      kind,
+      section,
+      gst_registration_id ?? null,
+    );
   },
-  getReconVoucherRegister: async (event, { company_id, fy_id, kind, section, gstin }) => {
+  getReconVoucherRegister: async (
+    event,
+    { company_id, fy_id, kind, section, gstin, gst_registration_id },
+  ) => {
     return await reconciliationService.getReconVoucherRegister(
       company_id,
       fy_id,
       kind,
       section,
       gstin,
+      gst_registration_id ?? null,
     );
   },
 

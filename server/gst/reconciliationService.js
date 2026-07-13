@@ -14,8 +14,6 @@ const reconDetail = require('./reconciliation/reconDetail');
 module.exports = {
   getGSTR1Reconciliation: portalRecon.getGSTR1Reconciliation,
   getRegistrationResolution: utilities.getRegistrationResolution,
-  getGSTR2AReconciliation: portalRecon.getGSTR2AReconciliation,
-  getGSTR2BReconciliation: portalRecon.getGSTR2BReconciliation,
   getGSTR1vs3BComparison: portalRecon.getGSTR1vs3BComparison,
   importGSTR2B: portalRecon.importGSTR2B,
   importGSTR2A: portalRecon.importGSTR2A,

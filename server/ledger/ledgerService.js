@@ -1,12 +1,6 @@
-
-const { db } = require("../db/index");
-const { sql, eq, and } = require("drizzle-orm");
-const {
-  ledgers,
-  ledgerBankDetails,
-  ledgerStatutoryDetails,
-  groups,
-} = require("../db/schema");
+const { db } = require('../db/index');
+const { sql, eq, and } = require('drizzle-orm');
+const { ledgers, ledgerBankDetails, ledgerStatutoryDetails, groups } = require('../db/schema');
 
 // Fetch a single ledger row in the legacy snake_case shape (or undefined).
 const findLedgerRow = async (whereSql) => {
@@ -16,25 +10,25 @@ const findLedgerRow = async (whereSql) => {
 
 const seedDefaultLedgers = async (company_id, groups_arg) => {
   const cashGroup = groups_arg.find(
-    (g) => g.name === "Cash-in-hand" && g.company_id === company_id,
+    (g) => g.name === 'Cash-in-hand' && g.company_id === company_id,
   );
 
   const plGroup = groups_arg.find(
-    (g) => g.name === "Capital Account" && g.company_id === company_id,
+    (g) => g.name === 'Capital Account' && g.company_id === company_id,
   );
 
   const defaults = [
     {
       group_id: cashGroup ? cashGroup.group_id : null,
-      name: "Cash",
-      ledger_type: "Cash",
-      nature: "Assets",
+      name: 'Cash',
+      ledger_type: 'Cash',
+      nature: 'Assets',
     },
     {
       group_id: plGroup ? plGroup.group_id : null,
-      name: "Profit & Loss A/c",
-      ledger_type: "General",
-      nature: "Liabilities",
+      name: 'Profit & Loss A/c',
+      ledger_type: 'General',
+      nature: 'Liabilities',
     },
   ];
 
@@ -61,7 +55,7 @@ const seedDefaultLedgers = async (company_id, groups_arg) => {
       email: null,
       gstin: null,
       pan: null,
-      registrationType: "Unregistered",
+      registrationType: 'Unregistered',
       defaultCreditPeriod: 0,
       checkCreditDays: 0,
       allowCostCentres: 0,
@@ -72,15 +66,15 @@ const seedDefaultLedgers = async (company_id, groups_arg) => {
       isPredefined: 1,
       additionalGstDetails: 0,
       serviceTaxDetails: 0,
-      includeAssessableValue: "Not Applicable",
-      methodOfCalculation: "Based on Value",
+      includeAssessableValue: 'Not Applicable',
+      methodOfCalculation: 'Based on Value',
       otherStatutoryDetails: 0,
       activateInterest: 0,
       interestIncludeAdded: 0,
       interestIncludeDeducted: 0,
       interestRate: 0,
-      interestStyle: "30-Day Month",
-      interestBalances: "All Balances",
+      interestStyle: '30-Day Month',
+      interestBalances: 'All Balances',
     });
   }
 };
@@ -90,35 +84,54 @@ const seedDefaultLedgers = async (company_id, groups_arg) => {
 // non-numeric character ("12`") must be rejected at save, not coerced to 0.
 const validateInterestConfig = (data) => {
   if (!data || !data.activate_interest) return null;
-  if (data.interest_rate !== undefined && data.interest_rate !== null && data.interest_rate !== "") {
+  if (
+    data.interest_rate !== undefined &&
+    data.interest_rate !== null &&
+    data.interest_rate !== ''
+  ) {
     const r = Number(data.interest_rate);
     if (!Number.isFinite(r) || r < 0) {
       return `Interest rate must be a valid non-negative number (got "${data.interest_rate}")`;
     }
   }
-  if (data.default_credit_period !== undefined && data.default_credit_period !== null && data.default_credit_period !== "") {
+  if (
+    data.default_credit_period !== undefined &&
+    data.default_credit_period !== null &&
+    data.default_credit_period !== ''
+  ) {
     const c = Number(data.default_credit_period);
     if (!Number.isFinite(c) || c < 0) {
       return `Credit period must be a valid non-negative number of days (got "${data.default_credit_period}")`;
     }
   }
-  if (data.interest_rate_slabs !== undefined && data.interest_rate_slabs !== null && data.interest_rate_slabs !== "") {
+  if (
+    data.interest_rate_slabs !== undefined &&
+    data.interest_rate_slabs !== null &&
+    data.interest_rate_slabs !== ''
+  ) {
     const slabs = Array.isArray(data.interest_rate_slabs)
       ? data.interest_rate_slabs
-      : (() => { try { return JSON.parse(data.interest_rate_slabs); } catch { return null; } })();
-    if (!Array.isArray(slabs)) return "Interest rate slabs must be a JSON array";
+      : (() => {
+          try {
+            return JSON.parse(data.interest_rate_slabs);
+          } catch {
+            return null;
+          }
+        })();
+    if (!Array.isArray(slabs)) return 'Interest rate slabs must be a JSON array';
     for (const slab of slabs) {
       const r = Number(slab?.rate);
-      if (!Number.isFinite(r) || r < 0) return "Every interest rate slab needs a valid non-negative rate";
-      if (!slab.from_date) return "Every interest rate slab needs a from_date";
+      if (!Number.isFinite(r) || r < 0)
+        return 'Every interest rate slab needs a valid non-negative rate';
+      if (!slab.from_date) return 'Every interest rate slab needs a from_date';
     }
   }
   return null;
 };
 
 const serializeRateSlabs = (slabs) => {
-  if (slabs === undefined || slabs === null || slabs === "") return null;
-  if (typeof slabs === "string") return slabs;
+  if (slabs === undefined || slabs === null || slabs === '') return null;
+  if (typeof slabs === 'string') return slabs;
   return Array.isArray(slabs) && slabs.length ? JSON.stringify(slabs) : null;
 };
 
@@ -140,7 +153,7 @@ module.exports = {
       if (exists.length > 0) {
         return {
           success: false,
-          error: "Ledger already exists",
+          error: 'Ledger already exists',
         };
       }
 
@@ -150,7 +163,7 @@ module.exports = {
       let resolvedNature = data.nature || null;
       if (!resolvedNature && data.group_id) {
         const grp = await db.all(
-          sql`SELECT nature FROM ${groups} WHERE ${groups.groupId} = ${data.group_id} LIMIT 1`
+          sql`SELECT nature FROM ${groups} WHERE ${groups.groupId} = ${data.group_id} LIMIT 1`,
         );
         resolvedNature = grp[0]?.nature || null;
       }
@@ -162,7 +175,7 @@ module.exports = {
           groupId: data.group_id || null,
           name: data.name,
           alias: data.alias || null,
-          ledgerType: data.ledger_type || "General",
+          ledgerType: data.ledger_type || 'General',
           nature: resolvedNature,
           openingBalance: data.opening_balance || 0,
           openingBalanceType: data.opening_balance_type || 'Dr',
@@ -180,7 +193,7 @@ module.exports = {
           email: data.email || null,
           gstin: data.gstin || null,
           pan: data.pan || null,
-          registrationType: data.registration_type || "Unregistered",
+          registrationType: data.registration_type || 'Unregistered',
           defaultCreditPeriod: data.default_credit_period || 0,
           checkCreditDays: data.check_credit_days ? 1 : 0,
           creditLimit: Number(data.credit_limit) || 0,
@@ -196,67 +209,68 @@ module.exports = {
           behaveAsPaymentGateway: data.behave_as_payment_gateway ? 1 : 0,
           paymentGatewayName: data.payment_gateway_name || null,
           placeOfSupply: data.place_of_supply || null,
-          isPartyATransporter: data.is_party_a_transporter || "No",
+          isPartyATransporter: data.is_party_a_transporter || 'No',
           transporterId: data.transporter_id || null,
           serviceTaxRegistrationNumber: data.service_tax_registration_number || null,
-          typeOfService: data.type_of_service || "Undefined",
+          typeOfService: data.type_of_service || 'Undefined',
           notificationNumber: data.notification_number || null,
           notificationSerialNumber: data.notification_serial_number || null,
-          isPartyAnAssociatedEnterprise: data.is_party_an_associated_enterprise || "No",
-          doesPartyBelongToNonTaxableTerritory: data.does_party_belong_to_non_taxable_territory || "No",
-          vatTypeOfDealer: data.vat_type_of_dealer || "Unknown",
+          isPartyAnAssociatedEnterprise: data.is_party_an_associated_enterprise || 'No',
+          doesPartyBelongToNonTaxableTerritory:
+            data.does_party_belong_to_non_taxable_territory || 'No',
+          vatTypeOfDealer: data.vat_type_of_dealer || 'Unknown',
           vatTinNo: data.vat_tin_no || null,
           cstNo: data.cst_no || null,
-          salesPurchasesAgainstFormC: data.sales_purchases_against_form_c || "No",
+          salesPurchasesAgainstFormC: data.sales_purchases_against_form_c || 'No',
           exciseTariffName: data.excise_tariff_name || null,
           exciseHsnCode: data.excise_hsn_code || null,
-          exciseReportingUom: data.excise_reporting_uom || "Undefined",
-          exciseValuationType: data.excise_valuation_type || "Undefined",
+          exciseReportingUom: data.excise_reporting_uom || 'Undefined',
+          exciseValuationType: data.excise_valuation_type || 'Undefined',
           exciseRate: Number(data.excise_rate) || 0,
           exciseRatePerUnit: Number(data.excise_rate_per_unit) || 0,
-          vatNatureOfTransaction: data.vat_nature_of_transaction || "Undefined",
+          vatNatureOfTransaction: data.vat_nature_of_transaction || 'Undefined',
           vatTaxRate: Number(data.vat_tax_rate) || 0,
-          vatTaxType: data.vat_tax_type || "Unknown",
-      includeAssessableValue: data.include_assessable_value || "Not Applicable",
-      methodOfCalculation: data.method_of_calculation || "Based on Value",
-      otherStatutoryDetails: data.other_statutory_details ? 1 : 0,
-      setAlterTdsDetails: data.set_alter_tds_details ? 1 : 0,
-      setAlterTcsDetails: data.set_alter_tcs_details ? 1 : 0,
-      setAlterServiceTaxDetails: data.set_alter_service_tax_details ? 1 : 0,
-      setAlterExciseDetails: data.set_alter_excise_details ? 1 : 0,
-      setAlterVatDetails: data.set_alter_vat_details ? 1 : 0,
-      isTdsDeductable: data.is_tds_deductable ? 1 : 0,
-      treatAsTdsExpenses: data.treat_as_tds_expenses ? 1 : 0,
-      deducteeType: data.deductee_type || null,
-      deductTdsInSameVoucher: data.deduct_tds_in_same_voucher ? 1 : 0,
-      natureOfPayment: data.nature_of_payment || null,
-      tdsPanItNo: data.tds_pan_it_no || null,
-      tdsPanStatus: data.tds_pan_status || null,
-      tdsPanEffectiveDate: data.tds_pan_effective_date || null,
-      tdsNameOnPan: data.tds_name_on_pan || null,
-      tdsDeducteeRef: data.tds_deductee_ref || null,
-      tdsTaxUniqueIdNo: data.tds_tax_unique_id_no || null,
-      isTcsApplicable: data.is_tcs_applicable ? 1 : 0,
-      tcsBuyerLesseeType: data.tcs_buyer_lessee_type || null,
-      tcsPanItNo: data.tcs_pan_it_no || null,
-      tcsPanStatus: data.tcs_pan_status || null,
-      tcsNameOnPan: data.tcs_name_on_pan || null,
-      tcsNatureOfGoods: data.tcs_nature_of_goods || null,
-      isServiceTaxApplicable: data.is_service_tax_applicable || null,
-      isTdsApplicable: data.is_tds_applicable || null,
-      isExciseApplicable: data.is_excise_applicable || null,
-      isVatCstApplicable: data.is_vat_cst_applicable || null,
-      deducteeRef: data.deductee_ref || null,
-      taxUniqueIdNo: data.tax_unique_id_no || null,
-      activateInterest: data.activate_interest ? 1 : 0,
+          vatTaxType: data.vat_tax_type || 'Unknown',
+          includeAssessableValue: data.include_assessable_value || 'Not Applicable',
+          methodOfCalculation: data.method_of_calculation || 'Based on Value',
+          otherStatutoryDetails: data.other_statutory_details ? 1 : 0,
+          setAlterTdsDetails: data.set_alter_tds_details ? 1 : 0,
+          setAlterTcsDetails: data.set_alter_tcs_details ? 1 : 0,
+          setAlterServiceTaxDetails: data.set_alter_service_tax_details ? 1 : 0,
+          setAlterExciseDetails: data.set_alter_excise_details ? 1 : 0,
+          setAlterVatDetails: data.set_alter_vat_details ? 1 : 0,
+          isTdsDeductable: data.is_tds_deductable ? 1 : 0,
+          treatAsTdsExpenses: data.treat_as_tds_expenses ? 1 : 0,
+          deducteeType: data.deductee_type || null,
+          deductTdsInSameVoucher: data.deduct_tds_in_same_voucher ? 1 : 0,
+          natureOfPayment: data.nature_of_payment || null,
+          tdsPanItNo: data.tds_pan_it_no || null,
+          tdsPanStatus: data.tds_pan_status || null,
+          tdsPanEffectiveDate: data.tds_pan_effective_date || null,
+          tdsNameOnPan: data.tds_name_on_pan || null,
+          tdsDeducteeRef: data.tds_deductee_ref || null,
+          tdsTaxUniqueIdNo: data.tds_tax_unique_id_no || null,
+          isTcsApplicable: data.is_tcs_applicable ? 1 : 0,
+          tcsBuyerLesseeType: data.tcs_buyer_lessee_type || null,
+          tcsPanItNo: data.tcs_pan_it_no || null,
+          tcsPanStatus: data.tcs_pan_status || null,
+          tcsNameOnPan: data.tcs_name_on_pan || null,
+          tcsNatureOfGoods: data.tcs_nature_of_goods || null,
+          isServiceTaxApplicable: data.is_service_tax_applicable || null,
+          isTdsApplicable: data.is_tds_applicable || null,
+          isExciseApplicable: data.is_excise_applicable || null,
+          isVatCstApplicable: data.is_vat_cst_applicable || null,
+          deducteeRef: data.deductee_ref || null,
+          taxUniqueIdNo: data.tax_unique_id_no || null,
+          activateInterest: data.activate_interest ? 1 : 0,
           interestIncludeAdded: data.interest_include_added ? 1 : 0,
           interestIncludeDeducted: data.interest_include_deducted ? 1 : 0,
           interestRate: Number(data.interest_rate) || 0,
-          interestStyle: data.interest_style || "30-Day Month",
-          interestBalances: data.interest_balances || "All Balances",
-          interestCalculateOn: data.interest_calculate_on || "Bill-by-Bill",
-          interestApplicableFrom: data.interest_applicable_from || "Due Date",
-          interestRoundingMethod: data.interest_rounding_method || "No Rounding",
+          interestStyle: data.interest_style || '30-Day Month',
+          interestBalances: data.interest_balances || 'All Balances',
+          interestCalculateOn: data.interest_calculate_on || 'Bill-by-Bill',
+          interestApplicableFrom: data.interest_applicable_from || 'Due Date',
+          interestRoundingMethod: data.interest_rounding_method || 'No Rounding',
           interestRoundingLimit: Number(data.interest_rounding_limit) || 1,
           interestRateSlabs: serializeRateSlabs(data.interest_rate_slabs),
         })
@@ -277,8 +291,7 @@ module.exports = {
           chequeBookStartNo: data.bank_details.cheque_book_start_no || null,
           chequeBookEndNo: data.bank_details.cheque_book_end_no || null,
           enableChequePrinting: data.bank_details.enable_cheque_printing ? 1 : 0,
-          chequePrintingConfiguration:
-            data.bank_details.cheque_printing_configuration || null,
+          chequePrintingConfiguration: data.bank_details.cheque_printing_configuration || null,
           odLimit: data.bank_details.od_limit || 0,
           transactionType: data.bank_details.transaction_type || null,
           crossUsing: data.bank_details.cross_using || null,
@@ -290,14 +303,14 @@ module.exports = {
       if (data.statutory_details) {
         await db.insert(ledgerStatutoryDetails).values({
           ledgerId: ledger_id,
-          gstApplicability: data.statutory_details.gst_applicability || "Not Applicable",
+          gstApplicability: data.statutory_details.gst_applicability || 'Not Applicable',
           hsnSacCode: data.statutory_details.hsn_sac_code || null,
           hsnSacDescription: data.statutory_details.hsn_sac_description || null,
-          hsnSacSource: data.statutory_details.hsn_sac_source || "As per Company/Group",
+          hsnSacSource: data.statutory_details.hsn_sac_source || 'As per Company/Group',
           gstRate: data.statutory_details.gst_rate || 0,
-          gstRateSource: data.statutory_details.gst_rate_source || "As per Company/Group",
+          gstRateSource: data.statutory_details.gst_rate_source || 'As per Company/Group',
           taxabilityType: data.statutory_details.taxability_type || null,
-          typeOfSupply: data.statutory_details.type_of_supply || "Services",
+          typeOfSupply: data.statutory_details.type_of_supply || 'Services',
           cgstRate: data.statutory_details.cgst_rate || 0,
           sgstRate: data.statutory_details.sgst_rate || 0,
           igstRate: data.statutory_details.igst_rate || 0,
@@ -309,15 +322,12 @@ module.exports = {
           valuationType: data.statutory_details.valuation_type || null,
           ratePerUnit: data.statutory_details.rate_per_unit || 0,
           roundingLimit: data.statutory_details.rounding_limit || 0,
-          percentageOfCalculation:
-            data.statutory_details.percentage_of_calculation || 0,
+          percentageOfCalculation: data.statutory_details.percentage_of_calculation || 0,
           statutoryDetails: data.statutory_details.statutory_details || null,
           includeInAssessableValueCalculation:
-            data.statutory_details.include_in_assessable_value_calculation ||
-            "Not Applicable",
-          appropriateTo: data.statutory_details.appropriate_to || "Goods",
-          methodOfCalculation:
-            data.statutory_details.method_of_calculation || "Based on Quantity",
+            data.statutory_details.include_in_assessable_value_calculation || 'Not Applicable',
+          appropriateTo: data.statutory_details.appropriate_to || 'Goods',
+          methodOfCalculation: data.statutory_details.method_of_calculation || 'Based on Quantity',
         });
       }
 
@@ -371,7 +381,7 @@ module.exports = {
       if (!ledger) {
         return {
           success: false,
-          error: "Ledger not found",
+          error: 'Ledger not found',
         };
       }
 
@@ -430,14 +440,14 @@ module.exports = {
       if (!ledger) {
         return {
           success: false,
-          error: "Ledger not found",
+          error: 'Ledger not found',
         };
       }
 
       if (ledger.is_predefined) {
         return {
           success: false,
-          error: "Cannot edit predefined ledgers",
+          error: 'Cannot edit predefined ledgers',
         };
       }
 
@@ -450,7 +460,7 @@ module.exports = {
         const groupChanged = data.group_id != null && data.group_id !== ledger.group_id;
         if ((groupChanged || ledger.nature == null) && effectiveGroupId) {
           const grp = await db.all(
-            sql`SELECT nature FROM ${groups} WHERE ${groups.groupId} = ${effectiveGroupId} LIMIT 1`
+            sql`SELECT nature FROM ${groups} WHERE ${groups.groupId} = ${effectiveGroupId} LIMIT 1`,
           );
           resolvedNature = grp[0]?.nature ?? ledger.nature ?? null;
         } else {
@@ -483,114 +493,136 @@ module.exports = {
           gstin: data.gstin ?? ledger.gstin,
           pan: data.pan ?? ledger.pan,
           registrationType: data.registration_type ?? ledger.registration_type,
-          defaultCreditPeriod:
-            data.default_credit_period ?? ledger.default_credit_period ?? 0,
+          defaultCreditPeriod: data.default_credit_period ?? ledger.default_credit_period ?? 0,
           checkCreditDays: data.check_credit_days ? 1 : 0,
           creditLimit:
             data.credit_limit !== undefined
               ? Number(data.credit_limit) || 0
               : (ledger.credit_limit ?? 0),
-          creditLimitType:
-            data.credit_limit_type ?? ledger.credit_limit_type ?? 'Cr',
+          creditLimitType: data.credit_limit_type ?? ledger.credit_limit_type ?? 'Cr',
           allowCostCentres: data.allow_cost_centres ? 1 : 0,
           invoiceRounding: data.invoice_rounding ? 1 : 0,
           roundingMethod: data.rounding_method ?? ledger.rounding_method,
           roundingLimit: data.rounding_limit ?? ledger.rounding_limit ?? 0,
-          additionalGstDetails:
-            data.additional_gst_details ?? ledger.additional_gst_details ?? 0,
-          serviceTaxDetails:
-            data.service_tax_details ?? ledger.service_tax_details ?? 0,
+          additionalGstDetails: data.additional_gst_details ?? ledger.additional_gst_details ?? 0,
+          serviceTaxDetails: data.service_tax_details ?? ledger.service_tax_details ?? 0,
           behaveAsPaymentGateway:
             data.behave_as_payment_gateway !== undefined
-              ? (data.behave_as_payment_gateway ? 1 : 0)
+              ? data.behave_as_payment_gateway
+                ? 1
+                : 0
               : (ledger.behave_as_payment_gateway ?? 0),
           paymentGatewayName: data.payment_gateway_name ?? ledger.payment_gateway_name ?? null,
           placeOfSupply: data.place_of_supply ?? ledger.place_of_supply ?? null,
-          isPartyATransporter: data.is_party_a_transporter ?? ledger.is_party_a_transporter ?? "No",
+          isPartyATransporter: data.is_party_a_transporter ?? ledger.is_party_a_transporter ?? 'No',
           transporterId: data.transporter_id ?? ledger.transporter_id ?? null,
           serviceTaxRegistrationNumber:
             data.service_tax_registration_number ?? ledger.service_tax_registration_number ?? null,
-          typeOfService: data.type_of_service ?? ledger.type_of_service ?? "Undefined",
+          typeOfService: data.type_of_service ?? ledger.type_of_service ?? 'Undefined',
           notificationNumber: data.notification_number ?? ledger.notification_number ?? null,
           notificationSerialNumber:
             data.notification_serial_number ?? ledger.notification_serial_number ?? null,
           isPartyAnAssociatedEnterprise:
-            data.is_party_an_associated_enterprise ?? ledger.is_party_an_associated_enterprise ?? "No",
+            data.is_party_an_associated_enterprise ??
+            ledger.is_party_an_associated_enterprise ??
+            'No',
           doesPartyBelongToNonTaxableTerritory:
             data.does_party_belong_to_non_taxable_territory ??
             ledger.does_party_belong_to_non_taxable_territory ??
-            "No",
-          vatTypeOfDealer: data.vat_type_of_dealer ?? ledger.vat_type_of_dealer ?? "Unknown",
+            'No',
+          vatTypeOfDealer: data.vat_type_of_dealer ?? ledger.vat_type_of_dealer ?? 'Unknown',
           vatTinNo: data.vat_tin_no ?? ledger.vat_tin_no ?? null,
           cstNo: data.cst_no ?? ledger.cst_no ?? null,
           salesPurchasesAgainstFormC:
-            data.sales_purchases_against_form_c ?? ledger.sales_purchases_against_form_c ?? "No",
+            data.sales_purchases_against_form_c ?? ledger.sales_purchases_against_form_c ?? 'No',
           exciseTariffName: data.excise_tariff_name ?? ledger.excise_tariff_name ?? null,
           exciseHsnCode: data.excise_hsn_code ?? ledger.excise_hsn_code ?? null,
-          exciseReportingUom: data.excise_reporting_uom ?? ledger.excise_reporting_uom ?? "Undefined",
-          exciseValuationType: data.excise_valuation_type ?? ledger.excise_valuation_type ?? "Undefined",
-          exciseRate: data.excise_rate !== undefined ? Number(data.excise_rate) : (ledger.excise_rate ?? 0),
-          exciseRatePerUnit: data.excise_rate_per_unit !== undefined ? Number(data.excise_rate_per_unit) : (ledger.excise_rate_per_unit ?? 0),
-          vatNatureOfTransaction: data.vat_nature_of_transaction ?? ledger.vat_nature_of_transaction ?? "Undefined",
-          vatTaxRate: data.vat_tax_rate !== undefined ? Number(data.vat_tax_rate) : (ledger.vat_tax_rate ?? 0),
-          vatTaxType: data.vat_tax_type ?? ledger.vat_tax_type ?? "Unknown",
+          exciseReportingUom:
+            data.excise_reporting_uom ?? ledger.excise_reporting_uom ?? 'Undefined',
+          exciseValuationType:
+            data.excise_valuation_type ?? ledger.excise_valuation_type ?? 'Undefined',
+          exciseRate:
+            data.excise_rate !== undefined ? Number(data.excise_rate) : (ledger.excise_rate ?? 0),
+          exciseRatePerUnit:
+            data.excise_rate_per_unit !== undefined
+              ? Number(data.excise_rate_per_unit)
+              : (ledger.excise_rate_per_unit ?? 0),
+          vatNatureOfTransaction:
+            data.vat_nature_of_transaction ?? ledger.vat_nature_of_transaction ?? 'Undefined',
+          vatTaxRate:
+            data.vat_tax_rate !== undefined
+              ? Number(data.vat_tax_rate)
+              : (ledger.vat_tax_rate ?? 0),
+          vatTaxType: data.vat_tax_type ?? ledger.vat_tax_type ?? 'Unknown',
           includeAssessableValue:
-            data.include_assessable_value ??
-            ledger.include_assessable_value ??
-            "Not Applicable",
+            data.include_assessable_value ?? ledger.include_assessable_value ?? 'Not Applicable',
           methodOfCalculation:
-            data.method_of_calculation ??
-            ledger.method_of_calculation ??
-            "Based on Value",
+            data.method_of_calculation ?? ledger.method_of_calculation ?? 'Based on Value',
           otherStatutoryDetails:
             data.other_statutory_details ?? ledger.other_statutory_details ?? 0,
           setAlterTdsDetails:
             data.set_alter_tds_details !== undefined
-              ? (data.set_alter_tds_details ? 1 : 0)
+              ? data.set_alter_tds_details
+                ? 1
+                : 0
               : (ledger.set_alter_tds_details ?? 0),
           setAlterTcsDetails:
             data.set_alter_tcs_details !== undefined
-              ? (data.set_alter_tcs_details ? 1 : 0)
+              ? data.set_alter_tcs_details
+                ? 1
+                : 0
               : (ledger.set_alter_tcs_details ?? 0),
           setAlterServiceTaxDetails:
             data.set_alter_service_tax_details !== undefined
-              ? (data.set_alter_service_tax_details ? 1 : 0)
+              ? data.set_alter_service_tax_details
+                ? 1
+                : 0
               : (ledger.set_alter_service_tax_details ?? 0),
           setAlterExciseDetails:
             data.set_alter_excise_details !== undefined
-              ? (data.set_alter_excise_details ? 1 : 0)
+              ? data.set_alter_excise_details
+                ? 1
+                : 0
               : (ledger.set_alter_excise_details ?? 0),
           setAlterVatDetails:
             data.set_alter_vat_details !== undefined
-              ? (data.set_alter_vat_details ? 1 : 0)
+              ? data.set_alter_vat_details
+                ? 1
+                : 0
               : (ledger.set_alter_vat_details ?? 0),
           isTdsDeductable:
             data.is_tds_deductable !== undefined
-              ? (data.is_tds_deductable ? 1 : 0)
+              ? data.is_tds_deductable
+                ? 1
+                : 0
               : (ledger.is_tds_deductable ?? 0),
           treatAsTdsExpenses:
             data.treat_as_tds_expenses !== undefined
-              ? (data.treat_as_tds_expenses ? 1 : 0)
+              ? data.treat_as_tds_expenses
+                ? 1
+                : 0
               : (ledger.treat_as_tds_expenses ?? 0),
           deducteeType: data.deductee_type ?? ledger.deductee_type ?? null,
           deductTdsInSameVoucher:
             data.deduct_tds_in_same_voucher !== undefined
-              ? (data.deduct_tds_in_same_voucher ? 1 : 0)
+              ? data.deduct_tds_in_same_voucher
+                ? 1
+                : 0
               : (ledger.deduct_tds_in_same_voucher ?? 0),
           natureOfPayment: data.nature_of_payment ?? ledger.nature_of_payment ?? null,
           tdsPanItNo: data.tds_pan_it_no ?? ledger.tds_pan_it_no ?? null,
           tdsPanStatus: data.tds_pan_status ?? ledger.tds_pan_status ?? null,
-          tdsPanEffectiveDate:
-            data.tds_pan_effective_date ?? ledger.tds_pan_effective_date ?? null,
+          tdsPanEffectiveDate: data.tds_pan_effective_date ?? ledger.tds_pan_effective_date ?? null,
           tdsNameOnPan: data.tds_name_on_pan ?? ledger.tds_name_on_pan ?? null,
           tdsDeducteeRef: data.tds_deductee_ref ?? ledger.tds_deductee_ref ?? null,
           tdsTaxUniqueIdNo: data.tds_tax_unique_id_no ?? ledger.tds_tax_unique_id_no ?? null,
           isTcsApplicable:
             data.is_tcs_applicable !== undefined
-              ? (data.is_tcs_applicable ? 1 : 0)
+              ? data.is_tcs_applicable
+                ? 1
+                : 0
               : (ledger.is_tcs_applicable ?? 0),
-          tcsBuyerLesseeType:
-            data.tcs_buyer_lessee_type ?? ledger.tcs_buyer_lessee_type ?? null,
+          tcsBuyerLesseeType: data.tcs_buyer_lessee_type ?? ledger.tcs_buyer_lessee_type ?? null,
           tcsPanItNo: data.tcs_pan_it_no ?? ledger.tcs_pan_it_no ?? null,
           tcsPanStatus: data.tcs_pan_status ?? ledger.tcs_pan_status ?? null,
           tcsNameOnPan: data.tcs_name_on_pan ?? ledger.tcs_name_on_pan ?? null,
@@ -624,15 +656,14 @@ module.exports = {
             data.interest_rate !== undefined
               ? Number(data.interest_rate) || 0
               : (ledger.interest_rate ?? 0),
-          interestStyle: data.interest_style ?? ledger.interest_style ?? "30-Day Month",
-          interestBalances:
-            data.interest_balances ?? ledger.interest_balances ?? "All Balances",
+          interestStyle: data.interest_style ?? ledger.interest_style ?? '30-Day Month',
+          interestBalances: data.interest_balances ?? ledger.interest_balances ?? 'All Balances',
           interestCalculateOn:
-            data.interest_calculate_on ?? ledger.interest_calculate_on ?? "Bill-by-Bill",
+            data.interest_calculate_on ?? ledger.interest_calculate_on ?? 'Bill-by-Bill',
           interestApplicableFrom:
-            data.interest_applicable_from ?? ledger.interest_applicable_from ?? "Due Date",
+            data.interest_applicable_from ?? ledger.interest_applicable_from ?? 'Due Date',
           interestRoundingMethod:
-            data.interest_rounding_method ?? ledger.interest_rounding_method ?? "No Rounding",
+            data.interest_rounding_method ?? ledger.interest_rounding_method ?? 'No Rounding',
           interestRoundingLimit:
             data.interest_rounding_limit !== undefined
               ? Number(data.interest_rounding_limit) || 1
@@ -646,9 +677,7 @@ module.exports = {
         .where(eq(ledgers.ledgerId, data.ledger_id));
 
       if (data.bank_details) {
-        await db
-          .delete(ledgerBankDetails)
-          .where(eq(ledgerBankDetails.ledgerId, data.ledger_id));
+        await db.delete(ledgerBankDetails).where(eq(ledgerBankDetails.ledgerId, data.ledger_id));
 
         await db.insert(ledgerBankDetails).values({
           ledgerId: data.ledger_id,
@@ -662,8 +691,7 @@ module.exports = {
           chequeBookStartNo: data.bank_details.cheque_book_start_no || null,
           chequeBookEndNo: data.bank_details.cheque_book_end_no || null,
           enableChequePrinting: data.bank_details.enable_cheque_printing ? 1 : 0,
-          chequePrintingConfiguration:
-            data.bank_details.cheque_printing_configuration || null,
+          chequePrintingConfiguration: data.bank_details.cheque_printing_configuration || null,
           odLimit: data.bank_details.od_limit || 0,
           transactionType: data.bank_details.transaction_type || null,
           crossUsing: data.bank_details.cross_using || null,
@@ -679,14 +707,14 @@ module.exports = {
 
         await db.insert(ledgerStatutoryDetails).values({
           ledgerId: data.ledger_id,
-          gstApplicability: data.statutory_details.gst_applicability || "Not Applicable",
+          gstApplicability: data.statutory_details.gst_applicability || 'Not Applicable',
           hsnSacCode: data.statutory_details.hsn_sac_code || null,
           hsnSacDescription: data.statutory_details.hsn_sac_description || null,
-          hsnSacSource: data.statutory_details.hsn_sac_source || "As per Company/Group",
+          hsnSacSource: data.statutory_details.hsn_sac_source || 'As per Company/Group',
           gstRate: data.statutory_details.gst_rate || 0,
-          gstRateSource: data.statutory_details.gst_rate_source || "As per Company/Group",
+          gstRateSource: data.statutory_details.gst_rate_source || 'As per Company/Group',
           taxabilityType: data.statutory_details.taxability_type || null,
-          typeOfSupply: data.statutory_details.type_of_supply || "Services",
+          typeOfSupply: data.statutory_details.type_of_supply || 'Services',
           cgstRate: data.statutory_details.cgst_rate || 0,
           sgstRate: data.statutory_details.sgst_rate || 0,
           igstRate: data.statutory_details.igst_rate || 0,
@@ -698,15 +726,12 @@ module.exports = {
           valuationType: data.statutory_details.valuation_type || null,
           ratePerUnit: data.statutory_details.rate_per_unit || 0,
           roundingLimit: data.statutory_details.rounding_limit || 0,
-          percentageOfCalculation:
-            data.statutory_details.percentage_of_calculation || 0,
+          percentageOfCalculation: data.statutory_details.percentage_of_calculation || 0,
           statutoryDetails: data.statutory_details.statutory_details || null,
           includeInAssessableValueCalculation:
-            data.statutory_details.include_in_assessable_value_calculation ||
-            "Not Applicable",
-          appropriateTo: data.statutory_details.appropriate_to || "Goods",
-          methodOfCalculation:
-            data.statutory_details.method_of_calculation || "Based on Quantity",
+            data.statutory_details.include_in_assessable_value_calculation || 'Not Applicable',
+          appropriateTo: data.statutory_details.appropriate_to || 'Goods',
+          methodOfCalculation: data.statutory_details.method_of_calculation || 'Based on Quantity',
         });
       }
 
@@ -724,6 +749,33 @@ module.exports = {
     }
   },
 
+  // Set ONLY the opening balance + type on a ledger, by id. Unlike `update`, this
+  // is allowed on predefined ledgers (Cash, Profit & Loss A/c) — Tally itself lets
+  // you enter an opening balance on Cash, and imports must be able to carry it in.
+  // Idempotent (SET, not add), so re-imports converge on the source figure.
+  setOpeningBalance: async ({ ledger_id, opening_balance, opening_balance_type }) => {
+    try {
+      const ledger = await findLedgerRow(sql`${ledgers.ledgerId} = ${ledger_id}`);
+      if (!ledger) return { success: false, error: 'Ledger not found' };
+
+      const amount = Number(opening_balance) || 0;
+      const type = opening_balance_type === 'Cr' ? 'Cr' : 'Dr';
+
+      await db
+        .update(ledgers)
+        .set({
+          openingBalance: amount,
+          openingBalanceType: type,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(eq(ledgers.ledgerId, ledger_id));
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
   delete: async (id) => {
     try {
       const existing = await findLedgerRow(sql`${ledgers.ledgerId} = ${id}`);
@@ -731,21 +783,18 @@ module.exports = {
       if (!existing) {
         return {
           success: false,
-          error: "Ledger not found",
+          error: 'Ledger not found',
         };
       }
 
       if (existing.is_predefined) {
         return {
           success: false,
-          error: "Cannot delete predefined ledgers",
+          error: 'Cannot delete predefined ledgers',
         };
       }
 
-      await db
-        .update(ledgers)
-        .set({ isActive: 0 })
-        .where(eq(ledgers.ledgerId, id));
+      await db.update(ledgers).set({ isActive: 0 }).where(eq(ledgers.ledgerId, id));
 
       return {
         success: true,
@@ -780,12 +829,7 @@ module.exports = {
             checkCreditDays: r.check_credit_days ? 1 : 0,
             updatedAt: sql`datetime('now')`,
           })
-          .where(
-            and(
-              eq(ledgers.ledgerId, r.ledger_id),
-              eq(ledgers.companyId, company_id),
-            ),
-          );
+          .where(and(eq(ledgers.ledgerId, r.ledger_id), eq(ledgers.companyId, company_id)));
         updated += 1;
       }
 
@@ -802,7 +846,7 @@ module.exports = {
               COALESCE(SUM(CASE WHEN opening_balance_type = 'Dr' THEN ABS(opening_balance) ELSE 0 END), 0) as total_dr,
               COALESCE(SUM(CASE WHEN opening_balance_type = 'Cr' THEN ABS(opening_balance) ELSE 0 END), 0) as total_cr
             FROM ${ledgers}
-            WHERE ${ledgers.companyId} = ${company_id} AND ${ledgers.isActive} = 1`
+            WHERE ${ledgers.companyId} = ${company_id} AND ${ledgers.isActive} = 1`,
       );
       const row = rows[0];
       const totalDr = Number(row.total_dr) || 0;

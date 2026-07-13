@@ -202,11 +202,15 @@ describe('GST Reports engine', () => {
   });
 
   it('GSTR-2A reconciliation buckets the purchase invoice into B2B (books side)', async () => {
-    const res = await reconciliationService.getGSTR2AReconciliation(companyId, fyId);
+    const res = await reconciliationService.getReconSummary(companyId, fyId, '2A');
     expect(res.success).toBe(true);
-    expect(res.payload.return_view.b2b.vch_count).toBeGreaterThanOrEqual(1);
-    expect(res.payload.return_view.b2b.taxable_amount).toBe(5000);
+    const b2b = res.payload.return_view.find((r) => r.key === 'b2b');
+    expect(b2b.books.count).toBeGreaterThanOrEqual(1);
+    expect(b2b.books.taxable).toBe(5000);
     expect(res.payload.voucher_status.unreconciled).toBeGreaterThanOrEqual(1);
+    // Nothing imported → the book document is unverifiable, not a proven discrepancy.
+    expect(res.payload.voucher_status.no_portal).toBeGreaterThanOrEqual(1);
+    expect(res.payload.voucher_status.only_in_books).toBe(0);
   });
 
   it('GSTR-1 reconciliation totals real stock-line tax into B2B (books side)', async () => {
@@ -227,15 +231,15 @@ describe('GST Reports engine', () => {
 
   it('GSTR-2B reconciliation totals real stock-line tax and matches imported portal invoices', async () => {
     // Before import: books-only, everything Unreconciled with real amounts.
-    let res = await reconciliationService.getGSTR2BReconciliation(companyId, fyId);
+    let res = await reconciliationService.getReconSummary(companyId, fyId, '2B');
     expect(res.success).toBe(true);
-    let itc = res.payload.return_view.itc_available_other;
-    expect(itc.vch_count).toBe(1);
-    expect(itc.taxable_amount).toBe(5000);
-    expect(itc.cgst).toBe(450);
-    expect(itc.sgst).toBe(450);
-    expect(itc.tax_amount).toBe(900);
-    expect(itc.invoice_amount).toBe(5900);
+    let itc = res.payload.return_view.find((r) => r.key === 'b2b');
+    expect(itc.books.count).toBe(1);
+    expect(itc.books.taxable).toBe(5000);
+    expect(itc.books.cgst).toBe(450);
+    expect(itc.books.sgst).toBe(450);
+    expect(itc.books.tax).toBe(900);
+    expect(itc.books.invoice).toBe(5900);
     expect(res.payload.voucher_status.unreconciled).toBe(1);
 
     // Import a 2B statement containing the supplier invoice → it reconciles.
@@ -244,12 +248,54 @@ describe('GST Reports engine', () => {
     });
     expect(imp.success).toBe(true);
 
-    res = await reconciliationService.getGSTR2BReconciliation(companyId, fyId);
+    res = await reconciliationService.getReconSummary(companyId, fyId, '2B');
     expect(res.success).toBe(true);
-    itc = res.payload.return_view.itc_available_other;
+    itc = res.payload.return_view.find((r) => r.key === 'b2b');
     expect(itc.status).toBe('Reconciled');
     expect(res.payload.voucher_status.reconciled).toBe(1);
     expect(res.payload.voucher_status.unreconciled).toBe(0);
+    expect(res.payload.last_gst_activity).toMatch(/imported on/);
+  });
+
+  it('rejects an import whose return period falls outside the financial year', async () => {
+    const imp = await reconciliationService.importGSTR2B(companyId, fyId, '042031', {
+      b2b: [{ ctin: '29ABCDE1234F1Z5', inv: [{ inum: 'X-1', val: 100 }] }],
+    });
+    expect(imp.success).toBe(false);
+    expect(imp.error).toMatch(/outside the financial year/i);
+  });
+
+  it('normalizes an official-shaped GSTR-2B file (data.docdata, flat igst/cgst keys) on import', async () => {
+    const official = {
+      data: {
+        rtnprd: '052026',
+        docdata: {
+          b2b: [
+            {
+              ctin: '29ABCDE1234F1Z5',
+              inv: [
+                {
+                  inum: 'OFF-1',
+                  val: 2360,
+                  items: [{ txval: 2000, igst: 0, cgst: 180, sgst: 180 }],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    // No explicit period → derived from the file's rtnprd.
+    const imp = await reconciliationService.importGSTR2B(companyId, fyId, null, official);
+    expect(imp.success).toBe(true);
+    expect(imp.return_period).toBe('052026');
+    expect(imp.documents).toBe(1);
+
+    // The normalized invoice is now visible to the reconciliation as portal data.
+    const res = await reconciliationService.getReconSummary(companyId, fyId, '2B');
+    const itc = res.payload.return_view.find((r) => r.key === 'b2b');
+    expect(itc.portal.count).toBeGreaterThanOrEqual(2); // PINV-1 + OFF-1
+    expect(res.payload.voucher_status.only_in_portal).toBeGreaterThanOrEqual(1);
   });
 
   it('IMS inward supplies derives supplier-filed status from imported 2B data', async () => {

@@ -44,6 +44,7 @@ export default function ReconPartySummary() {
   const kind: ReconKind = location.state?.kind || '2A';
   const section: string = location.state?.section || 'b2b';
   const sectionLabel: string = location.state?.sectionLabel || 'B2B Invoices';
+  const registration = location.state?.registration || null;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export default function ReconPartySummary() {
         fy_id: fyId,
         kind,
         section,
+        gst_registration_id: registration?.gst_id ?? null,
       });
       if (res.success) {
         setParties(res.payload.parties || []);
@@ -70,7 +72,7 @@ export default function ReconPartySummary() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId, kind, section]);
+  }, [companyId, fyId, kind, section, registration]);
 
   useEffect(() => {
     load();
@@ -78,7 +80,7 @@ export default function ReconPartySummary() {
 
   const drillVouchers = (p: PartyRow) =>
     navigate(`/master/statutory/gstr${kind.toLowerCase()}/reconciliation/register`, {
-      state: { kind, section, sectionLabel, gstin: p.gstin, partyName: p.party_name },
+      state: { kind, section, sectionLabel, gstin: p.gstin, partyName: p.party_name, registration },
     });
 
   const grand = parties.reduce(
@@ -145,6 +147,7 @@ export default function ReconPartySummary() {
         {
           label: `GSTR-${kind} Reconciliation`,
           to: `/master/statutory/gstr${kind.toLowerCase()}/reconciliation`,
+          state: { registration },
         },
         { label: sectionLabel },
       ]}
