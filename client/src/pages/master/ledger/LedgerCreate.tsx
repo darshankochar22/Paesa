@@ -9,6 +9,8 @@ import {
   RightActionPanel,
   NotificationBanner,
   MasterFormFooter,
+  inputCls,
+  selectCls,
 } from '@/components/ui';
 import BankDetailsPopup from './components/BankDetailsPopup';
 import type { GroupType } from '@/types/api';
@@ -43,11 +45,6 @@ import {
 } from './components/statutory/SimpleTaxModals';
 import DetailedVATDetailsModal from './components/statutory/VATTaxRateDetailsModal';
 import DetailedExciseTariffDetails from '../inventory/stock-item/components/ExciseTariffDetails';
-
-const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
-const selectCls =
-  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
 import LedgerStatutoryLeftPanel from './LedgerStatutoryLeftPanel';
 

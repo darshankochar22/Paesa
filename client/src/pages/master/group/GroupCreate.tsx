@@ -1,7 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { FormRow, PageTitleBar, NotificationBanner, YesNoSelect } from '@/components/ui';
+import {
+  FormRow,
+  PageTitleBar,
+  NotificationBanner,
+  YesNoSelect,
+  inputCls,
+  selectCls,
+} from '@/components/ui';
 import GroupFlatList from '@/components/GroupFlatList';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { GroupType } from '@/types/api';
@@ -26,10 +33,6 @@ function Row(props: {
 }
 
 // Boxed input/select styling matching the Ledger creation screen.
-const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
-const selectCls =
-  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
 const NATURES = ['Assets', 'Liabilities', 'Income', 'Expenses'];
 const ALLOC_METHODS = ['Not Applicable', 'Appropriate by Quantity', 'Appropriate by Value'];

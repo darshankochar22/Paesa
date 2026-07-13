@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { PageTitleBar, FormRow, RightActionPanel, NotificationBanner } from '@/components/ui';
 import { usePANDetails } from './hooks/usePANDetails';
+import { useFieldWalker } from '@/hooks/useFieldWalker';
 
 const activeClass =
   'bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs';
@@ -55,30 +56,9 @@ export default function PANDetailsCreate() {
       if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setShowAccept(true);
-        return;
-      }
-
-      const idx = FIELDS.indexOf(activeField);
-      if (idx !== -1) {
-        if (e.key === 'Enter' || e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
-          e.preventDefault();
-          if (idx === FIELDS.length - 1) {
-            setShowAccept(true);
-          } else {
-            setActiveField(FIELDS[idx + 1]);
-          }
-          return;
-        }
-        if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
-          e.preventDefault();
-          if (idx > 0) {
-            setActiveField(FIELDS[idx - 1]);
-          }
-          return;
-        }
       }
     },
-    [showAccept, activeField, saveDetails, navigate],
+    [showAccept, saveDetails, navigate],
   );
 
   useEffect(() => {
@@ -86,15 +66,14 @@ export default function PANDetailsCreate() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  useEffect(() => {
-    if (showAccept) return;
-
-    const refMap: Record<string, React.RefObject<HTMLInputElement | null>> = {
-      pan: panRef,
-      cin: cinRef,
-    };
-    refMap[activeField]?.current?.focus();
-  }, [activeField, showAccept]);
+  useFieldWalker({
+    fields: FIELDS,
+    active: activeField,
+    setActive: setActiveField,
+    refs: { pan: panRef, cin: cinRef },
+    onLast: () => setShowAccept(true),
+    enabled: !showAccept,
+  });
 
   const actions = [
     { key: 'Alt+A', label: 'Accept', onClick: () => setShowAccept(true) },

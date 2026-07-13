@@ -7,13 +7,12 @@ import {
   RightActionPanel,
   NotificationBanner,
   MasterFormFooter,
+  inputCls,
 } from '@/components/ui';
 import CostCentreFlatList from '@/components/CostCentreFlatList';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
+import { useMasterShortcuts } from '@/hooks/useMasterShortcuts';
 import type { CostCentreType } from '@/types/api';
-
-const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
 interface FormState extends Partial<CostCentreType> {}
 
@@ -89,25 +88,18 @@ export default function CostCentreCreate() {
     }
   }, [form, companyId, fetchData]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (showPanel) setShowPanel(false);
-        else navigate('/master/create');
-      }
-      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'a' && !showPanel) {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.altKey && e.key.toLowerCase() === 'c' && !showPanel) {
-        e.preventDefault();
-        navigate('/master/alter/cost-centre');
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [handleSubmit, navigate, showPanel]);
+  useMasterShortcuts({
+    onAccept: () => {
+      if (!showPanel) handleSubmit();
+    },
+    onQuit: () => {
+      if (showPanel) setShowPanel(false);
+      else navigate('/master/create');
+    },
+    onCreate: () => {
+      if (!showPanel) navigate('/master/alter/cost-centre');
+    },
+  });
 
   const handleSelectParent = (cc: CostCentreType) => {
     setForm((f) => ({ ...f, parent_id: cc.cc_id }));

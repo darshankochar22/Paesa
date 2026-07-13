@@ -9,6 +9,8 @@ import {
   FormRow,
   MasterFormFooter,
   NotificationBanner,
+  inputCls,
+  selectCls,
 } from '@/components/ui';
 import type {
   StockGroupType,
@@ -27,11 +29,6 @@ import OtherStatutoryDetails from './components/OtherStatutoryDetails';
 import type { FormData, PanelType } from './types';
 import { calculateGstDetails } from './utils';
 import { useStockItemBom } from './hooks/useStockItemBom';
-
-const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
-const selectCls =
-  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
 interface StockItemAlterProps {
   initialItemId?: number;

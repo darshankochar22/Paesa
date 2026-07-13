@@ -1,4 +1,4 @@
-import { FormRow } from '@/components/ui';
+import { FormRow, selectCls } from '@/components/ui';
 import {
   EMPTY_TDS,
   EMPTY_TCS,
@@ -11,9 +11,6 @@ import {
 // (GST/TDS/excise applicability fields) — extracted from LedgerAlter.tsx
 // (markup unchanged; LedgerCreate had an identical copy).
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-const selectCls =
-  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
 interface Props {
   statutoryForm: any;

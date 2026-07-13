@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FormRow } from '@/components/ui';
+import { FormRow, inputCls, selectCls } from '@/components/ui';
 import { useCompany } from '@/context/CompanyContext';
 import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
 import { EXCISE_REPORTING_UOM_OPTIONS, EXCISE_VALUATION_TYPE_OPTIONS } from '../consts';
@@ -33,11 +33,6 @@ interface OtherStatutoryDetailsProps {
   onAccept: (data: OtherStatutoryFormData) => void;
   onClose: () => void;
 }
-
-const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
-const selectCls =
-  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
 export default function OtherStatutoryDetails({
   stockItemName,

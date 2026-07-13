@@ -14,6 +14,7 @@ export { default as RightActionPanel } from './RightActionPanel';
 export type { RightPanelAction } from './RightActionPanel';
 export { default as MasterSelectionPanel } from './MasterSelectionPanel';
 export { default as MasterFormFooter } from './MasterFormFooter';
+export { inputCls, selectCls, numCls, rowCls } from './formStyles';
 
 // ── Local primitives (sharp, zinc, shadcn-free) ──────────────────────────────
 export { default as Button } from './Button';

@@ -1,14 +1,17 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { FormRow, PageTitleBar, MasterFormFooter, AlertBanner } from '@/components/ui';
+import {
+  FormRow,
+  PageTitleBar,
+  MasterFormFooter,
+  AlertBanner,
+  inputCls,
+  selectCls,
+} from '@/components/ui';
 import { useMasterShortcuts } from '@/hooks/useMasterShortcuts';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import { UqcPopup } from '../../inventory/unit/UqcPopup';
-const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
-const selectCls =
-  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
 interface FormData {
   unit_type: 'Simple' | 'Compound';

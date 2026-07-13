@@ -1,14 +1,9 @@
-import { FormRow } from '@/components/ui';
+import { FormRow, inputCls, selectCls } from '@/components/ui';
 import type { LedgerType } from '@/types/api';
 import type { StatutoryDetails } from '../hooks/useLedgerForm';
 import type { LedgerConfigOptions } from '../config/LedgerConfig';
 import { useCompany } from '@/context/CompanyContext';
 import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
-
-const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
-const selectCls =
-  'bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded';
 
 interface LedgerTaxPanelProps {
   form: Partial<LedgerType>;

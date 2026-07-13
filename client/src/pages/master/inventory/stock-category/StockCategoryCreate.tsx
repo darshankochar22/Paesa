@@ -7,11 +7,10 @@ import {
   RightActionPanel,
   NotificationBanner,
   MasterFormFooter,
+  inputCls,
 } from '@/components/ui';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { StockCategoryType } from '@/types/api';
-const inputCls =
-  'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
 
 function CategoryListPanel({
   categories,
