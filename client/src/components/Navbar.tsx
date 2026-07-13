@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MenuCard, { type OptionType } from '@/components/ui/Card';
 import { useCompany } from '@/context/CompanyContext';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 import { exportElementToPdf } from '@/lib/exportDomPdf';
 import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
 import GstPortalLoginDialog from '@/components/tally-ui/GstPortalLoginDialog';
@@ -25,7 +26,10 @@ const HOTKEY_BADGES: Record<string, string> = Object.fromEntries(
 );
 
 export default function Navbar() {
-  const { selectedCompany, setSelectedCompany } = useCompany();
+  const { selectedCompany, setSelectedCompany, features } = useCompany();
+  // F11 "Enable Payment Request to share payment link/QR code" gates the
+  // Exchange → Payment Gateway link/QR action (Merchant Profile menu is gated elsewhere).
+  const payQrEnabled = isFeatureEnabled(features, 'enable_payment_request_qr');
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState('');
   const [gstLoginOpen, setGstLoginOpen] = useState(false);
@@ -137,11 +141,15 @@ export default function Navbar() {
         { label: 'Download GST Returns', path: '/master/statutory/download-gst-returns' },
         { label: 'Refresh GST Status', action: refreshGstStatus },
         { label: 'File GSTR-1', path: '/master/statutory/gstr1' },
-        { label: 'Payment Gateway', heading: true },
-        {
-          label: 'Generate Payment Link/QR Code',
-          children: [{ label: 'Generate Payment Link' }, { label: 'Generate QR Code' }],
-        },
+        ...(payQrEnabled
+          ? ([
+              { label: 'Payment Gateway', heading: true },
+              {
+                label: 'Generate Payment Link/QR Code',
+                children: [{ label: 'Generate Payment Link' }, { label: 'Generate QR Code' }],
+              },
+            ] as OptionType[])
+          : []),
         { label: 'Configure', heading: true },
         { label: 'Data Synchronisation' },
         { label: 'GST', path: '/data/gstRegistration' },

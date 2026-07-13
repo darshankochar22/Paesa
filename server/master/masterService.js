@@ -5,14 +5,29 @@ const getMenu = async (company_id = 1) => {
     const featureResult = await tallyFeaturesService.get(company_id);
     const features = featureResult.success ? featureResult.features : {};
 
-    // Statutory master → the F11 flag required for it to appear. GST / Service Tax
-    // are not gated yet; items not listed here always show.
+    // Master item → the F11 flag required for it to appear. Items not listed
+    // here always show. Non-destructive: a hidden master's data is untouched and
+    // reappears when the feature is turned back on.
     const MASTER_FEATURE = {
+      // Accounting
+      'Cost Category': 'enable_cost_centres',
+      'Cost Centre': 'enable_cost_centres',
+      // Inventory
+      'Price levels': 'enable_multiple_price_levels',
+      'Price list (Stock Group)': 'enable_multiple_price_levels',
+      'Price list (Stock Category)': 'enable_multiple_price_levels',
+      // GST
+      'GST Registration': 'enable_gst',
+      'GST Classification': 'enable_gst',
+      'Company GST Details': 'enable_gst',
+      // TDS / TCS
       'TDS Details': 'enable_tds',
       'TDS Nature of Payment': 'enable_tds',
       'TCS Details': 'enable_tcs',
       'TCS Nature of Goods': 'enable_tcs',
+      // VAT
       'VAT Registration Details': 'enable_vat',
+      // Excise
       'Excise Registration Details': 'enable_excise',
       'Excise Duty Classification': 'enable_excise',
       'Excise Book': 'enable_excise',
@@ -20,11 +35,17 @@ const getMenu = async (company_id = 1) => {
       'PLA Opening Balance': 'enable_excise',
       'Excise Opening Balance': 'enable_excise',
       'Dealer Excise Opening Stock': 'enable_excise',
+      // Service Tax
       'Service Tax Details': 'enable_service_tax',
+      // Payroll
+      'Payroll Statutory Details': 'enable_payroll_statutory',
     };
+    // A flag is "on" unless it is explicitly stored as 0 (matches the client
+    // isFeatureEnabled semantics; features that default on stay on).
+    const flagOn = (flag) => features[flag] !== 0;
     const gateItem = (item) => {
       const flag = MASTER_FEATURE[item];
-      return !flag || features[flag];
+      return !flag || flagOn(flag);
     };
 
     const menu = [];
@@ -39,15 +60,15 @@ const getMenu = async (company_id = 1) => {
       'Cost Centre',
       'Budget',
       'Scenario',
-    ];
+    ].filter(gateItem);
     menu.push({ title: 'Accounting Masters', items: accountingItems });
 
-    if (features.enable_payment_request_qr) {
+    if (flagOn('enable_payment_request_qr')) {
       const paymentRequest = ['Merchant Profile'];
       menu.push({ title: 'Payment Request', items: paymentRequest });
     }
 
-    if (features.maintain_inventory !== 0) {
+    if (flagOn('maintain_inventory')) {
       const inventoryItems = [
         'Stock Group',
         'Stock Category',
@@ -57,21 +78,22 @@ const getMenu = async (company_id = 1) => {
         'Price levels',
         'Price list (Stock Group)',
         'Price list (Stock Category)',
-      ];
+      ].filter(gateItem);
       menu.push({ title: 'Inventory Masters', items: inventoryItems });
     }
-    menu.push({
-      title: 'Statutory Masters',
-      items: [
-        'GST Registration',
-        'GST Classification',
-        'TCS Nature of Goods',
-        'TDS Nature of Payment',
-        'Excise Duty Classification',
-        'Excise Book',
-        'Tax Units',
-      ].filter(gateItem),
-    });
+
+    const statutoryMasters = [
+      'GST Registration',
+      'GST Classification',
+      'TCS Nature of Goods',
+      'TDS Nature of Payment',
+      'Excise Duty Classification',
+      'Excise Book',
+      'Tax Units',
+    ].filter(gateItem);
+    if (statutoryMasters.length) {
+      menu.push({ title: 'Statutory Masters', items: statutoryMasters });
+    }
 
     const statutoryDetails = [
       'Company GST Details',
@@ -87,20 +109,24 @@ const getMenu = async (company_id = 1) => {
       'PAN / CIN Details',
       'Payroll Statutory Details',
     ].filter(gateItem);
-    menu.push({ title: 'Statutory Details', items: statutoryDetails });
+    if (statutoryDetails.length) {
+      menu.push({ title: 'Statutory Details', items: statutoryDetails });
+    }
 
-    menu.push({
-      title: 'Payroll Masters',
-      items: [
-        'Employee Category',
-        'Employee',
-        'Units(work)',
-        'Employee Group',
-        'Attendance / Production type',
-        'Pay Heads',
-        'Payroll Voucher Type',
-      ],
-    });
+    if (flagOn('maintain_payroll')) {
+      menu.push({
+        title: 'Payroll Masters',
+        items: [
+          'Employee Category',
+          'Employee',
+          'Units(work)',
+          'Employee Group',
+          'Attendance / Production type',
+          'Pay Heads',
+          'Payroll Voucher Type',
+        ],
+      });
+    }
 
     return { success: true, menu };
   } catch (err) {

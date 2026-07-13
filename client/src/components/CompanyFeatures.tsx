@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { CompanyType } from '@/types/entities/Company';
 import type { TallyFeaturesType } from '@/types/entities/TallyFeatures';
+import { FEATURE_DEPENDENCIES, type FeatureFlag } from '@/lib/companyFeatures';
 
 // F11 "Company Features" popup — the Tally-style feature toggle screen.
 // Backed by window.api.tallyFeatures (tally_features table, one row per company).
@@ -213,9 +214,41 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
     };
   }, [open, companyId]);
 
-  const setVal = useCallback((key: string, v: number) => {
-    setValues((prev) => (prev[key] === v ? prev : { ...prev, [key]: v }));
+  // A child row is locked while any ancestor in FEATURE_DEPENDENCIES is off.
+  const isLocked = useCallback((key: string, vals: Record<string, number>) => {
+    let p = FEATURE_DEPENDENCIES[key as FeatureFlag];
+    while (p) {
+      if (!vals[p]) return true;
+      p = FEATURE_DEPENDENCIES[p];
+    }
+    return false;
   }, []);
+
+  const setVal = useCallback(
+    (key: string, v: number) => {
+      setValues((prev) => {
+        // Block enabling a child whose parent chain is off.
+        if (v && isLocked(key, prev)) return prev;
+        if (prev[key] === v) return prev;
+        const next = { ...prev, [key]: v };
+        // Turning a parent off cascades every dependent descendant off too.
+        if (!v) {
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const [child, parent] of Object.entries(FEATURE_DEPENDENCIES)) {
+              if (next[child] && parent && !next[parent]) {
+                next[child] = 0;
+                changed = true;
+              }
+            }
+          }
+        }
+        return next;
+      });
+    },
+    [isLocked],
+  );
 
   const handleSave = useCallback(async () => {
     if (!companyId || saving) return;
@@ -296,7 +329,8 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
 
   const renderRow = (row: Row) => {
     if (!levelVisible(row.level)) return null;
-    const on = !!values[row.key];
+    const locked = isLocked(row.key, values);
+    const on = !locked && !!values[row.key];
     const focused = row.key === focusedKey;
     return (
       <div
@@ -310,8 +344,16 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
           focused && 'bg-zinc-100',
         )}
       >
-        <span className={cn('text-zinc-700 leading-tight', row.indent && 'pl-3')}>{row.label}</span>
-        <Toggle value={on} onChange={(v) => setVal(row.key, v ? 1 : 0)} />
+        <span
+          className={cn(
+            'leading-tight',
+            row.indent && 'pl-3',
+            locked ? 'text-zinc-300' : 'text-zinc-700',
+          )}
+        >
+          {row.label}
+        </span>
+        <Toggle value={on} disabled={locked} onChange={(v) => setVal(row.key, v ? 1 : 0)} />
       </div>
     );
   };
@@ -413,25 +455,42 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
 
 // Segmented Yes/No — strict grayscale; selected side gets a soft light-gray
 // fill (Tally-style highlight), never harsh black.
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
-    <div className="inline-flex border border-zinc-300 shrink-0 text-[11px]">
+    <div
+      className={cn(
+        'inline-flex border border-zinc-300 shrink-0 text-[11px]',
+        disabled && 'opacity-40',
+      )}
+    >
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onChange(true)}
         className={cn(
           'px-2.5 py-0.5',
           value ? 'bg-zinc-200 text-zinc-900 font-semibold' : 'text-zinc-400 hover:bg-zinc-50',
+          disabled && 'cursor-not-allowed hover:bg-transparent',
         )}
       >
         Yes
       </button>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onChange(false)}
         className={cn(
           'px-2.5 py-0.5 border-l border-zinc-300',
           !value ? 'bg-zinc-200 text-zinc-900 font-semibold' : 'text-zinc-400 hover:bg-zinc-50',
+          disabled && 'cursor-not-allowed hover:bg-transparent',
         )}
       >
         No

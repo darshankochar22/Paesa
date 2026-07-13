@@ -32,6 +32,7 @@ import InterestParametersModal from './components/InterestParametersModal';
 import OtherStatutoryModal from './components/statutory/OtherStatutoryModal';
 import { getOtherStatutoryConfig } from '@/config/ledgerStatutoryConfig';
 import { filterStatutorySectionsByFeature } from '@/lib/taxFeatures';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 import { getLedgerConfig } from './config/LedgerConfig';
 import AdditionalGSTDetailsModal from './components/AdditionalGSTDetails';
 import ServiceTaxModal from './components/ServiceTaxModal';
@@ -585,30 +586,35 @@ export default function LedgerCreate() {
             </div>
           )}
 
-          {/* Bill-wise Details — above interest calculation for debtor/creditor groups */}
-          <LedgerBillwisePanel
-            form={form}
-            setForm={setForm}
-            setNumber={setNumber}
-            groupLineage={groupLineage}
-          />
+          {/* Bill-wise Details — above interest calculation for debtor/creditor groups
+              (F11 → Enable Bill-wise entry) */}
+          {isFeatureEnabled(features, 'enable_bill_wise_entry') && (
+            <LedgerBillwisePanel
+              form={form}
+              setForm={setForm}
+              setNumber={setNumber}
+              groupLineage={groupLineage}
+            />
+          )}
 
-          {/* Activate interest calculation */}
+          {/* Activate interest calculation (F11 → Enable Interest Calculation) + OD limit */}
           <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
-            <FormRow
-              label="Activate interest calculation"
-              labelWidth="w-52"
-              className="flex items-center min-h-[26px]"
-            >
-              <select
-                className={selectCls}
-                value={form.activate_interest ? 'Yes' : 'No'}
-                onChange={handleActivateInterestChange}
+            {isFeatureEnabled(features, 'enable_interest_calculation') && (
+              <FormRow
+                label="Activate interest calculation"
+                labelWidth="w-52"
+                className="flex items-center min-h-[26px]"
               >
-                <option value="No">No</option>
-                <option value="Yes">Yes</option>
-              </select>
-            </FormRow>
+                <select
+                  className={selectCls}
+                  value={form.activate_interest ? 'Yes' : 'No'}
+                  onChange={handleActivateInterestChange}
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </FormRow>
+            )}
             {groupLineage.isOD && (
               <FormRow
                 label="Set OD limit"

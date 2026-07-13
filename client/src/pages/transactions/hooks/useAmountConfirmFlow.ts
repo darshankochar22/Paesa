@@ -3,6 +3,7 @@ import type { useVoucherForm } from './useVoucherForm';
 import { validateTaxLedgerSelection } from '../utils/interstate';
 import type { InventoryAllocState } from './useStockEntryFlow';
 import { advanceFromLastField } from '../lib/voucherNav';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 // Enter-on-amount allocation dispatch (bank / bill-wise / cost-centre) and the
 // selection-time twin that opens the same popups when a balancing row's amount
@@ -18,6 +19,13 @@ export function useAmountConfirmFlow(
 ) {
   const { proceedToNextRow, setInventoryAlloc } = deps;
 
+  // F11 gates: when off, the corresponding allocation popup never opens even if a
+  // ledger still carries is_bill_wise / allow_cost_centres from before.
+  const billWiseEnabled = isFeatureEnabled(form.features, 'enable_bill_wise_entry');
+  const costCentresEnabled = isFeatureEnabled(form.features, 'enable_cost_centres');
+  const batchesEnabled = isFeatureEnabled(form.features, 'enable_batches');
+  const expiryEnabled = isFeatureEnabled(form.features, 'maintain_expiry_date_for_batches');
+
   const handleAmountConfirm = useCallback(
     (row: any, idx: number) => {
       const { ledger, amountRaw, id } = row;
@@ -26,6 +34,10 @@ export function useAmountConfirmFlow(
         proceedToNextRow(idx);
         return;
       }
+
+      const wantsBillWise =
+        billWiseEnabled && (form.checkIsParty(ledger) || ledger.is_bill_wise === 1);
+      const wantsCostCentre = costCentresEnabled && ledger.allow_cost_centres === 1;
 
       // Contra / Receipt / Payment double-entry: bank allocation for any bank ledger
       if (
@@ -51,13 +63,13 @@ export function useAmountConfirmFlow(
         }
         // Non-bank: only party ledgers (Sundry Debtors/Creditors) or bill-wise
         // ledgers continue to the bill-wise popup; anything else just advances.
-        if (!(form.checkIsParty(ledger) || ledger.is_bill_wise === 1)) {
+        if (!wantsBillWise) {
           proceedToNextRow(idx);
           return;
         }
       }
 
-      if (form.checkIsParty(ledger) || ledger.is_bill_wise === 1) {
+      if (wantsBillWise) {
         form.setActiveAllocation({
           type: 'billWise',
           rowId: id,
@@ -67,7 +79,7 @@ export function useAmountConfirmFlow(
           dcType: row.type ?? 'Dr',
           initialAllocations: row.billReferences ?? [],
         });
-      } else if (ledger.allow_cost_centres === 1) {
+      } else if (wantsCostCentre) {
         form.setActiveAllocation({
           type: 'costCentre',
           rowId: id,
@@ -82,6 +94,8 @@ export function useAmountConfirmFlow(
     },
     [
       effectiveVoucherType,
+      billWiseEnabled,
+      costCentresEnabled,
       form.paymentEntryMode,
       form.receiptEntryMode,
       form.checkIsBank,
@@ -200,7 +214,7 @@ export function useAmountConfirmFlow(
           ledgerName: item.name,
           isInward: form.checkLedgerGroup(item, ['purchase accounts']),
           dcType: row?.type ?? 'Dr',
-          allowCostCentres: item.allow_cost_centres === 1,
+          allowCostCentres: costCentresEnabled && item.allow_cost_centres === 1,
         });
         return;
       }
@@ -224,7 +238,7 @@ export function useAmountConfirmFlow(
       if (effectiveVoucherType === 'Physical Stock' && field?.type === 'stockGodown') {
         const idx = form.stockEntries.findIndex((r) => r.id === field.rowId);
         const row = form.stockEntries[idx];
-        const isBatch = Number((row?.stockItem as any)?.track_batches) === 1;
+        const isBatch = batchesEnabled && Number((row?.stockItem as any)?.track_batches) === 1;
         setTimeout(() => {
           const sel = isBatch ? `[data-stock-batch="${idx + 1}"]` : `[data-stock-qty="${idx + 1}"]`;
           (document.querySelector(sel) as HTMLInputElement | null)?.focus();
@@ -249,7 +263,12 @@ export function useAmountConfirmFlow(
           : form.destinationStockEntries.findIndex((r) => r.id === field.rowId);
         if (idx >= 0) {
           // Batch-tracked item → Stock Item Allocations popup (Godown + Batch/Lot + Qty + Rate).
-          if (field.type === 'stockItem' && item?.item_id && Number(item?.track_batches) === 1) {
+          if (
+            field.type === 'stockItem' &&
+            item?.item_id &&
+            batchesEnabled &&
+            Number(item?.track_batches) === 1
+          ) {
             const unit = form.allUnits.find((u: any) => u.unit_id === item.unit_id) ?? null;
             form.setActiveAllocation({
               type: 'batch',
@@ -287,7 +306,7 @@ export function useAmountConfirmFlow(
         field?.type === 'stockItem' &&
         item?.item_id
       ) {
-        const isBatch = Number(item?.track_batches) === 1;
+        const isBatch = batchesEnabled && Number(item?.track_batches) === 1;
         const unit = form.allUnits.find((u: any) => u.unit_id === item.unit_id) ?? null;
         form.setActiveAllocation({
           type: 'materialIn',
@@ -298,7 +317,7 @@ export function useAmountConfirmFlow(
           unitSymbol: unit?.symbol,
           showBatch: isBatch,
           trackMfg: isBatch && Number(item.track_date_of_manufacturing) === 1,
-          trackExpiry: isBatch && Number(item.track_expiry) === 1,
+          trackExpiry: isBatch && expiryEnabled && Number(item.track_expiry) === 1,
         });
         return;
       }
@@ -346,7 +365,7 @@ export function useAmountConfirmFlow(
         field?.type === 'stockItem' &&
         item?.item_id
       ) {
-        const isBatch = Number(item?.track_batches) === 1;
+        const isBatch = batchesEnabled && Number(item?.track_batches) === 1;
         const unit = form.allUnits.find((u: any) => u.unit_id === item.unit_id) ?? null;
         form.setActiveAllocation({
           type: 'batch',
@@ -357,7 +376,7 @@ export function useAmountConfirmFlow(
           rate: 0,
           unitSymbol: unit?.symbol,
           trackMfg: isBatch && Number(item.track_date_of_manufacturing) === 1,
-          trackExpiry: isBatch && Number(item.track_expiry) === 1,
+          trackExpiry: isBatch && expiryEnabled && Number(item.track_expiry) === 1,
           // Credit Note (sales return) brings stock in; Debit Note (purchase return) sends it out.
           // Purchase Order is inward — lets you allocate to a new/existing batch lot.
           isInward: [
@@ -428,9 +447,8 @@ export function useAmountConfirmFlow(
       // ledger, or a cost-centre ledger. Anything else is left untouched.
       const opensPopup =
         (isBankAllocVoucher && form.checkIsBank(item)) ||
-        form.checkIsParty(item) ||
-        item.is_bill_wise === 1 ||
-        item.allow_cost_centres === 1;
+        (billWiseEnabled && (form.checkIsParty(item) || item.is_bill_wise === 1)) ||
+        (costCentresEnabled && item.allow_cost_centres === 1);
       // A plain ledger (no allocation popup) → advance to this row's amount cell.
       if (!opensPopup) {
         setTimeout(() => advanceFromLastField(), 50);
@@ -489,6 +507,10 @@ export function useAmountConfirmFlow(
       form.setError,
       form.handleFieldBlur,
       effectiveVoucherType,
+      billWiseEnabled,
+      costCentresEnabled,
+      batchesEnabled,
+      expiryEnabled,
       handleAmountConfirm,
       setInventoryAlloc,
     ],

@@ -413,6 +413,10 @@ export function useVoucherForm(
   // ── Public API — IDENTICAL to original useVoucherForm ─────────────────────
 
   return {
+    // ── Company features (F11) — lets the allocation flow gate bill-wise /
+    // cost-centre popups on enable_bill_wise_entry / enable_cost_centres.
+    features,
+
     // ── Voucher meta
     voucherType: meta.voucherType,
     setVoucherType: meta.setVoucherType,

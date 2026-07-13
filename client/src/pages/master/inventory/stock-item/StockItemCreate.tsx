@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 import {
   PageTitleBar,
   RightActionPanel,
@@ -29,7 +30,7 @@ interface StockItemCreateProps {
 
 export default function StockItemCreate({ onDone, onCancel }: StockItemCreateProps = {}) {
   const navigate = useNavigate();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, features } = useCompany();
   const companyId = selectedCompany?.company_id;
 
   const [form, setForm] = useState<FormData>(INITIAL_FORM_STATE);
@@ -411,72 +412,77 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                   Additional Details
                 </div>
 
-                <FormRow
-                  label="Maintain in batches"
-                  labelWidth="w-52"
-                  className="flex items-center min-h-[26px]"
-                >
-                  <select
-                    className={selectCls}
-                    value={form.maintain_in_batches}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setForm((f) => ({
-                        ...f,
-                        maintain_in_batches: val,
-                        track_date_of_manufacturing:
-                          val !== 'Yes' ? 'No' : f.track_date_of_manufacturing,
-                        use_expiry_dates: val !== 'Yes' ? 'No' : f.use_expiry_dates,
-                        track_batches: val === 'Yes',
-                        track_expiry: val === 'Yes' && f.use_expiry_dates === 'Yes',
-                        allocations: val !== 'Yes' ? [] : f.allocations,
-                      }));
-                    }}
-                  >
-                    <option value="No">No</option>
-                    <option value="Yes">Yes</option>
-                  </select>
-                </FormRow>
-
-                {form.maintain_in_batches === 'Yes' && (
-                  <FormRow
-                    label="Track date of manufacturing"
-                    labelWidth="w-52"
-                    className="flex items-center min-h-[26px] pl-4"
-                  >
-                    <select
-                      className={selectCls}
-                      value={form.track_date_of_manufacturing}
-                      onChange={(e) => setVal('track_date_of_manufacturing', e.target.value)}
+                {isFeatureEnabled(features, 'enable_batches') && (
+                  <>
+                    <FormRow
+                      label="Maintain in batches"
+                      labelWidth="w-52"
+                      className="flex items-center min-h-[26px]"
                     >
-                      <option value="No">No</option>
-                      <option value="Yes">Yes</option>
-                    </select>
-                  </FormRow>
-                )}
+                      <select
+                        className={selectCls}
+                        value={form.maintain_in_batches}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setForm((f) => ({
+                            ...f,
+                            maintain_in_batches: val,
+                            track_date_of_manufacturing:
+                              val !== 'Yes' ? 'No' : f.track_date_of_manufacturing,
+                            use_expiry_dates: val !== 'Yes' ? 'No' : f.use_expiry_dates,
+                            track_batches: val === 'Yes',
+                            track_expiry: val === 'Yes' && f.use_expiry_dates === 'Yes',
+                            allocations: val !== 'Yes' ? [] : f.allocations,
+                          }));
+                        }}
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </FormRow>
 
-                {form.maintain_in_batches === 'Yes' && (
-                  <FormRow
-                    label="Use expiry dates"
-                    labelWidth="w-52"
-                    className="flex items-center min-h-[26px] pl-4"
-                  >
-                    <select
-                      className={selectCls}
-                      value={form.use_expiry_dates}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setForm((f) => ({
-                          ...f,
-                          use_expiry_dates: val,
-                          track_expiry: val === 'Yes',
-                        }));
-                      }}
-                    >
-                      <option value="No">No</option>
-                      <option value="Yes">Yes</option>
-                    </select>
-                  </FormRow>
+                    {form.maintain_in_batches === 'Yes' && (
+                      <FormRow
+                        label="Track date of manufacturing"
+                        labelWidth="w-52"
+                        className="flex items-center min-h-[26px] pl-4"
+                      >
+                        <select
+                          className={selectCls}
+                          value={form.track_date_of_manufacturing}
+                          onChange={(e) => setVal('track_date_of_manufacturing', e.target.value)}
+                        >
+                          <option value="No">No</option>
+                          <option value="Yes">Yes</option>
+                        </select>
+                      </FormRow>
+                    )}
+
+                    {form.maintain_in_batches === 'Yes' &&
+                      isFeatureEnabled(features, 'maintain_expiry_date_for_batches') && (
+                        <FormRow
+                          label="Use expiry dates"
+                          labelWidth="w-52"
+                          className="flex items-center min-h-[26px] pl-4"
+                        >
+                          <select
+                            className={selectCls}
+                            value={form.use_expiry_dates}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setForm((f) => ({
+                                ...f,
+                                use_expiry_dates: val,
+                                track_expiry: val === 'Yes',
+                              }));
+                            }}
+                          >
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                        </FormRow>
+                      )}
+                  </>
                 )}
 
                 <FormRow
@@ -501,20 +507,22 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                   </div>
                 </FormRow>
 
-                <FormRow
-                  label="Enable cost tracking"
-                  labelWidth="w-52"
-                  className="flex items-center min-h-[26px]"
-                >
-                  <select
-                    className={selectCls}
-                    value={form.enable_cost_tracking}
-                    onChange={(e) => setVal('enable_cost_tracking', e.target.value)}
+                {isFeatureEnabled(features, 'enable_cost_tracking') && (
+                  <FormRow
+                    label="Enable cost tracking"
+                    labelWidth="w-52"
+                    className="flex items-center min-h-[26px]"
                   >
-                    <option value="No">No</option>
-                    <option value="Yes">Yes</option>
-                  </select>
-                </FormRow>
+                    <select
+                      className={selectCls}
+                      value={form.enable_cost_tracking}
+                      onChange={(e) => setVal('enable_cost_tracking', e.target.value)}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </FormRow>
+                )}
               </div>
             </div>
 

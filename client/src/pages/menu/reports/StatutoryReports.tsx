@@ -2,9 +2,12 @@ import { Link } from 'react-router-dom';
 import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
+import { useCompany } from '@/context/CompanyContext';
+import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
-// TallyPrime lists every statutory report head regardless of which F11 tax features are on,
-// so we always show the full set. Individual report screens still gate their own data.
+// Each statutory report head shows only when its F11 feature is on (Tally-style
+// customisation). MSME is always shown. Individual report screens still gate data.
 const ROUTES: Record<string, string> = {
   'GST Reports': '/reports/statutory/gst',
   'TDS Reports': '/reports/statutory/tds',
@@ -18,6 +21,18 @@ const ROUTES: Record<string, string> = {
 
 export default function StatutoryReports() {
   useEscapeBack();
+  const { features } = useCompany();
+
+  // item label → whether it is visible given F11 flags (unlisted items always show).
+  const itemVisible: Record<string, boolean> = {
+    'GST Reports': isTaxFeatureEnabled(features, 'gst'),
+    'TDS Reports': isTaxFeatureEnabled(features, 'tds'),
+    'TCS Reports': isTaxFeatureEnabled(features, 'tcs'),
+    'Payroll Reports': isFeatureEnabled(features, 'maintain_payroll'),
+    'VAT Reports': isTaxFeatureEnabled(features, 'vat'),
+    'Central Excise Reports': isTaxFeatureEnabled(features, 'excise'),
+    'Service Tax Reports': isTaxFeatureEnabled(features, 'serviceTax'),
+  };
 
   const sections = [
     {
@@ -31,7 +46,7 @@ export default function StatutoryReports() {
         'Central Excise Reports',
         'Service Tax Reports',
         'MSME Reports',
-      ],
+      ].filter((item) => itemVisible[item] !== false),
     },
   ];
 

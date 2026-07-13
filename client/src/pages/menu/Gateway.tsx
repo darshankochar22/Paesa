@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
+import { useCompany } from '@/context/CompanyContext';
+import { isFeatureEnabled, type FeatureFlag } from '@/lib/companyFeatures';
+import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
+import type { TallyFeaturesType } from '@/types/entities/TallyFeatures';
 
 // TallyPrime-style menu hotkey: a capital letter placed mid-word marks the
 // hotkey ('CHart of Accounts' → H, 'Day BooK' → K, 'DashbOard' → O); labels
@@ -22,9 +26,17 @@ interface MenuItem {
   label: string;
   route?: string;
   onClick?: () => void;
+  feature?: FeatureFlag; // hide this item when the F11 flag is off
 }
 
-const gatewaySections = [
+interface MenuSection {
+  title: string;
+  items: MenuItem[];
+  // Hide the whole section when this returns false (e.g. STATUTORY needs any tax).
+  visible?: (f: TallyFeaturesType | null | undefined) => boolean;
+}
+
+const gatewaySections: MenuSection[] = [
   {
     title: 'MASTERS',
     items: [
@@ -52,13 +64,22 @@ const gatewaySections = [
     items: [
       { label: 'Balance Sheet', route: '/reports/accounts/balance-sheet' },
       { label: 'Profit & Loss A/c', route: '/reports/accounts/profit-loss' },
-      { label: 'Stock Summary', route: '/reports/inventory/stock-summary' },
+      {
+        label: 'Stock Summary',
+        route: '/reports/inventory/stock-summary',
+        feature: 'maintain_inventory',
+      },
       { label: 'Ratio Analysis', route: '/reports/accounts/ratio-analysis' },
     ],
   },
 ];
 
-const displayMoreSections = [
+const anyTaxEnabled = (f: TallyFeaturesType | null | undefined) =>
+  (['gst', 'vat', 'tds', 'tcs', 'excise', 'serviceTax'] as const).some((t) =>
+    isTaxFeatureEnabled(f, t),
+  );
+
+const displayMoreSections: MenuSection[] = [
   {
     title: 'ACCOUNTING',
     items: [
@@ -72,18 +93,25 @@ const displayMoreSections = [
   },
   {
     title: 'INVENTORY',
+    visible: (f) => isFeatureEnabled(f, 'maintain_inventory'),
     items: [
       { label: 'Inventory Books', route: '/reports/inventory-books' },
       { label: 'StatEments of Inventory', route: '/reports/statements-of-inventory' },
-      { label: 'Job Work Reports', route: '/reports/job-work' },
+      {
+        label: 'Job Work Reports',
+        route: '/reports/job-work',
+        feature: 'enable_job_order_processing',
+      },
     ],
   },
   {
     title: 'STATUTORY',
+    visible: anyTaxEnabled,
     items: [{ label: 'StatutOry Reports', route: '/reports/statutory' }],
   },
   {
     title: 'PAYROLL',
+    visible: (f) => isFeatureEnabled(f, 'maintain_payroll'),
     items: [{ label: 'Payroll Reports', route: '/reports/payroll-hr' }],
   },
   {
@@ -94,6 +122,20 @@ const displayMoreSections = [
     ],
   },
 ];
+
+// Drop items whose feature is off, then drop sections hidden by `visible` or left empty.
+function filterSections(
+  sections: MenuSection[],
+  features: TallyFeaturesType | null | undefined,
+): MenuSection[] {
+  return sections
+    .filter((s) => !s.visible || s.visible(features))
+    .map((s) => ({
+      ...s,
+      items: s.items.filter((it) => !it.feature || isFeatureEnabled(features, it.feature)),
+    }))
+    .filter((s) => s.items.length > 0);
+}
 
 function Panel({
   title,
@@ -218,12 +260,13 @@ function Panel({
 
 export default function Gateway() {
   const [page, setPage] = useState<'gateway' | 'display-more'>('gateway');
+  const { features } = useCompany();
 
   if (page === 'display-more') {
     return (
       <Panel
         title="Display More Reports"
-        sections={displayMoreSections}
+        sections={filterSections(displayMoreSections, features)}
         onBack={() => setPage('gateway')}
       />
     );
@@ -232,7 +275,7 @@ export default function Gateway() {
   return (
     <Panel
       title="Gateway"
-      sections={gatewaySections}
+      sections={filterSections(gatewaySections, features)}
       bottomItems={[
         { label: 'Display More Reports', onClick: () => setPage('display-more') },
         { label: 'DashbOard', route: '/dashboard' },

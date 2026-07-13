@@ -9,10 +9,11 @@
 // hides it, existing masters/data stay intact and reappear when turned back on.
 
 import type { TallyFeaturesType } from '@/types/entities/TallyFeatures';
+import { isFeatureEnabled, type FeatureFlag } from './companyFeatures';
 
 export type TaxFeature = 'gst' | 'vat' | 'tds' | 'tcs' | 'excise' | 'serviceTax';
 
-const TAX_FLAG: Record<TaxFeature, keyof TallyFeaturesType> = {
+const TAX_FLAG: Record<TaxFeature, FeatureFlag> = {
   gst: 'enable_gst',
   vat: 'enable_vat',
   tds: 'enable_tds',
@@ -26,12 +27,12 @@ export function isTaxFeatureEnabled(
   features: TallyFeaturesType | null | undefined,
   tax: TaxFeature,
 ): boolean {
-  return features?.[TAX_FLAG[tax]] !== 0;
+  return isFeatureEnabled(features, TAX_FLAG[tax]);
 }
 
 // Statutory sub-section keys that are feature-gated (their key doubles as the tax
-// name). GST is intentionally NOT gated yet.
-const GATED_SECTIONS: readonly TaxFeature[] = ['vat', 'tds', 'tcs', 'excise', 'serviceTax'];
+// name).
+const GATED_SECTIONS: readonly TaxFeature[] = ['gst', 'vat', 'tds', 'tcs', 'excise', 'serviceTax'];
 
 /**
  * Drop statutory sub-section keys (used by the ledger/group/stock-item statutory
