@@ -18,6 +18,8 @@ export interface TwoColumnReportProps<T> {
   left: ReportSide<T>;
   right: ReportSide<T>;
   periodLabel?: string;
+  /** Company name shown centered in each column header (Tally-style). */
+  centerLabel?: string;
   /** Render one row's inner content (the panel supplies the <div> wrapper). */
   renderRow: (row: T, side: 'left' | 'right', idx: number) => React.ReactNode;
   rowKey: (row: T, idx: number) => string | number;
@@ -28,22 +30,31 @@ function Panel<T>({
   side,
   which,
   periodLabel,
+  centerLabel,
   renderRow,
   rowKey,
 }: {
   side: ReportSide<T>;
   which: 'left' | 'right';
   periodLabel?: string;
+  centerLabel?: string;
   renderRow: TwoColumnReportProps<T>['renderRow'];
   rowKey: TwoColumnReportProps<T>['rowKey'];
 }) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden border-r border-gray-200 last:border-r-0">
-      <div className="border-b border-gray-200 px-3 py-1.5 flex justify-between items-center select-none">
+      <div className="relative border-b border-gray-200 px-3 py-1.5 flex justify-between items-center select-none">
         <span className="font-mono text-[11px] font-bold text-black tracking-wide uppercase">
           {side.title}
         </span>
-        {periodLabel && <span className="font-mono text-[10px] text-black">{periodLabel}</span>}
+        {centerLabel ? (
+          <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center leading-tight pointer-events-none">
+            <span className="font-mono text-[11px] font-bold text-black">{centerLabel}</span>
+            {periodLabel && <span className="font-mono text-[10px] text-black">{periodLabel}</span>}
+          </div>
+        ) : (
+          periodLabel && <span className="font-mono text-[10px] text-black">{periodLabel}</span>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -70,6 +81,7 @@ export default function TwoColumnReport<T>({
   left,
   right,
   periodLabel,
+  centerLabel,
   renderRow,
   rowKey,
   className,
@@ -80,6 +92,7 @@ export default function TwoColumnReport<T>({
         side={left}
         which="left"
         periodLabel={periodLabel}
+        centerLabel={centerLabel}
         renderRow={renderRow}
         rowKey={rowKey}
       />
@@ -87,6 +100,7 @@ export default function TwoColumnReport<T>({
         side={right}
         which="right"
         periodLabel={periodLabel}
+        centerLabel={centerLabel}
         renderRow={renderRow}
         rowKey={rowKey}
       />

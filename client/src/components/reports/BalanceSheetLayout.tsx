@@ -144,6 +144,7 @@ export function BalanceSheetLayout() {
   return (
     <TwoColumnReport<GroupRow>
       periodLabel={periodLabel}
+      centerLabel={selectedCompany?.name}
       left={{ title: 'Liabilities', rows: data.liabilities, total: data.totalLiabilities }}
       right={{ title: 'Assets', rows: data.assets, total: data.totalAssets }}
       renderRow={renderRow}

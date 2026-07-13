@@ -19,12 +19,12 @@ export default function PageTitleBar({ title, subtitle, actions, subtitleCenter 
     <div className="relative px-3 py-1.5 text-xs font-semibold bg-black text-white flex justify-between items-center select-none shadow-sm animate-fade-in">
       <span className="uppercase tracking-wider">{title}</span>
       {subtitle && subtitleCenter && (
-        <span className="absolute left-1/2 -translate-x-1/2 text-black text-sm font-semibold tracking-wide">
+        <span className="absolute left-1/2 -translate-x-1/2 text-white text-sm font-semibold tracking-wide">
           {subtitle}
         </span>
       )}
       <div className="flex items-center gap-3">
-        {subtitle && !subtitleCenter && <span className="text-black text-[10px]">{subtitle}</span>}
+        {subtitle && !subtitleCenter && <span className="text-white text-[10px]">{subtitle}</span>}
         {actions}
       </div>
     </div>
