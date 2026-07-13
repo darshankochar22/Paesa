@@ -13,6 +13,7 @@ import { useAmountConfirmFlow } from './hooks/useAmountConfirmFlow';
 import { useAllocationSaveHandlers } from './hooks/useAllocationSaveHandlers';
 import type { VoucherClassRow } from '@/types/entities/VoucherType';
 import { computeCanAccept } from './utils/voucherCanAccept';
+import { isVoucherTypeEnabled, type VoucherType } from '@/constants/voucherTypes';
 import { computePanelItems, computePanelTitle } from './utils/voucherPanel';
 import { AlertBanner, PageTitleBar } from '../../components/ui';
 import LedgerListPanel from './components/LedgerListPanel';
@@ -31,7 +32,7 @@ import { focusFirstField } from './lib/voucherNav';
 
 export default function Vouchers() {
   const navigate = useNavigate();
-  const { selectedCompany, activeFY } = useCompany();
+  const { selectedCompany, activeFY, features } = useCompany();
 
   const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
   const [voucherTypeParentMap, setVoucherTypeParentMap] = useState<Record<string, string>>({});
@@ -399,11 +400,13 @@ export default function Vouchers() {
   // sidebar's handleTypeKey, which may open a custom-type sub-dropdown on click).
   const switchVoucher = useCallback(
     (type: string) => {
+      // F11 gate: ignore shortcuts/selection for voucher types whose feature is off.
+      if (!isVoucherTypeEnabled(features, type as VoucherType)) return;
       closeAllSubScreens();
       form.setVoucherClass('');
       form.setVoucherType(type);
     },
-    [closeAllSubScreens, form.setVoucherClass, form.setVoucherType],
+    [closeAllSubScreens, form.setVoucherClass, form.setVoucherType, features],
   );
 
   // Any voucher sub-screen / detail popup currently open. Accept and Escape

@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import type { useVoucherForm } from '../hooks/useVoucherForm';
+import { useCompany } from '@/context/CompanyContext';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 /**
  * Shared body for the flex stock-grid vouchers (Material In/Out, Delivery/Receipt
@@ -57,6 +59,15 @@ export default function StockTransferVoucherBody({
   const [showGodownList, setShowGodownList] = useState(false);
   const [showPriceLevelList, setShowPriceLevelList] = useState(false);
   const priceLevelRef = useRef<HTMLDivElement>(null);
+
+  // F11 gates — these order/note/material vouchers must respect the same flags as
+  // Sales/Purchase. When off, the Actual/Billed split collapses to a single
+  // Quantity column and the Price Level prompt is hidden.
+  const { features } = useCompany();
+  const showActualBilled =
+    !!config?.showActualBilled && isFeatureEnabled(features, 'use_separate_actual_billed_qty');
+  const showPriceLevel =
+    !!config?.showPriceLevel && isFeatureEnabled(features, 'enable_multiple_price_levels');
   return (
     <>
       {/* Reference No. / Date (Receipt Note) */}
@@ -102,9 +113,9 @@ export default function StockTransferVoucherBody({
             {fmtBalance(form.partyBalance)}
           </span>
         )}
-        {(config?.showPriceLevel || config?.showOrderNo) && (
+        {(showPriceLevel || config?.showOrderNo) && (
           <div className="flex flex-col gap-0.5 ml-4 shrink-0">
-            {config?.showPriceLevel && (
+            {showPriceLevel && (
               <div className="flex items-center relative" ref={priceLevelRef}>
                 <span className="text-xs text-zinc-600 mr-2 shrink-0">Price Level</span>
                 <span className="text-xs text-zinc-400 mr-1">:</span>
@@ -263,7 +274,7 @@ export default function StockTransferVoucherBody({
       )}
 
       {/* Stock Items Table Header */}
-      {config?.showActualBilled ? (
+      {showActualBilled ? (
         <div className="border-b border-black shrink-0 bg-zinc-100 text-zinc-800">
           <div className="flex px-3 py-0.5 text-xs font-bold">
             <div className="flex-1 min-w-[200px]">Name of Item</div>
@@ -371,7 +382,7 @@ export default function StockTransferVoucherBody({
                 </div>
               )}
 
-              {config?.showActualBilled ? (
+              {showActualBilled ? (
                 <>
                   {/* Quantity: Actual / Billed split (entry flows through the allocation popup) */}
                   <div className="w-44 flex">

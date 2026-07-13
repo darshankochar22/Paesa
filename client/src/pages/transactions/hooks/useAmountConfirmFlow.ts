@@ -279,7 +279,7 @@ export function useAmountConfirmFlow(
               rate: 0,
               unitSymbol: unit?.symbol,
               trackMfg: Number(item.track_date_of_manufacturing) === 1,
-              trackExpiry: Number(item.track_expiry) === 1,
+              trackExpiry: expiryEnabled && Number(item.track_expiry) === 1,
               // Source consumes existing stock (outward); Destination produces it (inward).
               isInward: !onSource,
               showBatch: true,

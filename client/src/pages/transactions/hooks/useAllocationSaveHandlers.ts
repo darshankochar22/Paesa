@@ -4,6 +4,7 @@ import type { useVoucherForm } from './useVoucherForm';
 import type { useAutoOpenDetailPopups } from './useAutoOpenDetailPopups';
 import { makeStockRow } from '../utils/rowFactories';
 import { openField } from '../lib/voucherNav';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 // Save handlers for every allocation / detail popup — bill-wise, cost centre,
 // bank details, cash denomination, dispatch/order/receipt/party details and the
@@ -84,7 +85,10 @@ export function useAllocationSaveHandlers(
                   : form.particulars;
       const targetRow = list.find((r) => r.id === rowId);
 
-      if (targetRow?.ledger?.allow_cost_centres === 1) {
+      if (
+        isFeatureEnabled(form.features, 'enable_cost_centres') &&
+        targetRow?.ledger?.allow_cost_centres === 1
+      ) {
         form.setActiveAllocation({
           type: 'costCentre',
           rowId,
@@ -119,6 +123,7 @@ export function useAllocationSaveHandlers(
       form.handleUpdateContraDoubleRow,
       form.handleUpdateReceiptDoubleRow,
       form.handleUpdateParticularRow,
+      form.features,
       proceedToNextRow,
     ],
   );

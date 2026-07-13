@@ -285,6 +285,7 @@ import EInvoiceRow from '../components/EInvoiceRow';
 import { gstRowInfo } from '../utils/gstRow';
 import { useCompany } from '../../../context/CompanyContext';
 import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -318,10 +319,10 @@ export default function SalesVoucher({
   // F11 "Enable Value Added Tax (VAT)" — hide the Provide VAT details block when No.
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
 
-  // Price Level is a keyboard stop only when the company actually defines price
-  // levels (Tally hides the prompt otherwise). When shown it is a native <select>
-  // so the generic Enter-nav engine treats it as a field with no special wiring.
-  const hasPriceLevels = form.allPriceLevels.length > 0;
+  // Price Level is a keyboard stop only when F11 "Enable multiple Price Levels"
+  // is on AND the company actually defines price levels (Tally hides it otherwise).
+  const hasPriceLevels =
+    isFeatureEnabled(features, 'enable_multiple_price_levels') && form.allPriceLevels.length > 0;
 
   return (
     <div className="flex flex-1 flex-col min-h-0">

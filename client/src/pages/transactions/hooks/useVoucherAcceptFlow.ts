@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { useVoucherForm } from './useVoucherForm';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 // Accept-time allocation prompts (bill-wise / bank details) and the Enter-key
 // row-advance flow shared by every ledger-row grid. Extracted from Vouchers.tsx;
@@ -11,12 +12,16 @@ export function useVoucherAcceptFlow(
 ) {
   const acceptRef = useRef<() => void>(() => {});
 
+  // F11: bill-wise allocation prompts only fire when Enable Bill-wise entry is on.
+  const billWiseEnabled = isFeatureEnabled(form.features, 'enable_bill_wise_entry');
+
   const handleAccept = useCallback(() => {
     // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
       // Delivery Note, Receipt Note, Rejection In & Rejection Out are non-accounting
       // inventory vouchers — no bill-wise prompt (no voucher_entries row is ever
       // created for the party ledger, so a bill reference would be orphaned).
+      billWiseEnabled &&
       ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
@@ -64,6 +69,7 @@ export function useVoucherAcceptFlow(
 
     // ── Receipt (single-entry) / Payment (single-entry): bill-wise for account ledger ────────
     if (
+      billWiseEnabled &&
       ((effectiveVoucherType === 'Payment' && form.paymentEntryMode === 'single') ||
         (effectiveVoucherType === 'Receipt' && form.receiptEntryMode === 'single')) &&
       form.accountLedger?.is_bill_wise === 1 &&
@@ -81,6 +87,7 @@ export function useVoucherAcceptFlow(
     }
 
     if (
+      billWiseEnabled &&
       effectiveVoucherType === 'Contra' &&
       form.contraEntryMode === 'single' &&
       form.accountLedger?.is_bill_wise === 1 &&
@@ -98,6 +105,7 @@ export function useVoucherAcceptFlow(
     }
 
     if (
+      billWiseEnabled &&
       effectiveVoucherType === 'Journal' &&
       form.journalEntryMode === 'single' &&
       form.accountLedger?.is_bill_wise === 1 &&
@@ -147,6 +155,7 @@ export function useVoucherAcceptFlow(
     form.setActiveAllocation,
     form.checkIsBank,
     form.bankDetails,
+    billWiseEnabled,
   ]);
 
   useEffect(() => {

@@ -36,8 +36,8 @@ const GATED_SECTIONS: readonly TaxFeature[] = ['gst', 'vat', 'tds', 'tcs', 'exci
 
 /**
  * Drop statutory sub-section keys (used by the ledger/group/stock-item statutory
- * modals) whose tax feature is turned off in F11. Sections outside GATED_SECTIONS
- * (e.g. serviceTax) keep their existing always-on behaviour.
+ * modals) whose tax feature is turned off in F11. Keys outside GATED_SECTIONS
+ * pass through unchanged; every tax listed in GATED_SECTIONS is gated.
  */
 export function filterStatutorySectionsByFeature<T extends string>(
   sections: T[],

@@ -683,6 +683,27 @@ export default function LedgerAlter() {
 
               {selectedLedgerId && (
                 <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
+                  {isFeatureEnabled(features, 'enable_cost_centres') && (
+                    <FormRow
+                      label="Cost centres are applicable"
+                      labelWidth="w-52"
+                      className="flex items-center min-h-[26px]"
+                    >
+                      <select
+                        className={selectCls}
+                        value={form.allow_cost_centres ? 'Yes' : 'No'}
+                        onChange={(e) =>
+                          setForm((f: any) => ({
+                            ...f,
+                            allow_cost_centres: e.target.value === 'Yes' ? 1 : 0,
+                          }))
+                        }
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </FormRow>
+                  )}
                   {isFeatureEnabled(features, 'enable_interest_calculation') && (
                     <FormRow
                       label="Activate interest calculation"

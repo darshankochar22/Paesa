@@ -1,4 +1,6 @@
 import { FormRow, selectCls } from '@/components/ui';
+import { useCompany } from '@/context/CompanyContext';
+import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
 import {
   EMPTY_TDS,
   EMPTY_TCS,
@@ -39,13 +41,22 @@ export default function LedgerStatutoryLeftPanel({
   statutorySections,
   inputCls,
 }: Props) {
+  // F11 tax gates — hide GST applicability and drop tax-specific assessable-value
+  // options when the tax is off.
+  const { features } = useCompany();
+  const gstEnabled = isTaxFeatureEnabled(features, 'gst');
+  const vatEnabled = isTaxFeatureEnabled(features, 'vat');
+  const exciseEnabled = isTaxFeatureEnabled(features, 'excise');
+  const showAssessable =
+    currentConfig.assessableValueCalc && (gstEnabled || vatEnabled || exciseEnabled);
+
   return (
     <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
       <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
         Statutory Details
       </div>
 
-      {currentConfig.assessableValueCalc && (
+      {showAssessable && (
         <>
           <FormRow
             label="Include in Assessable Value calculation"
@@ -58,11 +69,11 @@ export default function LedgerStatutoryLeftPanel({
               onChange={setStatutoryField('include_in_assessable_value_calculation')}
             >
               <option value="Not Applicable">Not Applicable</option>
-              <option value="Excise">Excise</option>
-              <option value="Excise & GST">Excise & GST</option>
-              <option value="Excise & VAT">Excise & VAT</option>
-              <option value="GST">GST</option>
-              <option value="VAT">VAT</option>
+              {exciseEnabled && <option value="Excise">Excise</option>}
+              {exciseEnabled && gstEnabled && <option value="Excise & GST">Excise & GST</option>}
+              {exciseEnabled && vatEnabled && <option value="Excise & VAT">Excise & VAT</option>}
+              {gstEnabled && <option value="GST">GST</option>}
+              {vatEnabled && <option value="VAT">VAT</option>}
             </select>
           </FormRow>
 
@@ -102,7 +113,7 @@ export default function LedgerStatutoryLeftPanel({
         </>
       )}
 
-      {currentConfig.gstApplicabilitySection && (
+      {currentConfig.gstApplicabilitySection && gstEnabled && (
         <>
           <FormRow
             label="GST applicability"

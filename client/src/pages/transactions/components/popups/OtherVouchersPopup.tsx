@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
 import type { VoucherTypeType } from '@/types/api';
+import { useCompany } from '@/context/CompanyContext';
+import { isVoucherTypeEnabled, type VoucherType } from '@/constants/voucherTypes';
 
 const PRIMARY_VOUCHER_TYPES = [
   { key: 'Contra', label: 'Contra' },
@@ -57,6 +59,7 @@ export default function OtherVouchersPopup({
   voucherTypeChildren,
   companyId,
 }: Props) {
+  const { features } = useCompany();
   const [fetchedTypes, setFetchedTypes] = useState<VoucherTypeType[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const itemRefs = useRef<Record<number, HTMLButtonElement | null>>({});
@@ -100,11 +103,16 @@ export default function OtherVouchersPopup({
       }
     }
     extras.sort((a, b) => a.localeCompare(b));
+    // Hide canonical voucher types whose F11 feature is off (custom types have no
+    // flag mapping, so they always pass).
+    const gatedCanonical = OTHER_VOUCHER_TYPES.filter((t) =>
+      isVoucherTypeEnabled(features, t.key as VoucherType),
+    );
     return {
-      otherItems: [...OTHER_VOUCHER_TYPES, ...extras.map((n) => ({ key: n, label: n }))],
+      otherItems: [...gatedCanonical, ...extras.map((n) => ({ key: n, label: n }))],
       childrenMap,
     };
-  }, [fetchedTypes, voucherTypeChildren]);
+  }, [fetchedTypes, voucherTypeChildren, features]);
 
   // Flat list in render order — drives arrow-key navigation.
   const flatItems = useMemo(() => {
