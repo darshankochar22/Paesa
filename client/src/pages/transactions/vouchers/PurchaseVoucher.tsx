@@ -303,6 +303,7 @@ import type { useVoucherForm } from '../hooks/useVoucherForm';
 import FieldRow from '../components/FieldRow';
 import StockItemDescription from '../components/StockItemDescription';
 import TallyDateInput from '../components/TallyDateInput';
+import AccountingInvoiceBody from '../components/AccountingInvoiceBody';
 import { gstRowInfo } from '../utils/gstRow';
 import { useCompany } from '../../../context/CompanyContext';
 
@@ -327,6 +328,67 @@ export default function PurchaseVoucher({
   const showBilled = features?.use_separate_actual_billed_qty !== 0;
   // F11 "Use Discount column in invoices" — hide the Disc % column when No.
   const showDisc = features?.use_discount_column_in_invoices !== 0;
+
+  // Supplier Invoice No. / Date block — shown above the party in both modes.
+  const supplierInvoiceHeader = (
+    <div className="flex items-center border-b border-gray-300 shrink-0 px-3 py-1 gap-6 bg-white">
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-black shrink-0">Supplier Invoice No.</span>
+        <span className="text-sm text-black shrink-0">:</span>
+        <input
+          type="text"
+          data-field-type="supplierInvoiceNo"
+          className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black w-36"
+          value={form.supplierInvoiceNo}
+          onChange={(e) => form.setSupplierInvoiceNo(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            setTimeout(
+              () =>
+                (
+                  document.querySelector('[data-field-type="supplierInvoiceDate"]') as HTMLElement
+                )?.focus(),
+              50,
+            );
+          }}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-black shrink-0">Date</span>
+        <span className="text-sm text-black shrink-0">:</span>
+        <TallyDateInput
+          dataFieldType="supplierInvoiceDate"
+          className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black w-28"
+          value={form.supplierInvoiceDate}
+          refIso={form.date}
+          onChange={form.setSupplierInvoiceDate}
+          onEnter={() => {
+            setTimeout(
+              () => (document.querySelector('[data-field-type="party"]') as HTMLElement)?.focus(),
+              50,
+            );
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  // Accounting Invoice mode (Ctrl+H / forced when F11 maintain_inventory is off): no
+  // stock grid — pick ledgers with typed amounts. Party stays at top; Purchase-ledger
+  // picker + stock table hidden. Supplier-invoice header + tax-ledger rows stay.
+  if (form.isAccountingInvoice) {
+    return (
+      <AccountingInvoiceBody
+        form={form}
+        handleAmountConfirm={handleAmountConfirm}
+        partyLabel="Party A/c name"
+        header={supplierInvoiceHeader}
+        footer={<PurchaseGstEwayRow />}
+      />
+    );
+  }
+
   return (
     <>
       {/* Supplier invoice fields */}

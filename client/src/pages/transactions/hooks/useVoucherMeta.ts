@@ -79,6 +79,13 @@ export function useVoucherMeta({
   // Selected Voucher Type Class ("Name of Class") — "" means none selected.
   const [voucherClass, setVoucherClass] = useState<string>('');
 
+  // Invoice entry mode (Sales/Purchase/Credit Note/Debit Note). 'item' = the stock-item
+  // grid; 'accounting' = TallyPrime "Accounting Invoice" (Ctrl+H) where ledgers are
+  // picked with typed amounts (Journal-style), no stock grid. Non-trade vouchers ignore
+  // this. When F11 maintain_inventory is off the mode is forced to accounting (see
+  // useVoucherForm's derived isAccountingInvoice) regardless of this flag.
+  const [invoiceMode, setInvoiceMode] = useState<'item' | 'accounting'>('item');
+
   // ── Submission state ──────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,6 +149,7 @@ export function useVoucherMeta({
     setOrderDetails(null);
     setSourceGodown(null);
     setVoucherClass('');
+    setInvoiceMode('item');
   }, []);
 
   return {
@@ -177,6 +185,8 @@ export function useVoucherMeta({
     setPlaceOfSupply,
     voucherClass,
     setVoucherClass,
+    invoiceMode,
+    setInvoiceMode,
     // submission
     isSubmitting,
     setIsSubmitting,

@@ -18,6 +18,10 @@ export interface VoucherSubmitCtx {
   onSaved?: () => void;
   gstRegistration: any | null;
   features: any;
+  // TallyPrime Accounting Invoice mode (Sales/Purchase/Credit Note/Debit Note): the
+  // stock grid is replaced by Journal-style particulars ledgers, so validation and the
+  // posted entries differ (party + particulars, no stock lines).
+  isAccountingInvoice?: boolean;
   // Called after a successful create-save to clear the form for the next entry.
   resetForm: () => void;
   // Hands a freshly-created voucher to the inline e-Invoice flow (owned by the
@@ -130,6 +134,14 @@ export function validateVoucher(ctx: VoucherSubmitCtx): string | null {
     ].includes(effectiveVoucherType)
   ) {
     if (!rows.partyLedger) return 'Party A/c Name is required.';
+    // Accounting Invoice mode: like a single-entry Journal — one or more particulars
+    // ledgers with amounts, no stock item, no Sales/Purchase ledger picker.
+    if (ctx.isAccountingInvoice) {
+      const filled = rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+      if (filled.length < 1) return 'At least one Particulars entry with an amount is required.';
+      if (rows.totalAmount <= 0) return 'Total amount must be greater than zero.';
+      return null;
+    }
     // Delivery Note / Receipt Note / Rejection In / Rejection Out are non-accounting
     // inventory vouchers in Tally — no Sales/Purchase ledger is posted, so unlike
     // Sales/Purchase/Credit Note/Debit Note it is never required here.
@@ -250,6 +262,7 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
     gstRegistration,
     resetForm,
     onNewVoucherSaved,
+    isAccountingInvoice,
   } = ctx;
   const validationError = validate();
   if (validationError) {
@@ -430,38 +443,22 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
         'Material Out',
       ].includes(effectiveVoucherType)
     ) {
-      const filledItems = rows.stockEntries.filter(
-        (r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0,
-      );
-      const stockSubtotal = filledItems.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
-      stock_entries = filledItems.map((r) => ({
-        stock_item_id: r.stockItem!.item_id ?? null,
-        item_name: r.stockItem!.name,
-        description: r.descriptionRaw?.trim() || null,
-        godown_id: r.godown?.godown_id ?? null,
-        unit_id: r.unit?.unit_id ?? null,
-        quantity: Number(r.quantityRaw),
-        rate: Number(r.rateRaw),
-        amount: Number(r.amountRaw),
-        batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined,
-        excise_item_details: r.exciseItemDetails || undefined,
-      }));
-      const isInventoryOnly = [
-        'Delivery Note',
-        'Receipt Note',
-        'Rejection In',
-        'Rejection Out',
-        'Material In',
-        'Material Out',
-      ].includes(effectiveVoucherType);
-      if (!isInventoryOnly) {
-        // Only Purchase inverts sides (party Cr, ledger Dr, input GST Dr). Sales,
-        // Credit Note and Debit Note all keep party Dr / ledger Cr / GST Cr — matching
-        // the GST engine's party-side rule so the voucher stays balanced on save.
+      if (isAccountingInvoice) {
+        // Accounting Invoice (Ctrl+H): post like a single-entry Journal — party on one
+        // side for the full invoice value, the particulars ledgers on the opposite side
+        // (each its own amount), plus the additional tax rows as entered. No stock lines.
+        // Party is Dr for Sales/Credit Note/Debit Note, Cr for Purchase — matching the
+        // item-mode posting and the GST engine's party-side rule (only Purchase inverts).
+        // Particulars take the opposite side so Dr total === Cr total.
         const isPurchaseLike = effectiveVoucherType === 'Purchase';
         const partyType: 'Dr' | 'Cr' = isPurchaseLike ? 'Cr' : 'Dr';
-        const spType: 'Dr' | 'Cr' = isPurchaseLike ? 'Dr' : 'Cr';
-
+        const particularType: 'Dr' | 'Cr' = isPurchaseLike ? 'Dr' : 'Cr';
+        const filledParticulars = rows.particulars.filter(
+          (p) => p.ledger && Number(p.amountRaw) > 0,
+        );
+        const additional = rows.additionalEntries.filter(
+          (p) => p.ledger && Number(p.amountRaw) > 0,
+        );
         entries = [
           {
             ledger_id: rows.partyLedger!.ledger_id,
@@ -470,26 +467,86 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
             amount: rows.totalAmount,
             currency: 'INR',
           },
-          {
-            ledger_id: rows.salesPurchaseLedger!.ledger_id,
-            ledger_name: rows.salesPurchaseLedger!.name,
-            type: spType,
-            amount: stockSubtotal,
+          ...filledParticulars.map((p) => ({
+            ledger_id: p.ledger!.ledger_id,
+            ledger_name: p.ledger!.name,
+            type: particularType,
+            amount: Number(p.amountRaw),
             currency: 'INR',
-          },
-          ...(['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType)
-            ? rows.additionalEntries
-                .filter((p) => p.ledger && Number(p.amountRaw) > 0)
-                .map((p) => ({
-                  ledger_id: p.ledger!.ledger_id,
-                  ledger_name: p.ledger!.name,
-                  type: p.type,
-                  amount: Number(p.amountRaw),
-                  currency: 'INR',
-                  cost_centres: p.costCentres,
-                }))
-            : []),
+            cost_centres: p.costCentres,
+          })),
+          ...additional.map((p) => ({
+            ledger_id: p.ledger!.ledger_id,
+            ledger_name: p.ledger!.name,
+            type: p.type,
+            amount: Number(p.amountRaw),
+            currency: 'INR',
+            cost_centres: p.costCentres,
+          })),
         ];
+        stock_entries = [];
+      } else {
+        const filledItems = rows.stockEntries.filter(
+          (r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0,
+        );
+        const stockSubtotal = filledItems.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+        stock_entries = filledItems.map((r) => ({
+          stock_item_id: r.stockItem!.item_id ?? null,
+          item_name: r.stockItem!.name,
+          description: r.descriptionRaw?.trim() || null,
+          godown_id: r.godown?.godown_id ?? null,
+          unit_id: r.unit?.unit_id ?? null,
+          quantity: Number(r.quantityRaw),
+          rate: Number(r.rateRaw),
+          amount: Number(r.amountRaw),
+          batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined,
+          excise_item_details: r.exciseItemDetails || undefined,
+        }));
+        const isInventoryOnly = [
+          'Delivery Note',
+          'Receipt Note',
+          'Rejection In',
+          'Rejection Out',
+          'Material In',
+          'Material Out',
+        ].includes(effectiveVoucherType);
+        if (!isInventoryOnly) {
+          // Only Purchase inverts sides (party Cr, ledger Dr, input GST Dr). Sales,
+          // Credit Note and Debit Note all keep party Dr / ledger Cr / GST Cr — matching
+          // the GST engine's party-side rule so the voucher stays balanced on save.
+          const isPurchaseLike = effectiveVoucherType === 'Purchase';
+          const partyType: 'Dr' | 'Cr' = isPurchaseLike ? 'Cr' : 'Dr';
+          const spType: 'Dr' | 'Cr' = isPurchaseLike ? 'Dr' : 'Cr';
+
+          entries = [
+            {
+              ledger_id: rows.partyLedger!.ledger_id,
+              ledger_name: rows.partyLedger!.name,
+              type: partyType,
+              amount: rows.totalAmount,
+              currency: 'INR',
+            },
+            {
+              ledger_id: rows.salesPurchaseLedger!.ledger_id,
+              ledger_name: rows.salesPurchaseLedger!.name,
+              type: spType,
+              amount: stockSubtotal,
+              currency: 'INR',
+            },
+            ...(['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType)
+              ? rows.additionalEntries
+                  .filter((p) => p.ledger && Number(p.amountRaw) > 0)
+                  .map((p) => ({
+                    ledger_id: p.ledger!.ledger_id,
+                    ledger_name: p.ledger!.name,
+                    type: p.type,
+                    amount: Number(p.amountRaw),
+                    currency: 'INR',
+                    cost_centres: p.costCentres,
+                  }))
+              : []),
+          ];
+        }
       }
     } else if (effectiveVoucherType === 'Stock Journal') {
       const filledSource = rows.sourceStockEntries.filter(

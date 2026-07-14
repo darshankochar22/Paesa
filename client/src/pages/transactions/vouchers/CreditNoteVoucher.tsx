@@ -8,6 +8,7 @@ import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopu
 import EInvoiceRow from '../components/EInvoiceRow';
 import VatNatureOfReturnPopup from '../components/popups/VatNatureOfReturnPopup';
 import AdditionalTaxLedgerRows from '../components/AdditionalTaxLedgerRows';
+import AccountingInvoiceBody from '../components/AccountingInvoiceBody';
 import { useCompany } from '../../../context/CompanyContext';
 import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
 
@@ -34,6 +35,26 @@ export default function CreditNoteVoucher({
   const showDisc = features?.use_discount_column_in_invoices !== 0;
   // F11 "Enable Value Added Tax (VAT)" — hide the Provide VAT details block when No.
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
+
+  // Accounting Invoice mode (Ctrl+H / forced when F11 maintain_inventory is off): no
+  // stock grid — pick ledgers with typed amounts. Party stays at top; the Ledger-account
+  // picker + stock table are hidden. Tax-ledger rows + GST/e-Way + e-Invoice stay.
+  if (form.isAccountingInvoice) {
+    return (
+      <AccountingInvoiceBody
+        form={form}
+        handleAmountConfirm={handleAmountConfirm}
+        partyLabel="Party A/c name"
+        footer={
+          <>
+            <CreditNoteGstEwayDetails form={form} />
+            {features?.enable_gst && <EInvoiceRow form={form} />}
+          </>
+        }
+      />
+    );
+  }
+
   return (
     <>
       <div className="flex justify-between items-start border-b border-gray-300 shrink-0 py-1">

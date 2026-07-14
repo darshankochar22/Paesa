@@ -282,6 +282,7 @@ import StockItemDescription from '../components/StockItemDescription';
 import VatAdditionalDetailsPopup from '../components/popups/VatAdditionalDetailsPopup';
 import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
 import EInvoiceRow from '../components/EInvoiceRow';
+import AccountingInvoiceBody from '../components/AccountingInvoiceBody';
 import { gstRowInfo } from '../utils/gstRow';
 import { useCompany } from '../../../context/CompanyContext';
 import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
@@ -323,6 +324,26 @@ export default function SalesVoucher({
   // is on AND the company actually defines price levels (Tally hides it otherwise).
   const hasPriceLevels =
     isFeatureEnabled(features, 'enable_multiple_price_levels') && form.allPriceLevels.length > 0;
+
+  // Accounting Invoice mode (Ctrl+H / forced when F11 maintain_inventory is off): no
+  // stock grid — pick ledgers with typed amounts. Party stays at top; the Sales-ledger
+  // picker + price level + stock table are hidden. The tax-ledger rows section stays.
+  if (form.isAccountingInvoice) {
+    return (
+      <AccountingInvoiceBody
+        form={form}
+        handleAmountConfirm={handleAmountConfirm}
+        partyLabel="Party A/c name"
+        footer={
+          <>
+            {!hideAdditionalLedgers && <SalesGstEwayRow form={form} />}
+            {!hideAdditionalLedgers && features?.enable_gst && <EInvoiceRow form={form} />}
+            {vatEnabled && !hideVatDetails && <SalesVATDetails form={form} />}
+          </>
+        }
+      />
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col min-h-0">

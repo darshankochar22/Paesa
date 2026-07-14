@@ -25,6 +25,7 @@ import { EInvoiceGeneratePrompt, EInvoiceInfoPopup } from './components/popups/E
 import VoucherPrintPopup from './components/popups/VoucherPrintPopup';
 import { INVENTORY_CREATION_TYPES, ORDER_CREATION_TYPES } from './voucherConstants';
 import { PRIORITY, useShortcuts, type ShortcutBinding } from '@/lib/shortcuts';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 import { useVoucherQuickActions } from './hooks/useVoucherQuickActions';
 import TallyConfirm from '@/components/ui/TallyConfirm';
 import { useVoucherEnterNav } from './hooks/useVoucherEnterNav';
@@ -483,6 +484,18 @@ export default function Vouchers() {
     { keys: 'Ctrl+F7', handler: () => switchVoucher('Physical Stock') },
     { keys: 'Ctrl+F8', handler: () => switchVoucher('Sales Order') },
     { keys: 'Ctrl+F9', handler: () => switchVoucher('Purchase Order') },
+    // Ctrl+H — TallyPrime "Change Mode" → toggle Item ⇄ Accounting Invoice for the trade
+    // vouchers only. NO-OP when F11 maintain_inventory is off (there is no stock grid, so
+    // the voucher is already forced to accounting mode and must stay there).
+    {
+      keys: 'Ctrl+H',
+      handler: () => {
+        if (!['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType))
+          return;
+        if (!isFeatureEnabled(features, 'maintain_inventory')) return;
+        form.setInvoiceMode((m: 'item' | 'accounting') => (m === 'item' ? 'accounting' : 'item'));
+      },
+    },
   ].map((b) => ({ ...b, capture: true, allowInInputs: true, allowInDialogs: true }));
 
   useShortcuts(

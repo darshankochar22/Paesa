@@ -26,6 +26,9 @@ interface UseVoucherRowsOptions {
   voucherType: string;
   allUnits: UnitType[];
   stockBalances: Record<number, number>;
+  /** TallyPrime Accounting Invoice mode (trade vouchers): particulars ledgers replace
+   *  the stock grid, so the invoice total is sum(particulars) + tax rows, not stock. */
+  isAccountingInvoice?: boolean;
 }
 
 export function useVoucherRows({
@@ -44,6 +47,7 @@ export function useVoucherRows({
   voucherType,
   allUnits,
   stockBalances,
+  isAccountingInvoice = false,
 }: UseVoucherRowsOptions) {
   // ── Sub-hooks ──────────────────────────────────────────────────────────────
   const acct = useAccountingRows({
@@ -189,6 +193,23 @@ export function useVoucherRows({
         'Material Out',
       ].includes(voucherType)
     ) {
+      // Accounting Invoice mode: no stock grid — the invoice value is the particulars
+      // ledger total plus the tax/charge rows (signed the same way as item mode).
+      // Only Purchase posts the party on Cr; Sales/Credit Note/Debit Note keep party Dr.
+      if (isAccountingInvoice) {
+        const isPurchaseLike = voucherType === 'Purchase';
+        const adjSum = inv.additionalEntries.reduce((s, r) => {
+          const amt = Number(r.amountRaw) || 0;
+          return isPurchaseLike
+            ? r.type === 'Dr'
+              ? s + amt
+              : s - amt
+            : r.type === 'Cr'
+              ? s + amt
+              : s - amt;
+        }, 0);
+        return Math.max(0, particularsTotal + adjSum);
+      }
       const stockSum = inv.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
       // Purchase adds a tax/charge on Dr; every other invoice (Sales, Credit Note,
       // Debit Note) posts GST on Cr — the side that keeps the party's Dr balanced.
@@ -227,6 +248,7 @@ export function useVoucherRows({
     inv.destinationStockEntries,
     acct.payrollEntries,
     inv.additionalEntries,
+    isAccountingInvoice,
   ]);
 
   // ─── Active field / search panel ──────────────────────────────────────────

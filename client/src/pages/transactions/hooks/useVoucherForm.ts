@@ -10,6 +10,10 @@ import { pickDefaultRegistrationFrom } from '../utils/defaultRegistration';
 import { validateVoucher, submitVoucher } from './voucherSubmit';
 import { makePayrollPayHeadRow } from '../utils/rowFactories';
 import type { PayrollPayHeadRow } from '../types';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
+
+// Trade vouchers that support the TallyPrime "Accounting Invoice" mode (no stock grid).
+const ACCOUNTING_INVOICE_TYPES = ['Sales', 'Purchase', 'Credit Note', 'Debit Note'];
 
 // Re-export types so any file that previously imported from this hook still works
 export type { ParticularRow, StockEntryRow, ActiveField, ActiveAllocation } from '../types';
@@ -212,6 +216,14 @@ export function useVoucherForm(
     ? (resolveEffectiveType(meta.voucherType) ?? meta.voucherType)
     : meta.voucherType;
 
+  // Accounting-invoice mode: for trade vouchers only, true when F11 maintain_inventory
+  // is off (forced — there is no stock grid to show) OR the user toggled it on (Ctrl+H).
+  // Every other voucher type is always false.
+  const maintainInventory = isFeatureEnabled(features, 'maintain_inventory');
+  const isAccountingInvoice =
+    ACCOUNTING_INVOICE_TYPES.includes(effectiveVoucherType) &&
+    (!maintainInventory || meta.invoiceMode === 'accounting');
+
   const rows = useVoucherRowsInternal({
     initialAdditionalEntries: [],
     initialContraEntryMode: 'double',
@@ -222,6 +234,7 @@ export function useVoucherForm(
     voucherType: effectiveVoucherType,
     allUnits: ledgers.allUnits,
     stockBalances: ledgers.stockBalances,
+    isAccountingInvoice,
   });
 
   // ── Payroll Autofill ───────────────────────────────────────────────────────
@@ -350,9 +363,18 @@ export function useVoucherForm(
         gstRegistration,
         features,
         resetForm,
+        isAccountingInvoice,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [companyId, fyId, effectiveVoucherType, rows, meta.date, ledgers.checkIsCashOrBank],
+    [
+      companyId,
+      fyId,
+      effectiveVoucherType,
+      rows,
+      meta.date,
+      ledgers.checkIsCashOrBank,
+      isAccountingInvoice,
+    ],
   );
 
   // ── handleSubmit ───────────────────────────────────────────────────────────
@@ -373,6 +395,7 @@ export function useVoucherForm(
         features,
         resetForm,
         onNewVoucherSaved,
+        isAccountingInvoice,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -387,6 +410,7 @@ export function useVoucherForm(
       onSaved,
       gstRegistration,
       features,
+      isAccountingInvoice,
     ],
   );
 
@@ -499,6 +523,11 @@ export function useVoucherForm(
     setPlaceOfSupply: meta.setPlaceOfSupply,
     voucherClass: meta.voucherClass,
     setVoucherClass: meta.setVoucherClass,
+
+    // ── Accounting Invoice mode (Ctrl+H) — trade vouchers only
+    invoiceMode: meta.invoiceMode,
+    setInvoiceMode: meta.setInvoiceMode,
+    isAccountingInvoice,
 
     // ── Master data
     allGstRegistrations,

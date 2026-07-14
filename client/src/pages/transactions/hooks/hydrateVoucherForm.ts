@@ -188,22 +188,29 @@ export function hydrateVoucherForm(form: any, v: any) {
     }
   } else if (SALES_LIKE.has(type)) {
     form.setPartyLedger?.(findLedger(v.party_ledger_id));
-    const stockSubtotal = (v.stock_entries || []).reduce(
-      (s: number, x: any) => s + (Number(x.amount) || 0),
-      0,
-    );
+    const stockRows = v.stock_entries || [];
     const nonParty = entries.filter((e: any) => e.ledger_id !== v.party_ledger_id);
-    // The sales/purchase ledger carries the stock subtotal; the rest are tax/charges.
-    let mainIdx = nonParty.findIndex(
-      (e: any) => Math.abs((Number(e.amount) || 0) - stockSubtotal) < 0.01,
-    );
-    if (mainIdx < 0) mainIdx = 0;
-    const main = nonParty[mainIdx];
-    form.setSalesPurchaseLedger?.(findLedger(main?.ledger_id));
-    form.setStockEntries?.((v.stock_entries || []).map(mkStockRow));
-    const additional = nonParty.filter((_: any, i: number) => i !== mainIdx).map(mkEntryRow);
-    if (additional.length) form.setAdditionalEntries?.(additional);
-    form.setPartyBillReferences?.(billsByLedger[v.party_ledger_id] || []);
+    if (stockRows.length === 0) {
+      // Accounting Invoice (no stock): every non-party entry is a particulars ledger.
+      form.setInvoiceMode?.('accounting');
+      const particulars = nonParty.map(mkEntryRow);
+      if (particulars.length) form.setParticulars?.(particulars);
+      form.setPartyBillReferences?.(billsByLedger[v.party_ledger_id] || []);
+    } else {
+      form.setInvoiceMode?.('item');
+      const stockSubtotal = stockRows.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0);
+      // The sales/purchase ledger carries the stock subtotal; the rest are tax/charges.
+      let mainIdx = nonParty.findIndex(
+        (e: any) => Math.abs((Number(e.amount) || 0) - stockSubtotal) < 0.01,
+      );
+      if (mainIdx < 0) mainIdx = 0;
+      const main = nonParty[mainIdx];
+      form.setSalesPurchaseLedger?.(findLedger(main?.ledger_id));
+      form.setStockEntries?.(stockRows.map(mkStockRow));
+      const additional = nonParty.filter((_: any, i: number) => i !== mainIdx).map(mkEntryRow);
+      if (additional.length) form.setAdditionalEntries?.(additional);
+      form.setPartyBillReferences?.(billsByLedger[v.party_ledger_id] || []);
+    }
   } else if (INVENTORY_ONLY.has(type)) {
     form.setPartyLedger?.(findLedger(v.party_ledger_id));
     form.setSalesPurchaseLedger?.(findLedger(v.sales_purchase_ledger_id));

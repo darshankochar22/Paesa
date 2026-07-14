@@ -57,6 +57,15 @@ export function computeCanAccept(form: any, effectiveVoucherType: string): boole
       'Material Out',
     ].includes(effectiveVoucherType)
   ) {
+    // Accounting Invoice mode: party + at least one particulars ledger with an amount,
+    // and a positive total (no stock item / Sales-Purchase ledger required).
+    if (form.isAccountingInvoice) {
+      return (
+        !!form.partyLedger &&
+        form.particulars.some((p: any) => !!p.ledger && (Number(p.amountRaw) || 0) > 0) &&
+        (Number(form.totalAmount) || 0) > 0
+      );
+    }
     const hasValidEntries = form.stockEntries.some(
       (s) => !!s.stockItem && (Number(s.amountRaw) || 0) > 0,
     );
