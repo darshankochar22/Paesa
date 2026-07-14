@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import type { ComponentAllocationRow } from '../../types';
 import { useCompany } from '../../../../context/CompanyContext';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
 
 interface GodownOption {
@@ -88,8 +89,11 @@ export default function ComponentsAllocationPopup({
   onClose,
   onSave,
 }: Props) {
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, features } = useCompany();
   const companyId = selectedCompany?.company_id;
+  // F11 "Enable Batches" gates the per-component Batch / Lot column, same as the
+  // parent item allocation — an item's own track_batches only matters when on.
+  const batchesOn = isFeatureEnabled(features, 'enable_batches');
 
   // Per-godown balances, cached per component item id (each row can hold a
   // different item). Fetched lazily when a row's godown picker opens.
@@ -138,7 +142,7 @@ export default function ComponentsAllocationPopup({
           item_id: si?.item_id,
           item_name: r.item_name,
           unit_symbol: r.unit_symbol ?? '',
-          isBatch: si ? Boolean(Number(si.track_batches)) : false,
+          isBatch: batchesOn && si ? Boolean(Number(si.track_batches)) : false,
           showTrackDD: false,
           showGodownDD: false,
           showBatchDD: false,
@@ -379,7 +383,7 @@ export default function ComponentsAllocationPopup({
                             item_id: s.item_id,
                             item_name: s.name,
                             unit_symbol: unit?.symbol ?? '',
-                            isBatch: Boolean(Number(s.track_batches)),
+                            isBatch: batchesOn && Boolean(Number(s.track_batches)),
                             rate: autoRate ? String(Math.round(autoRate * 100) / 100) : '',
                           });
                           setShowItemDD(null);

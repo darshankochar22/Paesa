@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { useVoucherForm } from './useVoucherForm';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 import type { BatchAllocation, InventoryAllocationItem } from '../types';
 import { makeStockRow } from '../utils/rowFactories';
 import type { ExciseItemDetails } from '../components/popups/ItemExciseDetailsPopup';
@@ -131,8 +132,18 @@ export function useStockEntryFlow(
       const row = form.stockEntries[idx];
       const item = row?.stockItem;
       const qty = Number(row?.quantityRaw) || 0;
+      // F11 "Enable Batches" gates the batch sub-screen — only a batch-tracked item
+      // opens it, and only while the feature is on (else fall through to advance).
+      const batchesOn = isFeatureEnabled(form.features, 'enable_batches');
+      const expiryOn = isFeatureEnabled(form.features, 'maintain_expiry_date_for_batches');
       // Batch-tracked item → open the Stock Item Allocations sub-screen first.
-      if (item && Number((item as any).track_batches) === 1 && qty > 0 && item.item_id) {
+      if (
+        batchesOn &&
+        item &&
+        Number((item as any).track_batches) === 1 &&
+        qty > 0 &&
+        item.item_id
+      ) {
         form.setActiveAllocation({
           type: 'batch',
           rowId: row.id,
@@ -142,7 +153,7 @@ export function useStockEntryFlow(
           rate: Number(row.rateRaw) || 0,
           unitSymbol: row.unit?.symbol,
           trackMfg: Number((item as any).track_date_of_manufacturing) === 1,
-          trackExpiry: Number((item as any).track_expiry) === 1,
+          trackExpiry: expiryOn && Number((item as any).track_expiry) === 1,
           isInward: INWARD_VOUCHER_TYPES.includes(effectiveVoucherType),
           initialAllocations: row.batchAllocations,
         });

@@ -11,6 +11,7 @@ import AdditionalTaxLedgerRows from '../components/AdditionalTaxLedgerRows';
 import AccountingInvoiceBody from '../components/AccountingInvoiceBody';
 import { useCompany } from '../../../context/CompanyContext';
 import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -35,6 +36,11 @@ export default function CreditNoteVoucher({
   const showDisc = features?.use_discount_column_in_invoices !== 0;
   // F11 "Enable Value Added Tax (VAT)" — hide the Provide VAT details block when No.
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
+  // F11 "Enable GST" — hide GST-details / GST-e-Way / e-Invoice rows when off.
+  const gstEnabled = isTaxFeatureEnabled(features, 'gst');
+  // F11 "Enable multiple Price Levels" — show the Price Level selector only when on.
+  const hasPriceLevels =
+    isFeatureEnabled(features, 'enable_multiple_price_levels') && form.allPriceLevels.length > 0;
 
   // Accounting Invoice mode (Ctrl+H / forced when F11 maintain_inventory is off): no
   // stock grid — pick ledgers with typed amounts. Party stays at top; the Ledger-account
@@ -47,8 +53,8 @@ export default function CreditNoteVoucher({
         partyLabel="Party A/c name"
         footer={
           <>
-            <CreditNoteGstEwayDetails form={form} />
-            {features?.enable_gst && <EInvoiceRow form={form} />}
+            {gstEnabled && <CreditNoteGstEwayDetails form={form} />}
+            {gstEnabled && <EInvoiceRow form={form} />}
           </>
         }
       />
@@ -72,22 +78,24 @@ export default function CreditNoteVoucher({
           <span className="text-sm text-black">:</span>
           <span className="text-sm italic text-black">Excise</span>
         </div>
-        <div className="flex items-center gap-2 px-3 pt-0.5 shrink-0">
-          <span className="text-sm text-black">Price Level</span>
-          <span className="text-sm text-black">:</span>
-          <select
-            className="w-40 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-white"
-            value={form.priceLevel}
-            onChange={(e) => form.setPriceLevel(e.target.value)}
-          >
-            <option value="">♦ Not Applicable</option>
-            {form.allPriceLevels.map((pl: string) => (
-              <option key={pl} value={pl}>
-                {pl}
-              </option>
-            ))}
-          </select>
-        </div>
+        {hasPriceLevels && (
+          <div className="flex items-center gap-2 px-3 pt-0.5 shrink-0">
+            <span className="text-sm text-black">Price Level</span>
+            <span className="text-sm text-black">:</span>
+            <select
+              className="w-40 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-white"
+              value={form.priceLevel}
+              onChange={(e) => form.setPriceLevel(e.target.value)}
+            >
+              <option value="">♦ Not Applicable</option>
+              {form.allPriceLevels.map((pl: string) => (
+                <option key={pl} value={pl}>
+                  {pl}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Ledger account */}
@@ -317,8 +325,8 @@ export default function CreditNoteVoucher({
         </button>
       </div>
 
-      {/* Provide GST details — only for a Purchase Accounts ledger */}
-      {form.checkLedgerGroup(form.salesPurchaseLedger, ['purchase accounts']) && (
+      {/* Provide GST details — only for a Purchase Accounts ledger, GST on */}
+      {gstEnabled && form.checkLedgerGroup(form.salesPurchaseLedger, ['purchase accounts']) && (
         <CreditNoteGSTDetails form={form} />
       )}
 
@@ -328,10 +336,10 @@ export default function CreditNoteVoucher({
       )}
 
       {/* Provide GST/e-Way Bill details — Statutory Details popup */}
-      <CreditNoteGstEwayDetails form={form} />
+      {gstEnabled && <CreditNoteGstEwayDetails form={form} />}
 
       {/* Provide e-Invoice details */}
-      {features?.enable_gst && <EInvoiceRow form={form} />}
+      {gstEnabled && <EInvoiceRow form={form} />}
     </>
   );
 }

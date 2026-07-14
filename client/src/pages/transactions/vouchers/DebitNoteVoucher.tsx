@@ -35,6 +35,8 @@ export default function DebitNoteVoucher({
   const showDisc = features?.use_discount_column_in_invoices !== 0;
   // F11 "Enable Value Added Tax (VAT)" — hide the Provide VAT details block when No.
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
+  // F11 "Enable GST" — hide GST-details / GST-e-Way / e-Invoice rows when off.
+  const gstEnabled = isTaxFeatureEnabled(features, 'gst');
 
   // Accounting Invoice mode (Ctrl+H / forced when F11 maintain_inventory is off): no
   // stock grid — pick ledgers with typed amounts. Party stays at top; the Ledger-account
@@ -47,8 +49,8 @@ export default function DebitNoteVoucher({
         partyLabel="Party A/c name"
         footer={
           <>
-            <DebitNoteGstEwayDetails form={form} />
-            {features?.enable_gst && <EInvoiceRow form={form} />}
+            {gstEnabled && <DebitNoteGstEwayDetails form={form} />}
+            {gstEnabled && <EInvoiceRow form={form} />}
           </>
         }
       />
@@ -295,8 +297,8 @@ export default function DebitNoteVoucher({
         </button>
       </div>
 
-      {/* Provide GST details — only for a Purchase Accounts ledger */}
-      {form.checkLedgerGroup(form.salesPurchaseLedger, ['purchase accounts']) && (
+      {/* Provide GST details — only for a Purchase Accounts ledger, GST on */}
+      {gstEnabled && form.checkLedgerGroup(form.salesPurchaseLedger, ['purchase accounts']) && (
         <DebitNoteGSTDetails form={form} />
       )}
 
@@ -306,10 +308,10 @@ export default function DebitNoteVoucher({
       )}
 
       {/* Provide GST/e-Way Bill details — Statutory Details popup */}
-      <DebitNoteGstEwayDetails form={form} />
+      {gstEnabled && <DebitNoteGstEwayDetails form={form} />}
 
       {/* Provide e-Invoice details */}
-      {features?.enable_gst && <EInvoiceRow form={form} />}
+      {gstEnabled && <EInvoiceRow form={form} />}
     </>
   );
 }

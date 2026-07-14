@@ -319,6 +319,9 @@ export default function SalesVoucher({
   const showDisc = features?.use_discount_column_in_invoices !== 0;
   // F11 "Enable Value Added Tax (VAT)" — hide the Provide VAT details block when No.
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
+  // F11 "Enable GST" — hide the GST/e-Way Bill + e-Invoice statutory rows when off.
+  // Uses the tax helper (respects the load-until-enabled convention), not raw flag.
+  const gstEnabled = isTaxFeatureEnabled(features, 'gst');
 
   // Price Level is a keyboard stop only when F11 "Enable multiple Price Levels"
   // is on AND the company actually defines price levels (Tally hides it otherwise).
@@ -336,8 +339,8 @@ export default function SalesVoucher({
         partyLabel="Party A/c name"
         footer={
           <>
-            {!hideAdditionalLedgers && <SalesGstEwayRow form={form} />}
-            {!hideAdditionalLedgers && features?.enable_gst && <EInvoiceRow form={form} />}
+            {!hideAdditionalLedgers && gstEnabled && <SalesGstEwayRow form={form} />}
+            {!hideAdditionalLedgers && gstEnabled && <EInvoiceRow form={form} />}
             {vatEnabled && !hideVatDetails && <SalesVATDetails form={form} />}
           </>
         }
@@ -724,10 +727,10 @@ export default function SalesVoucher({
       )}
 
       {/* Provide GST/e-Way Bill details */}
-      {!hideAdditionalLedgers && <SalesGstEwayRow form={form} />}
+      {!hideAdditionalLedgers && gstEnabled && <SalesGstEwayRow form={form} />}
 
       {/* Provide e-Invoice details (GST invoices only, not delivery-note reuse) */}
-      {!hideAdditionalLedgers && features?.enable_gst && <EInvoiceRow form={form} />}
+      {!hideAdditionalLedgers && gstEnabled && <EInvoiceRow form={form} />}
 
       {vatEnabled && !hideVatDetails && <SalesVATDetails form={form} />}
     </div>

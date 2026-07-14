@@ -1,5 +1,6 @@
-import { useState } from "react";
-import type { useVoucherForm } from "../hooks/useVoucherForm";
+import { useState } from 'react';
+import type { useVoucherForm } from '../hooks/useVoucherForm';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -10,13 +11,10 @@ interface Props {
   physicalStockQtyEnter: (idx: number) => void;
 }
 
-export default function PhysicalStockVoucher({
-  form,
-  physicalStockQtyEnter,
-}: Props) {
+export default function PhysicalStockVoucher({ form, physicalStockQtyEnter }: Props) {
   const [openBatchRow, setOpenBatchRow] = useState<string | null>(null);
   const [newBatchRow, setNewBatchRow] = useState<string | null>(null);
-  const [newBatchValue, setNewBatchValue] = useState("");
+  const [newBatchValue, setNewBatchValue] = useState('');
   const confirmNewBatch = () => {
     if (newBatchRow === null) return;
     const idx = form.stockEntries.findIndex((r) => r.id === newBatchRow);
@@ -47,18 +45,22 @@ export default function PhysicalStockVoucher({
       <div className="flex-1 overflow-y-auto min-h-0 bg-white">
         {form.stockEntries.map((row, idx) => {
           const isActive =
-            form.activeField?.type === "stockItem" &&
-            form.activeField.rowId === row.id;
+            form.activeField?.type === 'stockItem' && form.activeField.rowId === row.id;
           const isGodownActive =
-            form.activeField?.type === "stockGodown" &&
-            form.activeField.rowId === row.id;
+            form.activeField?.type === 'stockGodown' && form.activeField.rowId === row.id;
 
           // Item name shows once per consecutive same-item group; the godown rows
           // beneath it inherit the item. Batch columns only for batch-tracked items.
           const prevRow = idx > 0 ? form.stockEntries[idx - 1] : null;
           const isFirstOfGroup =
             !prevRow || !prevRow.stockItem || prevRow.stockItem.item_id !== row.stockItem?.item_id;
-          const isBatch = Number((row.stockItem as any)?.track_batches) === 1;
+          // F11 gate: batch column only when "Enable Batches" is on AND the item is
+          // batch-tracked; expiry column additionally needs the expiry-date flag.
+          const isBatch =
+            isFeatureEnabled(form.features, 'enable_batches') &&
+            Number((row.stockItem as any)?.track_batches) === 1;
+          const showExpiry =
+            isBatch && isFeatureEnabled(form.features, 'maintain_expiry_date_for_batches');
 
           return (
             <div
@@ -72,20 +74,22 @@ export default function PhysicalStockVoucher({
                     data-stock-item={idx + 1}
                     type="text"
                     className="flex-1 text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
-                    value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? "")}
-                    placeholder={idx === 0 ? "Select Item…" : ""}
-                    onFocus={() =>
-                      form.handleFieldFocus({ type: "stockItem", rowId: row.id })
-                    }
+                    value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? '')}
+                    placeholder={idx === 0 ? 'Select Item…' : ''}
+                    onFocus={() => form.handleFieldFocus({ type: 'stockItem', rowId: row.id })}
                     onChange={(e) => {
                       form.setStockSearchTerm(e.target.value);
                       if (!row.stockItem)
-                        form.handleFieldFocus({ type: "stockItem", rowId: row.id });
+                        form.handleFieldFocus({ type: 'stockItem', rowId: row.id });
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && row.stockItem) {
+                      if (e.key === 'Enter' && row.stockItem) {
                         e.preventDefault();
-                        (document.querySelector(`[data-stock-godown="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+                        (
+                          document.querySelector(
+                            `[data-stock-godown="${idx + 1}"]`,
+                          ) as HTMLInputElement | null
+                        )?.focus();
                       }
                     }}
                     autoComplete="off"
@@ -111,18 +115,18 @@ export default function PhysicalStockVoucher({
                   data-stock-godown={idx + 1}
                   type="text"
                   className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                  value={isGodownActive ? form.ledgerSearchTerm : (row.godown?.name ?? "")}
+                  value={isGodownActive ? form.ledgerSearchTerm : (row.godown?.name ?? '')}
                   placeholder="Select Godown…"
-                  onFocus={() =>
-                    form.handleFieldFocus({ type: "stockGodown", rowId: row.id })
-                  }
+                  onFocus={() => form.handleFieldFocus({ type: 'stockGodown', rowId: row.id })}
                   onChange={(e) => form.setLedgerSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
                     // Godown picked → next field. Enter on an EMPTY godown is handled by
                     // the List of Godowns (onEnterEmpty → next item; End of List → narration).
-                    if (e.key === "Enter" && row.godown) {
+                    if (e.key === 'Enter' && row.godown) {
                       e.preventDefault();
-                      const sel = isBatch ? `[data-stock-batch="${idx + 1}"]` : `[data-stock-qty="${idx + 1}"]`;
+                      const sel = isBatch
+                        ? `[data-stock-batch="${idx + 1}"]`
+                        : `[data-stock-qty="${idx + 1}"]`;
                       (document.querySelector(sel) as HTMLInputElement | null)?.focus();
                     }
                   }}
@@ -138,17 +142,26 @@ export default function PhysicalStockVoucher({
                       data-stock-batch={idx + 1}
                       type="text"
                       className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                      value={row.batchNo || ""}
+                      value={row.batchNo || ''}
                       placeholder="Batch No…"
-                      onFocus={() => { setOpenBatchRow(row.id); form.fetchActiveBatches(row.stockItem?.item_id); }}
-                      onChange={(e) => form.handleUpdateStockRow(row.id, { batchNo: e.target.value })}
+                      onFocus={() => {
+                        setOpenBatchRow(row.id);
+                        form.fetchActiveBatches(row.stockItem?.item_id);
+                      }}
+                      onChange={(e) =>
+                        form.handleUpdateStockRow(row.id, { batchNo: e.target.value })
+                      }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === 'Enter') {
                           e.preventDefault();
                           setOpenBatchRow(null);
-                          (document.querySelector(`[data-stock-mfg="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+                          (
+                            document.querySelector(
+                              `[data-stock-mfg="${idx + 1}"]`,
+                            ) as HTMLInputElement | null
+                          )?.focus();
                         }
-                        if (e.key === "Escape") setOpenBatchRow(null);
+                        if (e.key === 'Escape') setOpenBatchRow(null);
                       }}
                       autoComplete="off"
                     />
@@ -158,32 +171,66 @@ export default function PhysicalStockVoucher({
                         <div className="absolute left-0 top-full mt-0.5 z-30 w-64 bg-white border border-zinc-500 shadow-xl">
                           <div className="bg-zinc-800 text-white text-[11px] font-bold px-2 py-1 flex justify-between items-center">
                             <span>List of Active Batches</span>
-                            <button type="button" onMouseDown={(e) => { e.preventDefault(); setOpenBatchRow(null); setNewBatchValue(""); setNewBatchRow(row.id); }} className="hover:underline">New Number</button>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setOpenBatchRow(null);
+                                setNewBatchValue('');
+                                setNewBatchRow(row.id);
+                              }}
+                              className="hover:underline"
+                            >
+                              New Number
+                            </button>
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-2 py-0.5 text-[10px] font-semibold border-b border-zinc-300 text-zinc-700">
-                            <span>Name</span><span className="text-right">Expiry</span><span className="text-right">Balance</span>
+                            <span>Name</span>
+                            <span className="text-right">Expiry</span>
+                            <span className="text-right">Balance</span>
                           </div>
                           <div className="max-h-48 overflow-y-auto">
-                            {form.activeBatches.filter((b) => !row.batchNo || b.name.toLowerCase().includes((row.batchNo || "").toLowerCase())).length === 0 && (
-                              <div className="px-2 py-1 text-xs text-zinc-400 italic">No active batches — type a New Number</div>
+                            {form.activeBatches.filter(
+                              (b) =>
+                                !row.batchNo ||
+                                b.name.toLowerCase().includes((row.batchNo || '').toLowerCase()),
+                            ).length === 0 && (
+                              <div className="px-2 py-1 text-xs text-zinc-400 italic">
+                                No active batches — type a New Number
+                              </div>
                             )}
                             {form.activeBatches
-                              .filter((b) => !row.batchNo || b.name.toLowerCase().includes((row.batchNo || "").toLowerCase()))
+                              .filter(
+                                (b) =>
+                                  !row.batchNo ||
+                                  b.name.toLowerCase().includes((row.batchNo || '').toLowerCase()),
+                              )
                               .map((b) => (
                                 <button
                                   key={b.name}
                                   type="button"
                                   onMouseDown={(e) => {
                                     e.preventDefault();
-                                    form.handleUpdateStockRow(row.id, { batchNo: b.name, expiryDate: b.expiry || row.expiryDate });
+                                    form.handleUpdateStockRow(row.id, {
+                                      batchNo: b.name,
+                                      expiryDate: b.expiry || row.expiryDate,
+                                    });
                                     setOpenBatchRow(null);
-                                    (document.querySelector(`[data-stock-mfg="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+                                    (
+                                      document.querySelector(
+                                        `[data-stock-mfg="${idx + 1}"]`,
+                                      ) as HTMLInputElement | null
+                                    )?.focus();
                                   }}
                                   className="grid grid-cols-[1fr_auto_auto] gap-x-3 w-full text-left px-2 py-1 text-xs hover:bg-zinc-100"
                                 >
                                   <span className="truncate font-semibold">{b.name}</span>
                                   <span className="text-right font-mono">{b.expiry}</span>
-                                  <span className="text-right font-mono">{b.balance ? `${b.balance.toLocaleString("en-IN")}${row.unit?.symbol ? ` ${row.unit.symbol}` : ""}` : ""}</span>
+                                  <span className="text-right font-mono">
+                                    {b.balance
+                                      ? `${b.balance.toLocaleString('en-IN')}${row.unit?.symbol ? ` ${row.unit.symbol}` : ''}`
+                                      : ''}
+                                  </span>
                                 </button>
                               ))}
                           </div>
@@ -201,37 +248,43 @@ export default function PhysicalStockVoucher({
                     data-stock-mfg={idx + 1}
                     type="text"
                     className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                    value={row.mfgDate || ""}
+                    value={row.mfgDate || ''}
                     placeholder="YYYY-MM-DD"
-                    onChange={(e) =>
-                      form.handleUpdateStockRow(row.id, { mfgDate: e.target.value })
-                    }
+                    onChange={(e) => form.handleUpdateStockRow(row.id, { mfgDate: e.target.value })}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (e.key === 'Enter') {
                         e.preventDefault();
-                        (document.querySelector(`[data-stock-expiry="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+                        // Skip to Quantity when the Expiry column is hidden (F11 off).
+                        const sel = showExpiry
+                          ? `[data-stock-expiry="${idx + 1}"]`
+                          : `[data-stock-qty="${idx + 1}"]`;
+                        (document.querySelector(sel) as HTMLInputElement | null)?.focus();
                       }
                     }}
                   />
                 )}
               </div>
 
-              {/* Expiry Date — batch-tracked items only */}
+              {/* Expiry Date — batch-tracked items only, F11 expiry flag on */}
               <div className="w-24">
-                {isBatch && (
+                {showExpiry && (
                   <input
                     data-stock-expiry={idx + 1}
                     type="text"
                     className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                    value={row.expiryDate || ""}
+                    value={row.expiryDate || ''}
                     placeholder="date / 6 Months"
                     onChange={(e) =>
                       form.handleUpdateStockRow(row.id, { expiryDate: e.target.value })
                     }
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (e.key === 'Enter') {
                         e.preventDefault();
-                        (document.querySelector(`[data-stock-qty="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+                        (
+                          document.querySelector(
+                            `[data-stock-qty="${idx + 1}"]`,
+                          ) as HTMLInputElement | null
+                        )?.focus();
                       }
                     }}
                   />
@@ -250,7 +303,7 @@ export default function PhysicalStockVoucher({
                     form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
                   }
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === 'Enter') {
                       e.preventDefault();
                       // Tally flow: do not go to Amount — add another godown row for this item.
                       physicalStockQtyEnter(idx);
@@ -262,11 +315,11 @@ export default function PhysicalStockVoucher({
               {/* Amount */}
               <div className="w-28 text-right text-xs font-semibold font-mono text-zinc-900 select-none">
                 {row.amountRaw
-                  ? Number(row.amountRaw).toLocaleString("en-IN", {
+                  ? Number(row.amountRaw).toLocaleString('en-IN', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })
-                  : ""}
+                  : ''}
               </div>
             </div>
           );
@@ -274,10 +327,7 @@ export default function PhysicalStockVoucher({
 
         {/* Filler rows */}
         {Array.from({ length: Math.max(0, 8 - form.stockEntries.length) }).map((_, i) => (
-          <div
-            key={`sf-${i}`}
-            className="flex border-b border-zinc-50 min-h-[26px] px-3"
-          />
+          <div key={`sf-${i}`} className="flex border-b border-zinc-50 min-h-[26px] px-3" />
         ))}
       </div>
 
@@ -285,7 +335,9 @@ export default function PhysicalStockVoucher({
       {newBatchRow !== null && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
           <div className="bg-white border border-black shadow-2xl w-80">
-            <div className="border-b border-black px-3 py-1 text-center text-sm font-bold">New Number</div>
+            <div className="border-b border-black px-3 py-1 text-center text-sm font-bold">
+              New Number
+            </div>
             <div className="p-4">
               <input
                 autoFocus
@@ -293,15 +345,31 @@ export default function PhysicalStockVoucher({
                 value={newBatchValue}
                 onChange={(e) => setNewBatchValue(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); confirmNewBatch(); }
-                  if (e.key === "Escape") { e.preventDefault(); setNewBatchRow(null); }
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    confirmNewBatch();
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setNewBatchRow(null);
+                  }
                 }}
                 className="w-full text-sm border border-gray-400 px-1 py-1 outline-none focus:border-black bg-yellow-50"
               />
             </div>
             <div className="border-t border-black px-3 py-2 flex justify-end gap-2 bg-gray-50">
-              <button onClick={() => setNewBatchRow(null)} className="text-xs px-3 py-1 border border-black hover:bg-gray-100">Cancel</button>
-              <button onClick={confirmNewBatch} className="text-xs px-4 py-1 bg-black text-white hover:bg-gray-800">Accept</button>
+              <button
+                onClick={() => setNewBatchRow(null)}
+                className="text-xs px-3 py-1 border border-black hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmNewBatch}
+                className="text-xs px-4 py-1 bg-black text-white hover:bg-gray-800"
+              >
+                Accept
+              </button>
             </div>
           </div>
         </div>

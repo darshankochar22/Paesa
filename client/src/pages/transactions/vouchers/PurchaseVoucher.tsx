@@ -306,6 +306,7 @@ import TallyDateInput from '../components/TallyDateInput';
 import AccountingInvoiceBody from '../components/AccountingInvoiceBody';
 import { gstRowInfo } from '../utils/gstRow';
 import { useCompany } from '../../../context/CompanyContext';
+import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -325,6 +326,8 @@ export default function PurchaseVoucher({
   // F11 "Use separate Actual and Billed Quantity columns" — collapse to a single
   // Quantity column when the flag is explicitly No.
   const { features } = useCompany();
+  // F11 "Enable GST" — hide the Provide GST/e-Way Bill details row when off.
+  const gstEnabled = isTaxFeatureEnabled(features, 'gst');
   const showBilled = features?.use_separate_actual_billed_qty !== 0;
   // F11 "Use Discount column in invoices" — hide the Disc % column when No.
   const showDisc = features?.use_discount_column_in_invoices !== 0;
@@ -384,7 +387,7 @@ export default function PurchaseVoucher({
         handleAmountConfirm={handleAmountConfirm}
         partyLabel="Party A/c name"
         header={supplierInvoiceHeader}
-        footer={<PurchaseGstEwayRow />}
+        footer={gstEnabled ? <PurchaseGstEwayRow /> : null}
       />
     );
   }
@@ -752,7 +755,7 @@ export default function PurchaseVoucher({
       </div>
 
       {/* Provide GST/e-Way Bill details */}
-      <PurchaseGstEwayRow />
+      {gstEnabled && <PurchaseGstEwayRow />}
     </>
   );
 }
