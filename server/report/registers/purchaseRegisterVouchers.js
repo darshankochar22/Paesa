@@ -13,17 +13,24 @@ const purchaseRegisterVouchers = async (company_id, fy_id, from_date, to_date) =
             AND v.is_post_dated = 0
             AND v.date >= ${from_date}
             AND v.date <= ${to_date}
-          ORDER BY v.date ASC, v.voucher_id ASC`
+          ORDER BY v.date ASC, v.voucher_id ASC`,
     );
     const rows = [];
     for (const v of voucherRows) {
       const entries = await db.all(
-        sql`SELECT * FROM ${voucherEntries} WHERE voucher_id = ${v.voucher_id}`
+        sql`SELECT * FROM ${voucherEntries} WHERE voucher_id = ${v.voucher_id}`,
       );
-      const creditTotal = entries.filter((e) => e.type === 'Cr').reduce((sum, e) => sum + (e.amount || 0), 0);
-      const debitTotal = entries.filter((e) => e.type === 'Dr').reduce((sum, e) => sum + (e.amount || 0), 0);
+      const creditTotal = entries
+        .filter((e) => e.type === 'Cr')
+        .reduce((sum, e) => sum + (e.amount || 0), 0);
+      const debitTotal = entries
+        .filter((e) => e.type === 'Dr')
+        .reduce((sum, e) => sum + (e.amount || 0), 0);
       const creditEntry = entries.find((e) => e.type === 'Cr');
       const debitEntry = entries.find((e) => e.type === 'Dr');
+      // Purchase voucher: the credited ledger (cash/bank/creditor source) is
+      // the Particulars, and the amount belongs in the Credit column — matching
+      // TallyPrime's Purchase Register. The debit side is the Purchase account.
       rows.push({
         id: v.voucher_id,
         voucher_id: v.voucher_id,
@@ -31,8 +38,8 @@ const purchaseRegisterVouchers = async (company_id, fy_id, from_date, to_date) =
         particulars: creditEntry?.ledger_name || debitEntry?.ledger_name || '—',
         voucher_type: v.voucher_type,
         voucher_number: v.voucher_number,
-        debit: debitTotal,
-        credit: 0,
+        debit: 0,
+        credit: creditTotal || debitTotal,
       });
     }
     return { success: true, rows };

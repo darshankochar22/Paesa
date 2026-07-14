@@ -213,19 +213,14 @@ function loadMasters(managerPath) {
     } else if (kd === 'stock') {
       const si = { ...base, base_unit: first(f, 'str', 0xfd4) || null, type_of_supply: 'Goods' };
       let hsn = null;
-      const gstRates = [];
       for (const x of flat(f)) {
         if (x.k === 'str' && x.v && hsn === null && HSN_RE.test(x.v)) hsn = x.v;
-        if (x.k === 'n08') {
-          const rv = toNum(x.v);
-          if (rv > 0 && rv <= 2800000 && rv % 25000 === 0) gstRates.push(rv);
-        }
       }
       if (hsn) si.hsn_sac = hsn;
-      if (gstRates.length) {
-        si.gst_rate = Math.round((Math.max(...gstRates) / SCALE) * 100) / 100;
-        si.taxability = 'Taxable';
-      }
+      // Do NOT infer gst_rate/taxability from binary n08 fields. Every number is
+      // scaled by SCALE, so a scaled "1.0" (=100000) or any quantity/amount
+      // divisible by 25000 looked like a GST rate and falsely stamped Taxable on
+      // items that have no GST set in Tally. Real GST comes from the HTTP/XML export.
       const oq = first(f, 'n0c', 2);
       if (oq) si.opening_quantity = Math.round((toNum(oq[0]) / SCALE) * 10000) / 10000;
       stockItems.push(si);
@@ -511,19 +506,11 @@ function extractCompany(folder) {
       type_of_supply: 'Goods',
     };
     let hsn = null;
-    const gstRates = [];
     for (const x of flat(f)) {
       if (x.k === 'str' && x.v && hsn === null && HSN_RE.test(x.v)) hsn = x.v;
-      if (x.k === 'n08') {
-        const rv = toNum(x.v);
-        if (rv > 0 && rv <= 2800000 && rv % 25000 === 0) gstRates.push(rv);
-      }
     }
     if (hsn) si.hsn_sac = hsn;
-    if (gstRates.length) {
-      si.gst_rate = Math.round((Math.max(...gstRates) / SCALE) * 100) / 100;
-      si.taxability = 'Taxable';
-    }
+    // Do NOT infer gst_rate/taxability from binary n08 fields — see note above.
     masters.stockItems.push(si);
   }
 

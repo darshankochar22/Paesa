@@ -14,30 +14,33 @@ const paymentRegisterVouchers = async (company_id, fy_id, from_date, to_date) =>
             AND v.is_post_dated = 0
             AND v.date >= ${from_date}
             AND v.date <= ${to_date}
-          ORDER BY v.date ASC, v.voucher_id ASC`
+          ORDER BY v.date ASC, v.voucher_id ASC`,
     );
 
     const rows = [];
 
     for (const v of voucherRows) {
       const entries = await db.all(
-        sql`SELECT * FROM ${voucherEntries} WHERE voucher_id = ${v.voucher_id}`
+        sql`SELECT * FROM ${voucherEntries} WHERE voucher_id = ${v.voucher_id}`,
       );
 
       const creditEntry = entries.find((e) => e.type === 'Cr');
       const debitEntry = entries.find((e) => e.type === 'Dr');
 
-      const amount = creditEntry?.amount || debitEntry?.amount || 0;
+      // Payment voucher: the debited ledger (account being paid) is the
+      // Particulars, and the amount belongs in the Debit column — matching
+      // TallyPrime's Payment Register. The credit side is the cash/bank source.
+      const amount = debitEntry?.amount || creditEntry?.amount || 0;
 
       rows.push({
         id: v.voucher_id,
         voucher_id: v.voucher_id,
         date: v.date,
-        particulars: creditEntry?.ledger_name || debitEntry?.ledger_name || '—',
+        particulars: debitEntry?.ledger_name || creditEntry?.ledger_name || '—',
         voucher_type: v.voucher_type,
         voucher_number: v.voucher_number,
-        debit: 0,
-        credit: amount,
+        debit: amount,
+        credit: 0,
       });
     }
 
