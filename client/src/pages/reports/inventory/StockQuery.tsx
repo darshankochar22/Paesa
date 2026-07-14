@@ -134,7 +134,7 @@ function TxPanel({
 }) {
   const last = rows[0];
   return (
-    <div className="flex-1 min-w-0 px-2">
+    <div className="flex-1 min-w-0 px-2 py-2 overflow-y-auto">
       <SectionTitle>{title}</SectionTitle>
       <div className="text-[10px] text-black font-mono mb-1 truncate">
         {last
@@ -361,8 +361,10 @@ export default function StockQuery() {
         <span />
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Body — fills the viewport as Tally's bordered quadrants: a two-column
+          header, then a large Purchases/Sales region over a shorter
+          Godown/Category region (not four equal cramped boxes). */}
+      <div className="flex-1 flex flex-col min-h-0">
         {loading ? (
           <div className="py-8 text-center text-black italic">Loading…</div>
         ) : err ? (
@@ -370,7 +372,7 @@ export default function StockQuery() {
         ) : !data || !it ? null : (
           <>
             {/* ── Two-column header ── */}
-            <div className="grid grid-cols-2 border-b-2 border-gray-200">
+            <div className="grid grid-cols-2 border-b-2 border-gray-200 shrink-0">
               <div className="border-r border-gray-200 px-4 py-3 font-mono">
                 <HRow label="Name" value={it.name} />
                 <HRow label="Group" value={it.group_name} />
@@ -388,8 +390,8 @@ export default function StockQuery() {
               </div>
             </div>
 
-            {/* ── Purchases + Sales ── */}
-            <div className="flex border-b-2 border-gray-200 py-2">
+            {/* ── Purchases + Sales (large upper region) ── */}
+            <div className="flex-[2] flex min-h-0 border-b-2 border-gray-200 overflow-hidden">
               <TxPanel
                 title="Purchases"
                 verb="purchased"
@@ -411,10 +413,10 @@ export default function StockQuery() {
               />
             </div>
 
-            {/* ── Godown/Batch + Items of Same Category ── */}
-            <div className="flex py-2">
+            {/* ── Godown/Batch + Items of Same Category (shorter lower region) ── */}
+            <div className="flex-1 flex min-h-0 overflow-hidden">
               {/* Godown / Batch */}
-              <div className="flex-1 px-2 border-r border-gray-200">
+              <div className="flex-1 px-2 py-2 border-r border-gray-200 overflow-y-auto">
                 <SectionTitle>Godown / Batch Details</SectionTitle>
                 <table className="w-full border-collapse text-[11px] font-mono">
                   <thead>
@@ -452,7 +454,7 @@ export default function StockQuery() {
               </div>
 
               {/* Items of Same Category */}
-              <div className="flex-1 px-2">
+              <div className="flex-1 px-2 py-2 overflow-y-auto">
                 <SectionTitle>Items of Same Category</SectionTitle>
                 <table className="w-full border-collapse text-[11px] font-mono">
                   <thead>

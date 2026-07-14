@@ -1,12 +1,17 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const {
-  stockItems, stockGroups, stockCategories,
-  voucherStockEntries, vouchers, units, godowns,
+  stockItems,
+  stockGroups,
+  stockCategories,
+  voucherStockEntries,
+  vouchers,
+  units,
+  godowns,
   stockItemOpeningAllocations,
 } = require('../db/schema');
 
-const { inwardCondSql, outwardCondSql } = require('./services/stockMovement');
+const { inwardCondSql, outwardCondSql, registerDirection } = require('./services/stockMovement');
 
 async function stockQuery(company_id, fy_id, item_id) {
   // ── 1. Item details ──────────────────────────────────────────────────────
@@ -30,16 +35,17 @@ async function stockQuery(company_id, fy_id, item_id) {
   const item = itemRows[0];
 
   // ── 2. Closing balance (qty + value) ────────────────────────────────────
-  const movRows = await db.all(sql`
-    SELECT
-      SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
-               THEN vse.quantity ELSE 0 END) AS inward_qty,
-      SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
-               THEN vse.amount   ELSE 0 END) AS inward_value,
-      SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
-               THEN vse.quantity ELSE 0 END) AS outward_qty,
-      SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
-               THEN vse.amount   ELSE 0 END) AS outward_value
+  // Value the same way the Stock Item Monthly Summary does, so the two reports
+  // agree: walk entries chronologically with registerDirection (Debit Note =
+  // negative Inward, Credit Note = negative Outward) and keep a weighted-average
+  // COST rate that pools opening + every inward. Closing value = closing qty ×
+  // that rate — which stays correct even when stock is NEGATIVE (an item with
+  // only returns/sales and no purchase still shows its cost rate, not 0).
+  const opening_qty = item.opening_quantity || 0;
+  const opening_value = item.opening_value || 0;
+
+  const closingEntries = await db.all(sql`
+    SELECT v.date, v.voucher_type, vse.quantity, vse.amount, vse.is_source
     FROM ${voucherStockEntries} vse
     INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
     WHERE v.company_id  = ${company_id}
@@ -48,20 +54,27 @@ async function stockQuery(company_id, fy_id, item_id) {
       AND v.is_cancelled = 0
       AND COALESCE(v.is_optional, 0)   = 0
       AND COALESCE(v.is_post_dated, 0) = 0
+    ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC
   `);
 
-  const mv = movRows[0] || {};
-  const inward_qty    = mv.inward_qty    || 0;
-  const inward_value  = mv.inward_value  || 0;
-  const outward_qty   = mv.outward_qty   || 0;
-  const outward_value = mv.outward_value || 0;
-  const opening_qty   = item.opening_quantity || 0;
-  const opening_value = item.opening_value    || 0;
-  const closing_qty   = opening_qty + inward_qty - outward_qty;
-  // Closing value at weighted-average COST — outward_value is sale revenue.
-  const avgCostRate   = (opening_qty + inward_qty) > 0
-    ? (opening_value + inward_value) / (opening_qty + inward_qty) : 0;
-  const closing_value = closing_qty > 0 ? avgCostRate * closing_qty : 0;
+  let runQty = opening_qty;
+  let cumInQty = opening_qty; // opening counts as the first inward lot
+  let cumInVal = opening_value;
+  for (const e of closingEntries) {
+    const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
+    const q = (Number(e.quantity) || 0) * sign;
+    const amt = (Number(e.amount) || 0) * sign;
+    if (dir === 'in') {
+      runQty += q;
+      cumInQty += q;
+      cumInVal += amt;
+    } else if (dir === 'out') {
+      runQty -= q;
+    }
+  }
+  const closing_qty = runQty;
+  const avgCostRate = cumInQty !== 0 ? cumInVal / cumInQty : 0;
+  const closing_value = closing_qty * avgCostRate;
 
   // ── 3. Last purchases ────────────────────────────────────────────────────
   const purchases = await db.all(sql`
@@ -152,17 +165,27 @@ async function stockQuery(company_id, fy_id, item_id) {
   const godownMap = new Map();
   for (const r of openingGodownRows) {
     const key = r.godown_id ?? 'null';
-    const existing = godownMap.get(key) || { godown_id: r.godown_id, godown_name: r.godown_name || 'Main Location', batch: r.batch_number || '', qty: 0 };
+    const existing = godownMap.get(key) || {
+      godown_id: r.godown_id,
+      godown_name: r.godown_name || 'Main Location',
+      batch: r.batch_number || '',
+      qty: 0,
+    };
     existing.qty += r.qty || 0;
     godownMap.set(key, existing);
   }
   for (const r of godownMovRows) {
     const key = r.godown_id ?? 'null';
-    const existing = godownMap.get(key) || { godown_id: r.godown_id, godown_name: r.godown_name || 'Main Location', batch: '', qty: 0 };
+    const existing = godownMap.get(key) || {
+      godown_id: r.godown_id,
+      godown_name: r.godown_name || 'Main Location',
+      batch: '',
+      qty: 0,
+    };
     existing.qty += r.net_qty || 0;
     godownMap.set(key, existing);
   }
-  const godownDetails = Array.from(godownMap.values()).filter(g => g.qty !== 0);
+  const godownDetails = Array.from(godownMap.values()).filter((g) => g.qty !== 0);
 
   // ── 7. Items of same category ────────────────────────────────────────────
   let categoryItems = [];
@@ -206,10 +229,11 @@ async function stockQuery(company_id, fy_id, item_id) {
       ORDER BY si.name ASC
     `);
 
-    categoryItems = catRows.map(r => {
+    categoryItems = catRows.map((r) => {
       const cq = (r.opening_qty || 0) + (r.inward_qty || 0) - (r.outward_qty || 0);
       const availQty = (r.opening_qty || 0) + (r.inward_qty || 0);
-      const avgRate = availQty > 0 ? ((r.opening_value || 0) + (r.inward_value || 0)) / availQty : 0;
+      const avgRate =
+        availQty > 0 ? ((r.opening_value || 0) + (r.inward_value || 0)) / availQty : 0;
       const cv = cq > 0 ? avgRate * cq : 0;
       return {
         item_id: r.item_id,
@@ -223,7 +247,7 @@ async function stockQuery(company_id, fy_id, item_id) {
 
   // ── 8. Derived header fields (Tally Stock Query layout) ──────────────────
   // Not stored as masters — Tally shows sensible defaults / derived values.
-  const cost_rate = closing_qty > 0 ? avgCostRate : (avgCostRate || item.opening_rate || 0);
+  const cost_rate = closing_qty > 0 ? avgCostRate : avgCostRate || item.opening_rate || 0;
 
   return {
     success: true,
@@ -237,12 +261,12 @@ async function stockQuery(company_id, fy_id, item_id) {
       closing_value,
       last_sale_rate: lastSaleRate,
       // Header block — left column
-      cost_rate,                              // Cost price (per unit)
+      cost_rate, // Cost price (per unit)
       costing_method: 'Avg. Cost',
       standard_cost: cost_rate,
       // Header block — right column
       part_no: '',
-      std_selling_price: lastSaleRate,        // Standard selling price
+      std_selling_price: lastSaleRate, // Standard selling price
       market_valuation_method: 'Avg. Price',
     },
     purchases,

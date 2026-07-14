@@ -70,19 +70,30 @@ export default function StockItemVouchersTable({
   onOpenVoucher,
   footer,
 }: Props) {
-  const t = rows
-    .filter((r) => r.voucher_id !== null)
-    .reduce(
-      (a, r) => ({
-        inQ: a.inQ + (Number(r.inwards_qty) || 0),
-        inV: a.inV + (Number(r.inwards_value) || 0),
-        outQ: a.outQ + (Number(r.outwards_qty) || 0),
-        outV: a.outV + (Number(r.outwards_value) || 0),
-      }),
-      { inQ: 0, inV: 0, outQ: 0, outV: 0 },
-    );
+  // Totals include the Opening Balance row: Tally shows the opening in the
+  // Inwards columns here (unlike the Monthly Summary, where it sits in Closing),
+  // so the Inwards total = opening + every inward line (e.g. 50 − 75 − 20 = −45).
+  const t = rows.reduce(
+    (a, r) => ({
+      inQ: a.inQ + (Number(r.inwards_qty) || 0),
+      inV: a.inV + (Number(r.inwards_value) || 0),
+      outQ: a.outQ + (Number(r.outwards_qty) || 0),
+      outV: a.outV + (Number(r.outwards_value) || 0),
+    }),
+    { inQ: 0, inV: 0, outQ: 0, outV: 0 },
+  );
   const finalCQty = rows.length ? rows[rows.length - 1].closing_qty : 0;
   const finalCVal = rows.length ? rows[rows.length - 1].closing_value : 0;
+
+  // Tally shows the running Closing balance only once per date — on the last
+  // voucher of that date (and on the Opening Balance row). Intermediate vouchers
+  // sharing a date leave the Closing columns blank.
+  const showClosing = (idx: number) => {
+    const row = rows[idx];
+    if (row.voucher_id === null) return true; // Opening Balance row
+    const next = rows[idx + 1];
+    return !next || next.date !== row.date;
+  };
 
   const num = 'px-2 py-1 text-right';
 
@@ -206,9 +217,9 @@ export default function StockItemVouchersTable({
                   </td>
                   <td className={num}>{fmt(row.outwards_value)}</td>
                   <td className={`${num} border-l border-gray-200`}>
-                    {fmtQty(row.closing_qty, unit)}
+                    {showClosing(idx) ? fmtQty(row.closing_qty, unit) : ''}
                   </td>
-                  <td className={num}>{fmt(row.closing_value)}</td>
+                  <td className={num}>{showClosing(idx) ? fmt(row.closing_value) : ''}</td>
                 </tr>
               ))
             )}

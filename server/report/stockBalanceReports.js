@@ -8,8 +8,6 @@ const {
   inwardCondSql,
   outwardCondSql,
   trackingBilledSql,
-  newWAState,
-  applyWA,
 } = require('./services/stockMovement');
 
 module.exports = {
@@ -108,10 +106,13 @@ module.exports = {
       const fy = fyRows[0];
       const startYear = new Date(fy.start_date).getFullYear();
 
-      // Fetch item meta (opening balance)
+      // Fetch item meta (opening balance + base unit for the qty columns)
       const itemRows = await db.all(
-        sql`SELECT item_id, name, opening_quantity, opening_value FROM ${stockItems}
-            WHERE item_id = ${item_id} AND company_id = ${company_id}`,
+        sql`SELECT si.item_id, si.name, si.opening_quantity, si.opening_value,
+                   u.name AS unit_name
+            FROM ${stockItems} si
+            LEFT JOIN ${units} u ON u.unit_id = si.unit_id
+            WHERE si.item_id = ${item_id} AND si.company_id = ${company_id}`,
       );
       if (itemRows.length === 0) return { success: false, error: 'Stock item not found' };
       const item = itemRows[0];
@@ -149,7 +150,16 @@ module.exports = {
         'February',
         'March',
       ];
-      const wa = newWAState(item.opening_quantity || 0, item.opening_value || 0);
+      // Running closing balance. Quantity is the plain physical running total.
+      // Value is the closing quantity × weighted-average COST rate, where the
+      // rate pools opening + every inward (outwards consume at that rate and
+      // don't change it). This equals TallyPrime's closing value AND, unlike a
+      // zero-floored average, still values NEGATIVE stock at cost — so an item
+      // that goes negative shows e.g. −136 kg × ₹16 = (−)2,176.00 instead of a
+      // blank. For positive stock it is identical to the weighted-average value.
+      let runQty = Number(item.opening_quantity) || 0;
+      let cumInQty = runQty; // opening counts as the first "inward" lot
+      let cumInVal = Number(item.opening_value) || 0;
 
       const months = MONTH_NAMES.map((name, idx) => {
         let m = idx + 4;
@@ -174,29 +184,34 @@ module.exports = {
           if (dir === 'in') {
             in_qty += qty;
             in_value += amt;
+            runQty += qty;
+            cumInQty += qty;
+            cumInVal += amt;
           } else if (dir === 'out') {
             out_qty += qty;
             out_value += amt;
+            runQty -= qty;
           } else {
             continue;
           }
-          applyWA(wa, dir, qty, amt);
         }
 
+        const rate = cumInQty !== 0 ? cumInVal / cumInQty : 0;
         return {
           month: name,
           in_qty,
           in_value,
           out_qty,
           out_value,
-          closing_qty: wa.qty,
-          closing_value: wa.value,
+          closing_qty: runQty,
+          closing_value: runQty * rate,
         };
       });
 
       return {
         success: true,
         item_name: item.name,
+        unit_name: item.unit_name || '',
         opening_qty: item.opening_quantity || 0,
         opening_value: item.opening_value || 0,
         months,

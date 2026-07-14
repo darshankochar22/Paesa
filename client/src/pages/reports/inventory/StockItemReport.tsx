@@ -198,6 +198,7 @@ export default function StockItemReport() {
   const [sumData, setSumData] = React.useState<{
     opening_qty: number;
     opening_value: number;
+    unit: string;
     rows: MonthRow[];
     ranges: Bucket[];
   } | null>(null);
@@ -222,6 +223,7 @@ export default function StockItemReport() {
               setSumData({
                 opening_qty: res.opening_qty ?? 0,
                 opening_value: res.opening_value ?? 0,
+                unit: res.unit_name ?? '',
                 rows: res.months ?? [],
                 ranges: monthlyRanges(fyStart),
               });
@@ -246,6 +248,7 @@ export default function StockItemReport() {
               setSumData({
                 opening_qty: openQ,
                 opening_value: openV,
+                unit: res.unit_name ?? opening?.unit ?? '',
                 rows: bucketize(rows, buckets, openQ, openV),
                 ranges: buckets,
               });
@@ -472,16 +475,14 @@ export default function StockItemReport() {
   }
 
   // ── Render — summary (Monthly / Daily / Weekly / …) ───────────────────
-  // Plot the closing balance only for months that actually had movement
-  // (an inward or outward) — carried-forward balances get no bar, matching
-  // Tally where a period's bar reflects that period's activity.
-  const chartBars: ChartBar[] = (sumData?.rows ?? []).map((r) => {
-    const hasMovement = r.in_qty !== 0 || r.out_qty !== 0 || r.in_value !== 0 || r.out_value !== 0;
-    return {
-      label: r.month.length > 4 ? r.month.slice(0, 3) : r.month,
-      value: hasMovement ? r.closing_qty : 0,
-    };
-  });
+  // Per-period movement, matching Tally's summary chart: a pair of bars per
+  // period — Inwards quantity (darker) and Outwards quantity (lighter). Signed,
+  // so a return (negative inward/outward) draws below the zero baseline.
+  const chartBars: ChartBar[] = (sumData?.rows ?? []).map((r) => ({
+    label: r.month.length > 4 ? r.month.slice(0, 3) : r.month,
+    value: r.in_qty,
+    value2: r.out_qty,
+  }));
 
   const sidebar = (
     <RightActionPanel
@@ -524,6 +525,7 @@ export default function StockItemReport() {
         itemName={level.item.name}
         companyName={selectedCompany?.name}
         periodLabel={periodLabel}
+        unit={sumData?.unit}
         openingQty={sumData?.opening_qty ?? 0}
         openingValue={sumData?.opening_value ?? 0}
         months={sumData?.rows ?? []}

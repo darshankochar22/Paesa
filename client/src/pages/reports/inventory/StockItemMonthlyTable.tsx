@@ -57,7 +57,7 @@ interface Props {
   particularsLabel?: string; // override "Particulars" header
   showProfit?: boolean; // F7 — add Consumption / Gross Profit / Perc% cols
   scale?: ScaleFactor; // Basis of Values scale factor
-  chart?: React.ReactNode; // bar chart rendered above the Grand Total
+  chart?: React.ReactNode; // bar chart rendered below the Grand Total (Tally order)
   sidebar?: React.ReactNode; // right action panel
 }
 
@@ -87,7 +87,7 @@ function computeProfit(openingQty: number, openingValue: number, months: MonthRo
  * running closing balance for a single stock item. Opening Balance row, period
  * rows, then a Grand Total. F7 Show Profit adds Consumption / Gross Profit /
  * Perc% columns; Basis of Values scales value columns; an optional bar chart sits
- * above the Grand Total. Presentational only; parent owns selection + keyboard nav.
+ * below the Grand Total. Presentational only; parent owns selection + keyboard nav.
  */
 export default function StockItemMonthlyTable({
   itemName,
@@ -253,11 +253,6 @@ export default function StockItemMonthlyTable({
                 </tr>
                 {months.map((m, idx) => {
                   const p = profit[idx];
-                  // Closing balance is shown only on months that had movement
-                  // (inward/outward) — carried-forward balances stay blank,
-                  // matching TallyPrime's monthly summary.
-                  const hasMovement =
-                    m.in_qty !== 0 || m.out_qty !== 0 || m.in_value !== 0 || m.out_value !== 0;
                   return (
                     <tr
                       key={m.month}
@@ -290,9 +285,9 @@ export default function StockItemMonthlyTable({
                         </>
                       )}
                       <td className={`${numCell} border-l border-gray-200`}>
-                        {hasMovement ? fmtQty(m.closing_qty, unit) : ''}
+                        {fmtQty(m.closing_qty, unit)}
                       </td>
-                      <td className={numCell}>{hasMovement ? fmt(m.closing_value) : ''}</td>
+                      <td className={numCell}>{fmt(m.closing_value)}</td>
                     </tr>
                   );
                 })}
@@ -301,8 +296,6 @@ export default function StockItemMonthlyTable({
           </tbody>
         </table>
       </div>
-
-      {chart}
 
       <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
         <span className="flex-1">Grand Total</span>
@@ -326,6 +319,8 @@ export default function StockItemMonthlyTable({
         </span>
         <span className="w-28 text-right pr-1">{fmt(finalCVal)}</span>
       </div>
+
+      {chart}
 
       {footer}
     </div>

@@ -90,21 +90,22 @@ const ledgerReport = async (company_id, fy_id, ledger_id, from_date, to_date) =>
       runningBalance += e.type === 'Dr' ? e.amount : -e.amount;
 
       const entries = entryMap[e.voucher_id] || [];
-      const opposingType = e.type === 'Dr' ? 'Cr' : 'Dr';
-      const opposing = entries.filter((ent) => ent.type === opposingType);
-
+      // Tally shows the principal counter-ledger in Particulars, not "As per
+      // Details". For a multi-ledger voucher (e.g. Purchase + CGST + SGST) it
+      // names the main opposing ledger — the one carrying the largest value —
+      // which is the base account (Purchase/Sales), never a small tax/round-off
+      // line. Pick the largest-value entry that isn't the ledger being viewed.
+      const others = entries.filter((ent) => ent.ledger_id !== ledger_id);
       let particulars = '';
-      if (opposing.length === 1) {
-        particulars = opposing[0].ledger_name;
-      } else if (opposing.length > 1) {
-        particulars = 'As per Details';
+      if (others.length === 1) {
+        particulars = others[0].ledger_name;
+      } else if (others.length > 1) {
+        const main = others.reduce((a, b) =>
+          Math.abs(Number(b.amount)) > Math.abs(Number(a.amount)) ? b : a,
+        );
+        particulars = main.ledger_name;
       } else {
-        const other = entries.filter((ent) => ent.ledger_id !== ledger_id);
-        if (other.length === 1) {
-          particulars = other[0].ledger_name;
-        } else {
-          particulars = 'As per Details';
-        }
+        particulars = e.ledger_name || '';
       }
 
       return {

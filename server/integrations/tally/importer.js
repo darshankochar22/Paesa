@@ -405,8 +405,28 @@ const importStockItems = async (parsedStockItems, ctx, resolver, unitSummary) =>
   for (const s of parsedStockItems || []) {
     if (!s.name) continue;
 
-    if (resolver.resolveStock(s.name) != null) {
+    // Opening balance from the source. Tally sometimes exports value without a
+    // per-unit rate (or vice-versa); derive the missing side so opening_value
+    // (= qty × rate, computed by the service) is never silently zeroed.
+    const openQty = Number(s.openingQuantity) || 0;
+    const openVal = Number(s.openingValue) || 0;
+    let openRate = Number(s.openingRate) || 0;
+    if (!openRate && openQty) openRate = openVal / openQty;
+
+    const existingId = resolver.resolveStock(s.name);
+    if (existingId != null) {
       summary.skipped++;
+      // A pre-seeded item or a re-import skips create, so its Tally opening
+      // stock is never applied — the report shows a blank Opening Balance and
+      // every closing balance is off by the opening. In import mode, carry the
+      // source opening onto it (SET semantics keep re-imports idempotent).
+      if (ctx.importMode && openQty > 0) {
+        await stockItemService.update({
+          item_id: existingId,
+          opening_quantity: openQty,
+          opening_rate: openRate,
+        });
+      }
       continue;
     }
 
@@ -451,8 +471,8 @@ const importStockItems = async (parsedStockItems, ctx, resolver, unitSummary) =>
       name: s.name,
       group_id: groupId || null,
       unit_id: unitId || null,
-      opening_quantity: s.openingQuantity || 0,
-      opening_rate: s.openingRate || 0,
+      opening_quantity: openQty,
+      opening_rate: openRate,
       hsn_sac: s.hsnSac || null,
       hsn_sac_description: s.hsnSacDescription || null,
       gst_rate: gstRate,
