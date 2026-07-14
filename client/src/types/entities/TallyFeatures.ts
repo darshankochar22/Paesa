@@ -18,7 +18,9 @@ export interface TallyFeaturesType {
   enable_gst?: number;
   set_alter_company_gst_details?: number;
   enable_tds?: number;
+  set_alter_tds_details?: number;
   enable_tcs?: number;
+  set_alter_tcs_details?: number;
   enable_vat?: number;
   enable_excise?: number;
   enable_service_tax?: number;
@@ -26,6 +28,7 @@ export interface TallyFeaturesType {
   enable_tally_net_services?: number;
   maintain_payroll?: number;
   enable_payroll_statutory?: number;
+  set_alter_payroll_statutory_details?: number;
   enable_payment_request_qr?: number;
   enable_multiple_addresses?: number;
   mark_modified_vouchers?: number;

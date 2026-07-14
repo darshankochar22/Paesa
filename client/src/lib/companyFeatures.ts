@@ -28,7 +28,11 @@ export type FeatureFlag = Exclude<
 export const FEATURE_DEPENDENCIES: Partial<Record<FeatureFlag, FeatureFlag>> = {
   maintain_expiry_date_for_batches: 'enable_batches',
   set_alter_company_gst_details: 'enable_gst',
+  // "Set/Alter Details" momentary triggers live under their Enable flag.
+  set_alter_tds_details: 'enable_tds',
+  set_alter_tcs_details: 'enable_tcs',
   enable_payroll_statutory: 'maintain_payroll',
+  set_alter_payroll_statutory_details: 'enable_payroll_statutory',
   // Accounting sub-features live under "Maintain Accounts" — turning accounting
   // off (inventory-only company) hides bill-wise / cost centres / interest too.
   enable_bill_wise_entry: 'maintain_accounts',

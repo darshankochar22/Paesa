@@ -31,7 +31,9 @@ const tallyFeatures = pgTable('tally_features', {
   enableGst: boolean('enable_gst').notNull().default(true),
   setAlterCompanyGstDetails: boolean('set_alter_company_gst_details').notNull().default(false),
   enableTds: boolean('enable_tds').notNull().default(false),
+  setAlterTdsDetails: boolean('set_alter_tds_details').notNull().default(false),
   enableTcs: boolean('enable_tcs').notNull().default(false),
+  setAlterTcsDetails: boolean('set_alter_tcs_details').notNull().default(false),
   enableVat: boolean('enable_vat').notNull().default(false),
   enableExcise: boolean('enable_excise').notNull().default(false),
   enableServiceTax: boolean('enable_service_tax').notNull().default(false),
@@ -41,6 +43,9 @@ const tallyFeatures = pgTable('tally_features', {
   enableTallyNetServices: boolean('enable_tally_net_services').notNull().default(false),
   maintainPayroll: boolean('maintain_payroll').notNull().default(false),
   enablePayrollStatutory: boolean('enable_payroll_statutory').notNull().default(false),
+  setAlterPayrollStatutoryDetails: boolean('set_alter_payroll_statutory_details')
+    .notNull()
+    .default(false),
   enablePaymentRequestQr: boolean('enable_payment_request_qr').notNull().default(true),
   enableMultipleAddresses: boolean('enable_multiple_addresses').notNull().default(false),
   markModifiedVouchers: boolean('mark_modified_vouchers').notNull().default(false),

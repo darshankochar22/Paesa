@@ -20,7 +20,9 @@ const init = async (db) => {
       enable_gst                          INTEGER DEFAULT 1,
       set_alter_company_gst_details       INTEGER DEFAULT 0,
       enable_tds                          INTEGER DEFAULT 0,
+      set_alter_tds_details               INTEGER DEFAULT 0,
       enable_tcs                          INTEGER DEFAULT 0,
+      set_alter_tcs_details               INTEGER DEFAULT 0,
       enable_vat                          INTEGER DEFAULT 0,
       enable_excise                       INTEGER DEFAULT 0,
       enable_service_tax                  INTEGER DEFAULT 0,
@@ -28,6 +30,7 @@ const init = async (db) => {
       enable_tally_net_services           INTEGER DEFAULT 0,
       maintain_payroll                    INTEGER DEFAULT 0,
       enable_payroll_statutory            INTEGER DEFAULT 0,
+      set_alter_payroll_statutory_details INTEGER DEFAULT 0,
       enable_payment_request_qr           INTEGER DEFAULT 1,
       enable_multiple_addresses           INTEGER DEFAULT 0,
       mark_modified_vouchers              INTEGER DEFAULT 0,
@@ -48,6 +51,10 @@ const init = async (db) => {
     'ALTER TABLE tally_features ADD COLUMN enable_service_tax INTEGER DEFAULT 0',
     'ALTER TABLE tally_features ADD COLUMN maintain_payroll INTEGER DEFAULT 0',
     'ALTER TABLE tally_features ADD COLUMN enable_payroll_statutory INTEGER DEFAULT 0',
+    // "Set/Alter Details" momentary sub-flags (TDS/TCS/Payroll) — mirror GST's.
+    'ALTER TABLE tally_features ADD COLUMN set_alter_tds_details INTEGER DEFAULT 0',
+    'ALTER TABLE tally_features ADD COLUMN set_alter_tcs_details INTEGER DEFAULT 0',
+    'ALTER TABLE tally_features ADD COLUMN set_alter_payroll_statutory_details INTEGER DEFAULT 0',
   ];
 
   for (const sql of migrations) {

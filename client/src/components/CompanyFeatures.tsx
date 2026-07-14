@@ -2,8 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { CompanyType } from '@/types/entities/Company';
 import type { TallyFeaturesType } from '@/types/entities/TallyFeatures';
+import { useNavigate } from 'react-router-dom';
 import { FEATURE_DEPENDENCIES, type FeatureFlag } from '@/lib/companyFeatures';
 import CompanyGSTDetailsModal from '@/pages/master/statutory/company-gst-details/CompanyGSTDetailsModal';
+
+// "Set/Alter <X> Details" momentary sub-flags → the master screen to open on
+// Accept. GST uses an inline modal (handled separately); the rest navigate.
+const SET_ALTER_ROUTE: Partial<Record<FeatureFlag, string>> = {
+  set_alter_tds_details: '/master/create/tds-details',
+  set_alter_tcs_details: '/master/create/tcs-details',
+  set_alter_payroll_statutory_details: '/master/create/payroll-statutory-details',
+};
 
 // F11 "Company Features" popup — the Tally-style feature toggle screen.
 // Backed by window.api.tallyFeatures (tally_features table, one row per company).
@@ -117,7 +126,19 @@ const RIGHT: Section[] = [
         indent: true,
       },
       { key: 'enable_tds', label: 'Enable Tax Deducted at Source (TDS)', level: 'basic' },
+      {
+        key: 'set_alter_tds_details',
+        label: 'Set/Alter TDS Details',
+        level: 'more',
+        indent: true,
+      },
       { key: 'enable_tcs', label: 'Enable Tax Collected at Source (TCS)', level: 'basic' },
+      {
+        key: 'set_alter_tcs_details',
+        label: 'Set/Alter TCS Details',
+        level: 'more',
+        indent: true,
+      },
       { key: 'enable_vat', label: 'Enable Value Added Tax (VAT)', level: 'all' },
       { key: 'enable_excise', label: 'Enable Excise', level: 'all' },
       { key: 'enable_service_tax', label: 'Enable Service Tax', level: 'all' },
@@ -145,6 +166,12 @@ const RIGHT: Section[] = [
       {
         key: 'enable_payroll_statutory',
         label: 'Enable Payroll Statutory',
+        level: 'more',
+        indent: true,
+      },
+      {
+        key: 'set_alter_payroll_statutory_details',
+        label: 'Set/Alter Payroll Statutory Details',
         level: 'more',
         indent: true,
       },
@@ -180,6 +207,7 @@ interface Props {
 
 export default function CompanyFeatures({ open, onClose, company }: Props) {
   const companyId = company?.company_id;
+  const navigate = useNavigate();
   const [values, setValues] = useState<Record<string, number>>(DEFAULTS);
   const [showMore, setShowMore] = useState(true);
   const [showAll, setShowAll] = useState(true);
@@ -263,27 +291,41 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
     if (!companyId || saving) return;
     setSaving(true);
     try {
-      // "Set/Alter Company GST Details" is momentary: open the form if requested,
-      // but never store it Yes — it always reverts to No (Tally behaviour).
-      const openGstDetails =
-        !!values.set_alter_company_gst_details &&
-        !!values.enable_gst &&
-        !isLocked('set_alter_company_gst_details', values);
+      // "Set/Alter <X> Details" flags are MOMENTARY: on Accept, open that details
+      // screen if requested, but never store the flag Yes — it reverts to No
+      // (Tally). GST opens an inline modal; TDS/TCS/Payroll navigate to their form.
+      const requested = (k: FeatureFlag) => !!values[k] && !isLocked(k, values);
+      const openGstDetails = requested('set_alter_company_gst_details') && !!values.enable_gst;
+      const navFlag = (Object.keys(SET_ALTER_ROUTE) as FeatureFlag[]).find(requested);
+
       const payload: Partial<TallyFeaturesType> = { company_id: companyId };
       for (const r of ALL_ROWS) (payload as Record<string, number>)[r.key] = values[r.key] ? 1 : 0;
+      // Never persist any Set/Alter trigger as Yes.
       payload.set_alter_company_gst_details = 0;
+      for (const k of Object.keys(SET_ALTER_ROUTE)) (payload as Record<string, number>)[k] = 0;
+
       const res = await window.api.tallyFeatures.update(payload);
       if (res?.success) {
-        setValues((prev) => ({ ...prev, set_alter_company_gst_details: 0 }));
+        setValues((prev) => {
+          const next = { ...prev, set_alter_company_gst_details: 0 };
+          for (const k of Object.keys(SET_ALTER_ROUTE)) next[k] = 0;
+          return next;
+        });
         // Let the app (CompanyContext) re-read flags so gated UI updates live.
         window.dispatchEvent(new Event('features-reload'));
-        if (openGstDetails) setShowGstDetails(true);
-        else onClose();
+        if (openGstDetails) {
+          setShowGstDetails(true);
+        } else if (navFlag) {
+          onClose();
+          navigate(SET_ALTER_ROUTE[navFlag]!);
+        } else {
+          onClose();
+        }
       }
     } finally {
       setSaving(false);
     }
-  }, [companyId, values, saving, onClose, isLocked]);
+  }, [companyId, values, saving, onClose, isLocked, navigate]);
 
   const handleReset = useCallback(async () => {
     if (!companyId) return;
