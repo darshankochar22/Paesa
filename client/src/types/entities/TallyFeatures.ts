@@ -15,6 +15,9 @@ export interface TallyFeaturesType {
   enable_job_costing?: number;
   use_discount_column_in_invoices?: number;
   use_separate_actual_billed_qty?: number;
+  use_debit_credit_notes?: number;
+  use_tracking_numbers?: number;
+  use_rejection_notes?: number;
   enable_gst?: number;
   set_alter_company_gst_details?: number;
   enable_tds?: number;

@@ -17,6 +17,9 @@ const init = async (db) => {
       enable_job_costing                  INTEGER DEFAULT 0,
       use_discount_column_in_invoices     INTEGER DEFAULT 0,
       use_separate_actual_billed_qty      INTEGER DEFAULT 0,
+      use_debit_credit_notes              INTEGER DEFAULT 1,
+      use_tracking_numbers                INTEGER DEFAULT 1,
+      use_rejection_notes                 INTEGER DEFAULT 1,
       enable_gst                          INTEGER DEFAULT 1,
       set_alter_company_gst_details       INTEGER DEFAULT 0,
       enable_tds                          INTEGER DEFAULT 0,
@@ -55,6 +58,11 @@ const init = async (db) => {
     'ALTER TABLE tally_features ADD COLUMN set_alter_tds_details INTEGER DEFAULT 0',
     'ALTER TABLE tally_features ADD COLUMN set_alter_tcs_details INTEGER DEFAULT 0',
     'ALTER TABLE tally_features ADD COLUMN set_alter_payroll_statutory_details INTEGER DEFAULT 0',
+    // Voucher-type availability toggles — DEFAULT 1 so existing DBs keep those
+    // vouchers available (turning a flag off hides its voucher types).
+    'ALTER TABLE tally_features ADD COLUMN use_debit_credit_notes INTEGER DEFAULT 1',
+    'ALTER TABLE tally_features ADD COLUMN use_tracking_numbers INTEGER DEFAULT 1',
+    'ALTER TABLE tally_features ADD COLUMN use_rejection_notes INTEGER DEFAULT 1',
   ];
 
   for (const sql of migrations) {

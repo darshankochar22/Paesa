@@ -115,10 +115,15 @@ export const VOUCHER_TYPE_FEATURE: Partial<Record<VoucherType, FeatureFlag>> = {
   [VOUCHER_TYPES.JOURNAL]: 'maintain_accounts',
   [VOUCHER_TYPES.MEMORANDUM]: 'maintain_accounts',
   [VOUCHER_TYPES.REVERSING_JOURNAL]: 'maintain_accounts',
-  [VOUCHER_TYPES.DELIVERY_NOTE]: 'maintain_inventory',
-  [VOUCHER_TYPES.RECEIPT_NOTE]: 'maintain_inventory',
-  [VOUCHER_TYPES.REJECTION_IN]: 'maintain_inventory',
-  [VOUCHER_TYPES.REJECTION_OUT]: 'maintain_inventory',
+  // F11 "Use Debit and Credit Notes" gates these note types (default on).
+  [VOUCHER_TYPES.CREDIT_NOTE]: 'use_debit_credit_notes',
+  [VOUCHER_TYPES.DEBIT_NOTE]: 'use_debit_credit_notes',
+  // "Use Tracking Numbers" gates Delivery/Receipt Note; "Use Rejection Notes"
+  // gates Rejection In/Out. Both depend on maintain_inventory (FEATURE_DEPENDENCIES).
+  [VOUCHER_TYPES.DELIVERY_NOTE]: 'use_tracking_numbers',
+  [VOUCHER_TYPES.RECEIPT_NOTE]: 'use_tracking_numbers',
+  [VOUCHER_TYPES.REJECTION_IN]: 'use_rejection_notes',
+  [VOUCHER_TYPES.REJECTION_OUT]: 'use_rejection_notes',
   [VOUCHER_TYPES.STOCK_JOURNAL]: 'maintain_inventory',
   [VOUCHER_TYPES.PHYSICAL_STOCK]: 'maintain_inventory',
   [VOUCHER_TYPES.MANUFACTURING_JOURNAL]: 'maintain_inventory',

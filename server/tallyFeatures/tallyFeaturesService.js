@@ -29,6 +29,10 @@ const seedDefaultFeatures = async (company_id) => {
     enableJobCosting: 0,
     useDiscountColumnInInvoices: 0,
     useSeparateActualBilledQty: 0,
+    // Voucher-type toggles default ON (behaviour-preserving; off hides the types).
+    useDebitCreditNotes: 1,
+    useTrackingNumbers: 1,
+    useRejectionNotes: 1,
     // GST defaults ON: it is a computation gate (not just UI). Turning it off
     // genuinely stops GST computing on new vouchers.
     enableGst: 1,
@@ -105,6 +109,9 @@ module.exports = {
             data.use_discount_column_in_invoices ?? current.use_discount_column_in_invoices,
           useSeparateActualBilledQty:
             data.use_separate_actual_billed_qty ?? current.use_separate_actual_billed_qty,
+          useDebitCreditNotes: data.use_debit_credit_notes ?? current.use_debit_credit_notes,
+          useTrackingNumbers: data.use_tracking_numbers ?? current.use_tracking_numbers,
+          useRejectionNotes: data.use_rejection_notes ?? current.use_rejection_notes,
           enableGst: data.enable_gst ?? current.enable_gst,
           setAlterCompanyGstDetails:
             data.set_alter_company_gst_details ?? current.set_alter_company_gst_details,
@@ -174,6 +181,9 @@ module.exports = {
           enableJobCosting: 0,
           useDiscountColumnInInvoices: 0,
           useSeparateActualBilledQty: 0,
+          useDebitCreditNotes: 1,
+          useTrackingNumbers: 1,
+          useRejectionNotes: 1,
           enableGst: 1,
           setAlterCompanyGstDetails: 0,
           enableTds: 0,

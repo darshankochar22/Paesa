@@ -47,6 +47,11 @@ export const FEATURE_DEPENDENCIES: Partial<Record<FeatureFlag, FeatureFlag>> = {
   enable_job_costing: 'maintain_inventory',
   use_discount_column_in_invoices: 'maintain_inventory',
   use_separate_actual_billed_qty: 'maintain_inventory',
+  // Delivery/Receipt + Rejection notes are inventory tracking documents.
+  use_tracking_numbers: 'maintain_inventory',
+  use_rejection_notes: 'maintain_inventory',
+  // use_debit_credit_notes is intentionally standalone — CN/DN remain usable as
+  // accounting invoices, matching the "don't gate CN/DN on maintain_accounts" rule.
 };
 
 /** True when `key` is turned on (or features haven't loaded yet). Ignores deps. */

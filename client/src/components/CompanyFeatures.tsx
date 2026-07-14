@@ -69,6 +69,12 @@ const LEFT: Section[] = [
         level: 'more',
         indent: true,
       },
+      {
+        key: 'use_debit_credit_notes',
+        label: 'Use Debit and Credit Notes',
+        level: 'more',
+        default: 1,
+      },
     ],
   },
   {
@@ -88,7 +94,7 @@ const LEFT: Section[] = [
         level: 'more',
         indent: true,
       },
-      { key: 'enable_batches', label: 'Enable Batches', level: 'basic', indent: true },
+      { key: 'enable_batches', label: 'Maintain Batches', level: 'basic', indent: true },
       {
         key: 'maintain_expiry_date_for_batches',
         label: 'Maintain Expiry Date for Batches',
@@ -114,6 +120,20 @@ const LEFT: Section[] = [
         label: 'Use separate Actual and Billed Quantity columns in invoices',
         level: 'more',
         indent: true,
+      },
+      {
+        key: 'use_tracking_numbers',
+        label: 'Use Tracking Numbers (enables Delivery and Receipt Notes)',
+        level: 'more',
+        indent: true,
+        default: 1,
+      },
+      {
+        key: 'use_rejection_notes',
+        label: 'Use Rejection Inward and Outward Notes',
+        level: 'more',
+        indent: true,
+        default: 1,
       },
     ],
   },
