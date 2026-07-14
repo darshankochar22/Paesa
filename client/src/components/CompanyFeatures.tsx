@@ -14,6 +14,18 @@ const SET_ALTER_ROUTE: Partial<Record<FeatureFlag, string>> = {
   set_alter_payroll_statutory_details: '/master/create/payroll-statutory-details',
 };
 
+// A child flag is "locked" while any ancestor in FEATURE_DEPENDENCIES is off. Tally
+// HIDES such sub-prompts (they appear only once the parent is Yes), so this drives
+// both the row rendering and keyboard navigation.
+function isRowLocked(key: string, vals: Record<string, number>): boolean {
+  let p = FEATURE_DEPENDENCIES[key as FeatureFlag];
+  while (p) {
+    if (!vals[p]) return true;
+    p = FEATURE_DEPENDENCIES[p];
+  }
+  return false;
+}
+
 // F11 "Company Features" popup — the Tally-style feature toggle screen.
 // Backed by window.api.tallyFeatures (tally_features table, one row per company).
 // Strict black/white/zinc per UI.md — Yes/No shown via weight/fill, never colour.
@@ -224,8 +236,9 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
     [showMore, showAll],
   );
 
-  // Flat list of currently-visible rows — drives keyboard navigation.
-  const visibleRows = ALL_ROWS.filter((r) => levelVisible(r.level));
+  // Flat list of currently-visible rows — drives keyboard navigation. Locked
+  // sub-prompts are hidden (not greyed), so they never take a keyboard stop.
+  const visibleRows = ALL_ROWS.filter((r) => levelVisible(r.level) && !isRowLocked(r.key, values));
 
   // Hydrate from the DB each time the popup opens.
   useEffect(() => {
@@ -252,14 +265,10 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
   }, [open, companyId]);
 
   // A child row is locked while any ancestor in FEATURE_DEPENDENCIES is off.
-  const isLocked = useCallback((key: string, vals: Record<string, number>) => {
-    let p = FEATURE_DEPENDENCIES[key as FeatureFlag];
-    while (p) {
-      if (!vals[p]) return true;
-      p = FEATURE_DEPENDENCIES[p];
-    }
-    return false;
-  }, []);
+  const isLocked = useCallback(
+    (key: string, vals: Record<string, number>) => isRowLocked(key, vals),
+    [],
+  );
 
   const setVal = useCallback(
     (key: string, v: number) => {
@@ -389,9 +398,10 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
   const focusedKey = visibleRows[focusIdx]?.key;
 
   const renderRow = (row: Row) => {
-    if (!levelVisible(row.level)) return null;
-    const locked = isLocked(row.key, values);
-    const on = !locked && !!values[row.key];
+    // Hidden entirely when the level filter or a parent-off lock excludes it
+    // (Tally reveals sub-prompts only once their parent is Yes).
+    if (!levelVisible(row.level) || isRowLocked(row.key, values)) return null;
+    const on = !!values[row.key];
     const focused = row.key === focusedKey;
     return (
       <div
@@ -405,16 +415,10 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
           focused && 'bg-zinc-100',
         )}
       >
-        <span
-          className={cn(
-            'leading-tight',
-            row.indent && 'pl-3',
-            locked ? 'text-zinc-300' : 'text-zinc-700',
-          )}
-        >
+        <span className={cn('leading-tight', row.indent && 'pl-3', 'text-zinc-700')}>
           {row.label}
         </span>
-        <Toggle value={on} disabled={locked} onChange={(v) => setVal(row.key, v ? 1 : 0)} />
+        <Toggle value={on} onChange={(v) => setVal(row.key, v ? 1 : 0)} />
       </div>
     );
   };
