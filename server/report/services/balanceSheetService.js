@@ -2,6 +2,8 @@ const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../../db/schema');
 const { getOpeningBalances } = require('../utils/ledgerBalance');
+const { calculateClosingStock } = require('../stockValuationEngine');
+const { isFeatureEnabled } = require('../../tallyFeatures/featureFlags');
 
 const getEntries = async (company_id, fy_id) => {
   return await db.all(
@@ -159,13 +161,46 @@ const balanceSheet = async (company_id, fy_id) => {
       if (rootGroup.nature === 'Income') totalIncome += Math.abs(l.balance);
       if (rootGroup.nature === 'Expenses') totalExpenses += Math.abs(l.balance);
     }
-    const netProfit = totalIncome - totalExpenses;
+    // F11 "Integrate Accounts with Inventory": when ON, the closing stock valued
+    // from inventory flows onto the sheet as a Current Asset AND lifts profit by
+    // the same amount (the standard Dr Closing Stock / Cr Trading entry), so the
+    // sheet stays balanced and its profit matches the (also-integrated) P&L. When
+    // OFF, accounts and inventory are separate — stock shows only via any manual
+    // Stock-in-Hand ledger, exactly as before.
+    const integrateInventory = await isFeatureEnabled(
+      company_id,
+      'integrate_accounts_with_inventory',
+    );
+    let closingStockValue = 0;
+    if (integrateInventory) {
+      try {
+        const valuation = await calculateClosingStock(company_id, fy_id);
+        closingStockValue = valuation.success ? Number(valuation.totalValue) || 0 : 0;
+      } catch (_) {
+        /* no stock module / no data */
+      }
+    }
+
+    const netProfit = totalIncome - totalExpenses + closingStockValue;
     const primaryGroups = allGroups.filter((g) => g.parent_group_id === null);
 
     const assets = primaryGroups
       .filter((g) => g.nature === 'Assets')
       .map((g) => groupBalances[g.group_id])
       .filter((g) => g.balance !== 0);
+
+    // Closing stock as a distinct Current Asset line (Tally shows it separately).
+    if (Math.abs(closingStockValue) >= 0.01) {
+      assets.push({
+        group_id: -3,
+        group_name: 'Closing Stock',
+        nature: 'Assets',
+        balance: closingStockValue,
+        ledgers: [],
+        childGroups: [],
+        isClosingStock: true,
+      });
+    }
 
     const liabilities = primaryGroups
       .filter((g) => g.nature === 'Liabilities')

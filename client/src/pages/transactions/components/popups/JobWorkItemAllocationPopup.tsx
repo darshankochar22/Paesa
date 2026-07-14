@@ -4,6 +4,8 @@ import type { JobWorkItemAllocationRow, ComponentAllocationRow } from '../../typ
 import ComponentsAllocationPopup from './ComponentsAllocationPopup';
 import NewNumberPopup from './NewNumberPopup';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
+import { useCompany } from '@/context/CompanyContext';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 interface Props {
   companyId?: number;
@@ -101,11 +103,18 @@ export default function JobWorkItemAllocationPopup({
   onSave,
 }: Props) {
   // Batch-tracked parent item? Drives the extra Batch / Lot No. column (Tally
-  // shows it only for items that maintain batches). Flags come from the master.
+  // shows it only for items that maintain batches). Flags come from the master,
+  // but F11 (enable_batches / maintain_expiry_date_for_batches) gates them off
+  // globally — turning the feature off hides batch/expiry everywhere.
+  const { features } = useCompany();
   const parentItem = allStockItems.find((s: any) => s.item_id === itemId);
-  const isBatch = Boolean(Number(parentItem?.track_batches));
-  const trackMfg = Boolean(Number(parentItem?.track_date_of_manufacturing));
-  const trackExpiry = Boolean(Number(parentItem?.track_expiry));
+  const isBatch =
+    isFeatureEnabled(features, 'enable_batches') && Boolean(Number(parentItem?.track_batches));
+  const trackMfg = isBatch && Boolean(Number(parentItem?.track_date_of_manufacturing));
+  const trackExpiry =
+    isBatch &&
+    isFeatureEnabled(features, 'maintain_expiry_date_for_batches') &&
+    Boolean(Number(parentItem?.track_expiry));
 
   // Active batches (name + expiry + balance) for the List of Active Batches.
   const [activeBatches, setActiveBatches] = useState<BatchOption[]>([]);

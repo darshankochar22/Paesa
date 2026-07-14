@@ -100,6 +100,7 @@ const registry = {
   optional_voucher_register: require('./definitions/optional-voucher-register'),
   cancelled_voucher_register: require('./definitions/cancelled-voucher-register'),
   marked_voucher_register: require('./definitions/marked-voucher-register'),
+  modified_voucher_register: require('./definitions/modified-voucher-register'),
   reversing_journal_register: require('./definitions/reversing-journal-register'),
   payroll_voucher_register: require('./definitions/payroll-voucher-register'),
   stock_journal_register: require('./definitions/stock-journal-register'),

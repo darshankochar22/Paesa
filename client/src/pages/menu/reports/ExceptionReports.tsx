@@ -2,9 +2,12 @@ import { Link } from 'react-router-dom';
 import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
+import { useCompany } from '@/context/CompanyContext';
+import { isFeatureEnabled } from '@/lib/companyFeatures';
 
 export default function ExceptionReports() {
   useEscapeBack();
+  const { features } = useCompany();
 
   const sections = [
     {
@@ -16,6 +19,8 @@ export default function ExceptionReports() {
         'Cancelled Vouchers',
         'Post-Dated Vouchers',
         'Marked Vouchers',
+        // Tally shows "Modified Vouchers" only when F11 "Mark modified vouchers" is on.
+        ...(isFeatureEnabled(features, 'mark_modified_vouchers') ? ['Modified Vouchers'] : []),
       ],
     },
     {
@@ -32,6 +37,7 @@ export default function ExceptionReports() {
       'Cancelled Vouchers': '/reports/exception/cancelled-vouchers',
       'Post-Dated Vouchers': '/reports/exception/post-dated-vouchers',
       'Marked Vouchers': '/reports/exception/marked-vouchers',
+      'Modified Vouchers': '/reports/exception/modified-vouchers',
       'Negative Ledgers': '/reports/exception/negative-ledgers',
       'Negative Stock': '/reports/exception/negative-stock',
       'Overdue Receivables': '/reports/exception/overdue-receivables',

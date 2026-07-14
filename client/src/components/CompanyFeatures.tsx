@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import type { CompanyType } from '@/types/entities/Company';
 import type { TallyFeaturesType } from '@/types/entities/TallyFeatures';
 import { FEATURE_DEPENDENCIES, type FeatureFlag } from '@/lib/companyFeatures';
+import CompanyGSTDetailsModal from '@/pages/master/statutory/company-gst-details/CompanyGSTDetailsModal';
 
 // F11 "Company Features" popup — the Tally-style feature toggle screen.
 // Backed by window.api.tallyFeatures (tally_features table, one row per company).
@@ -103,7 +104,12 @@ const RIGHT: Section[] = [
   {
     title: 'Taxation',
     rows: [
-      { key: 'enable_gst', label: 'Enable Goods and Services Tax (GST)', level: 'basic' },
+      {
+        key: 'enable_gst',
+        label: 'Enable Goods and Services Tax (GST)',
+        level: 'basic',
+        default: 1,
+      },
       {
         key: 'set_alter_company_gst_details',
         label: 'Set/Alter Company GST Rate and Other Details',
@@ -180,6 +186,9 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
   const [focusIdx, setFocusIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Tally: "Set/Alter Company GST Details" is a momentary trigger — accepting it
+  // opens the Company GST Details form, then it reverts to No (never persisted Yes).
+  const [showGstDetails, setShowGstDetails] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   const levelVisible = useCallback(
@@ -254,18 +263,27 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
     if (!companyId || saving) return;
     setSaving(true);
     try {
+      // "Set/Alter Company GST Details" is momentary: open the form if requested,
+      // but never store it Yes — it always reverts to No (Tally behaviour).
+      const openGstDetails =
+        !!values.set_alter_company_gst_details &&
+        !!values.enable_gst &&
+        !isLocked('set_alter_company_gst_details', values);
       const payload: Partial<TallyFeaturesType> = { company_id: companyId };
       for (const r of ALL_ROWS) (payload as Record<string, number>)[r.key] = values[r.key] ? 1 : 0;
+      payload.set_alter_company_gst_details = 0;
       const res = await window.api.tallyFeatures.update(payload);
       if (res?.success) {
+        setValues((prev) => ({ ...prev, set_alter_company_gst_details: 0 }));
         // Let the app (CompanyContext) re-read flags so gated UI updates live.
         window.dispatchEvent(new Event('features-reload'));
-        onClose();
+        if (openGstDetails) setShowGstDetails(true);
+        else onClose();
       }
     } finally {
       setSaving(false);
     }
-  }, [companyId, values, saving, onClose]);
+  }, [companyId, values, saving, onClose, isLocked]);
 
   const handleReset = useCallback(async () => {
     if (!companyId) return;
@@ -287,8 +305,9 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
   }, [companyId]);
 
   // Keyboard: Esc/Q close, arrows move focus, Y/N/Space set, Ctrl/Alt+A accept.
+  // Suspended while the Company GST Details modal is on top so its keys win.
   useEffect(() => {
-    if (!open) return;
+    if (!open || showGstDetails) return;
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -321,7 +340,7 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, focusIdx, visibleRows, values, setVal, handleSave, onClose]);
+  }, [open, showGstDetails, focusIdx, visibleRows, values, setVal, handleSave, onClose]);
 
   if (!open) return null;
 
@@ -366,90 +385,99 @@ export default function CompanyFeatures({ open, onClose, company }: Props) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 animate-fadeIn">
-      <div className="bg-white border border-zinc-300 shadow-2xl w-[880px] max-w-[95vw] max-h-[90vh] overflow-hidden select-none flex flex-col text-xs">
-        {/* Header */}
-        <div className="bg-zinc-100 px-4 py-3 border-b border-zinc-200 flex justify-between items-center">
-          <div className="flex items-center gap-2 text-sm font-bold text-zinc-800">
-            <span className="bg-black text-white text-[10px] px-1.5 py-0.5 rounded">F11</span>
-            <span>Company Features</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-zinc-600">
-              Company: <span className="font-semibold text-zinc-900">{company?.name || '—'}</span>
-            </span>
-            <button
-              onClick={onClose}
-              className="text-zinc-400 hover:text-black font-semibold text-sm leading-none"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div ref={bodyRef} className="flex-1 overflow-y-auto p-5">
-          {!companyId ? (
-            <div className="py-10 text-center text-zinc-500">
-              Select a company first (Gateway → company) to configure its features.
+    <>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 animate-fadeIn">
+        <div className="bg-white border border-zinc-300 shadow-2xl w-[880px] max-w-[95vw] max-h-[90vh] overflow-hidden select-none flex flex-col text-xs">
+          {/* Header */}
+          <div className="bg-zinc-100 px-4 py-3 border-b border-zinc-200 flex justify-between items-center">
+            <div className="flex items-center gap-2 text-sm font-bold text-zinc-800">
+              <span className="bg-black text-white text-[10px] px-1.5 py-0.5 rounded">F11</span>
+              <span>Company Features</span>
             </div>
-          ) : (
-            <>
-              {/* Show more / all */}
-              <div className="flex flex-col gap-0.5 pb-3 mb-3 border-b border-zinc-200">
-                <div className="flex items-center justify-between min-h-[26px]">
-                  <span className="italic text-zinc-600">Show more features</span>
-                  <Toggle value={showMore} onChange={(v) => setShowMore(v)} />
-                </div>
-                <div className="flex items-center justify-between min-h-[26px]">
-                  <span className="italic text-zinc-600">Show all features</span>
-                  <Toggle
-                    value={showAll}
-                    onChange={(v) => {
-                      setShowAll(v);
-                      if (v) setShowMore(true);
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className={cn('grid grid-cols-2 gap-x-10', loading && 'opacity-50')}>
-                <div>{LEFT.map(renderSection)}</div>
-                <div>{RIGHT.map(renderSection)}</div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-zinc-50 border-t border-zinc-200 px-4 py-2.5 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleReset}
-              disabled={!companyId || saving}
-              className="border border-zinc-900 text-zinc-900 px-3 py-1 hover:bg-zinc-100 disabled:opacity-40"
-            >
-              Reset to Default
-            </button>
-            <span className="text-[11px] text-zinc-400">
-              ↑↓ move · Y / N · Ctrl+A accept · Esc close
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-zinc-600">
+                Company: <span className="font-semibold text-zinc-900">{company?.name || '—'}</span>
+              </span>
+              <button
+                onClick={onClose}
+                className="text-zinc-400 hover:text-black font-semibold text-sm leading-none"
+              >
+                ✕
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="px-3 py-1 text-zinc-700 hover:bg-zinc-100">
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!companyId || saving}
-              className="bg-black text-white px-4 py-1 hover:bg-zinc-800 disabled:opacity-40"
-            >
-              {saving ? 'Saving…' : 'Accept'}
-            </button>
+
+          {/* Body */}
+          <div ref={bodyRef} className="flex-1 overflow-y-auto p-5">
+            {!companyId ? (
+              <div className="py-10 text-center text-zinc-500">
+                Select a company first (Gateway → company) to configure its features.
+              </div>
+            ) : (
+              <>
+                {/* Show more / all */}
+                <div className="flex flex-col gap-0.5 pb-3 mb-3 border-b border-zinc-200">
+                  <div className="flex items-center justify-between min-h-[26px]">
+                    <span className="italic text-zinc-600">Show more features</span>
+                    <Toggle value={showMore} onChange={(v) => setShowMore(v)} />
+                  </div>
+                  <div className="flex items-center justify-between min-h-[26px]">
+                    <span className="italic text-zinc-600">Show all features</span>
+                    <Toggle
+                      value={showAll}
+                      onChange={(v) => {
+                        setShowAll(v);
+                        if (v) setShowMore(true);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className={cn('grid grid-cols-2 gap-x-10', loading && 'opacity-50')}>
+                  <div>{LEFT.map(renderSection)}</div>
+                  <div>{RIGHT.map(renderSection)}</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="bg-zinc-50 border-t border-zinc-200 px-4 py-2.5 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleReset}
+                disabled={!companyId || saving}
+                className="border border-zinc-900 text-zinc-900 px-3 py-1 hover:bg-zinc-100 disabled:opacity-40"
+              >
+                Reset to Default
+              </button>
+              <span className="text-[11px] text-zinc-400">
+                ↑↓ move · Y / N · Ctrl+A accept · Esc close
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={onClose} className="px-3 py-1 text-zinc-700 hover:bg-zinc-100">
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!companyId || saving}
+                className="bg-black text-white px-4 py-1 hover:bg-zinc-800 disabled:opacity-40"
+              >
+                {saving ? 'Saving…' : 'Accept'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      <CompanyGSTDetailsModal
+        isOpen={showGstDetails}
+        onClose={() => {
+          setShowGstDetails(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }
 

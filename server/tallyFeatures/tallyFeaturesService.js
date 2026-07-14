@@ -28,7 +28,9 @@ const seedDefaultFeatures = async (company_id) => {
     enableJobCosting: 0,
     useDiscountColumnInInvoices: 0,
     useSeparateActualBilledQty: 0,
-    enableGst: 0,
+    // GST defaults ON: it is a computation gate (not just UI). Turning it off
+    // genuinely stops GST computing on new vouchers.
+    enableGst: 1,
     setAlterCompanyGstDetails: 0,
     enableTds: 0,
     enableTcs: 0,
@@ -164,7 +166,7 @@ module.exports = {
           enableJobCosting: 0,
           useDiscountColumnInInvoices: 0,
           useSeparateActualBilledQty: 0,
-          enableGst: 0,
+          enableGst: 1,
           setAlterCompanyGstDetails: 0,
           enableTds: 0,
           enableTcs: 0,

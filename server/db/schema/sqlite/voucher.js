@@ -37,6 +37,10 @@ const vouchers = sqliteTable('vouchers', {
   // Sales/Purchase ledger on non-accounting inventory vouchers (Receipt Note etc.) —
   // informational only, never posted to voucher_entries.
   salesPurchaseLedgerId: integer('sales_purchase_ledger_id'),
+  // Set to 1 whenever the voucher is altered after original entry (F11 "Mark
+  // modified vouchers"). Stored unconditionally; the feature flag only gates the
+  // Modified Vouchers exception report's visibility.
+  isModified: integer('is_modified').default(0),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 });

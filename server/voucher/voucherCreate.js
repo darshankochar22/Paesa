@@ -2,6 +2,7 @@
 // create() so its public API is unchanged for all call sites.
 const { db } = require('../db/index');
 const auditTrailService = require('../auditTrail/auditTrailService');
+const { isFeatureEnabled } = require('../tallyFeatures/featureFlags');
 const { sql, eq } = require('drizzle-orm');
 const {
   vouchers,
@@ -122,7 +123,10 @@ module.exports = {
       if (
         !data.import_mode &&
         data.is_accounting_voucher &&
-        ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(data.voucher_type)
+        ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(data.voucher_type) &&
+        // F11 "Enable GST" is a computation gate: with GST off, no auto GST
+        // compute/validate — the user's own ledger lines pass through untouched.
+        (await isFeatureEnabled(data.company_id, 'enable_gst'))
       ) {
         // import_mode (data migration): the voucher is an already-finalized
         // historical record whose tax lines are provided verbatim. Skip GST

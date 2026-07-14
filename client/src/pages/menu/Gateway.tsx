@@ -62,14 +62,26 @@ const gatewaySections: MenuSection[] = [
   {
     title: 'REPORTS',
     items: [
-      { label: 'Balance Sheet', route: '/reports/accounts/balance-sheet' },
-      { label: 'Profit & Loss A/c', route: '/reports/accounts/profit-loss' },
+      {
+        label: 'Balance Sheet',
+        route: '/reports/accounts/balance-sheet',
+        feature: 'maintain_accounts',
+      },
+      {
+        label: 'Profit & Loss A/c',
+        route: '/reports/accounts/profit-loss',
+        feature: 'maintain_accounts',
+      },
       {
         label: 'Stock Summary',
         route: '/reports/inventory/stock-summary',
         feature: 'maintain_inventory',
       },
-      { label: 'Ratio Analysis', route: '/reports/accounts/ratio-analysis' },
+      {
+        label: 'Ratio Analysis',
+        route: '/reports/accounts/ratio-analysis',
+        feature: 'maintain_accounts',
+      },
     ],
   },
 ];
@@ -82,6 +94,7 @@ const anyTaxEnabled = (f: TallyFeaturesType | null | undefined) =>
 const displayMoreSections: MenuSection[] = [
   {
     title: 'ACCOUNTING',
+    visible: (f) => isFeatureEnabled(f, 'maintain_accounts'),
     items: [
       { label: 'Trial Balance', route: '/reports/accounts/trial-balance' },
       { label: 'Day Book', route: '/transactions/daybook' },

@@ -1,6 +1,31 @@
 const { db } = require('../db/index');
 const { sql, eq, and } = require('drizzle-orm');
-const { ledgers, ledgerBankDetails, ledgerStatutoryDetails, groups } = require('../db/schema');
+const {
+  ledgers,
+  ledgerBankDetails,
+  ledgerStatutoryDetails,
+  ledgerAddresses,
+  groups,
+} = require('../db/schema');
+
+// Normalize an incoming address row (snake_case from client) into the drizzle
+// column shape. Shared by create + update so both persist identically.
+const toAddressValues = (ledgerId, a, idx) => ({
+  ledgerId,
+  addressType: a.address_type || null,
+  mailingName: a.mailing_name || null,
+  address1: a.address1 || null,
+  address2: a.address2 || null,
+  city: a.city || null,
+  state: a.state || null,
+  country: a.country || null,
+  pincode: a.pincode || null,
+  phone: a.phone || null,
+  email: a.email || null,
+  gstin: a.gstin || null,
+  isDefault: a.is_default ? 1 : 0,
+  displayOrder: a.display_order ?? idx,
+});
 
 // Fetch a single ledger row in the legacy snake_case shape (or undefined).
 const findLedgerRow = async (whereSql) => {
@@ -331,6 +356,12 @@ module.exports = {
         });
       }
 
+      if (Array.isArray(data.addresses) && data.addresses.length) {
+        await db
+          .insert(ledgerAddresses)
+          .values(data.addresses.map((a, i) => toAddressValues(ledger_id, a, i)));
+      }
+
       const ledger = await findLedgerRow(sql`${ledgers.ledgerId} = ${ledger_id}`);
 
       return {
@@ -393,12 +424,17 @@ module.exports = {
         sql`SELECT * FROM ${ledgerStatutoryDetails} WHERE ${ledgerStatutoryDetails.ledgerId} = ${id}`,
       );
 
+      const addresses = await db.all(
+        sql`SELECT * FROM ${ledgerAddresses} WHERE ${ledgerAddresses.ledgerId} = ${id} ORDER BY display_order ASC, id ASC`,
+      );
+
       return {
         success: true,
         ledger: {
           ...ledger,
           bank_details: bank[0] || null,
           statutory_details: statutory[0] || null,
+          addresses,
         },
       };
     } catch (err) {
@@ -733,6 +769,17 @@ module.exports = {
           appropriateTo: data.statutory_details.appropriate_to || 'Goods',
           methodOfCalculation: data.statutory_details.method_of_calculation || 'Based on Quantity',
         });
+      }
+
+      // Replace the address list only when explicitly sent (undefined = leave as-is;
+      // an empty array clears them, e.g. when multiple-addresses is turned off).
+      if (Array.isArray(data.addresses)) {
+        await db.delete(ledgerAddresses).where(eq(ledgerAddresses.ledgerId, data.ledger_id));
+        if (data.addresses.length) {
+          await db
+            .insert(ledgerAddresses)
+            .values(data.addresses.map((a, i) => toAddressValues(data.ledger_id, a, i)));
+        }
       }
 
       const updated = await findLedgerRow(sql`${ledgers.ledgerId} = ${data.ledger_id}`);

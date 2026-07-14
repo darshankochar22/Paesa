@@ -29,6 +29,11 @@ export const FEATURE_DEPENDENCIES: Partial<Record<FeatureFlag, FeatureFlag>> = {
   maintain_expiry_date_for_batches: 'enable_batches',
   set_alter_company_gst_details: 'enable_gst',
   enable_payroll_statutory: 'maintain_payroll',
+  // Accounting sub-features live under "Maintain Accounts" — turning accounting
+  // off (inventory-only company) hides bill-wise / cost centres / interest too.
+  enable_bill_wise_entry: 'maintain_accounts',
+  enable_cost_centres: 'maintain_accounts',
+  enable_interest_calculation: 'maintain_accounts',
   // Inventory sub-features require inventory to be maintained at all.
   integrate_accounts_with_inventory: 'maintain_inventory',
   enable_multiple_price_levels: 'maintain_inventory',

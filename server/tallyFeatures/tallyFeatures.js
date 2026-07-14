@@ -17,7 +17,7 @@ const init = async (db) => {
       enable_job_costing                  INTEGER DEFAULT 0,
       use_discount_column_in_invoices     INTEGER DEFAULT 0,
       use_separate_actual_billed_qty      INTEGER DEFAULT 0,
-      enable_gst                          INTEGER DEFAULT 0,
+      enable_gst                          INTEGER DEFAULT 1,
       set_alter_company_gst_details       INTEGER DEFAULT 0,
       enable_tds                          INTEGER DEFAULT 0,
       enable_tcs                          INTEGER DEFAULT 0,
@@ -56,6 +56,21 @@ const init = async (db) => {
     } catch (err) {
       // Ignored if column already exists
     }
+  }
+
+  // One-time backfill: enable_gst is now a COMPUTATION gate, not just a UI toggle.
+  // Databases created before this change stored 0 (the old UI-only default) yet
+  // were still computing GST — so flip existing rows to 1 once, keeping their GST
+  // computing. Guarded by a marker column: the UPDATE only runs on the same pass
+  // that first adds the column, so a user's later deliberate "GST = No" is never
+  // re-flipped on subsequent startups.
+  try {
+    await db.execute(`ALTER TABLE tally_features ADD COLUMN gst_gate_backfilled INTEGER DEFAULT 0`);
+    // Column was just created ⇒ first run of this migration ⇒ backfill.
+    await db.execute(`UPDATE tally_features SET enable_gst = 1 WHERE enable_gst = 0`);
+    await db.execute(`UPDATE tally_features SET gst_gate_backfilled = 1`);
+  } catch (err) {
+    // Column already exists ⇒ backfill already ran ⇒ do nothing.
   }
 };
 

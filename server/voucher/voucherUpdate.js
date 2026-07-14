@@ -2,6 +2,7 @@
 // voucherCRUD.js, which re-exports these so its public API is unchanged.
 const { db } = require('../db/index');
 const auditTrailService = require('../auditTrail/auditTrailService');
+const { isFeatureEnabled } = require('../tallyFeatures/featureFlags');
 const { sql, eq } = require('drizzle-orm');
 const {
   vouchers,
@@ -150,7 +151,9 @@ module.exports = {
         data.is_accounting_voucher &&
         ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(voucherType) &&
         data.entries !== undefined &&
-        data.stock_entries !== undefined
+        data.stock_entries !== undefined &&
+        // F11 "Enable GST" gate — skip GST recompute when the company has GST off.
+        (await isFeatureEnabled(data.company_id || current.company_id, 'enable_gst'))
       ) {
         const gstTaxEngine = require('../gst/gstTaxEngine');
         const gstValidation = require('../gst/gstValidation');
@@ -288,6 +291,9 @@ module.exports = {
           supplyType: data.computedGST
             ? data.computedGST.supply_type || null
             : (current.supply_type ?? null),
+          // F11 "Mark modified vouchers": any alter after original entry flags the
+          // voucher. Stored unconditionally; the feature flag gates only the report.
+          isModified: 1,
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(vouchers.voucherId, data.voucher_id));

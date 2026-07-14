@@ -23,6 +23,7 @@ import {
   EMPTY_VAT,
 } from './hooks/useLedgerForm';
 import LedgerMailingPanel from './components/LedgerMailingPanel';
+import MultiAddressPopup from './components/MultiAddressPopup';
 import LedgerTaxPanel, { DutyTaxSection } from './components/LedgerTaxPanel';
 import LedgerRoundingPanel from './components/LedgerRoundingPanel';
 import LedgerBillwisePanel from './components/LedgerBillwisePanel';
@@ -90,6 +91,10 @@ export default function LedgerAlter() {
     otherStatutory,
     setOtherStatutory,
     vatDetails,
+    addresses,
+    setAddresses,
+    showMultiAddress,
+    setShowMultiAddress,
     provideBank,
     showBankPopup,
     setShowBankPopup,
@@ -292,6 +297,15 @@ export default function LedgerAlter() {
           onClose={handleBankClose}
           onAccept={handleBankAccept}
           isOD={groupLineage.isOD}
+        />
+      )}
+
+      {showMultiAddress && (
+        <MultiAddressPopup
+          ledgerName={form.name || ''}
+          initial={addresses}
+          onSave={setAddresses}
+          onClose={() => setShowMultiAddress(false)}
         />
       )}
 
@@ -828,7 +842,17 @@ export default function LedgerAlter() {
                     </div>
                   </div>
 
-                  <LedgerMailingPanel form={form} setField={setField} groupLineage={groupLineage} />
+                  <LedgerMailingPanel
+                    form={form}
+                    setField={setField}
+                    groupLineage={groupLineage}
+                    enableMultipleAddresses={isFeatureEnabled(
+                      features,
+                      'enable_multiple_addresses',
+                    )}
+                    addressCount={addresses.length}
+                    onManageAddresses={() => setShowMultiAddress(true)}
+                  />
 
                   <LedgerBankingPanel
                     provideBank={provideBank}

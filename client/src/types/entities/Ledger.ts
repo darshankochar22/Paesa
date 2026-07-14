@@ -1,3 +1,21 @@
+// F11 "Enable multiple addresses" — one extra named address for a party ledger.
+export interface LedgerAddress {
+  id?: number;
+  address_type?: string;
+  mailing_name?: string;
+  address1?: string;
+  address2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  pincode?: string;
+  phone?: string;
+  email?: string;
+  gstin?: string;
+  is_default?: number;
+  display_order?: number;
+}
+
 export interface LedgerType {
   ledger_id?: number;
   company_id?: number;
@@ -85,40 +103,43 @@ export interface LedgerType {
   vat_tax_rate?: number;
   vat_tax_type?: string;
   bank_details?: {
-  account_holder_name?: string;
-  account_number?: string;
-  ifsc_code?: string;
-  swift_code?: string;
-  bank_name?: string;
-  branch_name?: string;
-  bank_configuration?: string;
-  cheque_book_start_no?: string;
-  cheque_book_end_no?: string;
-  enable_cheque_printing?: number;
-  cheque_printing_configuration?: string;
-  od_limit?: number;
-  transaction_type?: string;
-  cross_using?: string;
-  company_bank?: string;
-};
+    account_holder_name?: string;
+    account_number?: string;
+    ifsc_code?: string;
+    swift_code?: string;
+    bank_name?: string;
+    branch_name?: string;
+    bank_configuration?: string;
+    cheque_book_start_no?: string;
+    cheque_book_end_no?: string;
+    enable_cheque_printing?: number;
+    cheque_printing_configuration?: string;
+    od_limit?: number;
+    transaction_type?: string;
+    cross_using?: string;
+    company_bank?: string;
+  };
 
-statutory_details?: {
-  gst_applicability?: string;
-  hsn_sac_code?: string;
-  hsn_sac_description?: string;
-  gst_rate?: number;
-  cgst_rate?: number;
-  sgst_rate?: number;
-  igst_rate?: number;
-  type_of_duty_tax?: string;
-  duty_head?: string;
-  gst_tax_type?: string;
-  service_tax_head?: string;
-  nature_of_goods?: string;
-  valuation_type?: string;
-  rate_per_unit?: number;
-  rounding_limit?: number;
-  percentage_of_calculation?: number;
-  statutory_details?: string;
-};
+  statutory_details?: {
+    gst_applicability?: string;
+    hsn_sac_code?: string;
+    hsn_sac_description?: string;
+    gst_rate?: number;
+    cgst_rate?: number;
+    sgst_rate?: number;
+    igst_rate?: number;
+    type_of_duty_tax?: string;
+    duty_head?: string;
+    gst_tax_type?: string;
+    service_tax_head?: string;
+    nature_of_goods?: string;
+    valuation_type?: string;
+    rate_per_unit?: number;
+    rounding_limit?: number;
+    percentage_of_calculation?: number;
+    statutory_details?: string;
+  };
+
+  // Extra named addresses (F11 "Enable multiple addresses").
+  addresses?: LedgerAddress[];
 }

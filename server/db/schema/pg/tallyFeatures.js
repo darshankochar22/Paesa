@@ -28,7 +28,7 @@ const tallyFeatures = pgTable('tally_features', {
   enableJobCosting: boolean('enable_job_costing').notNull().default(false),
   useDiscountColumnInInvoices: boolean('use_discount_column_in_invoices').notNull().default(false),
   useSeparateActualBilledQty: boolean('use_separate_actual_billed_qty').notNull().default(false),
-  enableGst: boolean('enable_gst').notNull().default(false),
+  enableGst: boolean('enable_gst').notNull().default(true),
   setAlterCompanyGstDetails: boolean('set_alter_company_gst_details').notNull().default(false),
   enableTds: boolean('enable_tds').notNull().default(false),
   enableTcs: boolean('enable_tcs').notNull().default(false),

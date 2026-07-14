@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Button } from '@/components/shadcn/button';
 import { cn } from '@/lib/utils';
+import { useCompany } from '@/context/CompanyContext';
+import { isVoucherTypeEnabled, type VoucherType } from '@/constants/voucherTypes';
 
 export default function RightSidebar({
   voucherType,
@@ -41,6 +43,7 @@ export default function RightSidebar({
   canAccept: boolean;
   onOtherVouchersClick: () => void;
 }) {
+  const { features } = useCompany();
   const types = [
     { key: 'F4', label: 'Contra' },
     { key: 'F5', label: 'Payment' },
@@ -48,7 +51,9 @@ export default function RightSidebar({
     { key: 'F7', label: 'Journal' },
     { key: 'F8', label: 'Sales' },
     { key: 'F9', label: 'Purchase' },
-  ];
+    // F11 gate: accounting F-keys (Contra/Payment/Receipt/Journal) drop out when
+    // "Maintain Accounts" is off; Sales/Purchase remain as inventory invoices.
+  ].filter((t) => isVoucherTypeEnabled(features, t.label as VoucherType));
 
   const otherVoucherTypes = [
     'Attendance',

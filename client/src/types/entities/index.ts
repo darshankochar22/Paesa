@@ -1,7 +1,7 @@
 export type { CompanyType } from './Company';
 export type { FYType } from './FinancialYear';
 export type { GroupType, SlabBasedRate } from './Group';
-export type { LedgerType } from './Ledger';
+export type { LedgerType, LedgerAddress } from './Ledger';
 export type { CostCentreType } from './CostCentre';
 export type {
   BudgetType,
@@ -32,7 +32,12 @@ export type { GSTClassificationType } from './GSTClassification';
 export type { TCSNatureOfGoodsType } from './TCSNatureOfGoods';
 export type { TDSNatureOfPaymentType } from './TDSNatureOfPayment';
 export type { EmployeeCategoryType, EmployeeGroupType, EmployeeType } from './Employee';
-export type { PayrollUnitType, PayHeadType, SalaryStructureType, AttendanceTypeType } from './Payroll';
+export type {
+  PayrollUnitType,
+  PayHeadType,
+  SalaryStructureType,
+  AttendanceTypeType,
+} from './Payroll';
 export type { FeatureGroupType, FeatureItemType } from './Feature';
 export type { TallyFeaturesType } from './TallyFeatures';
 export type { CompanyGSTDetails } from './CompanyGSTDetails';

@@ -33,6 +33,7 @@ export type {
   GroupType,
   SlabBasedRate,
   LedgerType,
+  LedgerAddress,
   CostCentreType,
   CostCategoryType,
   BudgetType,
@@ -72,36 +73,34 @@ export type {
   TaxUnitType,
 } from '../entities';
 
-export type WindowAPI = 
-  & CompanyAPI
-  & FinancialYearAPI
-  & GroupAPI
-  & LedgerAPI
-  & CostCentreAPI
-  & CostCategoryAPI
-  & BudgetAPI
-  & ScenarioAPI
-  & ExciseDutyClassificationAPI
-  & ExciseBookAPI
-  & MerchantProfileAPI
-  & UnitAPI
-  & InventoryAPI
-  & GodownAPI
-  & VoucherAPI
-  & VoucherTypeAPI 
-  & MasterDataAPI
-  & PayrollAPI
-  & FeatureManagementAPI
-  & PhysicalStockAPI
-  & AttendanceAPI
-  & TaxUnitAPI
-  & AiAPI
-  & AutomationAPI
-  & PdfAPI
-  & TallyAPI
-  & AuditTrailAPI
-  & TDSNatureOfPaymentAPI
-  & { app: { getDataPath: () => Promise<string> } };
+export type WindowAPI = CompanyAPI &
+  FinancialYearAPI &
+  GroupAPI &
+  LedgerAPI &
+  CostCentreAPI &
+  CostCategoryAPI &
+  BudgetAPI &
+  ScenarioAPI &
+  ExciseDutyClassificationAPI &
+  ExciseBookAPI &
+  MerchantProfileAPI &
+  UnitAPI &
+  InventoryAPI &
+  GodownAPI &
+  VoucherAPI &
+  VoucherTypeAPI &
+  MasterDataAPI &
+  PayrollAPI &
+  FeatureManagementAPI &
+  PhysicalStockAPI &
+  AttendanceAPI &
+  TaxUnitAPI &
+  AiAPI &
+  AutomationAPI &
+  PdfAPI &
+  TallyAPI &
+  AuditTrailAPI &
+  TDSNatureOfPaymentAPI & { app: { getDataPath: () => Promise<string> } };
 
 declare global {
   interface Window {

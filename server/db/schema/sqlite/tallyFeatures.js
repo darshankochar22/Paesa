@@ -24,7 +24,7 @@ const tallyFeatures = sqliteTable('tally_features', {
   enableJobCosting: integer('enable_job_costing').default(0),
   useDiscountColumnInInvoices: integer('use_discount_column_in_invoices').default(0),
   useSeparateActualBilledQty: integer('use_separate_actual_billed_qty').default(0),
-  enableGst: integer('enable_gst').default(0),
+  enableGst: integer('enable_gst').default(1),
   setAlterCompanyGstDetails: integer('set_alter_company_gst_details').default(0),
   enableTds: integer('enable_tds').default(0),
   enableTcs: integer('enable_tcs').default(0),

@@ -2,14 +2,26 @@ import { Link } from 'react-router-dom';
 import { useEscapeBack } from '@/hooks/useEscape';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
 import { Button } from '@/components/shadcn/button';
+import { useCompany } from '@/context/CompanyContext';
+import { isFeatureEnabled, type FeatureFlag } from '@/lib/companyFeatures';
+
+// F11 gate: Interest Calculations hides when interest calc is off; Cost Centres
+// hides when cost centres are off (Tally shows a report only for enabled features).
+const ITEM_FEATURE: Record<string, FeatureFlag> = {
+  'Interest Calculations': 'enable_interest_calculation',
+  'Cost Centres': 'enable_cost_centres',
+};
 
 export default function StatementsOfAccounts() {
   useEscapeBack();
+  const { features } = useCompany();
 
   const sections = [
     {
       title: '',
-      items: ['Outstandings', 'Interest Calculations', 'Cost Centres', 'Statistics'],
+      items: ['Outstandings', 'Interest Calculations', 'Cost Centres', 'Statistics'].filter(
+        (item) => !ITEM_FEATURE[item] || isFeatureEnabled(features, ITEM_FEATURE[item]),
+      ),
     },
   ];
 

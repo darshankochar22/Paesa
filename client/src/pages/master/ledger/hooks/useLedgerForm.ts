@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useCompany } from '@/context/CompanyContext';
-import type { LedgerType, GroupType } from '@/types/api';
+import type { LedgerType, LedgerAddress, GroupType } from '@/types/api';
 import { EMPTY_BANK_DETAILS } from '../components/BankDetailsPopup';
 import type { BankDetails } from '../components/BankDetailsPopup';
 import type { GSTDetails } from '../components/AdditionalGSTDetails';
@@ -72,6 +72,9 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   const [provideBank, setProvideBank] = useState<'No' | 'Yes'>('No');
 
   const [form, setForm] = useState<Partial<LedgerType>>(INITIAL_FORM);
+  // F11 "Enable multiple addresses": extra named addresses + the Yes/No sub-screen.
+  const [addresses, setAddresses] = useState<LedgerAddress[]>([]);
+  const [showMultiAddress, setShowMultiAddress] = useState(false);
   const [bankForm, setBankForm] = useState<BankDetails>(EMPTY_BANK_DETAILS);
   const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>(EMPTY_STATUTORY);
   const [interestForm, setInterestForm] = useState<InterestDetails>({ ...EMPTY_INTEREST });
@@ -307,6 +310,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       setStatutoryForm(
         hasStatutory ? { ...EMPTY_STATUTORY, ...l.statutory_details } : EMPTY_STATUTORY,
       );
+
+      setAddresses(Array.isArray((l as any).addresses) ? (l as any).addresses : []);
 
       setInterestForm({
         activate_interest: l.activate_interest ? 1 : 0,
@@ -637,6 +642,11 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         email: form.email?.trim() || undefined,
         gstin: form.gstin?.trim() || undefined,
         pan: form.pan?.trim() || undefined,
+        // F11 multiple addresses: always sent (empty array clears them server-side).
+        // Drop fully-blank rows so an opened-but-unused sub-screen saves nothing.
+        addresses: addresses
+          .filter((a) => (a.address_type || a.mailing_name || a.address1 || a.address2)?.trim())
+          .map((a, i) => ({ ...a, display_order: i })),
         registration_type: form.registration_type || 'Unregistered',
         default_credit_period: form.default_credit_period || 0,
         check_credit_days: form.check_credit_days || 0,
@@ -817,6 +827,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         );
         if (mode === 'create') {
           setForm(INITIAL_FORM);
+          setAddresses([]);
           setProvideBank('No');
           setBankForm(EMPTY_BANK_DETAILS);
           setStatutoryForm(EMPTY_STATUTORY);
@@ -883,6 +894,10 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setExciseDetails,
     vatTaxRateDetails,
     setVatTaxRateDetails,
+    addresses,
+    setAddresses,
+    showMultiAddress,
+    setShowMultiAddress,
     provideBank,
     setProvideBank,
     showBankPopup,

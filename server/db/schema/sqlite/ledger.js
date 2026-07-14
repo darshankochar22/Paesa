@@ -103,7 +103,9 @@ const ledgers = sqliteTable('ledgers', {
   behaveAsPaymentGateway: integer('behave_as_payment_gateway').default(0),
   paymentGatewayName: text('payment_gateway_name'),
   placeOfSupply: text('place_of_supply'),
-  doesPartyBelongToNonTaxableTerritory: text('does_party_belong_to_non_taxable_territory').default('No'),
+  doesPartyBelongToNonTaxableTerritory: text('does_party_belong_to_non_taxable_territory').default(
+    'No',
+  ),
   isPartyATransporter: text('is_party_a_transporter').default('No'),
   isPartyAnAssociatedEnterprise: text('is_party_an_associated_enterprise').default('No'),
   transporterId: text('transporter_id'),
@@ -126,7 +128,9 @@ const ledgers = sqliteTable('ledgers', {
 const ledgerBankDetails = sqliteTable('ledger_bank_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> ledgers(ledger_id) ON DELETE CASCADE.
-  ledgerId: integer('ledger_id').notNull().references(() => ledgers.ledgerId),
+  ledgerId: integer('ledger_id')
+    .notNull()
+    .references(() => ledgers.ledgerId),
   accountHolderName: text('account_holder_name'),
   accountNumber: text('account_number'),
   ifscCode: text('ifsc_code'),
@@ -151,7 +155,9 @@ const ledgerBankDetails = sqliteTable('ledger_bank_details', {
 const ledgerStatutoryDetails = sqliteTable('ledger_statutory_details', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   // FK -> ledgers(ledger_id) ON DELETE CASCADE.
-  ledgerId: integer('ledger_id').notNull().references(() => ledgers.ledgerId),
+  ledgerId: integer('ledger_id')
+    .notNull()
+    .references(() => ledgers.ledgerId),
   gstApplicability: text('gst_applicability').default('Not Applicable'),
   hsnSacCode: text('hsn_sac_code'),
   hsnSacDescription: text('hsn_sac_description'),
@@ -162,7 +168,9 @@ const ledgerStatutoryDetails = sqliteTable('ledger_statutory_details', {
   typeOfDutyTax: text('type_of_duty_tax'),
   percentageOfCalculation: real('percentage_of_calculation').default(0),
   statutoryDetails: text('statutory_details'),
-  includeInAssessableValueCalculation: text('include_in_assessable_value_calculation').default('Not Applicable'),
+  includeInAssessableValueCalculation: text('include_in_assessable_value_calculation').default(
+    'Not Applicable',
+  ),
   appropriateTo: text('appropriate_to').default('Goods'),
   methodOfCalculation: text('method_of_calculation').default('Based on Quantity'),
   gstRateSource: text('gst_rate_source').default('As per Company/Group'),
@@ -179,4 +187,26 @@ const ledgerStatutoryDetails = sqliteTable('ledger_statutory_details', {
   roundingLimit: real('rounding_limit').default(0),
 });
 
-module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails };
+// F11 "Enable multiple addresses" — additional named addresses for a party ledger
+// (Head Office, Branch, Warehouse…). The ledger's own address1/2/state/… columns
+// remain the primary address; this table holds the extra ones. Non-destructive:
+// rows exist regardless of the feature flag, which only gates the UI.
+const ledgerAddresses = sqliteTable('ledger_addresses', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  ledgerId: integer('ledger_id').notNull(),
+  addressType: text('address_type'),
+  mailingName: text('mailing_name'),
+  address1: text('address1'),
+  address2: text('address2'),
+  city: text('city'),
+  state: text('state'),
+  country: text('country'),
+  pincode: text('pincode'),
+  phone: text('phone'),
+  email: text('email'),
+  gstin: text('gstin'),
+  isDefault: integer('is_default').default(0),
+  displayOrder: integer('display_order').default(0),
+});
+
+module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails, ledgerAddresses };

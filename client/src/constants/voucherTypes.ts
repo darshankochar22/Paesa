@@ -106,6 +106,15 @@ export const INVENTORY_VOUCHER_TYPES: VoucherType[] = [
  * so isFeatureEnabled already requires both for the job-work types.
  */
 export const VOUCHER_TYPE_FEATURE: Partial<Record<VoucherType, FeatureFlag>> = {
+  // Pure-accounting voucher types disappear when "Maintain Accounts" is off
+  // (inventory-only company). Sales/Purchase/Credit Note/Debit Note stay — they
+  // fall back to inventory-only invoices, matching Tally + the note above.
+  [VOUCHER_TYPES.PAYMENT]: 'maintain_accounts',
+  [VOUCHER_TYPES.RECEIPT]: 'maintain_accounts',
+  [VOUCHER_TYPES.CONTRA]: 'maintain_accounts',
+  [VOUCHER_TYPES.JOURNAL]: 'maintain_accounts',
+  [VOUCHER_TYPES.MEMORANDUM]: 'maintain_accounts',
+  [VOUCHER_TYPES.REVERSING_JOURNAL]: 'maintain_accounts',
   [VOUCHER_TYPES.DELIVERY_NOTE]: 'maintain_inventory',
   [VOUCHER_TYPES.RECEIPT_NOTE]: 'maintain_inventory',
   [VOUCHER_TYPES.REJECTION_IN]: 'maintain_inventory',

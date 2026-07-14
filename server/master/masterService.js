@@ -9,7 +9,13 @@ const getMenu = async (company_id = 1) => {
     // here always show. Non-destructive: a hidden master's data is untouched and
     // reappears when the feature is turned back on.
     const MASTER_FEATURE = {
-      // Accounting
+      // Accounting — hidden when "Maintain Accounts" is off (inventory-only
+      // company). Voucher Type + Currency stay (needed for inventory vouchers).
+      Group: 'maintain_accounts',
+      Ledger: 'maintain_accounts',
+      'Credit Limits': 'maintain_accounts',
+      Budget: 'maintain_accounts',
+      Scenario: 'maintain_accounts',
       'Cost Category': 'enable_cost_centres',
       'Cost Centre': 'enable_cost_centres',
       // Inventory
@@ -61,7 +67,9 @@ const getMenu = async (company_id = 1) => {
       'Budget',
       'Scenario',
     ].filter(gateItem);
-    menu.push({ title: 'Accounting Masters', items: accountingItems });
+    if (accountingItems.length) {
+      menu.push({ title: 'Accounting Masters', items: accountingItems });
+    }
 
     if (flagOn('enable_payment_request_qr')) {
       const paymentRequest = ['Merchant Profile'];

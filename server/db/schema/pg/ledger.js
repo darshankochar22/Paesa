@@ -1,4 +1,12 @@
-const { pgTable, bigint, text, boolean, numeric, integer, timestamp } = require('drizzle-orm/pg-core');
+const {
+  pgTable,
+  bigint,
+  text,
+  boolean,
+  numeric,
+  integer,
+  timestamp,
+} = require('drizzle-orm/pg-core');
 const { sql } = require('drizzle-orm');
 
 // Mirrors docs/db/modules/ledger.sql (PostgreSQL contract).
@@ -79,7 +87,9 @@ const ledgers = pgTable('ledgers', {
   interestCalculateOn: text('interest_calculate_on').default('Bill-by-Bill'),
   interestApplicableFrom: text('interest_applicable_from').default('Due Date'),
   interestRoundingMethod: text('interest_rounding_method').default('No Rounding'),
-  interestRoundingLimit: numeric('interest_rounding_limit', { precision: 18, scale: 4 }).default('1'),
+  interestRoundingLimit: numeric('interest_rounding_limit', { precision: 18, scale: 4 }).default(
+    '1',
+  ),
   interestRateSlabs: text('interest_rate_slabs'),
   // MSME party registration (Update Party MSME Details).
   msmeTypeOfEnterprise: text('msme_type_of_enterprise').default('Not Applicable'),
@@ -96,7 +106,9 @@ const ledgers = pgTable('ledgers', {
 const ledgerBankDetails = pgTable('ledger_bank_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> ledgers.ledger_id ON DELETE CASCADE.
-  ledgerId: bigint('ledger_id', { mode: 'number' }).notNull().references(() => ledgers.ledgerId, { onDelete: 'cascade' }),
+  ledgerId: bigint('ledger_id', { mode: 'number' })
+    .notNull()
+    .references(() => ledgers.ledgerId, { onDelete: 'cascade' }),
   accountHolderName: text('account_holder_name'),
   accountNumber: text('account_number'),
   ifscCode: text('ifsc_code'),
@@ -121,7 +133,9 @@ const ledgerBankDetails = pgTable('ledger_bank_details', {
 const ledgerStatutoryDetails = pgTable('ledger_statutory_details', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
   // FK -> ledgers.ledger_id ON DELETE CASCADE.
-  ledgerId: bigint('ledger_id', { mode: 'number' }).notNull().references(() => ledgers.ledgerId, { onDelete: 'cascade' }),
+  ledgerId: bigint('ledger_id', { mode: 'number' })
+    .notNull()
+    .references(() => ledgers.ledgerId, { onDelete: 'cascade' }),
   gstApplicability: text('gst_applicability').default('Not Applicable'),
   hsnSacCode: text('hsn_sac_code'),
   hsnSacDescription: text('hsn_sac_description'),
@@ -130,9 +144,14 @@ const ledgerStatutoryDetails = pgTable('ledger_statutory_details', {
   sgstRate: numeric('sgst_rate', { precision: 18, scale: 4 }).default('0'),
   igstRate: numeric('igst_rate', { precision: 18, scale: 4 }).default('0'),
   typeOfDutyTax: text('type_of_duty_tax'),
-  percentageOfCalculation: numeric('percentage_of_calculation', { precision: 18, scale: 4 }).default('0'),
+  percentageOfCalculation: numeric('percentage_of_calculation', {
+    precision: 18,
+    scale: 4,
+  }).default('0'),
   statutoryDetails: text('statutory_details'),
-  includeInAssessableValueCalculation: text('include_in_assessable_value_calculation').default('Not Applicable'),
+  includeInAssessableValueCalculation: text('include_in_assessable_value_calculation').default(
+    'Not Applicable',
+  ),
   appropriateTo: text('appropriate_to').default('Goods'),
   methodOfCalculation: text('method_of_calculation').default('Based on Quantity'),
   gstRateSource: text('gst_rate_source').default('As per Company/Group'),
@@ -149,4 +168,25 @@ const ledgerStatutoryDetails = pgTable('ledger_statutory_details', {
   roundingLimit: numeric('rounding_limit', { precision: 18, scale: 4 }).default('0'),
 });
 
-module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails };
+// F11 "Enable multiple addresses" — extra named addresses for a party ledger.
+const ledgerAddresses = pgTable('ledger_addresses', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  ledgerId: bigint('ledger_id', { mode: 'number' })
+    .notNull()
+    .references(() => ledgers.ledgerId, { onDelete: 'cascade' }),
+  addressType: text('address_type'),
+  mailingName: text('mailing_name'),
+  address1: text('address1'),
+  address2: text('address2'),
+  city: text('city'),
+  state: text('state'),
+  country: text('country'),
+  pincode: text('pincode'),
+  phone: text('phone'),
+  email: text('email'),
+  gstin: text('gstin'),
+  isDefault: boolean('is_default').default(false),
+  displayOrder: integer('display_order').default(0),
+});
+
+module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails, ledgerAddresses };

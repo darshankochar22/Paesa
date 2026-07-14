@@ -51,6 +51,8 @@ const vouchers = pgTable('vouchers', {
   isPostDated: boolean('is_post_dated').default(false),
   // Reversing Journal: date up to which the (non-posting) entry is applicable.
   applicableUpto: date('applicable_upto'),
+  // F11 "Mark modified vouchers" — set true when altered after original entry.
+  isModified: boolean('is_modified').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 });
