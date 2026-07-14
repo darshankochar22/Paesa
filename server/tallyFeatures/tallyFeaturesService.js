@@ -16,7 +16,8 @@ const seedDefaultFeatures = async (company_id) => {
     companyId: company_id,
     maintainAccounts: 1,
     enableBillWiseEntry: 0,
-    enableCostCentres: 1,
+    // Cost Centres defaults OFF (opt-in), matching TallyPrime + the CREATE TABLE default.
+    enableCostCentres: 0,
     enableInterestCalculation: 0,
     maintainInventory: 1,
     integrateAccountsWithInventory: 1,
@@ -161,7 +162,7 @@ module.exports = {
         .set({
           maintainAccounts: 1,
           enableBillWiseEntry: 0,
-          enableCostCentres: 1,
+          enableCostCentres: 0,
           enableInterestCalculation: 0,
           maintainInventory: 1,
           integrateAccountsWithInventory: 1,

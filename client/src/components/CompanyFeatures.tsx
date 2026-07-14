@@ -62,7 +62,6 @@ const LEFT: Section[] = [
         label: 'Enable Cost Centres',
         level: 'basic',
         indent: true,
-        default: 1,
       },
       {
         key: 'enable_interest_calculation',
