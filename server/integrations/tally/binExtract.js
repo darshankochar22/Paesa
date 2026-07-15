@@ -33,6 +33,23 @@ const findGstin = (fields) => {
   return undefined;
 };
 
+// Opening stock balance on a stock-item master, all at field 0xeda:
+//   n0c = quantity rational [num, denom, unitSid]  → num/denom (units)
+//   n0b = rate  × SCALE                            → rupees per unit
+//   n09 = value × SCALE (signed; stored negative)  → rupees
+// qty × rate == value in the source. Absent fields mean no opening balance.
+const readOpeningStock = (f) => {
+  const out = {};
+  const q = first(f, 'n0c', 0xeda);
+  const r = first(f, 'n0b', 0xeda);
+  const v = first(f, 'n09', 0xeda);
+  if (q && Number(q[1]))
+    out.opening_quantity = Math.round((Number(q[0]) / Number(q[1])) * 10000) / 10000;
+  if (r !== undefined) out.opening_rate = Math.round((toNum(r) / SCALE) * 100) / 100;
+  if (v !== undefined) out.opening_value = Math.round((Math.abs(toNum(v)) / SCALE) * 100) / 100;
+  return out;
+};
+
 // Standard Tally group tree: name -> [parent|null, nature]. The .1800 master has
 // no recoverable parent stream-ref for groups; the default tree is fixed.
 const TALLY_GROUP_HIER = {
@@ -236,8 +253,7 @@ function loadMasters(managerPath) {
       // scaled by SCALE, so a scaled "1.0" (=100000) or any quantity/amount
       // divisible by 25000 looked like a GST rate and falsely stamped Taxable on
       // items that have no GST set in Tally. Real GST comes from the HTTP/XML export.
-      const oq = first(f, 'n0c', 2);
-      if (oq) si.opening_quantity = Math.round((toNum(oq[0]) / SCALE) * 10000) / 10000;
+      Object.assign(si, readOpeningStock(f));
       stockItems.push(si);
     } else if (parentNames.has(nm) && !VOUCHER_TYPE_NAMES.has(nm)) {
       const hier = TALLY_GROUP_HIER[nm];
@@ -558,6 +574,7 @@ function extractCompany(folder) {
     }
     if (hsn) si.hsn_sac = hsn;
     // Do NOT infer gst_rate/taxability from binary n08 fields — see note above.
+    Object.assign(si, readOpeningStock(f));
     masters.stockItems.push(si);
   }
 
