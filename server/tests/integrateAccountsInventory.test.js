@@ -56,16 +56,21 @@ describe('integrate accounts with inventory (#4)', () => {
     });
   });
 
-  const bsClosingStock = (bs) => {
-    const row = (bs.assets || []).find((a) => a.isClosingStock);
-    return row ? Number(row.balance) : 0;
+  // Closing stock is folded into the Current Assets group (matching its drill),
+  // not shown as a separate line. This company posts no accounting entries, so
+  // Current Assets holds nothing but the folded-in closing stock.
+  const bsCurrentAssets = (bs) => {
+    const row = (bs.assets || []).find((a) => a.group_name === 'Current Assets');
+    return row ? Math.abs(Number(row.balance)) : 0;
   };
 
-  it('ON: Balance Sheet shows closing stock asset and still balances', async () => {
+  it('ON: closing stock folds into Current Assets and the sheet still balances', async () => {
     await setFlag(companyId, true);
     const bs = await balanceSheet(companyId, fyId);
     expect(bs.success).toBe(true);
-    expect(bsClosingStock(bs)).toBeCloseTo(CLOSING, 2);
+    expect(bsCurrentAssets(bs)).toBeCloseTo(CLOSING, 2);
+    // No separate Closing Stock line any more.
+    expect((bs.assets || []).find((a) => a.isClosingStock)).toBeFalsy();
     expect(bs.totalAssets).toBeCloseTo(bs.totalLiabilities, 2);
   });
 
@@ -76,11 +81,12 @@ describe('integrate accounts with inventory (#4)', () => {
     expect(Number(pl.closingStock)).toBeCloseTo(CLOSING, 2);
   });
 
-  it('OFF: no auto closing-stock asset on the BS and it still balances', async () => {
+  it('OFF: no auto closing-stock on the BS and it still balances', async () => {
     await setFlag(companyId, false);
     const bs = await balanceSheet(companyId, fyId);
     expect(bs.success).toBe(true);
-    expect(bsClosingStock(bs)).toBe(0);
+    expect(bsCurrentAssets(bs)).toBe(0);
+    expect((bs.assets || []).find((a) => a.isClosingStock)).toBeFalsy();
     expect(bs.totalAssets).toBeCloseTo(bs.totalLiabilities, 2);
   });
 

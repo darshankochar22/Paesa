@@ -4,6 +4,7 @@ const { voucherEntries, vouchers, ledgers, groups } = require('../../db/schema')
 const { getOpeningBalances } = require('../utils/ledgerBalance');
 const { calculateClosingStock } = require('../stockValuationEngine');
 const { isFeatureEnabled } = require('../../tallyFeatures/featureFlags');
+const { profitLoss } = require('./profitlossService');
 
 const getEntries = async (company_id, fy_id) => {
   return await db.all(
@@ -145,28 +146,10 @@ const balanceSheet = async (company_id, fy_id) => {
         }));
     }
 
-    // Net profit = |Income| − |Expenses| across every P&L ledger, bucketed by its
-    // root group's nature. Income ledgers carry Cr (negative) balances and expenses
-    // Dr (positive), so take the absolute value of each — otherwise the signed
-    // income drags netProfit negative and the sheet fails to balance.
-    let totalIncome = 0;
-    let totalExpenses = 0;
-    for (const l of Object.values(ledgerBalances)) {
-      const g = allGroups.find((gr) => gr.group_id === l.group_id);
-      if (!g) continue;
-      let rootGroup = g;
-      while (rootGroup.parent_group_id) {
-        rootGroup = allGroups.find((gr) => gr.group_id === rootGroup.parent_group_id) || rootGroup;
-      }
-      if (rootGroup.nature === 'Income') totalIncome += Math.abs(l.balance);
-      if (rootGroup.nature === 'Expenses') totalExpenses += Math.abs(l.balance);
-    }
     // F11 "Integrate Accounts with Inventory": when ON, the closing stock valued
-    // from inventory flows onto the sheet as a Current Asset AND lifts profit by
-    // the same amount (the standard Dr Closing Stock / Cr Trading entry), so the
-    // sheet stays balanced and its profit matches the (also-integrated) P&L. When
-    // OFF, accounts and inventory are separate — stock shows only via any manual
-    // Stock-in-Hand ledger, exactly as before.
+    // from inventory flows onto the sheet as a Current Asset. When OFF, accounts
+    // and inventory are separate — stock shows only via any manual Stock-in-Hand
+    // ledger, exactly as before.
     const integrateInventory = await isFeatureEnabled(
       company_id,
       'integrate_accounts_with_inventory',
@@ -181,26 +164,37 @@ const balanceSheet = async (company_id, fy_id) => {
       }
     }
 
-    const netProfit = totalIncome - totalExpenses + closingStockValue;
+    // Net profit is taken straight from the Profit & Loss report — the same report
+    // the "Profit & Loss A/c" row drills into — so the figure shown on the sheet
+    // matches it exactly, including the trading-account treatment of opening and
+    // closing stock. (The earlier local formula omitted opening stock and diverged.)
+    let netProfit = 0;
+    try {
+      const pl = await profitLoss(company_id, fy_id);
+      if (pl && pl.success) netProfit = Number(pl.netProfit) || 0;
+    } catch (_) {
+      /* P&L report unavailable — leave netProfit at 0 */
+    }
+
     const primaryGroups = allGroups.filter((g) => g.parent_group_id === null);
+
+    // Fold closing stock into the Current Assets group so the sheet's Current
+    // Assets figure equals its group-summary drill (which lists Closing Stock as a
+    // row inside Current Assets). Done before the zero-filter so Current Assets
+    // still surfaces even when it holds no ledger balance of its own.
+    if (Math.abs(closingStockValue) >= 0.01) {
+      const caGroup = primaryGroups.find(
+        (g) => g.nature === 'Assets' && g.name === 'Current Assets',
+      );
+      if (caGroup && groupBalances[caGroup.group_id]) {
+        groupBalances[caGroup.group_id].balance += closingStockValue;
+      }
+    }
 
     const assets = primaryGroups
       .filter((g) => g.nature === 'Assets')
       .map((g) => groupBalances[g.group_id])
       .filter((g) => g.balance !== 0);
-
-    // Closing stock as a distinct Current Asset line (Tally shows it separately).
-    if (Math.abs(closingStockValue) >= 0.01) {
-      assets.push({
-        group_id: -3,
-        group_name: 'Closing Stock',
-        nature: 'Assets',
-        balance: closingStockValue,
-        ledgers: [],
-        childGroups: [],
-        isClosingStock: true,
-      });
-    }
 
     const liabilities = primaryGroups
       .filter((g) => g.nature === 'Liabilities')
