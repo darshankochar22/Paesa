@@ -75,9 +75,25 @@ function nestStockItemsIntoGroups(items, allGroups) {
     };
   };
 
+  // Tally's default "Primary" group is never rendered as a wrapper row: the
+  // items sitting directly under it appear at the top level of Stock Summary,
+  // and any real sub-groups under Primary are promoted to root. So Primary is
+  // flattened away here (its direct items join rootItems, its children become
+  // root groups) — the summary opens as a flat item list, exactly like Tally,
+  // instead of forcing a drill into a "Primary" group first.
+  const isPrimary = (g) => (g.group_name || '').trim().toLowerCase() === 'primary';
   const topLevelGroups = allGroups.filter((g) => g.parent_group_id == null);
-  const rootGroupNodes = topLevelGroups.map(buildNode);
-  const rootItems = directItemsByGroup.get('ungrouped') || [];
+  const rootGroupNodes = [];
+  const rootItems = [...(directItemsByGroup.get('ungrouped') || [])];
+  for (const g of topLevelGroups) {
+    const node = buildNode(g);
+    if (isPrimary(g)) {
+      rootItems.push(...node.items);
+      rootGroupNodes.push(...node.childGroups);
+    } else {
+      rootGroupNodes.push(node);
+    }
+  }
 
   const stripInternal = (node) => {
     const { unit_set, ...rest } = node;

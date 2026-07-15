@@ -262,7 +262,7 @@ export default function StockSummary({ opening = false }: { opening?: boolean })
     const directItems = currentGroup ? currentGroup.items : rootItems;
 
     const groupRows: Row[] = childGroups
-      .filter((g) => g.closing_value !== 0 || g.closing_qty !== 0 || g.item_count > 0)
+      .filter((g) => g.closing_value !== 0 || g.closing_qty !== 0)
       .map((node) => ({ kind: 'group' as const, node }));
 
     const itemRows: Row[] = directItems
@@ -324,9 +324,10 @@ export default function StockSummary({ opening = false }: { opening?: boolean })
         ? await window.api.report.openingStockSummary(companyId, fyId)
         : await window.api.report.stockSummary(companyId, fyId, undefined, 'FIFO');
       if (!res.success) throw new Error(res.error || 'Failed to load stock summary');
-      // Filter out groups with no closing value AND no items with any activity
+      // Hide groups with no activity (zero closing qty and value) — Tally does
+      // not list an empty stock group in Stock Summary.
       const nonEmpty = (res.groups as StockSummaryGroupNode[]).filter(
-        (g) => g.closing_value !== 0 || g.closing_qty !== 0 || g.item_count > 0,
+        (g) => g.closing_value !== 0 || g.closing_qty !== 0,
       );
       setRootGroups(nonEmpty);
       setRootItems(res.rootItems || []);
