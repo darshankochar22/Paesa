@@ -13,6 +13,11 @@ interface ReturnActivity {
   pending_upload: number | null;
   recon_exceptions: number | null;
   pending_file: number | null;
+  // Real GSTN status from the portal (Sandbox public API), present only when synced.
+  filed_status?: string;
+  arn?: string;
+  filed_date?: string;
+  source?: string;
 }
 
 interface MonthActivity {
@@ -94,6 +99,15 @@ export default function TrackGSTReturnActivities() {
       <TableCell className="w-24 text-center py-0.5">{ynCell(ret.pending_upload)}</TableCell>
       <TableCell className="w-24 text-center py-0.5">{ynCell(ret.recon_exceptions)}</TableCell>
       <TableCell className="w-24 text-center py-0.5">{ynCell(ret.pending_file)}</TableCell>
+      <TableCell className="w-40 text-center py-0.5">
+        {ret.arn ? (
+          <span className="font-mono text-[11px]" title={`Filed on ${ret.filed_date} (GST portal)`}>
+            {ret.arn}
+          </span>
+        ) : (
+          ''
+        )}
+      </TableCell>
     </>
   );
 
@@ -102,7 +116,7 @@ export default function TrackGSTReturnActivities() {
     reg.months.map((month) => (
       <Fragment key={month.period}>
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={5} className="px-4 py-0.5 font-bold text-black">
+          <TableCell colSpan={6} className="px-4 py-0.5 font-bold text-black">
             {month.label}
           </TableCell>
         </TableRow>
@@ -127,7 +141,7 @@ export default function TrackGSTReturnActivities() {
     return returnNames.map((name) => (
       <Fragment key={name}>
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={5} className="px-4 py-0.5 font-bold text-black">
+          <TableCell colSpan={6} className="px-4 py-0.5 font-bold text-black">
             {name}
           </TableCell>
         </TableRow>
@@ -189,18 +203,19 @@ export default function TrackGSTReturnActivities() {
             { header: 'Pending for Upload', className: 'text-center w-24' },
             { header: 'Exceptions In Reconciliation', className: 'text-center w-24' },
             { header: 'Pending to Be Filed', className: 'text-center w-24' },
+            { header: 'Filing Status (ARN)', className: 'text-center w-40' },
           ]}
           maxHeight="100%"
         >
           {loading ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={5} className="p-0">
+              <TableCell colSpan={6} className="p-0">
                 <EmptyState message="Loading..." />
               </TableCell>
             </TableRow>
           ) : registrations.length === 0 ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={5} className="p-0">
+              <TableCell colSpan={6} className="p-0">
                 <EmptyState message="No GST Registrations found." />
               </TableCell>
             </TableRow>
@@ -210,7 +225,7 @@ export default function TrackGSTReturnActivities() {
                 {/* Registration heading — only when tracking more than one GSTIN */}
                 {!singleReg && (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={5} className="bg-[#ffeb9c] font-bold px-2 py-1 text-black">
+                    <TableCell colSpan={6} className="bg-[#ffeb9c] font-bold px-2 py-1 text-black">
                       {reg.name}
                     </TableCell>
                   </TableRow>

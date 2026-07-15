@@ -106,11 +106,59 @@ function getWhitebooksConfig() {
   };
 }
 
+// Sandbox (Quicko GSP) connection — plain-JSON GSP covering e-Invoice, e-Way Bill AND GST
+// return filing + public GSTIN verification on one host. Active only when GST_PROVIDER=sandbox.
+// null otherwise. See server/integrations/sandboxClient.js.
+//
+//   SANDBOX_API_KEY / _SECRET   platform credentials; key_live_* => production host,
+//                               key_test_* => test host (auto-derived from the key prefix).
+//   SANDBOX_API_VERSION         defaults to 1.0.0
+//   SANDBOX_GSTIN               taxpayer GSTIN (falls back to GST_GSTIN)
+//   SANDBOX_EINV_USERNAME/_PASSWORD   NIC e-Invoice API user (for e-Invoice sub-session)
+function getSandboxConfig() {
+  // Activated purely by key presence — independent of GST_PROVIDER — so the GST reports can
+  // read real portal data via Sandbox while e-Invoice/e-Way stay on their own provider.
+  const apiKey = (process.env.SANDBOX_API_KEY || '').trim();
+  const apiSecret = (process.env.SANDBOX_API_SECRET || '').trim();
+  if (!apiKey || !apiSecret) return null;
+  const isTest = /^key_test/i.test(apiKey);
+  // Test-only guard: a live (key_live_) key is refused unless SANDBOX_ALLOW_LIVE=true, so the
+  // app physically cannot hit real GSTN with production credentials by accident.
+  const allowLive = bool(process.env.SANDBOX_ALLOW_LIVE, false);
+  if (!isTest && !allowLive) return null;
+  return {
+    provider: 'sandbox',
+    apiKey,
+    apiSecret,
+    apiVersion: (process.env.SANDBOX_API_VERSION || '1.0.0').trim(),
+    live: !isTest,
+    baseUrl: isTest ? 'https://test-api.sandbox.co.in' : 'https://api.sandbox.co.in',
+    gstin: (process.env.SANDBOX_GSTIN || process.env.GST_GSTIN || '').trim(),
+    einvUsername: (process.env.SANDBOX_EINV_USERNAME || '').trim(),
+    einvPassword: (process.env.SANDBOX_EINV_PASSWORD || '').trim(),
+  };
+}
+
+// Which GSP backs the GST-PORTAL surface (OTP session, GSTR-2A/2B fetch, return status,
+// GSTR-1/3B save+file). Independent of e-Invoice/e-Way routing. Explicit override via
+// GST_PORTAL_PROVIDER=sandbox|whitebooks; otherwise prefer Sandbox when its keys are present
+// (its returns flow works), else fall back to WhiteBooks.
+function getPortalProvider() {
+  const explicit = (process.env.GST_PORTAL_PROVIDER || '').toLowerCase();
+  if (explicit === 'sandbox' || explicit === 'whitebooks') return explicit;
+  if (getSandboxConfig()) return 'sandbox';
+  if (getWhitebooksConfig()) return 'whitebooks';
+  return null;
+}
+
 module.exports = {
   getGspConfig,
   getFilingConfig,
   getWhitebooksConfig,
+  getSandboxConfig,
+  getPortalProvider,
   isGspConfigured: () => !!getGspConfig(),
   isFilingConfigured: () => !!getFilingConfig(),
   isWhitebooksConfigured: () => !!getWhitebooksConfig(),
+  isSandboxConfigured: () => !!getSandboxConfig(),
 };

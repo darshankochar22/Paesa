@@ -14,6 +14,22 @@ const {
 } = require('../../db/schema');
 const { getDatesForFY, GSTIN_RE, buildFyMonths } = require('./core');
 
+// Real GSTN filing status via Sandbox's public return-tracking API (no taxpayer OTP needed).
+// Dormant unless SANDBOX_API_KEY is set — otherwise the report stays on local data only.
+let sbx = null;
+try {
+  sbx = require('../../integrations/sandboxClient');
+} catch (_) {
+  /* integration absent */
+}
+// Map a real portal filing map (period -> {GSTR1,GSTR3B,...}) onto one month's return name.
+const NAME_TO_RTNTYPE = {
+  'GSTR-1': 'GSTR1',
+  'GSTR-2A': 'GSTR2A',
+  'GSTR-2B': 'GSTR2B',
+  'GSTR-3B': 'GSTR3B',
+};
+
 // "Exceptions in Reconciliation" stay "No" until the GST portal data is actually
 // uploaded/imported — there is no portal round-trip in this offline clone, so we
 // report them honestly as not-pending rather than fabricating a status.
@@ -62,6 +78,21 @@ const getReturnActivities = async (company_id, fy_id) => {
       // in that registration becomes an "uncertain transaction" (corrections needed) —
       // mirrors Tally's "GST Registration Details of the Company are invalid" exception.
       const gstinInvalid = !GSTIN_RE.test(String(reg.gstin || '').toUpperCase());
+
+      // Real GSTN filing status for this registration (Sandbox public API, no OTP). When
+      // available it authoritatively drives GSTR-1/3B pending_file + surfaces ARN/filing date;
+      // otherwise the report falls back to the local gst_filings-derived status below.
+      let portalByPeriod = null;
+      if (sbx && !gstinInvalid && process.env.NODE_ENV !== 'test' && sbx.isConfigured()) {
+        try {
+          const startYear = Number(String(fyStartDate).slice(0, 4));
+          const res = await sbx.getFiledReturns(reg.gstin, startYear);
+          if (res.ok) portalByPeriod = res.byPeriod;
+        } catch (_) {
+          /* network/portal hiccup — stay on local status */
+        }
+      }
+
       const regFilter = isPrimary
         ? sql`(v.gst_registration_id = ${reg.gst_id} OR v.gst_registration_id IS NULL)`
         : sql`v.gst_registration_id = ${reg.gst_id}`;
@@ -108,19 +139,35 @@ const getReturnActivities = async (company_id, fy_id) => {
         const inTotal = Number(i.total || 0);
         const outCorr = gstinInvalid ? outTotal : Number(o.corr || 0);
         const inCorr = gstinInvalid ? inTotal : Number(i.corr || 0);
-        const g1Filed = filedGSTR1.has(mo.period);
-        const g3bFiled = filedGSTR3B.has(mo.period);
+        // Portal status wins when we have it; local gst_filings is the fallback.
+        const portal = portalByPeriod && portalByPeriod[mo.period];
+        const filedOn = (name) => {
+          const p = portal && portal[NAME_TO_RTNTYPE[name]];
+          return p && /filed/i.test(String(p.status || '')) ? p : null;
+        };
+        const p1 = filedOn('GSTR-1');
+        const p3b = filedOn('GSTR-3B');
+        const g1Filed = p1 ? true : filedGSTR1.has(mo.period);
+        const g3bFiled = p3b ? true : filedGSTR3B.has(mo.period);
+        const withPortal = (base, p) =>
+          p
+            ? { ...base, filed_status: 'Filed', arn: p.arn, filed_date: p.dof, source: 'portal' }
+            : base;
         return {
           period: mo.period,
           label: mo.label,
+          portal_synced: !!portal,
           returns: [
-            {
-              name: 'GSTR-1',
-              corrections: outCorr,
-              pending_upload: 0,
-              recon_exceptions: 0,
-              pending_file: g1Filed ? 0 : 1,
-            },
+            withPortal(
+              {
+                name: 'GSTR-1',
+                corrections: outCorr,
+                pending_upload: 0,
+                recon_exceptions: 0,
+                pending_file: g1Filed ? 0 : 1,
+              },
+              p1,
+            ),
             {
               name: 'GSTR-2A',
               corrections: inCorr,
@@ -135,13 +182,16 @@ const getReturnActivities = async (company_id, fy_id) => {
               recon_exceptions: 0,
               pending_file: null,
             },
-            {
-              name: 'GSTR-3B',
-              corrections: outCorr + inCorr,
-              pending_upload: null,
-              recon_exceptions: 0,
-              pending_file: g3bFiled ? 0 : 1,
-            },
+            withPortal(
+              {
+                name: 'GSTR-3B',
+                corrections: outCorr + inCorr,
+                pending_upload: null,
+                recon_exceptions: 0,
+                pending_file: g3bFiled ? 0 : 1,
+              },
+              p3b,
+            ),
           ],
         };
       });

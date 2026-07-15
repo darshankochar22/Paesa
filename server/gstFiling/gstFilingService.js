@@ -10,7 +10,16 @@ const { sql, eq } = require('drizzle-orm');
 const { gstFilings } = require('../db/schema');
 const filing = require('../integrations/gstFilingClient');
 const wb = require('../integrations/whitebooksClient');
-const { getFilingConfig, getWhitebooksConfig } = require('../integrations/gspConfig');
+const sbx = require('../integrations/sandboxClient');
+const {
+  getFilingConfig,
+  getWhitebooksConfig,
+  getSandboxConfig,
+  getPortalProvider,
+} = require('../integrations/gspConfig');
+
+// year/month path segments Sandbox wants from a MMYYYY return period.
+const ymOf = (period) => ({ year: String(period).slice(2), month: String(period).slice(0, 2) });
 const gstr1Service = require('../gst/gstr1Service');
 const gstr3bService = require('../gst/gstr3bService');
 const gstRegistrationService = require('../gstRegistration/gstRegistrationService');
@@ -141,12 +150,16 @@ const getStatus = async (company_id) => {
 //       -> fileReturn(evc_otp). The two OTPs are distinct: login vs EVC-for-filing.
 
 // Send the GSTN login OTP to the chosen registration's registered mobile & e-mail.
+// Routes to whichever GSP backs the portal (Sandbox preferred when configured).
 const requestOtp = async (company_id, { gstin } = {}) => {
-  if (!getWhitebooksConfig())
-    return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
+  const provider = getPortalProvider();
+  if (!provider) return { success: false, error: 'No GST portal provider configured (.env)' };
   const reg = await resolveReg(company_id, gstin);
   if (reg && reg.error) return { success: false, error: reg.error };
-  const r = await wb.gst.otpRequest(reg);
+  const r =
+    provider === 'sandbox'
+      ? await sbx.gst.otpRequest(reg.username, reg.gstin)
+      : await wb.gst.otpRequest(reg);
   return r.ok
     ? { success: true, message: 'OTP sent to the registered mobile & e-mail.' }
     : { success: false, error: r.error };
@@ -154,17 +167,29 @@ const requestOtp = async (company_id, { gstin } = {}) => {
 
 // Exchange the login OTP for a GSTN session on the chosen registration.
 const authenticate = async (company_id, { gstin, otp } = {}) => {
-  if (!getWhitebooksConfig())
-    return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
+  const provider = getPortalProvider();
+  if (!provider) return { success: false, error: 'No GST portal provider configured (.env)' };
   if (!otp) return { success: false, error: 'OTP is required.' };
   const reg = await resolveReg(company_id, gstin);
   if (reg && reg.error) return { success: false, error: reg.error };
-  const r = await wb.gst.authenticate(reg, String(otp).trim());
+  const r =
+    provider === 'sandbox'
+      ? await sbx.gst.verifyOtp(String(otp).trim(), reg.username, reg.gstin)
+      : await wb.gst.authenticate(reg, String(otp).trim());
   return r.ok ? { success: true } : { success: false, error: r.error };
 };
 
 // Request an EVC OTP for the actual filing (separate from the login OTP above).
-const requestEvc = async () => {
+const requestEvc = async (company_id, { gstin } = {}) => {
+  const provider = getPortalProvider();
+  if (provider === 'sandbox') {
+    const reg = await resolveReg(company_id, gstin);
+    const pan = panOf((reg && reg.gstin) || getSandboxConfig()?.gstin || '');
+    const r = await sbx.gst.requestEvcOtp(pan);
+    return r.ok
+      ? { success: true, message: 'EVC OTP sent to the taxpayer’s registered mobile.' }
+      : { success: false, error: r.error };
+  }
   const wbc = getWhitebooksConfig();
   if (!wbc) return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
   const r = await wb.gst.request('GET', '/authentication/otpforevc', {
@@ -176,7 +201,19 @@ const requestEvc = async () => {
 };
 
 // Live GSTN-side status of a return period (as opposed to the local gst_filings record).
-const getReturnStatus = async (company_id, { return_period } = {}) => {
+const getReturnStatus = async (company_id, { return_period, gstin } = {}) => {
+  const provider = getPortalProvider();
+  if (provider === 'sandbox') {
+    // Public track needs no session; filter is optional so we return the whole period set.
+    const reg = await resolveReg(company_id, gstin);
+    const g = (reg && reg.gstin) || getSandboxConfig()?.gstin || '';
+    const startYear =
+      Number(String(return_period).slice(2)) -
+      (Number(String(return_period).slice(0, 2)) < 4 ? 1 : 0);
+    const r = await sbx.getFiledReturns(g, startYear);
+    if (!r.ok) return { success: false, error: r.error };
+    return { success: true, data: r.byPeriod[String(return_period)] || {} };
+  }
   const wbc = getWhitebooksConfig();
   if (!wbc) return { success: false, error: 'WhiteBooks GST filing not configured (.env)' };
   const r = await wb.gst.request('GET', '/gstr/retstatus', {
@@ -205,6 +242,41 @@ const saveToPortal = async (
   company_id,
   { return_type = 'GSTR1', fy_id, return_period, payload: externalPayload } = {},
 ) => {
+  if (getPortalProvider() === 'sandbox') {
+    const sess = sbx.gst.session();
+    if (!sess.active) return { success: false, error: 'Authenticate the GST portal (OTP) first.' };
+    const gstin = sess.gstin;
+    let payload;
+    if (externalPayload) payload = pruneEmptyGstn(externalPayload) || { gstin, fp: return_period };
+    else if (LOCAL_COMPUTE.has(return_type)) {
+      const res = await compute(return_type, company_id, fy_id, return_period);
+      if (!res.success) return res;
+      payload = pruneEmptyGstn(res.payload || res) || { gstin, fp: return_period };
+    } else {
+      return {
+        success: false,
+        error: `No local builder for ${return_type} — pass a payload to save it.`,
+      };
+    }
+    const { year, month } = ymOf(return_period);
+    const saveFn =
+      return_type === 'GSTR3B'
+        ? sbx.gst.saveGstr3b
+        : return_type === 'GSTR1'
+          ? sbx.gst.saveGstr1
+          : null;
+    if (!saveFn) return { success: false, error: `Sandbox save supports GSTR-1/GSTR-3B only.` };
+    const r = await saveFn(year, month, payload);
+    const refId = (r.data && (r.data.reference_id || r.data.ref_id)) || null;
+    await upsertFiling(company_id, return_type, return_period, {
+      status: r.ok ? 'SAVED' : 'ERROR',
+      summary: JSON.stringify(payload),
+      referenceId: refId,
+      rawResponse: JSON.stringify(r.body || r.error),
+      fyId: fy_id,
+    });
+    return r.ok ? { success: true, reference_id: refId } : { success: false, error: r.error };
+  }
   const wbc = getWhitebooksConfig();
   if (wbc) {
     let payload;
@@ -262,6 +334,53 @@ const fileReturn = async (
   company_id,
   { return_type = 'GSTR1', fy_id, return_period, evc_otp, payload: externalPayload } = {},
 ) => {
+  if (getPortalProvider() === 'sandbox') {
+    if (!evc_otp) return { success: false, error: 'EVC OTP is required to file.' };
+    const sess = sbx.gst.session();
+    if (!sess.active) return { success: false, error: 'Authenticate the GST portal (OTP) first.' };
+    const gstin = sess.gstin;
+    let payload;
+    if (externalPayload) payload = pruneEmptyGstn(externalPayload) || { gstin, fp: return_period };
+    else if (LOCAL_COMPUTE.has(return_type)) {
+      const res = await compute(return_type, company_id, fy_id, return_period);
+      if (!res.success) return res;
+      payload = pruneEmptyGstn(res.payload || res) || { gstin, fp: return_period };
+    } else {
+      return {
+        success: false,
+        error: `No local builder for ${return_type} — pass a payload to file it.`,
+      };
+    }
+    const { year, month } = ymOf(return_period);
+    const fileFn =
+      return_type === 'GSTR3B'
+        ? sbx.gst.fileGstr3b
+        : return_type === 'GSTR1'
+          ? sbx.gst.fileGstr1
+          : null;
+    if (!fileFn) return { success: false, error: `Sandbox file supports GSTR-1/GSTR-3B only.` };
+    const r = await fileFn(
+      year,
+      month,
+      { pan: panOf(gstin), otp: String(evc_otp).trim() },
+      payload,
+    );
+    if (!r.ok) {
+      await upsertFiling(company_id, return_type, return_period, {
+        status: 'ERROR',
+        rawResponse: JSON.stringify(r.body || r.error),
+      });
+      return { success: false, error: r.error };
+    }
+    const arn = (r.data && (r.data.arn || r.data.ARN)) || null;
+    await upsertFiling(company_id, return_type, return_period, {
+      status: 'FILED',
+      arn,
+      rawResponse: JSON.stringify(r.body || r.data),
+      fyId: fy_id,
+    });
+    return { success: true, arn };
+  }
   const wbc = getWhitebooksConfig();
   if (wbc) {
     if (!evc_otp) return { success: false, error: 'EVC OTP is required to file.' };

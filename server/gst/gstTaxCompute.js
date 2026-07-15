@@ -485,9 +485,12 @@ const computeVoucherTaxLines = async (db, payload) => {
     }
   }
 
-  // 4. Generate updated accounting entries (double-entry injection)
-  // Determine if it is a debit or credit tax post
-  const isPurchase = voucher_type === 'Purchase' || voucher_type === 'Debit Note';
+  // 4. Generate updated accounting entries (double-entry injection).
+  // Only a Purchase posts input tax Dr / party Cr. A Debit Note is a PURCHASE RETURN — it
+  // DEBITS the supplier (party Dr) and reverses the input tax (Cr), the mirror of a purchase —
+  // so it must NOT be grouped with Purchase here. (The manual flow already treats it this way;
+  // grouping Debit Note with Purchase produced an all-Cr, unbalanced voucher.)
+  const isPurchase = voucher_type === 'Purchase';
   const taxEntryType = isPurchase ? 'Dr' : 'Cr';
   const partyEntryType = isPurchase ? 'Cr' : 'Dr';
 
@@ -500,8 +503,11 @@ const computeVoucherTaxLines = async (db, payload) => {
   const existingTaxLedgerIds = existingTaxLedgers.filter(Boolean).map((l) => Number(l.id));
   const finalEntries = entries.filter((e) => !existingTaxLedgerIds.includes(Number(e.ledger_id)));
 
-  // Inject CGST, SGST, IGST lines
-  if (!isInterState) {
+  // Inject CGST, SGST, IGST lines. Use effectiveInterState (not the raw state-vs-state
+  // isInterState) so it matches how the AMOUNTS were split above — otherwise an SEZ/export
+  // supply WITH payment of tax whose party sits in the company's own state computes IGST but
+  // injects no IGST posting, leaving the voucher unbalanced.
+  if (!effectiveInterState) {
     if (totalCGST > 0) {
       const cgstLedger = await resolveOrOverride('CGST');
       finalEntries.push({

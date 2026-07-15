@@ -203,14 +203,14 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
       let samt = 0;
       let cess = 0;
 
-      const seenHsnAssessable = new Set();
       taxLines.forEach((line) => {
-        const key = `${line.hsnCode || line.hsn_code}_${line.assessableValue || line.assessable_value}`;
-        if (!seenHsnAssessable.has(key)) {
-          txval += line.assessableValue || line.assessable_value || 0;
-          seenHsnAssessable.add(key);
-        }
         const ttype = line.taxType || line.tax_type;
+        const av = line.assessableValue || line.assessable_value || 0;
+        // Count each item's taxable value ONCE: a taxed item has exactly one IGST line
+        // (inter-state) or one CGST line (intra-state), with SGST/CESS accompanying it — so
+        // add the value on IGST/CGST only. (The old Set keyed on hsn+value silently collapsed
+        // two distinct items that shared the same HSN and taxable value.)
+        if (ttype === 'IGST' || ttype === 'CGST') txval += av;
         if (ttype === 'IGST') iamt += line.amount || 0;
         else if (ttype === 'CGST') camt += line.amount || 0;
         else if (ttype === 'SGST') samt += line.amount || 0;
@@ -259,14 +259,13 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
         }
       }
 
-      const isOutward =
-        vtype === 'Sales' ||
-        (vtype === 'Debit Note' && isRegistered) ||
-        (vtype === 'Credit Note' && !isRegistered);
-      const isInward =
-        vtype === 'Purchase' ||
-        (vtype === 'Debit Note' && !isRegistered) ||
-        (vtype === 'Credit Note' && isRegistered);
+      // Direction follows the DOCUMENT, not the party's registration status:
+      //   Sales / Credit Note (sales return)      → OUTWARD (3.1a; a credit note nets down)
+      //   Purchase / Debit Note (purchase return) → INWARD  (ITC; a debit note reverses ITC)
+      // Registration status decides B2B-vs-B2C, never inward-vs-outward — keying on it wrongly
+      // routed registered-party credit notes into ITC and understated outward liability.
+      const isOutward = vtype === 'Sales' || vtype === 'Credit Note';
+      const isInward = vtype === 'Purchase' || vtype === 'Debit Note';
 
       if (isOutward) {
         const isCreditNote = vtype === 'Credit Note';

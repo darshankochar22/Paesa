@@ -10,7 +10,12 @@
 // gstin is injected from .env (developer-side); the transport adds email + session headers.
 
 const wb = require('../integrations/whitebooksClient');
-const { getWhitebooksConfig } = require('../integrations/gspConfig');
+const sbx = require('../integrations/sandboxClient');
+const {
+  getWhitebooksConfig,
+  getSandboxConfig,
+  getPortalProvider,
+} = require('../integrations/gspConfig');
 const { buildImportPayload } = require('./gstr2Transform');
 
 const cfg = () => getWhitebooksConfig();
@@ -110,7 +115,53 @@ const isEmptySectionError = (msg = '') =>
     String(msg).trim(),
   );
 
+// Sandbox exposes the whole statement in one GET (gstr-2a / gstr-2b document), so we fetch
+// once and hand the raw envelope to buildImportPayload — its findDocRoot walks the data/docdata
+// layers just like it does for the WhiteBooks section GETs.
+async function fetchGstr2FromPortalSandbox(kind, { company_id, fy_id, return_period }) {
+  if (!getSandboxConfig()) return { success: false, error: 'Sandbox not configured (.env)' };
+  if (!company_id || !fy_id) return { success: false, error: 'company_id and fy_id are required.' };
+  if (!/^\d{6}$/.test(String(return_period || '')))
+    return { success: false, error: 'Enter the return period as MMYYYY (e.g. 062026).' };
+  if (!sbx.gst.session().active)
+    return { success: false, error: 'Authenticate the GST portal (OTP) first.' };
+  const year = String(return_period).slice(2);
+  const month = String(return_period).slice(0, 2);
+  const r =
+    kind === '2A' ? await sbx.gst.getGstr2a(year, month) : await sbx.gst.getGstr2b(year, month);
+  if (!r.ok) {
+    if (isEmptySectionError(r.error))
+      return {
+        success: true,
+        imported: false,
+        suppliers: 0,
+        documents: 0,
+        sections: [],
+        warning: `The portal has no GSTR-${kind} documents for ${return_period}.`,
+      };
+    return { success: false, error: r.error };
+  }
+  const { payload, suppliers, documents } = buildImportPayload({ all: r.data });
+  if (!documents)
+    return {
+      success: true,
+      imported: false,
+      suppliers: 0,
+      documents: 0,
+      sections: ['all'],
+      warning: `The portal has no GSTR-${kind} documents for ${return_period}.`,
+    };
+  const reconciliationService = require('../gst/reconciliationService');
+  const importer =
+    kind === '2A' ? reconciliationService.importGSTR2A : reconciliationService.importGSTR2B;
+  const imp = await importer(company_id, fy_id, String(return_period), payload);
+  if (!imp?.success) return { success: false, error: imp?.error || 'Import into books failed.' };
+  return { success: true, imported: true, suppliers, documents, sections: ['all'] };
+}
+
 async function fetchGstr2FromPortal(kind, { company_id, fy_id, return_period } = {}) {
+  if (getPortalProvider() === 'sandbox')
+    return fetchGstr2FromPortalSandbox(kind, { company_id, fy_id, return_period });
   const nc = notConfigured();
   if (nc) return nc;
   const def = GSTR2_SECTIONS[kind];

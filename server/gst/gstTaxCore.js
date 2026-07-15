@@ -144,6 +144,16 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
         resolved.sgst_rate = item.sgst_rate || 0;
         resolved.igst_rate = item.igst_rate || 0;
         resolved.source = 'stock_item';
+        // The stock_items table has no cess column, so an item rated at the item level would
+        // otherwise return zero cess. Inherit any cess configured on its stock group so a cess
+        // item (autos/tobacco/aerated drinks) still reports cess instead of silently zeroing it.
+        if (item.group_id) {
+          const gRows = await db.all(
+            sql`SELECT cess_rate FROM ${stockGroups}
+                WHERE ${stockGroups.sgId} = ${item.group_id} AND ${stockGroups.companyId} = ${company_id}`,
+          );
+          if (gRows[0] && (gRows[0].cess_rate || 0) > 0) resolved.cess_rate = gRows[0].cess_rate;
+        }
         return resolved;
       }
 

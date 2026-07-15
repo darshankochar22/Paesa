@@ -8,6 +8,8 @@
 
 jest.mock('../integrations/gspConfig', () => ({
   getWhitebooksConfig: () => ({ gst: { gstin: '27AAGCB1286Q1Z4' } }),
+  getSandboxConfig: () => null,
+  getPortalProvider: () => 'whitebooks',
 }));
 
 const mockRequest = jest.fn();

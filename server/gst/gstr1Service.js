@@ -149,9 +149,11 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
     const gstLedgerIds = new Set(gstLedgerRows.map((r) => Number(r.ledger_id)));
 
     for (const voucher of rawVouchers) {
-      // We only include sales related vouchers: Sales, Debit Note, Credit Note
+      // GSTR-1 is OUTWARD only: Sales and Credit Notes (sales returns). A Debit Note in this
+      // app is a PURCHASE RETURN (inward) — it belongs to the ITC/GSTR-2 side, never outward —
+      // so it is excluded here (matching classifyVoucher's "Not Relevant" for inward docs).
       const vtype = voucher.voucher_type;
-      if (vtype !== 'Sales' && vtype !== 'Credit Note' && vtype !== 'Debit Note') {
+      if (vtype !== 'Sales' && vtype !== 'Credit Note') {
         continue;
       }
 
@@ -434,8 +436,10 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         });
       };
 
-      if (vtype === 'Credit Note' || vtype === 'Debit Note') {
-        const ntty = vtype === 'Credit Note' ? 'C' : 'D';
+      if (vtype === 'Credit Note') {
+        // Only Credit Notes (sales returns) reach GSTR-1 CDN — Debit Notes were filtered out
+        // above as inward. GSTN note type 'C' = credit.
+        const ntty = 'C';
         if (validPartyGstin) {
           // CDNR — notes to registered parties.
           const ctin = voucher.party_gstin;
@@ -561,7 +565,10 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         // lines), so derive CGST/SGST/IGST from the rate + supply type — otherwise the
         // HSN summary reports zero tax and fails to reconcile with the return.
         const hsnRate = rateDetails.gst_rate || entry.gst_rate || 0;
-        const isInter = taxLines.some((l) => l.tax_type === 'IGST');
+        // Use the voucher's actual inter-state flag (POS vs company state), not the presence of
+        // an IGST tax line — a supply whose lines were synthesised as TAXABLE-only would else be
+        // mis-split as CGST/SGST in the HSN summary even when it is inter-state.
+        const isInter = isInterState;
         let hIamt = entry.igst_amount || 0,
           hCamt = entry.cgst_amount || 0,
           hSamt = entry.sgst_amount || 0;
