@@ -204,8 +204,8 @@ contextBridge.exposeInMainWorld('api', {
       invoke('report:ledgerOutstandings', { company_id, fy_id, ledger_id }),
     groupOutstandings: (company_id, fy_id, group_id) =>
       invoke('report:groupOutstandings', { company_id, fy_id, group_id }),
-    billVouchers: (company_id, fy_id, ledger_id, bill_name) =>
-      invoke('report:billVouchers', { company_id, fy_id, ledger_id, bill_name }),
+    billVouchers: (company_id, fy_id, ledger_id, bill_name, voucher_id) =>
+      invoke('report:billVouchers', { company_id, fy_id, ledger_id, bill_name, voucher_id }),
     interestReceivable: (company_id, fy_id, params) =>
       invoke('report:interestReceivable', { company_id, fy_id, params }),
     interestPayable: (company_id, fy_id, params) =>

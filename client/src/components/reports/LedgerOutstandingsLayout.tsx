@@ -44,6 +44,7 @@ interface LedgerMeta {
 }
 interface BillRow {
   bill: string;
+  voucher_id?: number; // set for derived (un-referenced) voucher bills → drill-down
   bill_date: string;
   due_date: string;
   credit_period: string;
@@ -51,11 +52,24 @@ interface BillRow {
   opening_amount: number; // signed: Dr = +, Cr = -
   pending_amount: number; // signed
 }
+interface OnAccountDetail {
+  voucher_id?: number; // set for a real voucher line → click to open it
+  date: string;
+  label: string; // "Opening Balance" or the voucher type ("Credit Note")
+  ref?: string; // voucher number, shown as Ref No.
+  amount: number; // signed
+  stock_items?: StockItemLine[];
+}
 interface OnAccount {
   date: string;
   amount: number;
+  details?: OnAccountDetail[];
 }
 interface SubTotal {
+  opening: number;
+  pending: number;
+}
+interface GrandTotal {
   opening: number;
   pending: number;
 }
@@ -102,6 +116,7 @@ export default function LedgerOutstandingsLayout() {
   const [rows, setRows] = React.useState<BillRow[]>([]);
   const [subTotal, setSubTotal] = React.useState<SubTotal>({ opening: 0, pending: 0 });
   const [onAccount, setOnAccount] = React.useState<OnAccount | null>(null);
+  const [grandTotal, setGrandTotal] = React.useState<GrandTotal | null>(null);
   const [as_on, setAsOn] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -109,6 +124,8 @@ export default function LedgerOutstandingsLayout() {
 
   /* Inline expansion: which bill is open + its fetched vouchers (cached by bill name). */
   const [expandedBill, setExpandedBill] = React.useState<string | null>(null);
+  /* On Account row expand/collapse (shows its component lines, e.g. Opening Balance). */
+  const [onAccountOpen, setOnAccountOpen] = React.useState(false);
   const [voucherCache, setVoucherCache] = React.useState<Record<string, BillVoucherRow[]>>({});
   const [loadingBill, setLoadingBill] = React.useState<string | null>(null);
 
@@ -148,6 +165,8 @@ export default function LedgerOutstandingsLayout() {
           setRows(res.rows || []);
           setSubTotal(res.sub_total || { opening: 0, pending: 0 });
           setOnAccount(res.on_account || null);
+          setGrandTotal(res.grand_total || null);
+          setOnAccountOpen(false);
           setAsOn(res.as_on || '');
         } else {
           setError(res?.error || 'Failed to load.');
@@ -165,7 +184,7 @@ export default function LedgerOutstandingsLayout() {
       if (voucherCache[row.bill] || !row.bill) return;
       setLoadingBill(row.bill);
       (window as any).api.report
-        .billVouchers(cid, fyid, ledgerId, row.bill)
+        .billVouchers(cid, fyid, ledgerId, row.bill, row.voucher_id)
         .then((res: any) => {
           if (res?.success) setVoucherCache((prev) => ({ ...prev, [row.bill]: res.rows || [] }));
         })
@@ -497,14 +516,77 @@ export default function LedgerOutstandingsLayout() {
                     </tr>
                   )}
 
-                  {/* On Account — amounts not allocated to any bill */}
+                  {/* On Account — amounts not allocated to any bill. Click to
+                      expand its component lines (e.g. the Opening Balance). */}
                   {onAccount && (
-                    <tr className="font-bold text-black select-none">
-                      <td className="px-3 py-1.5">{fmtDate(onAccount.date)}</td>
+                    <>
+                      <tr
+                        className="font-bold text-black select-none cursor-pointer hover:bg-black/[0.03]"
+                        onClick={() => setOnAccountOpen((o) => !o)}
+                      >
+                        <td className="px-3 py-1.5">{fmtDate(onAccount.date)}</td>
+                        <td />
+                        <td className="px-3 py-1.5">On Account</td>
+                        <td />
+                        <td className="px-3 py-1.5 text-right">{fmtSigned(onAccount.amount)}</td>
+                        <td />
+                        <td />
+                      </tr>
+                      {onAccountOpen &&
+                        (onAccount.details ?? []).map((d, di) => (
+                          <React.Fragment key={`oa-${di}`}>
+                            {/* Detail line: date, particulars (Opening Balance /
+                                voucher type), Ref No + signed amount. */}
+                            <tr
+                              className={`bg-white text-black italic select-none ${d.voucher_id ? 'cursor-pointer hover:bg-black/[0.03]' : ''}`}
+                              onClick={
+                                d.voucher_id
+                                  ? (e) => {
+                                      e.stopPropagation();
+                                      navigate(`/transactions/voucher/${d.voucher_id}`);
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <td className="px-3 py-0.5 pl-8">{fmtDate(d.date)}</td>
+                              <td className="px-3 py-0.5">{d.label}</td>
+                              <td className="px-3 py-0.5">
+                                <div className="flex justify-between pr-3">
+                                  <span>{d.ref || ''}</span>
+                                  <span>{fmtSigned(d.amount)}</span>
+                                </div>
+                              </td>
+                              <td colSpan={4} />
+                            </tr>
+                            {/* Stock item lines under the voucher: qty + unit, item, rate/unit. */}
+                            {(d.stock_items ?? []).map((s, si) => (
+                              <tr
+                                key={`oa-${di}-${si}`}
+                                className="bg-white text-black font-semibold"
+                              >
+                                <td className="px-3 py-0.5 pl-8">
+                                  {fmtQty(s.quantity, s.unit_symbol)}
+                                </td>
+                                <td className="px-3 py-0.5">{s.item_name}</td>
+                                <td className="px-3 py-0.5 text-right pr-3">
+                                  {fmtRate(s.rate, s.unit_symbol)}
+                                </td>
+                                <td colSpan={4} />
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        ))}
+                    </>
+                  )}
+
+                  {/* Grand Total — footed at the bottom (Tally parity). */}
+                  {grandTotal && (rows.length > 0 || onAccount) && (
+                    <tr className="border-t-2 border-black font-bold text-black select-none">
                       <td />
-                      <td className="px-3 py-1.5">On Account</td>
                       <td />
-                      <td className="px-3 py-1.5 text-right">{fmtSigned(onAccount.amount)}</td>
+                      <td className="px-3 py-1.5">Grand Total</td>
+                      <td className="px-3 py-1.5 text-right">{fmtSigned(grandTotal.opening)}</td>
+                      <td className="px-3 py-1.5 text-right">{fmtSigned(grandTotal.pending)}</td>
                       <td />
                       <td />
                     </tr>
