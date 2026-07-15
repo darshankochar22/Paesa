@@ -8,7 +8,11 @@ const { cashBook } = require('./ledger/cashBook');
 const bankBook = require('./ledger/bankBook');
 const daybook = require('./daybook/daybook');
 const { groupSummary } = require('./financial/groupSummary');
-const { statistics, statisticsVoucherMonthly, statisticsVoucherDayList } = require('./financial/statistics');
+const {
+  statistics,
+  statisticsVoucherMonthly,
+  statisticsVoucherDayList,
+} = require('./financial/statistics');
 const { costCategorySummary } = require('./financial/costCategorySummary');
 const { stockItemSummary } = require('./inventory/stockItemSummary');
 const { stockQuery } = require('./stockQueryService');
@@ -16,9 +20,17 @@ const { stockGroupSummary } = require('./inventory/stockGroupSummary');
 const { stockCategorySummary } = require('./inventory/stockCategorySummary');
 const { stockGroupAnalysis, stockGroupAnalysisItems } = require('./inventory/stockGroupAnalysis');
 const { stockAgeingAnalysis } = require('./inventory/ageingAnalysis');
-const { stockCategoryAnalysis, stockCategoryAnalysisItems } = require('./inventory/stockCategoryAnalysis');
+const {
+  stockCategoryAnalysis,
+  stockCategoryAnalysisItems,
+} = require('./inventory/stockCategoryAnalysis');
 const { stockItemAnalysis } = require('./inventory/stockItemAnalysis');
-const { groupAnalysis, ledgerAnalysis, groupItemVouchers, ledgerItemVouchers } = require('./inventory/groupAnalysis');
+const {
+  groupAnalysis,
+  ledgerAnalysis,
+  groupItemVouchers,
+  ledgerItemVouchers,
+} = require('./inventory/groupAnalysis');
 const { transferAnalysis, transferItemVouchers } = require('./inventory/transferAnalysis');
 const { costEstimation } = require('./inventory/costEstimation');
 const { itemCostAnalysis } = require('./inventory/itemCostAnalysis');
@@ -55,12 +67,14 @@ const { salesRegisterVouchers } = require('./registers/salesRegisterVouchers');
 const { purchaseRegisterVouchers } = require('./registers/purchaseRegisterVouchers');
 const { journalRegisterVouchers } = require('./registers/journalRegisterVouchers');
 const { memorandumRegisterVouchers } = require('./registers/memorandumRegisterVouchers');
-const { reversingJournalRegisterVouchers } = require('./registers/reversingJournalRegisterVouchers');
+const {
+  reversingJournalRegisterVouchers,
+} = require('./registers/reversingJournalRegisterVouchers');
 const { debitNoteRegisterVouchers } = require('./registers/debitNoteRegisterVouchers');
 const { creditNoteRegisterVouchers } = require('./registers/creditNoteRegisterVouchers');
 
-const { paymentRegisterVouchers } = require("./registers/paymentRegisterVouchers");
-const { receiptRegisterVouchers } = require("./registers/receiptRegisterVouchers");
+const { paymentRegisterVouchers } = require('./registers/paymentRegisterVouchers');
+const { receiptRegisterVouchers } = require('./registers/receiptRegisterVouchers');
 const { paymentRegister } = require('./registers/paymentRegister');
 const { receiptRegister } = require('./registers/receiptRegister');
 module.exports = {
@@ -124,6 +138,9 @@ module.exports = {
   stockSummary: async (event, { company_id, fy_id, as_on_date, method }) => {
     return await stockSummaryReportService.stockSummary(company_id, fy_id, as_on_date, method);
   },
+  openingStockSummary: async (event, { company_id, fy_id }) => {
+    return await stockSummaryReportService.openingStockSummary(company_id, fy_id);
+  },
   stockGroupItems: async (event, { company_id, fy_id, group_id }) => {
     return await stockSummaryReportService.stockGroupItems(company_id, fy_id, group_id);
   },
@@ -146,7 +163,11 @@ module.exports = {
     return await stockSummaryReportService.partyOrders(company_id, party_ledger_id, voucher_type);
   },
   partyTrackingNumbers: async (event, { company_id, party_ledger_id, voucher_type }) => {
-    return await stockSummaryReportService.partyTrackingNumbers(company_id, party_ledger_id, voucher_type);
+    return await stockSummaryReportService.partyTrackingNumbers(
+      company_id,
+      party_ledger_id,
+      voucher_type,
+    );
   },
   pendingVoucherItems: async (event, { company_id, voucher_id, mode }) => {
     return await stockSummaryReportService.pendingVoucherItems(company_id, voucher_id, mode);
@@ -155,7 +176,14 @@ module.exports = {
     return await stockSummaryReportService.batchesForItem(company_id, item_id);
   },
   batchVouchers: async (event, { company_id, fy_id, item_id, batch, from_date, to_date }) => {
-    return await stockSummaryReportService.batchVouchers(company_id, fy_id, item_id, batch, from_date, to_date);
+    return await stockSummaryReportService.batchVouchers(
+      company_id,
+      fy_id,
+      item_id,
+      batch,
+      from_date,
+      to_date,
+    );
   },
   godownItems: async (event, { company_id, fy_id, godown_id, as_on_date }) => {
     return await stockSummaryReportService.godownItems(company_id, fy_id, godown_id, as_on_date);
@@ -164,25 +192,51 @@ module.exports = {
     return await stockSummaryReportService.godownItemMonthly(company_id, fy_id, godown_id, item_id);
   },
   godownVouchers: async (event, { company_id, fy_id, godown_id, item_id, from_date, to_date }) => {
-    return await stockSummaryReportService.godownVouchers(company_id, fy_id, godown_id, item_id, from_date, to_date);
+    return await stockSummaryReportService.godownVouchers(
+      company_id,
+      fy_id,
+      godown_id,
+      item_id,
+      from_date,
+      to_date,
+    );
   },
   stockItemVouchers: async (event, { company_id, fy_id, item_id, from_date, to_date }) => {
-    return await stockSummaryReportService.stockItemVouchers(company_id, fy_id, item_id, from_date, to_date);
+    return await stockSummaryReportService.stockItemVouchers(
+      company_id,
+      fy_id,
+      item_id,
+      from_date,
+      to_date,
+    );
   },
   stockCategoryItems: async (event, { company_id, fy_id, category_id }) => {
     return await stockSummaryReportService.stockCategoryItems(company_id, fy_id, category_id);
   },
   inventoryRegisterMonthly: async (event, { company_id, fy_id, voucher_type }) => {
-    return await stockSummaryReportService.inventoryRegisterMonthly(company_id, fy_id, voucher_type);
+    return await stockSummaryReportService.inventoryRegisterMonthly(
+      company_id,
+      fy_id,
+      voucher_type,
+    );
   },
-  inventoryRegisterVouchers: async (event, { company_id, fy_id, voucher_type, from_date, to_date }) => {
-    return await stockSummaryReportService.inventoryRegisterVouchers(company_id, fy_id, voucher_type, from_date, to_date);
+  inventoryRegisterVouchers: async (
+    event,
+    { company_id, fy_id, voucher_type, from_date, to_date },
+  ) => {
+    return await stockSummaryReportService.inventoryRegisterVouchers(
+      company_id,
+      fy_id,
+      voucher_type,
+      from_date,
+      to_date,
+    );
   },
   ratioAnalysis: async (event, { company_id, fy_id }) => {
     return await ratioAnalysisReportService.ratioAnalysis(company_id, fy_id);
   },
   contraRegister: async (event, { company_id, fy_id }) => {
-  return await contraRegister(company_id, fy_id);
+    return await contraRegister(company_id, fy_id);
   },
   journalRegister: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await journalRegister(company_id, fy_id, from_date, to_date);
@@ -206,7 +260,7 @@ module.exports = {
     return await salesRegister(company_id, fy_id, from_date, to_date);
   },
   contraRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
-  return await contraRegisterVouchers(company_id, fy_id, from_date, to_date);
+    return await contraRegisterVouchers(company_id, fy_id, from_date, to_date);
   },
 
   run: async (event, { reportId, params }) => {
@@ -238,7 +292,10 @@ module.exports = {
   statisticsVoucherMonthly: async (event, { company_id, fy_id, voucher_type }) => {
     return await statisticsVoucherMonthly(company_id, fy_id, voucher_type);
   },
-  statisticsVoucherDayList: async (event, { company_id, fy_id, voucher_type, from_date, to_date }) => {
+  statisticsVoucherDayList: async (
+    event,
+    { company_id, fy_id, voucher_type, from_date, to_date },
+  ) => {
     return await statisticsVoucherDayList(company_id, fy_id, voucher_type, from_date, to_date);
   },
   costCategorySummary: async (event, { company_id, fy_id }) => {
@@ -261,10 +318,26 @@ module.exports = {
     return await reorderStatusScoped(company_id, fy_id, scope_type, scope_id);
   },
   orderOutstanding: async (event, { company_id, fy_id, type, dimension, selection_id }) => {
-    return await advancedInventoryReportService.orderOutstanding(company_id, fy_id, type, dimension, selection_id);
+    return await advancedInventoryReportService.orderOutstanding(
+      company_id,
+      fy_id,
+      type,
+      dimension,
+      selection_id,
+    );
   },
-  orderMovements: async (event, { company_id, fy_id, type, voucher_id, stock_item_id, order_no }) => {
-    return await advancedInventoryReportService.orderMovements(company_id, fy_id, type, voucher_id, stock_item_id, order_no);
+  orderMovements: async (
+    event,
+    { company_id, fy_id, type, voucher_id, stock_item_id, order_no },
+  ) => {
+    return await advancedInventoryReportService.orderMovements(
+      company_id,
+      fy_id,
+      type,
+      voucher_id,
+      stock_item_id,
+      order_no,
+    );
   },
   billsPending: async (event, { company_id, fy_id, type }) => {
     return await advancedInventoryReportService.billsPending(company_id, fy_id, type);
@@ -344,9 +417,10 @@ module.exports = {
     return await jobWorkAnnexure(company_id, fy_id, annexure, excise_unit_id);
   },
   jobWorkAgeing: async (event, { company_id, fy_id, group_id, as_at, fy_start, direction }) => {
-    const opts = direction === 'out'
-      ? { inwardTypes: ['Material Out'], outwardTypes: ['Material In'], includeOpening: false }
-      : { inwardTypes: ['Material In'], outwardTypes: ['Material Out'], includeOpening: false };
+    const opts =
+      direction === 'out'
+        ? { inwardTypes: ['Material Out'], outwardTypes: ['Material In'], includeOpening: false }
+        : { inwardTypes: ['Material In'], outwardTypes: ['Material Out'], includeOpening: false };
     return await stockAgeingAnalysis(company_id, fy_id, group_id, as_at, fy_start, undefined, opts);
   },
 

@@ -28,6 +28,7 @@ function register() {
   ipcMain.handle('report:billWiseInterest', reportController.billWiseInterest);
   ipcMain.handle('report:fundsFlow', reportController.fundsFlow);
   ipcMain.handle('report:stockSummary', reportController.stockSummary);
+  ipcMain.handle('report:openingStockSummary', reportController.openingStockSummary);
   ipcMain.handle('report:stockGroupItems', reportController.stockGroupItems);
   ipcMain.handle('report:stockItemMonthly', reportController.stockItemMonthly);
   ipcMain.handle('report:batchItems', reportController.batchItems);
@@ -143,7 +144,10 @@ function register() {
   ipcMain.handle('report:purchaseRegisterVouchers', reportController.purchaseRegisterVouchers);
   ipcMain.handle('report:journalRegisterVouchers', reportController.journalRegisterVouchers);
   ipcMain.handle('report:memorandumRegisterVouchers', reportController.memorandumRegisterVouchers);
-  ipcMain.handle('report:reversingJournalRegisterVouchers', reportController.reversingJournalRegisterVouchers);
+  ipcMain.handle(
+    'report:reversingJournalRegisterVouchers',
+    reportController.reversingJournalRegisterVouchers,
+  );
   ipcMain.handle('report:debitNoteRegisterVouchers', reportController.debitNoteRegisterVouchers);
   ipcMain.handle('report:creditNoteRegisterVouchers', reportController.creditNoteRegisterVouchers);
 

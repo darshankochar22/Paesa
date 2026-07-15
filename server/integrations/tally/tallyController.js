@@ -286,6 +286,7 @@ module.exports = {
         fyStart: fy_start,
         preserveNumbers: !!preserve_numbers,
         companyGstin: (masters.company && masters.company.gstin) || null,
+        gstRegistrations: masters.gstRegistrations || [],
         onProgress: (phase, i) => send({ phase, ...i }),
       });
       return { success: true, summary };

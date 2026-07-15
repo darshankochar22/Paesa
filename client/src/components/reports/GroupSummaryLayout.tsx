@@ -134,6 +134,7 @@ export default function GroupSummaryLayout() {
 
   const handleDrilldown = React.useCallback(
     (item: (typeof flatItems)[0]) => {
+      if (item.id < 0) return; // virtual row (e.g. Opening Stock) — not drillable
       if (item.type === 'group') {
         navigate(`/reports/accounts/group-summary/${item.id}`);
       } else {

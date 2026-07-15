@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCompany } from '../../../context/CompanyContext';
 import { cn } from '@/lib/utils';
 import type { StockSummaryGroupNode } from '@/types/api/Transactions';
+import StockItemVouchersTable, { type StockVoucherRow } from './StockItemVouchersTable';
 
 interface StockItem {
   item_id: number;
@@ -29,9 +30,24 @@ interface MonthRow {
 type Row = { kind: 'group'; node: StockSummaryGroupNode } | { kind: 'item'; item: StockItem };
 
 // "groups" covers every depth of the stock-group tree (root and nested,
-// since a node's shape is identical at any depth) plus a terminal "monthly"
-// level for a single item's month-wise movement.
-type Level = 'groups' | 'monthly';
+// since a node's shape is identical at any depth), then "monthly" for a single
+// item's month-wise movement, then "vouchers" for the vouchers within one month.
+type Level = 'groups' | 'monthly' | 'vouchers';
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dmyLabel = (iso: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `${Number(m[3])}-${MON3[Number(m[2]) - 1]}-${m[1].slice(2)}` : iso;
+};
+// Calendar range for a month index (0 = April) within an Apr–Mar financial year.
+const monthRange = (fyStartYear: number, idx: number) => {
+  const raw = idx + 4;
+  const y = raw > 12 ? fyStartYear + 1 : fyStartYear;
+  const m = raw > 12 ? raw - 12 : raw;
+  const lastDay = new Date(y, m, 0).getDate();
+  return { from: `${y}-${pad2(m)}-01`, to: `${y}-${pad2(m)}-${pad2(lastDay)}` };
+};
 
 const fmt = (val: number, digits = 2): string => {
   if (val === 0) return '';
@@ -49,6 +65,17 @@ const fmtQty = (val: number): string => {
   }).format(val);
 };
 
+const fmtTick = (v: number): string => {
+  if (Math.abs(v) < 0.5) return '0';
+  if (Math.abs(v) >= 100000) return `${(v / 100000).toFixed(1)}L`;
+  return Math.round(v).toLocaleString('en-IN');
+};
+
+// Line chart of monthly Closing Stock Value. Handles NEGATIVE values: the zero
+// line sits proportionally inside the plot (top = max, bottom = min) so a month
+// whose closing value is negative dips BELOW the baseline — matching Tally's
+// downward bars for negative stock. Axis ticks span the real min…max range
+// (they were previously all "0" because only the positive max was used).
 function MonthlyChart({ months }: { months: MonthRow[] }) {
   const W = 520,
     H = 140;
@@ -60,22 +87,36 @@ function MonthlyChart({ months }: { months: MonthRow[] }) {
   const chartH = H - PADT - PADB;
 
   const values = months.map((m) => m.closing_value);
-  const maxVal = Math.max(...values, 0.01);
+  // Always include the zero line in range so the baseline is meaningful.
+  const maxVal = Math.max(0, ...values);
+  const minVal = Math.min(0, ...values);
+  const flat = maxVal - minVal < 1e-9; // every closing value is 0
+  const span = flat ? 1 : maxVal - minVal;
+  // When flat (all-zero) put the line/baseline in the vertical middle.
+  const yFor = (v: number) => (flat ? PADT + chartH / 2 : PADT + ((maxVal - v) / span) * chartH);
 
   const points = months.map((m, i) => {
     const x = PADL + (months.length > 1 ? i / (months.length - 1) : 0.5) * chartW;
-    const y = PADT + chartH - (m.closing_value / maxVal) * chartH;
-    return { x, y, m };
+    return { x, y: yFor(m.closing_value), m };
   });
 
   const pathD = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
     .join(' ');
 
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
-    v: maxVal * f,
-    y: PADT + chartH - f * chartH,
-  }));
+  // Ticks across the real min…max span (deduped by label so repeats collapse;
+  // a flat 0 series shows a single "0").
+  const yTicks = flat
+    ? [{ v: 0, y: PADT + chartH / 2 }]
+    : Array.from(
+        new Map(
+          [0, 0.25, 0.5, 0.75, 1].map((f) => {
+            const v = minVal + f * span;
+            return [fmtTick(v), { v, y: PADT + chartH - f * chartH }] as const;
+          }),
+        ).values(),
+      );
+  const zeroY = yFor(0);
 
   const [hovered, setHovered] = useState<number | null>(null);
 
@@ -95,18 +136,13 @@ function MonthlyChart({ months }: { months: MonthRow[] }) {
 
       {yTicks.map((t, i) => (
         <text key={i} x={PADL - 4} y={t.y + 3} textAnchor="end" fill="#71717a" fontSize={9}>
-          {t.v === 0
-            ? '0'
-            : t.v >= 100000
-              ? `${(t.v / 100000).toFixed(1)}L`
-              : t.v >= 1000
-                ? `${(t.v / 1000).toFixed(0)}K`
-                : t.v.toFixed(0)}
+          {fmtTick(t.v)}
         </text>
       ))}
 
       <line x1={PADL} y1={PADT} x2={PADL} y2={PADT + chartH} stroke="#d4d4d8" />
-      <line x1={PADL} y1={PADT + chartH} x2={W - PADR} y2={PADT + chartH} stroke="#d4d4d8" />
+      {/* Solid zero baseline — bars/points below it are negative stock value. */}
+      <line x1={PADL} y1={zeroY} x2={W - PADR} y2={zeroY} stroke="#a1a1aa" strokeWidth={1} />
 
       <path d={pathD} fill="none" stroke="#52525b" strokeWidth={1.5} />
 
@@ -156,9 +192,17 @@ function MonthlyChart({ months }: { months: MonthRow[] }) {
   );
 }
 
-export default function StockSummary() {
+// `opening` renders the Opening Stock Summary (the P&L "Opening Stock" drill):
+// the stock items' own opening balances instead of the movement-based closing
+// valuation. Same grouping/nesting UI — only the data source and column labels
+// differ, and the per-item monthly drill (a movement view) is disabled.
+export default function StockSummary({ opening = false }: { opening?: boolean }) {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
+
+  const reportLabel = opening ? 'Opening Stock Summary' : 'Stock Summary';
+  const qtyHeader = opening ? 'Quantity' : 'Closing Qty';
+  const valueHeader = opening ? 'Value' : 'Closing Value';
 
   // ── Level state ────────────────────────────────────────────────────────────
   // "groups" handles every depth of the stock-group tree. rootGroups never
@@ -184,6 +228,12 @@ export default function StockSummary() {
     opening_value: number;
     months: MonthRow[];
   } | null>(null);
+
+  // Level 4 — vouchers within a drilled month.
+  const [voucherRows, setVoucherRows] = useState<StockVoucherRow[]>([]);
+  const [voucherPeriod, setVoucherPeriod] = useState('');
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [voucherError, setVoucherError] = useState<string | null>(null);
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -257,6 +307,7 @@ export default function StockSummary() {
     }
     if (level === 'monthly')
       return monthlyData ? monthlyData.months.map((m, i) => ({ id: i, label: m.month })) : [];
+    if (level === 'vouchers') return voucherRows.map((r, i) => ({ id: i, label: r.particulars }));
     return [];
   })();
 
@@ -269,7 +320,9 @@ export default function StockSummary() {
     setLoading(true);
     setError(null);
     try {
-      const res = await window.api.report.stockSummary(companyId, fyId, undefined, 'FIFO');
+      const res = opening
+        ? await window.api.report.openingStockSummary(companyId, fyId)
+        : await window.api.report.stockSummary(companyId, fyId, undefined, 'FIFO');
       if (!res.success) throw new Error(res.error || 'Failed to load stock summary');
       // Filter out groups with no closing value AND no items with any activity
       const nonEmpty = (res.groups as StockSummaryGroupNode[]).filter(
@@ -287,7 +340,7 @@ export default function StockSummary() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId]);
+  }, [companyId, fyId, opening]);
 
   const loadItemMonthly = useCallback(
     async (item: StockItem) => {
@@ -311,6 +364,38 @@ export default function StockSummary() {
     [companyId, fyId],
   );
 
+  // Drill a month row → the vouchers dated within that month (matches Tally:
+  // clicking April on the monthly summary opens Stock Item Vouchers).
+  const loadMonthVouchers = useCallback(
+    async (item: StockItem, monthIdx: number) => {
+      if (!companyId || !fyId || !activeFY?.start_date) return;
+      const fyStartYear = new Date(activeFY.start_date).getFullYear();
+      const { from, to } = monthRange(fyStartYear, monthIdx);
+      setLevel('vouchers');
+      setVoucherPeriod(`${dmyLabel(from)} to ${dmyLabel(to)}`);
+      setVoucherRows([]);
+      setVoucherLoading(true);
+      setVoucherError(null);
+      setFocusedIndex(0);
+      try {
+        const res = await (window as any).api.report.stockItemVouchers(
+          companyId,
+          fyId,
+          item.item_id,
+          from,
+          to,
+        );
+        if (!res.success) throw new Error(res.error || 'Failed to load vouchers');
+        setVoucherRows(res.rows ?? []);
+      } catch (e: any) {
+        setVoucherError(e.message);
+      } finally {
+        setVoucherLoading(false);
+      }
+    },
+    [companyId, fyId, activeFY?.start_date],
+  );
+
   useEffect(() => {
     loadGroups();
   }, [loadGroups]);
@@ -330,6 +415,9 @@ export default function StockSummary() {
   };
 
   const drillToItem = (it: StockItem) => {
+    // Opening Stock Summary is a static snapshot — no month-wise movement to
+    // drill into, so item rows are leaves here (matches Tally).
+    if (opening) return;
     setSelectedItem(it);
     setFocusedIndex(0);
     setLevel('monthly');
@@ -337,7 +425,12 @@ export default function StockSummary() {
   };
 
   const handleBack = () => {
-    if (level === 'monthly') {
+    if (level === 'vouchers') {
+      setLevel('monthly');
+      setVoucherRows([]);
+      setVoucherError(null);
+      setFocusedIndex(0);
+    } else if (level === 'monthly') {
       setLevel('groups');
       setMonthlyData(null);
       setSelectedItem(null);
@@ -351,11 +444,18 @@ export default function StockSummary() {
   };
 
   const handleRowEnter = (idx: number) => {
-    if (level !== 'groups') return;
-    const row = currentRows[idx];
-    if (!row) return;
-    if (row.kind === 'group') drillToGroup(row.node);
-    else drillToItem(row.item);
+    if (level === 'groups') {
+      const row = currentRows[idx];
+      if (!row) return;
+      if (row.kind === 'group') drillToGroup(row.node);
+      else drillToItem(row.item);
+    } else if (level === 'monthly') {
+      // Drill the month → its vouchers (Tally opens Stock Item Vouchers).
+      if (selectedItem && monthlyData?.months[idx]) loadMonthVouchers(selectedItem, idx);
+    } else if (level === 'vouchers') {
+      const v = voucherRows[idx];
+      if (v?.voucher_id) navigate(`/transactions/voucher/${v.voucher_id}`);
+    }
   };
 
   // ── Keyboard navigation ────────────────────────────────────────────────────
@@ -384,8 +484,10 @@ export default function StockSummary() {
 
   // ── Title / breadcrumb ─────────────────────────────────────────────────────
   const pageTitle = (() => {
-    const crumbs = ['Stock Summary', ...groupPath.map((g) => g.group_name)];
-    if (level === 'monthly' && selectedItem) crumbs.push(selectedItem.item_name);
+    const crumbs = [reportLabel, ...groupPath.map((g) => g.group_name)];
+    if ((level === 'monthly' || level === 'vouchers') && selectedItem)
+      crumbs.push(selectedItem.item_name);
+    if (level === 'vouchers' && voucherPeriod) crumbs.push(voucherPeriod);
     return crumbs.join('  ›  ');
   })();
 
@@ -417,12 +519,12 @@ export default function StockSummary() {
                       Particulars
                     </th>
                     <th className="text-right px-3 py-2 font-bold border-r border-gray-200 w-[18%]">
-                      Closing Qty
+                      {qtyHeader}
                     </th>
                     <th className="text-right px-3 py-2 font-bold border-r border-gray-200 w-[18%]">
                       Rate
                     </th>
-                    <th className="text-right px-3 py-2 font-bold w-[19%]">Closing Value</th>
+                    <th className="text-right px-3 py-2 font-bold w-[19%]">{valueHeader}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -627,8 +729,12 @@ export default function StockSummary() {
                             <tr
                               key={m.month}
                               onClick={() => setFocusedIndex(idx)}
+                              onDoubleClick={() =>
+                                selectedItem && loadMonthVouchers(selectedItem, idx)
+                              }
                               className={cn(
-                                'border-b border-gray-200 hover:bg-black/[0.03] cursor-default h-6 text-[12px]',
+                                'border-b border-gray-200 hover:bg-black/[0.03] h-6 text-[12px]',
+                                hasActivity ? 'cursor-pointer' : 'cursor-default',
                                 isFocused
                                   ? 'bg-black/[0.06] text-black font-bold'
                                   : hasActivity
@@ -711,6 +817,24 @@ export default function StockSummary() {
                   </>
                 ) : null}
               </div>
+            )}
+
+            {/* ── LEVEL 4: Vouchers within a month ───────────────────────── */}
+            {level === 'vouchers' && selectedItem && (
+              <StockItemVouchersTable
+                itemName={selectedItem.item_name}
+                companyName={companyName}
+                periodLabel={voucherPeriod}
+                unit={selectedItem.unit_name}
+                rows={voucherRows}
+                loading={voucherLoading}
+                error={voucherError}
+                selectedIndex={focusedIndex}
+                onSelectIndex={setFocusedIndex}
+                onOpenVoucher={(r) =>
+                  r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)
+                }
+              />
             )}
           </div>
         </div>

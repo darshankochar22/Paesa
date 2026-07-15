@@ -16,6 +16,7 @@ interface TBData {
   groups: TBGroup[];
   grandTotalDr: number;
   grandTotalCr: number;
+  diff?: { dr: number; cr: number };
 }
 
 interface TBRow {
@@ -52,8 +53,11 @@ export function TrialBalanceLayout() {
   const [data, setData] = React.useState<TBData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [diffDr, setDiffDr] = React.useState<number>(0);
-  const [diffCr, setDiffCr] = React.useState<number>(0);
+
+  // "Difference in opening balances" is the balancing figure computed by the
+  // backend (it accounts for opening stock too), not re-derived on the client.
+  const diffDr = data?.diff?.dr ?? 0;
+  const diffCr = data?.diff?.cr ?? 0;
 
   React.useEffect(() => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
@@ -63,36 +67,11 @@ export function TrialBalanceLayout() {
     setLoading(true);
     setError(null);
 
-    Promise.all([
-      (window as any).api.report.trialBalance(selectedCompany.company_id, activeFY.fy_id),
-      (window as any).api.ledger.getAll(selectedCompany.company_id),
-    ])
-      .then(([tbRes, ledgerRes]: [any, any]) => {
+    (window as any).api.report
+      .trialBalance(selectedCompany.company_id, activeFY.fy_id)
+      .then((tbRes: any) => {
         if (tbRes?.success) setData(tbRes);
-        else {
-          setError(tbRes?.error || 'Failed to load trial balance.');
-          return;
-        }
-
-        if (ledgerRes?.success && ledgerRes.ledgers) {
-          let sumOpeningDebit = 0;
-          let sumOpeningCredit = 0;
-          ledgerRes.ledgers.forEach((l: any) => {
-            const amt = l.opening_balance || 0;
-            if (l.opening_balance_type === 'Dr') sumOpeningDebit += amt;
-            else if (l.opening_balance_type === 'Cr') sumOpeningCredit += amt;
-            else if (amt > 0) sumOpeningDebit += amt;
-            else sumOpeningCredit += Math.abs(amt);
-          });
-          if (sumOpeningDebit !== sumOpeningCredit) {
-            const diff = Math.abs(sumOpeningDebit - sumOpeningCredit);
-            if (sumOpeningDebit > sumOpeningCredit) setDiffCr(diff);
-            else setDiffDr(diff);
-          } else {
-            setDiffDr(0);
-            setDiffCr(0);
-          }
-        }
+        else setError(tbRes?.error || 'Failed to load trial balance.');
       })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));

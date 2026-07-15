@@ -2,6 +2,26 @@ const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../../db/schema');
 const { getOpeningBalances } = require('../utils/ledgerBalance');
+const { isFeatureEnabled } = require('../../tallyFeatures/featureFlags');
+
+// Opening stock value for the full FY (= Σ stock-item opening values), shown as
+// a Current-Asset debit only when F11 "Integrate Accounts with Inventory" is ON.
+// When OFF, accounts and inventory are separate and stock appears solely via any
+// manual Stock-in-hand ledger — so we contribute nothing.
+const getOpeningStockValue = async (company_id) => {
+  try {
+    const on = await isFeatureEnabled(company_id, 'integrate_accounts_with_inventory');
+    if (!on) return 0;
+    const rows = await db.all(
+      sql`SELECT COALESCE(SUM(opening_value), 0) AS total
+          FROM stock_items
+          WHERE company_id = ${company_id} AND is_active = 1`,
+    );
+    return Number(rows[0]?.total) || 0;
+  } catch (_) {
+    return 0; // no stock module / no data
+  }
+};
 
 const getEntries = async (company_id, fy_id) => {
   return await db.all(
@@ -86,23 +106,33 @@ const trialBalance = async (company_id, fy_id) => {
 
     const descendantMap = buildDescendantMap(allGroups);
 
-    // Per-group aggregate balance
+    // Per-group Dr/Cr totals — sum each ledger's net balance into its own column
+    // (like Tally), NOT one netted figure. A group holding both Dr and Cr ledgers
+    // (e.g. Current Assets = debtors Dr + an advance-received Cr) must show both.
     const groupBalances = {};
     for (const g of allGroups) {
       const relevantIds = new Set([g.group_id, ...descendantMap[g.group_id]]);
-      let total = 0;
+      let dr = 0;
+      let cr = 0;
       for (const l of Object.values(ledgerBalances)) {
-        if (relevantIds.has(l.group_id)) total += l.balance;
+        if (relevantIds.has(l.group_id)) {
+          if (l.balance >= 0) dr += l.balance;
+          else cr += Math.abs(l.balance);
+        }
       }
-      groupBalances[g.group_id] = total;
+      groupBalances[g.group_id] = { dr, cr };
     }
+
+    // Opening Stock (inventory) folds into the Current Assets primary group as a
+    // debit — Tally shows it there when Accounts are integrated with Inventory.
+    const openingStock = await getOpeningStockValue(company_id);
 
     // Top-level groups only (parent_group_id === null), skip zero
     const primaryGroups = allGroups
       .filter((g) => g.parent_group_id === null)
       .map((g) => {
-        const bal = groupBalances[g.group_id] || 0;
-        const { dr, cr } = splitDrCr(bal);
+        let { dr, cr } = groupBalances[g.group_id] || { dr: 0, cr: 0 };
+        if (openingStock !== 0 && g.name === 'Current Assets') dr += openingStock;
         return { group_id: g.group_id, group_name: g.name, nature: g.nature, dr, cr };
       })
       .filter((g) => g.dr !== 0 || g.cr !== 0);
@@ -110,7 +140,13 @@ const trialBalance = async (company_id, fy_id) => {
     const grandTotalDr = primaryGroups.reduce((s, g) => s + g.dr, 0);
     const grandTotalCr = primaryGroups.reduce((s, g) => s + g.cr, 0);
 
-    return { success: true, groups: primaryGroups, grandTotalDr, grandTotalCr };
+    // Difference in opening balances — vouchers always balance, so any residual
+    // gap between the columns is unbalanced opening balances (incl. opening
+    // stock). Fill the lighter side so the grand total tallies (matches Tally).
+    const imbalance = grandTotalDr - grandTotalCr;
+    const diff = imbalance >= 0 ? { dr: 0, cr: imbalance } : { dr: -imbalance, cr: 0 };
+
+    return { success: true, groups: primaryGroups, grandTotalDr, grandTotalCr, diff };
   } catch (err) {
     console.error('[trialBalanceService] error:', err);
     return { success: false, error: err.message };
@@ -154,22 +190,28 @@ const groupSummary = async (company_id, fy_id, group_id) => {
 
     const descendantMap = buildDescendantMap(allGroups);
 
+    // Per-group Dr/Cr totals — sum each ledger's net balance into its own
+    // column (like Tally), NOT a single netted figure. A group holding both
+    // Dr and Cr ledgers (e.g. Duties & Taxes) must show both column totals.
     const groupBalances = {};
     for (const g of allGroups) {
       const relevantIds = new Set([g.group_id, ...descendantMap[g.group_id]]);
-      let total = 0;
+      let dr = 0;
+      let cr = 0;
       for (const l of Object.values(ledgerBalances)) {
-        if (relevantIds.has(l.group_id)) total += l.balance;
+        if (relevantIds.has(l.group_id)) {
+          if (l.balance >= 0) dr += l.balance;
+          else cr += Math.abs(l.balance);
+        }
       }
-      groupBalances[g.group_id] = total;
+      groupBalances[g.group_id] = { dr, cr };
     }
 
     // Direct children of the requested group
     const childGroups = allGroups
       .filter((cg) => cg.parent_group_id === group_id)
       .map((cg) => {
-        const bal = groupBalances[cg.group_id] || 0;
-        const { dr, cr } = splitDrCr(bal);
+        const { dr, cr } = groupBalances[cg.group_id] || { dr: 0, cr: 0 };
         return {
           group_id: cg.group_id,
           group_name: cg.name,
@@ -191,8 +233,27 @@ const groupSummary = async (company_id, fy_id, group_id) => {
 
     // Group info
     const groupInfo = allGroups.find((g) => g.group_id === group_id);
-    const totalBal = groupBalances[group_id] || 0;
-    const { dr: totalDr, cr: totalCr } = splitDrCr(totalBal);
+
+    // Opening Stock shows as a distinct line inside the Current Assets primary
+    // group (Tally). Negative ledger_id marks it as a virtual, non-drillable row.
+    if (groupInfo && groupInfo.name === 'Current Assets' && !groupInfo.parent_group_id) {
+      const openingStock = await getOpeningStockValue(company_id);
+      if (openingStock !== 0) {
+        directLedgers.unshift({
+          ledger_id: -100,
+          ledger_name: 'Opening Stock',
+          dr: openingStock,
+          cr: 0,
+          type: 'ledger',
+        });
+      }
+    }
+    // Grand Total sums each column independently (like Tally), not the netted
+    // group balance — a group mixing Dr and Cr ledgers must show both totals.
+    const totalDr =
+      childGroups.reduce((s, g) => s + g.dr, 0) + directLedgers.reduce((s, l) => s + l.dr, 0);
+    const totalCr =
+      childGroups.reduce((s, g) => s + g.cr, 0) + directLedgers.reduce((s, l) => s + l.cr, 0);
 
     return {
       success: true,

@@ -13,6 +13,98 @@ const {
 } = require('./services/stockMovement');
 const { buildVoucherRegister } = require('./stockRegisterBuilder');
 
+/**
+ * Nest a flat list of stock items into the stock-group tree and roll up
+ * qty/value totals — the shared shape consumed by both the (closing) Stock
+ * Summary and the Opening Stock Summary, so the two can never drift apart.
+ *
+ * `items` must already carry: group_id, closing_qty, closing_value, unit_name
+ * (the "closing_*" keys hold whatever balance the caller is reporting —
+ * closing for Stock Summary, opening for Opening Stock Summary).
+ * `allGroups` rows must carry: group_id, group_name, parent_group_id.
+ *
+ * Returns { rootItems, groups, totalClosingQty, totalQtyDisplayable, totalClosingValue }.
+ */
+function nestStockItemsIntoGroups(items, allGroups) {
+  const childrenOf = new Map(); // group_id -> [child group_id, ...]
+  for (const g of allGroups) {
+    if (g.parent_group_id == null) continue;
+    if (!childrenOf.has(g.parent_group_id)) childrenOf.set(g.parent_group_id, []);
+    childrenOf.get(g.parent_group_id).push(g.group_id);
+  }
+
+  const directItemsByGroup = new Map(); // group_id|'ungrouped' -> ItemRow[]
+  for (const it of items) {
+    const key = it.group_id == null ? 'ungrouped' : it.group_id;
+    if (!directItemsByGroup.has(key)) directItemsByGroup.set(key, []);
+    directItemsByGroup.get(key).push(it);
+  }
+
+  const buildNode = (group) => {
+    const directItems = directItemsByGroup.get(group.group_id) || [];
+    const childGroupIds = childrenOf.get(group.group_id) || [];
+    const childNodes = childGroupIds
+      .map((id) => allGroups.find((g) => g.group_id === id))
+      .filter(Boolean)
+      .map(buildNode);
+
+    let closing_qty = directItems.reduce((s, it) => s + it.closing_qty, 0);
+    let closing_value = directItems.reduce((s, it) => s + it.closing_value, 0);
+    let item_count = directItems.length;
+    const unitSet = new Set(directItems.map((it) => it.unit_name || ''));
+    for (const child of childNodes) {
+      closing_qty += child.closing_qty;
+      closing_value += child.closing_value;
+      item_count += child.item_count;
+      for (const u of child.unit_set) unitSet.add(u);
+    }
+
+    const qtyDisplayable = unitSet.size === 1;
+
+    return {
+      group_id: group.group_id,
+      group_name: group.group_name,
+      closing_qty: qtyDisplayable ? closing_qty : 0,
+      closing_value,
+      item_count,
+      qty_displayable: qtyDisplayable,
+      unit_name: qtyDisplayable ? [...unitSet][0] : '',
+      items: directItems,
+      childGroups: childNodes,
+      unit_set: unitSet, // internal only, stripped before returning to the client
+    };
+  };
+
+  const topLevelGroups = allGroups.filter((g) => g.parent_group_id == null);
+  const rootGroupNodes = topLevelGroups.map(buildNode);
+  const rootItems = directItemsByGroup.get('ungrouped') || [];
+
+  const stripInternal = (node) => {
+    const { unit_set, ...rest } = node;
+    return { ...rest, childGroups: rest.childGroups.map(stripInternal) };
+  };
+
+  const groups = rootGroupNodes
+    .map(stripInternal)
+    .sort((a, b) => (a.group_name || '').localeCompare(b.group_name || ''));
+
+  const topLevelUnitSet = new Set([
+    ...rootItems.map((it) => it.unit_name || '').filter((u) => u !== ''),
+    ...groups
+      .filter((g) => g.qty_displayable)
+      .map((g) => g.unit_name || '')
+      .filter((u) => u !== ''),
+  ]);
+  const totalQtyDisplayable = topLevelUnitSet.size <= 1;
+  const totalClosingQty = totalQtyDisplayable
+    ? rootItems.reduce((s, it) => s + it.closing_qty, 0) +
+      groups.reduce((s, g) => s + g.closing_qty, 0)
+    : 0;
+  const totalClosingValue = items.reduce((s, it) => s + it.closing_value, 0);
+
+  return { rootItems, groups, totalClosingQty, totalQtyDisplayable, totalClosingValue };
+}
+
 module.exports = {
   // ── Stock Item Vouchers: voucher register for a single item (all godowns) ─
   stockItemVouchers: async (company_id, fy_id, item_id, from_date, to_date) => {
@@ -290,91 +382,74 @@ module.exports = {
         it.rate = it.closing_qty !== 0 ? it.closing_value / it.closing_qty : 0;
       }
 
-      const childrenOf = new Map(); // group_id -> [child group_id, ...]
-      for (const g of allGroups) {
-        if (g.parent_group_id == null) continue;
-        if (!childrenOf.has(g.parent_group_id)) childrenOf.set(g.parent_group_id, []);
-        childrenOf.get(g.parent_group_id).push(g.group_id);
-      }
-
-      const directItemsByGroup = new Map(); // group_id|'ungrouped' -> ItemRow[]
-      for (const it of items) {
-        const key = it.group_id == null ? 'ungrouped' : it.group_id;
-        if (!directItemsByGroup.has(key)) directItemsByGroup.set(key, []);
-        directItemsByGroup.get(key).push(it);
-      }
-
-      const buildNode = (group) => {
-        const directItems = directItemsByGroup.get(group.group_id) || [];
-        const childGroupIds = childrenOf.get(group.group_id) || [];
-        const childNodes = childGroupIds
-          .map((id) => allGroups.find((g) => g.group_id === id))
-          .filter(Boolean)
-          .map(buildNode);
-
-        let closing_qty = directItems.reduce((s, it) => s + it.closing_qty, 0);
-        let closing_value = directItems.reduce((s, it) => s + it.closing_value, 0);
-        let item_count = directItems.length;
-        const unitSet = new Set(directItems.map((it) => it.unit_name || ''));
-        for (const child of childNodes) {
-          closing_qty += child.closing_qty;
-          closing_value += child.closing_value;
-          item_count += child.item_count;
-          for (const u of child.unit_set) unitSet.add(u);
-        }
-
-        const qtyDisplayable = unitSet.size === 1;
-
-        return {
-          group_id: group.group_id,
-          group_name: group.group_name,
-          closing_qty: qtyDisplayable ? closing_qty : 0,
-          closing_value,
-          item_count,
-          qty_displayable: qtyDisplayable,
-          unit_name: qtyDisplayable ? [...unitSet][0] : '',
-          items: directItems,
-          childGroups: childNodes,
-          unit_set: unitSet, // internal only, stripped before returning to the client
-        };
-      };
-
-      const topLevelGroups = allGroups.filter((g) => g.parent_group_id == null);
-      const rootGroupNodes = topLevelGroups.map(buildNode);
-      const rootItems = directItemsByGroup.get('ungrouped') || [];
-
-      const stripInternal = (node) => {
-        const { unit_set, ...rest } = node;
-        return { ...rest, childGroups: rest.childGroups.map(stripInternal) };
-      };
-
-      const groups = rootGroupNodes
-        .map(stripInternal)
-        .sort((a, b) => (a.group_name || '').localeCompare(b.group_name || ''));
-
-      const topLevelUnitSet = new Set([
-        ...rootItems.map((it) => it.unit_name || '').filter((u) => u !== ''),
-        ...groups
-          .filter((g) => g.qty_displayable)
-          .map((g) => g.unit_name || '')
-          .filter((u) => u !== ''),
-      ]);
-      const totalQtyDisplayable = topLevelUnitSet.size <= 1;
-      const totalClosingQty = totalQtyDisplayable
-        ? rootItems.reduce((s, it) => s + it.closing_qty, 0) +
-          groups.reduce((s, g) => s + g.closing_qty, 0)
-        : 0;
-      const totalClosingValue = items.reduce((s, it) => s + it.closing_value, 0);
+      const nested = nestStockItemsIntoGroups(items, allGroups);
 
       return {
         success: true,
         as_on_date: as_on_date || null,
         items,
-        rootItems,
-        groups,
-        totalClosingQty,
-        totalQtyDisplayable,
-        totalClosingValue,
+        ...nested,
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // ── Opening Stock Summary: the stock items' own opening balances, nested into
+  // the stock-group tree — the drill target for "Opening Stock" on the P&L /
+  // Trading account. This is a static snapshot (no movements), so it always
+  // totals SUM(opening_value) exactly like the P&L Opening Stock line — never
+  // the closing valuation (which includes inwards/outwards). Same return shape
+  // as stockSummary so the client renders it with the same layout. ────────────
+  openingStockSummary: async (company_id, fy_id) => {
+    try {
+      const allGroups = await db.all(
+        sql`SELECT sg_id AS group_id, name AS group_name, parent_group_id
+            FROM ${stockGroups}
+            WHERE company_id = ${company_id} AND is_active = 1`,
+      );
+
+      const rows = await db.all(
+        sql`SELECT
+              si.item_id  AS item_id,
+              si.name     AS item_name,
+              si.group_id AS group_id,
+              sg.name     AS group_name,
+              u.name      AS unit_name,
+              COALESCE(si.opening_quantity, 0) AS opening_qty,
+              COALESCE(si.opening_value, 0)    AS opening_value
+            FROM ${stockItems} si
+            LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
+            LEFT JOIN ${units} u ON u.unit_id = si.unit_id
+            WHERE si.company_id = ${company_id}
+              AND si.is_active = 1
+            ORDER BY sg.name ASC, si.name ASC`,
+      );
+
+      // Report opening qty/value under the shared "closing_*" keys the nesting
+      // helper and the client layout expect; rate is opening value / opening qty.
+      const items = rows.map((r) => {
+        const opening_qty = Number(r.opening_qty) || 0;
+        const opening_value = Number(r.opening_value) || 0;
+        return {
+          item_id: r.item_id,
+          item_name: r.item_name,
+          group_id: r.group_id,
+          group_name: r.group_name || 'Ungrouped',
+          unit_name: r.unit_name || '',
+          closing_qty: opening_qty,
+          closing_value: opening_value,
+          rate: opening_qty !== 0 ? opening_value / opening_qty : 0,
+        };
+      });
+
+      const nested = nestStockItemsIntoGroups(items, allGroups);
+
+      return {
+        success: true,
+        as_on_date: null,
+        items,
+        ...nested,
       };
     } catch (err) {
       return { success: false, error: err.message };

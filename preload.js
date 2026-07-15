@@ -222,6 +222,8 @@ contextBridge.exposeInMainWorld('api', {
       invoke('report:fundsFlow', { company_id, fy_id, from_date, to_date }),
     stockSummary: (company_id, fy_id, as_on_date, method) =>
       invoke('report:stockSummary', { company_id, fy_id, as_on_date, method }),
+    openingStockSummary: (company_id, fy_id) =>
+      invoke('report:openingStockSummary', { company_id, fy_id }),
     stockGroupItems: (company_id, fy_id, group_id) =>
       invoke('report:stockGroupItems', { company_id, fy_id, group_id }),
     stockItemMonthly: (company_id, fy_id, item_id) =>

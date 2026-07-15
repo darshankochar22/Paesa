@@ -17,6 +17,21 @@ const { PagedFile, parse, first, firstFlat, flat } = require('./binFormat');
 const SCALE = 100000;
 const EPOCH_MS = Date.UTC(1899, 11, 31); // 1899-12-31
 const HSN_RE = /^\d{4,8}$/;
+const GSTIN_RE = /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z0-9]{2}$/;
+
+// A party's GSTIN sits at str 0xaca in most TallyPrime data versions, but some
+// versions store it at str 0x3 (and future ones may move again). Prefer the
+// canonical slot, else fall back to ANY string field that matches the strict
+// GSTIN pattern — regex-guarded, so it can't grab a name/address by accident.
+// Without this, whole-version worth of registrations get silently dropped.
+const findGstin = (fields) => {
+  const direct = first(fields, 'str', 0xaca);
+  if (direct && GSTIN_RE.test(direct)) return direct;
+  for (const x of flat(fields)) {
+    if (x.k === 'str' && typeof x.v === 'string' && GSTIN_RE.test(x.v)) return x.v;
+  }
+  return undefined;
+};
 
 // Standard Tally group tree: name -> [parent|null, nature]. The .1800 master has
 // no recoverable parent stream-ref for groups; the default tree is fixed.
@@ -131,7 +146,7 @@ function loadMasters(managerPath) {
   // string => stock item.
   const kind = new Map();
   for (const [sid, f] of raw) {
-    const gstin = first(f, 'str', 0xaca);
+    const gstin = findGstin(f);
     const hasObSlot = first(f, 'n0d', 0xa2b) !== undefined;
     const baseUnit = first(f, 'str', 0xfd4);
     if (hasObSlot || gstin !== undefined) kind.set(sid, 'ledger');
@@ -187,7 +202,7 @@ function loadMasters(managerPath) {
         opening_balance: Math.round((Math.abs(obNum) / SCALE) * 100) / 100,
         opening_balance_type: obNum < 0 ? 'Dr' : 'Cr',
       };
-      const gstin = first(f, 'str', 0xaca);
+      const gstin = findGstin(f);
       const state = first(f, 'str', 0xacc);
       const pincode = first(f, 'str', 0xa8f);
       const country = first(f, 'str', 0xa31);
@@ -235,7 +250,34 @@ function loadMasters(managerPath) {
     // else: cost categories, currencies, voucher classes — skipped
   }
 
-  return { streams, name, raw, groups, ledgers, stockItems };
+  // The company's own GST registrations (Tally's "…Registration" masters, shown
+  // under F3: Company/Tax Registration) live in their own 0x0b streams with the
+  // GSTIN at field 0xc82 and the registration name NESTED (so they never land in
+  // `raw`, which requires a top-level name). Pull them out directly, otherwise
+  // the company imports with zero registrations and the GST reports are empty.
+  const gstRegistrations = [];
+  const seenReg = new Set();
+  for (const [sid, d] of streams) {
+    if (d[0x0b] === undefined) continue;
+    let f;
+    try {
+      f = parse(mg.blob(d[0x0b].head), 0x2c);
+    } catch (_) {
+      continue;
+    }
+    const gstin = firstFlat(f, 'str', 0xc82);
+    if (!gstin || !GSTIN_RE.test(gstin) || seenReg.has(gstin)) continue;
+    seenReg.add(gstin);
+    gstRegistrations.push({
+      name: firstFlat(f, 'str', 2) || null, // e.g. "Chhattisgarh Registration"
+      gstin,
+      state: firstFlat(f, 'str', 3) || null, // the registration's own state
+      pan: gstin.length >= 12 ? gstin.slice(2, 12) : null,
+      guid: first(f, 'str', 0x1fb) || null,
+    });
+  }
+
+  return { streams, name, raw, groups, ledgers, stockItems, gstRegistrations };
 }
 
 // --------------------------------------------------------------- vouchers ----
@@ -456,7 +498,12 @@ function extractCompany(folder) {
   };
 
   const { vouchers, stats, companyGstin } = loadVouchers(path.join(folder, 'TranMgr.1800'), name);
-  masters.company = { gstin: companyGstin || null };
+  masters.gstRegistrations = M.gstRegistrations || [];
+  // Prefer the actual "…Registration" master; fall back to the seller-GSTIN
+  // heuristic only when no registration master was found.
+  const primaryGstin =
+    (masters.gstRegistrations[0] && masters.gstRegistrations[0].gstin) || companyGstin || null;
+  masters.company = { gstin: primaryGstin };
 
   // Promote any master referenced as an entry ledger into ledgers (TCS, an
   // unregistered party, etc.) so every voucher entry resolves.
@@ -478,7 +525,7 @@ function extractCompany(folder) {
       opening_balance: Math.round((Math.abs(obNum) / SCALE) * 100) / 100,
       opening_balance_type: obNum < 0 ? 'Dr' : 'Cr',
     };
-    const gstin = first(f, 'str', 0xaca);
+    const gstin = findGstin(f);
     if (gstin) {
       led.gstin = gstin;
       led.registration_type = 'Regular';

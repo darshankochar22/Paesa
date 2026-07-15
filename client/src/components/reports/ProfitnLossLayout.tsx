@@ -367,9 +367,17 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
     [navigate],
   );
 
-  /* Opening / Closing Stock both drill into the Stock Summary (gold screenshots). */
+  /* Closing Stock drills into the (movement-based) Stock Summary. */
   const drillStock = React.useCallback(
     () => navigate('/reports/inventory/stock-summary'),
+    [navigate],
+  );
+
+  /* Opening Stock drills into the Opening Stock Summary — the items' own
+     opening balances, grouped by stock group, totalling exactly the P&L
+     Opening Stock line (never the closing valuation). */
+  const drillOpeningStock = React.useCallback(
+    () => navigate('/reports/inventory/opening-stock-summary'),
     [navigate],
   );
 
@@ -507,8 +515,8 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
                       amount={data.openingStock}
                       showZero
                       isFocused={focusedId === 'opening-stock'}
-                      onClick={() => focus('opening-stock', drillStock)}
-                      onDoubleClick={drillStock}
+                      onClick={() => focus('opening-stock', drillOpeningStock)}
+                      onDoubleClick={drillOpeningStock}
                     />
 
                     {/* Purchase Accounts groups */}

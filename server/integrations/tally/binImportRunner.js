@@ -77,27 +77,57 @@ const GST_STATE = {
   38: 'Ladakh',
 };
 const stateFromGstin = (g) => (g && GST_STATE[g.slice(0, 2)]) || null;
+const GSTIN_RE = /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z0-9]{2}$/;
 
-// Insert the company's own GST registration (the "GST Registration" master).
-const insertGstRegistration = async (companyId, gstin, companyName) => {
-  if (!gstin) return;
+// Insert the company's own GST registrations (Tally's "…Registration" masters).
+// `regs` is [{ gstin, state?, name? }]; extra rows beyond the first are the
+// company's additional registrations in other states. De-dupes against any rows
+// already present and points the company's default at the first new one.
+const insertGstRegistrations = async (companyId, regs, companyName) => {
+  const list = (regs || []).filter((r) => r && r.gstin && GSTIN_RE.test(r.gstin));
+  if (!list.length) return;
   try {
-    const exists = await db.execute({
-      sql: 'SELECT gst_id FROM gst_registrations WHERE company_id = ? LIMIT 1',
-      args: [companyId],
-    });
-    if (exists.rows && exists.rows.length) return;
+    const existing = await db
+      .execute({
+        sql: 'SELECT gstin FROM gst_registrations WHERE company_id = ?',
+        args: [companyId],
+      })
+      .catch(() => ({ rows: [] }));
+    const have = new Set((existing.rows || []).map((r) => r.gstin));
     const now = new Date().toISOString();
-    await db.execute({
-      sql: `INSERT INTO gst_registrations
-              (company_id, registration_type, registration_status, gstin, state_id,
-               legal_name, trade_name, periodicity_of_gstr1, mode_of_filing, is_active,
-               created_at, updated_at)
-            VALUES (?, 'Regular', 'Active', ?, ?, ?, ?, 'Monthly', 'Not Applicable', 1, ?, ?)`,
-      args: [companyId, gstin, stateFromGstin(gstin), companyName, companyName, now, now],
-    });
+    let firstNewId = null;
+    for (const r of list) {
+      if (have.has(r.gstin)) continue;
+      const res = await db.execute({
+        sql: `INSERT INTO gst_registrations
+                (company_id, registration_type, registration_status, gstin, state_id,
+                 legal_name, trade_name, periodicity_of_gstr1, mode_of_filing, is_active,
+                 created_at, updated_at)
+              VALUES (?, 'Regular', 'Active', ?, ?, ?, ?, 'Monthly', 'Not Applicable', 1, ?, ?)`,
+        args: [
+          companyId,
+          r.gstin,
+          r.state || stateFromGstin(r.gstin),
+          companyName,
+          companyName,
+          now,
+          now,
+        ],
+      });
+      have.add(r.gstin);
+      if (firstNewId == null && res.lastInsertRowid != null)
+        firstNewId = Number(res.lastInsertRowid);
+    }
+    // Make the first registration the company default when none is set yet.
+    if (firstNewId != null) {
+      await db.execute({
+        sql: `UPDATE companies SET current_default_gst_registration_id = ?
+              WHERE company_id = ? AND current_default_gst_registration_id IS NULL`,
+        args: [firstNewId, companyId],
+      });
+    }
   } catch (err) {
-    // non-fatal — the import still succeeds without the registration row.
+    // non-fatal — the import still succeeds without the registration rows.
     console.error('GST registration insert failed:', err.message);
   }
 };
@@ -388,9 +418,16 @@ const importParsed = async (parsed, opts = {}) => {
     pincode: opts.pincode,
   });
 
-  // The company's own GST registration (the "GST Registration" master).
-  if (opts.companyGstin)
-    await insertGstRegistration(company.company_id, opts.companyGstin, company.name);
+  // The company's own GST registrations (the "…Registration" masters). Prefer
+  // the extracted registration list; fall back to the single seller-heuristic
+  // GSTIN for versions where no registration master was decoded.
+  const regs =
+    opts.gstRegistrations && opts.gstRegistrations.length
+      ? opts.gstRegistrations
+      : opts.companyGstin
+        ? [{ gstin: opts.companyGstin }]
+        : [];
+  await insertGstRegistrations(company.company_id, regs, company.name);
 
   const neededStarts = new Set(
     parsed.vouchers.filter((v) => v.date).map((v) => fyStartForDate(v.date)),

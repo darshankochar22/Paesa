@@ -550,6 +550,7 @@ export const reportRoutes: RouteConfig[] = [
 
   // Inventory reports
   { path: '/reports/inventory/stock-summary', element: <StockSummary /> },
+  { path: '/reports/inventory/opening-stock-summary', element: <StockSummary opening /> },
   { path: '/reports/inventory/stock-item', element: <StockItemReport /> },
   { path: '/reports/inventory/stock-group', element: <StockGroupReport /> },
   { path: '/reports/inventory/stock-category', element: <StockCategoryReport /> },

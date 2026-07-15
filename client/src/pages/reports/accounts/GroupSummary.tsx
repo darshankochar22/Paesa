@@ -65,7 +65,10 @@ export default function GroupSummaryLayout() {
     [navigate],
   );
   const openLedger = React.useCallback(
-    (l: LedgerRow) => navigate(`/reports/accounts/ledger-summary/${l.ledger_id}`),
+    (l: LedgerRow) => {
+      if (l.ledger_id < 0) return; // virtual row (e.g. Opening Stock) — not drillable
+      navigate(`/reports/accounts/ledger-summary/${l.ledger_id}`);
+    },
     [navigate],
   );
 
