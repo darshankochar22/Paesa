@@ -26,7 +26,6 @@ function fyMonthRange(fyStart: string, idx: number): { from: string; to: string 
 interface ItemSummaryRow {
   item_id: number;
   item_name: string;
-  group_name: string | null;
   unit_name?: string;
   opening_qty: number;
   opening_value: number;
@@ -38,41 +37,15 @@ interface ItemSummaryRow {
   closing_value: number;
 }
 
-// Rows rendered at the top level: a group header, then its items indented.
-type SummaryLine =
-  { kind: 'group'; name: string; tot: Totals } | { kind: 'item'; item: ItemSummaryRow };
-
-interface Totals {
-  oQty: number;
-  oVal: number;
-  iQty: number;
-  iVal: number;
-  outQty: number;
-  outVal: number;
-  cQty: number;
-  cVal: number;
+interface SummaryResponse {
+  success: boolean;
+  items: ItemSummaryRow[];
+  totalOpeningValue: number;
+  totalInValue: number;
+  totalOutValue: number;
+  totalClosingValue: number;
+  error?: string;
 }
-
-const zero = (): Totals => ({
-  oQty: 0,
-  oVal: 0,
-  iQty: 0,
-  iVal: 0,
-  outQty: 0,
-  outVal: 0,
-  cQty: 0,
-  cVal: 0,
-});
-const add = (t: Totals, r: ItemSummaryRow) => {
-  t.oQty += Number(r.opening_qty) || 0;
-  t.oVal += Number(r.opening_value) || 0;
-  t.iQty += Number(r.in_qty) || 0;
-  t.iVal += Number(r.in_value) || 0;
-  t.outQty += Number(r.out_qty) || 0;
-  t.outVal += Number(r.out_value) || 0;
-  t.cQty += Number(r.closing_qty) || 0;
-  t.cVal += Number(r.closing_value) || 0;
-};
 
 type Level =
   | { step: 'summary' }
@@ -81,8 +54,10 @@ type Level =
 
 /**
  * Closing Stock drill (issue #242) — Funds Flow → Current Assets → Closing Stock.
- * Opens the Stock Summary directly (every group + its items, with Opening /
- * Inwards / Outwards / Closing), NOT a group-picker popup. Drills item →
+ * Flat Stock Summary of every stock item with Opening / Inwards / Outwards /
+ * Closing, valued exactly as TallyPrime (closing at weighted-average cost, so
+ * the total ties to the Funds Flow / Balance Sheet closing-stock figure). No
+ * stock-group header rows; empty items are dropped server-side. Drills item →
  * Stock Item Monthly Summary → Stock Item Vouchers → Voucher.
  */
 export default function ClosingStockSummary() {
@@ -100,8 +75,8 @@ export default function ClosingStockSummary() {
 
   const [level, setLevel] = React.useState<Level>({ step: 'summary' });
 
-  // ── Level 1: Stock Summary (all items grouped) ───────────────────────────
-  const [items, setItems] = React.useState<ItemSummaryRow[]>([]);
+  // ── Level 1: Stock Summary ───────────────────────────────────────────────
+  const [data, setData] = React.useState<SummaryResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [rowIndex, setRowIndex] = React.useState(0);
@@ -114,9 +89,9 @@ export default function ClosingStockSummary() {
     setLoading(true);
     setError(null);
     (window as any).api.report
-      .stockItemSummary(companyId, fyId)
-      .then((res: any) => {
-        if (res.success) setItems(res.rows ?? []);
+      .stockClosingSummary(companyId, fyId)
+      .then((res: SummaryResponse) => {
+        if (res.success) setData(res);
         else setError(res.error || 'Failed to load stock summary');
         setLoading(false);
       })
@@ -126,32 +101,7 @@ export default function ClosingStockSummary() {
       });
   }, [companyId, fyId]);
 
-  // Group items by stock group; build a flat list of header + item lines, and
-  // keep the item-only lines for keyboard navigation / drilling.
-  const { lines, itemLines, grand } = React.useMemo(() => {
-    const byGroup = new Map<string, ItemSummaryRow[]>();
-    for (const it of items) {
-      const g = it.group_name || 'Primary';
-      if (!byGroup.has(g)) byGroup.set(g, []);
-      byGroup.get(g)!.push(it);
-    }
-    const lines: SummaryLine[] = [];
-    const grand = zero();
-    for (const g of [...byGroup.keys()].sort((a, b) => a.localeCompare(b))) {
-      const rows = byGroup.get(g)!.sort((a, b) => a.item_name.localeCompare(b.item_name));
-      const tot = zero();
-      rows.forEach((r) => {
-        add(tot, r);
-        add(grand, r);
-      });
-      lines.push({ kind: 'group', name: g, tot });
-      rows.forEach((item) => lines.push({ kind: 'item', item }));
-    }
-    const itemLines = lines.filter(
-      (l): l is Extract<SummaryLine, { kind: 'item' }> => l.kind === 'item',
-    );
-    return { lines, itemLines, grand };
-  }, [items]);
+  const items = data?.items ?? [];
 
   // ── Level 2: Item Monthly Summary ────────────────────────────────────────
   const [months, setMonths] = React.useState<MonthRow[]>([]);
@@ -222,14 +172,14 @@ export default function ClosingStockSummary() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setRowIndex((p) => Math.min(itemLines.length - 1, p + 1));
+        setRowIndex((p) => Math.min(items.length - 1, p + 1));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setRowIndex((p) => Math.max(0, p - 1));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        const it = itemLines[rowIndex];
-        if (it) loadMonths(it.item);
+        const it = items[rowIndex];
+        if (it) loadMonths(it);
       } else if (e.key === 'Escape' || e.key === 'Backspace') {
         e.preventDefault();
         navigate(-1);
@@ -237,7 +187,7 @@ export default function ClosingStockSummary() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [level.step, itemLines, rowIndex, loadMonths, navigate]);
+  }, [level.step, items, rowIndex, loadMonths, navigate]);
 
   React.useEffect(() => {
     if (level.step !== 'monthly') return;
@@ -336,8 +286,7 @@ export default function ClosingStockSummary() {
     );
   }
 
-  // ── Level 1 render: Stock Summary ────────────────────────────────────────
-  let itemCursor = -1; // maps item lines to rowIndex for focus highlight
+  // ── Level 1 render: Stock Summary (flat item list) ───────────────────────
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
       <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
@@ -415,53 +364,23 @@ export default function ClosingStockSummary() {
                   {error}
                 </td>
               </tr>
-            ) : lines.length === 0 ? (
+            ) : items.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-black italic">
                   No stock items found.
                 </td>
               </tr>
             ) : (
-              lines.map((line, idx) => {
-                if (line.kind === 'group') {
-                  const t = line.tot;
-                  return (
-                    <tr
-                      key={`g-${idx}`}
-                      className="border-b border-gray-200 bg-black/[0.04] font-bold"
-                    >
-                      <td className="px-3 py-1">{line.name}</td>
-                      <td className="px-3 py-1 text-right border-l border-gray-200">
-                        {fmtQty(t.oQty)}
-                      </td>
-                      <td className="px-3 py-1 text-right">{fmtAmount(t.oVal)}</td>
-                      <td className="px-3 py-1 text-right border-l border-gray-200">
-                        {fmtQty(t.iQty)}
-                      </td>
-                      <td className="px-3 py-1 text-right">{fmtAmount(t.iVal)}</td>
-                      <td className="px-3 py-1 text-right border-l border-gray-200">
-                        {fmtQty(t.outQty)}
-                      </td>
-                      <td className="px-3 py-1 text-right">{fmtAmount(t.outVal)}</td>
-                      <td className="px-3 py-1 text-right border-l border-gray-200">
-                        {fmtQty(t.cQty)}
-                      </td>
-                      <td className="px-3 py-1 text-right">{fmtAmount(t.cVal)}</td>
-                    </tr>
-                  );
-                }
-                itemCursor += 1;
-                const myItemIdx = itemCursor;
-                const r = line.item;
-                const isFocused = myItemIdx === rowIndex;
+              items.map((r, idx) => {
+                const isFocused = idx === rowIndex;
                 return (
                   <tr
                     key={r.item_id}
-                    onClick={() => setRowIndex(myItemIdx)}
+                    onClick={() => setRowIndex(idx)}
                     onDoubleClick={() => loadMonths(r)}
                     className={`border-b border-gray-200 cursor-pointer ${isFocused ? 'bg-black/[0.06] text-black font-bold' : 'hover:bg-black/[0.03] text-black'}`}
                   >
-                    <td className="px-3 py-1 pl-6">{r.item_name}</td>
+                    <td className="px-3 py-1">{r.item_name}</td>
                     <td className="px-3 py-1 text-right border-l border-gray-200">
                       {fmtQty(r.opening_qty, r.unit_name)}
                     </td>
@@ -486,18 +405,19 @@ export default function ClosingStockSummary() {
         </table>
       </div>
 
+      {/* Grand Total — value totals only; quantities are intentionally blank
+          because items span different units (kg / pcs / nos) and Tally never
+          cross-sums units at the summary level. */}
       <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
         <span className="flex-1">Grand Total</span>
-        <span className="w-20 text-right border-l border-gray-200 pr-2">{fmtQty(grand.oQty)}</span>
-        <span className="w-24 text-right pr-2">{fmtAmount(grand.oVal)}</span>
-        <span className="w-20 text-right border-l border-gray-200 pr-2">{fmtQty(grand.iQty)}</span>
-        <span className="w-24 text-right pr-2">{fmtAmount(grand.iVal)}</span>
-        <span className="w-20 text-right border-l border-gray-200 pr-2">
-          {fmtQty(grand.outQty)}
-        </span>
-        <span className="w-24 text-right pr-2">{fmtAmount(grand.outVal)}</span>
-        <span className="w-20 text-right border-l border-gray-200 pr-2">{fmtQty(grand.cQty)}</span>
-        <span className="w-24 text-right pr-2">{fmtAmount(grand.cVal)}</span>
+        <span className="w-20 border-l border-gray-200" />
+        <span className="w-24 text-right pr-2">{fmtAmount(data?.totalOpeningValue)}</span>
+        <span className="w-20 border-l border-gray-200" />
+        <span className="w-24 text-right pr-2">{fmtAmount(data?.totalInValue)}</span>
+        <span className="w-20 border-l border-gray-200" />
+        <span className="w-24 text-right pr-2">{fmtAmount(data?.totalOutValue)}</span>
+        <span className="w-20 border-l border-gray-200" />
+        <span className="w-24 text-right pr-2">{fmtAmount(data?.totalClosingValue)}</span>
       </div>
     </div>
   );

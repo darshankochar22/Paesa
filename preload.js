@@ -324,6 +324,8 @@ contextBridge.exposeInMainWorld('api', {
     // Inventory summaries
     stockItemSummary: (company_id, fy_id) =>
       invoke('report:stockItemSummary', { company_id, fy_id }),
+    stockClosingSummary: (company_id, fy_id) =>
+      invoke('report:stockClosingSummary', { company_id, fy_id }),
     stockGroupSummary: (company_id, fy_id) =>
       invoke('report:stockGroupSummary', { company_id, fy_id }),
     stockCategorySummary: (company_id, fy_id) =>

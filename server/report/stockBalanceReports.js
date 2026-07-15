@@ -98,6 +98,112 @@ module.exports = {
     }
   },
 
+  // Full Stock Summary (Closing Stock) — every item's Opening / Inwards /
+  // Outwards / Closing for the FY, using the SAME direction + pooled-avg-cost
+  // math as stockItemMonthly: Debit Note = negative Inward, Credit Note =
+  // negative Outward, and closing is valued at weighted-average COST (negative
+  // stock kept). So a sales-return with no purchase basis (e.g. an item whose
+  // only movement is a Credit Note) shows its returned quantity but ZERO closing
+  // value — exactly as TallyPrime excludes it from the closing-stock total.
+  // All-zero items (no opening, no movement, no closing) are dropped, matching
+  // Tally's default of hiding them. This is the list the Closing-Stock drill
+  // (Funds Flow → Current Assets → Closing Stock) renders.
+  stockClosingSummary: async (company_id, fy_id) => {
+    try {
+      const itemRows = await db.all(
+        sql`SELECT si.item_id, si.name, si.opening_quantity, si.opening_value,
+                   u.name AS unit_name
+            FROM ${stockItems} si
+            LEFT JOIN ${units} u ON u.unit_id = si.unit_id
+            WHERE si.company_id = ${company_id} AND si.is_active = 1
+            ORDER BY si.name ASC`,
+      );
+
+      const entries = await db.all(
+        sql`SELECT vse.stock_item_id AS item_id, v.voucher_type,
+                   vse.quantity, vse.amount, vse.is_source
+            FROM ${voucherStockEntries} vse
+            INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
+            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
+              AND v.is_cancelled = 0
+              AND COALESCE(v.is_optional, 0) = 0
+              AND COALESCE(v.is_post_dated, 0) = 0
+              AND NOT ${trackingBilledSql('v', 'vse')}`,
+      );
+      const byItem = new Map();
+      for (const e of entries) {
+        if (!byItem.has(e.item_id)) byItem.set(e.item_id, []);
+        byItem.get(e.item_id).push(e);
+      }
+
+      const items = [];
+      for (const it of itemRows) {
+        const opening_qty = Number(it.opening_quantity) || 0;
+        const opening_value = Number(it.opening_value) || 0;
+        let in_qty = 0,
+          in_value = 0,
+          out_qty = 0,
+          out_value = 0;
+        let runQty = opening_qty;
+        let cumInQty = opening_qty;
+        let cumInVal = opening_value;
+        for (const e of byItem.get(it.item_id) || []) {
+          const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
+          if (!dir) continue;
+          const qty = (Number(e.quantity) || 0) * sign;
+          const amt = (Number(e.amount) || 0) * sign;
+          if (dir === 'in') {
+            in_qty += qty;
+            in_value += amt;
+            runQty += qty;
+            cumInQty += qty;
+            cumInVal += amt;
+          } else {
+            out_qty += qty;
+            out_value += amt;
+            runQty -= qty;
+          }
+        }
+        const rate = cumInQty !== 0 ? cumInVal / cumInQty : 0;
+        const closing_qty = runQty;
+        const closing_value = runQty * rate;
+        if (
+          opening_qty === 0 &&
+          in_qty === 0 &&
+          out_qty === 0 &&
+          closing_qty === 0 &&
+          opening_value === 0 &&
+          closing_value === 0
+        )
+          continue;
+        items.push({
+          item_id: it.item_id,
+          item_name: it.name,
+          unit_name: it.unit_name || '',
+          opening_qty,
+          opening_value,
+          in_qty,
+          in_value,
+          out_qty,
+          out_value,
+          closing_qty,
+          closing_value,
+        });
+      }
+
+      return {
+        success: true,
+        items,
+        totalOpeningValue: items.reduce((s, r) => s + r.opening_value, 0),
+        totalInValue: items.reduce((s, r) => s + r.in_value, 0),
+        totalOutValue: items.reduce((s, r) => s + r.out_value, 0),
+        totalClosingValue: items.reduce((s, r) => s + r.closing_value, 0),
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
   stockItemMonthly: async (company_id, fy_id, item_id) => {
     try {
       // Fetch financial year boundaries

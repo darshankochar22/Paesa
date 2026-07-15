@@ -79,6 +79,7 @@ function register() {
 
   // Inventory summaries
   ipcMain.handle('report:stockItemSummary', reportController.stockItemSummary);
+  ipcMain.handle('report:stockClosingSummary', reportController.stockClosingSummary);
   ipcMain.handle('report:stockGroupSummary', reportController.stockGroupSummary);
   ipcMain.handle('report:stockCategorySummary', reportController.stockCategorySummary);
   ipcMain.handle('report:stockGroupAnalysis', reportController.stockGroupAnalysis);

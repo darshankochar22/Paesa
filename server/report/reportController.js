@@ -354,6 +354,9 @@ module.exports = {
   stockItemSummary: async (event, { company_id, fy_id }) => {
     return await stockItemSummary(company_id, fy_id);
   },
+  stockClosingSummary: async (event, { company_id, fy_id }) => {
+    return await stockSummaryReportService.stockClosingSummary(company_id, fy_id);
+  },
   stockGroupSummary: async (event, { company_id, fy_id }) => {
     return await stockGroupSummary(company_id, fy_id);
   },
