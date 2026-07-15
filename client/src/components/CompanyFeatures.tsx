@@ -225,8 +225,19 @@ const RIGHT: Section[] = [
 
 const ALL_ROWS: Row[] = [...LEFT, ...RIGHT].flatMap((s) => s.rows);
 
+// Momentary "Set/Alter … Details" triggers: never default to Yes — they are
+// forced to 0 on save and Yes would pop their detail screens on Accept.
+const MOMENTARY_TRIGGERS = new Set([
+  'set_alter_company_gst_details',
+  'set_alter_tds_details',
+  'set_alter_tcs_details',
+  'set_alter_payroll_statutory_details',
+]);
+
+// Default-all-Yes: every real feature flag defaults ON (fallback 1); only the
+// momentary triggers default OFF.
 const DEFAULTS: Record<string, number> = ALL_ROWS.reduce(
-  (acc, r) => ({ ...acc, [r.key]: r.default ?? 0 }),
+  (acc, r) => ({ ...acc, [r.key]: MOMENTARY_TRIGGERS.has(r.key) ? 0 : (r.default ?? 1) }),
   {} as Record<string, number>,
 );
 
