@@ -33,7 +33,7 @@ import { focusFirstField } from './lib/voucherNav';
 
 export default function Vouchers() {
   const navigate = useNavigate();
-  const { selectedCompany, activeFY } = useCompany();
+  const { selectedCompany, activeFY, features } = useCompany();
 
   const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
   const [voucherTypeParentMap, setVoucherTypeParentMap] = useState<Record<string, string>>({});
