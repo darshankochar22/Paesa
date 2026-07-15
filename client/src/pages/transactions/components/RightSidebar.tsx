@@ -241,6 +241,8 @@ export default function RightSidebar({
         >
           <span className="text-gray-500">Ctrl+T</span>: {status === 'Post-Dated' ? '✓ ' : ''}
           Post-Dated
+          <span className="text-gray-500">Ctrl+T</span>: {status === 'Post-Dated' ? '✓ ' : ''}
+          Post-Dated
         </Button>
       </div>
 

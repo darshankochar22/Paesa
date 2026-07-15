@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TallyFieldPopup } from '@/components/tally-ui/TallyFieldPopup';
+import { useState, useEffect } from 'react';
+import { TallyFieldPopup } from '@/components/tally-ui/TallyFieldPopup';
 
 export interface ReceiptDetails {
   receipt_note_no?: string;
@@ -57,6 +59,10 @@ function fmtDate(iso?: string | null): string {
 // (theme substitute for Tally's yellow) + underline. Compact row height.
 const inputCls =
   'flex-1 min-w-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black';
+const labelCls = 'w-40 text-[13px] text-black shrink-0';
+const dateInputCls =
+  'w-24 shrink-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black';
+('flex-1 min-w-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black');
 const labelCls = 'w-40 text-[13px] text-black shrink-0';
 const dateInputCls =
   'w-24 shrink-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black';
@@ -170,6 +176,7 @@ export default function ReceiptDetailsPopup({
               type="text"
               className="flex-1 min-w-0 text-[13px] font-semibold text-black bg-transparent px-0.5 py-0 outline-none focus:bg-gray-200 placeholder:font-semibold placeholder:text-black"
               value={form.receipt_note_no ?? ''}
+              value={form.receipt_note_no ?? ''}
               onFocus={() => setShowNoteList(true)}
               onChange={(e) => set('receipt_note_no', e.target.value)}
               onKeyDown={(e) => {
@@ -190,10 +197,33 @@ export default function ReceiptDetailsPopup({
                     set('receipt_note_no', '');
                     setShowNoteList(false);
                   }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    set('receipt_note_no', '');
+                    setShowNoteList(false);
+                  }}
                   className="block w-full text-left text-[13px] px-2 py-1 hover:bg-gray-100"
                 >
                   Not Applicable
                 </button>
+                {savedNotes
+                  .filter((n) => !selectedNoteNos.includes(n.tracking_no))
+                  .map((n) => (
+                    <button
+                      key={`note-${n.voucher_id}`}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        appendNoteNo(n.tracking_no);
+                        setShowNoteList(false);
+                        onSelectSavedNote?.(n);
+                      }}
+                      className="flex w-full items-center text-[13px] px-2 py-1 hover:bg-gray-100 border-t border-gray-100"
+                    >
+                      <span className="flex-1 text-left font-semibold">{n.tracking_no}</span>
+                      <span className="italic text-gray-600 text-xs">{fmtDate(n.date)}</span>
+                    </button>
+                  ))}
                 {savedNotes
                   .filter((n) => !selectedNoteNos.includes(n.tracking_no))
                   .map((n) => (
@@ -249,6 +279,8 @@ export default function ReceiptDetailsPopup({
               className={inputCls}
               value={form.receipt_doc_no ?? ''}
               onChange={(e) => set('receipt_doc_no', e.target.value)}
+              value={form.receipt_doc_no ?? ''}
+              onChange={(e) => set('receipt_doc_no', e.target.value)}
             />
           </div>
 
@@ -258,6 +290,8 @@ export default function ReceiptDetailsPopup({
             <input
               type="text"
               className={inputCls}
+              value={form.dispatched_through ?? ''}
+              onChange={(e) => set('dispatched_through', e.target.value)}
               value={form.dispatched_through ?? ''}
               onChange={(e) => set('dispatched_through', e.target.value)}
             />
@@ -271,6 +305,8 @@ export default function ReceiptDetailsPopup({
               className={inputCls}
               value={form.destination ?? ''}
               onChange={(e) => set('destination', e.target.value)}
+              value={form.destination ?? ''}
+              onChange={(e) => set('destination', e.target.value)}
             />
           </div>
 
@@ -280,6 +316,8 @@ export default function ReceiptDetailsPopup({
             <input
               type="text"
               className={inputCls}
+              value={form.carrier_name ?? ''}
+              onChange={(e) => set('carrier_name', e.target.value)}
               value={form.carrier_name ?? ''}
               onChange={(e) => set('carrier_name', e.target.value)}
             />
@@ -293,12 +331,16 @@ export default function ReceiptDetailsPopup({
               className={inputCls}
               value={form.bill_of_lading_no ?? ''}
               onChange={(e) => set('bill_of_lading_no', e.target.value)}
+              value={form.bill_of_lading_no ?? ''}
+              onChange={(e) => set('bill_of_lading_no', e.target.value)}
             />
             <span className="text-[13px] text-black shrink-0 ml-1">Date</span>
             <span className="text-[13px] text-black shrink-0">:</span>
             <input
               type="date"
               className={dateInputCls}
+              value={form.bill_of_lading_date ?? ''}
+              onChange={(e) => set('bill_of_lading_date', e.target.value)}
               value={form.bill_of_lading_date ?? ''}
               onChange={(e) => set('bill_of_lading_date', e.target.value)}
             />
@@ -310,6 +352,8 @@ export default function ReceiptDetailsPopup({
             <input
               type="text"
               className={inputCls}
+              value={form.motor_vehicle_no ?? ''}
+              onChange={(e) => set('motor_vehicle_no', e.target.value)}
               value={form.motor_vehicle_no ?? ''}
               onChange={(e) => set('motor_vehicle_no', e.target.value)}
             />

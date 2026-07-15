@@ -449,6 +449,7 @@ export function useAmountConfirmFlow(
         (isBankAllocVoucher && form.checkIsBank(item)) ||
         (billWiseEnabled && (form.checkIsParty(item) || item.is_bill_wise === 1)) ||
         (costCentresEnabled && item.allow_cost_centres === 1);
+      form.checkIsParty(item) || item.is_bill_wise === 1 || item.allow_cost_centres === 1;
       // A plain ledger (no allocation popup) → advance to this row's amount cell.
       if (!opensPopup) {
         setTimeout(() => advanceFromLastField(), 50);

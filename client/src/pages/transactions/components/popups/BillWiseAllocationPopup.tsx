@@ -5,8 +5,6 @@ import { openField } from '../../lib/voucherNav';
 
 interface PendingBill {
   bill_name: string;
-  // Order references (a party's open Purchase/Sales Order numbers) appear in
-  // the list name-only: date / balance columns are null (is_order = 1).
   bill_date: string | null;
   due_date: string | null;
   credit_period: string | null;
@@ -30,7 +28,6 @@ interface Props {
   totalAmount: number;
   dcType: 'Dr' | 'Cr';
   voucherDate: string;
-  /** Current voucher number — used to pre-fill a New Ref's name (editable). */
   voucherNumber?: string;
   initialAllocations?: BillReference[];
   onClose: () => void;
@@ -52,7 +49,6 @@ const MONTH_NAMES = [
   'Dec',
 ];
 
-// Due date / credit days only apply to references that track a credit period.
 const hasDueDate = (t: BillReference['bill_type']) => t === 'New Ref' || t === 'Agst Ref';
 
 function formatDateDisplay(dateStr: string | undefined): string {
@@ -83,8 +79,6 @@ export default function BillWiseAllocationPopup({
   onClose,
   onSave,
 }: Props) {
-  // Default reference name for a New Ref = the voucher number (Tally behaviour),
-  // e.g. Sales No. 21 → "21". Always a string so bill_name.trim() is safe.
   const defaultRefName = String(voucherNumber ?? '').trim();
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -101,7 +95,6 @@ export default function BillWiseAllocationPopup({
   const didFocusRef = useRef(false);
   const agstDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Close pending-bills dropdown on outside click or Escape
   useEffect(() => {
     if (activeAgstRow === null) return;
     const handler = (e: MouseEvent) => {
@@ -112,8 +105,6 @@ export default function BillWiseAllocationPopup({
     };
     const keyHandler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // Close only the dropdown — stop the shell's window-level Esc handler
-        // from also closing the whole popup.
         e.stopPropagation();
         e.preventDefault();
         setActiveAgstRow(null);
@@ -127,7 +118,6 @@ export default function BillWiseAllocationPopup({
     };
   }, [activeAgstRow]);
 
-  // Fetch pending bills on mount
   useEffect(() => {
     if (!companyId || !fyId || !ledgerId) return;
     setLoadingBills(true);
@@ -144,8 +134,6 @@ export default function BillWiseAllocationPopup({
       .finally(() => setLoadingBills(false));
   }, [ledgerId, companyId, fyId]);
 
-  // Initialize allocations — once per mount. Guarding with a ref stops a parent
-  // re-render that passes a fresh [] (new identity) from wiping in-progress edits.
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
@@ -171,7 +159,6 @@ export default function BillWiseAllocationPopup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ledgerId, totalAmount, initialAllocations]);
 
-  // Update default credit period when fetched
   useEffect(() => {
     if (initialAllocations.length === 0 && checkCreditDays === 1 && defaultCreditPeriod > 0) {
       setAllocations((prev) =>
@@ -188,11 +175,6 @@ export default function BillWiseAllocationPopup({
     }
   }, [defaultCreditPeriod, checkCreditDays, voucherDate, initialAllocations.length]);
 
-  // Land the cursor on the first "Type of Ref" cell and pop its dropdown open
-  // once the row exists, so Arrow+Enter picks a reference type immediately (Tally
-  // behaviour). The shared popup shell focuses on mount, but the rows here are
-  // created in an effect after the pending-bills fetch resolves — so at mount
-  // there is nothing to focus yet.
   useEffect(() => {
     if (didFocusRef.current || allocations.length === 0) return;
     didFocusRef.current = true;
@@ -218,19 +200,14 @@ export default function BillWiseAllocationPopup({
     };
 
     if (type === 'On Account') {
-      // No name, no due date — the whole amount sits on account.
       base.bill_name = 'On Account';
     } else if (type === 'New Ref') {
-      // Pre-fill the new reference name with the voucher number (editable); carries
-      // a credit period.
       base.bill_name = defaultRefName;
       base.credit_period = shouldAutoFill ? String(defaultCreditPeriod) : '';
       base.due_date = shouldAutoFill ? addDays(voucherDate, defaultCreditPeriod) : '';
     } else if (type === 'Advance') {
-      // Advance: user types a reference name, but advances carry no due date.
       base.bill_name = '';
     } else if (type === 'Agst Ref') {
-      // Settle against an existing pending bill.
       if (pendingBills.length > 0) {
         const first = pendingBills[0];
         base.bill_name = first.bill_name;
@@ -270,7 +247,6 @@ export default function BillWiseAllocationPopup({
         let updated = { ...row, [field]: value };
 
         if (field === 'bill_type') {
-          // Reset row when type changes
           updated = getDefaultRow(value as BillReference['bill_type'], row.amount);
         }
 
@@ -305,7 +281,6 @@ export default function BillWiseAllocationPopup({
           bill_name: bill.bill_name,
           credit_period: bill.credit_period || '',
           due_date: bill.due_date || '',
-          // An order reference has no posted balance — keep the typed amount.
           amount: bill.balance == null ? row.amount : bill.balance,
         };
       }),
@@ -322,7 +297,6 @@ export default function BillWiseAllocationPopup({
       setError('Name is required for all references except On Account.');
       return;
     }
-    // Agst Ref cannot settle more than the referenced bill's outstanding balance.
     for (const a of allocations) {
       if (a.bill_type !== 'Agst Ref') continue;
       const bill = pendingBills.find((b) => b.bill_name === a.bill_name);
@@ -333,12 +307,10 @@ export default function BillWiseAllocationPopup({
         return;
       }
     }
-    // Rows must not exceed the voucher total.
     if (remaining <= -0.01) {
       setError(`Remaining ${formatCurrency(remaining)} must be zero.`);
       return;
     }
-    // Auto-name empty Advance references (Adv-1, Adv-2, …).
     let advSeq = 0;
     const named = allocations.map((a) => {
       if (a.bill_type === 'Advance') {
@@ -347,7 +319,6 @@ export default function BillWiseAllocationPopup({
       }
       return a;
     });
-    // Tally behavior: any unallocated residue is booked On Account automatically.
     const final =
       remaining >= 0.01
         ? [
@@ -395,7 +366,6 @@ export default function BillWiseAllocationPopup({
         </div>
       )}
 
-      {/* Column headers — matches TallyPrime's Bill-wise Details grid */}
       <div className="grid grid-cols-12 border-b border-gray-400 py-1.5 text-[10px] font-bold text-black gap-1">
         <div className="col-span-3">Type of Ref</div>
         <div className="col-span-2">Name</div>
@@ -420,7 +390,6 @@ export default function BillWiseAllocationPopup({
             key={i}
             className="group relative grid grid-cols-12 items-start py-1.5 bg-white gap-1"
           >
-            {/* Type of Ref */}
             <div className="col-span-3">
               <select
                 data-bw-type={i}
@@ -435,10 +404,8 @@ export default function BillWiseAllocationPopup({
               </select>
             </div>
 
-            {/* Name */}
             <div className="col-span-2 relative">
               {row.bill_type === 'On Account' ? (
-                // On Account carries no reference name.
                 <span className="text-xs text-gray-400 py-1 inline-block">&mdash;</span>
               ) : row.bill_type === 'Agst Ref' ? (
                 <div
@@ -504,7 +471,6 @@ export default function BillWiseAllocationPopup({
                   )}
                 </div>
               ) : (
-                // New Ref / Advance — type the reference name.
                 <input
                   type="text"
                   value={row.bill_name}
@@ -515,7 +481,6 @@ export default function BillWiseAllocationPopup({
               )}
             </div>
 
-            {/* Due Date / Credit Days — only for New Ref & Agst Ref */}
             <div className="col-span-3 flex flex-col items-center gap-0.5">
               {hasDueDate(row.bill_type) ? (
                 <>
@@ -537,7 +502,6 @@ export default function BillWiseAllocationPopup({
               )}
             </div>
 
-            {/* Amount — Enter moves to the Dr/Cr cell (Tally flow). */}
             <div className="col-span-3">
               <input
                 type="number"
@@ -553,9 +517,6 @@ export default function BillWiseAllocationPopup({
               />
             </div>
 
-            {/* Dr/Cr — focusable; Enter accepts the bill-wise details (or moves
-                to the next split row when more rows follow). Dr/Cr itself is
-                fixed by the voucher, so it isn't editable. */}
             <div className="col-span-1 text-right">
               <div
                 data-bw-drcr={i}
@@ -577,7 +538,6 @@ export default function BillWiseAllocationPopup({
               </div>
             </div>
 
-            {/* Remove — subtle, appears on row hover (Tally deletes by blanking). */}
             <button
               onClick={() => handleRemove(i)}
               className="absolute -right-2 top-1 text-gray-300 group-hover:text-black text-sm font-bold font-sans leading-none"
@@ -588,7 +548,6 @@ export default function BillWiseAllocationPopup({
         ))}
       </div>
 
-      {/* Total row */}
       <div className="grid grid-cols-12 items-center py-1.5 border-t border-black gap-1 font-bold">
         <div className="col-span-8" />
         <div className="col-span-3 text-right text-xs font-mono text-black">

@@ -57,6 +57,7 @@ export function toLocalIsoDate(d: Date): string {
 }
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 /**
  * Parse a Tally-style typed date into ISO (YYYY-MM-DD). Tally is DAY-first, so
@@ -65,6 +66,7 @@ const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', '
  * map to 2000-2099. Returns null when unparseable.
  */
 export function parseTallyDate(text: string, refIso?: string | null): string | null {
+  const raw = (text || '').trim();
   const raw = (text || '').trim();
   if (!raw) return null;
 
@@ -109,6 +111,8 @@ export function parseTallyDate(text: string, refIso?: string | null): string | n
 
 /** Format an ISO date as Tally's "1-Apr-26" display form. */
 export function formatTallyDate(iso: string | null | undefined): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return '';
+  const [y, m, d] = iso.split('-').map(Number);
   if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return '';
   const [y, m, d] = iso.split('-').map(Number);
   const mon = MONTHS[m - 1];

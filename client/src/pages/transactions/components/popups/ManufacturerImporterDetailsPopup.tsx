@@ -71,6 +71,9 @@ export default function ManufacturerImporterDetailsPopup({
     const fields = Array.from(root.querySelectorAll<HTMLElement>('input, select, textarea')).filter(
       (el) => !(el as HTMLInputElement).disabled && el.offsetParent !== null,
     );
+    const fields = Array.from(root.querySelectorAll<HTMLElement>('input, select, textarea')).filter(
+      (el) => !(el as HTMLInputElement).disabled && el.offsetParent !== null,
+    );
     const nameEl = root.querySelector<HTMLElement>('[data-mid-name]');
     const idx = nameEl ? fields.indexOf(nameEl) : -1;
     const next = idx >= 0 ? fields[idx + 1] : undefined;

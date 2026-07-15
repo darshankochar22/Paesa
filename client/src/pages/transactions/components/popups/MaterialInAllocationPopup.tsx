@@ -354,6 +354,7 @@ export default function MaterialInAllocationPopup({
         : kind === 'batch'
           ? openBatchList === i
           : openGodownList === i;
+
     if (!isOpen) {
       if (e.key === 'Enter' || e.key === 'ArrowDown') {
         e.preventDefault();

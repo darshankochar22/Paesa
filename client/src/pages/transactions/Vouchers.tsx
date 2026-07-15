@@ -33,7 +33,7 @@ import { focusFirstField } from './lib/voucherNav';
 
 export default function Vouchers() {
   const navigate = useNavigate();
-  const { selectedCompany, activeFY, features } = useCompany();
+  const { selectedCompany, activeFY } = useCompany();
 
   const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
   const [voucherTypeParentMap, setVoucherTypeParentMap] = useState<Record<string, string>>({});
@@ -926,8 +926,11 @@ export default function Vouchers() {
                     : // Any accounting voucher's ledger row (Payment / Receipt / Contra /
                       // Journal, single or double entry): End of List finishes ledger
                       // entry and moves to Narration. `particular` uniquely identifies
-                      // these — trade vouchers use stockItem / additional instead.
-                      form.activeField?.type === 'particular'
+                      // these — trade vouchers use stockItem / additional instead
+                      form.activeField?.type === 'particular' &&
+                        ['Journal', 'Reversing Journal', 'Memorandum'].includes(
+                          effectiveVoucherType,
+                        )
                       ? journalParticularEndOfList
                       : undefined
             }

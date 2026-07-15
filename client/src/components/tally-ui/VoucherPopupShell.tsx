@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { useEscape } from '@/hooks/useEscape';
 import { useEnterFieldNav } from '@/pages/transactions/hooks/useVoucherEnterNav';
 import { openFirstField } from '@/pages/transactions/lib/voucherNav';
+import { focusFirstField } from '@/pages/transactions/lib/voucherNav';
 
 /**
  * Shared shell for every popup opened from a voucher entry screen
@@ -67,6 +68,8 @@ export function VoucherPopupShell({
   // (Tally behaviour) when an Accept handler exists.
   const bodyRef = useRef<HTMLDivElement>(null);
   useEnterFieldNav(bodyRef, { onExhausted: onAccept });
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEnterFieldNav(bodyRef);
 
   // Pull keyboard focus INTO the popup on open (unless a child already claimed
   // it via autoFocus), so Enter navigates the popup — not the voucher screen
@@ -75,6 +78,7 @@ export function VoucherPopupShell({
   useEffect(() => {
     const body = bodyRef.current;
     if (body && !body.contains(document.activeElement)) openFirstField(body);
+    if (body && !body.contains(document.activeElement)) focusFirstField(body);
   }, []);
 
   useEffect(() => {
@@ -108,6 +112,12 @@ export function VoucherPopupShell({
         {/* Header — long, clean, white */}
         {headerVariant === 'stacked' ? (
           <div className="relative shrink-0 flex flex-col items-center px-6 py-3 border-b border-gray-300 bg-white">
+            <span className="text-sm font-semibold text-black tracking-wide text-center">
+              {title}
+            </span>
+            {headerRight && (
+              <div className="mt-0.5 text-xs text-gray-700 text-center">{headerRight}</div>
+            )}
             <span className="text-sm font-semibold text-black tracking-wide text-center">
               {title}
             </span>

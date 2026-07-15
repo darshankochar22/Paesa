@@ -348,6 +348,7 @@ export function useAllocationSaveHandlers(
       }
       form.handleFieldFocus({ type: 'salesPurchase' });
     }, 0);
+    setTimeout(() => form.handleFieldFocus({ type: 'salesPurchase' }), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.handleFieldFocus]);
 
@@ -480,8 +481,8 @@ export function useAllocationSaveHandlers(
         // hand focus there (not straight to the first item).
         openSalesPurchaseLedger();
       } else {
-        // Inventory-only party vouchers (Receipt Note, Rejection In): no further
-        // detail popup and no sales/purchase ledger → first item.
+        // Inventory-only party vouchers (Delivery/Receipt Note, Rejection In):
+        // no further detail popup and no sales/purchase ledger → first item.
         focusFirstStockItem();
       }
     },
@@ -518,6 +519,12 @@ export function useAllocationSaveHandlers(
       if (effectiveVoucherType === 'Debit Note') openSalesPurchaseLedger();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      form.setDebitNoteDetails,
+      form.debitNoteDetails,
+      effectiveVoucherType,
+      openSalesPurchaseLedger,
+    ],
     [
       form.setDebitNoteDetails,
       form.debitNoteDetails,

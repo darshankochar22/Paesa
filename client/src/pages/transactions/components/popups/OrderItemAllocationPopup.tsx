@@ -709,6 +709,7 @@ export default function OrderItemAllocationPopup({
                               // and matches; otherwise keep the typed value.
                               const g = open ? godownOpts[godownHi] : undefined;
                               pickGodown(g ? g.name : (row.godown ?? ''));
+                              pickGodown(g ? g.name : (row.godown ?? ''));
                             }
                           }}
                           placeholder="Location"
