@@ -12,7 +12,7 @@ const fundsFlowReportService = require('../report/fundsFlowReportService');
 const trailbalanceService = require('../report/services/trailbalanceService');
 
 describe('Group Funds Flow drill (Current Assets)', () => {
-  let companyId, fyId, caGroupId;
+  let companyId, fyId, caGroupId, clGroupId;
   const led = {};
 
   const groupId = async (name) => {
@@ -47,6 +47,7 @@ describe('Group Funds Flow drill (Current Assets)', () => {
     await mkLedger('Goods Sales', 'Sales Accounts');
     await mkLedger('Office Rent', 'Indirect Expenses');
     await mkLedger('Bank Loan', 'Loans(Liability)');
+    await mkLedger('Creditors', 'Sundry Creditors'); // current liability
 
     const cash = await db.execute(
       `SELECT ledger_id FROM ledgers WHERE company_id = ? AND name = 'Cash'`,
@@ -74,9 +75,11 @@ describe('Group Funds Flow drill (Current Assets)', () => {
     await post('Receipt', '2026-04-05', 'Cash', 'Bank Loan', 500000);
     await post('Payment', '2026-04-25', 'Office Rent', 'Cash', 50000);
     await post('Sales', '2026-04-20', 'Debtors', 'Goods Sales', 200000);
+    await post('Purchase', '2026-04-15', 'Office Rent', 'Creditors', 100000); // Cr a creditor
 
     const ff = await fundsFlowReportService.fundsFlow(companyId, fyId, '2026-04-01', '2026-04-30');
     caGroupId = ff.currentAssetsGroupId;
+    clGroupId = ff.currentLiabilitiesGroupId;
   });
 
   it('returns Opening | Transactions | Closing per child group', async () => {
@@ -106,5 +109,20 @@ describe('Group Funds Flow drill (Current Assets)', () => {
     expect(debtor.type).toBe('ledger');
     expect(debtor.closing).toBe(200000);
     expect(debtor.txnDebit).toBe(200000);
+  });
+
+  // Issue #243 — Current Liabilities mirror. Balances are Cr (negative signed).
+  it('renders Current Liabilities as Cr closing balances', async () => {
+    const r = await trailbalanceService.groupFundsFlow(companyId, fyId, clGroupId);
+    expect(r.success).toBe(true);
+    expect(r.group_name).toBe('Current Liabilities');
+
+    const byName = Object.fromEntries(r.childGroups.map((g) => [g.group_name, g]));
+    // Creditors was credited 100k → Sundry Creditors closes 100k Cr (signed −).
+    expect(byName['Sundry Creditors'].opening).toBe(0);
+    expect(byName['Sundry Creditors'].txnDebit).toBe(0);
+    expect(byName['Sundry Creditors'].txnCredit).toBe(100000);
+    expect(byName['Sundry Creditors'].closing).toBe(-100000);
+    expect(r.totalClosing).toBeLessThan(0); // net Cr
   });
 });

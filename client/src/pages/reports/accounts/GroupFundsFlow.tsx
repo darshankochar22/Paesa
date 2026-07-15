@@ -82,7 +82,7 @@ export default function GroupFundsFlow() {
       if (r.type === 'group' && r.group_id != null) {
         navigate(`/reports/accounts/group-funds-flow/${r.group_id}`);
       } else if (r.type === 'stock') {
-        navigate('/reports/inventory/stock-group-summary');
+        navigate('/reports/inventory/stock-summary-drill');
       } else if (r.type === 'ledger' && r.ledger_id != null && r.ledger_id > 0) {
         navigate(`/reports/accounts/ledger-summary/${r.ledger_id}`);
       }

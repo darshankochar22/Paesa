@@ -134,6 +134,7 @@ import GodownReport from '../pages/reports/inventory/GodownReport.tsx';
 import BatchVouchers from '../pages/reports/inventory/BatchVouchers.tsx';
 import GodownSummary from '../pages/reports/inventory/GodownSummary.tsx';
 import StockGroupSummary from '../pages/reports/inventory/StockGroupSummary.tsx';
+import ClosingStockSummary from '../pages/reports/inventory/ClosingStockSummary.tsx';
 import StockCategorySummary from '../pages/reports/inventory/StockCategorySummary.tsx';
 import StockJournalRegister from '../pages/reports/inventory/StockJournalRegister.tsx';
 import PhysicalStockRegister from '../pages/reports/inventory/PhysicalStockRegister.tsx';
@@ -560,6 +561,7 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/inventory/batch-vouchers', element: <BatchVouchers /> },
   { path: '/reports/inventory/godown-summary', element: <GodownSummary /> },
   { path: '/reports/inventory/stock-group-summary', element: <StockGroupSummary /> },
+  { path: '/reports/inventory/stock-summary-drill', element: <ClosingStockSummary /> },
   { path: '/reports/inventory/stock-category-summary', element: <StockCategorySummary /> },
   { path: '/reports/inventory/movement-analysis', element: <MovementAnalysis /> },
   { path: '/reports/inventory/stock-group-analysis', element: <StockGroupAnalysis /> },
