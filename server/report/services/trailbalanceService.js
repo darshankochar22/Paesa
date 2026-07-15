@@ -3,6 +3,22 @@ const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../../db/schema');
 const { getOpeningBalances } = require('../utils/ledgerBalance');
 const { isFeatureEnabled } = require('../../tallyFeatures/featureFlags');
+const { calculateClosingStock } = require('../stockValuationEngine');
+
+// Closing stock value (inventory valued as-of the period), shown as a
+// Current-Asset debit only when F11 "Integrate Accounts with Inventory" is ON.
+// This is what Tally shows in the Current Assets group ("Closing Stock"), not
+// the opening figure. Returns 0 when integration is off or valuation fails.
+const getClosingStockValue = async (company_id, fy_id) => {
+  try {
+    const on = await isFeatureEnabled(company_id, 'integrate_accounts_with_inventory');
+    if (!on) return 0;
+    const res = await calculateClosingStock(company_id, fy_id, null);
+    return res && res.success ? Number(res.totalValue) || 0 : 0;
+  } catch (_) {
+    return 0;
+  }
+};
 
 // Opening stock value for the full FY (= Σ stock-item opening values), shown as
 // a Current-Asset debit only when F11 "Integrate Accounts with Inventory" is ON.
@@ -234,15 +250,16 @@ const groupSummary = async (company_id, fy_id, group_id) => {
     // Group info
     const groupInfo = allGroups.find((g) => g.group_id === group_id);
 
-    // Opening Stock shows as a distinct line inside the Current Assets primary
-    // group (Tally). Negative ledger_id marks it as a virtual, non-drillable row.
+    // Closing Stock shows as a distinct line inside the Current Assets primary
+    // group (Tally shows the CLOSING inventory value here, not the opening one).
+    // Negative ledger_id marks it as a virtual, non-drillable row.
     if (groupInfo && groupInfo.name === 'Current Assets' && !groupInfo.parent_group_id) {
-      const openingStock = await getOpeningStockValue(company_id);
-      if (openingStock !== 0) {
+      const closingStock = await getClosingStockValue(company_id, fy_id);
+      if (closingStock !== 0) {
         directLedgers.unshift({
           ledger_id: -100,
-          ledger_name: 'Opening Stock',
-          dr: openingStock,
+          ledger_name: 'Closing Stock',
+          dr: closingStock,
           cr: 0,
           type: 'ledger',
         });
