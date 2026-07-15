@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { TallyFieldPopup } from '@/components/tally-ui/TallyFieldPopup';
-import { useState, useEffect } from 'react';
-import { TallyFieldPopup } from '@/components/tally-ui/TallyFieldPopup';
 
 export interface ReceiptDetails {
   receipt_note_no?: string;
@@ -63,9 +61,6 @@ const labelCls = 'w-40 text-[13px] text-black shrink-0';
 const dateInputCls =
   'w-24 shrink-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black';
 ('flex-1 min-w-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black');
-const labelCls = 'w-40 text-[13px] text-black shrink-0';
-const dateInputCls =
-  'w-24 shrink-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black';
 
 export default function ReceiptDetailsPopup({
   initialDetails,

@@ -68,8 +68,6 @@ export function VoucherPopupShell({
   // (Tally behaviour) when an Accept handler exists.
   const bodyRef = useRef<HTMLDivElement>(null);
   useEnterFieldNav(bodyRef, { onExhausted: onAccept });
-  const bodyRef = useRef<HTMLDivElement>(null);
-  useEnterFieldNav(bodyRef);
 
   // Pull keyboard focus INTO the popup on open (unless a child already claimed
   // it via autoFocus), so Enter navigates the popup — not the voucher screen
