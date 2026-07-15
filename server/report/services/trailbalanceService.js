@@ -286,6 +286,152 @@ const groupSummary = async (company_id, fy_id, group_id) => {
   }
 };
 
+// ── groupFundsFlow — Fund Flow group drill (Opening | Txns | Closing) ───────
+//
+// Dedicated to the Funds Flow → Current Assets / Current Liabilities drill and
+// its sub-group recursion. Unlike the generic groupSummary (net Dr/Cr only),
+// this returns Tally's four-column shape for every child group and ledger:
+//   Opening Balance | Transactions (Debit / Credit) | Closing Balance
+// Signed convention: Dr positive, Cr negative (the UI adds the Dr/Cr suffix).
+const groupFundsFlow = async (company_id, fy_id, group_id) => {
+  try {
+    const entries = await getEntries(company_id, fy_id);
+    const { openings } = await getOpeningBalances(company_id, fy_id);
+
+    const allGroups = await db.all(
+      sql`SELECT group_id, name, nature, parent_group_id, display_order
+          FROM ${groups}
+          WHERE company_id = ${company_id} AND is_active = 1
+          ORDER BY display_order ASC`,
+    );
+
+    const allLedgers = await db.all(
+      sql`SELECT ledger_id, name AS ledger_name, opening_balance, opening_balance_type, group_id
+          FROM ${ledgers}
+          WHERE company_id = ${company_id} AND is_active = 1`,
+    );
+
+    // Per-ledger opening (carried forward), period Dr/Cr movement, and closing.
+    const ledgerFlow = {};
+    for (const l of allLedgers) {
+      const opening = openings[l.ledger_id] || 0;
+      let txnDebit = 0;
+      let txnCredit = 0;
+      for (const e of entries) {
+        if (e.ledger_id !== l.ledger_id) continue;
+        if (e.type === 'Dr') txnDebit += Number(e.amount);
+        else txnCredit += Number(e.amount);
+      }
+      ledgerFlow[l.ledger_id] = {
+        ledger_id: l.ledger_id,
+        ledger_name: l.ledger_name,
+        group_id: l.group_id,
+        opening,
+        txnDebit,
+        txnCredit,
+        closing: opening + txnDebit - txnCredit,
+      };
+    }
+
+    const descendantMap = buildDescendantMap(allGroups);
+
+    // Roll every group's members (self + descendants) into one flow row.
+    const groupFlowOf = (gid) => {
+      const relevantIds = new Set([gid, ...descendantMap[gid]]);
+      let opening = 0;
+      let txnDebit = 0;
+      let txnCredit = 0;
+      let closing = 0;
+      for (const l of Object.values(ledgerFlow)) {
+        if (!relevantIds.has(l.group_id)) continue;
+        opening += l.opening;
+        txnDebit += l.txnDebit;
+        txnCredit += l.txnCredit;
+        closing += l.closing;
+      }
+      return { opening, txnDebit, txnCredit, closing };
+    };
+
+    const isEmpty = (r) =>
+      r.opening === 0 && r.txnDebit === 0 && r.txnCredit === 0 && r.closing === 0;
+
+    // Direct child groups
+    const childGroups = allGroups
+      .filter((cg) => cg.parent_group_id === group_id)
+      .map((cg) => {
+        const f = groupFlowOf(cg.group_id);
+        return { group_id: cg.group_id, group_name: cg.name, type: 'group', ...f };
+      })
+      .filter((g) => !isEmpty(g));
+
+    // Direct ledgers
+    const directLedgers = Object.values(ledgerFlow)
+      .filter((l) => l.group_id === group_id)
+      .map((l) => ({
+        ledger_id: l.ledger_id,
+        ledger_name: l.ledger_name,
+        type: 'ledger',
+        opening: l.opening,
+        txnDebit: l.txnDebit,
+        txnCredit: l.txnCredit,
+        closing: l.closing,
+      }))
+      .filter((l) => !isEmpty(l));
+
+    const groupInfo = allGroups.find((g) => g.group_id === group_id);
+    const isCurrentAssets =
+      groupInfo && groupInfo.name === 'Current Assets' && !groupInfo.parent_group_id;
+
+    // Closing Stock — the inventory line Tally shows inside Current Assets when
+    // Accounts are integrated with Inventory. Opening = opening stock value,
+    // Closing = closing valuation, movement folded into the Debit/Credit column.
+    // Drillable into the Stock Group Summary (ledger_id -100 marks it virtual).
+    if (isCurrentAssets) {
+      const [openingStock, closingStock] = await Promise.all([
+        getOpeningStockValue(company_id),
+        getClosingStockValue(company_id, fy_id),
+      ]);
+      if (openingStock !== 0 || closingStock !== 0) {
+        const delta = closingStock - openingStock;
+        directLedgers.unshift({
+          ledger_id: -100,
+          ledger_name: 'Closing Stock',
+          type: 'stock',
+          opening: openingStock,
+          txnDebit: delta > 0 ? delta : 0,
+          txnCredit: delta < 0 ? -delta : 0,
+          closing: closingStock,
+        });
+      }
+    }
+
+    const rows = [...childGroups, ...directLedgers];
+    const totals = rows.reduce(
+      (acc, r) => ({
+        opening: acc.opening + r.opening,
+        txnDebit: acc.txnDebit + r.txnDebit,
+        txnCredit: acc.txnCredit + r.txnCredit,
+        closing: acc.closing + r.closing,
+      }),
+      { opening: 0, txnDebit: 0, txnCredit: 0, closing: 0 },
+    );
+
+    return {
+      success: true,
+      group_name: groupInfo?.name || '',
+      childGroups,
+      ledgers: directLedgers,
+      totalOpening: totals.opening,
+      totalDebit: totals.txnDebit,
+      totalCredit: totals.txnCredit,
+      totalClosing: totals.closing,
+    };
+  } catch (err) {
+    console.error('[groupFundsFlow] error:', err);
+    return { success: false, error: err.message };
+  }
+};
+
 // ── ledgerMonthlySummary ───────────────────────────────────────────────────
 
 const ledgerMonthlySummary = async (company_id, fy_id, ledger_id) => {
@@ -368,4 +514,4 @@ const ledgerMonthlySummary = async (company_id, fy_id, ledger_id) => {
   }
 };
 
-module.exports = { trialBalance, groupSummary, ledgerMonthlySummary };
+module.exports = { trialBalance, groupSummary, groupFundsFlow, ledgerMonthlySummary };

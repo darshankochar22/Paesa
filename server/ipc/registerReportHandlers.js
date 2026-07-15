@@ -70,6 +70,7 @@ function register() {
   // Accounting summaries
   ipcMain.handle('report:groupSummary', reportController.groupSummary);
   ipcMain.handle('report:groupSummaryDrilldown', reportController.groupSummaryDrilldown);
+  ipcMain.handle('report:groupFundsFlowDrilldown', reportController.groupFundsFlowDrilldown);
   ipcMain.handle('report:ledgerMonthlySummary', reportController.ledgerMonthlySummary);
   ipcMain.handle('report:statistics', reportController.statistics);
   ipcMain.handle('report:statisticsVoucherMonthly', reportController.statisticsVoucherMonthly);

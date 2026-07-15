@@ -273,6 +273,8 @@ contextBridge.exposeInMainWorld('api', {
     ratioAnalysis: (company_id, fy_id) => invoke('report:ratioAnalysis', { company_id, fy_id }),
     groupSummaryDrilldown: (company_id, fy_id, group_id) =>
       invoke('report:groupSummaryDrilldown', { company_id, fy_id, group_id }),
+    groupFundsFlowDrilldown: (company_id, fy_id, group_id) =>
+      invoke('report:groupFundsFlowDrilldown', { company_id, fy_id, group_id }),
     ledgerMonthlySummary: (company_id, fy_id, ledger_id) =>
       invoke('report:ledgerMonthlySummary', { company_id, fy_id, ledger_id }),
     run: (reportId, params) => invoke('report:run', { reportId, params }),

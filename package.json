@@ -45,6 +45,7 @@
   "build": {
     "appId": "com.startup.app",
     "productName": "Startup",
+    "artifactName": "Paesa-${version}-${arch}.${ext}",
     "asar": false,
     "mac": {
       "target": "dmg",

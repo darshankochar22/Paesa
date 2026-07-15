@@ -279,6 +279,9 @@ module.exports = {
   groupSummaryDrilldown: async (event, { company_id, fy_id, group_id }) => {
     return await groupSummaryDrilldown.groupSummary(company_id, fy_id, group_id);
   },
+  groupFundsFlowDrilldown: async (event, { company_id, fy_id, group_id }) => {
+    return await groupSummaryDrilldown.groupFundsFlow(company_id, fy_id, group_id);
+  },
   ledgerMonthlySummary: async (event, { company_id, fy_id, ledger_id }) => {
     return await ledgerMonthlySummary.ledgerMonthlySummary(company_id, fy_id, ledger_id);
   },

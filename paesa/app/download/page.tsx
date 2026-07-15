@@ -1,7 +1,22 @@
 import Link from "next/link";
 
-const VERSION = "1.0.4";
+const VERSION = "1.0.0";
 const SERIF = { fontFamily: "var(--font-lora), Georgia, serif", fontStyle: "italic" as const, fontWeight: 400 };
+
+// Real, hosted macOS build lives in /public/downloads.
+// Windows + Linux builds are published as GitHub Release assets (names match
+// the electron-builder `artifactName` in the desktop app's package.json).
+const RELEASES = "https://github.com/darshankochar22/MVP/releases";
+const LATEST = `${RELEASES}/latest/download`;
+
+const DOWNLOADS = {
+  macArm: `/downloads/Paesa-${VERSION}-arm64.dmg`,
+  macIntel: `${LATEST}/Paesa-${VERSION}-x64.dmg`,
+  winExe: `${LATEST}/Paesa-${VERSION}-x64.exe`,
+  linuxDeb: `${LATEST}/Paesa-${VERSION}-x64.deb`,
+  linuxAppImage: `${LATEST}/Paesa-${VERSION}-x64.AppImage`,
+  linuxRpm: `${LATEST}/Paesa-${VERSION}-x64.rpm`,
+};
 
 function AppleLogo() {
   return (
@@ -43,10 +58,10 @@ const PLATFORMS = [
     name: "macOS",
     logo: <AppleLogo />,
     req: "Requires macOS 12 Monterey or later",
-    primary: { label: "Download for Mac", sub: "Universal · Apple Silicon + Intel", href: "#" },
+    primary: { label: "Download for Mac", sub: "Apple Silicon (M1+) · .dmg", href: DOWNLOADS.macArm },
     secondary: [
-      { label: "Apple Silicon (.dmg)", href: "#" },
-      { label: "Intel Mac (.dmg)", href: "#" },
+      { label: "Apple Silicon (.dmg)", href: DOWNLOADS.macArm },
+      { label: "Intel Mac (.dmg)", href: DOWNLOADS.macIntel },
     ],
   },
   {
@@ -54,10 +69,9 @@ const PLATFORMS = [
     name: "Windows",
     logo: <WindowsLogo />,
     req: "Requires Windows 10 version 1903 or later",
-    primary: { label: "Download for Windows", sub: "64-bit · Windows 10 / 11", href: "#" },
+    primary: { label: "Download for Windows", sub: "64-bit · Windows 10 / 11", href: DOWNLOADS.winExe },
     secondary: [
-      { label: "Installer (.exe)", href: "#" },
-      { label: "Portable (.zip)", href: "#" },
+      { label: "Installer (.exe)", href: DOWNLOADS.winExe },
     ],
   },
   {
@@ -65,11 +79,11 @@ const PLATFORMS = [
     name: "Linux",
     logo: <LinuxLogo />,
     req: "Available for 64-bit distributions",
-    primary: { label: "Download for Linux", sub: "Debian / Ubuntu (.deb)", href: "#" },
+    primary: { label: "Download for Linux", sub: "Debian / Ubuntu (.deb)", href: DOWNLOADS.linuxDeb },
     secondary: [
-      { label: ".deb (Debian, Ubuntu)", href: "#" },
-      { label: ".AppImage (Universal)", href: "#" },
-      { label: ".rpm (Fedora, RHEL)", href: "#" },
+      { label: ".deb (Debian, Ubuntu)", href: DOWNLOADS.linuxDeb },
+      { label: ".AppImage (Universal)", href: DOWNLOADS.linuxAppImage },
+      { label: ".rpm (Fedora, RHEL)", href: DOWNLOADS.linuxRpm },
     ],
   },
 ];
@@ -110,7 +124,7 @@ export default function DownloadPage() {
         <div className="max-w-3xl mx-auto px-6 text-center">
           <div className="inline-flex items-center gap-2 border border-zinc-200 rounded-full px-3 py-1 mb-8 text-xs text-zinc-500">
             <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-            Version {VERSION} — June 2026
+            Version {VERSION} — July 2026
           </div>
           <h1 className="text-5xl md:text-6xl font-bold text-zinc-950 tracking-tight leading-tight mb-5">
             Download{" "}
@@ -145,6 +159,7 @@ export default function DownloadPage() {
                 <div className="px-8 pb-6">
                   <a
                     href={p.primary.href}
+                    download
                     className="flex items-center justify-between w-full bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-950 rounded-xl px-5 py-3.5 transition-colors group"
                   >
                     <div>
@@ -165,6 +180,7 @@ export default function DownloadPage() {
                     <a
                       key={s.label}
                       href={s.href}
+                      download
                       className="flex items-center justify-between text-sm text-zinc-600 hover:text-zinc-950 group transition-colors"
                     >
                       <span>{s.label}</span>
@@ -180,11 +196,10 @@ export default function DownloadPage() {
 
           {/* Version / checksum note */}
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-sm text-zinc-400">
-            <span>Paesa v{VERSION} · Released June 14, 2026</span>
+            <span>Paesa v{VERSION} · Released July 15, 2026</span>
             <div className="flex gap-6">
-              <Link href="#" className="hover:text-zinc-700 transition-colors">Changelog</Link>
-              <Link href="#" className="hover:text-zinc-700 transition-colors">SHA-256 checksums</Link>
-              <Link href="#" className="hover:text-zinc-700 transition-colors">All releases</Link>
+              <Link href={RELEASES} className="hover:text-zinc-700 transition-colors">Changelog</Link>
+              <Link href={RELEASES} className="hover:text-zinc-700 transition-colors">All releases</Link>
             </div>
           </div>
         </div>

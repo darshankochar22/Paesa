@@ -61,3 +61,7 @@ playwright-report/
 
 # Claude Code (local tooling / session config)
 .claude/
+
+# Large build artifacts (exceed GitHub 100MB limit)
+paesa/public/downloads/
+*.dmg
