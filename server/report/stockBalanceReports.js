@@ -167,15 +167,13 @@ module.exports = {
         const rate = cumInQty !== 0 ? cumInVal / cumInQty : 0;
         const closing_qty = runQty;
         const closing_value = runQty * rate;
-        if (
-          opening_qty === 0 &&
-          in_qty === 0 &&
-          out_qty === 0 &&
-          closing_qty === 0 &&
-          opening_value === 0 &&
-          closing_value === 0
-        )
-          continue;
+        // TallyPrime's Stock Summary lists only items that HOLD a closing
+        // balance. An item bought and fully sold in the period (e.g. Fan: 20 in,
+        // 20 out → 0) is hidden — payment mode (cash vs credit) is irrelevant to
+        // stock, a zero close is zero regardless. We key off closing QUANTITY,
+        // not value, so returned stock with no cost basis (non-zero qty, zero
+        // value) and negative stock are still shown.
+        if (Math.abs(closing_qty) < 1e-6) continue;
         items.push({
           item_id: it.item_id,
           item_name: it.name,
