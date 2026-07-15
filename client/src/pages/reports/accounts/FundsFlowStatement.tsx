@@ -305,8 +305,8 @@ export default function FundsFlowStatement() {
             y={rectY}
             width={barW}
             height={barH}
-            fill={isPos ? '#52525b' : '#71717a'}
-            opacity={0.85}
+            fill="#000000"
+            opacity={isPos ? 0.85 : 0.35}
           />
           <text
             x={cx}
@@ -346,7 +346,7 @@ export default function FundsFlowStatement() {
           <span>Working Capital — Monthly Funds Flow</span>
           <span className="flex items-center gap-1 normal-case font-normal text-black">
             <span className="inline-block w-3 h-2 bg-black opacity-85 rounded-sm"></span> Increase
-            <span className="inline-block w-3 h-2 bg-black opacity-85 rounded-sm ml-2"></span>{' '}
+            <span className="inline-block w-3 h-2 bg-black opacity-35 rounded-sm ml-2"></span>{' '}
             Decrease
           </span>
         </div>
@@ -488,7 +488,7 @@ export default function FundsFlowStatement() {
             <>
               <div className="flex-grow overflow-auto min-h-0">
                 <table className="w-full border-collapse font-mono text-[11px] select-none text-black">
-                  <thead className="sticky top-0 bg-white text-black border-b border-gray-300 z-10">
+                  <thead className="sticky top-0 bg-white text-black border-b border-gray-200 z-10">
                     <tr className="border-b border-gray-200">
                       <th className="px-3 py-1.5 text-left font-bold w-[40%]">Particulars</th>
                       <th
@@ -561,7 +561,7 @@ export default function FundsFlowStatement() {
                       );
                     })}
                     {/* Grand Total */}
-                    <tr className="border-t-2 border-b-2 border-gray-200 bg-white font-bold text-black sticky bottom-0">
+                    <tr className="border-t-2 border-b-2 border-black bg-white font-bold text-black sticky bottom-0">
                       <td className="px-3 py-2 text-left uppercase font-mono tracking-wide">
                         Grand Total
                       </td>
@@ -623,7 +623,7 @@ export default function FundsFlowStatement() {
                   {/* Sources column */}
                   <div className="flex-1 border-r border-gray-200 flex flex-col">
                     <table className="w-full border-collapse font-mono text-[11px] text-black">
-                      <thead className="bg-white text-black border-b border-gray-300">
+                      <thead className="bg-white text-black border-b border-gray-200">
                         <tr>
                           <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
                           <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
@@ -647,7 +647,7 @@ export default function FundsFlowStatement() {
                         ))}
                         {/* Net decrease in working capital is the balancing source. */}
                         {detailData.workingCapitalChange < 0 && (
-                          <tr className="border-b border-gray-200 bg-black/20/20">
+                          <tr className="border-b border-gray-200">
                             <td className="px-3 py-1.5 pl-5 font-semibold text-black">
                               Net Decrease in Working Capital
                             </td>
@@ -666,7 +666,7 @@ export default function FundsFlowStatement() {
                           )}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t-2 border-black bg-black/[0.06] font-bold text-black">
+                        <tr className="border-t-2 border-black font-bold text-black">
                           <td className="px-3 py-2 uppercase tracking-wide">Total</td>
                           <td className="px-3 py-2 text-right">
                             {fmt(Math.max(detailData.totalSources, detailData.totalApplications))}
@@ -679,7 +679,7 @@ export default function FundsFlowStatement() {
                   {/* Applications column */}
                   <div className="flex-1 flex flex-col">
                     <table className="w-full border-collapse font-mono text-[11px] text-black">
-                      <thead className="bg-white text-black border-b border-gray-300">
+                      <thead className="bg-white text-black border-b border-gray-200">
                         <tr>
                           <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
                           <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
@@ -703,7 +703,7 @@ export default function FundsFlowStatement() {
                         ))}
                         {/* Net increase in working capital is the balancing application. */}
                         {detailData.workingCapitalChange > 0 && (
-                          <tr className="border-b border-gray-200 bg-black/20/20">
+                          <tr className="border-b border-gray-200">
                             <td className="px-3 py-1.5 pl-5 font-semibold text-black">
                               Net Increase in Working Capital
                             </td>
@@ -722,7 +722,7 @@ export default function FundsFlowStatement() {
                           )}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t-2 border-black bg-black/[0.06] font-bold text-black">
+                        <tr className="border-t-2 border-black font-bold text-black">
                           <td className="px-3 py-2 uppercase tracking-wide">Total</td>
                           <td className="px-3 py-2 text-right">
                             {fmt(Math.max(detailData.totalSources, detailData.totalApplications))}
@@ -737,7 +737,7 @@ export default function FundsFlowStatement() {
                 <div className="border-t-2 border-black bg-white shrink-0">
                   <table className="w-full border-collapse font-mono text-[11px] text-black">
                     <thead>
-                      <tr className="bg-black/[0.06] text-black text-[10px] uppercase">
+                      <tr className="text-black text-[10px] uppercase border-b border-gray-200">
                         <th className="px-3 py-1 text-left w-[40%]">Particulars</th>
                         <th className="px-3 py-1 text-right w-[20%] border-l border-gray-200">
                           Opening Balance
@@ -801,7 +801,7 @@ export default function FundsFlowStatement() {
                             : ''}
                         </td>
                       </tr>
-                      <tr className="font-bold text-black bg-black/[0.06] border-t border-gray-200">
+                      <tr className="font-bold text-black border-t-2 border-black">
                         <td className="px-3 py-1.5">Working Capital</td>
                         <td className="px-3 py-1.5 text-right">
                           {fmt(detailData.workingCapitalOpening)} Dr
