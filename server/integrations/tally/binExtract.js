@@ -33,20 +33,23 @@ const findGstin = (fields) => {
   return undefined;
 };
 
-// Opening stock balance on a stock-item master, all at field 0xeda:
-//   n0c = quantity rational [num, denom, unitSid]  → num/denom (units)
-//   n0b = rate  × SCALE                            → rupees per unit
+// Opening stock balance on a stock-item master, all at field 0xeda. Same
+// encoding as voucher inventory in this file (Quantity = n0b, Rate = n0c):
+//   n0b = quantity × SCALE                         → units
+//   n0c = rate rational [num, denom, unitSid]      → num/denom (rupees per unit)
 //   n09 = value × SCALE (signed; stored negative)  → rupees
 // qty × rate == value in the source. Absent fields mean no opening balance.
+// Verified against Tally's own Stock Summary: opening 50 @ ₹30 = ₹1500 for
+// "Nonwoven Fabrics 70-150" reconciles its closing (50 + movements = Tally's).
 const readOpeningStock = (f) => {
   const out = {};
-  const q = first(f, 'n0c', 0xeda);
-  const r = first(f, 'n0b', 0xeda);
-  const v = first(f, 'n09', 0xeda);
-  if (q && Number(q[1]))
-    out.opening_quantity = Math.round((Number(q[0]) / Number(q[1])) * 10000) / 10000;
-  if (r !== undefined) out.opening_rate = Math.round((toNum(r) / SCALE) * 100) / 100;
-  if (v !== undefined) out.opening_value = Math.round((Math.abs(toNum(v)) / SCALE) * 100) / 100;
+  const qty = first(f, 'n0b', 0xeda);
+  const rate = first(f, 'n0c', 0xeda);
+  const val = first(f, 'n09', 0xeda);
+  if (qty !== undefined) out.opening_quantity = Math.round((toNum(qty) / SCALE) * 10000) / 10000;
+  if (rate && Number(rate[1]))
+    out.opening_rate = Math.round((Number(rate[0]) / Number(rate[1])) * 100) / 100;
+  if (val !== undefined) out.opening_value = Math.round((Math.abs(toNum(val)) / SCALE) * 100) / 100;
   return out;
 };
 
