@@ -754,7 +754,9 @@ export default function FundsFlowStatement() {
                       <tr
                         onClick={() =>
                           detailData.caGroupId &&
-                          navigate(`/reports/accounts/group-summary/${detailData.caGroupId}`)
+                          navigate(
+                            `/reports/accounts/group-funds-flow/${detailData.caGroupId}?root=1`,
+                          )
                         }
                         title={detailData.caGroupId ? 'View Current Assets group' : undefined}
                         className={cn(
@@ -778,7 +780,9 @@ export default function FundsFlowStatement() {
                       <tr
                         onClick={() =>
                           detailData.clGroupId &&
-                          navigate(`/reports/accounts/group-summary/${detailData.clGroupId}`)
+                          navigate(
+                            `/reports/accounts/group-funds-flow/${detailData.clGroupId}?root=1`,
+                          )
                         }
                         title={detailData.clGroupId ? 'View Current Liabilities group' : undefined}
                         className={cn(

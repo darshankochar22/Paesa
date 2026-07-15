@@ -100,6 +100,7 @@ import InterestCalculationsMenu from '../pages/menu/reports/InterestCalculations
 // Accounts reports
 import LedgerReport from '../pages/reports/accounts/LedgerReport.tsx';
 import GroupSummary from '../pages/reports/accounts/GroupSummary.tsx';
+import GroupFundsFlow from '../pages/reports/accounts/GroupFundsFlow.tsx';
 import LedgerMonthlySummary from '../pages/reports/accounts/LedgerMonthlySummary.tsx';
 import SalesRegister from '../pages/reports/accounts/SalesRegister.tsx';
 import PurchaseRegister from '../pages/reports/accounts/PurchaseRegister.tsx';
@@ -516,6 +517,7 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/accounts/ledger-select', element: <LedgerSelect /> },
   { path: '/reports/accounts/group-summary', element: <GroupSummary /> },
   { path: '/reports/accounts/group-summary/:groupId', element: <GroupSummary /> },
+  { path: '/reports/accounts/group-funds-flow/:groupId', element: <GroupFundsFlow /> },
   { path: '/reports/accounts/group-vouchers/:groupId', element: <ReportRunner /> },
   { path: '/reports/accounts/group-select', element: <GroupSelect /> },
   { path: '/reports/accounts/group-vouchers-select', element: <GroupVouchersSelect /> },
