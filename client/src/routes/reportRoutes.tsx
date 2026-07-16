@@ -123,6 +123,7 @@ import CashBankReport from '../pages/reports/accounts/CashBankReport.tsx';
 import LedgerSelect from '../pages/reports/accounts/LedgerSelect.tsx';
 import GroupSelect from '../pages/reports/accounts/GroupSelect.tsx';
 import GroupVouchersSelect from '../pages/reports/accounts/GroupVouchersSelect.tsx';
+import GroupVouchers from '../pages/reports/accounts/GroupVouchers.tsx';
 import StatisticsVoucherRegister from '../pages/reports/StatisticsVoucherRegister.tsx';
 
 // Inventory reports
@@ -519,7 +520,7 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/accounts/group-summary', element: <GroupSummary /> },
   { path: '/reports/accounts/group-summary/:groupId', element: <GroupSummary /> },
   { path: '/reports/accounts/group-funds-flow/:groupId', element: <GroupFundsFlow /> },
-  { path: '/reports/accounts/group-vouchers/:groupId', element: <ReportRunner /> },
+  { path: '/reports/accounts/group-vouchers/:groupId', element: <GroupVouchers /> },
   { path: '/reports/accounts/group-select', element: <GroupSelect /> },
   { path: '/reports/accounts/group-vouchers-select', element: <GroupVouchersSelect /> },
   { path: '/reports/accounts/ledger-summary/:ledgerId', element: <LedgerMonthlySummary /> },

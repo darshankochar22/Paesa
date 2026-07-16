@@ -95,7 +95,33 @@ module.exports = {
         };
       });
 
-      return { success: true, group_name: groupName, rows };
+      // Group balance footer (Tally: Opening Balance / Current Total / Closing).
+      // Opening = signed sum of member-ledger opening balances (Dr +, Cr −);
+      // Current Total = net movement of the shown vouchers; Closing = the two summed.
+      const obRows = await db.run(
+        `WITH RECURSIVE sub_groups AS (
+          SELECT group_id FROM groups WHERE group_id = ${group_id} AND company_id = ${company_id}
+          UNION ALL
+          SELECT g.group_id FROM groups g INNER JOIN sub_groups sg ON g.parent_group_id = sg.group_id WHERE g.company_id = ${company_id}
+        )
+        SELECT COALESCE(SUM(CASE WHEN l.opening_balance_type = 'Cr' THEN -l.opening_balance ELSE l.opening_balance END), 0)
+        FROM ledgers l
+        WHERE l.group_id IN (SELECT group_id FROM sub_groups) AND l.company_id = ${company_id}`,
+      );
+      const openingBalance = Number(obRows?.rows?.[0]?.[0]) || 0;
+      const totalDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
+      const totalCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
+      const closingBalance = openingBalance + totalDebit - totalCredit;
+
+      return {
+        success: true,
+        group_name: groupName,
+        rows,
+        opening_balance: openingBalance,
+        total_debit: totalDebit,
+        total_credit: totalCredit,
+        closing_balance: closingBalance,
+      };
     } catch (err) {
       console.error('group-vouchers error:', err);
       return { success: false, error: err.message };
