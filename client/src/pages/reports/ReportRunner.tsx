@@ -32,19 +32,22 @@ import {
 import { loadReportData } from './reportRunnerData';
 import { renderSpecialLayout } from './reportSpecialLayouts';
 
-export function ReportRunner() {
+export function ReportRunner({ reportType: reportTypeProp }: { reportType?: string } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { selectedCompany, activeFY } = useCompany();
 
   const reportType = React.useMemo(() => {
+    // A dedicated named report component passes its slug explicitly; otherwise
+    // derive it from the path (legacy catch-all routing).
+    if (reportTypeProp) return reportTypeProp;
     const pathname = location.pathname;
     if (pathname.includes('/group-summary')) return 'group-summary';
     if (pathname.includes('/group-vouchers')) return 'group-vouchers';
     if (pathname.includes('/ledger-summary')) return 'ledger-summary';
     const parts = pathname.split('/');
     return parts[parts.length - 1];
-  }, [location.pathname]);
+  }, [location.pathname, reportTypeProp]);
 
   const definition = React.useMemo<ReportConfig>(() => {
     return (

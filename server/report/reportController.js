@@ -56,6 +56,7 @@ const advancedInventoryReportService = require('./advancedInventoryReportService
 const interestReportService = require('./interestReportService');
 const advancedAccountingReportService = require('./advancedAccountingReportService');
 const cashFlowReportService = require('./cashFlowReportService');
+const voucherClarificationService = require('./voucherClarificationService');
 const fundsFlowReportService = require('./fundsFlowReportService');
 const stockSummaryReportService = require('./stockSummaryReportService');
 const ratioAnalysisReportService = require('./ratioAnalysisReportService');
@@ -356,6 +357,16 @@ module.exports = {
   },
   stockClosingSummary: async (event, { company_id, fy_id }) => {
     return await stockSummaryReportService.stockClosingSummary(company_id, fy_id);
+  },
+  voucherClarificationSummary: async (event, { company_id, fy_id }) => {
+    return await voucherClarificationService.voucherClarificationSummary(company_id, fy_id);
+  },
+  voucherClarificationVouchers: async (event, { company_id, fy_id, category }) => {
+    return await voucherClarificationService.voucherClarificationVouchers(
+      company_id,
+      fy_id,
+      category,
+    );
   },
   stockGroupSummary: async (event, { company_id, fy_id }) => {
     return await stockGroupSummary(company_id, fy_id);

@@ -124,6 +124,16 @@ import LedgerSelect from '../pages/reports/accounts/LedgerSelect.tsx';
 import GroupSelect from '../pages/reports/accounts/GroupSelect.tsx';
 import GroupVouchersSelect from '../pages/reports/accounts/GroupVouchersSelect.tsx';
 import GroupVouchers from '../pages/reports/accounts/GroupVouchers.tsx';
+import LedgerOutstandingsReport from '../pages/reports/accounts/definitionReports/LedgerOutstandingsReport.tsx';
+import GroupOutstandingsReport from '../pages/reports/accounts/definitionReports/GroupOutstandingsReport.tsx';
+import InterestReceivable from '../pages/reports/accounts/definitionReports/InterestReceivable.tsx';
+import InterestPayable from '../pages/reports/accounts/definitionReports/InterestPayable.tsx';
+import InterestCalculationLedgerWise from '../pages/reports/accounts/definitionReports/InterestCalculationLedgerWise.tsx';
+import InterestCalculationGroupWise from '../pages/reports/accounts/definitionReports/InterestCalculationGroupWise.tsx';
+import CostCentreBreakUp from '../pages/reports/accounts/definitionReports/CostCentreBreakUp.tsx';
+import CostCentreLedgerReport from '../pages/reports/accounts/definitionReports/CostCentreLedgerReport.tsx';
+import CostCentreWisePL from '../pages/reports/accounts/definitionReports/CostCentreWisePL.tsx';
+import VoucherClarification from '../pages/reports/accounts/definitionReports/VoucherClarification.tsx';
 import StatisticsVoucherRegister from '../pages/reports/StatisticsVoucherRegister.tsx';
 
 // Inventory reports
@@ -537,20 +547,26 @@ export const reportRoutes: RouteConfig[] = [
   { path: '/reports/accounts/outstandings-receivable', element: <OutstandingsReceivable /> },
   { path: '/reports/accounts/outstandings-payable', element: <OutstandingsPayable /> },
   { path: '/reports/accounts/ledger-outstandings', element: <OutstandingsLedgerSelect /> },
-  { path: '/reports/accounts/outstandings-ledger', element: <ReportRunner /> },
+  { path: '/reports/accounts/outstandings-ledger', element: <LedgerOutstandingsReport /> },
   { path: '/reports/accounts/group-outstandings', element: <OutstandingsGroupSelect /> },
-  { path: '/reports/accounts/outstandings-group', element: <ReportRunner /> },
-  { path: '/reports/accounts/interest-receivable', element: <ReportRunner /> },
-  { path: '/reports/accounts/interest-payable', element: <ReportRunner /> },
-  { path: '/reports/accounts/interest-calculation-ledger-wise', element: <ReportRunner /> },
-  { path: '/reports/accounts/interest-calculation-group-wise', element: <ReportRunner /> },
+  { path: '/reports/accounts/outstandings-group', element: <GroupOutstandingsReport /> },
+  { path: '/reports/accounts/interest-receivable', element: <InterestReceivable /> },
+  { path: '/reports/accounts/interest-payable', element: <InterestPayable /> },
+  {
+    path: '/reports/accounts/interest-calculation-ledger-wise',
+    element: <InterestCalculationLedgerWise />,
+  },
+  {
+    path: '/reports/accounts/interest-calculation-group-wise',
+    element: <InterestCalculationGroupWise />,
+  },
   { path: '/reports/accounts/cost-centre-summary', element: <CostCentreSummary /> },
   { path: '/reports/accounts/cost-category-summary', element: <CostCategorySummary /> },
-  { path: '/reports/accounts/cost-centre-break-up', element: <ReportRunner /> },
-  { path: '/reports/accounts/cost-centre-ledger', element: <ReportRunner /> },
-  { path: '/reports/accounts/cost-centre-wise-p-and-l', element: <ReportRunner /> },
+  { path: '/reports/accounts/cost-centre-break-up', element: <CostCentreBreakUp /> },
+  { path: '/reports/accounts/cost-centre-ledger', element: <CostCentreLedgerReport /> },
+  { path: '/reports/accounts/cost-centre-wise-p-and-l', element: <CostCentreWisePL /> },
   { path: '/reports/accounts/statistics', element: <Statistics /> },
-  { path: '/reports/accounts/voucher-clarification', element: <ReportRunner /> },
+  { path: '/reports/accounts/voucher-clarification', element: <VoucherClarification /> },
 
   // Inventory reports
   { path: '/reports/inventory/stock-summary', element: <StockSummary /> },

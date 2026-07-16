@@ -26,7 +26,7 @@ export default function VoucherClarificationLayout() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
 
-  const [counts] = React.useState<ClarificationCount>({
+  const [counts, setCounts] = React.useState<ClarificationCount>({
     verification: 0,
     'related-party': 0,
     forex: 0,
@@ -42,26 +42,21 @@ export default function VoucherClarificationLayout() {
     }
     setLoading(true);
     setError(null);
-
-    // TODO: wire real backend
-    // window.api.report.voucherClarificationSummary(
-    //   selectedCompany.company_id,
-    //   activeFY.fy_id
-    // ).then((res) => {
-    //   if (res?.success) {
-    //     setCounts({
-    //       verification: res.verification ?? 0,
-    //       "related-party": res.relatedParty ?? 0,
-    //       forex: res.forex ?? 0,
-    //     });
-    //   } else {
-    //     setError(res?.error || "Failed to load.");
-    //   }
-    // }).catch((e) => setError(e.message))
-    //   .finally(() => setLoading(false));
-
-    // Mock until backend ready
-    setLoading(false);
+    (window as any).api.report
+      .voucherClarificationSummary(selectedCompany.company_id, activeFY.fy_id)
+      .then((res: any) => {
+        if (res?.success) {
+          setCounts({
+            verification: res.verification ?? 0,
+            'related-party': res.relatedParty ?? 0,
+            forex: res.forex ?? 0,
+          });
+        } else {
+          setError(res?.error || 'Failed to load.');
+        }
+      })
+      .catch((e: any) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [selectedCompany?.company_id, activeFY?.fy_id]);
 
   const handleDrilldown = React.useCallback(
