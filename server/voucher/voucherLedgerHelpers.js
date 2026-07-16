@@ -89,9 +89,16 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
             MAX(v.date)
           ) as due_date,
           MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) as credit_period,
-          SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) as total_amount
+          SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) as total_amount,
+          SUM(CASE WHEN ve.entry_type = 'Dr' THEN vbr.amount ELSE -vbr.amount END) as signed_amount
         FROM ${voucherBillReferences} vbr
         JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
+        LEFT JOIN (
+          SELECT voucher_id, ledger_id,
+            CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
+          FROM ${voucherEntries}
+          GROUP BY voucher_id, ledger_id
+        ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
         WHERE vbr.ledger_id = ${ledger_id} AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
           AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0
           AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
@@ -107,14 +114,22 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
     const defaultCreditPeriod = ledgerRows[0]?.default_credit_period || 0;
     const checkCreditDays = ledgerRows[0]?.check_credit_days || 0;
 
-    const pendingBills = rows.map((row) => ({
-      bill_name: row.bill_name,
-      bill_date: row.bill_date,
-      due_date: row.due_date,
-      credit_period: row.credit_period,
-      balance: Number(row.total_amount) || 0,
-      final_balance: Number(row.total_amount) || 0,
-    }));
+    const pendingBills = rows.map((row) => {
+      // The bill's outstanding side (Dr/Cr) follows the ledger entry that booked
+      // it — Tally shows a receivable/advance-to-us bill as Dr and a payable as
+      // Cr. `balance` stays a positive magnitude (allocation caps depend on it);
+      // `dr_cr` carries the side so the Pending Bills list can label it.
+      const signed = Number(row.signed_amount) || 0;
+      return {
+        bill_name: row.bill_name,
+        bill_date: row.bill_date,
+        due_date: row.due_date,
+        credit_period: row.credit_period,
+        balance: Number(row.total_amount) || 0,
+        final_balance: Number(row.total_amount) || 0,
+        dr_cr: signed >= 0 ? 'Dr' : 'Cr',
+      };
+    });
 
     // Order numbers on the party's saved Purchase/Sales Order vouchers — Tally
     // offers the order reference in the Pending Bills list too (name only, no
@@ -143,6 +158,7 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
         credit_period: null,
         balance: null,
         final_balance: null,
+        dr_cr: null,
         is_order: 1,
       });
     }

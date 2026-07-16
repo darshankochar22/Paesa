@@ -10,6 +10,7 @@ interface PendingBill {
   credit_period: string | null;
   balance: number | null;
   final_balance: number | null;
+  dr_cr?: 'Dr' | 'Cr' | null;
   is_order?: number;
 }
 
@@ -49,7 +50,7 @@ const MONTH_NAMES = [
   'Dec',
 ];
 
-const hasDueDate = (t: BillReference['bill_type']) => t === 'New Ref' || t === 'Agst Ref';
+const hasDueDate = (t: BillReference['bill_type']) => t === 'New Ref' || t === 'Advance';
 
 function formatDateDisplay(dateStr: string | undefined): string {
   if (!dateStr) return '';
@@ -290,18 +291,27 @@ export default function BillWiseAllocationPopup({
   };
 
   const handleSelectPendingBill = (rowIdx: number, bill: PendingBill) => {
-    setAllocations((prev) =>
-      prev.map((row, idx) => {
+    setAllocations((prev) => {
+      // Cap the picked bill at what's still unallocated on this voucher, so a
+      // large outstanding bill can't push the total negative. The user can
+      // still lower it further on the Amount field.
+      const otherSum = prev.reduce(
+        (s, r, idx) => (idx === rowIdx ? s : s + (Number(r.amount) || 0)),
+        0,
+      );
+      const available = Math.max(0, totalAmount - otherSum);
+      const amt = bill.balance == null ? available : Math.min(bill.balance, available);
+      return prev.map((row, idx) => {
         if (idx !== rowIdx) return row;
         return {
           ...row,
           bill_name: bill.bill_name,
           credit_period: bill.credit_period || '',
           due_date: bill.due_date || '',
-          amount: bill.balance == null ? row.amount : bill.balance,
+          amount: amt,
         };
-      }),
-    );
+      });
+    });
     setActiveAgstRow(null);
     // Tally: picking the bill drops the cursor onto this row's Amount field.
     requestAnimationFrame(() =>
@@ -367,7 +377,18 @@ export default function BillWiseAllocationPopup({
       }
     }
     if (remaining <= -0.01) {
-      setError(`Remaining ${formatCurrency(remaining)} must be zero.`);
+      setError(
+        `Allocated amount exceeds ${formatCurrency(totalAmount)} by ${formatCurrency(-remaining)}.`,
+      );
+      return;
+    }
+    // Tally: the remainder is never auto-parked On Account. The user must
+    // allocate it explicitly — add a row and pick a ref type (choose
+    // "On Account" to deliberately leave it unadjusted).
+    if (remaining >= 0.01) {
+      setError(
+        `${formatCurrency(remaining)} is still unallocated — add a row to allocate it (pick "On Account" to leave it unadjusted).`,
+      );
       return;
     }
     let advSeq = 0;
@@ -378,21 +399,7 @@ export default function BillWiseAllocationPopup({
       }
       return a;
     });
-    const final =
-      remaining >= 0.01
-        ? [
-            ...named,
-            {
-              ledger_id: ledgerId,
-              bill_name: 'On Account',
-              bill_type: 'On Account' as const,
-              amount: Math.round(remaining * 100) / 100,
-              credit_period: '',
-              due_date: '',
-            },
-          ]
-        : named;
-    onSave(final);
+    onSave(named);
   };
 
   const wefLabel = formatDateDisplay(voucherDate);
@@ -461,6 +468,13 @@ export default function BillWiseAllocationPopup({
                     requestAnimationFrame(() =>
                       (
                         document.querySelector(`[data-bw-name="${i}"]`) as HTMLElement | null
+                      )?.focus(),
+                    );
+                  } else if (e.target.value === 'On Account') {
+                    // On Account has no Name or Credit Days — jump straight to Amount.
+                    requestAnimationFrame(() =>
+                      (
+                        document.querySelector(`[data-bw-amount="${i}"]`) as HTMLElement | null
                       )?.focus(),
                     );
                   }
@@ -539,10 +553,14 @@ export default function BillWiseAllocationPopup({
                               {formatDateDisplay(bill.due_date ?? undefined)}
                             </div>
                             <div className="text-right font-mono tabular-nums whitespace-nowrap">
-                              {bill.balance == null ? '' : formatAmount(bill.balance)}
+                              {bill.balance == null
+                                ? ''
+                                : `${formatAmount(bill.balance)} ${bill.dr_cr ?? ''}`.trim()}
                             </div>
                             <div className="text-right font-mono tabular-nums whitespace-nowrap">
-                              {bill.final_balance == null ? '' : formatAmount(bill.final_balance)}
+                              {bill.final_balance == null
+                                ? ''
+                                : `${formatAmount(bill.final_balance)} ${bill.dr_cr ?? ''}`.trim()}
                             </div>
                           </button>
                         ))
@@ -562,7 +580,7 @@ export default function BillWiseAllocationPopup({
             </div>
 
             <div className="col-span-3 flex flex-col items-center gap-0.5">
-              {hasDueDate(row.bill_type) ? (
+              {row.bill_type === 'New Ref' || row.bill_type === 'Advance' ? (
                 <>
                   <input
                     type="text"
@@ -577,6 +595,12 @@ export default function BillWiseAllocationPopup({
                     </span>
                   )}
                 </>
+              ) : row.bill_type === 'Agst Ref' && row.due_date ? (
+                // Agst Ref: due date is inherited from the selected bill and not
+                // editable — shown read-only so focus skips straight to Amount.
+                <span className="text-[10px] text-gray-500 font-mono py-1">
+                  ( {formatDateDisplay(row.due_date)} )
+                </span>
               ) : (
                 <span className="text-xs text-gray-400 py-1">&mdash;</span>
               )}
@@ -609,8 +633,27 @@ export default function BillWiseAllocationPopup({
                     (
                       document.querySelector(`[data-bw-type="${i + 1}"]`) as HTMLElement | null
                     )?.focus();
-                  } else {
+                    return;
+                  }
+                  // Last row. Tally: only accept once the amount is fully
+                  // allocated. If anything is still pending, open a fresh row
+                  // and drop the cursor on its Type cell so the user decides
+                  // how to allocate the rest (New/Agst/Advance/On Account) —
+                  // never silently push the remainder On Account.
+                  if (Math.abs(remaining) < 0.01) {
                     handleSave();
+                  } else if (remaining > 0) {
+                    setError(null);
+                    setAllocations((prev) => [...prev, getDefaultRow('New Ref', remaining)]);
+                    requestAnimationFrame(() =>
+                      (
+                        document.querySelector(`[data-bw-type="${i + 1}"]`) as HTMLElement | null
+                      )?.focus(),
+                    );
+                  } else {
+                    setError(
+                      `Allocated amount exceeds ${formatCurrency(totalAmount)} by ${formatCurrency(-remaining)}.`,
+                    );
                   }
                 }}
                 className="text-xs font-bold text-gray-700 py-1 inline-block px-1 outline-none focus:ring-1 focus:ring-black"

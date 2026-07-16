@@ -8,7 +8,11 @@ import { formatDateDisplay } from './hooks/useVoucherMeta';
 import { useAutoOpenDetailPopups } from './hooks/useAutoOpenDetailPopups';
 import { useVoucherAcceptFlow } from './hooks/useVoucherAcceptFlow';
 import { useStockEntryFlow } from './hooks/useStockEntryFlow';
-import type { ItemExciseState, InventoryAllocState } from './hooks/useStockEntryFlow';
+import type {
+  ItemExciseState,
+  InventoryAllocState,
+  ItemDescriptionState,
+} from './hooks/useStockEntryFlow';
 import { useAmountConfirmFlow } from './hooks/useAmountConfirmFlow';
 import { useAllocationSaveHandlers } from './hooks/useAllocationSaveHandlers';
 import type { VoucherClassRow } from '@/types/entities/VoucherType';
@@ -121,6 +125,7 @@ export default function Vouchers() {
   // whose ledger affects inventory (Purchase/Sales A/c).
   const [inventoryAlloc, setInventoryAlloc] = useState<InventoryAllocState | null>(null);
   const [itemExcise, setItemExcise] = useState<ItemExciseState | null>(null);
+  const [itemDescription, setItemDescription] = useState<ItemDescriptionState | null>(null);
   const [showOtherVouchers, setShowOtherVouchers] = useState(false);
   const [subDropdownType, setSubDropdownType] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -216,12 +221,15 @@ export default function Vouchers() {
     handleSaveMaterialInAllocations,
     handleSaveJobWorkAllocations,
     handleSaveItemExcise,
+    handleSaveItemDescription,
     handleSaveInventoryAllocation,
   } = useStockEntryFlow(form, effectiveVoucherType, {
     itemExcise,
     setItemExcise,
     inventoryAlloc,
     setInventoryAlloc,
+    itemDescription,
+    setItemDescription,
   });
 
   // Enter-on-amount allocation dispatch + selection-time allocation opener.
@@ -420,6 +428,7 @@ export default function Vouchers() {
     showTaxRegistrationPopup ||
     !!inventoryAlloc ||
     !!itemExcise ||
+    !!itemDescription ||
     showDispatchDetails ||
     showReceiptDetails ||
     showPartyDetails ||
@@ -1095,6 +1104,9 @@ export default function Vouchers() {
         setInventoryAlloc={setInventoryAlloc}
         itemExcise={itemExcise}
         setItemExcise={setItemExcise}
+        itemDescription={itemDescription}
+        setItemDescription={setItemDescription}
+        handleSaveItemDescription={handleSaveItemDescription}
         showDatePicker={showDatePicker}
         showApplicableUptoPicker={showApplicableUptoPicker}
         showTaxRegistrationPopup={showTaxRegistrationPopup}

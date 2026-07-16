@@ -22,6 +22,15 @@ export interface InventoryAllocState {
   allowCostCentres: boolean;
 }
 
+// Description(s) for Item sub-screen — opens after an item line is complete on a
+// trade voucher (item allocation accepted, or qty/rate entered for a non-batch
+// item), letting the user add one-description-per-line extra details.
+export interface ItemDescriptionState {
+  rowId: string;
+  itemName: string;
+  initial: string | undefined;
+}
+
 // Stock item entry focus flow (item selected → qty → rate → next row) plus the
 // batch / material-in / job-work / item-excise / inventory allocation save
 // handlers that write a popup's result back onto the row and advance the cursor.
@@ -34,9 +43,18 @@ export function useStockEntryFlow(
     setItemExcise: (v: ItemExciseState | null) => void;
     inventoryAlloc: InventoryAllocState | null;
     setInventoryAlloc: (v: InventoryAllocState | null) => void;
+    itemDescription: ItemDescriptionState | null;
+    setItemDescription: (v: ItemDescriptionState | null) => void;
   },
 ) {
-  const { itemExcise, setItemExcise, inventoryAlloc, setInventoryAlloc } = deps;
+  const {
+    itemExcise,
+    setItemExcise,
+    inventoryAlloc,
+    setInventoryAlloc,
+    itemDescription,
+    setItemDescription,
+  } = deps;
 
   const prevActiveFieldRef = useRef(form.activeField);
 
@@ -105,6 +123,11 @@ export function useStockEntryFlow(
   // item itself being Excise Applicable, so ordinary non-excise items don't pop it.
   const ITEM_EXCISE_VOUCHER_TYPES = ['Credit Note', 'Sales', 'Purchase'];
 
+  // Trade vouchers whose item lines carry a free-text Description (rendered inline
+  // via StockItemDescription). On these, a completed item line opens the
+  // "Description(s) for Item" sub-screen before excise/advance.
+  const ITEM_DESCRIPTION_VOUCHER_TYPES = ['Sales', 'Purchase', 'Credit Note', 'Debit Note'];
+
   // After an item row is complete: open its Excise Details popup when excise
   // applies to the item, otherwise just advance focus to the next item row.
   const promptItemExciseOrAdvance = useCallback(
@@ -125,6 +148,29 @@ export function useStockEntryFlow(
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [form.stockEntries, effectiveVoucherType, advanceStockRow],
+  );
+
+  // After an item line is complete on a trade voucher: open its "Description(s)
+  // for Item" sub-screen; otherwise fall straight through to excise/advance.
+  const promptItemDescriptionOrExcise = useCallback(
+    (rowId: string | undefined, idx: number) => {
+      const row = form.stockEntries.find((e) => e.id === rowId);
+      if (
+        ITEM_DESCRIPTION_VOUCHER_TYPES.includes(effectiveVoucherType) &&
+        row?.stockItem &&
+        rowId
+      ) {
+        setItemDescription({
+          rowId,
+          itemName: row.stockItem.name ?? '',
+          initial: row.descriptionRaw,
+        });
+        return;
+      }
+      promptItemExciseOrAdvance(rowId, idx);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [form.stockEntries, effectiveVoucherType, promptItemExciseOrAdvance],
   );
 
   const proceedToNextStockRow = useCallback(
@@ -159,8 +205,8 @@ export function useStockEntryFlow(
         });
         return; // advance happens after the popup is accepted
       }
-      // Non-batch item complete → prompt Excise Details (if applicable) or advance.
-      promptItemExciseOrAdvance(row?.id, idx);
+      // Non-batch item complete → prompt Description(s), then Excise/advance.
+      promptItemDescriptionOrExcise(row?.id, idx);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -168,7 +214,7 @@ export function useStockEntryFlow(
       form.setActiveAllocation,
       effectiveVoucherType,
       advanceStockRow,
-      promptItemExciseOrAdvance,
+      promptItemDescriptionOrExcise,
     ],
   );
 
@@ -395,9 +441,9 @@ export function useStockEntryFlow(
       }
       form.setActiveAllocation(null);
       const idx = form.stockEntries.findIndex((e) => e.id === rowId);
-      // Batch item complete → prompt per-item Excise Details (Credit Note / Sales /
-      // Purchase, when the item is Excise Applicable) right after the allocation.
-      promptItemExciseOrAdvance(rowId, idx);
+      // Batch item complete → prompt Description(s) for Item, then per-item Excise
+      // Details / advance right after the allocation is accepted.
+      promptItemDescriptionOrExcise(rowId, idx);
     },
     [
       form.activeAllocation,
@@ -406,7 +452,7 @@ export function useStockEntryFlow(
       form.stockEntries,
       effectiveVoucherType,
       advanceStockRow,
-      promptItemExciseOrAdvance,
+      promptItemDescriptionOrExcise,
       form.sourceStockEntries,
       form.destinationStockEntries,
       form.handleUpdateSourceStockRow,
@@ -486,6 +532,21 @@ export function useStockEntryFlow(
     [itemExcise, form.handleUpdateStockRow, form.stockEntries, advanceStockRow],
   );
 
+  // Description(s) for Item accepted: write the newline-joined descriptions back
+  // onto the row, then continue the item-complete chain (Excise / advance).
+  const handleSaveItemDescription = useCallback(
+    (value: string) => {
+      if (!itemDescription) return;
+      const rowId = itemDescription.rowId;
+      form.handleUpdateStockRow(rowId, { descriptionRaw: value });
+      setItemDescription(null);
+      const idx = form.stockEntries.findIndex((e) => e.id === rowId);
+      promptItemExciseOrAdvance(rowId, idx);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [itemDescription, form.handleUpdateStockRow, form.stockEntries, promptItemExciseOrAdvance],
+  );
+
   // Inventory Allocations accepted for a Journal/Reversing Journal ledger row:
   // write the stock lines onto the row, derive the ledger amount from their total,
   // and aggregate their per-item cost centres onto the ledger entry.
@@ -538,6 +599,7 @@ export function useStockEntryFlow(
     handleSaveMaterialInAllocations,
     handleSaveJobWorkAllocations,
     handleSaveItemExcise,
+    handleSaveItemDescription,
     handleSaveInventoryAllocation,
   };
 }

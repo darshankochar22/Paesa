@@ -9,6 +9,7 @@ import InventoryAllocationPopup from './popups/InventoryAllocationPopup';
 import OrderItemAllocationPopup from './popups/OrderItemAllocationPopup';
 import OrderDueOnAllocationPopup from './popups/OrderDueOnAllocationPopup';
 import ItemExciseDetailsPopup from './popups/ItemExciseDetailsPopup';
+import ItemDescriptionPopup from './popups/ItemDescriptionPopup';
 import BankAllocationPopup from './popups/BankAllocationPopup';
 import DenominationPopup from './popups/DenominationPopup';
 import DispatchDetailsPopup from './popups/DispatchDetailsPopup';
@@ -38,6 +39,9 @@ interface VoucherPopupsProps {
   setInventoryAlloc: any;
   itemExcise: any;
   setItemExcise: any;
+  itemDescription: any;
+  setItemDescription: any;
+  handleSaveItemDescription: any;
   showDatePicker: any;
   showApplicableUptoPicker: any;
   showTaxRegistrationPopup: any;
@@ -98,6 +102,9 @@ export default function VoucherPopups({
   setInventoryAlloc,
   itemExcise,
   setItemExcise,
+  itemDescription,
+  setItemDescription,
+  handleSaveItemDescription,
   showDatePicker,
   showApplicableUptoPicker,
   showTaxRegistrationPopup,
@@ -505,6 +512,15 @@ export default function VoucherPopups({
           initialDetails={itemExcise.initial}
           onClose={() => setItemExcise(null)}
           onSave={handleSaveItemExcise}
+        />
+      )}
+
+      {itemDescription && (
+        <ItemDescriptionPopup
+          itemName={itemDescription.itemName}
+          initial={itemDescription.initial}
+          onClose={() => setItemDescription(null)}
+          onSave={handleSaveItemDescription}
         />
       )}
 
