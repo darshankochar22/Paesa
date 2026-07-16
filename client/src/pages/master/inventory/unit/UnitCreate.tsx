@@ -10,7 +10,7 @@ import {
 } from '@/components/ui';
 import UnitDropdown from './UnitDropdown';
 import type { UnitType } from '@/types/entities/Unit';
-import { UqcPopup } from './UqcPopup';
+import UqcSidePanel from './UqcSidePanel';
 
 const inputCls =
   'flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors';
@@ -180,7 +180,10 @@ export default function UnitCreate() {
   const isCompound = form.unit_type === 'Compound';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
+    <div
+      className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden"
+      data-enter-nav
+    >
       <PageTitleBar title="Unit Creation" subtitle={selectedCompany?.name} />
 
       {error && (
@@ -244,7 +247,7 @@ export default function UnitCreate() {
                 <FormRow
                   label="Unit Quantity Code (UQC)"
                   labelWidth="w-56"
-                  className="flex items-center min-h-[26px] relative"
+                  className="flex items-center min-h-[26px]"
                 >
                   <button
                     ref={uqcAnchorRef}
@@ -259,17 +262,6 @@ export default function UnitCreate() {
                   >
                     ◆ {form.uqc || 'Not Applicable'}
                   </button>
-                  {showUqc && (
-                    <UqcPopup
-                      selected={form.uqc}
-                      onSelect={(v) => {
-                        setForm((f) => ({ ...f, uqc: v }));
-                        setShowUqc(false);
-                        setTimeout(() => decimalRef.current?.focus(), 0);
-                      }}
-                      onClose={() => setShowUqc(false)}
-                    />
-                  )}
                 </FormRow>
                 <FormRow
                   label="Number of Decimal Places"
@@ -355,6 +347,19 @@ export default function UnitCreate() {
 
         <RightActionPanel actions={unitActions} />
       </div>
+
+      {/* Right-side "List of UQCs" — same panel pattern as the group masters. */}
+      {showUqc && (
+        <UqcSidePanel
+          selected={form.uqc}
+          onSelect={(v) => {
+            setForm((f) => ({ ...f, uqc: v }));
+            setShowUqc(false);
+            setTimeout(() => decimalRef.current?.focus(), 0);
+          }}
+          onClose={() => setShowUqc(false)}
+        />
+      )}
 
       {/* Footer */}
       <MasterFormFooter

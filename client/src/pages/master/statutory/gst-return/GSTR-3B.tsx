@@ -4,6 +4,7 @@ import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
 import { Button } from '@/components/shadcn/button';
 import Select from '@/components/ui/Select';
+import { fyPeriods, defaultPeriod } from '@/lib/gstPeriods';
 import {
   Table,
   TableHeader,
@@ -91,47 +92,9 @@ function periodLabelFor(month: string, year: string) {
   return `1-${MONTHS[m - 1]}-${yy} to ${lastDay}-${MONTHS[m - 1]}-${yy}`;
 }
 
-interface FyPeriod {
-  value: string; // MMYYYY, matches returnPeriod
-  label: string;
-  month: string;
-  year: string;
-}
-
-// Every month that belongs to the active FY, oldest→newest. These are the only valid
-// GSTR-3B return periods — the report cross-filters period × fy_id, so a period outside
-// the FY window always returns zero vouchers (the "no data" trap).
-function fyPeriods(fy?: { start_date?: string; end_date?: string } | null): FyPeriod[] {
-  if (!fy?.start_date || !fy?.end_date) return [];
-  const [sy, sm] = fy.start_date.split('-').map(Number);
-  const [ey, em] = fy.end_date.split('-').map(Number);
-  const out: FyPeriod[] = [];
-  let y = sy;
-  let m = sm;
-  // Guard against a malformed FY range producing an unbounded loop.
-  for (let i = 0; i < 240 && (y < ey || (y === ey && m <= em)); i++) {
-    const mm = String(m).padStart(2, '0');
-    out.push({ value: `${mm}${y}`, label: `${MONTHS[m - 1]} ${y}`, month: mm, year: String(y) });
-    m += 1;
-    if (m > 12) {
-      m = 1;
-      y += 1;
-    }
-  }
-  return out;
-}
-
-// Sensible landing period: today's month if it falls inside the active FY, otherwise the
-// FY's last month (the year's final filing period) — so the report opens on a period that
-// actually has vouchers instead of an empty current calendar month.
-function defaultPeriod(today: Date, periods: FyPeriod[]) {
-  const tm = String(today.getMonth() + 1).padStart(2, '0');
-  const ty = String(today.getFullYear());
-  const todayVal = `${tm}${ty}`;
-  if (periods.some((p) => p.value === todayVal)) return { month: tm, year: ty };
-  const last = periods[periods.length - 1];
-  return last ? { month: last.month, year: last.year } : { month: tm, year: ty };
-}
+// Period helpers (fyPeriods / defaultPeriod) are shared with the Navbar GSTR-1 export —
+// see lib/gstPeriods. Both screens must default a period INSIDE the active FY or the
+// report cross-filters period × fy_id to zero rows (the "no data" trap).
 
 export default function GSTR3BView() {
   const { selectedCompany, activeFY } = useCompany();

@@ -148,7 +148,6 @@ export default function OrderRowTrackingLine({
 
   const listKeyDown =
     (open: boolean, options: Array<() => void>, close: () => void, fallback: () => void) =>
-    (open: boolean, options: Array<() => void>, close: () => void, fallback: () => void) =>
     (e: React.KeyboardEvent) => {
       if (open && options.length) {
         const last = options.length - 1;
@@ -276,9 +275,6 @@ export default function OrderRowTrackingLine({
                 className={
                   optSpecial + ' border-b border-gray-100' + (hi === 0 ? ' bg-gray-200' : '')
                 }
-                className={
-                  optSpecial + ' border-b border-gray-100' + (hi === 0 ? ' bg-gray-200' : '')
-                }
               >
                 {EOL}
               </button>
@@ -289,9 +285,6 @@ export default function OrderRowTrackingLine({
                   e.preventDefault();
                   afterTracking(i, NA);
                 }}
-                className={
-                  optSpecial + ' border-b border-gray-100' + (hi === 1 ? ' bg-gray-200' : '')
-                }
                 className={
                   optSpecial + ' border-b border-gray-100' + (hi === 1 ? ' bg-gray-200' : '')
                 }
@@ -394,9 +387,6 @@ export default function OrderRowTrackingLine({
                       setOpenOrderRow(null);
                       focusSel(`[data-oa-due="${i}"]`);
                     }}
-                    className={
-                      optSpecial + ' border-b border-gray-100' + (hi === 0 ? ' bg-gray-200' : '')
-                    }
                     className={
                       optSpecial + ' border-b border-gray-100' + (hi === 0 ? ' bg-gray-200' : '')
                     }

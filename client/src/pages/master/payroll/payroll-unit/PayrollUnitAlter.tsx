@@ -13,7 +13,7 @@ import {
 import { useMasterShortcuts } from '@/hooks/useMasterShortcuts';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 import type { PayrollUnitType } from '@/types/entities/Payroll';
-import { UqcPopup } from '../../inventory/unit/UqcPopup';
+import UqcSidePanel from '../../inventory/unit/UqcSidePanel';
 
 interface FormData {
   unit_type: string;
@@ -225,7 +225,10 @@ export default function PayrollUnitAlter() {
   void _editActions;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
+    <div
+      className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden"
+      data-enter-nav
+    >
       <PageTitleBar title="Alter Payroll Unit" subtitle={selectedCompany?.name} />
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
       {success && (
@@ -252,7 +255,7 @@ export default function PayrollUnitAlter() {
                     onChange={setField('formal_name')}
                   />
                 </FormRow>
-                <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="relative">
+                <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56">
                   <span
                     ref={uqcAnchorRef}
                     role="button"
@@ -263,17 +266,6 @@ export default function PayrollUnitAlter() {
                   >
                     ◆ {form.uqc || 'Not Applicable'}
                   </span>
-                  {showUqc && (
-                    <UqcPopup
-                      selected={form.uqc}
-                      onSelect={(v) => {
-                        setForm((f) => ({ ...f, uqc: v }));
-                        setShowUqc(false);
-                        focusFieldAfter(uqcAnchorRef.current);
-                      }}
-                      onClose={() => setShowUqc(false)}
-                    />
-                  )}
                 </FormRow>
                 <FormRow label="Decimal Places" labelWidth="w-56">
                   <select
@@ -322,6 +314,19 @@ export default function PayrollUnitAlter() {
           <div className="flex-1" />
         </div>
       </div>
+
+      {/* Right-side "List of UQCs" — same panel pattern as the group masters. */}
+      {showUqc && (
+        <UqcSidePanel
+          selected={form.uqc}
+          onSelect={(v) => {
+            setForm((f) => ({ ...f, uqc: v }));
+            setShowUqc(false);
+            focusFieldAfter(uqcAnchorRef.current);
+          }}
+          onClose={() => setShowUqc(false)}
+        />
+      )}
       <MasterFormFooter
         onCancel={() => setSelectedUnit(null)}
         onSubmit={handleSubmit}

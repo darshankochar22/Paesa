@@ -6,6 +6,7 @@ import { isFeatureEnabled } from '@/lib/companyFeatures';
 import { exportElementToPdf } from '@/lib/exportDomPdf';
 import { PRIORITY, useShortcuts } from '@/lib/shortcuts';
 import GstPortalLoginDialog from '@/components/tally-ui/GstPortalLoginDialog';
+import Gstr1ExportDialog from '@/pages/master/statutory/gst-return/components/Gstr1ExportDialog';
 
 // TallyPrime top-menu hotkeys: Alt+letter opens the menu (F1 for Help).
 // Registered as deferred globals, so a screen that already uses the same
@@ -33,6 +34,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState('');
   const [gstLoginOpen, setGstLoginOpen] = useState(false);
+  const [gstr1ExportOpen, setGstr1ExportOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const companyId = selectedCompany?.company_id;
 
@@ -184,7 +186,7 @@ export default function Navbar() {
         { label: 'Reports' },
         { label: 'Current' },
         { label: 'Others' },
-        { label: 'GSTR-1 Return', path: '/master/statutory/gstr1' },
+        { label: 'GSTR-1 Return (JSON / Excel / CSV)', action: () => setGstr1ExportOpen(true) },
         { label: 'GST Returns' },
         { label: 'Company Data', path: '/data/company' },
         { label: 'Masters', path: '/data/group' },
@@ -271,6 +273,8 @@ export default function Navbar() {
           onClose={() => setGstLoginOpen(false)}
         />
       )}
+
+      <Gstr1ExportDialog open={gstr1ExportOpen} onClose={() => setGstr1ExportOpen(false)} />
     </nav>
   );
 }

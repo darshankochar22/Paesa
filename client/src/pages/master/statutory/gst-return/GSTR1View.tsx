@@ -21,6 +21,7 @@ import {
 } from '@/components/shadcn/dialog';
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
+import { downloadPortalJson, downloadWorkbook, downloadSectionCsvs } from '@/lib/gstr1Export';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -237,18 +238,21 @@ export default function GSTR1View() {
     });
   };
 
+  // Portal-compatible JSON (offline-tool envelope, empty sections pruned).
   const handleExportJson = () => {
+    if (gstr1Data) downloadPortalJson(gstr1Data);
+  };
+
+  // Single multi-sheet Excel workbook (one sheet per section, offline-tool column layout).
+  const handleExportExcel = () => {
+    if (gstr1Data) downloadWorkbook(gstr1Data);
+  };
+
+  // Offline-tool section CSVs (b2b.csv, cdnr.csv, hsn.csv, …) — importable into the Java tool.
+  const handleExportCsv = () => {
     if (!gstr1Data) return;
-    const jsonStr = JSON.stringify(gstr1Data, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `GSTR1_${activeRegistration?.gstin || 'Export'}_${returnPeriod}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const n = downloadSectionCsvs(gstr1Data);
+    if (n === 0) alert('No GSTR-1 sections with data to export for this period.');
   };
 
   // Summaries calculation
@@ -550,6 +554,22 @@ export default function GSTR1View() {
             className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
           >
             Alt+E: Export JSON
+          </Button>
+          <Button
+            onClick={handleExportExcel}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            Export Excel
+          </Button>
+          <Button
+            onClick={handleExportCsv}
+            variant="ghost"
+            size="xs"
+            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
+          >
+            Export CSV
           </Button>
         </div>
       }
