@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, FormRow, RightActionPanel, NotificationBanner } from '@/components/ui';
+import {
+  PageTitleBar,
+  FormRow,
+  RightActionPanel,
+  NotificationBanner,
+  MasterFormFooter,
+  inputCls,
+} from '@/components/ui';
 import { usePANDetails } from './hooks/usePANDetails';
 import { useFieldWalker } from '@/hooks/useFieldWalker';
-
-const activeClass =
-  'bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs';
-const inactiveClass =
-  'border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs';
-const getInputCls = (isActive: boolean) => `${isActive ? activeClass : inactiveClass}`;
 
 const FIELDS = ['pan', 'cin'];
 
@@ -82,7 +83,7 @@ export default function PANDetailsCreate() {
 
   return (
     <div
-      className="flex-grow flex flex-col h-full bg-white select-none text-zinc-950 relative"
+      className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950 relative"
       data-enter-nav
     >
       <PageTitleBar title="PAN/CIN Details" subtitle={selectedCompany?.name} />
@@ -94,38 +95,44 @@ export default function PANDetailsCreate() {
         <NotificationBanner type="success" message={success} onDismiss={() => setSuccess(null)} />
       )}
 
-      <div className="flex-grow flex min-h-0 relative">
-        <div className="flex-grow overflow-y-auto p-6 bg-zinc-50 font-mono text-zinc-800 text-[11px]">
-          <div className="max-w-2xl mx-auto bg-white border border-zinc-200 rounded shadow-sm p-6 space-y-4 mt-10 relative">
-            <div className="text-center font-bold text-xs border-b border-zinc-200 pb-3 mb-4 tracking-wide text-zinc-900 uppercase">
+      <div className="flex-1 flex min-h-0 relative">
+        <div className="flex-1 overflow-y-auto bg-white p-6">
+          <div className="max-w-2xl space-y-1">
+            <div className="font-bold text-[10px] border-b border-zinc-200 pb-1 mb-3 tracking-wider text-zinc-900 uppercase">
               PAN/CIN Details
             </div>
 
-            <div className="space-y-2">
-              <FormRow label="PAN/Income tax no." labelWidth="w-[300px]">
-                <input
-                  ref={panRef}
-                  className={getInputCls(activeField === 'pan')}
-                  value={form.pan}
-                  onChange={(e) => setField('pan', e.target.value.toUpperCase())}
-                  onFocus={() => setActiveField('pan')}
-                  placeholder="e.g. ABCDE1234F"
-                  maxLength={10}
-                />
-              </FormRow>
+            <FormRow
+              label="PAN/Income tax no."
+              labelWidth="w-72"
+              className="flex items-center min-h-[26px]"
+            >
+              <input
+                ref={panRef}
+                className={inputCls}
+                value={form.pan}
+                onChange={(e) => setField('pan', e.target.value.toUpperCase())}
+                onFocus={() => setActiveField('pan')}
+                placeholder="e.g. ABCDE1234F"
+                maxLength={10}
+              />
+            </FormRow>
 
-              <FormRow label="Corporate Identity No. (CIN)" labelWidth="w-[300px]">
-                <input
-                  ref={cinRef}
-                  className={getInputCls(activeField === 'cin')}
-                  value={form.cin}
-                  onChange={(e) => setField('cin', e.target.value.toUpperCase())}
-                  onFocus={() => setActiveField('cin')}
-                  placeholder="e.g. U12345KA2026PTC123456"
-                  maxLength={21}
-                />
-              </FormRow>
-            </div>
+            <FormRow
+              label="Corporate Identity No. (CIN)"
+              labelWidth="w-72"
+              className="flex items-center min-h-[26px]"
+            >
+              <input
+                ref={cinRef}
+                className={inputCls}
+                value={form.cin}
+                onChange={(e) => setField('cin', e.target.value.toUpperCase())}
+                onFocus={() => setActiveField('cin')}
+                placeholder="e.g. U12345KA2026PTC123456"
+                maxLength={21}
+              />
+            </FormRow>
           </div>
         </div>
 
@@ -134,7 +141,7 @@ export default function PANDetailsCreate() {
 
       {showAccept && (
         <div
-          className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in text-zinc-950"
+          className="absolute bottom-16 right-72 bg-white border-2 border-black w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] animate-fade-in text-zinc-950"
           data-enter-nav-ignore
         >
           <h4 className="font-bold text-[11px] mb-3">Accept?</h4>
@@ -145,13 +152,13 @@ export default function PANDetailsCreate() {
                 saveDetails();
               }}
               disabled={loading}
-              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center disabled:opacity-50 transition-colors cursor-pointer"
+              className="text-[11px] px-3 py-0.5 border border-black hover:bg-black/[0.03] text-black font-bold focus:outline-none min-w-[55px] text-center disabled:opacity-50 transition-colors cursor-pointer"
             >
               Yes
             </button>
             <button
               onClick={() => setShowAccept(false)}
-              className="text-[11px] px-3 py-0.5 border border-zinc-300 hover:bg-zinc-100 text-zinc-800 font-bold focus:outline-none min-w-[55px] text-center transition-colors cursor-pointer"
+              className="text-[11px] px-3 py-0.5 border border-black hover:bg-black/[0.03] text-black font-bold focus:outline-none min-w-[55px] text-center transition-colors cursor-pointer"
             >
               No
             </button>
@@ -159,24 +166,13 @@ export default function PANDetailsCreate() {
         </div>
       )}
 
-      {/* Footer */}
-      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate('/master/create')}
-            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
-          >
-            Quit
-          </button>
-          <button
-            onClick={() => setShowAccept(true)}
-            disabled={loading}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
-          >
-            Accept
-          </button>
-        </div>
-      </div>
+      <MasterFormFooter
+        onCancel={() => navigate('/master/create')}
+        onSubmit={() => setShowAccept(true)}
+        cancelLabel="Quit"
+        submitLabel="Accept"
+        loading={loading}
+      />
     </div>
   );
 }
