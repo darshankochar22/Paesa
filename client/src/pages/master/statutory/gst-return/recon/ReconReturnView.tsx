@@ -14,6 +14,7 @@ import {
 } from '@/components/shadcn/table';
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
+import { exportRowsToCsv } from '@/lib/exportCsv';
 import PortalFetchPopup from '../components/PortalFetchPopup';
 import {
   type ReconKind,
@@ -24,6 +25,10 @@ import {
   NUM,
   HEAD,
   PORTAL_ROW,
+  ROW_HOVER,
+  HEAD_HAIRLINE,
+  EMPTY_CELL,
+  portalTag,
 } from './reconShared';
 
 function StatusLine({
@@ -46,7 +51,7 @@ function StatusLine({
         'flex py-0.5',
         indent ? (indent === 2 ? 'px-8' : 'px-4') : 'px-2',
         bold && 'font-bold',
-        onClick && value > 0 ? 'cursor-pointer hover:bg-zinc-50' : '',
+        onClick && value > 0 ? cn('cursor-pointer', ROW_HOVER) : '',
       )}
     >
       <div className="flex-1">{label}</div>
@@ -192,6 +197,25 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
     { books: { ...ZERO }, portal: { ...ZERO } },
   );
 
+  const exportCsv = () => {
+    if (dataRows.length === 0) return;
+    exportRowsToCsv(
+      `GSTR-${kind}_reconciliation.csv`,
+      [
+        { header: 'Section', value: (r: DataRow) => r.label },
+        { header: 'Status', value: (r: DataRow) => r.status },
+        { header: 'Books Count', value: (r: DataRow) => r.books.count },
+        { header: 'Books Taxable', value: (r: DataRow) => r.books.taxable },
+        { header: 'Books Tax', value: (r: DataRow) => r.books.tax },
+        { header: 'Portal Count', value: (r: DataRow) => r.portal.count },
+        { header: 'Portal Taxable', value: (r: DataRow) => r.portal.taxable },
+        { header: 'Portal Tax', value: (r: DataRow) => r.portal.tax },
+      ],
+      dataRows,
+      [`GSTR-${kind} Reconciliation`, selectedCompany?.name || '', periodLabel],
+    );
+  };
+
   const drillParty = (row: DataRow) =>
     navigate(`/master/statutory/gstr${kind.toLowerCase()}/reconciliation/party`, {
       state: { kind, section: row.key, sectionLabel: row.label, registration: activeReg },
@@ -249,16 +273,20 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
           }
           className={cn(
             'border-0',
-            clickable && 'cursor-pointer hover:bg-zinc-50',
+            clickable && cn('cursor-pointer', ROW_HOVER),
             side === 'portal' && PORTAL_ROW,
             opts.subtotal && side === 'books' && 'border-t border-black font-bold',
-            opts.subtotal && side === 'portal' && 'border-t border-zinc-300',
+            opts.subtotal && side === 'portal' && 'border-t border-gray-300',
           )}
         >
           <TableCell
-            className={cn('px-2 py-0.5 pl-6', side === 'books' && !opts.subtotal && 'font-medium')}
+            className={cn(
+              'px-2 py-0.5 pl-6',
+              side === 'books' && !opts.subtotal && 'font-medium',
+              side === 'portal' && 'pl-10 text-[11px]',
+            )}
           >
-            {side === 'books' ? label : ''}
+            {side === 'books' ? label : opts.subtotal ? '' : portalTag(kind)}
           </TableCell>
           <TableCell className={NUM}>{fmtCount(v.count)}</TableCell>
           <TableCell className={NUM}>{fmt(v.taxable)}</TableCell>
@@ -310,7 +338,7 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
       rightSubtitle={
         <>
           <div>{periodLabel}</div>
-          <div className="text-zinc-500">Last online GST activity: {lastActivity}</div>
+          <div className="font-normal">Last online GST activity: {lastActivity}</div>
         </>
       }
       footerControls={
@@ -342,6 +370,15 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
           >
             Import JSON
           </Button>
+          <Button
+            onClick={exportCsv}
+            variant="ghost"
+            size="xs"
+            disabled={loading || dataRows.length === 0}
+            className="h-auto p-0 font-bold text-black hover:underline hover:bg-transparent"
+          >
+            Alt+E: Export
+          </Button>
         </div>
       }
     >
@@ -369,8 +406,8 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
         {!loading && !error && (
           <>
             {/* Voucher-status block (nested, matching Tally) */}
-            <div className="flex flex-col border-b border-zinc-300">
-              <div className="flex font-bold px-2 py-1 border-b border-zinc-200">
+            <div className="flex flex-col border-b border-gray-300">
+              <div className="flex font-bold px-2 py-1 border-b border-gray-200">
                 <div className="flex-1">P a r t i c u l a r s</div>
                 <div className="w-32 text-right">Voucher Count</div>
               </div>
@@ -407,7 +444,7 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
             {/* Return View — dual books/portal rows per section */}
             <Table className="text-xs table-fixed">
               <TableHeader>
-                <TableRow className="border-b border-zinc-300 hover:bg-transparent">
+                <TableRow className={cn(HEAD_HAIRLINE, 'hover:bg-transparent')}>
                   <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black">
                     Return View (Comparison of Books &amp; Portal Values)
                   </TableHead>
@@ -425,7 +462,7 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
               <TableBody>
                 {rows.length === 0 && (
                   <TableRow className="border-0 hover:bg-transparent">
-                    <TableCell colSpan={10} className="px-2 py-3 text-center text-zinc-400">
+                    <TableCell colSpan={10} className={EMPTY_CELL}>
                       No inward documents. Use Fetch from Portal / Import JSON to reconcile.
                     </TableCell>
                   </TableRow>

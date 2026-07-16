@@ -187,26 +187,4 @@ const ledgerStatutoryDetails = sqliteTable('ledger_statutory_details', {
   roundingLimit: real('rounding_limit').default(0),
 });
 
-// F11 "Enable multiple addresses" — additional named addresses for a party ledger
-// (Head Office, Branch, Warehouse…). The ledger's own address1/2/state/… columns
-// remain the primary address; this table holds the extra ones. Non-destructive:
-// rows exist regardless of the feature flag, which only gates the UI.
-const ledgerAddresses = sqliteTable('ledger_addresses', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  ledgerId: integer('ledger_id').notNull(),
-  addressType: text('address_type'),
-  mailingName: text('mailing_name'),
-  address1: text('address1'),
-  address2: text('address2'),
-  city: text('city'),
-  state: text('state'),
-  country: text('country'),
-  pincode: text('pincode'),
-  phone: text('phone'),
-  email: text('email'),
-  gstin: text('gstin'),
-  isDefault: integer('is_default').default(0),
-  displayOrder: integer('display_order').default(0),
-});
-
-module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails, ledgerAddresses };
+module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails };

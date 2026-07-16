@@ -13,8 +13,12 @@ import {
 } from '@/components/shadcn/table';
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
+import { exportRowsToCsv } from '@/lib/exportCsv';
 
 type Mode = 'einvoice' | 'eway';
+
+// One register column: header, fixed width class, and how to read it off a record row.
+type RegCol = { head: string; width: string; cell: (r: any) => string };
 
 const CFG: Record<
   Mode,
@@ -25,8 +29,7 @@ const CFG: Record<
     registerLabel: string;
     portalLabel: string;
     portalUrl: string;
-    idKey: string;
-    idHead: string;
+    registerColumns: RegCol[];
   }
 > = {
   einvoice: {
@@ -36,8 +39,20 @@ const CFG: Record<
     registerLabel: 'F5: IRN Register',
     portalLabel: 'V: Open e-Invoice Portal',
     portalUrl: 'https://einvoice1.gst.gov.in',
-    idKey: 'irn',
-    idHead: 'IRN',
+    // Tally e-Invoice report: invoice + IRN acknowledgement columns (all stored on einvoice_records).
+    registerColumns: [
+      { head: 'Date', width: 'w-24', cell: (r) => r.invoice_date || r.date || r.created_at || '' },
+      { head: 'Party', width: '', cell: (r) => r.party_name || r.party || '' },
+      {
+        head: 'Invoice No',
+        width: 'w-28',
+        cell: (r) => r.invoice_number || r.voucher_number || '',
+      },
+      { head: 'IRN', width: 'w-64', cell: (r) => r.irn || '' },
+      { head: 'Ack No', width: 'w-32', cell: (r) => r.ack_no || '' },
+      { head: 'Ack Date', width: 'w-28', cell: (r) => r.ack_dt || '' },
+      { head: 'Status', width: 'w-24', cell: (r) => r.status || '' },
+    ],
   },
   eway: {
     title: 'e-Way Bill',
@@ -46,8 +61,25 @@ const CFG: Record<
     registerLabel: 'F5: EWB Register',
     portalLabel: 'V: Open EWB Portal',
     portalUrl: 'https://ewaybillgst.gov.in',
-    idKey: 'ewb_no',
-    idHead: 'EWB No.',
+    // Tally e-Way Bill report: EWB number, dates, validity, distance, vehicle (all on ewaybill_records).
+    registerColumns: [
+      {
+        head: 'Date',
+        width: 'w-24',
+        cell: (r) => r.ewb_date || r.doc_date || r.date || r.created_at || '',
+      },
+      { head: 'Party', width: '', cell: (r) => r.party_name || r.party || '' },
+      { head: 'Doc No', width: 'w-28', cell: (r) => r.doc_no || r.voucher_number || '' },
+      { head: 'EWB No', width: 'w-36', cell: (r) => r.ewb_no || '' },
+      { head: 'Valid Upto', width: 'w-28', cell: (r) => r.valid_upto || '' },
+      {
+        head: 'Distance',
+        width: 'w-20',
+        cell: (r) => (r.distance != null ? String(r.distance) : ''),
+      },
+      { head: 'Vehicle No', width: 'w-28', cell: (r) => r.veh_no || '' },
+      { head: 'Status', width: 'w-24', cell: (r) => r.status || '' },
+    ],
   },
 };
 
@@ -101,6 +133,16 @@ export default function EInvoiceEWayBillReport({ mode }: { mode: Mode }) {
   const statusRows = [...byStatus.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   const period = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '';
 
+  const exportRegister = () => {
+    if (!records.length) return;
+    exportRowsToCsv(
+      `${mode === 'einvoice' ? 'e-Invoice' : 'e-Way-Bill'}_register.csv`,
+      cfg.registerColumns.map((c) => ({ header: c.head, value: (r: any) => c.cell(r) })),
+      records,
+      [`${cfg.title} Register`, selectedCompany?.name || '', period],
+    );
+  };
+
   const openUncertain = () =>
     uncertain > 0 &&
     navigate('/master/statutory/gst/exchange-uncertain', {
@@ -133,6 +175,16 @@ export default function EInvoiceEWayBillReport({ mode }: { mode: Mode }) {
           >
             {view === 'summary' ? cfg.registerLabel : 'F5: Summary'}
           </Button>
+          {view === 'register' && records.length > 0 && (
+            <Button
+              onClick={exportRegister}
+              variant="ghost"
+              size="xs"
+              className="h-auto p-0 ml-4 font-bold text-black hover:underline hover:bg-transparent"
+            >
+              Alt+E: Export
+            </Button>
+          )}
           <Button
             onClick={() => window.open(cfg.portalUrl, '_blank')}
             variant="ghost"
@@ -202,24 +254,20 @@ export default function EInvoiceEWayBillReport({ mode }: { mode: Mode }) {
           <Table className="text-xs table-fixed">
             <TableHeader>
               <TableRow className="border-b border-gray-300 hover:bg-transparent">
-                <TableHead className="h-auto w-24 px-2 py-1 align-bottom font-bold text-black">
-                  Date
-                </TableHead>
-                <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black">
-                  Party
-                </TableHead>
-                <TableHead className="h-auto w-56 px-2 py-1 align-bottom font-bold text-black">
-                  {cfg.idHead}
-                </TableHead>
-                <TableHead className="h-auto w-28 px-2 py-1 align-bottom font-bold text-black">
-                  Status
-                </TableHead>
+                {cfg.registerColumns.map((c) => (
+                  <TableHead
+                    key={c.head}
+                    className={cn('h-auto px-2 py-1 align-bottom font-bold text-black', c.width)}
+                  >
+                    {c.head}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {records.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="p-0">
+                  <TableCell colSpan={cfg.registerColumns.length} className="p-0">
                     <EmptyState message={`No ${cfg.title} records generated yet.`} />
                   </TableCell>
                 </TableRow>
@@ -232,10 +280,18 @@ export default function EInvoiceEWayBillReport({ mode }: { mode: Mode }) {
                     }
                     className={cn('border-0', r.voucher_id && 'cursor-pointer hover:bg-[#e6f2ff]')}
                   >
-                    <TableCell className="px-2 py-0.5">{r.date || r.created_at || ''}</TableCell>
-                    <TableCell className="px-2 py-0.5">{r.party_name || r.party || ''}</TableCell>
-                    <TableCell className="px-2 py-0.5 tabular-nums">{r[cfg.idKey] || ''}</TableCell>
-                    <TableCell className="px-2 py-0.5">{r.status || ''}</TableCell>
+                    {cfg.registerColumns.map((c) => (
+                      <TableCell
+                        key={c.head}
+                        className={cn(
+                          'px-2 py-0.5',
+                          (c.head === 'IRN' || c.head === 'EWB No' || c.head === 'Ack No') &&
+                            'tabular-nums',
+                        )}
+                      >
+                        {c.cell(r)}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 ))
               )}

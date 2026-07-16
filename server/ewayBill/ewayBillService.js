@@ -295,8 +295,16 @@ const getByVoucher = async (voucher_id) => {
 
 const getRecords = async (company_id) => {
   try {
+    // Join the voucher + party so the EWB Register shows a real Party (matching the e-Invoice
+    // register), which the ewaybill_records row does not carry itself.
     const rows = await db.all(
-      sql`SELECT * FROM ${ewaybillRecords} WHERE ${ewaybillRecords.companyId} = ${company_id} ORDER BY ${ewaybillRecords.createdAt} DESC`,
+      sql`SELECT er.*, v.date AS date, v.voucher_number AS voucher_number,
+                 COALESCE(l.name, v.party_name) AS party_name
+          FROM ewaybill_records er
+          LEFT JOIN vouchers v ON v.voucher_id = er.voucher_id
+          LEFT JOIN ledgers l ON l.ledger_id = v.party_ledger_id
+          WHERE er.company_id = ${company_id}
+          ORDER BY er.created_at DESC`,
     );
     return { success: true, records: rows };
   } catch (err) {

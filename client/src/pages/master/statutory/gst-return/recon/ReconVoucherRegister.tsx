@@ -12,7 +12,17 @@ import {
 } from '@/components/shadcn/table';
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
-import { type ReconKind, fmt, NUM, HEAD, PORTAL_ROW } from './reconShared';
+import {
+  type ReconKind,
+  fmt,
+  NUM,
+  HEAD,
+  PORTAL_ROW,
+  ROW_HOVER,
+  HEAD_HAIRLINE,
+  EMPTY_CELL,
+  portalTag,
+} from './reconShared';
 
 interface VchSide {
   doc_no: string;
@@ -104,7 +114,7 @@ export default function ReconVoucherRegister() {
     const rows = [];
     if (p.book) {
       rows.push(
-        <TableRow key={`${group}-${i}-b`} className="border-0 hover:bg-zinc-50">
+        <TableRow key={`${group}-${i}-b`} className={cn('border-0', ROW_HOVER)}>
           <TableCell className="px-2 py-0.5">{p.book.date}</TableCell>
           <TableCell className="px-2 py-0.5">{p.book.party_name || partyName}</TableCell>
           <TableCell className="px-2 py-0.5">{p.book.vch_type}</TableCell>
@@ -123,9 +133,9 @@ export default function ReconVoucherRegister() {
     }
     if (p.portal) {
       rows.push(
-        <TableRow key={`${group}-${i}-p`} className={cn('border-0 hover:bg-zinc-50', PORTAL_ROW)}>
+        <TableRow key={`${group}-${i}-p`} className={cn('border-0', ROW_HOVER, PORTAL_ROW)}>
           <TableCell className="px-2 py-0.5">{p.book ? '' : p.portal.doc_date}</TableCell>
-          <TableCell className="px-2 py-0.5">{p.book ? '' : partyName}</TableCell>
+          <TableCell className="px-2 py-0.5">{p.book ? portalTag(kind) : partyName}</TableCell>
           <TableCell className="px-2 py-0.5" />
           <TableCell className="px-2 py-0.5" />
           <TableCell className="px-2 py-0.5">{p.portal.doc_no}</TableCell>
@@ -182,7 +192,7 @@ export default function ReconVoucherRegister() {
         {!loading && !error && groups && (
           <Table className="text-xs table-fixed">
             <TableHeader>
-              <TableRow className="border-b border-zinc-300 hover:bg-transparent">
+              <TableRow className={cn(HEAD_HAIRLINE, 'hover:bg-transparent')}>
                 <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black w-24">
                   Date
                 </TableHead>
@@ -213,7 +223,7 @@ export default function ReconVoucherRegister() {
             <TableBody>
               {totalCount === 0 && (
                 <TableRow className="border-0 hover:bg-transparent">
-                  <TableCell colSpan={13} className="px-2 py-3 text-center text-zinc-400">
+                  <TableCell colSpan={13} className={EMPTY_CELL}>
                     No vouchers for this supplier.
                   </TableCell>
                 </TableRow>

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
 import { Button } from '@/components/shadcn/button';
+import Select from '@/components/ui/Select';
 import {
   Table,
   TableHeader,
@@ -90,6 +91,48 @@ function periodLabelFor(month: string, year: string) {
   return `1-${MONTHS[m - 1]}-${yy} to ${lastDay}-${MONTHS[m - 1]}-${yy}`;
 }
 
+interface FyPeriod {
+  value: string; // MMYYYY, matches returnPeriod
+  label: string;
+  month: string;
+  year: string;
+}
+
+// Every month that belongs to the active FY, oldest→newest. These are the only valid
+// GSTR-3B return periods — the report cross-filters period × fy_id, so a period outside
+// the FY window always returns zero vouchers (the "no data" trap).
+function fyPeriods(fy?: { start_date?: string; end_date?: string } | null): FyPeriod[] {
+  if (!fy?.start_date || !fy?.end_date) return [];
+  const [sy, sm] = fy.start_date.split('-').map(Number);
+  const [ey, em] = fy.end_date.split('-').map(Number);
+  const out: FyPeriod[] = [];
+  let y = sy;
+  let m = sm;
+  // Guard against a malformed FY range producing an unbounded loop.
+  for (let i = 0; i < 240 && (y < ey || (y === ey && m <= em)); i++) {
+    const mm = String(m).padStart(2, '0');
+    out.push({ value: `${mm}${y}`, label: `${MONTHS[m - 1]} ${y}`, month: mm, year: String(y) });
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return out;
+}
+
+// Sensible landing period: today's month if it falls inside the active FY, otherwise the
+// FY's last month (the year's final filing period) — so the report opens on a period that
+// actually has vouchers instead of an empty current calendar month.
+function defaultPeriod(today: Date, periods: FyPeriod[]) {
+  const tm = String(today.getMonth() + 1).padStart(2, '0');
+  const ty = String(today.getFullYear());
+  const todayVal = `${tm}${ty}`;
+  if (periods.some((p) => p.value === todayVal)) return { month: tm, year: ty };
+  const last = periods[periods.length - 1];
+  return last ? { month: last.month, year: last.year } : { month: tm, year: ty };
+}
+
 export default function GSTR3BView() {
   const { selectedCompany, activeFY } = useCompany();
   const location = useLocation();
@@ -100,10 +143,28 @@ export default function GSTR3BView() {
 
   const today = new Date();
   // When drilled in from Track GST Return Activities, land on the clicked period.
-  const [selectedMonth] = useState(
+  const [selectedMonth, setSelectedMonth] = useState(
     location.state?.month || String(today.getMonth() + 1).padStart(2, '0'),
   );
-  const [selectedYear] = useState(location.state?.year || String(today.getFullYear()));
+  const [selectedYear, setSelectedYear] = useState(
+    location.state?.year || String(today.getFullYear()),
+  );
+
+  // The valid return periods for the active FY, and a picker to move between them.
+  const periods = useMemo(() => fyPeriods(activeFY), [activeFY]);
+
+  // If the current period isn't part of the active FY (e.g. default = current calendar
+  // month but the company's data is a prior FY), snap to a period that actually exists —
+  // otherwise the report cross-filters to zero rows and looks empty. Skipped when we were
+  // drilled into a specific period from Track GST Return Activities.
+  useEffect(() => {
+    if (location.state?.month || !periods.length) return;
+    if (periods.some((p) => p.value === `${selectedMonth}${selectedYear}`)) return;
+    const d = defaultPeriod(today, periods);
+    setSelectedMonth(d.month);
+    setSelectedYear(d.year);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periods]);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   // F5 Nature View — Liability (outward) + ITC (inward), split Local/Interstate.
   const [natureView, setNatureView] = useState(false);
@@ -237,7 +298,10 @@ export default function GSTR3BView() {
 
   const handleExportJson = () => {
     if (!gstr3bData) return;
-    const jsonStr = JSON.stringify(gstr3bData, null, 2);
+    // Emit a clean GSTN offline-tool file: keep only schema keys (gstin/ret_period + the sections),
+    // drop the UI-only helpers (total_vouchers, warnings) that GSTN rejects as unknown properties.
+    const { total_vouchers: _tv, warnings: _w, ...clean } = gstr3bData as Record<string, unknown>;
+    const jsonStr = JSON.stringify(clean, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -532,10 +596,26 @@ export default function GSTR3BView() {
       }
       rightSubtitle={
         <>
-          <div>{periodLabelFor(selectedMonth, selectedYear)}</div>
-          <div className="font-normal text-black-700">
-            Last online GST activity: No Activity Found
-          </div>
+          {periods.length > 0 ? (
+            <div className="flex items-center gap-1">
+              <span className="font-normal">Period</span>
+              <Select
+                value={`${selectedMonth}${selectedYear}`}
+                onChange={(e) => {
+                  const p = periods.find((x) => x.value === e.target.value);
+                  if (p) {
+                    setSelectedMonth(p.month);
+                    setSelectedYear(p.year);
+                  }
+                }}
+                options={periods.map((p) => ({ value: p.value, label: p.label }))}
+                className="h-6 w-32 py-0"
+              />
+            </div>
+          ) : (
+            <div>{periodLabelFor(selectedMonth, selectedYear)}</div>
+          )}
+          <div className="font-normal">Last online GST activity: No Activity Found</div>
         </>
       }
       footerControls={
@@ -580,6 +660,15 @@ export default function GSTR3BView() {
           <EmptyState message="Computing and compiling GSTR-3B payload..." className="italic" />
         )}
         {error && <div className="p-2 text-center text-red-600 font-bold">{error}</div>}
+
+        {!loading && !error && gstr3bData && (gstr3bData.total_vouchers ?? 0) === 0 && (
+          <div className="px-2 py-1.5 border-b border-gray-300 italic">
+            No GST vouchers in {periodLabelFor(selectedMonth, selectedYear)}
+            {periods.length > 0
+              ? ' — pick another period above; all months of the active financial year are listed.'
+              : '.'}
+          </div>
+        )}
 
         {/* Top Summary */}
         <div className="flex flex-col border-b border-gray-300">

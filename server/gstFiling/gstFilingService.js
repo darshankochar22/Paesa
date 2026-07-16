@@ -78,6 +78,19 @@ const pruneEmptyGstn = (v) => {
   return v;
 };
 
+// Our computed payloads carry a few UI-only helper keys (GSTR-3B's total_vouchers / warnings)
+// that are NOT in the GSTN schema — GSTN rejects unknown properties, so strip them before
+// save/file. GSTR-1's payload is already schema-clean.
+const NON_SCHEMA_KEYS = { GSTR3B: ['total_vouchers', 'warnings'] };
+const stripNonSchema = (return_type, payload) => {
+  if (!payload || typeof payload !== 'object') return payload;
+  const drop = NON_SCHEMA_KEYS[return_type];
+  if (!drop) return payload;
+  const out = { ...payload };
+  for (const k of drop) delete out[k];
+  return out;
+};
+
 // Filing always uses a FRESH computation (generateGSTR1), never the cached gstr1_exports
 // snapshot that the report screens read — you must save/file the current books, not stale data.
 const compute = (return_type, company_id, fy_id, return_period) =>
@@ -121,6 +134,24 @@ const getStatus = async (company_id) => {
     records = r[0]?.n || 0;
   } catch (_) {
     /* ignore */
+  }
+  // Report the provider that actually backs the portal (getPortalProvider prefers Sandbox when
+  // its keys are present), so the auth banner reflects the session that OTP/2A/2B/save/file use —
+  // not whichever GSP env happens to be present. Otherwise a Sandbox-routed portal would show a
+  // stale WhiteBooks session and the user could never see their real login state.
+  if (getPortalProvider() === 'sandbox') {
+    const st = sbx.getStatus(); // { configured, live, baseUrl, gstin, platformSession, gstSession }
+    const sess = sbx.gst.session(); // { active, gstin, username }
+    return {
+      success: true,
+      configured: !!st.configured,
+      provider: 'sandbox',
+      gstin: st.gstin || null,
+      sandbox: !st.live, // test host (test-api.sandbox.co.in) vs production (api.sandbox.co.in)
+      gstSession: !!st.gstSession,
+      activeGstin: sess.active ? sess.gstin : null,
+      records,
+    };
   }
   const wbc = getWhitebooksConfig();
   if (wbc) {
@@ -251,7 +282,10 @@ const saveToPortal = async (
     else if (LOCAL_COMPUTE.has(return_type)) {
       const res = await compute(return_type, company_id, fy_id, return_period);
       if (!res.success) return res;
-      payload = pruneEmptyGstn(res.payload || res) || { gstin, fp: return_period };
+      payload = pruneEmptyGstn(stripNonSchema(return_type, res.payload || res)) || {
+        gstin,
+        fp: return_period,
+      };
     } else {
       return {
         success: false,
@@ -285,7 +319,10 @@ const saveToPortal = async (
     } else if (LOCAL_COMPUTE.has(return_type)) {
       const res = await compute(return_type, company_id, fy_id, return_period);
       if (!res.success) return res;
-      payload = pruneEmptyGstn(res.payload || res) || { gstin: wbc.gst.gstin, fp: return_period };
+      payload = pruneEmptyGstn(stripNonSchema(return_type, res.payload || res)) || {
+        gstin: wbc.gst.gstin,
+        fp: return_period,
+      };
     } else {
       return {
         success: false,
@@ -344,7 +381,10 @@ const fileReturn = async (
     else if (LOCAL_COMPUTE.has(return_type)) {
       const res = await compute(return_type, company_id, fy_id, return_period);
       if (!res.success) return res;
-      payload = pruneEmptyGstn(res.payload || res) || { gstin, fp: return_period };
+      payload = pruneEmptyGstn(stripNonSchema(return_type, res.payload || res)) || {
+        gstin,
+        fp: return_period,
+      };
     } else {
       return {
         success: false,
@@ -390,7 +430,10 @@ const fileReturn = async (
     } else if (LOCAL_COMPUTE.has(return_type)) {
       const res = await compute(return_type, company_id, fy_id, return_period);
       if (!res.success) return res;
-      payload = pruneEmptyGstn(res.payload || res) || { gstin: wbc.gst.gstin, fp: return_period };
+      payload = pruneEmptyGstn(stripNonSchema(return_type, res.payload || res)) || {
+        gstin: wbc.gst.gstin,
+        fp: return_period,
+      };
     } else {
       return {
         success: false,

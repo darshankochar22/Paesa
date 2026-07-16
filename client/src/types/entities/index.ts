@@ -1,7 +1,7 @@
 export type { CompanyType } from './Company';
 export type { FYType } from './FinancialYear';
 export type { GroupType, SlabBasedRate } from './Group';
-export type { LedgerType, LedgerAddress } from './Ledger';
+export type { LedgerType } from './Ledger';
 export type { CostCentreType } from './CostCentre';
 export type {
   BudgetType,

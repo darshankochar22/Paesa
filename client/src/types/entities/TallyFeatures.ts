@@ -33,7 +33,6 @@ export interface TallyFeaturesType {
   enable_payroll_statutory?: number;
   set_alter_payroll_statutory_details?: number;
   enable_payment_request_qr?: number;
-  enable_multiple_addresses?: number;
   mark_modified_vouchers?: number;
   created_at?: string;
   updated_at?: string;
