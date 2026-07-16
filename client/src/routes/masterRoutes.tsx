@@ -71,6 +71,7 @@ import PricelistscCOA from '../pages/master/inventory/pricelist(stockcategory)/p
 import GSTRegistrationCreate from '../pages/master/statutory/gst-registration/GSTRegistrationCreate.tsx';
 import GSTRegistrationAlter from '../pages/master/statutory/gst-registration/GSTRegistrationAlter.tsx';
 import GSTRegistrationCOA from '../pages/master/statutory/gst-registration/GSTRegistrationCOA.tsx';
+import CompanyGSTDetailsPage from '../pages/master/statutory/company-gst-details/CompanyGSTDetailsPage.tsx';
 import GSTClassificationCreate from '../pages/master/statutory/gst-classification/GSTClassificationCreate.tsx';
 import GSTClassificationAlter from '../pages/master/statutory/gst-classification/GSTClassificationAlter.tsx';
 import GSTClassificationCOA from '../pages/master/statutory/gst-classification/GSTClassificationCOA.tsx';
@@ -278,6 +279,8 @@ export const masterRoutes: RouteConfig[] = [
   { path: '/master/create/gst-registration', element: <GSTRegistrationCreate /> },
   { path: '/master/alter/gst-registration', element: <GSTRegistrationAlter /> },
   { path: '/master/coa/gst-registration', element: <GSTRegistrationCOA /> },
+  { path: '/master/create/company-gst-details', element: <CompanyGSTDetailsPage /> },
+  { path: '/master/alter/company-gst-details', element: <CompanyGSTDetailsPage /> },
 
   // Statutory — GST Classification
   { path: '/master/create/gst-classification', element: <GSTClassificationCreate /> },

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { NotificationBanner } from '@/components/ui';
+import { NotificationBanner, FormRow } from '@/components/ui';
 import GSTDetailsListPanel from './GSTDetailsListPanel';
 import SlabBasedRateDetails, { type SlabRow } from './SlabBasedRateDetails';
 
@@ -279,7 +279,7 @@ export default function GSTClassificationSecondaryModal({
   ]);
 
   // ── Styles ──────────────────────────────────────────────────────────────────
-  const activeClass = 'bg-[#ffea5d] border-[#e6c300] text-zinc-950';
+  const activeClass = 'bg-white border-black text-black';
   const inactiveClass = 'border-transparent bg-transparent text-zinc-900';
   const dropdownStyle = (isActive: boolean) =>
     `px-2 py-0.5 border cursor-pointer font-bold select-none ${isActive ? activeClass : inactiveClass}`;
@@ -296,24 +296,22 @@ export default function GSTClassificationSecondaryModal({
       >
         <div className="bg-white border border-zinc-500 w-[550px] flex flex-col shadow-2xl overflow-hidden relative">
           {/* Header */}
-          <div className="bg-[#007a78] text-white font-bold text-xs py-2 px-3 tracking-wide flex justify-between">
+          <div className="bg-black text-white font-bold text-xs py-2 px-3 tracking-wide flex justify-between">
             <span>GST Classification Creation (Secondary)</span>
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* Name */}
-            <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
-              <span className="text-zinc-700">Name</span>
-              <span className="text-zinc-400 text-center">:</span>
+            <FormRow label="Name" labelWidth="w-36" className="flex items-center min-h-[26px]">
               <input
                 ref={nameRef}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onFocus={() => setActiveField('name')}
-                className={`${inputStyle(activeField === 'name')} flex-1`}
+                className={`${inputStyle(activeField === 'name')} w-full`}
               />
-            </div>
+            </FormRow>
 
             {/* ── HSN/SAC & Related Details ───────────────────────────────── */}
             <div className="border-t border-zinc-200 pt-3 space-y-3">
@@ -321,22 +319,26 @@ export default function GSTClassificationSecondaryModal({
                 HSN/SAC &amp; Related Details
               </div>
 
-              <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
-                <span className="text-zinc-700">HSN/SAC Details</span>
-                <span className="text-zinc-400 text-center">:</span>
+              <FormRow
+                label="HSN/SAC Details"
+                labelWidth="w-36"
+                className="flex items-center min-h-[26px]"
+              >
                 <div
                   onClick={() => setActiveField('hsnSacType')}
-                  className={`${dropdownStyle(activeField === 'hsnSacType')} flex-1`}
+                  className={`${dropdownStyle(activeField === 'hsnSacType')} w-full`}
                 >
-                  ♦ {hsnSacType}
+                  {hsnSacType}
                 </div>
-              </div>
+              </FormRow>
 
               {hsnSacType === 'Specify Details Here' && (
                 <>
-                  <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
-                    <span className="text-zinc-700">HSN/SAC</span>
-                    <span className="text-zinc-400 text-center">:</span>
+                  <FormRow
+                    label="HSN/SAC"
+                    labelWidth="w-36"
+                    className="flex items-center min-h-[26px]"
+                  >
                     <input
                       ref={hsnCodeRef}
                       type="text"
@@ -346,20 +348,22 @@ export default function GSTClassificationSecondaryModal({
                       onFocus={() => setActiveField('hsnSacCode')}
                       className={`${inputStyle(activeField === 'hsnSacCode')} w-28`}
                     />
-                  </div>
+                  </FormRow>
 
-                  <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
-                    <span className="text-zinc-700">Description</span>
-                    <span className="text-zinc-400 text-center">:</span>
+                  <FormRow
+                    label="Description"
+                    labelWidth="w-36"
+                    className="flex items-center min-h-[26px]"
+                  >
                     <input
                       ref={descRef}
                       type="text"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       onFocus={() => setActiveField('description')}
-                      className={`${inputStyle(activeField === 'description')} flex-1`}
+                      className={`${inputStyle(activeField === 'description')} w-full`}
                     />
-                  </div>
+                  </FormRow>
                 </>
               )}
             </div>
@@ -370,51 +374,59 @@ export default function GSTClassificationSecondaryModal({
                 GST Rate &amp; Related Details
               </div>
 
-              <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
-                <span className="text-zinc-700">GST Rate Details</span>
-                <span className="text-zinc-400 text-center">:</span>
+              <FormRow
+                label="GST Rate Details"
+                labelWidth="w-36"
+                className="flex items-center min-h-[26px]"
+              >
                 <div
                   onClick={() => setActiveField('gstRateDetails')}
-                  className={`${dropdownStyle(activeField === 'gstRateDetails')} flex-1`}
+                  className={`${dropdownStyle(activeField === 'gstRateDetails')} w-full`}
                 >
-                  ♦ {gstRateDetails}
+                  {gstRateDetails}
                 </div>
-              </div>
+              </FormRow>
 
               {/* Slab-Based: show summary row + Edit button */}
               {gstRateDetails === 'Specify Slab-Based Rates' && (
-                <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
-                  <span className="text-zinc-700">Slab Rates</span>
-                  <span className="text-zinc-400 text-center">:</span>
+                <FormRow
+                  label="Slab Rates"
+                  labelWidth="w-36"
+                  className="flex items-center min-h-[26px]"
+                >
                   <button
                     onClick={() => setShowSlabOverlay(true)}
-                    className="text-left px-2 py-0.5 font-bold text-[#007a78] underline hover:text-[#005a58] font-sans text-xs"
+                    className="text-left px-2 py-0.5 font-bold text-black underline hover:text-black text-xs"
                   >
                     {slabRows.length > 0
                       ? `${slabRows.length} slab(s) configured — Edit`
                       : 'Not configured — Click to define'}
                   </button>
-                </div>
+                </FormRow>
               )}
 
               {/* Specify Details Here: Taxability + GST Rate */}
               {gstRateDetails === 'Specify Details Here' && (
                 <>
-                  <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
-                    <span className="text-zinc-700">Taxability Type</span>
-                    <span className="text-zinc-400 text-center">:</span>
+                  <FormRow
+                    label="Taxability Type"
+                    labelWidth="w-36"
+                    className="flex items-center min-h-[26px]"
+                  >
                     <div
                       onClick={() => setActiveField('taxabilityType')}
-                      className={`${dropdownStyle(activeField === 'taxabilityType')} flex-1`}
+                      className={`${dropdownStyle(activeField === 'taxabilityType')} w-full`}
                     >
                       {taxabilityType}
                     </div>
-                  </div>
+                  </FormRow>
 
                   {taxabilityType === 'Taxable' && (
-                    <div className="grid grid-cols-[140px_10px_1fr] items-center min-h-[24px]">
-                      <span className="text-zinc-700">GST Rate</span>
-                      <span className="text-zinc-400 text-center">:</span>
+                    <FormRow
+                      label="GST Rate"
+                      labelWidth="w-36"
+                      className="flex items-center min-h-[26px]"
+                    >
                       <div className="flex items-center gap-1">
                         <input
                           ref={rateRef}
@@ -426,7 +438,7 @@ export default function GSTClassificationSecondaryModal({
                         />
                         <span className="font-bold text-zinc-500">%</span>
                       </div>
-                    </div>
+                    </FormRow>
                   )}
                 </>
               )}
@@ -448,14 +460,14 @@ export default function GSTClassificationSecondaryModal({
             <div className="flex gap-2">
               <button
                 onClick={onClose}
-                className="px-3 py-1 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 text-xs font-medium"
+                className="px-3 py-1 rounded border border-zinc-200 bg-white text-zinc-600  text-xs font-medium"
               >
                 Quit
               </button>
               <button
                 onClick={() => setShowAcceptPrompt(true)}
                 disabled={loading}
-                className="px-4 py-1 rounded bg-[#007a78] text-white hover:bg-[#005a58] disabled:opacity-50 text-xs font-medium"
+                className="px-4 py-1 rounded bg-black text-white  disabled:opacity-50 text-xs font-medium"
               >
                 {loading ? 'Saving...' : 'Accept'}
               </button>
@@ -465,18 +477,15 @@ export default function GSTClassificationSecondaryModal({
           {/* Accept dialog */}
           {showAcceptPrompt && (
             <div className="absolute inset-0 bg-black/10 flex items-center justify-center z-[10001]">
-              <div className="bg-[#e2f1f1] border-2 border-[#007a78] px-6 py-4 shadow-xl text-center w-52">
-                <div className="font-bold text-xs text-[#004d4d] mb-3">Accept?</div>
+              <div className="bg-white border-2 border-black px-6 py-4 shadow-xl text-center w-52">
+                <div className="font-bold text-xs text-black mb-3">Accept?</div>
                 <div className="flex justify-center gap-4 text-xs font-bold">
-                  <button
-                    onClick={handleSave}
-                    className="px-3 py-1 bg-[#007a78] text-white hover:bg-[#005a58] w-14"
-                  >
+                  <button onClick={handleSave} className="px-3 py-1 bg-black text-white  w-14">
                     Yes
                   </button>
                   <button
                     onClick={() => setShowAcceptPrompt(false)}
-                    className="px-3 py-1 border border-[#007a78] text-[#007a78] hover:bg-[#cbe6e6] w-14"
+                    className="px-3 py-1 border border-black text-black  w-14"
                   >
                     No
                   </button>

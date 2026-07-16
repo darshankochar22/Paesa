@@ -6,6 +6,10 @@ interface FormRowProps {
   labelWidth?: string;
   className?: string;
   children: React.ReactNode;
+  /** Small caption rendered under the label (grey, italic) — for hint text. */
+  subLabel?: string;
+  /** Greys the label to signal the field is inactive/read-only. */
+  disabled?: boolean;
   /**
    * Panel-opener row: makes the whole row a Tally-style field that the global
    * Enter walker can land on. Adds tabIndex + data-enter-click + focus styling
@@ -24,6 +28,8 @@ export default function FormRow({
   labelWidth = 'w-56',
   className = 'flex items-center min-h-[32px]',
   children,
+  subLabel,
+  disabled = false,
   enterClick = false,
   onClick,
   rowRef,
@@ -37,10 +43,15 @@ export default function FormRow({
         enterClick ? ' focus:bg-zinc-100 outline-none' : ''
       }`}
     >
-      <span className={`${labelWidth} text-sm text-black shrink-0 py-1`}>
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </span>
+      <div className={`${labelWidth} shrink-0 py-1`}>
+        <span className={`text-sm ${disabled ? 'text-zinc-400' : 'text-black'}`}>
+          {label}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
+        </span>
+        {subLabel && (
+          <span className="block text-[10px] text-zinc-400 italic leading-tight">{subLabel}</span>
+        )}
+      </div>
       <span className="text-black mr-2 shrink-0">:</span>
       <div className="flex-1 min-w-0">{children}</div>
     </div>

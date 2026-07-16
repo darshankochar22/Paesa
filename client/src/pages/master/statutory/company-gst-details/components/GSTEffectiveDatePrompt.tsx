@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
 interface GSTEffectiveDatePromptProps {
   isOpen: boolean;
@@ -7,22 +7,26 @@ interface GSTEffectiveDatePromptProps {
 }
 
 const PRESET_DATES = [
-  { label: "1-Apr-26", desc: "Current Date of Company" },
-  { label: "1-Apr-26", desc: "Date of Last Entry" },
-  { label: "13-Jun-26", desc: "Today (Computer Date)" },
-  { label: "14-Jun-26", desc: "Tomorrow (Computer Date)" },
-  { label: "New Effective Date", desc: "Specify custom date" },
+  { label: '1-Apr-26', desc: 'Current Date of Company' },
+  { label: '1-Apr-26', desc: 'Date of Last Entry' },
+  { label: '13-Jun-26', desc: 'Today (Computer Date)' },
+  { label: '14-Jun-26', desc: 'Tomorrow (Computer Date)' },
+  { label: 'New Effective Date', desc: 'Specify custom date' },
 ];
 
-export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GSTEffectiveDatePromptProps) {
-  const [date, setDate] = useState("1-Apr-26");
+export default function GSTEffectiveDatePrompt({
+  isOpen,
+  onAccept,
+  onClose,
+}: GSTEffectiveDatePromptProps) {
+  const [date, setDate] = useState('1-Apr-26');
   const [listOpen, setListOpen] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setDate("1-Apr-26");
+      setDate('1-Apr-26');
       setListOpen(true);
       setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -33,30 +37,30 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
         return;
       }
 
-      if (e.key === "ArrowDown" && listOpen) {
+      if (e.key === 'ArrowDown' && listOpen) {
         e.preventDefault();
         setSelectedIndex((p) => (p + 1) % PRESET_DATES.length);
         return;
       }
 
-      if (e.key === "ArrowUp" && listOpen) {
+      if (e.key === 'ArrowUp' && listOpen) {
         e.preventDefault();
         setSelectedIndex((p) => (p - 1 + PRESET_DATES.length) % PRESET_DATES.length);
         return;
       }
 
-      if (e.key === "Enter") {
+      if (e.key === 'Enter') {
         e.preventDefault();
         if (listOpen) {
           const opt = PRESET_DATES[selectedIndex];
-          if (opt.label === "New Effective Date") {
-            setDate("");
+          if (opt.label === 'New Effective Date') {
+            setDate('');
             setListOpen(false);
             inputRef.current?.focus();
           } else {
@@ -68,8 +72,8 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, listOpen, date, selectedIndex, onAccept, onClose]);
 
   if (!isOpen) return null;
@@ -83,7 +87,14 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
             onClick={onClose}
             className="absolute top-2 right-2 text-zinc-400 hover:text-zinc-700 transition-colors"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -103,7 +114,7 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
                   setDate(e.target.value);
                   setListOpen(false); // Hide list if they start typing manually (optional behavior)
                 }}
-                className="w-24 bg-[#ffea5d] border border-[#e6c300] outline-none px-2 py-0.5 text-right font-bold"
+                className="w-24 bg-white text-black border border-black outline-none px-2 py-0.5 text-right font-bold"
               />
             </div>
           </div>
@@ -112,14 +123,14 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
         {/* Right Panel */}
         {listOpen && (
           <div className="bg-white border border-zinc-400 w-[260px] flex flex-col shadow-2xl overflow-hidden min-h-[250px]">
-            <div className="bg-[#4d66cc] text-white font-bold text-xs py-1.5 px-3 tracking-wide flex justify-between">
+            <div className="bg-black text-white font-bold text-xs py-1.5 px-3 tracking-wide flex justify-between">
               <span>List of Effective Dates</span>
             </div>
 
-            <div 
+            <div
               className="flex justify-end px-3 pt-1 cursor-pointer hover:underline decoration-zinc-400"
               onClick={() => {
-                setDate("");
+                setDate('');
                 setListOpen(false);
                 inputRef.current?.focus();
               }}
@@ -132,18 +143,19 @@ export default function GSTEffectiveDatePrompt({ isOpen, onAccept, onClose }: GS
                 <div
                   key={index}
                   onClick={() => {
-                    if (opt.label === "New Effective Date") {
-                      setDate("");
+                    if (opt.label === 'New Effective Date') {
+                      setDate('');
                       setListOpen(false);
                       inputRef.current?.focus();
                     } else {
                       onAccept(opt.label);
                     }
                   }}
-                  className={`px-3 py-1 cursor-pointer flex justify-between font-mono text-[11px] ${index === selectedIndex
-                    ? "bg-[#ffb62b] text-black font-bold" // Tally yellow highlight
-                    : "hover:bg-zinc-100 text-zinc-900"
-                    }`}
+                  className={`px-3 py-1 cursor-pointer flex justify-between font-mono text-[11px] ${
+                    index === selectedIndex
+                      ? 'font-bold underline' // selected (strict B&W)
+                      : ' text-black'
+                  }`}
                 >
                   <span className="w-24 truncate">{opt.label}</span>
                   <span className="text-right italic text-zinc-700">{opt.desc}</span>

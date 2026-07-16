@@ -3,8 +3,9 @@
 // Delegates rendering to focused sub-components.
 
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { NotificationBanner } from '@/components/ui';
+import { NotificationBanner, PageTitleBar, MasterFormFooter } from '@/components/ui';
 import { useGSTDetails } from './hooks/useGSTDetails';
 import type { CompanyGSTDetails } from '@/types/entities/CompanyGSTDetails';
 import GSTDetailsFormFields from './components/GSTDetailsFormFields';
@@ -24,13 +25,22 @@ import { TALLY_FIELDS_CONFIG } from './config/dropdownConfig';
 interface CompanyGSTDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** When true, render as an in-flow routed page (sits inside the app layout
+   *  between the global Navbar and Footer) instead of a fixed full-screen
+   *  overlay. Overlay is used by the F11 Company Features popup. */
+  asPage?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDetailsModalProps) {
+export default function CompanyGSTDetailsModal({
+  isOpen,
+  onClose,
+  asPage = false,
+}: CompanyGSTDetailsModalProps) {
+  const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
 
@@ -150,10 +160,11 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     return list;
   };
 
-  /** Opens the right-side list panel for dropdown fields */
+  /** Opens the right-side list panel for dropdown fields.
+   *  Yes/No fields are inline <select>s (Ledger-style) — they never open a list. */
   const openDropdownPanel = (fieldId: string) => {
     const config = TALLY_FIELDS_CONFIG[fieldId];
-    if (!config || config.type === 'input') {
+    if (!config || config.type === 'input' || config.type === 'yesno') {
       setListPanelOpen(false);
       return;
     }
@@ -190,8 +201,6 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       currentValue = gstRateDetails;
     } else if (fieldId === 'gstClassification') {
       currentValue = form.gstClassification || '';
-    } else if (config.type === 'yesno') {
-      currentValue = form[fieldId as keyof CompanyGSTDetails] ? 'Yes' : 'No';
     } else {
       currentValue = String(form[fieldId as keyof CompanyGSTDetails] ?? '');
     }
@@ -238,10 +247,10 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
 
   /** Apply a value chosen from the list panel to the corresponding field */
   const handleSelectDropdownOption = (fieldId: string, val: string) => {
-    // Special case: "Create" opens the secondary classification creation screen
+    // "Create" navigates to the real GST Classification master (not a duplicate modal).
     if (fieldId === 'gstClassification' && val === 'Create') {
       setListPanelOpen(false);
-      setSecondaryOpen(true);
+      navigate('/master/create/gst-classification');
       return;
     }
 
@@ -559,15 +568,23 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-0 bg-zinc-900/40 z-[9999] flex items-center justify-center backdrop-blur-[1px] select-none text-zinc-950 font-mono text-[11px]">
-      <div
-        ref={modalRef}
-        tabIndex={-1}
-        className="outline-none flex gap-4 max-h-[95vh] items-stretch animate-fade-in"
-      >
-        {/* ── Main dialog box ──────────────────────────────────────────────── */}
-        <div className="bg-white border border-zinc-400 w-[900px] flex flex-col shadow-2xl overflow-hidden relative">
-          {/* Dialog title */}
+    <div
+      className={`${
+        asPage ? 'flex-1 h-full' : 'fixed inset-0 z-[9999]'
+      } flex flex-col bg-white select-none text-zinc-950 text-sm`}
+    >
+      {/* ── Top title bar (matches every other master) ─────────────────────── */}
+      <PageTitleBar title="Company GST Details" subtitle={selectedCompany?.name} />
+
+      {/* ── Body: form column + right-side list panel ──────────────────────── */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Main form column */}
+        <div
+          ref={modalRef}
+          tabIndex={-1}
+          className="flex-1 flex flex-col overflow-y-auto outline-none relative bg-white"
+        >
+          {/* Section title */}
           <div className="text-center font-bold text-xs pt-4 pb-2 border-b border-zinc-200 tracking-wide text-zinc-900">
             <span className="underline decoration-1 decoration-zinc-800 underline-offset-4">
               GST Rate and Other Details
@@ -584,6 +601,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
             slabRows={form.slabRates}
             onOpenSlab={() => setShowSlabOverlay(true)}
             hasGSTRegistrations={hasGSTRegistrations}
+            onSelectValue={handleSelectDropdownOption}
           />
 
           {/* Error banner */}
@@ -594,37 +612,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
           {/* Success banner */}
           {success && <NotificationBanner type="success" message={success} />}
 
-          {/* Footer — TallyPrime-style action bar */}
-          <div className="px-6 py-2 border-t border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0 font-sans text-[10px] text-zinc-500">
-            <div className="flex gap-4">
-              <span>
-                <span className="underline font-bold text-zinc-700">Q</span>: Quit
-              </span>
-              <span>
-                <span className="underline font-bold text-zinc-700">A</span>: Accept
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={onClose}
-                className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
-              >
-                Quit
-              </button>
-              <button
-                onClick={() => {
-                  setEffectiveDateTriggerContext('save');
-                  setShowEffectiveDatePrompt(true);
-                }}
-                disabled={loading}
-                className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
-              >
-                {loading ? 'Saving...' : 'Accept'}
-              </button>
-            </div>
-          </div>
-
-          {/* Accept? prompt — positioned absolute inside the dialog */}
+          {/* Accept? prompt — positioned absolute inside the form column */}
           {showAcceptPrompt && (
             <GSTDetailsAcceptPrompt
               loading={loading}
@@ -648,6 +636,18 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
           />
         )}
       </div>
+
+      {/* ── Bottom footer (shared master footer) ───────────────────────────── */}
+      <MasterFormFooter
+        onCancel={onClose}
+        onSubmit={() => {
+          setEffectiveDateTriggerContext('save');
+          setShowEffectiveDatePrompt(true);
+        }}
+        cancelLabel="Quit"
+        submitLabel="Accept"
+        loading={loading}
+      />
 
       {/* ── Secondary Modal: GST Classification Creation ─────────────────── */}
       <GSTClassificationSecondaryModal

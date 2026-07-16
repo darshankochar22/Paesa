@@ -15,27 +15,28 @@ export default function GSTDetailsListPanel({
   onSelect,
 }: GSTDetailsListPanelProps) {
   return (
-    <div className="bg-white border border-zinc-400 w-[240px] flex flex-col shadow-2xl overflow-hidden min-h-[300px]">
-      {/* Teal header — TallyPrime style */}
-      <div className="bg-[#007a78] text-white font-bold text-xs py-2 px-3 tracking-wide">
-        {title}
+    <div className="self-stretch w-64 bg-white border-l border-zinc-200 flex flex-col shadow-xl overflow-hidden shrink-0">
+      {/* Header — matches GroupFlatList */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none shrink-0">
+        <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{title}</span>
       </div>
 
-      {/* Options list */}
-      <div className="flex-1 overflow-y-auto py-1">
-        {options.map((opt, index) => (
-          <div
-            key={opt}
-            onClick={() => onSelect(opt)}
-            className={`px-3 py-1 cursor-pointer font-bold font-mono text-[11px] ${
-              index === selectedIndex
-                ? "bg-[#0066cc] text-white"
-                : "hover:bg-zinc-100 text-zinc-900"
-            }`}
-          >
-            {opt}
-          </div>
-        ))}
+      {/* Options list — GroupFlatList row styling */}
+      <div className="flex-1 overflow-y-auto">
+        {options.map((opt, index) => {
+          const isFocused = index === selectedIndex;
+          return (
+            <div
+              key={opt}
+              onClick={() => onSelect(opt)}
+              className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none ${
+                isFocused ? 'bg-zinc-900 text-white font-medium' : 'text-zinc-700 hover:bg-zinc-50'
+              }`}
+            >
+              <span className="truncate">{opt}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

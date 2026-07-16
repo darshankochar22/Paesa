@@ -197,7 +197,7 @@ export default function StateWiseThresholdLimitModal({
   // ── Styling (matches SlabBasedRateDetails / main dialog) ─────────────────────
   const thCell = 'px-3 py-1 text-left font-bold text-[10px] text-zinc-800 border-b border-zinc-400';
   const tdBase = 'px-3 py-0.5 border-b border-zinc-200 text-[11px] font-mono';
-  const highlight = 'bg-[#ffea5d]';
+  const highlight = 'bg-white text-black font-bold';
 
   const previewState = phase === 'state' ? listOptions[listSelectedIndex] : '';
 
@@ -248,7 +248,7 @@ export default function StateWiseThresholdLimitModal({
                             setActiveLimitRow(i);
                           }}
                           className={`w-full px-3 py-0.5 outline-none bg-transparent text-right font-mono text-[11px] font-bold ${
-                            isLimitActive ? 'bg-[#ffea5d]' : 'bg-transparent'
+                            isLimitActive ? 'bg-white text-black font-bold' : 'bg-transparent'
                           }`}
                         />
                       </td>
@@ -256,10 +256,10 @@ export default function StateWiseThresholdLimitModal({
                   );
                 })}
 
-                {/* New-entry row — shows the highlighted list option (♦ End of List by default) */}
+                {/* New-entry row — shows the highlighted list option (End of List by default) */}
                 {phase === 'state' && (
                   <tr>
-                    <td className={`${tdBase} font-bold ${highlight}`}>♦ {previewState}</td>
+                    <td className={`${tdBase} font-bold ${highlight}`}>{previewState}</td>
                     <td className={`${tdBase} text-right text-zinc-400`}>
                       {previewState === END_OF_LIST ? '' : DEFAULT_LIMIT.toLocaleString('en-IN')}
                     </td>
@@ -279,7 +279,7 @@ export default function StateWiseThresholdLimitModal({
             </div>
             <button
               onClick={handleSave}
-              className="px-4 py-1 rounded bg-black text-white text-xs hover:bg-zinc-800 font-medium"
+              className="px-4 py-1 rounded bg-black text-white text-xs  font-medium"
             >
               Accept
             </button>

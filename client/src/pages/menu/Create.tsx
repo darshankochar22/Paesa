@@ -1,12 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useCompany } from '@/context/CompanyContext';
-import CompanyGSTDetailsModal from '@/pages/master/statutory/company-gst-details/CompanyGSTDetailsModal';
 
 export default function Create() {
   const { selectedCompany } = useCompany();
   const [masterSections, setMasterSections] = useState<{ title: string; items: string[] }[]>([]);
-  const [isGSTModalOpen, setIsGSTModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,7 +45,7 @@ export default function Create() {
       'GST Registration': '/master/create/gst-registration',
       'GST Classification': '/master/create/gst-classification',
       'Excise Duty Classification': '/master/create/excise-duty-classification',
-      'Company GST Details': 'modal',
+      'Company GST Details': '/master/create/company-gst-details',
       'TCS Nature of Goods': '/master/create/tcs-nature-of-goods',
       'TDS Nature of Payment': '/master/create/tds-nature-of-payment',
       'Tax Units': '/master/create/tax-units',
@@ -108,9 +106,7 @@ export default function Create() {
                     <button
                       key={item}
                       onClick={() => {
-                        if (route === 'modal' && item === 'Company GST Details') {
-                          setIsGSTModalOpen(true);
-                        } else if (route) {
+                        if (route) {
                           navigate(route);
                         }
                       }}
@@ -129,8 +125,6 @@ export default function Create() {
           ))}
         </div>
       </div>
-
-      <CompanyGSTDetailsModal isOpen={isGSTModalOpen} onClose={() => setIsGSTModalOpen(false)} />
     </div>
   );
 }
