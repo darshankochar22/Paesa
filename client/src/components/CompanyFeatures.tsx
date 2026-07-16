@@ -217,7 +217,6 @@ const RIGHT: Section[] = [
         level: 'more',
         default: 1,
       },
-      { key: 'enable_multiple_addresses', label: 'Enable multiple addresses', level: 'more' },
       { key: 'mark_modified_vouchers', label: 'Mark modified vouchers', level: 'more' },
     ],
   },

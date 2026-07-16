@@ -11,7 +11,7 @@ import {
 } from '@/components/ui';
 import { useMasterShortcuts } from '@/hooks/useMasterShortcuts';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
-import { UqcPopup } from '../../inventory/unit/UqcPopup';
+import UqcSidePanel from '../../inventory/unit/UqcSidePanel';
 
 interface FormData {
   unit_type: 'Simple' | 'Compound';
@@ -117,7 +117,10 @@ export default function PayrollUnitCreate() {
   });
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none" data-enter-nav>
+    <div
+      className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden"
+      data-enter-nav
+    >
       <PageTitleBar title="Unit Creation" subtitle={selectedCompany?.name} />
 
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
@@ -177,7 +180,7 @@ export default function PayrollUnitCreate() {
                 <FormRow
                   label="Unit Quantity Code (UQC)"
                   labelWidth="w-56"
-                  className="flex items-center min-h-[26px] relative"
+                  className="flex items-center min-h-[26px]"
                 >
                   <span
                     ref={uqcAnchorRef}
@@ -189,17 +192,6 @@ export default function PayrollUnitCreate() {
                   >
                     ◆ {form.uqc || 'Not Applicable'}
                   </span>
-                  {showUqc && (
-                    <UqcPopup
-                      selected={form.uqc}
-                      onSelect={(v) => {
-                        setForm((f) => ({ ...f, uqc: v }));
-                        setShowUqc(false);
-                        focusFieldAfter(uqcAnchorRef.current);
-                      }}
-                      onClose={() => setShowUqc(false)}
-                    />
-                  )}
                 </FormRow>
                 <FormRow
                   label="Number of Decimal Places"
@@ -282,6 +274,19 @@ export default function PayrollUnitCreate() {
           <div className="flex-1" />
         </div>
       </div>
+
+      {/* Right-side "List of UQCs" — same panel pattern as the group masters. */}
+      {showUqc && (
+        <UqcSidePanel
+          selected={form.uqc}
+          onSelect={(v) => {
+            setForm((f) => ({ ...f, uqc: v }));
+            setShowUqc(false);
+            focusFieldAfter(uqcAnchorRef.current);
+          }}
+          onClose={() => setShowUqc(false)}
+        />
+      )}
 
       <MasterFormFooter
         onCancel={() => navigate('/master/create')}

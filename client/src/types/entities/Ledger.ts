@@ -1,21 +1,3 @@
-// F11 "Enable multiple addresses" — one extra named address for a party ledger.
-export interface LedgerAddress {
-  id?: number;
-  address_type?: string;
-  mailing_name?: string;
-  address1?: string;
-  address2?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  pincode?: string;
-  phone?: string;
-  email?: string;
-  gstin?: string;
-  is_default?: number;
-  display_order?: number;
-}
-
 export interface LedgerType {
   ledger_id?: number;
   company_id?: number;
@@ -139,7 +121,4 @@ export interface LedgerType {
     percentage_of_calculation?: number;
     statutory_details?: string;
   };
-
-  // Extra named addresses (F11 "Enable multiple addresses").
-  addresses?: LedgerAddress[];
 }

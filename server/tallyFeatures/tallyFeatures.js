@@ -35,7 +35,6 @@ const init = async (db) => {
       enable_payroll_statutory            INTEGER DEFAULT 0,
       set_alter_payroll_statutory_details INTEGER DEFAULT 0,
       enable_payment_request_qr           INTEGER DEFAULT 1,
-      enable_multiple_addresses           INTEGER DEFAULT 0,
       mark_modified_vouchers              INTEGER DEFAULT 0,
       created_at                          TEXT DEFAULT (datetime('now')),
       updated_at                          TEXT DEFAULT (datetime('now'))

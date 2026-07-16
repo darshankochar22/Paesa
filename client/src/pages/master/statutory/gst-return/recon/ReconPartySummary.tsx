@@ -22,6 +22,10 @@ import {
   NUM,
   HEAD,
   PORTAL_ROW,
+  ROW_HOVER,
+  HEAD_HAIRLINE,
+  EMPTY_CELL,
+  portalTag,
 } from './reconShared';
 
 interface PartyRow {
@@ -109,13 +113,12 @@ export default function ReconPartySummary() {
         <TableRow
           key={`${p.gstin}-${side}`}
           onClick={() => drillVouchers(p)}
-          className={cn(
-            'border-0 cursor-pointer hover:bg-zinc-50',
-            side === 'portal' && PORTAL_ROW,
-          )}
+          className={cn('border-0 cursor-pointer', ROW_HOVER, side === 'portal' && PORTAL_ROW)}
         >
           <TableCell className="px-2 py-0.5">{side === 'books' ? p.gstin : ''}</TableCell>
-          <TableCell className="px-2 py-0.5">{side === 'books' ? p.party_name : ''}</TableCell>
+          <TableCell className="px-2 py-0.5">
+            {side === 'books' ? p.party_name : portalTag(kind)}
+          </TableCell>
           <TableCell className={NUM}>{fmtCount(v.count)}</TableCell>
           <TableCell className={NUM}>{fmt(v.taxable)}</TableCell>
           <TableCell className={NUM}>{fmt(v.igst)}</TableCell>
@@ -162,7 +165,7 @@ export default function ReconPartySummary() {
         {!loading && !error && (
           <Table className="text-xs table-fixed">
             <TableHeader>
-              <TableRow className="border-b border-zinc-300 hover:bg-transparent">
+              <TableRow className={cn(HEAD_HAIRLINE, 'hover:bg-transparent')}>
                 <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black w-40">
                   GSTIN
                 </TableHead>
@@ -182,7 +185,7 @@ export default function ReconPartySummary() {
             <TableBody>
               {parties.length === 0 && (
                 <TableRow className="border-0 hover:bg-transparent">
-                  <TableCell colSpan={10} className="px-2 py-3 text-center text-zinc-400">
+                  <TableCell colSpan={10} className={EMPTY_CELL}>
                     No documents in this section.
                   </TableCell>
                 </TableRow>

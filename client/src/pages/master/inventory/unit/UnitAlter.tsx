@@ -12,7 +12,7 @@ import {
 } from '@/components/ui';
 import UnitDropdown from './UnitDropdown';
 import type { UnitType } from '@/types/entities/Unit';
-import { UqcPopup } from './UqcPopup';
+import UqcSidePanel from './UqcSidePanel';
 import { focusFieldAfter } from '@/hooks/useEnterNavigation';
 
 const inputCls =
@@ -434,7 +434,7 @@ export default function UnitAlter() {
                 <FormRow
                   label="Unit Quantity Code (UQC)"
                   labelWidth="w-56"
-                  className="flex items-center min-h-[26px] relative"
+                  className="flex items-center min-h-[26px]"
                 >
                   <span
                     ref={uqcAnchorRef}
@@ -446,19 +446,6 @@ export default function UnitAlter() {
                   >
                     ◆ {form.unit_quantity_code || 'Not Applicable'}
                   </span>
-                  {showUqc && (
-                    <UqcPopup
-                      selected={form.unit_quantity_code || 'Not Applicable'}
-                      onSelect={(v) => {
-                        setForm((f) =>
-                          f ? { ...f, unit_quantity_code: v === 'Not Applicable' ? '' : v } : f,
-                        );
-                        setShowUqc(false);
-                        focusFieldAfter(uqcAnchorRef.current);
-                      }}
-                      onClose={() => setShowUqc(false)}
-                    />
-                  )}
                 </FormRow>
               </>
             )}
@@ -528,6 +515,19 @@ export default function UnitAlter() {
 
         <RightActionPanel actions={alterActions} />
       </div>
+
+      {/* Right-side "List of UQCs" — same panel pattern as the group masters. */}
+      {showUqc && form && (
+        <UqcSidePanel
+          selected={form.unit_quantity_code || 'Not Applicable'}
+          onSelect={(v) => {
+            setForm((f) => (f ? { ...f, unit_quantity_code: v === 'Not Applicable' ? '' : v } : f));
+            setShowUqc(false);
+            focusFieldAfter(uqcAnchorRef.current);
+          }}
+          onClose={() => setShowUqc(false)}
+        />
+      )}
 
       <MasterFormFooter
         onDelete={handleDelete}

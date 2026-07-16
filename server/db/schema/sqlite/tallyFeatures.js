@@ -42,7 +42,6 @@ const tallyFeatures = sqliteTable('tally_features', {
   enablePayrollStatutory: integer('enable_payroll_statutory').default(0),
   setAlterPayrollStatutoryDetails: integer('set_alter_payroll_statutory_details').default(0),
   enablePaymentRequestQr: integer('enable_payment_request_qr').default(1),
-  enableMultipleAddresses: integer('enable_multiple_addresses').default(0),
   markModifiedVouchers: integer('mark_modified_vouchers').default(0),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),

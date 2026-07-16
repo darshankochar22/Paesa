@@ -47,7 +47,6 @@ const LEGACY_COLUMNS = [
   'enable_browser_access_for_reports',
   'enable_tally_net_services',
   'enable_payment_request_qr',
-  'enable_multiple_addresses',
   'mark_modified_vouchers',
   'created_at',
   'updated_at',

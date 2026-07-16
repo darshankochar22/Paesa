@@ -128,8 +128,8 @@ export default function LedgerListPanel({
           onEndOfList!();
           return;
         }
-        // Panels without an End-of-List row: a blank Enter uses onEnterEmpty (when
-        // supplied); otherwise select the highlighted row.
+        // Panels without an End-of-List row (e.g. payroll): a blank Enter uses
+        // onEnterEmpty; otherwise select the highlighted row.
         if (!searchTerm.trim() && onEnterEmpty) {
           onEnterEmpty();
           return;

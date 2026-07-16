@@ -8,9 +8,14 @@ const {
   voucherStockEntries,
   voucherEntries,
   gstVoucherTaxLines,
+  gstClassifications,
   gstr1Exports,
 } = require('../db/schema');
 const { resolveStateCode, resolveTaxRate, computeVoucherTaxLines } = require('./gstTaxEngine');
+// Shared, party-group-aware direction logic — the SAME helpers the classifier/drill uses, so the
+// filed payload and the on-screen "Included" count agree. A Credit Note against a supplier
+// (purchase return) is inward and must NOT file outward; a Debit Note against a customer is outward.
+const { isOutwardVoucher, isNote } = require('./reconciliation/direction');
 
 // Inter-state B2C invoices at or above this value are reported invoice-wise (B2CL/CDNUR),
 // smaller ones net into B2CS. Notification 12/2024-Central Tax (Rule 59(4)) cut this from
@@ -102,9 +107,11 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
 
     // 2. Fetch all vouchers in the date range (scoped to the registration if given)
     const rawVouchers = await db.all(
-      sql`SELECT v.*, l.name as party_name, l.gstin as party_gstin, l.state as party_state, l.registration_type as party_reg_type
+      sql`SELECT v.*, l.name as party_name, l.gstin as party_gstin, l.state as party_state, l.registration_type as party_reg_type,
+                 pg.name AS party_group
           FROM ${vouchers} v
           LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+          LEFT JOIN groups pg ON pg.group_id = l.group_id
           WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
           -- Exclude Optional / Memorandum vouchers — non-posting, never part of the return.
           AND COALESCE(v.is_optional, 0) = 0 AND v.voucher_type != 'Memorandum'
@@ -153,7 +160,10 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       // app is a PURCHASE RETURN (inward) — it belongs to the ITC/GSTR-2 side, never outward —
       // so it is excluded here (matching classifyVoucher's "Not Relevant" for inward docs).
       const vtype = voucher.voucher_type;
-      if (vtype !== 'Sales' && vtype !== 'Credit Note') {
+      // OUTWARD only, resolved by party group (not voucher_type alone): Sales, sales-return
+      // Credit Notes, and outward Debit Notes issued to customers. A Credit Note against a
+      // supplier (purchase return) is inward and is excluded here.
+      if (!isOutwardVoucher(voucher)) {
         continue;
       }
 
@@ -162,7 +172,15 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         sql`SELECT * FROM ${voucherStockEntries} WHERE ${voucherStockEntries.voucherId} = ${voucher.voucher_id}`,
       );
 
-      if (stockEntries.length === 0) continue;
+      // Fetch tax lines (audit trail) up front — an accounting-mode invoice (service/sales
+      // with GST via Duties & Taxes ledgers but NO inventory line) has no stock entries yet
+      // still belongs in the return; it is built from these stored tax lines instead.
+      let taxLines = await db.all(
+        sql`SELECT * FROM ${gstVoucherTaxLines} WHERE ${gstVoucherTaxLines.voucherId} = ${voucher.voucher_id}`,
+      );
+
+      // Skip only when there is genuinely nothing to report (no stock lines AND no tax lines).
+      if (stockEntries.length === 0 && taxLines.length === 0) continue;
 
       // Exclude "Uncertain" vouchers from the return sections, matching the Statistics /
       // Track-Activities classifier: an invalid company GSTIN or any missing/invalid
@@ -170,7 +188,10 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       // (Corrections needed) and keeps it OUT of B2B/B2CS/CDN. A recipient WITHOUT a
       // (valid) GSTIN is NOT an error — under GST law that is an unregistered buyer and
       // the sale files under B2C (B2CS/B2CL/CDNUR), which the section gates below handle.
-      const hsnBad = stockEntries.some((s) => validateHsn(s.hsn_code) !== null);
+      // HSN is validated from stock lines when present, else from the accounting tax lines.
+      const hsnBad = stockEntries.length
+        ? stockEntries.some((s) => validateHsn(s.hsn_code) !== null)
+        : taxLines.some((t) => validateHsn(t.hsn_code) !== null);
       if (!validateGSTIN(companyGSTIN) || hsnBad) {
         continue;
       }
@@ -200,10 +221,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         );
       }
 
-      // Fetch tax lines (audit trail) or compute on-the-fly
-      let taxLines = await db.all(
-        sql`SELECT * FROM ${gstVoucherTaxLines} WHERE ${gstVoucherTaxLines.voucherId} = ${voucher.voucher_id}`,
-      );
+      // (taxLines fetched above, before the accounting-mode skip.)
 
       // Only synthesise tax from the item rate when the voucher actually booked GST (has a
       // GST duty-ledger posting). Otherwise the invoice genuinely carries no tax.
@@ -314,6 +332,20 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           });
         });
       }
+
+      // Reverse-charge outward supply (rare — notified goods/services): read the SAME GST
+      // classification flag GSTR-3B uses so the B2B/CDNR rchrg flag is real, not hardcoded 'N'.
+      let isRcm = false;
+      const rcmClassId = taxLines.length
+        ? taxLines[0].gst_classification_id || taxLines[0].gstClassificationId
+        : null;
+      if (rcmClassId) {
+        const cr = await db.all(
+          sql`SELECT is_reverse_charge FROM ${gstClassifications} WHERE ${gstClassifications.gcId} = ${rcmClassId}`,
+        );
+        if (cr[0] && Number(cr[0].is_reverse_charge) === 1) isRcm = true;
+      }
+      const rchrgFlag = isRcm ? 'Y' : 'N';
 
       // Check validation warnings
       const isRegistered = voucher.party_reg_type && voucher.party_reg_type !== 'Unregistered';
@@ -436,10 +468,13 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         });
       };
 
-      if (vtype === 'Credit Note') {
-        // Only Credit Notes (sales returns) reach GSTR-1 CDN — Debit Notes were filtered out
-        // above as inward. GSTN note type 'C' = credit.
-        const ntty = 'C';
+      if (isNote(vtype)) {
+        // Both note types can be outward: a sales-return Credit Note (ntty 'C') and a customer
+        // Debit Note / supplementary invoice (ntty 'D'). Inward notes were already excluded by
+        // isOutwardVoucher above. A credit note reduces a small B2CS bucket (sign -1); an
+        // outward debit note increases it (sign +1).
+        const ntty = vtype === 'Credit Note' ? 'C' : 'D';
+        const noteSign = vtype === 'Credit Note' ? -1 : 1;
         if (validPartyGstin) {
           // CDNR — notes to registered parties.
           const ctin = voucher.party_gstin;
@@ -454,7 +489,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
             nt_dt: formatGSTDate(voucher.date),
             val: Number(invoiceValue.toFixed(2)),
             pos: posStateCode,
-            rchrg: 'N',
+            rchrg: rchrgFlag,
             inv_typ: 'R',
             itms: itmsList,
           });
@@ -471,8 +506,8 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
             itms: itmsList,
           });
         } else {
-          // Small unregistered note → reduce B2CS.
-          addToB2cs(posStateCode || companyStateCode, isInterState ? 'INTER' : 'INTRA', -1);
+          // Small unregistered note → net into B2CS (credit -1, debit +1).
+          addToB2cs(posStateCode || companyStateCode, isInterState ? 'INTER' : 'INTRA', noteSign);
         }
       } else if (isExport) {
         // Export invoices (table 6A). With-payment (WPAY) when IGST was charged, else LUT/bond.
@@ -500,7 +535,7 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           idt: formatGSTDate(voucher.date),
           val: Number(invoiceValue.toFixed(2)),
           pos: posStateCode,
-          rchrg: 'N',
+          rchrg: rchrgFlag,
           inv_typ: 'R',
           itms: itmsList,
         });

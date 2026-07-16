@@ -120,6 +120,40 @@ const normalize = (res) => ({
 const tokenValid = (c) =>
   !!(c && c.token && (!c.expiry || Date.parse(c.expiry) > Date.now() + 60000));
 
+// GSTN reports "nothing filed for this period" as an error, not an empty body. Treat those as
+// an empty section so a period with no data in one GSTR-2A/GSTR-1 section is a clean skip during
+// the multi-section merge, not a hard failure that aborts the whole statement fetch.
+const isEmptyGstnDoc = (msg = '') =>
+  /no (document|data|invoice|record|detail)|not found|ret1350|invalid request|^http 200$/i.test(
+    String(msg).trim(),
+  );
+
+// Merge several per-section GSTN GETs into one doc-root object { [section]: [suppliers] } shaped
+// like a consolidated statement, so gstr2Transform.findDocRoot/buildImportPayload sees the same
+// structure it gets from GSTR-2B's single document GET. Sandbox wraps the section array under an
+// inner GSTN `data`, so unwrap data.data.{section} (falling back to data.{section}).
+async function fetchGstrSections(form, sections, year, month) {
+  const merged = {};
+  let anyOk = false;
+  let lastErr = null;
+  for (const s of sections) {
+    const r = await gstRequest(
+      'GET',
+      `/gst/compliance/tax-payer/gstrs/${form}/${s}/${year}/${month}`,
+      {},
+    );
+    if (r.ok) {
+      anyOk = true;
+      const root = (r.data && (r.data.data || r.data)) || {};
+      if (root[s] != null) merged[s] = root[s];
+    } else if (!isEmptyGstnDoc(r.error)) {
+      lastErr = r.error;
+    }
+  }
+  if (!anyOk && lastErr) return { ok: false, status: 0, data: null, error: lastErr, body: null };
+  return { ok: true, status: 200, data: merged, error: null, body: merged };
+}
+
 // --- platform auth ---------------------------------------------------------------------
 async function platformAuth(cfg) {
   const res = await httpReq(cfg.baseUrl, 'POST', '/authenticate', {
@@ -343,9 +377,16 @@ module.exports = {
     },
   },
   request: apiCall,
-  // Public GST verification (only needs the platform token) --------------------------
+  // Public GST verification (only needs the platform token — NO taxpayer OTP session) ---
   searchGstin: (gstin) =>
     apiCall('POST', '/gst/compliance/public/gstin/search', { body: { gstin } }),
+  // All GSTINs registered against a PAN (optionally filtered by state). Useful for
+  // vendor/party onboarding + validation. state_code is the 2-digit state (query).
+  searchGstinByPan: (pan, stateCode) =>
+    apiCall('POST', '/gst/compliance/public/pan/search', {
+      query: stateCode ? { state_code: stateCode } : {},
+      body: { pan },
+    }),
   // financial_year format is "FY 2025-26"; gstr filter is optional (e.g. "gstr-1").
   trackReturns: (gstin, fy, gstr) =>
     apiCall('POST', '/gst/compliance/public/gstrs/track', {
@@ -391,8 +432,13 @@ module.exports = {
     cancel: (body) => einvRequest('POST', '/gst/compliance/e-invoice/tax-payer/cancel', { body }),
     getByIrn: (irn) =>
       einvRequest('GET', '/gst/compliance/e-invoice/tax-payer/invoice', { query: { irn } }),
-    generateEwbByIrn: (body) =>
-      einvRequest('POST', '/gst/compliance/e-invoice/tax-payer/e-way-bill', { body }),
+    // Generate an e-Way Bill for an existing IRN — the IRN is a PATH segment (not the body).
+    generateEwbByIrn: (irn, body) =>
+      einvRequest(
+        'POST',
+        `/gst/compliance/e-invoice/tax-payer/invoice/${encodeURIComponent(irn)}/e-way-bill`,
+        { body },
+      ),
     searchGstin: (gstin) =>
       einvRequest('GET', '/gst/compliance/e-invoice/tax-payer/gstin', { query: { gstin } }),
   },
@@ -404,11 +450,23 @@ module.exports = {
     },
     request: ewayRequest,
     generate: (body) => ewayRequest('POST', '/gst/compliance/e-way-bill/consignor/bill', { body }),
-    cancel: (body) => ewayRequest('POST', '/gst/compliance/e-way-bill/consignor/cancel', { body }),
+    // Cancel — the EWB number is a PATH segment; body carries {ewbNo, cancelRsnCode, cancelRmrk}.
+    cancel: (body = {}) =>
+      ewayRequest(
+        'POST',
+        `/gst/compliance/e-way-bill/consignor/bill/${encodeURIComponent(body.ewbNo)}/cancel`,
+        { body },
+      ),
     getByDate: (date, rejected) =>
       ewayRequest('GET', '/gst/compliance/e-way-bill/consignor/bills', {
         query: { date, rejected },
       }),
+    getByEwbNo: (ewbNo) =>
+      ewayRequest(
+        'GET',
+        `/gst/compliance/e-way-bill/consignor/bill/${encodeURIComponent(ewbNo)}`,
+        {},
+      ),
   },
   // GST return filing — taxpayer OTP session (6h) ------------------------------------
   gst: {
@@ -417,14 +475,27 @@ module.exports = {
     request: gstRequest,
     // year/month are the return-period path segments, e.g. saveGstr1('2024','03', body).
     // --- Reads (reconciliation + review) ---
+    // GSTR-2A has NO single-document GET: each section is /gstrs/gstr-2a/{section}/{year}/{month}.
+    // Fetch the ITC-relevant sections (invoices + amendments + notes) and merge into one statement.
     getGstr2a: (year, month) =>
-      gstRequest('GET', `/gst/compliance/tax-payer/gstrs/gstr-2a/${year}/${month}`, {}),
+      fetchGstrSections('gstr-2a', ['b2b', 'b2ba', 'cdn', 'cdna'], year, month),
+    getGstr2aSection: (section, year, month) =>
+      gstRequest('GET', `/gst/compliance/tax-payer/gstrs/gstr-2a/${section}/${year}/${month}`, {}),
+    // GSTR-2B IS a single consolidated document GET (no section segment).
     getGstr2b: (year, month) =>
       gstRequest('GET', `/gst/compliance/tax-payer/gstrs/gstr-2b/${year}/${month}`, {}),
     getGstr3b: (year, month) =>
       gstRequest('GET', `/gst/compliance/tax-payer/gstrs/gstr-3b/${year}/${month}`, {}),
+    // GSTR-1, like 2A, is per-document: /gstrs/gstr-1/{document}/{year}/{month}.
     getGstr1: (year, month) =>
-      gstRequest('GET', `/gst/compliance/tax-payer/gstrs/gstr-1/${year}/${month}`, {}),
+      fetchGstrSections(
+        'gstr-1',
+        ['b2b', 'b2cl', 'b2cs', 'cdnr', 'cdnur', 'exp', 'hsn', 'nil', 'at', 'txpd'],
+        year,
+        month,
+      ),
+    getGstr1Section: (section, year, month) =>
+      gstRequest('GET', `/gst/compliance/tax-payer/gstrs/gstr-1/${section}/${year}/${month}`, {}),
     // --- Writes (save = reversible; file = commits with EVC OTP) ---
     saveGstr1: (year, month, body) =>
       gstRequest('POST', `/gst/compliance/tax-payer/gstrs/gstr-1/${year}/${month}`, { body }),

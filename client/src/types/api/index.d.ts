@@ -33,7 +33,6 @@ export type {
   GroupType,
   SlabBasedRate,
   LedgerType,
-  LedgerAddress,
   CostCentreType,
   CostCategoryType,
   BudgetType,

@@ -50,7 +50,6 @@ const tallyFeatures = pgTable('tally_features', {
     .notNull()
     .default(false),
   enablePaymentRequestQr: boolean('enable_payment_request_qr').notNull().default(true),
-  enableMultipleAddresses: boolean('enable_multiple_addresses').notNull().default(false),
   markModifiedVouchers: boolean('mark_modified_vouchers').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

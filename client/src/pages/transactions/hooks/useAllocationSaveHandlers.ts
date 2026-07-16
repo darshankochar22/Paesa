@@ -5,6 +5,7 @@ import type { useAutoOpenDetailPopups } from './useAutoOpenDetailPopups';
 import { makeStockRow } from '../utils/rowFactories';
 import { openField } from '../lib/voucherNav';
 import { isFeatureEnabled } from '@/lib/companyFeatures';
+import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
 
 // Save handlers for every allocation / detail popup — bill-wise, cost centre,
 // bank details, cash denomination, dispatch/order/receipt/party details and the
@@ -465,17 +466,25 @@ export function useAllocationSaveHandlers(
         form.setPlaceOfSupply(details.state);
       }
       setShowPartyDetails(false);
+      // Excise/VAT detail popups only belong in the entry flow when their F11
+      // feature is on; when off, skip straight to this voucher's chain terminal
+      // (the Sales/Purchase ledger List) instead of prompting for a disabled tax.
+      const exciseOn = isTaxFeatureEnabled(form.features, 'excise');
+      const vatOn = isTaxFeatureEnabled(form.features, 'vat');
       if (effectiveVoucherType === 'Credit Note') {
-        setShowExciseDetails(true);
+        if (exciseOn) setShowExciseDetails(true);
+        else openSalesPurchaseLedger();
       } else if (effectiveVoucherType === 'Debit Note') {
-        setShowDebitNoteExcise(true);
+        if (exciseOn) setShowDebitNoteExcise(true);
+        else openSalesPurchaseLedger();
       } else if (effectiveVoucherType === 'Purchase') {
         // Purchase goes straight to the Purchase ledger List — the Manufacturer /
         // Importer Details popup is intentionally skipped.
         openSalesPurchaseLedger();
       } else if (effectiveVoucherType === 'Sales') {
         // Tally Sales chain: Dispatch → Party → VAT Details.
-        setShowVatDetails(true);
+        if (vatOn) setShowVatDetails(true);
+        else openSalesPurchaseLedger();
       } else if (effectiveVoucherType === 'Delivery Note') {
         // Delivery Note renders the Party → Price Level → Sales ledger row, so
         // hand focus there (not straight to the first item).
@@ -487,7 +496,13 @@ export function useAllocationSaveHandlers(
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form.setPartyDetails, form.setPlaceOfSupply, effectiveVoucherType],
+    [
+      form.setPartyDetails,
+      form.setPlaceOfSupply,
+      form.features,
+      effectiveVoucherType,
+      openSalesPurchaseLedger,
+    ],
   );
 
   // Purchase chain terminal → open the Purchase ledger List.
@@ -519,12 +534,6 @@ export function useAllocationSaveHandlers(
       if (effectiveVoucherType === 'Debit Note') openSalesPurchaseLedger();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      form.setDebitNoteDetails,
-      form.debitNoteDetails,
-      effectiveVoucherType,
-      openSalesPurchaseLedger,
-    ],
     [
       form.setDebitNoteDetails,
       form.debitNoteDetails,

@@ -168,25 +168,4 @@ const ledgerStatutoryDetails = pgTable('ledger_statutory_details', {
   roundingLimit: numeric('rounding_limit', { precision: 18, scale: 4 }).default('0'),
 });
 
-// F11 "Enable multiple addresses" — extra named addresses for a party ledger.
-const ledgerAddresses = pgTable('ledger_addresses', {
-  id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
-  ledgerId: bigint('ledger_id', { mode: 'number' })
-    .notNull()
-    .references(() => ledgers.ledgerId, { onDelete: 'cascade' }),
-  addressType: text('address_type'),
-  mailingName: text('mailing_name'),
-  address1: text('address1'),
-  address2: text('address2'),
-  city: text('city'),
-  state: text('state'),
-  country: text('country'),
-  pincode: text('pincode'),
-  phone: text('phone'),
-  email: text('email'),
-  gstin: text('gstin'),
-  isDefault: boolean('is_default').default(false),
-  displayOrder: integer('display_order').default(0),
-});
-
-module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails, ledgerAddresses };
+module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails };

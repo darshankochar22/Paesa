@@ -115,27 +115,14 @@ const INVENTORY_TYPES = [
 ];
 const ORDER_TYPES = ['Purchase Order', 'Sales Order', 'Job Work In Order', 'Job Work Out Order'];
 const PAYROLL_TYPES = ['Payroll', 'Salary Slip', 'Attendance'];
-const B2CL_THRESHOLD = 250000;
+// Inter-state B2C invoice-wise reporting threshold — cut ₹2.5L → ₹1L w.e.f. 1 Aug 2024
+// (Notification 12/2024-CT, Rule 59(4)). Must match gstr1Service so the drill agrees with
+// what actually files.
+const B2CL_THRESHOLD = 100000;
 
-// Credit / Debit notes are directional. A note booked against a customer (Sundry
-// Debtors) is an outward sales return → GSTR-1 (CDN). A note against a supplier
-// (Sundry Creditors) is an inward purchase return → belongs to GSTR-2/3B, so it is
-// NOT relevant to GSTR-1. Resolve by the party ledger's group ANCESTRY (a ledger
-// under a custom subgroup like "Raw Material Suppliers" still resolves through its
-// Sundry Creditors ancestor); fall back to the Tally convention (Credit Note =
-// sales return/outward, Debit Note = purchase return/inward) when no ancestor
-// group name decides it.
-const noteDirection = (v) => {
-  const grp = String(v.party_group || '');
-  if (/creditor/i.test(grp)) return 'inward';
-  if (/debtor/i.test(grp)) return 'outward';
-  return v.voucher_type === 'Credit Note' ? 'outward' : 'inward';
-};
-const isNote = (t) => t === 'Credit Note' || t === 'Debit Note';
-const isOutwardVoucher = (v) =>
-  v.voucher_type === 'Sales' || (isNote(v.voucher_type) && noteDirection(v) === 'outward');
-const isInwardVoucher = (v) =>
-  v.voucher_type === 'Purchase' || (isNote(v.voucher_type) && noteDirection(v) === 'inward');
+// Document-direction helpers now live in a dependency-free leaf module so the payload builders
+// can share them without a require cycle through this package. Re-exported below for callers.
+const { noteDirection, isNote, isOutwardVoucher, isInwardVoucher } = require('./direction');
 
 // Load every non-cancelled voucher of a return period (optionally scoped to a
 // registration) with party info + tax sums aggregated from voucher_stock_entries.
@@ -195,6 +182,7 @@ const fetchPeriodVouchers = async (
                COALESCE(s.cgst, 0) AS cgst,
                COALESCE(s.sgst, 0) AS sgst,
                COALESCE(s.max_rate, 0) AS max_rate,
+               COALESCE(s.expected_tax, 0) AS expected_tax,
                COALESCE(s.bad_hsn, 0) AS bad_hsn,
                COALESCE(s.no_rate, 0) AS no_rate,
                COALESCE(s.taxable_lines, 0) AS taxable_lines,
@@ -219,6 +207,8 @@ const fetchPeriodVouchers = async (
           SELECT vse.voucher_id, COUNT(*) AS stock_count, SUM(vse.amount) AS taxable,
                  SUM(vse.igst_amount) AS igst, SUM(vse.cgst_amount) AS cgst,
                  SUM(vse.sgst_amount) AS sgst, MAX(vse.gst_rate) AS max_rate,
+                 -- Rate×taxable per line (handles mixed rates) → the tax the invoice SHOULD carry.
+                 SUM(vse.amount * COALESCE(vse.gst_rate, 0) / 100.0) AS expected_tax,
                  SUM(CASE WHEN vse.hsn_code IS NULL OR TRIM(vse.hsn_code) = ''
                           OR LENGTH(TRIM(vse.hsn_code)) NOT IN (4, 6, 8) THEN 1 ELSE 0 END) AS bad_hsn,
                  -- A line valued but carrying no rate, on an item meant to be taxed
@@ -474,6 +464,19 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
     // A stock line whose UOM is not mapped to a Unit Quantity Code (UQC).
     if (Number(v.bad_uqc || 0) > 0)
       exceptions.push('UOM is not mapped to the Unit Quantity Code (UQC)');
+    // Tax-amount reconciliation: when a line carries both a rate AND a booked tax, the two must
+    // agree (within rounding). A non-zero gap means the tax was mis-keyed — Tally parks it under
+    // "Mismatch in tax amount". Only fires when both are non-zero (a zero booked tax is already
+    // caught by "Applicable Tax Ledger is not selected" / "Tax Rate is not specified").
+    const expectedTax = Number(v.expected_tax || 0);
+    if (
+      gstLines > 0 &&
+      expectedTax > 0.01 &&
+      taxBooked > 0.01 &&
+      Math.abs(expectedTax - taxBooked) > Math.max(1, expectedTax * 0.01)
+    ) {
+      exceptions.push('Tax amount does not match the value computed from the rate');
+    }
     // A GST-applicable supply that booked NO GST at all and posted no Duties & Taxes (GST)
     // ledger → the tax ledger was never selected. This is the case the user pointed at:
     // sales / credit / debit notes carrying no GST details must be parked in Uncertain, not

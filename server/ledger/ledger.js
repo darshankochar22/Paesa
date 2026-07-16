@@ -85,27 +85,6 @@ const init = async (db) => {
     )
   `);
 
-  // F11 "Enable multiple addresses": extra named addresses per party ledger.
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS ledger_addresses (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      ledger_id     INTEGER NOT NULL REFERENCES ledgers(ledger_id) ON DELETE CASCADE,
-      address_type  TEXT,
-      mailing_name  TEXT,
-      address1      TEXT,
-      address2      TEXT,
-      city          TEXT,
-      state         TEXT,
-      country       TEXT,
-      pincode       TEXT,
-      phone         TEXT,
-      email         TEXT,
-      gstin         TEXT,
-      is_default    INTEGER DEFAULT 0,
-      display_order INTEGER DEFAULT 0
-    )
-  `);
-
   try {
     await db.execute(`
       ALTER TABLE ledger_bank_details

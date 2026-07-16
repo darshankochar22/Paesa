@@ -11,6 +11,10 @@ const {
   gstClassifications,
 } = require('../db/schema');
 const { resolveStateCode, resolveTaxRate, computeVoucherTaxLines } = require('./gstTaxEngine');
+// Party-group-aware direction — the SAME helpers the classifier uses, so a Credit Note against a
+// supplier (purchase return) is treated as INWARD (reverses ITC), never as an outward-liability
+// reduction. Keying direction on voucher_type alone was the source of the understated-liability bug.
+const { isOutwardVoucher, isInwardVoucher, isNote } = require('./reconciliation/direction');
 
 const getGSTR3B = async (company_id, fy_id, return_period, gst_registration_id = null) => {
   return await generateGSTR3B(company_id, fy_id, return_period, gst_registration_id);
@@ -63,10 +67,15 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
 
     // 2. Fetch all vouchers in the date range (scoped to the registration if given)
     const rawVouchers = await db.all(
-      sql`SELECT v.*, l.name as party_name, l.gstin as party_gstin, l.state as party_state, l.registration_type as party_reg_type
+      sql`SELECT v.*, l.name as party_name, l.gstin as party_gstin, l.state as party_state, l.registration_type as party_reg_type,
+                 pg.name AS party_group
           FROM ${vouchers} v
           LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+          LEFT JOIN groups pg ON pg.group_id = l.group_id
           WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+            -- Optional / Memorandum vouchers are non-posting/provisional — never part of the return
+            -- (matches gstr1Service + the classifier, which both already exclude them).
+            AND COALESCE(v.is_optional, 0) = 0 AND v.voucher_type != 'Memorandum'
             AND v.date >= ${startDate} AND v.date < ${endDate}
             ${regFilter}
           ORDER BY v.date ASC`,
@@ -264,8 +273,8 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
       //   Purchase / Debit Note (purchase return) → INWARD  (ITC; a debit note reverses ITC)
       // Registration status decides B2B-vs-B2C, never inward-vs-outward — keying on it wrongly
       // routed registered-party credit notes into ITC and understated outward liability.
-      const isOutward = vtype === 'Sales' || vtype === 'Credit Note';
-      const isInward = vtype === 'Purchase' || vtype === 'Debit Note';
+      const isOutward = isOutwardVoucher(voucher);
+      const isInward = isInwardVoucher(voucher);
 
       if (isOutward) {
         const isCreditNote = vtype === 'Credit Note';
@@ -312,8 +321,9 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
           if (bucket) addInterSup(bucket, posStateCode, voucherTax);
         }
       } else if (isInward) {
-        const isDebitNote = vtype === 'Debit Note';
-        const sign = isDebitNote ? -1 : 1;
+        // An inward note reverses ITC (purchase-return Debit Note, or a supplier Credit Note
+        // classified inward by party group); a plain Purchase adds ITC.
+        const sign = isNote(vtype) ? -1 : 1;
 
         const voucherTax = {
           txval: txval * sign,
@@ -372,7 +382,9 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
               itc_elg.itc_avl[0].cess += voucherTax.cess;
             }
           } else {
-            if (isDebitNote) {
+            if (isNote(vtype)) {
+              // An inward note (purchase-return Debit Note or supplier Credit Note) reverses ITC
+              // → table 4(B) itc_rev, not All-other-ITC.
               itc_elg.itc_rev[0].iamt += Math.abs(voucherTax.iamt);
               itc_elg.itc_rev[0].camt += Math.abs(voucherTax.camt);
               itc_elg.itc_rev[0].samt += Math.abs(voucherTax.samt);
@@ -440,12 +452,16 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
     negCheck('Inward reverse-charge (3.1d)', sup_details.isup_rev);
 
     const payload = {
-      total_vouchers: totalVouchers,
+      // GSTN return header — required by the save/file API (was missing, so filing was rejected).
+      gstin: companyGSTIN,
+      ret_period: return_period,
       sup_details,
       inter_sup,
       itc_elg,
       inward_sup,
       intr_ltfee,
+      // Non-schema helpers for the report/UI only — stripped before the return is filed.
+      total_vouchers: totalVouchers,
       warnings,
     };
 

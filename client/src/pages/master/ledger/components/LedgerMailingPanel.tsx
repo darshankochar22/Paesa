@@ -15,40 +15,18 @@ interface LedgerMailingPanelProps {
   groupLineage: {
     hideMailingExtras: boolean;
   };
-  /** F11 "Enable multiple addresses" on — shows the Set/Alter addresses row. */
-  enableMultipleAddresses?: boolean;
-  addressCount?: number;
-  onManageAddresses?: () => void;
 }
 
 export default function LedgerMailingPanel({
   form,
   setField,
   groupLineage,
-  enableMultipleAddresses,
-  addressCount = 0,
-  onManageAddresses,
 }: LedgerMailingPanelProps) {
   return (
     <div className="p-3 border-t border-zinc-100 bg-white">
       <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
         Mailing Details
       </div>
-      {enableMultipleAddresses && (
-        <div className="flex items-center min-h-[26px] mb-1">
-          <span className="w-40 text-sm shrink-0 text-zinc-400 font-medium">
-            Set/Alter multiple addresses
-          </span>
-          <span className="text-zinc-400 mr-2 shrink-0">:</span>
-          <button
-            type="button"
-            onClick={onManageAddresses}
-            className="text-xs px-2 py-0.5 border border-black bg-white text-black hover:bg-gray-100 font-semibold"
-          >
-            {addressCount > 0 ? `${addressCount} address${addressCount > 1 ? 'es' : ''}` : 'Add…'}
-          </button>
-        </div>
-      )}
       <div className="space-y-1">
         <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
           <input

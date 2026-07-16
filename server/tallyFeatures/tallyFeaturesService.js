@@ -49,7 +49,6 @@ const seedDefaultFeatures = async (company_id) => {
     enablePayrollStatutory: 1,
     setAlterPayrollStatutoryDetails: 0,
     enablePaymentRequestQr: 1,
-    enableMultipleAddresses: 1,
     markModifiedVouchers: 1,
   });
 };
@@ -131,8 +130,6 @@ module.exports = {
             data.set_alter_payroll_statutory_details ?? current.set_alter_payroll_statutory_details,
           enablePaymentRequestQr:
             data.enable_payment_request_qr ?? current.enable_payment_request_qr,
-          enableMultipleAddresses:
-            data.enable_multiple_addresses ?? current.enable_multiple_addresses,
           markModifiedVouchers: data.mark_modified_vouchers ?? current.mark_modified_vouchers,
           updatedAt: sql`datetime('now')`,
         })
@@ -201,7 +198,6 @@ module.exports = {
           enablePayrollStatutory: 1,
           setAlterPayrollStatutoryDetails: 0,
           enablePaymentRequestQr: 1,
-          enableMultipleAddresses: 1,
           markModifiedVouchers: 1,
           updatedAt: sql`datetime('now')`,
         })

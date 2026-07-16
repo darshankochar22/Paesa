@@ -63,6 +63,37 @@ describe('gstr2Transform.buildImportPayload', () => {
     expect(payload.b2b[0].inv[0].itms[0].itm_det).toMatchObject({ txval: 5000, iamt: 900 });
   });
 
+  it('captures invoice-level taxes when a 2B feed carries no items[] array', () => {
+    // Flattened shape: txval + igst/cgst/sgst sit on the invoice, and CDNR notes never nest items.
+    const raw2b = {
+      data: {
+        docdata: {
+          b2b: [
+            {
+              ctin: '27AAAAA0000A1Z5',
+              inv: [
+                { inum: 'FLAT-1', val: 1180, txval: 1000, igst: 0, cgst: 90, sgst: 90, cess: 0 },
+              ],
+            },
+          ],
+          cdnr: [
+            {
+              ctin: '27BBBBB0000B1Z5',
+              nt: [{ ntnum: 'CN-2', val: 236, txval: 200, igst: 36, cgst: 0, sgst: 0, cess: 0 }],
+            },
+          ],
+        },
+      },
+    };
+    const { payload, documents } = buildImportPayload({ all: raw2b });
+    expect(documents).toBe(2);
+    const inv = payload.b2b.find((s) => s.ctin === '27AAAAA0000A1Z5').inv[0];
+    expect(inv.itms[0].itm_det).toMatchObject({ txval: 1000, camt: 90, samt: 90, iamt: 0 });
+    const note = payload.b2b.find((s) => s.ctin === '27BBBBB0000B1Z5').inv[0];
+    expect(note.inum).toBe('CN-2');
+    expect(note.itms[0].itm_det).toMatchObject({ txval: 200, iamt: 36 });
+  });
+
   it('routes b2ba into the amendments bucket and ignores empty sections', () => {
     const { payload, suppliers } = buildImportPayload({
       b2ba: [{ ctin: '27DDDDD0000D1Z5', inv: [{ inum: 'A1', val: 100, itms: [] }] }],

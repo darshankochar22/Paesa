@@ -106,17 +106,17 @@ export default function PortalFetchPopup({
       aria-label={`Fetch GSTR-${kind} from portal`}
       className="fixed inset-0 z-[9999] bg-black/10 flex items-start justify-center"
     >
-      <div className="mt-24 w-[460px] bg-white border border-zinc-500 shadow-2xl">
-        <div className="flex items-center justify-between bg-zinc-800 text-white font-bold px-3 py-1.5 text-xs">
+      <div className="mt-24 w-[460px] bg-white border border-black shadow-2xl">
+        <div className="flex items-center justify-between bg-black text-white font-bold px-3 py-1.5 text-xs">
           <span>Fetch GSTR-{kind} from GST Portal</span>
-          <button onClick={onClose} className="hover:text-zinc-300" aria-label="Close">
+          <button onClick={onClose} className="hover:opacity-70" aria-label="Close">
             ✕
           </button>
         </div>
 
         <div className="px-3 py-3 flex flex-col gap-2 text-xs">
           <div className="flex items-center gap-2">
-            <span className="w-36 text-zinc-600">Return Period</span>
+            <span className="w-36 font-medium">Return Period</span>
             <div className="w-36">
               <Select value={month} onChange={(e) => setMonth(e.target.value)} options={MONTHS} />
             </div>
@@ -124,15 +124,15 @@ export default function PortalFetchPopup({
               <Input value={year} onChange={(e) => setYear(e.target.value)} placeholder="YYYY" />
             </div>
           </div>
-          <p className="text-zinc-500">
+          <p>
             Downloads the vendor-filed GSTR-{kind} statement for the period over the live GSTN
             session and matches it against your purchase books.
           </p>
-          {msg && <div className="text-zinc-700">{msg}</div>}
+          {msg && <div>{msg}</div>}
           {err && <div className="font-bold">{err}</div>}
         </div>
 
-        <div className="flex justify-end gap-2 px-3 py-2 border-t border-zinc-200 bg-zinc-50">
+        <div className="flex justify-end gap-2 px-3 py-2 border-t border-gray-300 bg-white">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={busy}>
             Close
           </Button>

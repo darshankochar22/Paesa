@@ -29,8 +29,20 @@ const normItem = (it = {}) => {
 };
 
 // One portal document (invoice `inv` entry or note `nt` entry) → inv entry.
+// Two tax shapes exist in the wild and BOTH must be captured:
+//  - official GSTN 2B/2A: a per-document `items`/`itms` array carries txval + taxes;
+//  - flattened feeds (some Sandbox 2B invoices, and CDNR notes which never nest items):
+//    txval + igst/cgst/sgst/cess sit on the document itself.
+// So when there's no non-empty item array, treat the document as a single implicit item — else
+// the whole invoice/note would import with zero taxable/tax and wrongly read as a mismatch.
+const TAX_KEYS = ['txval', 'igst', 'cgst', 'sgst', 'cess', 'iamt', 'camt', 'samt', 'csamt'];
+const hasInlineTax = (doc) => TAX_KEYS.some((k) => doc[k] != null);
 const normDoc = (doc = {}) => {
-  const items = Array.isArray(doc.itms) ? doc.itms : Array.isArray(doc.items) ? doc.items : [];
+  const rawItems = Array.isArray(doc.itms) ? doc.itms : Array.isArray(doc.items) ? doc.items : null;
+  // Prefer a real item array; else synthesize ONE item from the document's own tax fields — but
+  // only when it actually carries them, so a bare {inum,val} document (no tax anywhere) keeps an
+  // empty item list and still matches on invoice value rather than a spurious zero-taxable line.
+  const items = rawItems && rawItems.length ? rawItems : hasInlineTax(doc) ? [doc] : [];
   return {
     inum: String(doc.inum ?? doc.ntnum ?? doc.nt_num ?? ''),
     val: num(doc.val),

@@ -248,7 +248,7 @@ export default function StockItemReport() {
               setSumData({
                 opening_qty: openQ,
                 opening_value: openV,
-                unit: res.unit_name ?? opening?.unit ?? '',
+                unit: res.unit_name ?? '',
                 rows: bucketize(rows, buckets, openQ, openV),
                 ranges: buckets,
               });
