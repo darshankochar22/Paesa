@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
+import PeriodDialog from './PeriodDialog';
 import {
   StockItemMonthlyView,
   StockItemVouchersView,
@@ -71,7 +72,17 @@ export default function ClosingStockSummary() {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
     return m ? `${Number(m[3])}-${MON[Number(m[2]) - 1]}-${m[1].slice(2)}` : iso;
   };
-  const periodLabel = activeFY ? `${dmy(activeFY.start_date)} to ${dmy(activeFY.end_date)}` : '';
+  // Period (F2) — defaults to the full financial year. A narrower period opens
+  // with the prior period's closing carried into Opening and shows only that
+  // period's Inwards/Outwards, exactly like TallyPrime.
+  const [fromDate, setFromDate] = React.useState<string>(activeFY?.start_date ?? '');
+  const [toDate, setToDate] = React.useState<string>(activeFY?.end_date ?? '');
+  const [isPeriodOpen, setIsPeriodOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (activeFY?.start_date && !fromDate) setFromDate(activeFY.start_date);
+    if (activeFY?.end_date && !toDate) setToDate(activeFY.end_date);
+  }, [activeFY?.start_date, activeFY?.end_date]); // eslint-disable-line react-hooks/exhaustive-deps
+  const periodLabel = fromDate && toDate ? `${dmy(fromDate)} to ${dmy(toDate)}` : '';
 
   const [level, setLevel] = React.useState<Level>({ step: 'summary' });
 
@@ -89,7 +100,7 @@ export default function ClosingStockSummary() {
     setLoading(true);
     setError(null);
     (window as any).api.report
-      .stockClosingSummary(companyId, fyId)
+      .stockClosingSummary(companyId, fyId, fromDate || undefined, toDate || undefined)
       .then((res: SummaryResponse) => {
         if (res.success) setData(res);
         else setError(res.error || 'Failed to load stock summary');
@@ -99,7 +110,7 @@ export default function ClosingStockSummary() {
         setError(e.message);
         setLoading(false);
       });
-  }, [companyId, fyId]);
+  }, [companyId, fyId, fromDate, toDate]);
 
   const items = data?.items ?? [];
 
@@ -170,6 +181,12 @@ export default function ClosingStockSummary() {
   React.useEffect(() => {
     if (level.step !== 'summary') return;
     const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        setIsPeriodOpen(true);
+        return;
+      }
+      if (isPeriodOpen) return; // let the period dialog own the keyboard while open
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setRowIndex((p) => Math.min(items.length - 1, p + 1));
@@ -187,7 +204,7 @@ export default function ClosingStockSummary() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [level.step, items, rowIndex, loadMonths, navigate]);
+  }, [level.step, items, rowIndex, loadMonths, navigate, isPeriodOpen]);
 
   React.useEffect(() => {
     if (level.step !== 'monthly') return;
@@ -296,7 +313,13 @@ export default function ClosingStockSummary() {
       </div>
       <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-gray-200 font-mono">
         <span className="font-bold">Closing Stock</span>
-        <span>{periodLabel}</span>
+        <button
+          onClick={() => setIsPeriodOpen(true)}
+          title="F2: Period"
+          className="hover:underline"
+        >
+          {periodLabel}
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -419,6 +442,29 @@ export default function ClosingStockSummary() {
         <span className="w-20 border-l border-gray-200" />
         <span className="w-24 text-right pr-2">{fmtAmount(data?.totalClosingValue)}</span>
       </div>
+
+      <div className="flex items-center gap-4 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
+        <button onClick={() => setIsPeriodOpen(true)} className="hover:underline hover:text-black">
+          F2: Period
+        </button>
+      </div>
+
+      {/* F2 Period — carries the prior period's closing into Opening and shows
+          only the selected period's Inwards/Outwards, like TallyPrime. */}
+      <PeriodDialog
+        open={isPeriodOpen}
+        onOpenChange={setIsPeriodOpen}
+        fromDate={fromDate}
+        toDate={toDate}
+        minDate={activeFY?.start_date}
+        maxDate={activeFY?.end_date}
+        onFromChange={setFromDate}
+        onToChange={setToDate}
+        onFullYear={() => {
+          if (activeFY?.start_date) setFromDate(activeFY.start_date);
+          if (activeFY?.end_date) setToDate(activeFY.end_date);
+        }}
+      />
     </div>
   );
 }

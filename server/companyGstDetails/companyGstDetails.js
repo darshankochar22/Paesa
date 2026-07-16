@@ -7,6 +7,9 @@ const init = async (db) => {
       description                   TEXT,
       taxability_type               TEXT DEFAULT 'Not Defined',
       gst_rate                      REAL DEFAULT 0,
+      gst_rate_details              TEXT DEFAULT 'Not Defined',
+      gst_classification            TEXT,
+      slab_rates                    TEXT,
       interstate_threshold_limit    REAL DEFAULT 50000,
       intrastate_threshold_limit    REAL DEFAULT 50000,
       threshold_limit_includes      TEXT DEFAULT 'Value of Invoice',
@@ -61,6 +64,17 @@ const init = async (db) => {
       await db.execute(
         'ALTER TABLE company_gst_details ADD COLUMN exports_under_lut INTEGER DEFAULT 1',
       );
+    }
+    if (!existingColumns.includes('gst_rate_details')) {
+      await db.execute(
+        "ALTER TABLE company_gst_details ADD COLUMN gst_rate_details TEXT DEFAULT 'Not Defined'",
+      );
+    }
+    if (!existingColumns.includes('gst_classification')) {
+      await db.execute('ALTER TABLE company_gst_details ADD COLUMN gst_classification TEXT');
+    }
+    if (!existingColumns.includes('slab_rates')) {
+      await db.execute('ALTER TABLE company_gst_details ADD COLUMN slab_rates TEXT');
     }
   } catch (err) {
     console.error('Failed to run migrations for company_gst_details:', err);

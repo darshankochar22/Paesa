@@ -103,19 +103,13 @@ export function VoucherPopupShell({
               ? 'w-[calc(100vw-64px)] h-[calc(100vh-64px)] max-w-[1500px]'
               : size === 'tally'
                 ? // TallyPrime's narrow, tall column popup (Bill-wise Details etc.)
-                  'w-[460px] max-w-[94vw] h-[calc(100vh-72px)] max-h-[960px]'
+                  'w-[420px] max-w-[94vw] h-[calc(100vh-72px)] max-h-[960px]'
                 : 'min-w-[420px] max-w-[92vw] max-h-[90vh]'),
         )}
       >
         {/* Header — long, clean, white */}
         {headerVariant === 'stacked' ? (
           <div className="relative shrink-0 flex flex-col items-center px-6 py-3 border-b border-gray-300 bg-white">
-            <span className="text-sm font-semibold text-black tracking-wide text-center">
-              {title}
-            </span>
-            {headerRight && (
-              <div className="mt-0.5 text-xs text-gray-700 text-center">{headerRight}</div>
-            )}
             <span className="text-sm font-semibold text-black tracking-wide text-center">
               {title}
             </span>

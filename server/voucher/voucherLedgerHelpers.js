@@ -83,7 +83,11 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
         SELECT
           vbr.bill_name,
           COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) as bill_date,
-          MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) as due_date,
+          COALESCE(
+            MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END),
+            MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END),
+            MAX(v.date)
+          ) as due_date,
           MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) as credit_period,
           SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) as total_amount
         FROM ${voucherBillReferences} vbr

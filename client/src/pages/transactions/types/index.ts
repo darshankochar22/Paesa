@@ -160,6 +160,7 @@ export type ActiveAllocation =
       ledgerId: number;
       ledgerName: string;
       amount: number;
+      dcType?: 'Dr' | 'Cr';
       initialAllocations?: any[];
     }
   | {

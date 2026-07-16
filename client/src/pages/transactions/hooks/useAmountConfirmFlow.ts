@@ -5,6 +5,16 @@ import type { InventoryAllocState } from './useStockEntryFlow';
 import { advanceFromLastField } from '../lib/voucherNav';
 import { isFeatureEnabled } from '@/lib/companyFeatures';
 
+// Tally restricts cost-centre allocation to revenue/P&L ledgers: the popup only
+// opens for a ledger whose primary group is one of these four (or a sub-group of
+// them). Checked against the ledger's group ancestry via form.checkLedgerGroup.
+const COST_CENTRE_PRIMARY_GROUPS = [
+  'Direct Expenses',
+  'Direct Incomes',
+  'Indirect Expenses',
+  'Indirect Incomes',
+];
+
 // Enter-on-amount allocation dispatch (bank / bill-wise / cost-centre) and the
 // selection-time twin that opens the same popups when a balancing row's amount
 // auto-fills (so Enter is never pressed). Extracted from Vouchers.tsx; behaviour
@@ -37,7 +47,10 @@ export function useAmountConfirmFlow(
 
       const wantsBillWise =
         billWiseEnabled && (form.checkIsParty(ledger) || ledger.is_bill_wise === 1);
-      const wantsCostCentre = costCentresEnabled && ledger.allow_cost_centres === 1;
+      const wantsCostCentre =
+        costCentresEnabled &&
+        ledger.allow_cost_centres === 1 &&
+        form.checkLedgerGroup(ledger, COST_CENTRE_PRIMARY_GROUPS);
 
       // Contra / Receipt / Payment double-entry: bank allocation for any bank ledger
       if (
@@ -61,9 +74,12 @@ export function useAmountConfirmFlow(
           });
           return;
         }
-        // Non-bank: only party ledgers (Sundry Debtors/Creditors) or bill-wise
-        // ledgers continue to the bill-wise popup; anything else just advances.
-        if (!wantsBillWise) {
+        // Non-bank: party/bill-wise ledgers continue to the bill-wise popup, and
+        // cost-centre ledgers (Direct/Indirect Income/Expense) continue to the
+        // cost-centre popup below. Anything else just advances. Without the
+        // wantsCostCentre guard here, an expense/income ledger in a double-entry
+        // Payment/Receipt/Contra returned early and its cost allocation never opened.
+        if (!wantsBillWise && !wantsCostCentre) {
           proceedToNextRow(idx);
           return;
         }
@@ -86,6 +102,7 @@ export function useAmountConfirmFlow(
           ledgerId: ledger.ledger_id,
           ledgerName: ledger.name,
           amount,
+          dcType: row.type ?? 'Dr',
           initialAllocations: row.costCentres ?? [],
         });
       } else {
@@ -101,6 +118,7 @@ export function useAmountConfirmFlow(
       form.checkIsBank,
       form.checkIsParty,
       form.checkIsCash,
+      form.checkLedgerGroup,
       form.bankDetails,
       form.cashDenominations,
       form.setActiveAllocation,
@@ -448,8 +466,9 @@ export function useAmountConfirmFlow(
       const opensPopup =
         (isBankAllocVoucher && form.checkIsBank(item)) ||
         (billWiseEnabled && (form.checkIsParty(item) || item.is_bill_wise === 1)) ||
-        (costCentresEnabled && item.allow_cost_centres === 1);
-      form.checkIsParty(item) || item.is_bill_wise === 1 || item.allow_cost_centres === 1;
+        (costCentresEnabled &&
+          item.allow_cost_centres === 1 &&
+          form.checkLedgerGroup(item, COST_CENTRE_PRIMARY_GROUPS));
       // A plain ledger (no allocation popup) → advance to this row's amount cell.
       if (!opensPopup) {
         setTimeout(() => advanceFromLastField(), 50);

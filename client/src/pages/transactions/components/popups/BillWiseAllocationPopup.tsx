@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCompany } from '../../../../context/CompanyContext';
 import { VoucherPopupShell } from '@/components/tally-ui/VoucherPopupShell';
 import { openField } from '../../lib/voucherNav';
@@ -68,6 +68,12 @@ function formatCurrency(n: number) {
   return `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// Plain Indian-grouped number (no ₹) for the dense Pending Bills columns, so
+// large amounts don't crowd their neighbours.
+function formatAmount(n: number) {
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function BillWiseAllocationPopup({
   ledgerId,
   ledgerName,
@@ -91,9 +97,20 @@ export default function BillWiseAllocationPopup({
   const [checkCreditDays, setCheckCreditDays] = useState(0);
   const [loadingBills, setLoadingBills] = useState(false);
   const [activeAgstRow, setActiveAgstRow] = useState<number | null>(null);
+  const [agstHighlight, setAgstHighlight] = useState(0);
+  const [agstListPos, setAgstListPos] = useState<{ top: number; left: number } | null>(null);
+  const AGST_LIST_WIDTH = 460;
   const hydratedRef = useRef(false);
   const didFocusRef = useRef(false);
   const agstDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Keep the keyboard-highlighted Pending Bills row scrolled into view.
+  useEffect(() => {
+    if (activeAgstRow === null) return;
+    const dropdown = agstDropdownRefs.current[activeAgstRow];
+    const items = dropdown?.querySelectorAll<HTMLElement>('[data-bill-item]');
+    items?.[agstHighlight]?.scrollIntoView({ block: 'nearest' });
+  }, [agstHighlight, activeAgstRow]);
 
   useEffect(() => {
     if (activeAgstRow === null) return;
@@ -286,6 +303,48 @@ export default function BillWiseAllocationPopup({
       }),
     );
     setActiveAgstRow(null);
+    // Tally: picking the bill drops the cursor onto this row's Amount field.
+    requestAnimationFrame(() =>
+      (document.querySelector(`[data-bw-amount="${rowIdx}"]`) as HTMLElement | null)?.focus(),
+    );
+  };
+
+  // Open the Pending Bills list for a row, highlighting its current selection.
+  // The list is a viewport-fixed panel (so it isn't clipped by the narrow
+  // popup) anchored just below the row's Name cell.
+  const openAgstList = (rowIdx: number) => {
+    const current = allocations[rowIdx]?.bill_name;
+    const idx = pendingBills.findIndex((b) => b.bill_name === current);
+    setAgstHighlight(idx >= 0 ? idx : 0);
+    const input = document.querySelector(`[data-bw-name="${rowIdx}"]`) as HTMLElement | null;
+    if (input) {
+      const r = input.getBoundingClientRect();
+      const left = Math.max(8, Math.min(r.left - 96, window.innerWidth - AGST_LIST_WIDTH - 8));
+      setAgstListPos({ top: r.bottom + 2, left });
+    }
+    setActiveAgstRow(rowIdx);
+  };
+
+  // Keyboard flow inside the Agst Ref name cell: arrows move the highlight,
+  // Enter opens the list (closed) or picks the highlighted bill (open). Every
+  // handled key is claimed so the shell's Enter-nav doesn't also fire.
+  const handleAgstKeyDown = (e: ReactKeyboardEvent, rowIdx: number) => {
+    const open = activeAgstRow === rowIdx;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!open) return openAgstList(rowIdx);
+      setAgstHighlight((h) => Math.min(pendingBills.length - 1, h + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!open) return openAgstList(rowIdx);
+      setAgstHighlight((h) => Math.max(0, h - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!open) return openAgstList(rowIdx);
+      const bill = pendingBills[agstHighlight];
+      if (bill) handleSelectPendingBill(rowIdx, bill);
+    }
   };
 
   const handleSave = () => {
@@ -344,7 +403,7 @@ export default function BillWiseAllocationPopup({
     <VoucherPopupShell
       size="tally"
       headerVariant="stacked"
-      bodyClassName="px-3 py-0"
+      bodyClassName="px-3 py-0 flex flex-col"
       title={`Bill-wise Details for : ${ledgerName}`}
       headerRight={
         <span>
@@ -394,7 +453,18 @@ export default function BillWiseAllocationPopup({
               <select
                 data-bw-type={i}
                 value={row.bill_type}
-                onChange={(e) => handleChange(i, 'bill_type', e.target.value)}
+                onChange={(e) => {
+                  handleChange(i, 'bill_type', e.target.value);
+                  // Tally: choosing "Agst Ref" drops the cursor straight onto the
+                  // Name cell with the Pending Bills list already open.
+                  if (e.target.value === 'Agst Ref') {
+                    requestAnimationFrame(() =>
+                      (
+                        document.querySelector(`[data-bw-name="${i}"]`) as HTMLElement | null
+                      )?.focus(),
+                    );
+                  }
+                }}
                 className={`${inputCls} px-1 w-full font-medium`}
               >
                 <option value="New Ref">New Ref</option>
@@ -416,57 +486,67 @@ export default function BillWiseAllocationPopup({
                 >
                   <input
                     type="text"
+                    data-bw-name={i}
                     value={row.bill_name}
                     readOnly
-                    onFocus={() => setActiveAgstRow(i)}
+                    onFocus={() => openAgstList(i)}
+                    onKeyDown={(e) => handleAgstKeyDown(e, i)}
                     placeholder={loadingBills ? '...' : 'Select'}
                     className={`${inputCls} w-full font-semibold cursor-pointer`}
                   />
-                  {activeAgstRow === i && (
-                    <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-400 shadow-xl z-30 max-h-48 overflow-y-auto">
-                      <div className="bg-white text-black text-[10px] font-bold px-2 py-1 sticky top-0 border-b border-gray-400">
+                  {activeAgstRow === i && agstListPos && (
+                    <div
+                      data-ledger-panel
+                      style={{
+                        position: 'fixed',
+                        top: agstListPos.top,
+                        left: agstListPos.left,
+                        width: AGST_LIST_WIDTH,
+                        maxWidth: 'calc(100vw - 16px)',
+                      }}
+                      className="bg-white border border-gray-400 shadow-2xl z-[60] max-h-72 overflow-y-auto"
+                    >
+                      <div className="bg-white text-black text-[11px] font-bold px-3 py-1.5 sticky top-0 border-b border-gray-400">
                         Pending Bills
                       </div>
-                      <div className="grid grid-cols-5 bg-white text-[9px] font-bold text-gray-600 px-2 py-1 border-b border-gray-300">
-                        <div className="col-span-1">Name</div>
-                        <div className="col-span-1 text-center">Bill Date</div>
-                        <div className="col-span-1 text-center">Due Date</div>
-                        <div className="col-span-1 text-right">Balance</div>
-                        <div className="col-span-1 text-right">Final Balance</div>
+                      <div className="grid grid-cols-[minmax(0,1.4fr)_1fr_1fr_1.3fr_1.3fr] gap-3 bg-white text-[10px] font-bold text-gray-600 px-3 py-1.5 border-b border-gray-300 sticky top-[30px]">
+                        <div>Name</div>
+                        <div className="text-center">Bill Date</div>
+                        <div className="text-center">Due Date</div>
+                        <div className="text-right">Balance</div>
+                        <div className="text-right">Final Balance</div>
                       </div>
                       {pendingBills.length === 0 ? (
-                        <div className="text-xs text-gray-500 px-2 py-2 text-center">
+                        <div className="text-xs text-gray-500 px-3 py-2 text-center">
                           No pending bills
                         </div>
                       ) : (
-                        pendingBills.map((bill) => (
+                        pendingBills.map((bill, bIdx) => (
                           <button
                             key={bill.bill_name}
+                            data-bill-item
                             onClick={() => handleSelectPendingBill(i, bill)}
-                            className="grid grid-cols-5 w-full text-left text-[10px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 last:border-0"
+                            onMouseEnter={() => setAgstHighlight(bIdx)}
+                            className={`grid grid-cols-[minmax(0,1.4fr)_1fr_1fr_1.3fr_1.3fr] gap-3 w-full items-center text-left text-[11px] px-3 py-1.5 border-b border-gray-100 last:border-0 ${
+                              bIdx === agstHighlight ? 'bg-gray-200' : 'hover:bg-gray-50'
+                            }`}
                           >
-                            <div className="col-span-1 font-semibold">{bill.bill_name}</div>
-                            <div className="col-span-1 text-center">
+                            <div className="font-semibold truncate">{bill.bill_name}</div>
+                            <div className="text-center whitespace-nowrap text-gray-600">
                               {formatDateDisplay(bill.bill_date ?? undefined)}
                             </div>
-                            <div className="col-span-1 text-center">
+                            <div className="text-center whitespace-nowrap text-gray-600">
                               {formatDateDisplay(bill.due_date ?? undefined)}
                             </div>
-                            <div className="col-span-1 text-right font-mono">
-                              {bill.balance == null ? '' : formatCurrency(bill.balance)}
+                            <div className="text-right font-mono tabular-nums whitespace-nowrap">
+                              {bill.balance == null ? '' : formatAmount(bill.balance)}
                             </div>
-                            <div className="col-span-1 text-right font-mono">
-                              {bill.final_balance == null ? '' : formatCurrency(bill.final_balance)}
+                            <div className="text-right font-mono tabular-nums whitespace-nowrap">
+                              {bill.final_balance == null ? '' : formatAmount(bill.final_balance)}
                             </div>
                           </button>
                         ))
                       )}
-                      <button
-                        onClick={() => setActiveAgstRow(null)}
-                        className="w-full text-[10px] text-gray-500 py-1 hover:bg-gray-50 border-t border-gray-300"
-                      >
-                        Close
-                      </button>
                     </div>
                   )}
                 </div>
@@ -506,6 +586,7 @@ export default function BillWiseAllocationPopup({
               <input
                 type="number"
                 step="0.01"
+                data-bw-amount={i}
                 value={row.amount || ''}
                 onChange={(e) => handleChange(i, 'amount', Number(e.target.value) || 0)}
                 onKeyDown={(e) => {
@@ -548,20 +629,21 @@ export default function BillWiseAllocationPopup({
         ))}
       </div>
 
-      <div className="grid grid-cols-12 items-center py-1.5 border-t border-black gap-1 font-bold">
+      <button
+        onClick={handleAdd}
+        className="mt-2 text-[10px] uppercase tracking-wider font-bold text-gray-600 hover:text-black border border-gray-400 px-2.5 py-1 hover:bg-gray-100 flex items-center gap-1 select-none self-start"
+      >
+        + Add Split Row
+      </button>
+
+      {/* Grand total pinned to the bottom of the tall panel, matching Tally. */}
+      <div className="mt-auto grid grid-cols-12 items-center py-1.5 border-t border-black gap-1 font-bold">
         <div className="col-span-8" />
         <div className="col-span-3 text-right text-xs font-mono text-black">
           {formatCurrency(allocated)}
         </div>
         <div className="col-span-1 text-right text-xs text-black">{dcType}</div>
       </div>
-
-      <button
-        onClick={handleAdd}
-        className="mt-2 text-[10px] uppercase tracking-wider font-bold text-gray-600 hover:text-black border border-gray-400 px-2.5 py-1 hover:bg-gray-100 flex items-center gap-1 select-none"
-      >
-        + Add Split Row
-      </button>
     </VoucherPopupShell>
   );
 }

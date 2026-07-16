@@ -513,6 +513,7 @@ export default function VoucherPopups({
           companyId={selectedCompany!.company_id}
           ledgerName={form.activeAllocation.ledgerName}
           totalAmount={form.activeAllocation.amount}
+          dcType={form.activeAllocation.dcType ?? 'Dr'}
           initialAllocations={form.activeAllocation.initialAllocations ?? []}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveCostCentre}

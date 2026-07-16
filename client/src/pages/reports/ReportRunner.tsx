@@ -520,6 +520,8 @@ export function ReportRunner({ reportType: reportTypeProp }: { reportType?: stri
           'outstandings-ledger',
           'group-outstandings',
           'outstandings-group',
+          'group-payment-performance',
+          'ledger-payment-performance',
         ].includes(reportType) && (
           <ReportRightPanel
             onPeriodSelect={() => setIsPeriodOpen(true)}

@@ -1,63 +1,79 @@
-import { useState, useEffect, useCallback } from "react";
-import type { CompanyGSTDetails } from "@/types/entities/CompanyGSTDetails";
+import { useState, useEffect, useCallback } from 'react';
+import type { CompanyGSTDetails } from '@/types/entities/CompanyGSTDetails';
 
 // ── Valid option sets ─────────────────────────────────────────────────────────
 // Used to strip stale / legacy values loaded from localStorage or DB.
 
 const VALID_HSN_SAC_TYPES = new Set([
-  "Not Defined", "Specify Details Here", "Use GST Classification", "Specify in Voucher",
+  'Not Defined',
+  'Specify Details Here',
+  'Use GST Classification',
+  'Specify in Voucher',
 ]);
 const VALID_GST_RATE_DETAILS = new Set([
-  "Not Defined", "Specify Details Here", "Specify Slab-Based Rates", "Use GST Classification", "Specify in Voucher"
+  'Not Defined',
+  'Specify Details Here',
+  'Specify Slab-Based Rates',
+  'Use GST Classification',
+  'Specify in Voucher',
 ]);
 const VALID_TAXABILITY_TYPES = new Set([
-  "Not Defined", "Taxable", "Exempt", "Nil Rated", "Non GST",
+  'Not Defined',
+  'Taxable',
+  'Exempt',
+  'Nil Rated',
+  'Non GST',
 ]);
 const VALID_THRESHOLD_INCLUDES = new Set([
-  "Value of Invoice", "Value of Taxable & Exempt Goods", "Value of Taxable Goods",
+  'Value of Invoice',
+  'Value of Taxable & Exempt Goods',
+  'Value of Taxable Goods',
 ]);
-const VALID_HSN_SUMMARY_FOR = new Set(["None", "All Sections", "All Sections Except B2C"]);
+const VALID_HSN_SUMMARY_FOR = new Set(['None', 'All Sections', 'All Sections Except B2C']);
 const VALID_MIN_HSN_LENGTHS = new Set([4, 6, 8]);
 
 export const DEFAULT_GST_DETAILS: CompanyGSTDetails = {
-  hsnSacType: "Not Defined",
-  hsnSacCode: "",
-  description: "",
-  taxabilityType: "Not Defined",
+  hsnSacType: 'Not Defined',
+  hsnSacCode: '',
+  description: '',
+  taxabilityType: 'Not Defined',
   gstRate: 0,
+  gstRateDetails: 'Not Defined',
+  slabRates: [],
   interstateThresholdLimit: 50000,
   intrastateThresholdLimit: 50000,
-  thresholdLimitIncludes: "Value of Invoice",
-  createHSNSummaryFor: "All Sections",
+  thresholdLimitIncludes: 'Value of Invoice',
+  createHSNSummaryFor: 'All Sections',
   minimumHSNLength: 4,
   showGSTAdvances: false,
   updateGSTStatus: true,
   gstReturnsConfigured: false,
-  effectiveDate: "1-Apr-26",
-  downloadGSTRegistration: "",
-  downloadReturnType: "All Returns",
-  gstClassification: "",
+  effectiveDate: '1-Apr-26',
+  downloadGSTRegistration: '',
+  downloadReturnType: 'All Returns',
+  gstClassification: '',
   setStateWiseThresholdLimit: false,
-  gstAdvancesApplicableFrom: "",
+  gstAdvancesApplicableFrom: '',
 };
 
 /** Strip any field values that no longer match valid option sets. */
 function sanitizeForm(raw: Partial<CompanyGSTDetails>): CompanyGSTDetails {
   const base = { ...DEFAULT_GST_DETAILS, ...raw };
-  const isTrue = (val: any) => val === true || val === 1 || String(val) === "true" || String(val) === "1";
+  const isTrue = (val: any) =>
+    val === true || val === 1 || String(val) === 'true' || String(val) === '1';
 
   return {
     ...base,
-    hsnSacType: VALID_HSN_SAC_TYPES.has(base.hsnSacType ?? "")
+    hsnSacType: VALID_HSN_SAC_TYPES.has(base.hsnSacType ?? '')
       ? base.hsnSacType!
       : DEFAULT_GST_DETAILS.hsnSacType,
-    taxabilityType: VALID_TAXABILITY_TYPES.has(base.taxabilityType ?? "")
+    taxabilityType: VALID_TAXABILITY_TYPES.has(base.taxabilityType ?? '')
       ? base.taxabilityType!
       : DEFAULT_GST_DETAILS.taxabilityType,
-    thresholdLimitIncludes: VALID_THRESHOLD_INCLUDES.has(base.thresholdLimitIncludes ?? "")
+    thresholdLimitIncludes: VALID_THRESHOLD_INCLUDES.has(base.thresholdLimitIncludes ?? '')
       ? base.thresholdLimitIncludes!
       : DEFAULT_GST_DETAILS.thresholdLimitIncludes,
-    createHSNSummaryFor: VALID_HSN_SUMMARY_FOR.has(base.createHSNSummaryFor ?? "")
+    createHSNSummaryFor: VALID_HSN_SUMMARY_FOR.has(base.createHSNSummaryFor ?? '')
       ? base.createHSNSummaryFor!
       : DEFAULT_GST_DETAILS.createHSNSummaryFor,
     minimumHSNLength: VALID_MIN_HSN_LENGTHS.has(Number(base.minimumHSNLength))
@@ -75,21 +91,24 @@ function sanitizeForm(raw: Partial<CompanyGSTDetails>): CompanyGSTDetails {
     updateGSTStatus: isTrue(base.updateGSTStatus),
     gstReturnsConfigured: isTrue(base.gstReturnsConfigured),
     stateWiseLimits: Array.isArray(base.stateWiseLimits) ? base.stateWiseLimits : [],
-    gstAdvancesApplicableFrom: base.gstAdvancesApplicableFrom && typeof base.gstAdvancesApplicableFrom === "string" && base.gstAdvancesApplicableFrom.includes("T")
-      ? base.gstAdvancesApplicableFrom.split("T")[0]
-      : base.gstAdvancesApplicableFrom || "",
-    effectiveDate: base.effectiveDate || "1-Apr-26",
-    downloadGSTRegistration: base.downloadGSTRegistration || "",
-    downloadReturnType: base.downloadReturnType || "All Returns",
+    slabRates: Array.isArray(base.slabRates) ? base.slabRates : [],
+    gstAdvancesApplicableFrom:
+      base.gstAdvancesApplicableFrom &&
+      typeof base.gstAdvancesApplicableFrom === 'string' &&
+      base.gstAdvancesApplicableFrom.includes('T')
+        ? base.gstAdvancesApplicableFrom.split('T')[0]
+        : base.gstAdvancesApplicableFrom || '',
+    effectiveDate: base.effectiveDate || '1-Apr-26',
+    downloadGSTRegistration: base.downloadGSTRegistration || '',
+    downloadReturnType: base.downloadReturnType || 'All Returns',
   };
 }
 
 /** Sanitize the gstRateDetails string — reject any old/stale values. */
 function sanitizeGstRateDetails(val: string | undefined): string {
-  if (!val || !VALID_GST_RATE_DETAILS.has(val)) return "Not Defined";
+  if (!val || !VALID_GST_RATE_DETAILS.has(val)) return 'Not Defined';
   return val;
 }
-
 
 interface UseGSTDetailsProps {
   companyId?: number;
@@ -99,14 +118,14 @@ interface UseGSTDetailsProps {
 
 export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetailsProps) {
   const [form, setForm] = useState<CompanyGSTDetails>(DEFAULT_GST_DETAILS);
-  const [gstRateDetails, setGstRateDetails] = useState<string>("Not Defined");
+  const [gstRateDetails, setGstRateDetails] = useState<string>('Not Defined');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [hasGSTRegistrations, setHasGSTRegistrations] = useState(false);
 
   const getLocalStorageKey = useCallback(() => {
-    return companyId ? `company_gst_details_${companyId}` : "company_gst_details";
+    return companyId ? `company_gst_details_${companyId}` : 'company_gst_details';
   }, [companyId]);
 
   // Load details from backend / localStorage
@@ -130,24 +149,29 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
         const dbData = result.data;
         const raw: CompanyGSTDetails = {
           ...dbData,
-          gstClassification: localParsed?.gstClassification || "",
+          // Prefer persisted DB value; fall back to any legacy localStorage hint.
+          gstClassification: dbData.gstClassification || localParsed?.gstClassification || '',
         };
         setForm(sanitizeForm(raw));
 
-        // Resolve gstRateDetails — prefer localStorage hint if values still match DB
+        // Resolve gstRateDetails — prefer the persisted DB mode. Fall back to a
+        // localStorage hint (legacy rows) and finally infer from taxability type.
+        const dbRateDetails = sanitizeGstRateDetails(dbData.gstRateDetails);
         const localRateDetails = sanitizeGstRateDetails(localParsed?.gstRateDetails);
-        if (
+        if (dbRateDetails !== 'Not Defined') {
+          setGstRateDetails(dbRateDetails);
+        } else if (
           localParsed &&
           localParsed.taxabilityType === dbData.taxabilityType &&
           localParsed.gstRate === dbData.gstRate &&
-          localRateDetails !== "Not Defined"
+          localRateDetails !== 'Not Defined'
         ) {
           setGstRateDetails(localRateDetails);
         } else {
           setGstRateDetails(
-            dbData.taxabilityType === "Not Defined" || !dbData.taxabilityType
-              ? "Not Defined"
-              : "Specify Details Here"
+            dbData.taxabilityType === 'Not Defined' || !dbData.taxabilityType
+              ? 'Not Defined'
+              : 'Specify Details Here',
           );
         }
       } else {
@@ -157,21 +181,24 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
           setGstRateDetails(sanitizeGstRateDetails(localParsed.gstRateDetails));
         } else {
           setForm(DEFAULT_GST_DETAILS);
-          setGstRateDetails("Not Defined");
+          setGstRateDetails('Not Defined');
         }
       }
-      
+
       // 3. Check for existing GST registrations
       const regResult = await window.api.gstRegistration.getAll(companyId);
-      if (regResult.success && regResult.gstRegistrations && regResult.gstRegistrations.length > 0) {
+      if (
+        regResult.success &&
+        regResult.gstRegistrations &&
+        regResult.gstRegistrations.length > 0
+      ) {
         setHasGSTRegistrations(true);
       } else {
         setHasGSTRegistrations(false);
       }
-      
     } catch (err) {
-      console.error("Failed to load GST details:", err);
-      setError("Failed to load saved GST details.");
+      console.error('Failed to load GST details:', err);
+      setError('Failed to load saved GST details.');
     } finally {
       setLoading(false);
     }
@@ -189,9 +216,13 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
   };
 
   // Field validation
-  const validate = (): { isValid: boolean; fieldId?: keyof CompanyGSTDetails; message?: string } => {
+  const validate = (): {
+    isValid: boolean;
+    fieldId?: keyof CompanyGSTDetails;
+    message?: string;
+  } => {
     if (!companyId) {
-      return { isValid: false, message: "No company selected." };
+      return { isValid: false, message: 'No company selected.' };
     }
 
     if (form.hsnSacCode && form.hsnSacCode.trim().length > 0) {
@@ -199,19 +230,19 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
       if (trimmed.length < 2 || trimmed.length > 8) {
         return {
           isValid: false,
-          fieldId: "hsnSacCode",
-          message: "HSN/SAC length must be between 2 and 8 characters.",
+          fieldId: 'hsnSacCode',
+          message: 'HSN/SAC length must be between 2 and 8 characters.',
         };
       }
     }
 
-    if (gstRateDetails === "Specify Details Here" && form.taxabilityType === "Taxable") {
+    if (gstRateDetails === 'Specify Details Here' && form.taxabilityType === 'Taxable') {
       const rate = Number(form.gstRate);
       if (isNaN(rate) || rate < 0 || rate > 100) {
         return {
           isValid: false,
-          fieldId: "gstRate",
-          message: "GST Rate must be between 0 and 100.",
+          fieldId: 'gstRate',
+          message: 'GST Rate must be between 0 and 100.',
         };
       }
     }
@@ -220,8 +251,8 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
     if (isNaN(interLimit) || interLimit < 0) {
       return {
         isValid: false,
-        fieldId: "interstateThresholdLimit",
-        message: "Interstate Threshold Limit must be a positive number.",
+        fieldId: 'interstateThresholdLimit',
+        message: 'Interstate Threshold Limit must be a positive number.',
       };
     }
 
@@ -229,8 +260,8 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
     if (isNaN(intraLimit) || intraLimit < 0) {
       return {
         isValid: false,
-        fieldId: "intrastateThresholdLimit",
-        message: "Intrastate Threshold Limit must be a positive number.",
+        fieldId: 'intrastateThresholdLimit',
+        message: 'Intrastate Threshold Limit must be a positive number.',
       };
     }
 
@@ -241,7 +272,7 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
   const saveDetails = async (): Promise<boolean> => {
     const valResult = validate();
     if (!valResult.isValid) {
-      setError(valResult.message || "Validation failed");
+      setError(valResult.message || 'Validation failed');
       return false;
     }
 
@@ -252,8 +283,11 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
     try {
       const finalForm: CompanyGSTDetails = {
         ...form,
-        taxabilityType: gstRateDetails === "Not Defined" ? "Not Defined" : form.taxabilityType,
-        gstRate: gstRateDetails === "Not Defined" ? 0 : form.gstRate,
+        taxabilityType: gstRateDetails === 'Not Defined' ? 'Not Defined' : form.taxabilityType,
+        gstRate: gstRateDetails === 'Not Defined' ? 0 : form.gstRate,
+        // Persist the GST Rate mode itself, plus only the slab rows relevant to it.
+        gstRateDetails,
+        slabRates: gstRateDetails === 'Specify Slab-Based Rates' ? form.slabRates || [] : [],
       };
 
       const dbResult = await window.api.companyGstDetails.save({
@@ -262,7 +296,7 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
       });
 
       if (!dbResult.success) {
-        throw new Error(dbResult.error || "Database save failed");
+        throw new Error(dbResult.error || 'Database save failed');
       }
 
       // Also persist to localStorage as backup, including the UI state hint
@@ -272,12 +306,12 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
       };
       localStorage.setItem(getLocalStorageKey(), JSON.stringify(storageObj));
 
-      setSuccess("Company GST details updated successfully.");
+      setSuccess('Company GST details updated successfully.');
       onSaveSuccess?.();
       return true;
     } catch (err) {
-      console.error("Failed to save GST details:", err);
-      setError(err instanceof Error ? err.message : "Failed to save GST details.");
+      console.error('Failed to save GST details:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save GST details.');
       return false;
     } finally {
       setLoading(false);

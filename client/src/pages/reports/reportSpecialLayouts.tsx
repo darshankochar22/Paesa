@@ -25,6 +25,8 @@ import VoucherClarificationLayout from '@/components/reports/VoucherClarificatio
 import BillsLayout from '@/components/reports/BillsLayout';
 import LedgerOutstandingsLayout from '@/components/reports/LedgerOutstandingsLayout';
 import GroupOutstandingsLayout from '@/components/reports/GroupOutstandingsLayout';
+import GroupPaymentPerformanceLayout from '@/components/reports/GroupPaymentPerformanceLayout';
+import LedgerPaymentPerformanceLayout from '@/components/reports/LedgerPaymentPerformanceLayout';
 import InterestBillsLayout from '@/components/reports/InterestBillsLayout';
 import InterestLedgerLayout from '@/components/reports/InterestLedgerLayout';
 import InterestGroupLayout from '@/components/reports/InterestGroupLayout';
@@ -77,6 +79,10 @@ export function renderSpecialLayout(
     <LedgerOutstandingsLayout />
   ) : reportType === 'group-outstandings' || reportType === 'outstandings-group' ? (
     <GroupOutstandingsLayout />
+  ) : reportType === 'group-payment-performance' ? (
+    <GroupPaymentPerformanceLayout />
+  ) : reportType === 'ledger-payment-performance' ? (
+    <LedgerPaymentPerformanceLayout />
   ) : reportType === 'interest-receivable' ? (
     <InterestBillsLayout mode="receivable" fromDate={fromDate} toDate={toDate} />
   ) : reportType === 'interest-payable' ? (

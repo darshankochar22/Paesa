@@ -11,14 +11,25 @@ const {
 } = require('./services/stockMovement');
 
 module.exports = {
-  stockGroupItems: async (company_id, fy_id, group_id) => {
+  // Stock Group Summary — per-item Opening / Inwards / Outwards / Closing for the
+  // items directly under a stock group, using the SAME period-aware, pooled
+  // avg-cost math as stockClosingSummary. When a sub-period (F2) is selected,
+  // movements BEFORE from_date roll into the Opening Balance (prior period's
+  // close = this period's open) and only in-period movements populate Inwards/
+  // Outwards — so a single month shows just that month's activity, exactly like
+  // TallyPrime. Full-year is the default (from_date/to_date null). This is why a
+  // credit-note return of 1,077 in one month shows a 1,077 closing there, rather
+  // than the whole year netted with a later sale.
+  stockGroupItems: async (company_id, fy_id, group_id, from_date = null, to_date = null) => {
     try {
-      const rows = await db.all(
+      const itemRows = await db.all(
         sql`SELECT
-              si.item_id        AS item_id,
-              si.name           AS item_name,
-              sg.name           AS group_name,
-              u.name            AS unit_name
+              si.item_id           AS item_id,
+              si.name              AS item_name,
+              sg.name              AS group_name,
+              u.name               AS unit_name,
+              si.opening_quantity  AS opening_quantity,
+              si.opening_value     AS opening_value
             FROM ${stockItems} si
             LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
             LEFT JOIN ${units} u ON u.unit_id = si.unit_id
@@ -28,30 +39,105 @@ module.exports = {
             ORDER BY si.name ASC`,
       );
 
-      // Closing qty/value from the shared valuation engine — the same source
-      // Stock Summary uses, so the group drill always matches the summary.
-      const valuation = await calculateClosingStock(company_id, fy_id, null, 'FIFO');
-      const valMap = new Map((valuation.items || []).map((v) => [v.item_id, v]));
+      // Every FY entry for the group's items, chronological (ordering matters for
+      // the running weighted-average cost). Same filters as stockClosingSummary.
+      const entries = await db.all(
+        sql`SELECT vse.stock_item_id AS item_id, v.date, v.voucher_type,
+                   vse.quantity, vse.amount, vse.is_source
+            FROM ${voucherStockEntries} vse
+            INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
+            INNER JOIN ${stockItems} si ON si.item_id = vse.stock_item_id
+            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
+              AND si.group_id = ${group_id}
+              AND v.is_cancelled = 0
+              AND COALESCE(v.is_optional, 0) = 0
+              AND COALESCE(v.is_post_dated, 0) = 0
+              AND NOT ${trackingBilledSql('v', 'vse')}
+            ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`,
+      );
+      const byItem = new Map();
+      for (const e of entries) {
+        if (!byItem.has(e.item_id)) byItem.set(e.item_id, []);
+        byItem.get(e.item_id).push(e);
+      }
 
-      const items = rows.map((r) => {
-        const v = valMap.get(r.item_id) || { closing_qty: 0, closing_value: 0 };
-        const closing_qty = v.closing_qty || 0;
-        const closing_value = v.closing_value || 0;
+      const items = itemRows.map((it) => {
+        // Running state seeds from the item master's own opening balance, then
+        // pre-period movements are carried in so opening reflects the position
+        // as at (from_date − 1).
+        let runQty = Number(it.opening_quantity) || 0;
+        let cumInQty = runQty; // opening counts as the first inward lot
+        let cumInVal = Number(it.opening_value) || 0;
+        const rateNow = () => (cumInQty !== 0 ? cumInVal / cumInQty : 0);
+        const applyMove = (dir, qty, amt) => {
+          if (dir === 'in') {
+            runQty += qty;
+            cumInQty += qty;
+            cumInVal += amt;
+          } else if (dir === 'out') {
+            runQty -= qty;
+          }
+        };
+
+        const itemEntries = byItem.get(it.item_id) || [];
+        // Carry pre-period movements into the opening balance.
+        for (const e of itemEntries) {
+          if (!from_date || !e.date || e.date >= from_date) continue;
+          const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
+          if (dir) applyMove(dir, (Number(e.quantity) || 0) * sign, (Number(e.amount) || 0) * sign);
+        }
+        const opening_qty = runQty;
+        const opening_value = runQty * rateNow();
+
+        let in_qty = 0,
+          in_value = 0,
+          out_qty = 0,
+          out_value = 0;
+        for (const e of itemEntries) {
+          if (from_date && e.date && e.date < from_date) continue; // already in opening
+          if (to_date && e.date && e.date > to_date) continue;
+          const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
+          if (!dir) continue;
+          const qty = (Number(e.quantity) || 0) * sign;
+          const amt = (Number(e.amount) || 0) * sign;
+          if (dir === 'in') {
+            in_qty += qty;
+            in_value += amt;
+          } else {
+            out_qty += qty;
+            out_value += amt;
+          }
+          applyMove(dir, qty, amt);
+        }
+        const closing_qty = runQty;
+        const closing_value = runQty * rateNow();
+
         return {
-          item_id: r.item_id,
-          item_name: r.item_name,
-          group_name: r.group_name || 'Ungrouped',
-          unit_name: r.unit_name || '',
+          item_id: it.item_id,
+          item_name: it.item_name,
+          group_name: it.group_name || 'Ungrouped',
+          unit_name: it.unit_name || '',
+          opening_qty,
+          opening_value,
+          in_qty,
+          in_value,
+          out_qty,
+          out_value,
           closing_qty,
           closing_value,
           rate: closing_qty !== 0 ? closing_value / closing_qty : 0,
         };
       });
 
-      const totalClosingQty = items.reduce((s, it) => s + it.closing_qty, 0);
-      const totalClosingValue = items.reduce((s, it) => s + it.closing_value, 0);
-
-      return { success: true, items, totalClosingQty, totalClosingValue };
+      return {
+        success: true,
+        items,
+        totalOpeningValue: items.reduce((s, it) => s + it.opening_value, 0),
+        totalInValue: items.reduce((s, it) => s + it.in_value, 0),
+        totalOutValue: items.reduce((s, it) => s + it.out_value, 0),
+        totalClosingQty: items.reduce((s, it) => s + it.closing_qty, 0),
+        totalClosingValue: items.reduce((s, it) => s + it.closing_value, 0),
+      };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -108,7 +194,7 @@ module.exports = {
   // All-zero items (no opening, no movement, no closing) are dropped, matching
   // Tally's default of hiding them. This is the list the Closing-Stock drill
   // (Funds Flow → Current Assets → Closing Stock) renders.
-  stockClosingSummary: async (company_id, fy_id) => {
+  stockClosingSummary: async (company_id, fy_id, from_date = null, to_date = null) => {
     try {
       const itemRows = await db.all(
         sql`SELECT si.item_id, si.name, si.opening_quantity, si.opening_value,
@@ -119,8 +205,13 @@ module.exports = {
             ORDER BY si.name ASC`,
       );
 
+      // Every FY entry, chronological. When a sub-period is selected, movements
+      // BEFORE from_date roll into the Opening Balance (prior period's close =
+      // this period's open) and only in-period movements populate Inwards/
+      // Outwards — exactly like TallyPrime. Ordering matters for the running
+      // weighted-average cost.
       const entries = await db.all(
-        sql`SELECT vse.stock_item_id AS item_id, v.voucher_type,
+        sql`SELECT vse.stock_item_id AS item_id, v.date, v.voucher_type,
                    vse.quantity, vse.amount, vse.is_source
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
@@ -128,7 +219,8 @@ module.exports = {
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
               AND COALESCE(v.is_post_dated, 0) = 0
-              AND NOT ${trackingBilledSql('v', 'vse')}`,
+              AND NOT ${trackingBilledSql('v', 'vse')}
+            ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`,
       );
       const byItem = new Map();
       for (const e of entries) {
@@ -138,16 +230,40 @@ module.exports = {
 
       const items = [];
       for (const it of itemRows) {
-        const opening_qty = Number(it.opening_quantity) || 0;
-        const opening_value = Number(it.opening_value) || 0;
+        // Running state seeds from the item master's own opening balance, then
+        // pre-period movements are carried in so opening reflects the position
+        // as at (from_date − 1).
+        let runQty = Number(it.opening_quantity) || 0;
+        let cumInQty = runQty; // opening counts as the first inward lot
+        let cumInVal = Number(it.opening_value) || 0;
+        const rateNow = () => (cumInQty !== 0 ? cumInVal / cumInQty : 0);
+        const applyMove = (dir, qty, amt) => {
+          if (dir === 'in') {
+            runQty += qty;
+            cumInQty += qty;
+            cumInVal += amt;
+          } else if (dir === 'out') {
+            runQty -= qty;
+          }
+        };
+
+        const itemEntries = byItem.get(it.item_id) || [];
+        // Carry pre-period movements into the opening balance.
+        for (const e of itemEntries) {
+          if (!from_date || !e.date || e.date >= from_date) continue;
+          const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
+          if (dir) applyMove(dir, (Number(e.quantity) || 0) * sign, (Number(e.amount) || 0) * sign);
+        }
+        const opening_qty = runQty;
+        const opening_value = runQty * rateNow();
+
         let in_qty = 0,
           in_value = 0,
           out_qty = 0,
           out_value = 0;
-        let runQty = opening_qty;
-        let cumInQty = opening_qty;
-        let cumInVal = opening_value;
-        for (const e of byItem.get(it.item_id) || []) {
+        for (const e of itemEntries) {
+          if (from_date && e.date && e.date < from_date) continue; // already in opening
+          if (to_date && e.date && e.date > to_date) continue;
           const { dir, sign } = registerDirection(e.voucher_type, e.is_source);
           if (!dir) continue;
           const qty = (Number(e.quantity) || 0) * sign;
@@ -155,18 +271,14 @@ module.exports = {
           if (dir === 'in') {
             in_qty += qty;
             in_value += amt;
-            runQty += qty;
-            cumInQty += qty;
-            cumInVal += amt;
           } else {
             out_qty += qty;
             out_value += amt;
-            runQty -= qty;
           }
+          applyMove(dir, qty, amt);
         }
-        const rate = cumInQty !== 0 ? cumInVal / cumInQty : 0;
         const closing_qty = runQty;
-        const closing_value = runQty * rate;
+        const closing_value = runQty * rateNow();
         // TallyPrime's Stock Summary lists only items that HOLD a closing
         // balance. An item bought and fully sold in the period (e.g. Fan: 20 in,
         // 20 out → 0) is hidden — payment mode (cash vs credit) is irrelevant to

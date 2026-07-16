@@ -206,6 +206,10 @@ contextBridge.exposeInMainWorld('api', {
       invoke('report:groupOutstandings', { company_id, fy_id, group_id }),
     billVouchers: (company_id, fy_id, ledger_id, bill_name, voucher_id) =>
       invoke('report:billVouchers', { company_id, fy_id, ledger_id, bill_name, voucher_id }),
+    groupPaymentPerformance: (company_id, fy_id, group_id) =>
+      invoke('report:groupPaymentPerformance', { company_id, fy_id, group_id }),
+    ledgerPaymentPerformance: (company_id, fy_id, ledger_id) =>
+      invoke('report:ledgerPaymentPerformance', { company_id, fy_id, ledger_id }),
     interestReceivable: (company_id, fy_id, params) =>
       invoke('report:interestReceivable', { company_id, fy_id, params }),
     interestPayable: (company_id, fy_id, params) =>
@@ -224,8 +228,8 @@ contextBridge.exposeInMainWorld('api', {
       invoke('report:stockSummary', { company_id, fy_id, as_on_date, method }),
     openingStockSummary: (company_id, fy_id) =>
       invoke('report:openingStockSummary', { company_id, fy_id }),
-    stockGroupItems: (company_id, fy_id, group_id) =>
-      invoke('report:stockGroupItems', { company_id, fy_id, group_id }),
+    stockGroupItems: (company_id, fy_id, group_id, from_date, to_date) =>
+      invoke('report:stockGroupItems', { company_id, fy_id, group_id, from_date, to_date }),
     stockItemMonthly: (company_id, fy_id, item_id) =>
       invoke('report:stockItemMonthly', { company_id, fy_id, item_id }),
     batchItems: (company_id) => invoke('report:batchItems', { company_id }),

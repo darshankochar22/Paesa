@@ -16,6 +16,8 @@ interface ComponentBalances {
   totalIncome: number;
   totalExpenses: number;
   netProfit: number;
+  operatingCost: number;
+  indirectIncomes: number;
   workingCapital: number;
   capitalEmployed: number;
   cashInHand: number;
@@ -23,6 +25,9 @@ interface ComponentBalances {
   bankOD: number;
   sundryDebtors: number;
   sundryCreditors: number;
+  sundryDebtorsDue: number;
+  sundryCreditorsDue: number;
+  recvTurnoverDays: number;
 }
 
 const MOCK_COMPONENTS: ComponentBalances = {
@@ -39,6 +44,8 @@ const MOCK_COMPONENTS: ComponentBalances = {
   totalIncome: 5990395.0,
   totalExpenses: 2068195.0,
   netProfit: 3922200.0,
+  operatingCost: 2068195.0,
+  indirectIncomes: 0.0,
   workingCapital: 4012545.0,
   capitalEmployed: 14277800.0,
   cashInHand: 1000002034876.0,
@@ -46,6 +53,9 @@ const MOCK_COMPONENTS: ComponentBalances = {
   bankOD: 700000.0,
   sundryDebtors: 502799.0,
   sundryCreditors: 562770.0,
+  sundryDebtorsDue: 502799.0,
+  sundryCreditorsDue: 562770.0,
+  recvTurnoverDays: 30.64,
 };
 
 const fmtDrCr = (val: number, defaultDr = true) => {
@@ -148,7 +158,7 @@ export function RatioAnalysisLayout() {
         isGroupDrilldown: true,
         subRow: {
           label: '(due till today)',
-          getValue: (comp: ComponentBalances) => fmtDrCr(comp.sundryDebtors, true),
+          getValue: (comp: ComponentBalances) => fmtDrCr(comp.sundryDebtorsDue, true),
         },
       },
       {
@@ -159,7 +169,7 @@ export function RatioAnalysisLayout() {
         isGroupDrilldown: true,
         subRow: {
           label: '(due till today)',
-          getValue: (comp: ComponentBalances) => fmtDrCr(comp.sundryCreditors, false),
+          getValue: (comp: ComponentBalances) => fmtDrCr(comp.sundryCreditorsDue, false),
         },
       },
       {
@@ -199,7 +209,7 @@ export function RatioAnalysisLayout() {
           if (!wc || wc === 0) return '0.00';
           return (comp.sales / wc).toFixed(2);
         },
-        drilldown: '/reports/accounts/funds-flow',
+        drilldown: '/reports/accounts/profit-loss',
         isGroupDrilldown: false,
       },
       {
@@ -211,7 +221,7 @@ export function RatioAnalysisLayout() {
           if (!inv || inv === 0) return '0.00';
           return (comp.sales / inv).toFixed(2);
         },
-        drilldown: '/reports/inventory/stock-summary',
+        drilldown: '/reports/accounts/profit-loss',
         isGroupDrilldown: false,
       },
     ],
@@ -278,8 +288,7 @@ export function RatioAnalysisLayout() {
         label: 'Operating Cost %',
         subtitle: '(as percentage of Sales Accounts)',
         getValue: (comp: ComponentBalances) => {
-          const operatingCost = comp.totalExpenses - comp.inventory;
-          const val = comp.sales !== 0 ? (operatingCost / comp.sales) * 100 : 0;
+          const val = comp.sales !== 0 ? (comp.operatingCost / comp.sales) * 100 : 0;
           return `${val.toFixed(2)} %`;
         },
         drilldown: '/reports/accounts/profit-loss',
@@ -289,37 +298,32 @@ export function RatioAnalysisLayout() {
         label: 'Recv. Turnover in days',
         subtitle: '(payment performance of Debtors)',
         getValue: (comp: ComponentBalances) => {
-          if (
-            comp.sales === MOCK_COMPONENTS.sales &&
-            comp.sundryDebtors === MOCK_COMPONENTS.sundryDebtors
-          ) {
-            return '6,192.22 days';
-          }
-          const val = comp.sales !== 0 ? (comp.sundryDebtors / comp.sales) * 365 : 0;
+          // Payment performance of Debtors — sum of per-party performance,
+          // computed server-side so it equals the Group Payment Performance drill.
+          const val =
+            comp.recvTurnoverDays != null
+              ? comp.recvTurnoverDays
+              : comp.sales !== 0
+                ? (comp.sundryDebtors / comp.sales) * 365
+                : 0;
           const formatted = new Intl.NumberFormat('en-IN', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           }).format(val);
           return `${formatted} days`;
         },
-        drilldown: '/reports/accounts/group-summary',
+        drilldown: '/reports/accounts/group-payment-performance',
       },
       {
         key: 'roi',
         label: 'Return on Investment %',
         subtitle: '(Nett Profit / Capital Account + Nett Profit ) %',
         getValue: (comp: ComponentBalances) => {
-          if (
-            comp.netProfit === MOCK_COMPONENTS.netProfit &&
-            comp.equity === MOCK_COMPONENTS.equity
-          ) {
-            return '88.49 %';
-          }
           const denom = comp.equity + comp.netProfit;
           const val = denom !== 0 ? (comp.netProfit / denom) * 100 : 0;
           return `${val.toFixed(2)} %`;
         },
-        drilldown: '/reports/accounts/profit-loss',
+        drilldown: '/reports/accounts/balance-sheet',
       },
       {
         key: 'return_wc',
@@ -329,7 +333,7 @@ export function RatioAnalysisLayout() {
           const val = comp.workingCapital !== 0 ? (comp.netProfit / comp.workingCapital) * 100 : 0;
           return `${val.toFixed(2)} %`;
         },
-        drilldown: '/reports/accounts/funds-flow',
+        drilldown: '/reports/accounts/balance-sheet',
       },
     ],
     [],
@@ -368,9 +372,12 @@ export function RatioAnalysisLayout() {
       } else {
         const rItem = item as (typeof rightItems)[0];
         if (rItem.key === 'recv_turnover') {
+          // Group Payment Performance report for Sundry Debtors.
           const matchedDebtors = groupsList.find((g) => g.name.toLowerCase().includes('debtors'));
           if (matchedDebtors) {
-            navigate(`/reports/accounts/group-summary/${matchedDebtors.group_id}`);
+            navigate(
+              `/reports/accounts/group-payment-performance?group_id=${matchedDebtors.group_id}&group_name=${encodeURIComponent(matchedDebtors.name)}`,
+            );
           } else {
             navigate(rItem.drilldown);
           }
@@ -380,6 +387,26 @@ export function RatioAnalysisLayout() {
       }
     },
     [groupsList, components, navigate, leftItems, rightItems],
+  );
+
+  // "(due till today)" drills to the Group Outstanding report — a DIFFERENT report
+  // from the Sundry Debtors / Sundry Creditors row (which drills to Group Summary).
+  const handleDueDrilldown = React.useCallback(
+    (groupName: string) => {
+      const matched =
+        groupsList.find((g) => g.name.toLowerCase().trim() === groupName.toLowerCase().trim()) ||
+        groupsList.find((g) =>
+          g.name.toLowerCase().includes(groupName.split(' ')[0].toLowerCase()),
+        );
+      if (matched) {
+        navigate(
+          `/reports/accounts/outstandings-group?group_id=${matched.group_id}&group_name=${encodeURIComponent(matched.name)}`,
+        );
+      } else {
+        console.warn('Group not found for Group Outstanding drill:', groupName);
+      }
+    },
+    [groupsList, navigate],
   );
 
   React.useEffect(() => {
@@ -519,7 +546,10 @@ export function RatioAnalysisLayout() {
                             setActiveCol('left');
                             setFocusedIndex(idx);
                           }}
-                          className={`border-b border-gray-200 ${
+                          onDoubleClick={() =>
+                            item.isGroupDrilldown && handleDueDrilldown(item.drilldown)
+                          }
+                          className={`cursor-pointer border-b border-gray-200 ${
                             isFocused ? 'bg-black/[0.06] text-black font-semibold' : 'text-black'
                           }`}
                         >

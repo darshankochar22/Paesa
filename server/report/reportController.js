@@ -52,6 +52,7 @@ const { salesRegister } = require('./registers/salesRegister');
 const { memorandumRegister } = require('./registers/memorandumRegister');
 const { reversingJournalRegister } = require('./registers/reversingJournalRegister');
 const outstandingReportService = require('./outstandingReportService');
+const paymentPerformanceReportService = require('./paymentPerformanceReportService');
 const advancedInventoryReportService = require('./advancedInventoryReportService');
 const interestReportService = require('./interestReportService');
 const advancedAccountingReportService = require('./advancedAccountingReportService');
@@ -112,6 +113,20 @@ module.exports = {
   groupOutstandings: async (event, { company_id, fy_id, group_id }) => {
     return await outstandingReportService.groupOutstandings(company_id, fy_id, group_id);
   },
+  groupPaymentPerformance: async (event, { company_id, fy_id, group_id }) => {
+    return await paymentPerformanceReportService.groupPaymentPerformance(
+      company_id,
+      fy_id,
+      group_id,
+    );
+  },
+  ledgerPaymentPerformance: async (event, { company_id, fy_id, ledger_id }) => {
+    return await paymentPerformanceReportService.ledgerPaymentPerformance(
+      company_id,
+      fy_id,
+      ledger_id,
+    );
+  },
   billVouchers: async (event, { company_id, fy_id, ledger_id, bill_name, voucher_id }) => {
     return await outstandingReportService.billVouchers(
       company_id,
@@ -148,8 +163,14 @@ module.exports = {
   openingStockSummary: async (event, { company_id, fy_id }) => {
     return await stockSummaryReportService.openingStockSummary(company_id, fy_id);
   },
-  stockGroupItems: async (event, { company_id, fy_id, group_id }) => {
-    return await stockSummaryReportService.stockGroupItems(company_id, fy_id, group_id);
+  stockGroupItems: async (event, { company_id, fy_id, group_id, from_date, to_date }) => {
+    return await stockSummaryReportService.stockGroupItems(
+      company_id,
+      fy_id,
+      group_id,
+      from_date,
+      to_date,
+    );
   },
   stockItemMonthly: async (event, { company_id, fy_id, item_id }) => {
     return await stockSummaryReportService.stockItemMonthly(company_id, fy_id, item_id);
@@ -355,8 +376,13 @@ module.exports = {
   stockItemSummary: async (event, { company_id, fy_id }) => {
     return await stockItemSummary(company_id, fy_id);
   },
-  stockClosingSummary: async (event, { company_id, fy_id }) => {
-    return await stockSummaryReportService.stockClosingSummary(company_id, fy_id);
+  stockClosingSummary: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await stockSummaryReportService.stockClosingSummary(
+      company_id,
+      fy_id,
+      from_date,
+      to_date,
+    );
   },
   voucherClarificationSummary: async (event, { company_id, fy_id }) => {
     return await voucherClarificationService.voucherClarificationSummary(company_id, fy_id);

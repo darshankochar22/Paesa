@@ -1,10 +1,11 @@
-import { useRef } from "react";
-import type { ParticularRow, ActiveField } from "../hooks/useVoucherForm";
-import BillRefLines from "./BillRefLines";
+import { useRef } from 'react';
+import type { ParticularRow, ActiveField } from '../hooks/useVoucherForm';
+import BillRefLines from './BillRefLines';
+import CostCentreAllocLines from './CostCentreAllocLines';
 
 interface Props {
   rows: ParticularRow[];
-  onUpdateRow: (id: string, updates: Partial<Omit<ParticularRow, "id">>) => void;
+  onUpdateRow: (id: string, updates: Partial<Omit<ParticularRow, 'id'>>) => void;
   onAddRow: () => void;
   onRemoveRow: (id: string) => void;
   onFieldFocus: (field: ActiveField) => void;
@@ -21,9 +22,7 @@ interface Props {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatAmount = (n: number): string =>
-  n > 0
-    ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : "";
+  n > 0 ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -49,7 +48,7 @@ export default function ParticularsTable({
   // FIX #9 — for Receipt/Payment the hook auto-assigns Dr/Cr, so we render a
   // static badge instead of an editable dropdown.  Journal and Contra still
   // show the full dropdown so the user can change the side.
-  const isSingleEntry = ["Receipt", "Payment"].includes(voucherType ?? "");
+  const isSingleEntry = ['Receipt', 'Payment'].includes(voucherType ?? '');
 
   // ── Amount handlers ────────────────────────────────────────────────────────
 
@@ -58,11 +57,8 @@ export default function ParticularsTable({
   };
 
   // FIX #5 — only Enter confirms; Tab lets the browser move focus naturally.
-  const handleAmountKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    idx: number
-  ) => {
-    if (e.key !== "Enter") return;
+  const handleAmountKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
+    if (e.key !== 'Enter') return;
 
     const row = rowsRef.current[idx];
     if (!row?.ledger) return;
@@ -81,7 +77,7 @@ export default function ParticularsTable({
       setTimeout(() => {
         const nextIdx = idx + 1;
         const next = document.querySelector(
-          `[data-particular-ledger="${nextIdx + 1}"]`
+          `[data-particular-ledger="${nextIdx + 1}"]`,
         ) as HTMLInputElement | null;
         next?.focus();
       }, 50);
@@ -92,11 +88,9 @@ export default function ParticularsTable({
   // FIX #1 — prefer pre-computed props; fall back to local reduce only when
   // the parent hasn't wired them up yet (defensive).
   const drTotal =
-    debitTotal ??
-    rows.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+    debitTotal ?? rows.reduce((s, r) => s + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0), 0);
   const crTotal =
-    creditTotal ??
-    rows.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+    creditTotal ?? rows.reduce((s, r) => s + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0), 0);
 
   const isBalanced = Math.abs(drTotal - crTotal) < 0.01;
 
@@ -106,7 +100,6 @@ export default function ParticularsTable({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white text-xs">
-
       {/* ── Table header ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-12 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-600 font-bold uppercase tracking-wider select-none text-[10px]">
         <div className="col-span-1" />
@@ -131,9 +124,7 @@ export default function ParticularsTable({
                   // FIX #9 — static badge: hook auto-assigns the correct side
                   <span
                     className={`text-[9px] font-bold px-1.5 py-0.5 rounded select-none ${
-                      row.type === "Dr"
-                        ? "bg-zinc-900 text-white"
-                        : "bg-zinc-200 text-zinc-700"
+                      row.type === 'Dr' ? 'bg-zinc-900 text-white' : 'bg-zinc-200 text-zinc-700'
                     }`}
                   >
                     {row.type}
@@ -143,9 +134,7 @@ export default function ParticularsTable({
                   <select
                     className="bg-transparent font-bold outline-none text-zinc-900 cursor-pointer text-xs"
                     value={row.type}
-                    onChange={(e) =>
-                      onUpdateRow(row.id, { type: e.target.value as "Dr" | "Cr" })
-                    }
+                    onChange={(e) => onUpdateRow(row.id, { type: e.target.value as 'Dr' | 'Cr' })}
                   >
                     <option value="Dr">Dr</option>
                     <option value="Cr">Cr</option>
@@ -160,12 +149,12 @@ export default function ParticularsTable({
                     data-particular-ledger={idx + 1}
                     type="text"
                     className="w-full bg-transparent border-b border-transparent outline-none focus:border-zinc-800 text-zinc-900 placeholder-zinc-400 py-0.5 font-semibold"
-                    value={isActive ? searchTerm : (row.ledger?.name ?? "")}
-                    placeholder={idx === 0 ? "Select Particular Ledger…" : ""}
-                    onFocus={() => onFieldFocus({ type: "particular", rowId: row.id })}
+                    value={isActive ? searchTerm : (row.ledger?.name ?? '')}
+                    placeholder={idx === 0 ? 'Select Particular Ledger…' : ''}
+                    onFocus={() => onFieldFocus({ type: 'particular', rowId: row.id })}
                     onChange={(e) => {
                       onSearchChange(e.target.value);
-                      if (!row.ledger) onFieldFocus({ type: "particular", rowId: row.id });
+                      if (!row.ledger) onFieldFocus({ type: 'particular', rowId: row.id });
                     }}
                   />
                   {row.ledgerBalance && (
@@ -175,11 +164,7 @@ export default function ParticularsTable({
                   )}
                   {/* Bill-wise breakup + cost-centre indicator */}
                   <BillRefLines billReferences={row.billReferences} dcType={row.type} />
-                  {row.costCentres?.length ? (
-                    <span className="text-[10px] text-zinc-500 font-sans select-none">
-                      {row.costCentres.length} cost centre{row.costCentres.length > 1 ? "s" : ""}
-                    </span>
-                  ) : null}
+                  <CostCentreAllocLines costCentres={row.costCentres} dcType={row.type} />
                 </div>
 
                 {rows.length > 1 && (
@@ -196,7 +181,7 @@ export default function ParticularsTable({
 
               {/* ── Column 3: Debit amount ─────────────────────────────────── */}
               <div className="col-span-2 px-1">
-                {row.type === "Dr" ? (
+                {row.type === 'Dr' ? (
                   // Active side — editable
                   <input
                     data-particular-debit={idx + 1}
@@ -211,15 +196,13 @@ export default function ParticularsTable({
                 ) : (
                   // FIX #2 — inactive side: read-only display so switching
                   // type doesn't make the entered amount silently disappear
-                  <span className="block text-right px-1 py-0.5 text-zinc-300 select-none">
-                    —
-                  </span>
+                  <span className="block text-right px-1 py-0.5 text-zinc-300 select-none">—</span>
                 )}
               </div>
 
               {/* ── Column 4: Credit amount ────────────────────────────────── */}
               <div className="col-span-2 px-1">
-                {row.type === "Cr" ? (
+                {row.type === 'Cr' ? (
                   // Active side — editable
                   <input
                     data-particular-credit={idx + 1}
@@ -233,9 +216,7 @@ export default function ParticularsTable({
                   />
                 ) : (
                   // FIX #2 — inactive side: read-only
-                  <span className="block text-right px-1 py-0.5 text-zinc-300 select-none">
-                    —
-                  </span>
+                  <span className="block text-right px-1 py-0.5 text-zinc-300 select-none">—</span>
                 )}
               </div>
             </div>
@@ -246,24 +227,21 @@ export default function ParticularsTable({
       {/* ── Totals row ────────────────────────────────────────────────────────── */}
       <div
         className={`border-t-2 px-3 py-2 ${
-          isBalanced && drTotal > 0
-            ? "border-zinc-300 bg-zinc-50"
-            : "border-zinc-300 bg-zinc-50"
+          isBalanced && drTotal > 0 ? 'border-zinc-300 bg-zinc-50' : 'border-zinc-300 bg-zinc-50'
         }`}
       >
         <div className="grid grid-cols-12 items-center">
           <div className="col-span-8 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider select-none">
             {drTotal > 0 && crTotal > 0 && !isBalanced && (
               <span className="text-zinc-600">
-                ⚠ Difference: {Math.abs(drTotal - crTotal).toLocaleString("en-IN", {
+                ⚠ Difference:{' '}
+                {Math.abs(drTotal - crTotal).toLocaleString('en-IN', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </span>
             )}
-            {isBalanced && drTotal > 0 && (
-              <span className="text-zinc-500">✓ Balanced</span>
-            )}
+            {isBalanced && drTotal > 0 && <span className="text-zinc-500">✓ Balanced</span>}
           </div>
           {/* FIX #1 — uses pre-computed totals from props */}
           <div className="col-span-2 text-right font-bold text-zinc-900">

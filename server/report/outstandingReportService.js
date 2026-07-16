@@ -706,13 +706,21 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
   const partyLedgers = allBillwise.filter((l) => bucketOf(l.ledger_group_id) != null);
   const partyIds = partyLedgers.map((l) => l.ledger_id);
 
-  // Unallocated (On Account) net per party — voucher postings carrying no bill
-  // reference at all (imported / un-allocated entries the ref-only query missed).
+  // Voucher postings on a party that carry no bill reference (imported / un-
+  // allocated entries the ref-only query missed). Tally defaults an un-referenced
+  // Sales / Purchase to a fresh bill ("New Ref") — a distinct pending bill on its
+  // own side — while every other voucher type (Payment, Receipt, Debit/Credit
+  // Note, Journal, Contra) defaults to "On Account", adjusting the party's running
+  // balance. So we split the un-referenced postings into two buckets: the netted
+  // On-Account amount, and the gross Sales/Purchase new-bill amounts per side.
   const unrefRows = partyIds.length
     ? await db.all(
         sql`
           SELECT ve.ledger_id AS ledger_id,
-                 SUM(CASE WHEN ve.type = 'Dr' THEN ve.amount ELSE -ve.amount END) AS net,
+                 SUM(CASE WHEN v.voucher_type IN ('Sales', 'Purchase') THEN 0
+                          ELSE (CASE WHEN ve.type = 'Dr' THEN ve.amount ELSE -ve.amount END) END) AS onaccount_net,
+                 SUM(CASE WHEN v.voucher_type IN ('Sales', 'Purchase') AND ve.type = 'Dr' THEN ve.amount ELSE 0 END) AS newbill_debit,
+                 SUM(CASE WHEN v.voucher_type IN ('Sales', 'Purchase') AND ve.type = 'Cr' THEN ve.amount ELSE 0 END) AS newbill_credit,
                  MAX(v.date) AS date
           FROM ${voucherEntries} ve
           JOIN ${vouchers} v ON v.voucher_id = ve.voucher_id
@@ -733,7 +741,15 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
       )
     : [];
   const unrefMap = new Map(
-    unrefRows.map((r) => [r.ledger_id, { net: Number(r.net) || 0, date: r.date }]),
+    unrefRows.map((r) => [
+      r.ledger_id,
+      {
+        onaccountNet: Number(r.onaccount_net) || 0,
+        newDebit: Number(r.newbill_debit) || 0,
+        newCredit: Number(r.newbill_credit) || 0,
+        date: r.date,
+      },
+    ]),
   );
 
   // Assemble per-ledger figures + bills.
@@ -759,15 +775,42 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
       });
     }
     const u = unrefMap.get(p.ledger_id);
-    if (u && Math.abs(u.net) > 0.01) {
-      led.net += u.net;
-      led.bills.push({
-        bill: 'On Account',
-        bill_date: u.date || fyStart,
-        due_date: null,
-        overdue_days: 0,
-        ...splitDrCr(u.net),
-      });
+    if (u) {
+      if (Math.abs(u.onaccountNet) > 0.01) {
+        led.net += u.onaccountNet;
+        led.bills.push({
+          bill: 'On Account',
+          bill_date: u.date || fyStart,
+          due_date: null,
+          overdue_days: 0,
+          ...splitDrCr(u.onaccountNet),
+        });
+      }
+      // Un-referenced Sales / Purchase → fresh New-Ref bills, kept gross on their
+      // own side (ledgerDrCr treats any bill not named Opening Balance / On
+      // Account as a distinct pending bill).
+      if (u.newDebit > 0.01) {
+        led.net += u.newDebit;
+        led.bills.push({
+          bill: 'New Ref',
+          bill_date: u.date || fyStart,
+          due_date: null,
+          overdue_days: 0,
+          debit: u.newDebit,
+          credit: 0,
+        });
+      }
+      if (u.newCredit > 0.01) {
+        led.net -= u.newCredit;
+        led.bills.push({
+          bill: 'New Ref',
+          bill_date: u.date || fyStart,
+          due_date: null,
+          overdue_days: 0,
+          debit: 0,
+          credit: u.newCredit,
+        });
+      }
     }
     ledgerMap.set(p.ledger_id, led);
   }
@@ -797,6 +840,32 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
     }
   }
 
+  // Debit / Credit columns for a party, TallyPrime-style: each distinct pending
+  // BILL sits on its own side (a Dr bill in Debit, a Cr bill in Credit) and is NOT
+  // netted against the party's other bills — so a debit note / advance / return
+  // against a party that also has credit bills stays visible on the Debit side
+  // instead of being swallowed into a single net figure. Only the unallocated
+  // pseudo-entries (Opening Balance + On Account, which have no bill reference)
+  // net together, exactly as Tally collapses a party's un-referenced balance.
+  const ledgerDrCr = (led) => {
+    let unallocated = 0;
+    let debit = 0;
+    let credit = 0;
+    for (const b of led.bills) {
+      const bal = (b.debit || 0) - (b.credit || 0);
+      if (b.bill === 'Opening Balance' || b.bill === 'On Account') {
+        unallocated += bal;
+      } else if (bal >= 0) {
+        debit += bal;
+      } else {
+        credit += -bal;
+      }
+    }
+    if (unallocated >= 0) debit += unallocated;
+    else credit += -unallocated;
+    return { debit, credit };
+  };
+
   // Split each ledger into a direct row or fold it into its sub-group aggregate.
   const directLedgers = [];
   const subGroupMap = new Map();
@@ -804,12 +873,14 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
     if (Math.abs(led.net) <= 0.01 && led.bills.length === 0) continue;
     const bucket = bucketOf(led.group_id);
     if (!bucket) continue;
+    const { debit, credit } = ledgerDrCr(led);
     if (bucket.direct) {
       directLedgers.push({
         type: 'ledger',
         ledger_id: led.ledger_id,
         party: led.party,
-        ...splitDrCr(led.net),
+        debit,
+        credit,
         bills: led.bills,
       });
     } else {
@@ -819,17 +890,25 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
           type: 'group',
           group_id: bucket.childGroupId,
           party: byId.get(bucket.childGroupId)?.name || '',
-          net: 0,
+          debit: 0,
+          credit: 0,
         };
         subGroupMap.set(bucket.childGroupId, agg);
       }
-      agg.net += led.net;
+      agg.debit += debit;
+      agg.credit += credit;
     }
   }
 
   const subGroupRows = [...subGroupMap.values()]
-    .filter((g) => Math.abs(g.net) > 0.01)
-    .map((g) => ({ type: 'group', group_id: g.group_id, party: g.party, ...splitDrCr(g.net) }));
+    .filter((g) => g.debit > 0.01 || g.credit > 0.01)
+    .map((g) => ({
+      type: 'group',
+      group_id: g.group_id,
+      party: g.party,
+      debit: g.debit,
+      credit: g.credit,
+    }));
 
   const resultRows = [...directLedgers, ...subGroupRows]
     .filter((r) => r.debit > 0.01 || r.credit > 0.01)

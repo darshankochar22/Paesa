@@ -11,7 +11,7 @@ import GSTDetailsFormFields from './components/GSTDetailsFormFields';
 import GSTDetailsListPanel from './components/GSTDetailsListPanel';
 import GSTDetailsAcceptPrompt from './components/GSTDetailsAcceptPrompt';
 import GSTClassificationSecondaryModal from './components/GSTClassificationSecondaryModal';
-import SlabBasedRateDetails, { type SlabRow } from './components/SlabBasedRateDetails';
+import SlabBasedRateDetails from './components/SlabBasedRateDetails';
 import GSTEffectiveDatePrompt from './components/GSTEffectiveDatePrompt';
 import StateWiseThresholdLimitModal from './components/StateWiseThresholdLimitModal';
 import DownloadSettingsModal from './components/DownloadSettingsModal';
@@ -64,7 +64,6 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   );
   const [showStateWiseModal, setShowStateWiseModal] = useState(false);
   const [showDownloadSettingsModal, setShowDownloadSettingsModal] = useState(false);
-  const [slabRows, setSlabRows] = useState<SlabRow[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -246,40 +245,64 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       return;
     }
 
+    // NOTE ON FOCUS ROUTING: after a field selection changes which rows are
+    // visible, we must NOT rely on moveFocus() — getFocusableFields() closes over
+    // the *current* render's state, so it would read the pre-change value and skip
+    // (or land on) the wrong field. Every branch that alters visibility therefore
+    // sets the next active field explicitly, exactly matching TallyPrime's order.
     if (fieldId === 'hsnSacType') {
       setField('hsnSacType', val);
       if (val === 'Not Defined') {
+        // No HSN/SAC or Description — jump straight to GST Rate Details
         setField('hsnSacCode', '');
         setField('description', '');
+        setActiveField('gstRateDetails');
+      } else if (val === 'Specify Details Here') {
+        // Walk through HSN/SAC → Description in order
+        setActiveField('hsnSacCode');
+      } else if (val === 'Use GST Classification') {
+        // Only the Classification field is entered; HSN/SAC + Description are read-only
+        setActiveField('gstClassification');
       } else if (val === 'Specify in Voucher') {
+        // No detail fields — confirm effective date, then advance to GST Rate Details
         setEffectiveDateTriggerContext('field');
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
-        return;
       }
+      return;
     } else if (fieldId === 'gstRateDetails') {
       setGstRateDetails(val);
       if (val === 'Not Defined') {
+        // Skip Taxability Type + GST Rate → e-Way Bill Details
         setField('taxabilityType', 'Not Defined');
         setField('gstRate', 0);
+        setActiveField('interstateThresholdLimit');
       } else if (val === 'Specify Details Here') {
+        // Default to Taxable and enter the Taxability Type field
         setField('taxabilityType', 'Taxable');
+        setActiveField('taxabilityType');
       } else if (val === 'Specify Slab-Based Rates') {
         // Open slab overlay immediately — do NOT moveFocus
         setListPanelOpen(false);
         setTimeout(() => setShowSlabOverlay(true), 50);
-        return;
       } else if (val === 'Use GST Classification') {
-        // Jump directly to gstClassification — moveFocus would use stale state
-        // and miss the field since gstRateDetails hasn't re-rendered yet
         setActiveField('gstClassification');
-        return;
       } else if (val === 'Specify in Voucher') {
         setEffectiveDateTriggerContext('field');
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
-        return;
       }
+      return;
+    } else if (fieldId === 'taxabilityType') {
+      setField('taxabilityType', val);
+      if (val === 'Taxable') {
+        // Taxable → enter GST Rate
+        setActiveField('gstRate');
+      } else {
+        // Exempt / Nil Rated → skip GST Rate, continue to e-Way Bill Details
+        setActiveField('interstateThresholdLimit');
+      }
+      return;
     } else if (fieldId === 'gstClassification') {
       const selectedClass = classifications.find((c) => c.name === val);
       setField('gstClassification', val);
@@ -292,11 +315,15 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     } else if (fieldId === 'createHSNSummaryFor') {
       setField('createHSNSummaryFor', val);
       if (val === 'None') {
+        // Minimum length row disappears — confirm effective date then continue
         setEffectiveDateTriggerContext('field');
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
-        return;
+      } else {
+        // Enter the Minimum length of HSN/SAC field
+        setActiveField('minimumHSNLength');
       }
+      return;
     } else if (TALLY_FIELDS_CONFIG[fieldId]?.type === 'yesno') {
       const isYes = val === 'Yes';
       setField(fieldId as keyof CompanyGSTDetails, isYes);
@@ -310,6 +337,12 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       if (fieldId === 'gstReturnsConfigured' && isYes) {
         setListPanelOpen(false);
         setTimeout(() => setShowDownloadSettingsModal(true), 50);
+        return;
+      }
+
+      if (fieldId === 'showGSTAdvances') {
+        // Yes reveals the "Applicable from" date; No skips straight past it.
+        setActiveField(isYes ? 'gstAdvancesApplicableFrom' : 'updateGSTStatus');
         return;
       }
     } else if (fieldId === 'minimumHSNLength') {
@@ -369,7 +402,6 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       setShowEffectiveDatePrompt(false);
       setShowDownloadSettingsModal(false);
       setShowStateWiseModal(false);
-      setSlabRows([]);
       setError(null);
       setSuccess(null);
       setTimeout(() => modalRef.current?.focus(), 50);
@@ -549,7 +581,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
             activeField={activeField}
             setActiveField={setActiveField}
             setField={setField}
-            slabRows={slabRows}
+            slabRows={form.slabRates}
             onOpenSlab={() => setShowSlabOverlay(true)}
             hasGSTRegistrations={hasGSTRegistrations}
           />
@@ -628,9 +660,9 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       {/* ── Slab-Based Rate Details overlay ──────────────────────────────── */}
       <SlabBasedRateDetails
         isOpen={showSlabOverlay}
-        initialRows={slabRows}
+        initialRows={form.slabRates || []}
         onSave={(rows) => {
-          setSlabRows(rows);
+          setField('slabRates', rows);
           // Move focus forward after closing slab
           const fields = getFocusableFields();
           const idx = fields.indexOf('gstRateDetails');

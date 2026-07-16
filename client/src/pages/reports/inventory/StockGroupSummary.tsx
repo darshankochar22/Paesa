@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import SelectionPopup from './SelectionPopup';
+import PeriodDialog from './PeriodDialog';
 import {
   StockItemMonthlyView,
   StockItemVouchersView,
@@ -32,6 +33,12 @@ interface ItemRow {
   item_id: number;
   item_name: string;
   unit_name?: string;
+  opening_qty: number;
+  opening_value: number;
+  in_qty: number;
+  in_value: number;
+  out_qty: number;
+  out_value: number;
   closing_qty: number;
   rate: number;
   closing_value: number;
@@ -53,7 +60,17 @@ export default function StockGroupSummary() {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
     return m ? `${Number(m[3])}-${MON[Number(m[2]) - 1]}-${m[1].slice(2)}` : iso;
   };
-  const periodLabel = activeFY ? `${dmy(activeFY.start_date)} to ${dmy(activeFY.end_date)}` : '';
+  // Period (F2) — defaults to the full financial year. A narrower period opens
+  // with the prior period's closing carried into Opening and shows only that
+  // period's Inwards/Outwards, exactly like TallyPrime.
+  const [fromDate, setFromDate] = React.useState<string>(activeFY?.start_date ?? '');
+  const [toDate, setToDate] = React.useState<string>(activeFY?.end_date ?? '');
+  const [isPeriodOpen, setIsPeriodOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (activeFY?.start_date && !fromDate) setFromDate(activeFY.start_date);
+    if (activeFY?.end_date && !toDate) setToDate(activeFY.end_date);
+  }, [activeFY?.start_date, activeFY?.end_date]); // eslint-disable-line react-hooks/exhaustive-deps
+  const periodLabel = fromDate && toDate ? `${dmy(fromDate)} to ${dmy(toDate)}` : '';
 
   const [level, setLevel] = React.useState<Level>({ step: 'group' });
 
@@ -93,14 +110,21 @@ export default function StockGroupSummary() {
       setLoadingItems(true);
       setItemsError(null);
       setItemIndex(0);
-      (window as any).api.report.stockGroupItems(companyId, fyId, group.sg_id).then((res: any) => {
-        if (res.success) setItems(res.items ?? []);
-        else setItemsError(res.error || 'Failed to load group summary');
-        setLoadingItems(false);
-      });
+      (window as any).api.report
+        .stockGroupItems(companyId, fyId, group.sg_id, fromDate || undefined, toDate || undefined)
+        .then((res: any) => {
+          if (res.success) setItems(res.items ?? []);
+          else setItemsError(res.error || 'Failed to load group summary');
+          setLoadingItems(false);
+        });
     },
-    [companyId, fyId],
+    [companyId, fyId, fromDate, toDate],
   );
+
+  // Reload the group summary whenever the period changes while it's open.
+  React.useEffect(() => {
+    if (level.step === 'summary') loadItems(level.group);
+  }, [fromDate, toDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Level 3: Item Monthly Summary ────────────────────────────────────────
   const [months, setMonths] = React.useState<MonthRow[]>([]);
@@ -207,6 +231,12 @@ export default function StockGroupSummary() {
   React.useEffect(() => {
     if (level.step !== 'summary') return;
     const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        setIsPeriodOpen(true);
+        return;
+      }
+      if (isPeriodOpen) return; // let the period dialog own the keyboard while open
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setItemIndex((p) => Math.min(items.length - 1, p + 1));
@@ -230,7 +260,7 @@ export default function StockGroupSummary() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [level, items, itemIndex, loadMonths, backToGroups]);
+  }, [level, items, itemIndex, loadMonths, backToGroups, isPeriodOpen]);
 
   React.useEffect(() => {
     if (level.step !== 'monthly') return;
@@ -319,8 +349,10 @@ export default function StockGroupSummary() {
   // LEVEL 2 — Stock Group Summary: items in group (matches screenshot 4)
   // ═══════════════════════════════════════════════════════════════════════
   if (level.step === 'summary') {
-    const grandQty = items.reduce((s, r) => s + (Number(r.closing_qty) || 0), 0);
-    const grandValue = items.reduce((s, r) => s + (Number(r.closing_value) || 0), 0);
+    const totalOpening = items.reduce((s, r) => s + (Number(r.opening_value) || 0), 0);
+    const totalIn = items.reduce((s, r) => s + (Number(r.in_value) || 0), 0);
+    const totalOut = items.reduce((s, r) => s + (Number(r.out_value) || 0), 0);
+    const totalClosing = items.reduce((s, r) => s + (Number(r.closing_value) || 0), 0);
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-black font-sans text-[11px]">
         <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-gray-200">
@@ -332,41 +364,68 @@ export default function StockGroupSummary() {
           <span>
             Stock Group: <span className="font-bold">{level.group.name}</span>
           </span>
-          <span>Closing Balance &nbsp; {periodLabel}</span>
+          <button
+            onClick={() => setIsPeriodOpen(true)}
+            title="F2: Period"
+            className="hover:underline"
+          >
+            {periodLabel}
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
             <thead className="sticky top-0 bg-white border-b border-gray-200 z-10 text-black">
               <tr>
-                <th className="px-3 py-1 text-left font-bold">Particulars</th>
-                <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
-                  Quantity
+                <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom">
+                  Particulars
                 </th>
-                <th className="px-3 py-1 text-right font-bold w-28 border-l border-gray-200">
-                  Rate
-                </th>
-                <th className="px-3 py-1 text-right font-bold w-32 border-l border-gray-200">
-                  Value
-                </th>
+                {['Opening Balance', 'Inwards', 'Outwards', 'Closing Balance'].map((h) => (
+                  <th
+                    key={h}
+                    colSpan={2}
+                    className="px-3 py-0.5 text-center font-bold border-b border-l border-gray-200"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+              <tr>
+                {[
+                  'Quantity',
+                  'Value',
+                  'Quantity',
+                  'Value',
+                  'Quantity',
+                  'Value',
+                  'Quantity',
+                  'Value',
+                ].map((h, i) => (
+                  <th
+                    key={i}
+                    className={`px-3 py-1 text-right font-bold ${i % 2 === 0 ? 'w-20 border-l border-gray-200' : 'w-24'}`}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {loadingItems ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-black italic">
+                  <td colSpan={9} className="px-4 py-8 text-center text-black italic">
                     Loading...
                   </td>
                 </tr>
               ) : itemsError ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-black">
+                  <td colSpan={9} className="px-4 py-8 text-center text-black">
                     {itemsError}
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-black italic">
+                  <td colSpan={9} className="px-4 py-8 text-center text-black italic">
                     No records found.
                   </td>
                 </tr>
@@ -382,14 +441,21 @@ export default function StockGroupSummary() {
                     >
                       <td className="px-3 py-1">{row.item_name}</td>
                       <td className="px-3 py-1 text-right border-l border-gray-200">
+                        {fmtQty(row.opening_qty, row.unit_name)}
+                      </td>
+                      <td className="px-3 py-1 text-right">{fmtAmount(row.opening_value)}</td>
+                      <td className="px-3 py-1 text-right border-l border-gray-200">
+                        {fmtQty(row.in_qty, row.unit_name)}
+                      </td>
+                      <td className="px-3 py-1 text-right">{fmtAmount(row.in_value)}</td>
+                      <td className="px-3 py-1 text-right border-l border-gray-200">
+                        {fmtQty(row.out_qty, row.unit_name)}
+                      </td>
+                      <td className="px-3 py-1 text-right">{fmtAmount(row.out_value)}</td>
+                      <td className="px-3 py-1 text-right border-l border-gray-200">
                         {fmtQty(row.closing_qty, row.unit_name)}
                       </td>
-                      <td className="px-3 py-1 text-right border-l border-gray-200">
-                        {fmtAmount(row.rate)}
-                      </td>
-                      <td className="px-3 py-1 text-right border-l border-gray-200">
-                        {fmtAmount(row.closing_value)}
-                      </td>
+                      <td className="px-3 py-1 text-right">{fmtAmount(row.closing_value)}</td>
                     </tr>
                   );
                 })
@@ -398,20 +464,47 @@ export default function StockGroupSummary() {
           </table>
         </div>
 
+        {/* Grand Total — value totals only; quantities are intentionally blank
+            because items may span different units (kg / pcs / nos) and Tally
+            never cross-sums units at the summary level. */}
         <div className="border-t-2 border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black shrink-0">
           <span className="flex-1">Grand Total</span>
-          <span className="w-32 text-right border-l border-gray-200 pr-2">{fmtQty(grandQty)}</span>
-          <span className="w-28 border-l border-gray-200" />
-          <span className="w-32 text-right border-l border-gray-200 pr-2">
-            {fmtAmount(grandValue)}
-          </span>
+          <span className="w-20 border-l border-gray-200" />
+          <span className="w-24 text-right pr-2">{fmtAmount(totalOpening)}</span>
+          <span className="w-20 border-l border-gray-200" />
+          <span className="w-24 text-right pr-2">{fmtAmount(totalIn)}</span>
+          <span className="w-20 border-l border-gray-200" />
+          <span className="w-24 text-right pr-2">{fmtAmount(totalOut)}</span>
+          <span className="w-20 border-l border-gray-200" />
+          <span className="w-24 text-right pr-2">{fmtAmount(totalClosing)}</span>
         </div>
 
         <div className="flex items-center gap-4 px-3 py-1 border-t border-gray-200 bg-white text-[10px] font-semibold text-black shrink-0">
           <button onClick={backToGroups} className="hover:underline hover:text-black">
             F4: Stock Group
           </button>
+          <button
+            onClick={() => setIsPeriodOpen(true)}
+            className="hover:underline hover:text-black"
+          >
+            F2: Period
+          </button>
         </div>
+
+        <PeriodDialog
+          open={isPeriodOpen}
+          onOpenChange={setIsPeriodOpen}
+          fromDate={fromDate}
+          toDate={toDate}
+          minDate={activeFY?.start_date}
+          maxDate={activeFY?.end_date}
+          onFromChange={setFromDate}
+          onToChange={setToDate}
+          onFullYear={() => {
+            if (activeFY?.start_date) setFromDate(activeFY.start_date);
+            if (activeFY?.end_date) setToDate(activeFY.end_date);
+          }}
+        />
       </div>
     );
   }

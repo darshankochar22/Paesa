@@ -115,7 +115,8 @@ export default function LedgerListPanel({
       if (e.key === 'Enter') {
         e.preventDefault();
         if (hasEndOfList) {
-          // Highlight is on "End of List" → finish; on a real row → select it.
+          // Highlight on "End of List" (hi < 0) → finish; on a real row → select
+          // it; empty list → finish.
           if (hi < 0) {
             onEndOfList!();
             return;
@@ -124,66 +125,17 @@ export default function LedgerListPanel({
             onSelect(filtered[hi]);
             return;
           }
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            onClose();
-            return;
-          }
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setHi((p) => Math.min(p + 1, last));
-          }
-          if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setHi((p) => Math.max(p - 1, min));
-          }
-          if (e.key === 'PageDown') {
-            e.preventDefault();
-            setHi((p) => Math.min(p + PAGE, last));
-          }
-          if (e.key === 'PageUp') {
-            e.preventDefault();
-            setHi((p) => Math.max(p - PAGE, min));
-          }
-          if (e.key === 'Home') {
-            e.preventDefault();
-            setHi(min);
-          }
-          if (e.key === 'End') {
-            e.preventDefault();
-            setHi(Math.max(min, last));
-          }
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            if (hasEndOfList) {
-              // Highlight is on "End of List" → finish; on a real row → select it.
-              if (hi < 0) {
-                onEndOfList!();
-                return;
-              }
-              if (filtered[hi]) {
-                onSelect(filtered[hi]);
-                return;
-              }
-              onEndOfList!(); // empty list → finish
-              return;
-            }
-            // Panels without an End-of-List row (e.g. payroll): a blank Enter uses
-            // onEnterEmpty; otherwise select the highlighted row.
-            if (!searchTerm.trim() && onEnterEmpty) {
-              onEnterEmpty();
-              return;
-            }
-            if (filtered[hi]) onSelect(filtered[hi]);
-          }
+          onEndOfList!();
+          return;
         }
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
+        // Panels without an End-of-List row: a blank Enter uses onEnterEmpty (when
+        // supplied); otherwise select the highlighted row.
         if (!searchTerm.trim() && onEnterEmpty) {
           onEnterEmpty();
           return;
         }
         if (filtered[hi]) onSelect(filtered[hi]);
+        return;
       }
     };
     window.addEventListener('keydown', handler);
@@ -193,7 +145,6 @@ export default function LedgerListPanel({
   return (
     <div
       data-ledger-panel
-      className={`${columns ? 'w-[440px]' : 'w-64'} border-l border-black flex flex-col shrink-0 bg-white ${height}`}
       className={`${columns ? 'w-[440px]' : 'w-64'} border-l border-black flex flex-col shrink-0 bg-white ${height}`}
     >
       <div className="bg-black text-white px-2 py-1 text-xs font-semibold select-none flex justify-between items-center">

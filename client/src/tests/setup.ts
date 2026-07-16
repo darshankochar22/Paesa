@@ -47,105 +47,121 @@ window.api = {
 
   // ── Company ──────────────────────────────────────────────────────────────
   company: {
-    getAll:         vi.fn().mockResolvedValue({ success: true, companies: [] }),
-    getById:        vi.fn().mockResolvedValue({ success: true, company: defaultCompany }),
-    create:         vi.fn().mockResolvedValue({ success: true, company: defaultCompany }),
-    update:         vi.fn().mockResolvedValue({ success: true, company: defaultCompany }),
+    getAll: vi.fn().mockResolvedValue({ success: true, companies: [] }),
+    getById: vi.fn().mockResolvedValue({ success: true, company: defaultCompany }),
+    create: vi.fn().mockResolvedValue({ success: true, company: defaultCompany }),
+    update: vi.fn().mockResolvedValue({ success: true, company: defaultCompany }),
     verifyPassword: vi.fn().mockResolvedValue({ success: true }),
   },
 
   // ── Financial Year ────────────────────────────────────────────────────────
   fy: {
-    getAll:    vi.fn().mockResolvedValue({ success: true, financialYears: [defaultFY] }),
-    getById:   vi.fn().mockResolvedValue({ success: true, fy: defaultFY }),
-    create:    vi.fn().mockResolvedValue({ success: true, fy: defaultFY }),
+    getAll: vi.fn().mockResolvedValue({ success: true, financialYears: [defaultFY] }),
+    getById: vi.fn().mockResolvedValue({ success: true, fy: defaultFY }),
+    create: vi.fn().mockResolvedValue({ success: true, fy: defaultFY }),
     setActive: vi.fn().mockResolvedValue({ success: true }),
-    delete:    vi.fn().mockResolvedValue({ success: true }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
 
   // ── Groups ────────────────────────────────────────────────────────────────
   group: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, groups: [defaultGroup] }),
+    getAll: vi.fn().mockResolvedValue({ success: true, groups: [defaultGroup] }),
     getById: vi.fn().mockResolvedValue({ success: true, group: defaultGroup }),
-    create:  vi.fn().mockResolvedValue({ success: true, group: defaultGroup }),
-    update:  vi.fn().mockResolvedValue({ success: true, group: defaultGroup }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    create: vi.fn().mockResolvedValue({ success: true, group: defaultGroup }),
+    update: vi.fn().mockResolvedValue({ success: true, group: defaultGroup }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
     getTree: vi.fn().mockResolvedValue({ success: true, tree: [] }),
   },
 
   // ── Ledgers ───────────────────────────────────────────────────────────────
   ledger: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, ledgers: [] }),
+    getAll: vi.fn().mockResolvedValue({ success: true, ledgers: [] }),
     getById: vi.fn().mockResolvedValue({ success: true, ledger: {} }),
-    create:  vi.fn().mockResolvedValue({ success: true, ledger: {} }),
-    update:  vi.fn().mockResolvedValue({ success: true, ledger: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
-    getTotalOpeningBalance: vi.fn().mockResolvedValue({ success: true, totalDr: 0, totalCr: 0, netBalance: 0, balanceType: "Dr" }),
+    create: vi.fn().mockResolvedValue({ success: true, ledger: {} }),
+    update: vi.fn().mockResolvedValue({ success: true, ledger: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
+    getTotalOpeningBalance: vi
+      .fn()
+      .mockResolvedValue({
+        success: true,
+        totalDr: 0,
+        totalCr: 0,
+        netBalance: 0,
+        balanceType: 'Dr',
+      }),
   },
 
   // ── Vouchers ──────────────────────────────────────────────────────────────
   voucher: {
-    getAll:         vi.fn().mockResolvedValue({ success: true, vouchers: [] }),
-    getById:        vi.fn().mockResolvedValue({ success: true, voucher: {} }),
-    create:         vi.fn().mockResolvedValue({ success: true, voucher: {} }),
-    update:         vi.fn().mockResolvedValue({ success: true }),
-    delete:         vi.fn().mockResolvedValue({ success: true }),
-    cancel:         vi.fn().mockResolvedValue({ success: true }),
-    getNextNumber:  vi.fn().mockResolvedValue({ success: true, nextNumber: 'JNL-00001' }),
+    getAll: vi.fn().mockResolvedValue({ success: true, vouchers: [] }),
+    getById: vi.fn().mockResolvedValue({ success: true, voucher: {} }),
+    create: vi.fn().mockResolvedValue({ success: true, voucher: {} }),
+    update: vi.fn().mockResolvedValue({ success: true }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
+    cancel: vi.fn().mockResolvedValue({ success: true }),
+    getNextNumber: vi.fn().mockResolvedValue({ success: true, nextNumber: 'JNL-00001' }),
   },
 
   // ── Reports ───────────────────────────────────────────────────────────────
   report: {
-    trialBalance:          vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    balanceSheet:          vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    profitLoss:            vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    ledgerReport:          vi.fn().mockResolvedValue({ success: true, ledger_name: 'Test Ledger', opening_balance: 0, rows: [], closing_balance: 0 }),
-    cashBook:              vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    bankBook:              vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    daybook:               vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    billsReceivable:       vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    billsPayable:          vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    cashFlow:              vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    fundsFlow:             vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    stockSummary:          vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    stockGroupItems:       vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    stockItemMonthly:      vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    ratioAnalysis:         vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    trialBalance: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    balanceSheet: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    profitLoss: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    ledgerReport: vi
+      .fn()
+      .mockResolvedValue({
+        success: true,
+        ledger_name: 'Test Ledger',
+        opening_balance: 0,
+        rows: [],
+        closing_balance: 0,
+      }),
+    cashBook: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    bankBook: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    daybook: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    billsReceivable: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    billsPayable: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    cashFlow: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    fundsFlow: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    stockSummary: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    stockGroupItems: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    stockItemMonthly: vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    ratioAnalysis: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     groupSummaryDrilldown: vi.fn().mockResolvedValue({ success: true, rows: [] }),
   },
 
   // ── Inventory ─────────────────────────────────────────────────────────────
   unit: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, units: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, unit: {} }),
-    update:  vi.fn().mockResolvedValue({ success: true, unit: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, units: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, unit: {} }),
+    update: vi.fn().mockResolvedValue({ success: true, unit: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
   stockGroup: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, stockGroups: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, stockGroup: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, stockGroups: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, stockGroup: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
   stockItem: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, stockItems: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, stockItem: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, stockItems: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, stockItem: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
 
   // ── GST ───────────────────────────────────────────────────────────────────
   gstClassification: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, classifications: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, classification: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, classifications: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, classification: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
   gst: {
-    computeTax:    vi.fn().mockResolvedValue({ success: true }),
+    computeTax: vi.fn().mockResolvedValue({ success: true }),
     generateGSTR1: vi.fn().mockResolvedValue({ success: true, payload: {} }),
-    getGSTR1:      vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getGSTR1: vi.fn().mockResolvedValue({ success: true, payload: {} }),
     generateGSTR3B: vi.fn().mockResolvedValue({ success: true, payload: {} }),
-    getGSTR3B:      vi.fn().mockResolvedValue({ success: true, payload: {} }),
+    getGSTR3B: vi.fn().mockResolvedValue({ success: true, payload: {} }),
     getAnnualComputation: vi.fn().mockResolvedValue({ success: true, payload: {} }),
-    getHSNRates:   vi.fn().mockResolvedValue({ success: true, hsnRates: [] }),
+    getHSNRates: vi.fn().mockResolvedValue({ success: true, hsnRates: [] }),
     upsertHSNRate: vi.fn().mockResolvedValue({ success: true }),
     deleteHSNRate: vi.fn().mockResolvedValue({ success: true }),
     getGSTR1Reconciliation: vi.fn().mockResolvedValue({ success: true, payload: {} }),
@@ -154,54 +170,61 @@ window.api = {
     getChallanReconciliation: vi.fn().mockResolvedValue({ success: true, payload: {} }),
   },
   gstRegistration: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, gstRegistrations: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, gstRegistration: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, gstRegistrations: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, gstRegistration: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
 
   // ── Payroll ───────────────────────────────────────────────────────────────
   employee: {
-    getAll:    vi.fn().mockResolvedValue({ success: true, employees: [] }),
-    getById:   vi.fn().mockResolvedValue({ success: true, employee: {} }),
-    create:    vi.fn().mockResolvedValue({ success: true, employee: {} }),
-    update:    vi.fn().mockResolvedValue({ success: true, employee: {} }),
-    delete:    vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, employees: [] }),
+    getById: vi.fn().mockResolvedValue({ success: true, employee: {} }),
+    create: vi.fn().mockResolvedValue({ success: true, employee: {} }),
+    update: vi.fn().mockResolvedValue({ success: true, employee: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
     getByGroup: vi.fn().mockResolvedValue({ success: true, employees: [] }),
   },
   payHead: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, payHeads: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, payHead: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, payHeads: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, payHead: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
 
   // ── Tax Units / TDS / TCS ─────────────────────────────────────────────────
   taxUnit: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, taxUnits: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, taxUnit: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, taxUnits: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, taxUnit: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
   tdsNatureOfPayment: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, items: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, item: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, items: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, item: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
   tcsNatureOfGoods: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, items: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, item: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, items: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, item: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
 
   // ── Currency ─────────────────────────────────────────────────────────────
   currency: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, currencies: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, currency: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, currencies: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, currency: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
 
   // ── Cost Centre ───────────────────────────────────────────────────────────
   costCentre: {
-    getAll:  vi.fn().mockResolvedValue({ success: true, costCentres: [] }),
-    create:  vi.fn().mockResolvedValue({ success: true, costCentre: {} }),
-    delete:  vi.fn().mockResolvedValue({ success: true }),
+    getAll: vi.fn().mockResolvedValue({ success: true, costCentres: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, costCentre: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
+  },
+
+  // ── Cost Category ─────────────────────────────────────────────────────────
+  costCategory: {
+    getAll: vi.fn().mockResolvedValue({ success: true, costCategories: [] }),
+    create: vi.fn().mockResolvedValue({ success: true, costCategory: {} }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
   },
 } as unknown as typeof window.api;
