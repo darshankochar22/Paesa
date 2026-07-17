@@ -1,12 +1,15 @@
 // Intrastate (state-wise) e-Way Bill threshold entry — TallyPrime keyboard flow.
 //
 // Behaviour mirrors Tally's "Intrastate Threshold Limit for e-Way Bill" screen:
-//   • A right-side "List of States" panel is shown while entering a State.
-//   • The list offers "Any", then "End of List", then every state not yet added.
-//   • Enter on a state adds a row (default limit 50,000) and moves to its Limit.
-//   • Enter on the Limit confirms the row and returns to a fresh State entry.
-//   • Selecting "End of List" (or Ctrl+A) accepts the whole list and closes.
-// Add as many states as needed — the flow repeats until End of List.
+//   • On open the cursor sits on the FIRST existing state row (or a fresh entry
+//     row when none exist), with the "List of States" panel open on the right.
+//   • Every row is editable: re-pick its state from the list, or overtype its
+//     limit — existing entries are changeable, not just appendable.
+//   • Enter walks the grid forward: State cell → Limit cell → next row's State
+//     cell → … → the trailing new-entry row (add another) → End of List (done).
+//   • A newly added state defaults its limit to `defaultLimit` (the parent
+//     Interstate Threshold Limit); it can be overtyped per state.
+//   • Selecting "End of List" (or Ctrl+A / Esc) accepts the whole list.
 
 import { useState, useEffect, useRef } from 'react';
 import GSTDetailsListPanel from './GSTDetailsListPanel';
@@ -19,12 +22,15 @@ export interface StateThresholdLimit {
 interface StateWiseThresholdLimitModalProps {
   isOpen: boolean;
   initialLimits: StateThresholdLimit[];
+  /** Limit pre-filled on a newly added state row — mirrors the parent
+   *  Interstate Threshold Limit field. User can overtype it per state. */
+  defaultLimit?: number;
   onSave: (limits: StateThresholdLimit[]) => void;
   onClose: () => void;
 }
 
 const END_OF_LIST = 'End of List';
-const DEFAULT_LIMIT = 50000;
+const FALLBACK_LIMIT = 50000;
 
 // Order matches TallyPrime's List of States (states + union territories).
 const TALLY_INDIAN_STATES = [
@@ -66,59 +72,85 @@ const TALLY_INDIAN_STATES = [
   'West Bengal',
 ];
 
+// List of States for the row at index `r`: "Any" (unless another row already
+// uses it), End of List, then every state not used by *other* rows. The row's
+// own current state stays selectable so it can be re-picked/kept.
+function stateListFor(rows: StateThresholdLimit[], r: number): string[] {
+  const otherUsed = new Set(rows.filter((_, i) => i !== r).map((x) => x.stateName));
+  return [
+    ...(otherUsed.has('Any') ? [] : ['Any']),
+    END_OF_LIST,
+    ...TALLY_INDIAN_STATES.filter((s) => !otherUsed.has(s)),
+  ];
+}
+
+// Where the list cursor lands when entering a State cell: on the row's current
+// state (so Enter keeps it), else the top of the list.
+function highlightFor(rows: StateThresholdLimit[], r: number, opts: string[]): number {
+  const cur = rows[r]?.stateName;
+  if (cur) {
+    const idx = opts.indexOf(cur);
+    return idx >= 0 ? idx : 0;
+  }
+  return 0;
+}
+
 export default function StateWiseThresholdLimitModal({
   isOpen,
   initialLimits,
+  defaultLimit = FALLBACK_LIMIT,
   onSave,
   onClose,
 }: StateWiseThresholdLimitModalProps) {
   const [rows, setRows] = useState<StateThresholdLimit[]>([]);
-  // "state" = choosing a state for the new entry row (List of States open)
-  // "limit" = editing the limit of rows[activeLimitRow]
-  const [phase, setPhase] = useState<'state' | 'limit'>('state');
-  const [activeLimitRow, setActiveLimitRow] = useState(0);
+  // rowIndex spans 0..rows.length; rows.length is the trailing new-entry row.
+  const [rowIndex, setRowIndex] = useState(0);
+  // "state" = choosing/keeping this row's state (List of States open)
+  // "limit" = editing this row's limit
+  const [cell, setCell] = useState<'state' | 'limit'>('state');
   const [listSelectedIndex, setListSelectedIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const limitRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Build the List of States: "Any" (unless taken), then End of List, then unused states.
-  const usedStates = new Set(rows.map((r) => r.stateName));
-  const listOptions: string[] = [
-    ...(usedStates.has('Any') ? [] : ['Any']),
-    END_OF_LIST,
-    ...TALLY_INDIAN_STATES.filter((s) => !usedStates.has(s)),
-  ];
+  const onNewRow = rowIndex === rows.length;
+  const listOptions = stateListFor(rows, rowIndex);
+  const previewState = cell === 'state' ? (listOptions[listSelectedIndex] ?? '') : '';
 
   // ── Init ────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isOpen) {
-      setRows(initialLimits && initialLimits.length > 0 ? [...initialLimits] : []);
-      setPhase('state');
-      setActiveLimitRow(0);
-      setListSelectedIndex(0);
-      setTimeout(() => containerRef.current?.focus(), 50);
-    }
+    if (!isOpen) return;
+    const initial = initialLimits && initialLimits.length > 0 ? [...initialLimits] : [];
+    setRows(initial);
+    setRowIndex(0); // first existing row, or the new-entry row when empty
+    setCell('state');
+    setListSelectedIndex(highlightFor(initial, 0, stateListFor(initial, 0)));
+    setTimeout(() => containerRef.current?.focus(), 50);
   }, [isOpen, initialLimits]);
 
   // ── Focus the limit input when editing a limit ───────────────────────────────
   useEffect(() => {
-    if (phase === 'limit') {
-      setTimeout(() => limitRefs.current[activeLimitRow]?.focus(), 20);
+    if (cell === 'limit') {
+      setTimeout(() => limitRefs.current[rowIndex]?.focus(), 20);
     }
-  }, [phase, activeLimitRow]);
+  }, [cell, rowIndex]);
 
-  // ── Actions ──────────────────────────────────────────────────────────────────
+  // ── Navigation ────────────────────────────────────────────────────────────────
   const handleSave = () => {
     onSave(rows);
     onClose();
   };
 
-  const addState = (stateName: string) => {
-    const newIndex = rows.length;
-    setRows((prev) => [...prev, { stateName, limit: DEFAULT_LIMIT }]);
-    setActiveLimitRow(newIndex);
-    setPhase('limit');
+  const goToStateCell = (r: number, rowsArr: StateThresholdLimit[] = rows) => {
+    setRowIndex(r);
+    setCell('state');
+    setListSelectedIndex(highlightFor(rowsArr, r, stateListFor(rowsArr, r)));
+    setTimeout(() => containerRef.current?.focus(), 20);
+  };
+
+  const goToLimitCell = (r: number) => {
+    setRowIndex(r);
+    setCell('limit');
   };
 
   const selectFromList = (value: string) => {
@@ -126,15 +158,22 @@ export default function StateWiseThresholdLimitModal({
       handleSave();
       return;
     }
-    if (usedStates.has(value)) return; // guard — shouldn't be offered
-    addState(value);
+    if (onNewRow) {
+      // Append a new state row and drop into its limit.
+      setRows((prev) => [...prev, { stateName: value, limit: defaultLimit }]);
+      goToLimitCell(rowIndex);
+    } else {
+      // Change the existing row's state (keeps it if the same value), then limit.
+      setRows((prev) =>
+        prev.map((row, i) => (i === rowIndex ? { ...row, stateName: value } : row)),
+      );
+      goToLimitCell(rowIndex);
+    }
   };
 
   const confirmLimit = () => {
-    // Limit is already bound via onChange; just return to state entry.
-    setPhase('state');
-    setListSelectedIndex(0);
-    setTimeout(() => containerRef.current?.focus(), 20);
+    // Move forward to the next row's State cell (an existing row or the new one).
+    goToStateCell(rowIndex + 1);
   };
 
   const updateLimit = (index: number, raw: string) => {
@@ -153,12 +192,9 @@ export default function StateWiseThresholdLimitModal({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        // Escape keeps the confirmed rows and returns (nothing to discard —
-        // the new entry row isn't committed until a state is chosen).
         handleSave();
         return;
       }
-
       // Ctrl+A / Alt+A — accept the whole list
       if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
@@ -166,7 +202,7 @@ export default function StateWiseThresholdLimitModal({
         return;
       }
 
-      if (phase === 'state') {
+      if (cell === 'state') {
         if (e.key === 'ArrowDown') {
           e.preventDefault();
           setListSelectedIndex((p) => (p + 1) % listOptions.length);
@@ -180,7 +216,7 @@ export default function StateWiseThresholdLimitModal({
         return;
       }
 
-      if (phase === 'limit') {
+      if (cell === 'limit') {
         if (e.key === 'Enter' || e.key === 'Tab') {
           e.preventDefault();
           confirmLimit();
@@ -190,7 +226,7 @@ export default function StateWiseThresholdLimitModal({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, phase, listOptions, listSelectedIndex, activeLimitRow, rows]);
+  }, [isOpen, cell, rowIndex, rows, listOptions, listSelectedIndex, defaultLimit]);
 
   if (!isOpen) return null;
 
@@ -198,8 +234,6 @@ export default function StateWiseThresholdLimitModal({
   const thCell = 'px-3 py-1 text-left font-bold text-[10px] text-zinc-800 border-b border-zinc-400';
   const tdBase = 'px-3 py-0.5 border-b border-zinc-200 text-[11px] font-mono';
   const highlight = 'bg-white text-black font-bold';
-
-  const previewState = phase === 'state' ? listOptions[listSelectedIndex] : '';
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[10500] flex items-center justify-center font-mono text-[11px] text-zinc-950">
@@ -231,10 +265,16 @@ export default function StateWiseThresholdLimitModal({
               </thead>
               <tbody>
                 {rows.map((row, i) => {
-                  const isLimitActive = phase === 'limit' && activeLimitRow === i;
+                  const stateActive = cell === 'state' && rowIndex === i;
+                  const isLimitActive = cell === 'limit' && rowIndex === i;
                   return (
-                    <tr key={row.stateName}>
-                      <td className={`${tdBase}`}>{row.stateName}</td>
+                    <tr key={i}>
+                      <td
+                        className={`${tdBase} ${stateActive ? `${highlight} cursor-default` : 'cursor-pointer'}`}
+                        onClick={() => goToStateCell(i)}
+                      >
+                        {stateActive ? previewState : row.stateName}
+                      </td>
                       <td className={`${tdBase} p-0 text-right ${isLimitActive ? highlight : ''}`}>
                         <input
                           ref={(el) => {
@@ -243,10 +283,7 @@ export default function StateWiseThresholdLimitModal({
                           type="text"
                           value={row.limit.toLocaleString('en-IN')}
                           onChange={(e) => updateLimit(i, e.target.value)}
-                          onFocus={() => {
-                            setPhase('limit');
-                            setActiveLimitRow(i);
-                          }}
+                          onFocus={() => goToLimitCell(i)}
                           className={`w-full px-3 py-0.5 outline-none bg-transparent text-right font-mono text-[11px] font-bold ${
                             isLimitActive ? 'bg-white text-black font-bold' : 'bg-transparent'
                           }`}
@@ -256,12 +293,12 @@ export default function StateWiseThresholdLimitModal({
                   );
                 })}
 
-                {/* New-entry row — shows the highlighted list option (End of List by default) */}
-                {phase === 'state' && (
+                {/* Trailing new-entry row — shows the highlighted list option. */}
+                {onNewRow && cell === 'state' && (
                   <tr>
                     <td className={`${tdBase} font-bold ${highlight}`}>{previewState}</td>
                     <td className={`${tdBase} text-right text-zinc-400`}>
-                      {previewState === END_OF_LIST ? '' : DEFAULT_LIMIT.toLocaleString('en-IN')}
+                      {previewState === END_OF_LIST ? '' : defaultLimit.toLocaleString('en-IN')}
                     </td>
                   </tr>
                 )}
@@ -273,7 +310,8 @@ export default function StateWiseThresholdLimitModal({
           <div className="px-4 py-2 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center font-sans text-[10px] text-zinc-500 shrink-0">
             <div className="flex gap-3">
               <span>
-                <span className="underline font-bold text-zinc-700">Enter</span>: add / accept
+                <span className="underline font-bold text-zinc-700">Enter</span>: keep / change /
+                add
               </span>
               <span className="text-zinc-400">End of List: done</span>
             </div>
@@ -286,8 +324,8 @@ export default function StateWiseThresholdLimitModal({
           </div>
         </div>
 
-        {/* ── Right-side List of States panel ──────────────────────────────── */}
-        {phase === 'state' && (
+        {/* ── Right-side List of States panel (only while on a State cell) ──── */}
+        {cell === 'state' && (
           <GSTDetailsListPanel
             title="List of States"
             options={listOptions}

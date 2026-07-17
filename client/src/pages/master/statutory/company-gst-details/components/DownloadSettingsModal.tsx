@@ -20,6 +20,8 @@ interface DownloadSettingsModalProps {
   onClose: () => void;
 }
 
+type Field = 'gstRegistration' | 'returnType';
+
 const ALL_REGISTRATIONS = 'All Registrations';
 const ALL_RETURNS = 'All Returns';
 const RETURN_TYPES = ['GSTR-1', 'GSTR-2A', 'GSTR-2B', 'GSTR-3B'];
@@ -33,6 +35,36 @@ const splitValues = (raw: string): string[] =>
         .filter(Boolean)
     : [];
 
+const allSentinel = (field: Field) =>
+  field === 'gstRegistration' ? ALL_REGISTRATIONS : ALL_RETURNS;
+
+// Options offered for a field's row `r`, TallyPrime multi-select style:
+//  • The "All …" shortcut is ALWAYS offered (it is a unique member, not filtered).
+//  • Specific items already chosen on OTHER rows are hidden — no repetition.
+//  • The row's own current value stays selectable so it can be kept/changed.
+//  • The trailing new-entry row leads with "End of List" (finish); other rows
+//    put "All …" first and "End of List" last.
+const buildOptions = (field: Field, selections: string[], r: number, items: string[]): string[] => {
+  const allVal = allSentinel(field);
+  const usedByOthers = new Set(selections.filter((_, i) => i !== r));
+  const availableItems = items.filter((it) => !usedByOthers.has(it));
+  const onNew = r === selections.length;
+  if (onNew && selections.length > 0) {
+    return [END_OF_LIST, allVal, ...availableItems];
+  }
+  return [allVal, ...availableItems, END_OF_LIST];
+};
+
+// Where the list cursor lands when entering a row: on its current value (Enter
+// keeps it) for existing rows; on the top option for the new-entry row.
+const highlightIndex = (field: Field, selections: string[], r: number, items: string[]): number => {
+  if (r < selections.length) {
+    const idx = buildOptions(field, selections, r, items).indexOf(selections[r]);
+    return idx >= 0 ? idx : 0;
+  }
+  return 0;
+};
+
 export default function DownloadSettingsModal({
   isOpen,
   registrations,
@@ -41,84 +73,101 @@ export default function DownloadSettingsModal({
   onSave,
   onClose,
 }: DownloadSettingsModalProps) {
-  const [activeField, setActiveField] = useState<'gstRegistration' | 'returnType'>(
-    'gstRegistration',
-  );
-  const [regSelected, setRegSelected] = useState<string[]>([ALL_REGISTRATIONS]);
-  const [returnSelected, setReturnSelected] = useState<string[]>([ALL_RETURNS]);
+  const [activeField, setActiveField] = useState<Field>('gstRegistration');
+  // Committed selections per field — each entry is a specific item or the
+  // "All …" sentinel (a unique member). Empty = the "All …" default.
+  const [regSelections, setRegSelections] = useState<string[]>([]);
+  const [returnSelections, setReturnSelections] = useState<string[]>([]);
+  const [rowIndex, setRowIndex] = useState(0);
   const [listIndex, setListIndex] = useState(0);
 
   // Generate a readable label for each GST Registration
-  const getRegLabel = (r: GSTRegistrationItem) => {
-    if (r.state_id) {
-      return r.state_id.includes('Registration') ? r.state_id : `${r.state_id} Registration`;
+  const getRegLabel = (rr: GSTRegistrationItem) => {
+    if (rr.state_id) {
+      return rr.state_id.includes('Registration') ? rr.state_id : `${rr.state_id} Registration`;
     }
-    return r.gstin ? `GSTIN: ${r.gstin}` : 'Primary Registration';
+    return rr.gstin ? `GSTIN: ${rr.gstin}` : 'Primary Registration';
   };
 
   const regLabels =
     registrations.length > 0 ? registrations.map(getRegLabel) : ['Primary Registration'];
 
-  // Build the dropdown options for the active field, TallyPrime multi-select style:
-  //  • nothing picked yet → the "All …" shortcut first, then every item
-  //  • specific items picked → only the remaining items, led by "End of List" to finish
-  const buildOptions = (specifics: string[], allItems: string[], allOption: string): string[] => {
-    if (specifics.length === 0) return [allOption, ...allItems];
-    return [END_OF_LIST, ...allItems.filter((o) => !specifics.includes(o))];
-  };
+  const itemsFor = (field: Field) => (field === 'gstRegistration' ? regLabels : RETURN_TYPES);
+  const selectionsFor = (field: Field) =>
+    field === 'gstRegistration' ? regSelections : returnSelections;
+  const setSelectionsFor = (field: Field) =>
+    field === 'gstRegistration' ? setRegSelections : setReturnSelections;
 
-  const regSpecifics = regSelected.filter((v) => v !== ALL_REGISTRATIONS);
-  const returnSpecifics = returnSelected.filter((v) => v !== ALL_RETURNS);
-  const activeOptions =
-    activeField === 'gstRegistration'
-      ? buildOptions(regSpecifics, regLabels, ALL_REGISTRATIONS)
-      : buildOptions(returnSpecifics, RETURN_TYPES, ALL_RETURNS);
+  const activeItems = itemsFor(activeField);
+  const activeSelections = selectionsFor(activeField);
+  const onNewRow = rowIndex === activeSelections.length;
+  const activeOptions = buildOptions(activeField, activeSelections, rowIndex, activeItems);
+  const previewValue = activeOptions[listIndex] ?? '';
 
   useEffect(() => {
-    if (isOpen) {
-      const regs = splitValues(initialRegistration);
-      const rets = splitValues(initialReturnType);
-      setRegSelected(regs.length ? regs : [ALL_REGISTRATIONS]);
-      setReturnSelected(rets.length ? rets : [ALL_RETURNS]);
-      setActiveField('gstRegistration');
-      setListIndex(0);
-    }
+    if (!isOpen) return;
+    const regs = splitValues(initialRegistration);
+    const rets = splitValues(initialReturnType);
+    setRegSelections(regs);
+    setReturnSelections(rets);
+    setActiveField('gstRegistration');
+    setRowIndex(0); // first existing registration, or the new-entry row when none
+    setListIndex(highlightIndex('gstRegistration', regs, 0, regLabels));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialRegistration, initialReturnType]);
 
+  // Move the cursor to a field/row and anchor the list on the right option.
+  const goToRow = (field: Field, r: number, sel: string[]) => {
+    setActiveField(field);
+    setRowIndex(r);
+    setListIndex(highlightIndex(field, sel, r, itemsFor(field)));
+  };
+
   // Finalize the current field — move to Return Type, or save + close after it.
-  const advance = (finalReturns: string[]) => {
+  const advanceField = (finalReturns: string[]) => {
     if (activeField === 'gstRegistration') {
-      setActiveField('returnType');
-      setListIndex(0);
+      goToRow('returnType', 0, returnSelections);
     } else {
-      onSave(regSelected.join(', '), finalReturns.join(', '));
+      const regOut = regSelections.length ? regSelections.join(', ') : ALL_REGISTRATIONS;
+      const retOut = finalReturns.length ? finalReturns.join(', ') : ALL_RETURNS;
+      onSave(regOut, retOut);
       onClose();
     }
   };
 
-  // Apply a chosen option to whichever field is active.
+  // Apply a chosen option to the active field/row.
   const pickForField = (opt: string) => {
-    const isReg = activeField === 'gstRegistration';
-    const selected = isReg ? regSelected : returnSelected;
-    const setSelected = isReg ? setRegSelected : setReturnSelected;
-    const allOption = isReg ? ALL_REGISTRATIONS : ALL_RETURNS;
-
     if (opt === END_OF_LIST) {
-      advance(returnSelected);
+      advanceField(activeSelections);
       return;
     }
+    const sel = activeSelections;
+    const existsElsewhere = sel.some((v, i) => v === opt && i !== rowIndex);
 
-    if (opt === allOption) {
-      setSelected([allOption]);
-      advance([allOption]);
-      return;
+    let next: string[];
+    let nextRow: number;
+    if (onNewRow) {
+      // Append — unless it is already selected (e.g. "All …" picked twice).
+      if (existsElsewhere) {
+        next = sel;
+        nextRow = rowIndex;
+      } else {
+        next = [...sel, opt];
+        nextRow = rowIndex + 1;
+      }
+    } else if (existsElsewhere) {
+      // The value already lives on another row → drop this row (no repetition);
+      // its previous value returns to the list.
+      next = sel.filter((_, i) => i !== rowIndex);
+      nextRow = rowIndex;
+    } else {
+      // Change this row's value (previous value returns to the list).
+      next = sel.map((v, i) => (i === rowIndex ? opt : v));
+      nextRow = rowIndex + 1;
     }
 
-    // Specific item — replace the lone "All …" default, then append.
-    const base = selected.length === 1 && selected[0] === allOption ? [] : selected;
-    if (base.includes(opt)) return;
-    setSelected([...base, opt]);
-    setListIndex(0); // re-anchor on "End of List" so Enter finishes the field
+    setSelectionsFor(activeField)(next);
+    goToRow(activeField, nextRow, next);
   };
 
   useEffect(() => {
@@ -140,34 +189,52 @@ export default function DownloadSettingsModal({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, activeField, listIndex, activeOptions, regSelected, returnSelected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activeField, rowIndex, listIndex, activeOptions, regSelections, returnSelections]);
 
   if (!isOpen) return null;
 
-  // Render a field's value: committed picks stacked; when active, an extra cursor slot.
-  const renderFieldValue = (selected: string[], isActive: boolean, allOption: string) => {
-    const specifics = selected.filter((v) => v !== allOption);
+  // Render a field's value: committed picks stacked; the active row shows the
+  // highlighted list preview; a trailing cursor slot appears on the new row.
+  const renderFieldValue = (field: Field) => {
+    const isActive = activeField === field;
+    const selections = selectionsFor(field);
+    const allVal = allSentinel(field);
+
     if (!isActive) {
+      const shown = selections.length ? selections : [allVal];
       return (
         <div className="flex flex-col px-2 py-0.5">
-          {(selected.length ? selected : [allOption]).map((v) => (
-            <div key={v} className="font-bold text-zinc-900 leading-tight">
+          {shown.map((v, i) => (
+            <div key={i} className="font-bold text-zinc-900 leading-tight">
               {v}
             </div>
           ))}
         </div>
       );
     }
+
     return (
       <div className="flex flex-col gap-0.5">
-        {specifics.map((v) => (
-          <div key={v} className="font-bold text-zinc-900 leading-tight px-2">
-            {v}
+        {selections.map((v, i) => {
+          const rowActive = rowIndex === i;
+          return (
+            <div
+              key={i}
+              onClick={() => goToRow(field, i, selections)}
+              className={`px-2 py-0.5 leading-tight font-bold w-fit min-w-[150px] ${
+                rowActive ? 'border bg-white border-black text-black' : 'text-zinc-900'
+              }`}
+            >
+              {rowActive ? previewValue : v}
+            </div>
+          );
+        })}
+        {onNewRow && (
+          <div className="px-2 py-0.5 border bg-white border-black text-black font-bold w-fit min-w-[150px]">
+            {previewValue === END_OF_LIST ? ' ' : previewValue}
           </div>
-        ))}
-        <div className="px-2 py-0.5 border bg-white border-black text-black font-bold w-fit min-w-[150px]">
-          {specifics.length === 0 ? `${allOption}` : ' '}
-        </div>
+        )}
       </div>
     );
   };
@@ -209,17 +276,10 @@ export default function DownloadSettingsModal({
               <span className="text-zinc-700 pt-0.5">GST Registration</span>
               <span className="text-zinc-400 text-center pt-0.5">:</span>
               <div
-                onClick={() => {
-                  setActiveField('gstRegistration');
-                  setListIndex(0);
-                }}
+                onClick={() => goToRow('gstRegistration', 0, regSelections)}
                 className="cursor-pointer select-none"
               >
-                {renderFieldValue(
-                  regSelected,
-                  activeField === 'gstRegistration',
-                  ALL_REGISTRATIONS,
-                )}
+                {renderFieldValue('gstRegistration')}
               </div>
             </div>
 
@@ -231,13 +291,10 @@ export default function DownloadSettingsModal({
               <span className="text-zinc-700 pt-0.5">Return Type</span>
               <span className="text-zinc-400 text-center pt-0.5">:</span>
               <div
-                onClick={() => {
-                  setActiveField('returnType');
-                  setListIndex(0);
-                }}
+                onClick={() => goToRow('returnType', 0, returnSelections)}
                 className="cursor-pointer select-none"
               >
-                {renderFieldValue(returnSelected, activeField === 'returnType', ALL_RETURNS)}
+                {renderFieldValue('returnType')}
               </div>
             </div>
           </div>
@@ -257,7 +314,7 @@ export default function DownloadSettingsModal({
                   index === listIndex ? 'font-bold underline' : ' text-black'
                 }`}
               >
-                {opt === END_OF_LIST ? `${END_OF_LIST}` : opt}
+                {opt}
               </div>
             ))}
           </div>

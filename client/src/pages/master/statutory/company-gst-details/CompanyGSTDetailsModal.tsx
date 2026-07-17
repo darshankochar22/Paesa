@@ -692,6 +692,7 @@ export default function CompanyGSTDetailsModal({
       <StateWiseThresholdLimitModal
         isOpen={showStateWiseModal}
         initialLimits={form.stateWiseLimits || []}
+        defaultLimit={Number(form.interstateThresholdLimit) || 50000}
         onSave={(limits) => {
           setField('stateWiseLimits', limits);
         }}

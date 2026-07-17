@@ -26,7 +26,8 @@ describe('StateWiseThresholdLimitModal (Intrastate e-Way Bill)', () => {
     );
     expect(screen.getByText('Intrastate Threshold Limit for e-Way Bill')).toBeInTheDocument();
     expect(screen.getByText('List of States')).toBeInTheDocument();
-    expect(screen.getByText('Any')).toBeInTheDocument();
+    // "Any" appears both in the list panel and as the highlighted new-entry preview.
+    expect(screen.getAllByText('Any').length).toBeGreaterThan(0);
     expect(screen.getByText('End of List')).toBeInTheDocument();
     expect(screen.getByText('Maharashtra')).toBeInTheDocument();
   });
@@ -56,10 +57,9 @@ describe('StateWiseThresholdLimitModal (Intrastate e-Way Bill)', () => {
         onClose={() => {}}
       />,
     );
-    // Maharashtra already added → appears in the table but not the list panel.
-    // "End of List" is always offered.
+    // Cursor starts on the existing Maharashtra row (re-pickable); "End of List"
+    // is always offered to finish. Picking another state changes the active row.
     expect(screen.getByText('End of List')).toBeInTheDocument();
-    // Selecting another state adds a second row.
     fireEvent.click(screen.getByText('Gujarat'));
     expect(screen.getByText('Gujarat')).toBeInTheDocument();
   });
