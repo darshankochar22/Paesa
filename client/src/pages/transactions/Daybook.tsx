@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCompany } from '../../context/CompanyContext';
 import { PageTitleBar, AlertBanner, RightActionPanel } from '../../components/ui';
@@ -47,6 +47,12 @@ const ALL_VOUCHER_TYPES = [
   'Stock Journal',
 ];
 
+interface LedgerLine {
+  ledger_name: string | null;
+  type: 'Dr' | 'Cr';
+  amount: number;
+}
+
 interface VoucherRow {
   voucher_id: number;
   voucher_type: string;
@@ -63,6 +69,7 @@ interface VoucherRow {
   outwards_qty: number;
   stock_item_name: string | null;
   stock_unit: string | null;
+  entries?: LedgerLine[];
 }
 
 const formatDate = (d: string) => {
@@ -75,23 +82,48 @@ const formatDate = (d: string) => {
 // Shared en-IN formatter (returns "" for 0) — see @/lib/format.
 const formatAmount = (n: number) => fmt(n);
 
+// Voucher types whose "primary" particular ledger sits on the Debit / Credit side.
+// This mirrors TallyPrime's Day Book: Payment shows the expense (Dr) ledger,
+// Receipt shows the party (Cr) ledger, Contra shows the credited ledger, etc.
+const DEBIT_TYPES = new Set(['Sales', 'Debit Note', 'Journal', 'Payment', 'Reversing Journal']);
+const CREDIT_TYPES = new Set(['Purchase', 'Credit Note', 'Receipt', 'Contra', 'Payroll']);
+
+function primarySide(voucherType: string): 'Dr' | 'Cr' {
+  return CREDIT_TYPES.has(voucherType) ? 'Cr' : 'Dr';
+}
+
+// Index of the ledger line Tally shows as the row's "Particulars" — the first
+// entry on the voucher type's primary side, falling back to the first entry.
+function getPrimaryEntryIndex(v: VoucherRow): number {
+  const entries = v.entries || [];
+  if (!entries.length) return -1;
+  const side = primarySide(v.voucher_type);
+  const idx = entries.findIndex((e) => e.type === side);
+  return idx >= 0 ? idx : 0;
+}
+
+function getPrimaryLedgerName(v: VoucherRow): string | null {
+  const pIdx = getPrimaryEntryIndex(v);
+  if (pIdx >= 0) return v.entries![pIdx].ledger_name;
+  return v.party_name || v.ledger_names;
+}
+
 function getAmountDisplay(v: VoucherRow): { debit: number; credit: number } {
+  // Prefer the primary ledger line's own amount (matches Tally — e.g. a
+  // multi-debit Payment shows the first debit's amount, not the voucher total).
+  const pIdx = getPrimaryEntryIndex(v);
+  if (pIdx >= 0) {
+    const e = v.entries![pIdx];
+    const amt = Number(e.amount) || 0;
+    return e.type === 'Dr' ? { debit: amt, credit: 0 } : { debit: 0, credit: amt };
+  }
+
+  // Fallback (attendance rows / vouchers with no ledger lines) — old heuristic.
   const dr = Number(v.debit_amount) || 0;
   const cr = Number(v.credit_amount) || 0;
-  const amount = Math.max(dr, cr); // use the larger side as the display amount
-
-  const DEBIT_TYPES = new Set(['Sales', 'Debit Note', 'Journal', 'Payment', 'Reversing Journal']);
-  const CREDIT_TYPES = new Set(['Purchase', 'Credit Note', 'Receipt', 'Contra', 'Payroll']);
-
-  if (DEBIT_TYPES.has(v.voucher_type)) {
-    return { debit: amount, credit: 0 };
-  }
-  if (CREDIT_TYPES.has(v.voucher_type)) {
-    return { debit: 0, credit: amount };
-  }
-
-  // Inventory / order vouchers and anything else — show the amount on
-  // whichever side the data says is larger (or debit if equal).
+  const amount = Math.max(dr, cr);
+  if (DEBIT_TYPES.has(v.voucher_type)) return { debit: amount, credit: 0 };
+  if (CREDIT_TYPES.has(v.voucher_type)) return { debit: 0, credit: amount };
   if (cr > dr) return { debit: 0, credit: cr };
   return { debit: dr, credit: 0 };
 }
@@ -369,6 +401,8 @@ export default function Daybook() {
   const [showPeriodPopup, setShowPeriodPopup] = useState(false);
   const [showTypePopup, setShowTypePopup] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  // Alt+F1 toggles the detailed view (each voucher's counter ledgers expanded).
+  const [detailed, setDetailed] = useState(false);
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -439,6 +473,10 @@ export default function Daybook() {
         e.preventDefault();
         setShowTypePopup(true);
       }
+      if (e.altKey && e.key === 'F1') {
+        e.preventDefault();
+        setDetailed((d) => !d);
+      }
       if (e.altKey && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault();
         navigate('/transactions/vouchers');
@@ -483,6 +521,11 @@ export default function Daybook() {
       onClick: () => navigate('/transactions/voucher-list'),
     },
     { key: 'B', label: 'Basis of Values', onClick: () => {} },
+    {
+      key: 'Alt+F1',
+      label: detailed ? 'Condensed' : 'Detailed',
+      onClick: () => setDetailed((d) => !d),
+    },
     { key: 'H', label: 'Change View', onClick: () => {} },
     { key: 'J', label: 'Exception Reports', onClick: () => {} },
     { key: 'L', label: 'Save View', onClick: () => {} },
@@ -584,67 +627,95 @@ export default function Daybook() {
                           ? formatAmount(credit)
                           : '';
 
+                    // Detailed (Alt+F1) sub-lines = every ledger line except the
+                    // one shown as the primary Particulars, with its own Dr/Cr amount.
+                    const primaryIdx = getPrimaryEntryIndex(v);
+                    const subLines =
+                      detailed && !isMatIn && !isMatOut
+                        ? (v.entries || []).filter((_, i) => i !== primaryIdx)
+                        : [];
+
                     return (
-                      <TableRow
-                        key={v.voucher_id}
-                        onClick={() => {
-                          setSelectedIndex(idx);
-                          openVoucher(v.voucher_id);
-                        }}
-                        data-state={isSelected ? 'selected' : undefined}
-                        className={cn(
-                          'border-b border-zinc-100 cursor-pointer transition-colors',
-                          isSelected
-                            ? 'bg-blue-50 data-[state=selected]:bg-blue-50'
-                            : 'hover:bg-zinc-50',
-                          v.is_cancelled ? 'opacity-40 line-through' : '',
-                        )}
-                      >
-                        <TableCell className="px-3 py-1.5 text-zinc-600 text-[12px]">
-                          {formatDate(v.date)}
-                        </TableCell>
-
-                        <TableCell className="px-3 py-1.5 font-semibold text-zinc-900 text-[12px]">
-                          {isMatIn || isMatOut
-                            ? v.stock_item_name || v.narration || '—'
-                            : v.party_name || v.ledger_names || v.narration || '—'}
-                        </TableCell>
-
-                        <TableCell
+                      <Fragment key={v.voucher_id}>
+                        <TableRow
+                          onClick={() => {
+                            setSelectedIndex(idx);
+                            openVoucher(v.voucher_id);
+                          }}
+                          data-state={isSelected ? 'selected' : undefined}
                           className={cn(
-                            'px-3 py-1.5 text-right text-[12px]',
-                            isSelected ? 'font-bold text-zinc-900' : 'text-zinc-600',
+                            'border-b border-zinc-100 cursor-pointer transition-colors',
+                            isSelected
+                              ? 'bg-blue-50 data-[state=selected]:bg-blue-50'
+                              : 'hover:bg-zinc-50',
+                            v.is_cancelled ? 'opacity-40 line-through' : '',
                           )}
                         >
-                          {v.voucher_type}
-                        </TableCell>
+                          <TableCell className="px-3 py-1.5 text-zinc-600 text-[12px]">
+                            {formatDate(v.date)}
+                          </TableCell>
 
-                        <TableCell className="px-3 py-1.5 text-right text-zinc-500 text-[12px]">
-                          {v.is_optional
-                            ? `(Optional) ${v.voucher_number || ''}`
-                            : v.voucher_number || '—'}
-                        </TableCell>
+                          <TableCell className="px-3 py-1.5 font-semibold text-zinc-900 text-[12px]">
+                            {isMatIn || isMatOut
+                              ? v.stock_item_name || v.narration || '—'
+                              : getPrimaryLedgerName(v) || v.narration || '—'}
+                          </TableCell>
 
-                        {/* Debit column — amount for Dr-primary types; inwards qty for Material In */}
-                        <TableCell
-                          className={cn(
-                            'px-3 py-1.5 text-right text-[12px]',
-                            debitText ? 'font-bold text-zinc-900' : 'text-zinc-300',
-                          )}
-                        >
-                          {debitText}
-                        </TableCell>
+                          <TableCell
+                            className={cn(
+                              'px-3 py-1.5 text-right text-[12px]',
+                              isSelected ? 'font-bold text-zinc-900' : 'text-zinc-600',
+                            )}
+                          >
+                            {v.voucher_type}
+                          </TableCell>
 
-                        {/* Credit column — amount for Cr-primary types; outwards qty for Material Out */}
-                        <TableCell
-                          className={cn(
-                            'px-3 py-1.5 text-right text-[12px]',
-                            creditText ? 'font-bold text-zinc-900' : 'text-zinc-300',
-                          )}
-                        >
-                          {creditText}
-                        </TableCell>
-                      </TableRow>
+                          <TableCell className="px-3 py-1.5 text-right text-zinc-500 text-[12px]">
+                            {v.is_optional
+                              ? `(Optional) ${v.voucher_number || ''}`
+                              : v.voucher_number || '—'}
+                          </TableCell>
+
+                          {/* Debit column — amount for Dr-primary types; inwards qty for Material In */}
+                          <TableCell
+                            className={cn(
+                              'px-3 py-1.5 text-right text-[12px]',
+                              debitText ? 'font-bold text-zinc-900' : 'text-zinc-300',
+                            )}
+                          >
+                            {debitText}
+                          </TableCell>
+
+                          {/* Credit column — amount for Cr-primary types; outwards qty for Material Out */}
+                          <TableCell
+                            className={cn(
+                              'px-3 py-1.5 text-right text-[12px]',
+                              creditText ? 'font-bold text-zinc-900' : 'text-zinc-300',
+                            )}
+                          >
+                            {creditText}
+                          </TableCell>
+                        </TableRow>
+
+                        {subLines.map((e, i) => (
+                          <TableRow
+                            key={`${v.voucher_id}-sub-${i}`}
+                            className="border-b-0 hover:bg-transparent"
+                          >
+                            <TableCell className="px-3 py-0.5" />
+                            <TableCell className="px-3 py-0.5 text-[12px] text-zinc-600">
+                              <span className="pl-6">{e.ledger_name || '—'}</span>
+                              <span className="float-right pr-2 tabular-nums text-zinc-500">
+                                {formatAmount(Number(e.amount) || 0)} {e.type}
+                              </span>
+                            </TableCell>
+                            <TableCell className="px-3 py-0.5" />
+                            <TableCell className="px-3 py-0.5" />
+                            <TableCell className="px-3 py-0.5" />
+                            <TableCell className="px-3 py-0.5" />
+                          </TableRow>
+                        ))}
+                      </Fragment>
                     );
                   })}
                 </TableBody>

@@ -27,6 +27,95 @@ module.exports = {
       const openingRows = openingResult.rows ?? openingResult;
       const openingBalance = parseFloat(openingRows[0]?.opening) || 0;
 
+      // Group hierarchy so we can roll cash-flow figures up to the PRIMARY
+      // (top-level) group, exactly like TallyPrime's Cash Flow Summary, while
+      // still keeping the sub-group -> ledger breakdown for drill-down.
+      const groupsResult = await rawDb.execute({
+        sql: `SELECT group_id, name, parent_group_id, is_primary FROM "groups" WHERE company_id = ?`,
+        args: [company_id],
+      });
+      const groupRows = groupsResult.rows ?? groupsResult;
+      const groupMeta = {};
+      groupRows.forEach((g) => {
+        groupMeta[g.group_id] = {
+          name: g.name,
+          parent: g.parent_group_id == null ? null : Number(g.parent_group_id),
+          is_primary: Number(g.is_primary) || 0,
+        };
+      });
+
+      // Build one drill-down tree (primary group -> sub-groups -> ledgers) from
+      // a map of ledger-level { inflow, outflow } figures. Amounts roll up the
+      // whole ancestor chain; inflow and outflow are kept SEPARATE (never netted)
+      // so a group like Capital Account can appear on both sides.
+      const buildTree = (ledgerMap) => {
+        const nodes = {};
+        const ensure = (gid) => {
+          if (nodes[gid]) return nodes[gid];
+          const g = groupMeta[gid] || { name: 'Unknown', parent: null, is_primary: 0 };
+          nodes[gid] = {
+            group_id: gid,
+            group_name: g.name,
+            parent_group_id: g.parent,
+            inflow: 0,
+            outflow: 0,
+            childGroupIds: new Set(),
+            ledgers: [],
+          };
+          return nodes[gid];
+        };
+        Object.values(ledgerMap).forEach((l) => {
+          if (!l.group_id) return;
+          ensure(l.group_id).ledgers.push({
+            ledger_id: l.ledger_id,
+            ledger_name: l.ledger_name,
+            inflow: l.inflow,
+            outflow: l.outflow,
+          });
+          let gid = l.group_id;
+          const seen = new Set();
+          while (gid != null && !seen.has(gid)) {
+            seen.add(gid);
+            const node = ensure(gid);
+            node.inflow += l.inflow;
+            node.outflow += l.outflow;
+            const parent = groupMeta[gid] ? groupMeta[gid].parent : null;
+            if (parent != null) ensure(parent).childGroupIds.add(gid);
+            gid = parent;
+          }
+        });
+        const serialize = (gid) => {
+          const n = nodes[gid];
+          const childGroups = [...n.childGroupIds]
+            .map(serialize)
+            .filter((c) => c.inflow > 0 || c.outflow > 0);
+          const ledgerLeaves = n.ledgers
+            .filter((l) => l.inflow > 0 || l.outflow > 0)
+            .map((l) => ({
+              type: 'ledger',
+              id: `l-${l.ledger_id}`,
+              ledger_id: l.ledger_id,
+              name: l.ledger_name,
+              inflow: l.inflow,
+              outflow: l.outflow,
+              children: [],
+            }));
+          return {
+            type: 'group',
+            id: `g-${n.group_id}`,
+            group_id: n.group_id,
+            name: n.group_name,
+            inflow: n.inflow,
+            outflow: n.outflow,
+            children: [...childGroups, ...ledgerLeaves],
+          };
+        };
+        return Object.values(nodes)
+          .filter((n) => n.parent_group_id == null || !groupMeta[n.parent_group_id])
+          .map((n) => serialize(n.group_id))
+          .filter((n) => n.inflow > 0 || n.outflow > 0);
+      };
+
       const result = await rawDb.execute({
         sql: `
           WITH RECURSIVE cash_bank_groups AS (
@@ -58,6 +147,7 @@ module.exports = {
             ve.amount,
             ve.type        AS line_type,
             ve.ledger_name,
+            ve.ledger_id,
             l.group_id,
             g.name         AS group_name,
             CASE WHEN l.group_id IN (SELECT group_id FROM cash_bank_groups) THEN 1 ELSE 0 END AS is_cash_bank
@@ -104,6 +194,27 @@ module.exports = {
         monthGroupBalances[m] = {};
       });
 
+      // Ledger-level gross inflow/outflow, used to build the primary-group
+      // roll-up trees. Full period + per month.
+      const ledgerFull = {};
+      const ledgerByMonth = {};
+      monthNames.forEach((m) => {
+        ledgerByMonth[m] = {};
+      });
+      const accrueLedger = (map, r, inflow, outflow) => {
+        if (!map[r.ledger_id]) {
+          map[r.ledger_id] = {
+            ledger_id: r.ledger_id,
+            ledger_name: r.ledger_name,
+            group_id: r.group_id,
+            inflow: 0,
+            outflow: 0,
+          };
+        }
+        map[r.ledger_id].inflow += inflow;
+        map[r.ledger_id].outflow += outflow;
+      };
+
       // Group all rows by voucher_id so we can net the cash/bank side of
       // each voucher before touching the monthly totals.
       const byVoucher = {};
@@ -146,6 +257,9 @@ module.exports = {
           const amt = parseFloat(r.amount) || 0;
           if (!r.group_id) return;
           const contrib = r.line_type === 'Cr' ? amt : -amt;
+          // Cr counter line = source of funds (inflow); Dr = use of funds (outflow).
+          const inflow = r.line_type === 'Cr' ? amt : 0;
+          const outflow = r.line_type === 'Dr' ? amt : 0;
 
           // Full-period accumulator
           if (!groupBalances[r.group_id]) {
@@ -163,6 +277,10 @@ module.exports = {
             mgb[r.group_id] = { group_id: r.group_id, group_name: r.group_name, balance: 0 };
           }
           mgb[r.group_id].balance += contrib;
+
+          // Ledger-level gross accumulators for primary-group roll-up trees
+          accrueLedger(ledgerFull, r, inflow, outflow);
+          accrueLedger(ledgerByMonth[rawMonth], r, inflow, outflow);
         });
       });
 
@@ -210,6 +328,13 @@ module.exports = {
 
       const closingBalance = openingBalance + grandTotal.nett_flow;
 
+      // Primary-group roll-up trees (main summary + drill-down), full period and per month
+      const tree = buildTree(ledgerFull);
+      const monthlyTree = {};
+      monthNames.forEach((m) => {
+        monthlyTree[m] = buildTree(ledgerByMonth[m]);
+      });
+
       return {
         success: true,
         months,
@@ -218,6 +343,8 @@ module.exports = {
           outflows,
         },
         monthlySummary,
+        tree,
+        monthlyTree,
         grandTotal,
         openingBalance,
         closingBalance,

@@ -109,6 +109,19 @@ module.exports = {
       const caGroup = allGroups.find((g) => g.name === 'Current Assets' && !g.parent_group_id);
       const clGroup = allGroups.find((g) => g.name === 'Current Liabilities' && !g.parent_group_id);
 
+      // Primary (root) group of any group — the top-level "Capital Account",
+      // "Fixed Assets", etc. Sources/Applications are aggregated at this level.
+      const groupById = new Map();
+      allGroups.forEach((g) => groupById.set(g.group_id, g));
+      const getRoot = (group_id) => {
+        let g = groupById.get(group_id);
+        let guard = 0;
+        while (g && g.parent_group_id && guard++ < 64) {
+          g = groupById.get(g.parent_group_id);
+        }
+        return g || null;
+      };
+
       const ledgerRows = await db.all(
         sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type, l.group_id
             FROM ${ledgers} l
@@ -126,6 +139,11 @@ module.exports = {
         periodExpenses = 0;
       const sources = [];
       const applications = [];
+
+      // Non-current movement, aggregated per primary group. `net` is the raw
+      // Dr-positive balance change (closing − opening) summed over the group's
+      // ledgers; sign is turned into a source/application after the loop.
+      const nonCurrentGroups = new Map();
 
       for (const l of ledgerRows) {
         const cat = classify(l.group_id);
@@ -157,34 +175,31 @@ module.exports = {
         else if (cat === 'Expenses') {
           periodExpenses += change;
         } // expense is Dr movement
-        else if (cat === 'NCA') {
-          if (change > 0)
-            applications.push({
-              particulars: `${l.name} (Increase)`,
-              amount: change,
-              ledger_id: l.ledger_id,
-            });
-          else if (change < 0)
-            sources.push({
-              particulars: `${l.name} (Decrease)`,
-              amount: -change,
-              ledger_id: l.ledger_id,
-            });
-        } else if (cat === 'NCL') {
-          const inc = -change; // liability grew when its (negative) balance fell further
-          if (inc > 0)
-            sources.push({
-              particulars: `${l.name} (Increase)`,
-              amount: inc,
-              ledger_id: l.ledger_id,
-            });
-          else if (inc < 0)
-            applications.push({
-              particulars: `${l.name} (Decrease)`,
-              amount: -inc,
-              ledger_id: l.ledger_id,
-            });
+        else if (cat === 'NCA' || cat === 'NCL') {
+          // Roll into the ledger's primary group; classify the netted total later.
+          const root = getRoot(l.group_id);
+          if (!root) continue;
+          let bucket = nonCurrentGroups.get(root.group_id);
+          if (!bucket) {
+            bucket = { group_id: root.group_id, name: root.name, cat, net: 0 };
+            nonCurrentGroups.set(root.group_id, bucket);
+          }
+          bucket.net += change;
         }
+      }
+
+      // Emit one Source/Application row per primary group from its netted change.
+      //   NCA: net increase → application, net decrease → source
+      //   NCL: net increase (balance fell) → source, net decrease → application
+      const nonCurrentRows = [...nonCurrentGroups.values()].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+      for (const b of nonCurrentRows) {
+        const signed = b.cat === 'NCA' ? b.net : -b.net; // Dr-positive → liability increase
+        if (Math.abs(signed) < 0.005) continue;
+        const row = { particulars: b.name, amount: Math.abs(signed), group_id: b.group_id };
+        if (b.cat === 'NCA') (signed > 0 ? applications : sources).push(row);
+        else (signed > 0 ? sources : applications).push(row);
       }
 
       // Closing stock is an inventory valuation, not a ledger balance. The P&L
@@ -210,9 +225,9 @@ module.exports = {
       // No backing ledger_id: the client routes these rows to the P&L.
       const fundsFromOperations = periodIncome - periodExpenses + stockAdj;
       if (fundsFromOperations > 0)
-        sources.unshift({ particulars: 'Nett Profit', amount: fundsFromOperations });
+        sources.push({ particulars: 'Nett Profit', amount: fundsFromOperations });
       else if (fundsFromOperations < 0)
-        applications.unshift({ particulars: 'Nett Loss', amount: -fundsFromOperations });
+        applications.push({ particulars: 'Nett Loss', amount: -fundsFromOperations });
 
       const totalSources = sources.reduce((s, r) => s + r.amount, 0);
       const totalApplications = applications.reduce((s, r) => s + r.amount, 0);

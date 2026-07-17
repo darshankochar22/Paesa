@@ -359,8 +359,40 @@ module.exports = {
       ORDER BY v.date ASC, v.voucher_id ASC`,
       );
 
+      // Attach the full Dr/Cr ledger lines to each voucher so the UI can render
+      // the correct "primary" particular ledger per voucher type and the
+      // detailed (Alt+F1) breakdown of counter ledgers.
+      const voucherIds = rows.map((r) => r.voucher_id).filter((id) => id != null);
+      const entriesByVoucher = {};
+      if (voucherIds.length) {
+        const entryRows = await db.all(
+          sql`SELECT e.voucher_id AS voucher_id, e.entry_id AS entry_id, e.type AS type, e.amount AS amount,
+                COALESCE(e.ledger_name, l.name) AS ledger_name
+              FROM ${voucherEntries} e
+              LEFT JOIN ${ledgers} l ON l.ledger_id = e.ledger_id
+              WHERE e.voucher_id IN (${sql.join(
+                voucherIds.map((id) => sql`${id}`),
+                sql`, `,
+              )})
+              ORDER BY e.voucher_id ASC, e.entry_id ASC`,
+        );
+        for (const er of entryRows) {
+          (entriesByVoucher[er.voucher_id] ||= []).push({
+            ledger_name: er.ledger_name,
+            type: er.type,
+            amount: Number(er.amount) || 0,
+          });
+        }
+      }
+      for (const r of rows) {
+        r.entries = entriesByVoucher[r.voucher_id] || [];
+      }
+
       // Attendance vouchers live in their own table — merge them in (date-filtered).
       const attMapped = await fetchAttendanceVoucherRows(company_id, fy_id, from, to);
+      for (const a of attMapped) {
+        if (!a.entries) a.entries = [];
+      }
       const merged = [...rows, ...attMapped].sort((a, b) =>
         String(a.date).localeCompare(String(b.date)),
       );

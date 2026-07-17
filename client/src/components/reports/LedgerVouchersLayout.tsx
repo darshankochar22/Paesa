@@ -2,10 +2,17 @@ import * as React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 
+interface LedgerDetail {
+  ledger_name: string;
+  amount: number;
+  type: 'Dr' | 'Cr';
+}
+
 interface LedgerRow {
   voucher_id: number;
   date: string;
   particulars: string;
+  details?: LedgerDetail[] | null;
   voucher_type: string;
   voucher_number: string;
   debit: number;
@@ -237,37 +244,74 @@ export default function LedgerVouchersLayout({ fromDate, toDate }: LedgerVoucher
             ) : (
               data.rows.map((row, idx) => {
                 const isFocused = idx === focusedIndex;
+                const hasDetails = !!row.details && row.details.length > 0;
                 return (
-                  <tr
-                    key={idx}
-                    className={`border-b border-gray-200 cursor-pointer transition-colors ${
-                      isFocused
-                        ? 'bg-black/[0.06] text-black font-bold'
-                        : 'hover:bg-black/[0.03] text-black'
-                    }`}
-                    onClick={() => {
-                      setFocusedIndex(idx);
-                      handleRowClick(row);
-                    }}
-                  >
-                    <td className="px-4 py-1.5 text-left whitespace-nowrap">
-                      {formatDate(row.date)}
-                    </td>
-                    <td className="px-4 py-1.5 text-left truncate max-w-xs" title={row.particulars}>
-                      {row.particulars || '—'}
-                    </td>
-                    <td className="px-4 py-1.5 text-left">{row.voucher_type}</td>
-                    <td className="px-4 py-1.5 text-right">{row.voucher_number || '—'}</td>
-                    <td className="px-4 py-1.5 text-right font-mono">
-                      {row.debit !== 0 ? fmt(row.debit) : ''}
-                    </td>
-                    <td className="px-4 py-1.5 text-right font-mono">
-                      {row.credit !== 0 ? fmt(row.credit) : ''}
-                    </td>
-                    <td className="px-4 py-1.5 text-right whitespace-nowrap font-mono">
-                      {formatBalance(row.balance)}
-                    </td>
-                  </tr>
+                  <React.Fragment key={idx}>
+                    <tr
+                      className={`border-b border-gray-200 cursor-pointer transition-colors ${
+                        isFocused
+                          ? 'bg-black/[0.06] text-black font-bold'
+                          : 'hover:bg-black/[0.03] text-black'
+                      }`}
+                      onClick={() => {
+                        setFocusedIndex(idx);
+                        handleRowClick(row);
+                      }}
+                    >
+                      <td className="px-4 py-1.5 text-left whitespace-nowrap align-top">
+                        {formatDate(row.date)}
+                      </td>
+                      <td
+                        className={`px-4 py-1.5 text-left align-top ${hasDetails ? 'italic' : 'truncate max-w-xs'}`}
+                        title={row.particulars}
+                      >
+                        {row.particulars || '—'}
+                      </td>
+                      <td className="px-4 py-1.5 text-left align-top">{row.voucher_type}</td>
+                      <td className="px-4 py-1.5 text-right align-top">
+                        {row.voucher_number || '—'}
+                      </td>
+                      <td className="px-4 py-1.5 text-right font-mono align-top">
+                        {row.debit !== 0 ? fmt(row.debit) : ''}
+                      </td>
+                      <td className="px-4 py-1.5 text-right font-mono align-top">
+                        {row.credit !== 0 ? fmt(row.credit) : ''}
+                      </td>
+                      <td className="px-4 py-1.5 text-right whitespace-nowrap font-mono align-top">
+                        {formatBalance(row.balance)}
+                      </td>
+                    </tr>
+                    {hasDetails &&
+                      row.details!.map((d, dIdx) => (
+                        <tr
+                          key={`${idx}-d-${dIdx}`}
+                          className={`cursor-pointer transition-colors ${
+                            isFocused
+                              ? 'bg-black/[0.06] text-black'
+                              : 'hover:bg-black/[0.03] text-black'
+                          }`}
+                          onClick={() => {
+                            setFocusedIndex(idx);
+                            handleRowClick(row);
+                          }}
+                        >
+                          <td />
+                          <td className="px-4 py-0.5 text-left">
+                            <div className="flex justify-between gap-4">
+                              <span className="pl-6">{d.ledger_name}</span>
+                              <span className="font-mono whitespace-nowrap pr-2">
+                                {fmtTotal(d.amount)} {d.type}
+                              </span>
+                            </div>
+                          </td>
+                          <td />
+                          <td />
+                          <td />
+                          <td />
+                          <td />
+                        </tr>
+                      ))}
+                  </React.Fragment>
                 );
               })
             )}

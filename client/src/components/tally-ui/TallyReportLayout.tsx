@@ -76,8 +76,10 @@ export function TallyReportLayout({
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-auto bg-white">{children}</div>
+      {/* Main Content Area — flex column so children using h-full/flex-1 fill the
+          full height (needed to pin report footers to the bottom). Flex items keep
+          min-height:auto, so content-sized children still overflow-scroll normally. */}
+      <div className="flex-1 min-h-0 overflow-auto bg-white flex flex-col">{children}</div>
     </div>
   );
 }

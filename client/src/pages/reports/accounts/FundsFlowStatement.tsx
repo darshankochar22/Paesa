@@ -19,6 +19,7 @@ interface SourceAppItem {
   particulars: string;
   amount: number;
   ledger_id?: number;
+  group_id?: number;
 }
 
 interface DetailData {
@@ -202,10 +203,16 @@ export default function FundsFlowStatement() {
   // derived "Funds from/Lost in Operations" rows.
   const handleLineDrilldown = useCallback(
     (item: SourceAppItem) => {
+      // Primary-group row (Capital Account, Fixed Assets, …) → open the group.
+      if (item.group_id) {
+        navigate(`/reports/accounts/group-funds-flow/${item.group_id}?root=1`);
+        return;
+      }
       if (item.ledger_id) {
         navigate(`/reports/accounts/ledger-summary/${item.ledger_id}`);
         return;
       }
+      // Nett Profit / Nett Loss (operations) → the period P&L.
       if (!selectedMonth) return;
       navigate(
         `/reports/accounts/profit-loss?from_date=${selectedMonth.startDate}&to_date=${selectedMonth.endDate}`,
@@ -233,12 +240,17 @@ export default function FundsFlowStatement() {
       }
       if (e.key === 'Enter') {
         e.preventDefault();
-        handleRowAction(focusedIndex);
+        if (viewMode === 'monthly') {
+          handleRowAction(focusedIndex);
+        } else if (detailData) {
+          const item = [...detailData.sources, ...detailData.applications][focusedIndex];
+          if (item) handleLineDrilldown(item);
+        }
       }
     };
     window.addEventListener('keydown', handleKeys);
     return () => window.removeEventListener('keydown', handleKeys);
-  }, [viewMode, monthlyData, focusedIndex, handleRowAction]);
+  }, [viewMode, monthlyData, detailData, focusedIndex, handleRowAction, handleLineDrilldown]);
 
   // Detail view is a drill level on the escape stack: Escape pops back to
   // monthly first; at monthly the TallyReportLayout entry underneath quits.
@@ -450,6 +462,91 @@ export default function FundsFlowStatement() {
 
   const companyName = selectedCompany?.name || 'No Company';
 
+  // One Sources/Applications column of the T-format. Rows scroll; the Total is
+  // pinned to the bottom so both columns' totals line up regardless of length.
+  const renderTColumn = (dd: DetailData, side: 'sources' | 'applications', indexOffset: number) => {
+    const items = side === 'sources' ? dd.sources : dd.applications;
+    const balancing =
+      side === 'applications' && dd.workingCapitalChange > 0
+        ? { label: 'Net Increase in Working Capital', amount: dd.workingCapitalChange }
+        : side === 'sources' && dd.workingCapitalChange < 0
+          ? { label: 'Net Decrease in Working Capital', amount: Math.abs(dd.workingCapitalChange) }
+          : null;
+    const total = Math.max(dd.totalSources, dd.totalApplications);
+
+    return (
+      <div
+        className={cn(
+          'flex-1 flex flex-col min-h-0',
+          side === 'sources' && 'border-r border-gray-200',
+        )}
+      >
+        <div className="flex-grow overflow-auto min-h-0">
+          <table className="w-full table-fixed border-collapse font-mono text-[11px] text-black">
+            <thead className="bg-white sticky top-0 border-b border-gray-200 z-10">
+              <tr>
+                <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
+                <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it, i) => {
+                const rowIndex = indexOffset + i;
+                const isFocused = rowIndex === focusedIndex;
+                return (
+                  <tr
+                    key={i}
+                    onClick={() => {
+                      setFocusedIndex(rowIndex);
+                      handleLineDrilldown(it);
+                    }}
+                    title={
+                      it.group_id
+                        ? `Open ${it.particulars}`
+                        : it.ledger_id
+                          ? `View ledger: ${it.particulars}`
+                          : 'View Profit & Loss for this period'
+                    }
+                    className={cn(
+                      'border-b border-gray-200 cursor-pointer transition-colors',
+                      isFocused ? 'bg-black/20 font-bold' : 'hover:bg-black/[0.03]',
+                    )}
+                  >
+                    <td className="px-3 py-1.5 pl-5 truncate">{it.particulars}</td>
+                    <td className="px-3 py-1.5 text-right w-32">{fmt(it.amount)}</td>
+                  </tr>
+                );
+              })}
+              {balancing && (
+                <tr className="border-b border-gray-200">
+                  <td className="px-3 py-1.5 pl-5 font-semibold">{balancing.label}</td>
+                  <td className="px-3 py-1.5 text-right font-semibold w-32">
+                    {fmt(balancing.amount)}
+                  </td>
+                </tr>
+              )}
+              {items.length === 0 && !balancing && (
+                <tr>
+                  <td colSpan={2} className="px-3 py-4 text-black italic text-center">
+                    No {side}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <table className="w-full table-fixed border-collapse font-mono text-[11px] text-black shrink-0">
+          <tbody>
+            <tr className="border-t-2 border-black font-bold">
+              <td className="px-3 py-2 uppercase tracking-wide">Total</td>
+              <td className="px-3 py-2 text-right w-32">{fmt(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <TallyReportLayout
@@ -603,137 +700,32 @@ export default function FundsFlowStatement() {
           ) : (
             /* ──────────────── DETAIL / T-FORMAT VIEW ──────────────── */
             detailData && (
-              <div className="flex-grow overflow-auto min-h-0 flex flex-col">
+              <div className="flex-grow min-h-0 flex flex-col overflow-hidden">
                 {/* Company name + period sub-header */}
-                <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10 font-mono text-[11px]">
-                  <div className="flex-1 px-3 py-1.5 border-r border-gray-200">
+                <div className="flex border-b border-gray-200 bg-white shrink-0 font-mono text-[11px]">
+                  <div className="flex-1 px-3 py-1.5 border-r border-gray-200 flex items-baseline gap-2 min-w-0">
                     <span className="font-bold text-black">Sources</span>
-                    <span className="ml-3 text-black">{companyName}</span>
-                    <span className="ml-2 text-black text-[10px]">{detailPeriodLabel}</span>
+                    <span className="text-black text-[10px] truncate">{companyName}</span>
+                    <span className="text-black text-[10px] whitespace-nowrap">
+                      {detailPeriodLabel}
+                    </span>
                   </div>
-                  <div className="flex-1 px-3 py-1.5">
+                  <div className="flex-1 px-3 py-1.5 flex items-baseline gap-2 min-w-0">
                     <span className="font-bold text-black">Applications</span>
-                    <span className="ml-3 text-black">{companyName}</span>
-                    <span className="ml-2 text-black text-[10px]">{detailPeriodLabel}</span>
+                    <span className="text-black text-[10px] truncate">{companyName}</span>
+                    <span className="text-black text-[10px] whitespace-nowrap">
+                      {detailPeriodLabel}
+                    </span>
                   </div>
                 </div>
 
-                {/* Two-column T-format body */}
+                {/* Two-column T-format body — totals pinned to the bottom so both align */}
                 <div className="flex flex-grow min-h-0">
-                  {/* Sources column */}
-                  <div className="flex-1 border-r border-gray-200 flex flex-col">
-                    <table className="w-full border-collapse font-mono text-[11px] text-black">
-                      <thead className="bg-white text-black border-b border-gray-200">
-                        <tr>
-                          <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
-                          <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {detailData.sources.map((s, idx) => (
-                          <tr
-                            key={idx}
-                            onClick={() => handleLineDrilldown(s)}
-                            title={
-                              s.ledger_id
-                                ? `View ledger: ${s.particulars}`
-                                : 'View Profit & Loss for this period'
-                            }
-                            className="border-b border-gray-200 hover:bg-black/[0.03] cursor-pointer transition-colors"
-                          >
-                            <td className="px-3 py-1.5 pl-5">{s.particulars}</td>
-                            <td className="px-3 py-1.5 text-right text-black">{fmt(s.amount)}</td>
-                          </tr>
-                        ))}
-                        {/* Net decrease in working capital is the balancing source. */}
-                        {detailData.workingCapitalChange < 0 && (
-                          <tr className="border-b border-gray-200">
-                            <td className="px-3 py-1.5 pl-5 font-semibold text-black">
-                              Net Decrease in Working Capital
-                            </td>
-                            <td className="px-3 py-1.5 text-right font-semibold text-black">
-                              {fmt(Math.abs(detailData.workingCapitalChange))}
-                            </td>
-                          </tr>
-                        )}
-                        {detailData.sources.length === 0 &&
-                          detailData.workingCapitalChange >= 0 && (
-                            <tr>
-                              <td colSpan={2} className="px-3 py-4 text-black italic text-center">
-                                No sources
-                              </td>
-                            </tr>
-                          )}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t-2 border-black font-bold text-black">
-                          <td className="px-3 py-2 uppercase tracking-wide">Total</td>
-                          <td className="px-3 py-2 text-right">
-                            {fmt(Math.max(detailData.totalSources, detailData.totalApplications))}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-
-                  {/* Applications column */}
-                  <div className="flex-1 flex flex-col">
-                    <table className="w-full border-collapse font-mono text-[11px] text-black">
-                      <thead className="bg-white text-black border-b border-gray-200">
-                        <tr>
-                          <th className="px-3 py-1.5 text-left font-bold">Particulars</th>
-                          <th className="px-3 py-1.5 text-right font-bold w-32">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {detailData.applications.map((a, idx) => (
-                          <tr
-                            key={idx}
-                            onClick={() => handleLineDrilldown(a)}
-                            title={
-                              a.ledger_id
-                                ? `View ledger: ${a.particulars}`
-                                : 'View Profit & Loss for this period'
-                            }
-                            className="border-b border-gray-200 hover:bg-black/[0.03] cursor-pointer transition-colors"
-                          >
-                            <td className="px-3 py-1.5 pl-5">{a.particulars}</td>
-                            <td className="px-3 py-1.5 text-right text-black">{fmt(a.amount)}</td>
-                          </tr>
-                        ))}
-                        {/* Net increase in working capital is the balancing application. */}
-                        {detailData.workingCapitalChange > 0 && (
-                          <tr className="border-b border-gray-200">
-                            <td className="px-3 py-1.5 pl-5 font-semibold text-black">
-                              Net Increase in Working Capital
-                            </td>
-                            <td className="px-3 py-1.5 text-right font-semibold text-black">
-                              {fmt(detailData.workingCapitalChange)}
-                            </td>
-                          </tr>
-                        )}
-                        {detailData.applications.length === 0 &&
-                          detailData.workingCapitalChange <= 0 && (
-                            <tr>
-                              <td colSpan={2} className="px-3 py-4 text-black italic text-center">
-                                No applications
-                              </td>
-                            </tr>
-                          )}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t-2 border-black font-bold text-black">
-                          <td className="px-3 py-2 uppercase tracking-wide">Total</td>
-                          <td className="px-3 py-2 text-right">
-                            {fmt(Math.max(detailData.totalSources, detailData.totalApplications))}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                  {renderTColumn(detailData, 'sources', 0)}
+                  {renderTColumn(detailData, 'applications', detailData.sources.length)}
                 </div>
 
-                {/* Working Capital footer — matching img3 bottom rows */}
+                {/* Working Capital reconciliation footer */}
                 <div className="border-t-2 border-black bg-white shrink-0">
                   <table className="w-full border-collapse font-mono text-[11px] text-black">
                     <thead>
