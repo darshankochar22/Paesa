@@ -15,8 +15,12 @@ interface LedgerListPanelProps {
   onSearchChange: (v: string) => void;
   onSelect: (item: any) => void;
   onClose: () => void;
-  onCreateNew: () => void;
-  createLabel: string;
+  /** Omit for plain option lists (states, address types) that have nothing to create. */
+  onCreateNew?: () => void;
+  createLabel?: string;
+  /** Name of the row to highlight while the search is empty — the field's current
+   *  value, so Enter keeps it instead of grabbing the first row. */
+  initialHighlight?: string;
   /** When provided (stock-item selection), shows an "End of List" row that ends item entry. */
   onEndOfList?: () => void;
   /** Enter while the search is empty → skip selection (e.g. Physical Stock: go to next item). */
@@ -42,6 +46,7 @@ export default function LedgerListPanel({
   onClose,
   onCreateNew,
   createLabel,
+  initialHighlight,
   onEndOfList,
   onEnterEmpty,
   height = 'h-full',
@@ -51,7 +56,6 @@ export default function LedgerListPanel({
   allUnits,
   columns,
 }: LedgerListPanelProps) {
-  const [hi, setHi] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(
@@ -67,22 +71,61 @@ export default function LedgerListPanel({
 
   // "End of List" is a navigable row at hi === -1 (only when the panel has an
   // End-of-List action). Default highlight: End of List when the search is empty
-  // (Tally's ◆ default — a blank Enter finishes); the first match once you type.
+  // (Tally's ◆ default — a blank Enter finishes); the field's current value when
+  // the caller names one; otherwise the first match.
   const hasEndOfList = Boolean(onEndOfList);
+  const resolveHi = () => {
+    if (hasEndOfList && !searchTerm.trim()) return -1;
+    const current =
+      !searchTerm.trim() && initialHighlight
+        ? filtered.findIndex((it) => it.name === initialHighlight)
+        : -1;
+    return current >= 0 ? current : 0;
+  };
+  // Resolved during render, not in an effect: the panel opens with the highlight
+  // already correct, so an Enter arriving right after can never pick row 0 by
+  // mistake (it would silently swap the field's value for the list's first row).
+  const [hi, setHi] = useState(resolveHi);
+
+  // Re-resolve when the search is typed into or the caller's current value moves.
+  const resolveRef = useRef(resolveHi);
+  resolveRef.current = resolveHi;
+  const firstRun = useRef(true);
   useEffect(() => {
-    setHi(hasEndOfList && !searchTerm.trim() ? -1 : 0);
-  }, [searchTerm, hasEndOfList]);
+    if (firstRun.current) {
+      firstRun.current = false;
+      return; // useState already resolved it
+    }
+    setHi(resolveRef.current());
+  }, [searchTerm, hasEndOfList, initialHighlight]);
 
   useEffect(() => {
     const el = listRef.current?.querySelector('[data-hi]') as HTMLElement | null;
     el?.scrollIntoView({ block: 'nearest' });
   }, [hi]);
 
+  // The keystroke that opens this panel (Enter moving into a list-backed field)
+  // keeps bubbling to window, where our listener has just been attached — it
+  // would select whatever row is highlighted before the highlight is even
+  // resolved. Stay deaf until that event is done: the panel only reacts to keys
+  // pressed *after* it is on screen.
+  const armedRef = useRef(false);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      armedRef.current = true;
+    }, 0);
+    return () => {
+      armedRef.current = false;
+      clearTimeout(t);
+    };
+  }, []);
+
   useEffect(() => {
     const last = filtered.length - 1;
     const min = hasEndOfList ? -1 : 0; // -1 = the "End of List" row
     const PAGE = 10; // rows per PgUp/PgDn jump (TallyPrime-style)
     const handler = (e: KeyboardEvent) => {
+      if (!armedRef.current) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
@@ -165,12 +208,14 @@ export default function LedgerListPanel({
         />
       </div>
 
-      <div
-        className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none"
-        onClick={onCreateNew}
-      >
-        {createLabel}
-      </div>
+      {onCreateNew && (
+        <div
+          className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none"
+          onClick={onCreateNew}
+        >
+          {createLabel}
+        </div>
+      )}
 
       {onEndOfList && (
         <div

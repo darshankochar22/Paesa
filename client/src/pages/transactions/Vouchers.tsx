@@ -936,10 +936,7 @@ export default function Vouchers() {
                       // Journal, single or double entry): End of List finishes ledger
                       // entry and moves to Narration. `particular` uniquely identifies
                       // these — trade vouchers use stockItem / additional instead
-                      form.activeField?.type === 'particular' &&
-                        ['Journal', 'Reversing Journal', 'Memorandum'].includes(
-                          effectiveVoucherType,
-                        )
+                      form.activeField?.type === 'particular'
                       ? journalParticularEndOfList
                       : undefined
             }
@@ -977,17 +974,13 @@ export default function Vouchers() {
                           (effectiveVoucherType === 'Stock Journal' ||
                             effectiveVoucherType === 'Manufacturing Journal')
                         ? handleStockJournalItemEndOfList
-                        : // Any accounting voucher's ledger row (single or double entry):
-                          // a blank Enter finishes ledger entry → Narration.
-                          form.activeField?.type === 'particular'
-                          ? journalParticularEndOfList
-                          : // Trade vouchers: a blank Enter on the item field = End of List.
-                            form.activeField?.type === 'stockItem'
-                            ? stockItemEndOfList
-                            : // Blank Enter on a Tax/Ledger row = End of List (finish GST).
-                              form.activeField?.type === 'additional'
-                              ? additionalLedgerEndOfList
-                              : undefined
+                        : // Trade vouchers: a blank Enter on the item field = End of List.
+                          form.activeField?.type === 'stockItem'
+                          ? stockItemEndOfList
+                          : // Blank Enter on a Tax/Ledger row = End of List (finish GST).
+                            form.activeField?.type === 'additional'
+                            ? additionalLedgerEndOfList
+                            : undefined
             }
             stockBalances={form.activeField?.type === 'stockItem' ? form.stockBalances : undefined}
             godownBalances={

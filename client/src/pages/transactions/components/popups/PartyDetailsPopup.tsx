@@ -67,6 +67,15 @@ const NATURE_OF_RETURN_OPTIONS = [
 // Registration types for which a GSTIN does not exist.
 const NO_GSTIN_TYPES = ['Consumer', 'Unregistered'];
 
+const ADDRESS_TYPES = ['Primary', 'Other'];
+
+// Option-list items for the right-side pickers. Built once at module scope so the
+// panel keeps a stable `items` identity across renders (its highlight depends on it).
+const toItems = (names: string[]) => names.map((name) => ({ name }));
+const ADDRESS_TYPE_ITEMS = toItems(ADDRESS_TYPES);
+const STATE_ITEMS = toItems(INDIAN_STATES);
+const GST_TYPE_ITEMS = toItems(GST_REGISTRATION_TYPES);
+
 // 2 digits + 5 letters + 4 digits + letter + alnum + 'Z' + alnum (15 chars).
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
 
@@ -74,6 +83,10 @@ const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
 // (theme substitute for Tally's yellow) + underline. Compact row height.
 const inputCls =
   'flex-1 min-w-0 text-[13px] bg-transparent border-b border-gray-300 px-1 py-0 outline-none focus:bg-gray-200 focus:border-black';
+
+// List-backed field: same chrome as a typed field, but the value only ever comes
+// from the right-side picker that opens on focus.
+const pickerCls = `${inputCls} cursor-pointer caret-transparent`;
 
 const ledgerAddress = (l: any) =>
   [l?.address1, l?.address2, l?.city, l?.pincode].filter(Boolean).join('\n');
@@ -90,6 +103,9 @@ type ColKey =
   | 'gstType'
   | 'gstin'
   | 'addressType';
+type PickSide = 'buyer' | 'consignee';
+/** Fields backed by a right-side list panel. */
+type PickField = 'name' | 'addressType' | 'state' | 'gstType' | 'placeOfSupply';
 interface ColValues {
   name: string;
   mailingName: string;
@@ -106,7 +122,7 @@ function PartyColumn({
   title,
   values,
   onChange,
-  onNameFocus,
+  onPick,
   autoFocusName,
   showAddressType,
 }: {
@@ -114,7 +130,8 @@ function PartyColumn({
   title: string;
   values: ColValues;
   onChange: (key: ColKey, value: string) => void;
-  onNameFocus?: () => void;
+  /** Focusing a list-backed field opens its right-side picker. */
+  onPick: (key: PickField) => void;
   autoFocusName?: boolean;
   showAddressType?: boolean;
 }) {
@@ -126,11 +143,11 @@ function PartyColumn({
         <span className="text-sm text-black shrink-0">:</span>
         <input
           type="text"
-          data-pd-name={side}
+          data-pd-field={`${side}.name`}
           className={inputCls}
           value={values.name}
           onChange={(e) => onChange('name', e.target.value)}
-          onFocus={onNameFocus}
+          onFocus={() => onPick('name')}
           autoFocus={autoFocusName}
         />
       </div>
@@ -139,14 +156,14 @@ function PartyColumn({
         <div className="flex items-center gap-2">
           <span className="w-32 text-sm text-black shrink-0">Address Type</span>
           <span className="text-sm text-black shrink-0">:</span>
-          <select
-            className={inputCls}
+          <input
+            type="text"
+            readOnly
+            data-pd-field={`${side}.addressType`}
+            className={pickerCls}
             value={values.addressType || 'Primary'}
-            onChange={(e) => onChange('addressType', e.target.value)}
-          >
-            <option value="Primary">♦ Primary</option>
-            <option value="Other">Other</option>
-          </select>
+            onFocus={() => onPick('addressType')}
+          />
         </div>
       )}
 
@@ -174,18 +191,14 @@ function PartyColumn({
       <div className="flex items-center gap-2">
         <span className="w-32 text-sm text-black shrink-0">State</span>
         <span className="text-sm text-black shrink-0">:</span>
-        <select
-          className={inputCls}
+        <input
+          type="text"
+          readOnly
+          data-pd-field={`${side}.state`}
+          className={pickerCls}
           value={values.state}
-          onChange={(e) => onChange('state', e.target.value)}
-        >
-          <option value="">Select State</option>
-          {INDIAN_STATES.map((s: string) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+          onFocus={() => onPick('state')}
+        />
       </div>
 
       <div className="flex items-center gap-2">
@@ -217,17 +230,14 @@ function PartyColumn({
       <div className="flex items-center gap-2 pt-2 border-t border-gray-300">
         <span className="w-32 text-sm text-black shrink-0">GST Reg. type</span>
         <span className="text-sm text-black shrink-0">:</span>
-        <select
-          className={inputCls}
+        <input
+          type="text"
+          readOnly
+          data-pd-field={`${side}.gstType`}
+          className={pickerCls}
           value={values.gstType || 'Regular'}
-          onChange={(e) => onChange('gstType', e.target.value)}
-        >
-          {GST_REGISTRATION_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+          onFocus={() => onPick('gstType')}
+        />
       </div>
 
       {showGstin && (
@@ -343,28 +353,42 @@ export default function PartyDetailsPopup({
     consignee_gstin: initialDetails?.consignee_gstin ?? dGstin,
   });
 
-  const [showLedgerPanel, setShowLedgerPanel] = useState(false);
-  const [ledgerSearchTerm, setLedgerSearchTerm] = useState('');
-  // Which side the ledger picker fills when a row is chosen.
-  const [pickerTarget, setPickerTarget] = useState<'buyer' | 'consignee'>('buyer');
+  // Every list-backed field (party, address type, state, GST reg. type, place of
+  // supply) opens the same right-side panel; this says which one is open.
+  const [picker, setPicker] = useState<{ side: PickSide; field: PickField } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
+  // Set while we programmatically restore focus to a field whose list must stay shut.
+  const quietFocusRef = useRef(false);
 
-  // Move keyboard focus to the field right after a side's name input, so closing
-  // the ledger picker hands control back into the form and Enter keeps advancing
-  // (mouse never required). We focus the *next* field, not the name itself —
-  // focusing the name would re-open the picker (its onFocus) and loop.
-  const focusAfterName = (side: 'buyer' | 'consignee') => {
+  // Move keyboard focus to the field right after the one that owns the picker, so
+  // closing the panel hands control back into the form and Enter keeps advancing
+  // (mouse never required). We focus the *next* field, not the field itself —
+  // refocusing it would re-open its picker (onFocus) and loop.
+  const focusAfterField = (side: PickSide, field: PickField) => {
     const root = contentRef.current;
     if (!root) return;
     const fields = Array.from(root.querySelectorAll<HTMLElement>('input, select, textarea')).filter(
       (el) => !(el as HTMLInputElement).disabled && el.offsetParent !== null,
     );
-    const nameEl = root.querySelector<HTMLElement>(`[data-pd-name="${side}"]`);
-    const idx = nameEl ? fields.indexOf(nameEl) : -1;
+    const el = root.querySelector<HTMLElement>(`[data-pd-field="${side}.${field}"]`);
+    const idx = el ? fields.indexOf(el) : -1;
     const next = idx >= 0 ? fields[idx + 1] : undefined;
     if (next) {
       next.focus();
-      if (next.tagName === 'INPUT') (next as HTMLInputElement).select();
+      if (next.tagName === 'INPUT' && !(next as HTMLInputElement).readOnly)
+        (next as HTMLInputElement).select();
+      return;
+    }
+    // Last field in the form (Place of Supply): nothing to advance to, so put
+    // focus back on it — quietly, or its own onFocus would re-open the list we
+    // just closed. Enter there accepts the form (TallyFieldPopup's last-field rule).
+    if (el) {
+      quietFocusRef.current = true;
+      el.focus();
+      setTimeout(() => {
+        quietFocusRef.current = false;
+      }, 0);
     }
   };
 
@@ -435,16 +459,16 @@ export default function PartyDetailsPopup({
       return next;
     });
 
-  const handleLedgerSelect = useCallback(
-    (item: any) => {
-      fillFromLedger(item, pickerTarget);
-      setShowLedgerPanel(false);
-      setLedgerSearchTerm('');
-      // Hand focus back into the form so Enter continues to the next field.
-      setTimeout(() => focusAfterName(pickerTarget), 0);
-    },
-    [pickerTarget],
-  );
+  // Apply the row chosen in whichever picker is open, then hand focus back into
+  // the form so Enter continues to the next field.
+  const handlePickSelect = (item: any) => {
+    if (!picker) return;
+    const { side, field } = picker;
+    if (field === 'name') fillFromLedger(item, side);
+    else if (field === 'placeOfSupply') set('place_of_supply', item.name);
+    else set(side === 'consignee' ? CONSIGNEE_MAP[field] : BUYER_MAP[field], item.name);
+    closePicker();
+  };
 
   // Alt+L — "Fetch Details Using GSTIN/UIN". Autofills the Buyer side from the
   // party ledger master (matched by the typed GSTIN if present, else the selected
@@ -460,44 +484,77 @@ export default function PartyDetailsPopup({
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey && (e.key === 'l' || e.key === 'L')) {
         e.preventDefault();
-        if (!showLedgerPanel) fetchDetails();
+        if (!picker) fetchDetails();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [fetchDetails, showLedgerPanel]);
+  }, [fetchDetails, picker]);
 
-  const openPicker = (target: 'buyer' | 'consignee') => {
-    setPickerTarget(target);
-    setShowLedgerPanel(true);
-    // Seed the search with the side's current name so the list opens with the
-    // CURRENT party highlighted — Enter keeps it (instead of grabbing the first
-    // ledger in the list and wiping the party's fetched details).
-    setLedgerSearchTerm(
-      (target === 'consignee' ? form.consignee_name : form.supplier_name)?.trim() ?? '',
-    );
+  const openPicker = (side: PickSide, field: PickField) => {
+    if (quietFocusRef.current) return;
+    setSearchTerm('');
+    setPicker({ side, field });
   };
 
-  // Close the ledger picker and return focus to the form (Enter keeps flowing).
-  const dismissPicker = () => {
-    setShowLedgerPanel(false);
-    setLedgerSearchTerm('');
-    setTimeout(() => focusAfterName(pickerTarget), 0);
+  // Close the picker and return focus to the form (Enter keeps flowing).
+  const closePicker = () => {
+    const prev = picker;
+    setPicker(null);
+    setSearchTerm('');
+    if (prev) setTimeout(() => focusAfterField(prev.side, prev.field), 0);
   };
 
-  // While the ledger picker is open, Esc / Cancel should close the picker,
-  // not the whole popup (preserves the previous guarded-Escape behavior).
+  // While a picker is open, Esc / Cancel should close the picker, not the whole
+  // popup (preserves the previous guarded-Escape behavior).
   const handleClose = () => {
-    if (showLedgerPanel) {
-      dismissPicker();
-    } else {
-      onClose();
-    }
+    if (picker) closePicker();
+    else onClose();
   };
 
   const handleAccept = () => {
-    if (!showLedgerPanel) handleSave();
+    if (!picker) handleSave();
   };
+
+  // What the open picker shows: its title, rows, and the value to land on.
+  const pickerConfig: {
+    title: string;
+    items: any[];
+    highlight: string;
+    onCreateNew?: () => void;
+    createLabel?: string;
+  } | null = (() => {
+    if (!picker) return null;
+    const { side, field } = picker;
+    const cur = (k: PickField) =>
+      k === 'placeOfSupply'
+        ? (form.place_of_supply ?? '')
+        : ((form[side === 'consignee' ? CONSIGNEE_MAP[k] : BUYER_MAP[k]] as string) ?? '');
+    switch (field) {
+      case 'name':
+        return {
+          title: 'List of Ledger Accounts',
+          items: allLedgers,
+          highlight: cur('name'),
+          onCreateNew: onCreateLedger,
+          createLabel: 'Create',
+        };
+      case 'addressType':
+        return {
+          title: 'List of Address Types',
+          items: ADDRESS_TYPE_ITEMS,
+          highlight: cur('addressType') || 'Primary',
+        };
+      case 'gstType':
+        return {
+          title: 'List of Registration Types',
+          items: GST_TYPE_ITEMS,
+          highlight: cur('gstType') || 'Regular',
+        };
+      default:
+        return { title: 'List of States', items: STATE_ITEMS, highlight: cur(field) };
+    }
+  })();
 
   return (
     <>
@@ -541,7 +598,7 @@ export default function PartyDetailsPopup({
               title={buyerLabel}
               autoFocusName={!natureOfReturnLabel}
               showAddressType
-              onNameFocus={() => openPicker('buyer')}
+              onPick={(k) => openPicker('buyer', k)}
               values={{
                 name: form.supplier_name ?? '',
                 mailingName: form.mailing_name ?? '',
@@ -558,7 +615,7 @@ export default function PartyDetailsPopup({
             <PartyColumn
               side="consignee"
               title="Consignee (Ship to)"
-              onNameFocus={() => openPicker('consignee')}
+              onPick={(k) => openPicker('consignee', k)}
               values={{
                 name: form.consignee_name ?? '',
                 mailingName: form.consignee_mailing_name ?? '',
@@ -577,18 +634,14 @@ export default function PartyDetailsPopup({
           <div className="flex items-center gap-2 pt-3 border-t border-gray-300">
             <span className="w-44 text-sm text-black shrink-0">Place of Supply</span>
             <span className="text-sm text-black shrink-0">:</span>
-            <select
-              className="w-64 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black"
+            <input
+              type="text"
+              readOnly
+              data-pd-field="buyer.placeOfSupply"
+              className="w-64 text-sm bg-white border border-gray-400 px-1 py-0 outline-none focus:border-black cursor-pointer caret-transparent"
               value={form.place_of_supply ?? ''}
-              onChange={(e) => set('place_of_supply', e.target.value)}
-            >
-              <option value="">Select State</option>
-              {INDIAN_STATES.map((s: string) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              onFocus={() => openPicker('buyer', 'placeOfSupply')}
+            />
           </div>
 
           <div className="pt-1 text-[11px] italic text-gray-500">
@@ -597,17 +650,18 @@ export default function PartyDetailsPopup({
         </div>
       </TallyFieldPopup>
 
-      {showLedgerPanel && (
+      {pickerConfig && (
         <div className="fixed inset-y-0 right-0 z-[60] shadow-2xl">
           <LedgerListPanel
-            title="List of Ledger Accounts"
-            items={allLedgers}
-            searchTerm={ledgerSearchTerm}
-            onSearchChange={setLedgerSearchTerm}
-            onSelect={handleLedgerSelect}
-            onClose={dismissPicker}
-            onCreateNew={onCreateLedger}
-            createLabel="Create"
+            title={pickerConfig.title}
+            items={pickerConfig.items}
+            initialHighlight={pickerConfig.highlight}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onSelect={handlePickSelect}
+            onClose={closePicker}
+            onCreateNew={pickerConfig.onCreateNew}
+            createLabel={pickerConfig.createLabel}
             height="h-screen"
           />
         </div>

@@ -304,6 +304,7 @@ import FieldRow from '../components/FieldRow';
 import StockItemDescription from '../components/StockItemDescription';
 import TallyDateInput from '../components/TallyDateInput';
 import AccountingInvoiceBody from '../components/AccountingInvoiceBody';
+import GstEwayBillDetailsPopup from '../components/popups/GstEwayBillDetailsPopup';
 import { gstRowInfo } from '../utils/gstRow';
 import { useCompany } from '../../../context/CompanyContext';
 import { isTaxFeatureEnabled } from '@/lib/taxFeatures';
@@ -755,48 +756,76 @@ export default function PurchaseVoucher({
       </div>
 
       {/* Provide GST/e-Way Bill details */}
-      {gstEnabled && <PurchaseGstEwayRow />}
+      {gstEnabled && <PurchaseGstEwayRow form={form} />}
     </>
   );
 }
 
-function PurchaseGstEwayRow() {
+function PurchaseGstEwayRow({ form }: { form: any }) {
   const [provide, setProvide] = useState<'Yes' | 'No'>('No');
+  const [showPopup, setShowPopup] = useState(false);
   return (
-    <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
-      <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
-      <span className="text-sm text-black">:</span>
-      {/* Keyboard: ←/→ toggle Yes/No; Enter moves to Narration. data-gst-eway is
-          the End-of-List focus target from the Tax/Ledger list. */}
-      <div
-        data-gst-eway
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-            e.preventDefault();
-            setProvide((p) => (p === 'Yes' ? 'No' : 'Yes'));
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            (document.querySelector('[data-narration="true"]') as HTMLElement | null)?.focus();
-          }
-        }}
-        className="flex gap-2 outline-none focus:ring-1 focus:ring-black"
-      >
-        <button
-          type="button"
-          onClick={() => setProvide('Yes')}
-          className={`text-sm px-2 py-0 border ${provide === 'Yes' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
+    <>
+      <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
+        <span className="text-sm text-black">Provide GST/e-Way Bill details</span>
+        <span className="text-sm text-black">:</span>
+        {/* Keyboard: ←/→ toggle Yes/No; Enter on Yes opens the popup, Enter on No
+            moves to Narration (data-gst-eway is the End-of-List focus target). */}
+        <div
+          data-gst-eway
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+              e.preventDefault();
+              setProvide((p) => (p === 'Yes' ? 'No' : 'Yes'));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (provide === 'Yes') {
+                setShowPopup(true);
+              } else {
+                setShowPopup(false);
+                (document.querySelector('[data-narration="true"]') as HTMLElement | null)?.focus();
+              }
+            }
+          }}
+          className="flex gap-2 outline-none focus:ring-1 focus:ring-black"
         >
-          Yes
-        </button>
-        <button
-          type="button"
-          onClick={() => setProvide('No')}
-          className={`text-sm px-2 py-0 border ${provide === 'No' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
-        >
-          No
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setProvide('Yes');
+              setShowPopup(true);
+            }}
+            className={`text-sm px-2 py-0 border ${provide === 'Yes' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setProvide('No');
+              setShowPopup(false);
+            }}
+            className={`text-sm px-2 py-0 border ${provide === 'No' ? 'bg-black text-white border-black' : 'border-gray-400 text-black'}`}
+          >
+            No
+          </button>
+        </div>
       </div>
-    </div>
+
+      {showPopup && (
+        <GstEwayBillDetailsPopup
+          initialDetails={form.gstEwayDetails}
+          onClose={() => {
+            setProvide('No');
+            setShowPopup(false);
+          }}
+          onSave={(details) => {
+            form.setGstEwayDetails({ ...form.gstEwayDetails, ...details });
+            setShowPopup(false);
+          }}
+        />
+      )}
+    </>
   );
 }
